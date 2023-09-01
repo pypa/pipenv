@@ -514,9 +514,23 @@ def parse_pkginfo_file(content: str):
 
 
 def parse_setup_file(content):
+    # A dictionary to store variable names and their values
+    variables = {}
     try:
         tree = ast.parse(content)
         for node in ast.walk(tree):
+            # Extract variable assignments and store them
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        if isinstance(node.value, ast.Str):  # for Python versions < 3.8
+                            variables[target.id] = node.value.s
+                        elif isinstance(node.value, ast.Constant) and isinstance(
+                            node.value.value, str
+                        ):
+                            variables[target.id] = node.value.value
+
+            # Check function calls to extract the 'name' attribute from the setup function
             if isinstance(node, ast.Call):
                 if (
                     getattr(node.func, "id", "") == "setup"
@@ -525,12 +539,20 @@ def parse_setup_file(content):
                 ):
                     for keyword in node.keywords:
                         if keyword.arg == "name":
-                            if isinstance(keyword.value, ast.Str):
+                            # If it's a variable, retrieve its value
+                            if (
+                                isinstance(keyword.value, ast.Name)
+                                and keyword.value.id in variables
+                            ):
+                                return variables[keyword.value.id]
+                            # Otherwise, check if it's directly provided
+                            elif isinstance(keyword.value, ast.Str):
                                 return keyword.value.s
                             elif isinstance(keyword.value, ast.Constant) and isinstance(
                                 keyword.value.value, str
                             ):
                                 return keyword.value.value
+                            # Additional handling for Python versions and specific ways of defining the name
                             elif sys.version_info < (3, 9) and isinstance(
                                 keyword.value, ast.Subscript
                             ):
@@ -546,14 +568,12 @@ def parse_setup_file(content):
                             elif sys.version_info >= (3, 9) and isinstance(
                                 keyword.value, ast.Subscript
                             ):
-                                # If the name is a lookup in a dictionary, only handle the case where it's a static lookup
                                 if (
                                     isinstance(keyword.value.value, ast.Name)
                                     and isinstance(keyword.value.slice, ast.Str)
                                     and keyword.value.value.id == "about"
                                 ):
                                     return keyword.value.slice.s
-
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
 
