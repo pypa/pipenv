@@ -5,7 +5,8 @@ import sys
 from setuptools import setup
 
 if sys.argv[-1] == "publish":
-    os.system("python setup.py sdist bdist_wheel upload")
+    os.system("python -m build")
+    os.system("twine upload dist/*")
     sys.exit()
 
 setup()
