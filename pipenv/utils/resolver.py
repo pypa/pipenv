@@ -245,7 +245,6 @@ class Resolver:
                 resolver.skipped[package_name] = dep
         resolver.initial_constraints = constraints
         resolver.index_lookup = index_lookup
-        resolver.finder.index_lookup = index_lookup
         resolver.markers_lookup = markers_lookup
         return resolver
 
@@ -340,6 +339,7 @@ class Resolver:
         finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
+        finder._link_collector.search_scope.index_restricted = True
         finder._link_collector.search_scope.index_lookup = index_lookup
         return finder
 
@@ -593,7 +593,7 @@ class Resolver:
         reqs = [(ireq,) for ireq in self.resolved_tree]
         results = {}
         for (ireq,) in reqs:
-            if normalize_name(ireq.name) in self.skipped.keys():
+            if normalize_name(ireq.name) in self.skipped:
                 continue
             collected_hashes = self.hashes.get(ireq, set())
             if collected_hashes:

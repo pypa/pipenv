@@ -74,11 +74,10 @@ def test_proper_names_unmanaged_virtualenv(pipenv_instance_pypi):
 
 @pytest.mark.cli
 def test_directory_with_leading_dash(pipenv_instance_pypi):
-    with temp_environ():
-        with pipenv_instance_pypi() as p:
-            c = p.pipenv('run pip freeze')
-            assert c.returncode == 0
-            c = p.pipenv('--venv')
-            assert c.returncode == 0
-            venv_path = c.stdout.strip()
-            assert os.path.isdir(venv_path)
+    with temp_environ(), pipenv_instance_pypi() as p:
+        c = p.pipenv('run pip freeze')
+        assert c.returncode == 0
+        c = p.pipenv('--venv')
+        assert c.returncode == 0
+        venv_path = c.stdout.strip()
+        assert os.path.isdir(venv_path)

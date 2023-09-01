@@ -220,19 +220,18 @@ allow_prereleases = true
 @flaky
 def test_complex_deps_lock_and_install_properly(pipenv_instance_pypi):
     # This uses the real PyPI because Maya has too many dependencies...
-    with pipenv_instance_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            contents = """
+    with pipenv_instance_pypi() as p, open(p.pipfile_path, 'w') as f:
+        contents = """
 [packages]
 maya = "*"
             """.strip()
-            f.write(contents)
+        f.write(contents)
 
-            c = p.pipenv('lock --verbose')
-            assert c.returncode == 0
+        c = p.pipenv('lock --verbose')
+        assert c.returncode == 0
 
-            c = p.pipenv('install')
-            assert c.returncode == 0
+        c = p.pipenv('install')
+        assert c.returncode == 0
 
 
 @pytest.mark.lock
@@ -647,3 +646,31 @@ dataclasses-json = {extras = ["dev"], version = "==0.5.7"}
         assert "dataclasses-json" in p.pipfile["packages"]
         assert "dataclasses-json" in p.lockfile["default"]
         assert p.lockfile["default"]["dataclasses-json"].get("markers", "") is not None
+
+@pytest.mark.index
+@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.skip_lock
+@pytest.mark.needs_internet
+def test_private_index_skip_lock(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv-test-private-package = {version = "*", index = "testpypi"}
+
+[pipenv]
+install_search_all_sources = true
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('install --skip-lock')
+        assert c.returncode == 0

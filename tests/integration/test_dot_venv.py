@@ -50,17 +50,16 @@ def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi
 @pytest.mark.dotvenv
 @pytest.mark.parametrize("true_value", TRUE_VALUES)
 def test_venv_at_project_root(true_value, pipenv_instance_pypi):
-    with temp_environ():
-        with pipenv_instance_pypi() as p:
-            os.environ['PIPENV_VENV_IN_PROJECT'] = true_value
-            c = p.pipenv('install')
-            assert c.returncode == 0
-            assert normalize_drive(p.path) in p.pipenv('--venv').stdout
-            del os.environ['PIPENV_VENV_IN_PROJECT']
-            os.mkdir('subdir')
-            os.chdir('subdir')
-            # should still detect installed
-            assert normalize_drive(p.path) in p.pipenv('--venv').stdout
+    with temp_environ(), pipenv_instance_pypi() as p:
+        os.environ['PIPENV_VENV_IN_PROJECT'] = true_value
+        c = p.pipenv('install')
+        assert c.returncode == 0
+        assert normalize_drive(p.path) in p.pipenv('--venv').stdout
+        del os.environ['PIPENV_VENV_IN_PROJECT']
+        os.mkdir('subdir')
+        os.chdir('subdir')
+        # should still detect installed
+        assert normalize_drive(p.path) in p.pipenv('--venv').stdout
 
 
 @pytest.mark.dotvenv
@@ -136,22 +135,21 @@ def test_empty_venv_file(pipenv_instance_pypi):
 def test_venv_in_project_default_when_venv_exists(pipenv_instance_pypi):
     """Tests virtualenv creation when a .venv file exists at the project root.
     """
-    with temp_environ(), pipenv_instance_pypi() as p:
-        with TemporaryDirectory(
-            prefix='pipenv-', suffix='-test_venv'
-        ) as venv_path:
-            file_path = os.path.join(p.path, '.venv')
-            with open(file_path, 'w') as f:
-                f.write(venv_path)
+    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+        prefix='pipenv-', suffix='-test_venv'
+    ) as venv_path:
+        file_path = os.path.join(p.path, '.venv')
+        with open(file_path, 'w') as f:
+            f.write(venv_path)
 
-            c = p.pipenv('install')
-            assert c.returncode == 0
-            c = p.pipenv('--venv')
-            assert c.returncode == 0
-            venv_loc = Path(c.stdout.strip())
+        c = p.pipenv('install')
+        assert c.returncode == 0
+        c = p.pipenv('--venv')
+        assert c.returncode == 0
+        venv_loc = Path(c.stdout.strip())
 
-            assert venv_loc.joinpath('.project').exists()
-            assert venv_loc == Path(venv_path)
+        assert venv_loc.joinpath('.project').exists()
+        assert venv_loc == Path(venv_path)
 
 
 @pytest.mark.dotenv

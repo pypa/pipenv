@@ -29,6 +29,8 @@ invoke = "==2.0.0"
 exceptiongroup = "==1.1.0"
 tomli = "*"
 pyyaml = "==6.0.1"
+build = "*"
+twine = "*"
 
 [packages]
 pytz = "*"
