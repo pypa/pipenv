@@ -456,7 +456,7 @@ class Resolver:
 
         combined_markers = [
             f"({marker})"
-            for marker in [sys_platform, markers, platform_machine]
+            for marker in (sys_platform, markers, platform_machine)
             if marker
         ]
 
