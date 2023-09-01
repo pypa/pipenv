@@ -338,6 +338,7 @@ class Resolver:
         finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
+        finder._link_collector.search_scope.index_restricted = True
         finder._link_collector.search_scope.index_lookup = index_lookup
         finder._ignore_compatibility = ignore_compatibility
         return finder
@@ -446,9 +447,49 @@ class Resolver:
                 self.resolved_tree.update(self.results)
         return self.resolved_tree
 
+    def _get_pipfile_markers(self, pipfile_entry):
+        sys_platform = pipfile_entry.get("sys_platform")
+        platform_machine = pipfile_entry.get("platform_machine")
+        markers = pipfile_entry.get("markers")
+
+        if sys_platform:
+            sys_platform = f"sys_platform {sys_platform}"
+        if platform_machine:
+            platform_machine = f"platform_machine {platform_machine}"
+
+        combined_markers = [
+            f"({marker})"
+            for marker in (sys_platform, markers, platform_machine)
+            if marker
+        ]
+
+        return " and ".join(combined_markers).strip()
+
+    def _fold_markers(self, dependency_tree, install_req):
+        comes_from = dependency_tree[install_req.name]
+
+        if comes_from == "Pipfile":
+            pipfile_entry = self.pipfile_entries.get(install_req.name)
+            if pipfile_entry and isinstance(pipfile_entry, dict):
+                return self._get_pipfile_markers(pipfile_entry)
+        else:
+            markers = self._fold_markers(dependency_tree, comes_from)
+            if markers:
+                self.markers_lookup[install_req.name] = markers
+            return markers
+
     def resolve_constraints(self):
         from .markers import marker_from_specifier
 
+        # Build mapping of where package originates from
+        comes_from = {}
+        for result in self.resolved_tree:
+            if isinstance(result.comes_from, InstallRequirement):
+                comes_from[result.name] = result.comes_from
+            else:
+                comes_from[result.name] = "Pipfile"
+
+        # Build up the results tree with markers
         new_tree = set()
         for result in self.resolved_tree:
             if result.markers:
@@ -476,6 +517,11 @@ class Resolver:
                                 err=True,
                             )
             new_tree.add(result)
+
+        # Fold markers
+        for result in new_tree:
+            self._fold_markers(comes_from, result)
+
         self.resolved_tree = new_tree
 
     def collect_hashes(self, ireq):
@@ -551,7 +597,7 @@ class Resolver:
         reqs = [(ireq,) for ireq in self.resolved_tree]
         results = {}
         for (ireq,) in reqs:
-            if normalize_name(ireq.name) in self.skipped.keys():
+            if normalize_name(ireq.name) in self.skipped:
                 continue
             collected_hashes = self.hashes.get(ireq, set())
             if collected_hashes:

@@ -1,8 +1,25 @@
+2023.9.1 (2023-09-01)
+=====================
+Pipenv 2023.9.1 (2023-09-01)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Top level Pipfile sys_platform markers should be transitive; adds top level platform_machine entries that are also transitive.   Marker entries continue to operate the same as before.  `#5892 <https://github.com/pypa/pipenv/issues/5892>`_
+
+Bug Fixes
+---------
+
+- Apply patch for install_search_all_sources = True functionality.  `#5895 <https://github.com/pypa/pipenv/issues/5895>`_
+- Relative paths improvements for editable installs.  `#5896 <https://github.com/pypa/pipenv/issues/5896>`_
+- Set log level in resolver to WARN when verbose is not passed.  `#5897 <https://github.com/pypa/pipenv/issues/5897>`_
+- Handle more variations in private index html to improve hash collection.  `#5898 <https://github.com/pypa/pipenv/issues/5898>`_
+
+
 2023.8.28 (2023-08-28)
 ======================
-Pipenv 2023.8.28 (2023-08-28)
-=============================
-
 
 Bug Fixes
 ---------
@@ -14,9 +31,6 @@ Bug Fixes
 
 2023.8.26 (2023-08-26)
 ======================
-Pipenv 2023.8.26 (2023-08-26)
-=============================
-
 
 Bug Fixes
 ---------
@@ -29,9 +43,6 @@ Bug Fixes
 
 2023.8.25 (2023-08-25)
 ======================
-Pipenv 2023.8.25 (2023-08-25)
-=============================
-
 
 Bug Fixes
 ---------
@@ -434,8 +445,8 @@ Vendored Libraries
 
 - Vendor in ``pip==22.3.1`` which is currently the latest version of ``pip``.  `#5520 <https://github.com/pypa/pipenv/issues/5520>`_
 - * Bump version of requirementslib to 2.2.1
-   * Bump version of vistir to 0.7.5
-   * Bump version of colorama to 0.4.6  `#5522 <https://github.com/pypa/pipenv/issues/5522>`_
+  * Bump version of vistir to 0.7.5
+  * Bump version of colorama to 0.4.6  `#5522 <https://github.com/pypa/pipenv/issues/5522>`_
 - Bump plette version to 0.4.4  `#5539 <https://github.com/pypa/pipenv/issues/5539>`_
 
 
@@ -482,9 +493,9 @@ Vendored Libraries
 ------------------
 
 - * Drop unused code from cerberus
-   * Drop unused module wheel  `#5467 <https://github.com/pypa/pipenv/issues/5467>`_
+  * Drop unused module wheel  `#5467 <https://github.com/pypa/pipenv/issues/5467>`_
 - * Replace yaspin spinner with rich spinner.
-   * Bump vistir version to 0.7.4  `#5468 <https://github.com/pypa/pipenv/issues/5468>`_
+  * Bump vistir version to 0.7.4  `#5468 <https://github.com/pypa/pipenv/issues/5468>`_
 - Bump version of requirementslib to 2.2.0
   Drop yaspin which is no longer used.
   Bump vistir to version 0.7.4
@@ -886,11 +897,10 @@ Vendored Libraries
 ------------------
 
 - * Rename patched ``notpip`` to ``pip`` in order to be clear that its a patched version of pip.
-  * Remove the part of _post_pip_import.patch that overrode the standalone pip to be the user installed pip,
-  now we fully rely on our vendored and patched ``pip``, even for all types of installs.
+  * Remove the part of _post_pip_import.patch that overrode the standalone pip to be the user installed pip, now we fully rely on our vendored and patched ``pip``, even for all types of installs.
   * Vendor in the next newest version of ``pip==22.2``
   * Modify patch for ``pipdeptree`` to not use ``pip-shims``  `#5188 <https://github.com/pypa/pipenv/issues/5188>`_
-- * Remove vendored ``urllib3`` in favor of using it from vendored version in ``pip._vendor``  `#5215 <https://github.com/pypa/pipenv/issues/5215>`_
+  * Remove vendored ``urllib3`` in favor of using it from vendored version in ``pip._vendor``  `#5215 <https://github.com/pypa/pipenv/issues/5215>`_
 
 Removals and Deprecations
 -------------------------
@@ -1605,11 +1615,11 @@ Vendored Libraries
 - Update vendored dependencies and invocations
 
   - Update vendored and patched dependencies
-    - Update patches on ``piptools``, ``pip``, ``pip-shims``, ``tomlkit`
+  - Update patches on ``piptools``, ``pip``, ``pip-shims``, ``tomlkit``
   - Fix invocations of dependencies
-    - Fix custom ``InstallCommand` instantiation
-    - Update ``PackageFinder` usage
-    - Fix ``Bool` stringify attempts from ``tomlkit`
+  - Fix custom ``InstallCommand`` instantiation
+  - Update ``PackageFinder`` usage
+  - Fix ``Bool`` stringify attempts from ``tomlkit``
 
   Updated vendored dependencies:
     - **attrs**: ```18.2.0`` => ```19.1.0``
@@ -1992,7 +2002,9 @@ Bug Fixes
     - ``requirementslib 1.1.16 => 1.1.17``
     - ``shellingham 1.2.4 => 1.2.6``
     - ``tomlkit 0.4.2 => 0.4.4``
-    - ``vistir 0.1.4 => 0.1.6``  `#2802 <https://github.com/pypa/pipenv/issues/2802>`_,
+    - ``vistir 0.1.4 => 0.1.6``
+
+  `#2802 <https://github.com/pypa/pipenv/issues/2802>`_,
   `#2867 <https://github.com/pypa/pipenv/issues/2867>`_,
   `#2880 <https://github.com/pypa/pipenv/issues/2880>`_
 
@@ -2046,7 +2058,9 @@ Vendored Libraries
     - ``requirementslib 1.1.16 => 1.1.17``
     - ``shellingham 1.2.4 => 1.2.6``
     - ``tomlkit 0.4.2 => 0.4.4``
-    - ``vistir 0.1.4 => 0.1.6``  `#2902 <https://github.com/pypa/pipenv/issues/2902>`_,
+    - ``vistir 0.1.4 => 0.1.6``
+
+  `#2902 <https://github.com/pypa/pipenv/issues/2902>`_,
   `#2935 <https://github.com/pypa/pipenv/issues/2935>`_
 
 

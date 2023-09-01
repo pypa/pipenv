@@ -395,9 +395,10 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
                 log("Rewriting imports for %s..." % item)
                 rewrite_imports(item, vendored_libs)
             rename_if_needed(ctx, vendor_dir, item)
-        elif item.name not in FILE_WHITE_LIST:
-            if rewrite and not package or (package and item.stem.lower() in package):
-                rewrite_file_imports(item, vendored_libs)
+        elif item.name not in FILE_WHITE_LIST and (
+            rewrite and not package or (package and item.stem.lower() in package)
+        ):
+            rewrite_file_imports(item, vendored_libs)
     if not package:
         apply_patches(ctx, patched=is_patched, pre=False)
         if is_patched:
@@ -793,9 +794,8 @@ def vendor_artifact(ctx, package, version=None):
             dest_dir.mkdir()
         _, _, dest_path = urllib3_parse(link).path.rpartition("/")
         dest_file = dest_dir / dest_path
-        with open(dest_file.as_posix(), "wb") as target_handle:
-            with open_file(link) as fp:
-                if fp is None:
-                    print(f"Error downloading {link}")
-                    continue
-                shutil.copyfileobj(fp, target_handle)
+        with open(dest_file.as_posix(), "wb") as target_handle, open_file(link) as fp:
+            if fp is None:
+                print(f"Error downloading {link}")
+                continue
+            shutil.copyfileobj(fp, target_handle)

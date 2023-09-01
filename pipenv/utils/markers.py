@@ -48,12 +48,14 @@ class PipenvMarkers(BaseModel):
     @classmethod
     def from_pipfile(cls, name, pipfile):
         attr_fields = list(cls.__fields__)
-        found_keys = [k for k in pipfile.keys() if k in attr_fields]
+        found_keys = [k for k in pipfile if k in attr_fields]
         marker_strings = [f"{k} {pipfile[k]}" for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))
         if pipfile.get("sys_platform"):
             marker_strings.append(f"sys_platform '{pipfile['sys_platform']}'")
+        if pipfile.get("platform_machine"):
+            marker_strings.append(f"platform_machine '{pipfile['platform_machine']}'")
         markers = set()
         for marker in marker_strings:
             markers.add(marker)
@@ -399,9 +401,8 @@ def _markers_contains_key(markers, key):
     for element in reversed(markers):
         if isinstance(element, tuple) and element[0].value == key:
             return True
-        elif isinstance(element, list):
-            if _markers_contains_key(element, key):
-                return True
+        elif isinstance(element, list) and _markers_contains_key(element, key):
+            return True
     return False
 
 
@@ -628,7 +629,7 @@ def normalize_marker_str(marker) -> str:
 
 
 def marker_from_specifier(spec) -> Marker:
-    if not any(spec.startswith(k) for k in Specifier._operators.keys()):
+    if not any(spec.startswith(k) for k in Specifier._operators):
         if spec.strip().lower() in ["any", "<any>", "*"]:
             return None
         spec = f"=={spec}"

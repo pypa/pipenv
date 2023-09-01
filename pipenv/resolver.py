@@ -1,5 +1,6 @@
 import importlib.util
 import json
+import logging
 import os
 import sys
 
@@ -286,7 +287,7 @@ class Entry:
 
     @property
     def is_in_pipfile(self):
-        return True if self.pipfile_name else False
+        return bool(self.pipfile_name)
 
     @property
     def pipfile_packages(self):
@@ -315,7 +316,7 @@ class Entry:
     def clean_specifier(specifier):
         from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
 
-        if not any(specifier.startswith(k) for k in Specifier._operators.keys()):
+        if not any(specifier.startswith(k) for k in Specifier._operators):
             if specifier.strip().lower() in ["any", "<any>", "*"]:
                 return "*"
             specifier = f"=={specifier}"
@@ -327,14 +328,12 @@ class Entry:
     def strip_version(specifier):
         from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
 
-        op = next(
-            iter(k for k in Specifier._operators.keys() if specifier.startswith(k)), None
-        )
+        op = next(iter(k for k in Specifier._operators if specifier.startswith(k)), None)
         if op:
             specifier = specifier[len(op) :]
         while op:
             op = next(
-                iter(k for k in Specifier._operators.keys() if specifier.startswith(k)),
+                iter(k for k in Specifier._operators if specifier.startswith(k)),
                 None,
             )
             if op:
@@ -656,6 +655,9 @@ def main(argv=None):
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
+    if not parsed.verbose:
+        print(parsed.verbose)
+        logging.getLogger("pipenv").setLevel(logging.WARN)
     _main(
         parsed.pre,
         parsed.clear,

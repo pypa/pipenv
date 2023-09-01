@@ -222,7 +222,7 @@ class Setting:
             _spinners.SPINNERS[None] = {"interval": 80, "frames": "   "}
             self.PIPENV_SPINNER = None
         else:
-            pipenv_spinner = "dots" if not os.name == "nt" else "bouncingBar"
+            pipenv_spinner = "bouncingBar" if os.name == "nt" else "dots"
             self.PIPENV_SPINNER = get_from_env(
                 "SPINNER", check_for_negation=False, default=pipenv_spinner
             )
@@ -293,7 +293,7 @@ class Setting:
         """ When set True, will create or use the ``.venv`` in your project directory.
         When Set False, will ignore the .venv in your project directory even if it exists.
         If unset (default), will use the .venv of project directory should it exist, otherwise
-          will create new virtual environments in a global location.
+        will create new virtual environments in a global location.
         """
 
         self.PIPENV_VERBOSE = bool(get_from_env("VERBOSE", check_for_negation=False))
@@ -397,10 +397,10 @@ class Setting:
         del self.PIPENV_VERBOSE
 
     def is_verbose(self, threshold=1):
-        return self.PIPENV_VERBOSITY >= threshold
+        return threshold <= self.PIPENV_VERBOSITY
 
     def is_quiet(self, threshold=-1):
-        return self.PIPENV_VERBOSITY <= threshold
+        return threshold >= self.PIPENV_VERBOSITY
 
 
 def is_using_venv() -> bool:

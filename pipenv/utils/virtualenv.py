@@ -1,3 +1,4 @@
+import contextlib
 import os
 import shutil
 import sys
@@ -179,12 +180,11 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
         # about, so confirm first.
-        if "VIRTUAL_ENV" in os.environ:
-            if not (
-                project.s.PIPENV_YES
-                or click.confirm("Use existing virtualenv?", default=True)
-            ):
-                abort()
+        if "VIRTUAL_ENV" in os.environ and not (
+            project.s.PIPENV_YES
+            or click.confirm("Use existing virtualenv?", default=True)
+        ):
+            abort()
         click.echo(click.style("Using existing virtualenv...", bold=True), err=True)
         # Remove the virtualenv.
         cleanup_virtualenv(project, bare=True)
@@ -261,15 +261,12 @@ def ensure_python(project, python=None):
         # method of the user for new python installs.
         installer = None
         if not project.s.PIPENV_DONT_USE_PYENV:
-            try:
+            with contextlib.suppress(InstallerNotFound):
                 installer = Pyenv(project)
-            except InstallerNotFound:
-                pass
+
         if installer is None and not project.s.PIPENV_DONT_USE_ASDF:
-            try:
+            with contextlib.suppress(InstallerNotFound):
                 installer = Asdf(project)
-            except InstallerNotFound:
-                pass
 
         if not installer:
             abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
