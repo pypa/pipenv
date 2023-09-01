@@ -139,8 +139,8 @@ six = "*"
 @pytest.mark.install
 @pytest.mark.needs_internet
 @pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
-def test_install_specifying_index_url(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_install_specifying_index_url(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -153,6 +153,8 @@ six = "*"
 
 [dev-packages]
 
+[pipenv]
+install_search_all_sources = true
             """.strip()
             f.write(contents)
         c = p.pipenv("install pipenv-test-private-package --index https://test.pypi.org/simple")
