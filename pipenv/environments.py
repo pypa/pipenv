@@ -293,7 +293,7 @@ class Setting:
         """ When set True, will create or use the ``.venv`` in your project directory.
         When Set False, will ignore the .venv in your project directory even if it exists.
         If unset (default), will use the .venv of project directory should it exist, otherwise
-          will create new virtual environments in a global location.
+        will create new virtual environments in a global location.
         """
 
         self.PIPENV_VERBOSE = bool(get_from_env("VERBOSE", check_for_negation=False))

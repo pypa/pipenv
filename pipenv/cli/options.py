@@ -502,6 +502,7 @@ def skip_lock_option(f):
         default=False,
         expose_value=True,
         envvar="PIPENV_SKIP_LOCK",
+        help="Install from Pipfile bypassing lock mechanisms.",
         callback=callback,
         type=click_types.BOOL,
         show_envvar=True,
