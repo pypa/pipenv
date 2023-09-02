@@ -32,3 +32,14 @@ This is useful in the same situations that you would change `PIP_CACHE_DIR` to a
 
 By default, pipenv will initialize a project using whatever version of python the system has as default.
 Besides starting a project with the `--python` flag, you can also use `PIPENV_DEFAULT_PYTHON_VERSION` to specify what version to use when starting a project when `--python` isn't used.
+
+## Environments with network issues
+
+If you are trying to use pipenv in an environment with network issues, you may be able to try modifying
+the following settings when you encounter errors related to network connectivity.
+
+### REQUESTS_TIMEOUT
+
+Default is 10 seconds. You can increase it by setting `PIPENV_REQUESTS_TIMEOUT` environment variable.
+
+Please notice that this setting only affects pipenv itself, not additional packages such as [safety](advanced.rst).
