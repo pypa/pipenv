@@ -316,7 +316,9 @@ class Project:
                 if version in parsed_url.path and parsed_url.path.endswith("/"):
                     # This might be a version-specific page. Fetch and parse it
                     version_url = urljoin(pkg_url, package_url)
-                    version_response = session.get(version_url, timeout=self.s.PIPENV_REQUESTS_TIMEOUT)
+                    version_response = session.get(
+                        version_url, timeout=self.s.PIPENV_REQUESTS_TIMEOUT
+                    )
                     version_parser = PackageIndexHTMLParser()
                     version_parser.feed(version_response.text)
                     version_hrefs = version_parser.urls
