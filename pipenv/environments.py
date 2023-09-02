@@ -289,6 +289,17 @@ class Setting:
         Default is 120 seconds, an arbitrary number that seems to work.
         """
 
+        self.PIPENV_REQUESTS_TIMEOUT = int(
+            get_from_env("REQUESTS_TIMEOUT", check_for_negation=False, default=10)
+        )
+        """Timeout setting for requests.
+
+        Default is 10 seconds.
+
+        For more information on the role of Timeout in Requests, see
+        [Requests docs](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts).
+        """
+
         self.PIPENV_VENV_IN_PROJECT = get_from_env("VENV_IN_PROJECT")
         """ When set True, will create or use the ``.venv`` in your project directory.
         When Set False, will ignore the .venv in your project directory even if it exists.
