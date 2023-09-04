@@ -81,12 +81,13 @@ have been applied to the code before running the tests.
 The build will fail when linting changes are detected so be sure to sync dev requirements
 and install the pre-commit hooks locally:
 
+```bash
    $ pipenv install --dev
    # This will configure running the pre-commit checks at start of each commit
    $ pre-commit install
    # Should you want to check the pre-commit configuration against all configured project files
    $ pre-commit run --all-files --verbose
-
+```
 ### Code Review
 
 Contributions will not be merged until they have been code reviewed. You should
