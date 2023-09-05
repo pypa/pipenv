@@ -18,7 +18,7 @@ repos:
     exclude: .patch
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.0.286
+  rev: v0.0.287
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
@@ -51,6 +51,11 @@ repos:
   hooks:
   - id: check-manifest
     stages: [manual]
+
+- repo: https://github.com/tox-dev/pyproject-fmt
+  rev: "1.1.0"
+  hooks:
+  - id: pyproject-fmt
 
 - repo: https://github.com/abravalheri/validate-pyproject
   rev: v0.14
