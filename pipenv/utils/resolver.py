@@ -334,13 +334,13 @@ class Resolver:
         )
         return finder
 
-    @property
-    def finder(self):
+    def finder(self, ignore_compatibility=True):
         finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
         finder._link_collector.search_scope.index_restricted = True
         finder._link_collector.search_scope.index_lookup = index_lookup
+        finder._ignore_compatibility = ignore_compatibility
         return finder
 
     @cached_property
@@ -349,7 +349,7 @@ class Resolver:
         pip_options.extra_index_urls = []
         return parse_requirements(
             self.constraint_file,
-            finder=self.finder,
+            finder=self.finder(),
             session=self.session,
             options=pip_options,
         )
@@ -361,7 +361,7 @@ class Resolver:
         parsed_default_constraints = parse_requirements(
             self.default_constraint_file,
             constraint=True,
-            finder=self.finder,
+            finder=self.finder(),
             session=self.session,
             options=pip_options,
         )
@@ -411,7 +411,7 @@ class Resolver:
             globally_managed=True
         ) as directory:
             pip_options = self.pip_options
-            finder = self.finder
+            finder = self.finder()
             wheel_cache = WheelCache(pip_options.cache_dir)
             preparer = self.pip_command.make_requirement_preparer(
                 temp_build_dir=directory,
@@ -495,9 +495,11 @@ class Resolver:
             if result.markers:
                 self.markers[result.name] = result.markers
             else:
-                candidate = self.finder.find_best_candidate(
-                    result.name, result.specifier
-                ).best_candidate
+                candidate = (
+                    self.finder()
+                    .find_best_candidate(result.name, result.specifier)
+                    .best_candidate
+                )
                 if candidate:
                     requires_python = candidate.link.requires_python
                     if requires_python:
@@ -545,9 +547,11 @@ class Resolver:
                 if hashes:
                     return hashes
 
-        applicable_candidates = self.finder.find_best_candidate(
-            ireq.name, ireq.specifier
-        ).iter_applicable()
+        applicable_candidates = (
+            self.finder(ignore_compatibility=True)
+            .find_best_candidate(ireq.name, ireq.specifier)
+            .iter_applicable()
+        )
         applicable_candidates = list(applicable_candidates)
         if applicable_candidates:
             return sorted(
