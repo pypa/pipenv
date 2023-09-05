@@ -34,6 +34,7 @@ twine = "*"
 
 [packages]
 pytz = "*"
+pipenv = "==2023.7.23"
 
 [scripts]
 tests = "bash ./run-tests.sh"

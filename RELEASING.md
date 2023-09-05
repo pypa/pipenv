@@ -1,4 +1,5 @@
 # Releasing Pipenv
+
 The following steps are to be done when making a new release:
 
 1.) Update the version number in __version__.py
