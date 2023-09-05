@@ -1,21 +1,22 @@
 [build-system]
-requires = ["setuptools>=67.0.0"]
 build-backend = "setuptools.build_meta"
-
+requires = [
+  "setuptools>=67",
+]
 
 [project]
 name = "pipenv"
+description = "Python Development Workflow for Humans."
+readme = "README.md"
+license = {file = "LICENSE"}
 authors = [
   {name = "Pipenv maintainer team", email = "distutils-sig@python.org"},
 ]
-description = "Python Development Workflow for Humans."
-readme = "README.md"
 requires-python = ">=3.7"
-license = {file = "LICENSE"}
 classifiers=[
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
-  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
   "Programming Language :: Python :: 3.7",
   "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
@@ -24,43 +25,38 @@ classifiers=[
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
+dynamic = [
+  "version",
+]
 dependencies = [
   "certifi",
-  "setuptools>=67.0.0",
+  "setuptools>=67",
   "virtualenv>=20.24.2",
 ]
-dynamic = ["version"]
-
-
 [project.optional-dependencies]
 dev = [
-  "towncrier",
   "beautifulsoup4",
-  "sphinx",
-  "flake8>=3.3.0,<4.0",
-  "black==23.3.0",
-  "parver",
+  "black==23.3",
+  "flake8<4.0,>=3.3",
   "invoke",
+  "parver",
+  "sphinx",
+  "towncrier",
 ]
 tests = [
-  "pytest>=5.0",
-  "pytest-timeout",
-  "pytest-xdist",
   "flaky",
   "mock",
+  "pytest>=5",
+  "pytest-timeout",
+  "pytest-xdist",
 ]
-
-
+[project.urls]
+Documentation = "https://pipenv.pypa.io/en/latest/"
+Homepage = "https://github.com/pypa/pipenv"
+Source = "https://github.com/pypa/pipenv.git"
 [project.scripts]
 pipenv = "pipenv:cli"
 pipenv-resolver = "pipenv.resolver:main"
-
-
-[project.urls]
-Homepage = "https://github.com/pypa/pipenv"
-Documentation = "https://pipenv.pypa.io/en/latest/"
-Source = "https://github.com/pypa/pipenv.git"
-
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -112,73 +108,6 @@ exclude = '''
   | pyproject.toml
 )
 '''
-
-
-[tool.coverage.run]
-parallel = true
-
-
-[tool.mypy]
-ignore_missing_imports = true
-follow_imports = "skip"
-html_report = "mypyhtml"
-python_version = "3.7"
-mypy_path = "typeshed/pyi:typeshed/imports"
-
-
-[tool.pytest.ini_options]
-addopts = "-ra"
-plugins = "xdist"
-testpaths = ["tests"]
-# Add vendor and patched in addition to the default list of ignored dirs
-# Additionally, ignore tasks, news, test subdirectories and peeps directory
-norecursedirs = [
-  ".*",
-  "build",
-  "dist",
-  "CVS",
-  "_darcs",
-  "{arch}",
-  "*.egg",
-  "vendor",
-  "patched",
-  "news",
-  "tasks",
-  "docs",
-  "tests/test_artifacts",
-  "tests/pypi",
-  "peeps",
-]
-filterwarnings = []
-# These are not all the custom markers, but most of the ones with repeat uses
-# `pipenv run pytest --markers` will list all markers including these
-markers = [
-  "install: tests having to do with `pipenv install`",
-  "update: tests having to do with `pipenv update`",
-  "needs_internet: integration tests that require internet to pass",
-  "basic: basic pipenv tests grouping",
-  "dev: tests having to do with dev and dev packages",
-  "system: related or interacting with the os",
-  "utils: grouping of pipenv utility functions",
-  "cli: test grouping that relate to command line like `pipenv --flag args`",
-  "requirements: tests that save and alter pip requirements",
-  "run: tests that run or execute python through pipenv",
-  "script: grouping of tests that execute scripts",
-  "keep_outdated: when an activity is supposed to keep something out of date",
-  "lock: tests that interact with pipenv lock",
-  "markers: pipenv environment markers",
-  "vcs: tests integration with pipenv and vertsion control systems",
-  "project: tests with the project object",
-  "sync: related to `pipenv sync`",
-  "rrule: relating to rrules (as in recurring time)",
-  "tzoffset: timezone offset",
-  "gettz: tests with gettz (get timezone) from dateutil lib",
-  "tzstr: timezone string",
-  "extras",
-  "extended",
-  "ext: extra non-categorized tests",
-]
-
 
 [tool.ruff]
 exclude = [
@@ -240,6 +169,68 @@ max-statements = 155
 "tests/unit/test_funktools.py" = ["B015"]
 "tests/unit/test_utils.py" = ["F811"]
 
+[tool.pytest.ini_options]
+addopts = "-ra"
+plugins = "xdist"
+testpaths = ["tests"]
+# Add vendor and patched in addition to the default list of ignored dirs
+# Additionally, ignore tasks, news, test subdirectories and peeps directory
+norecursedirs = [
+  ".*",
+  "build",
+  "dist",
+  "CVS",
+  "_darcs",
+  "{arch}",
+  "*.egg",
+  "vendor",
+  "patched",
+  "news",
+  "tasks",
+  "docs",
+  "tests/test_artifacts",
+  "tests/pypi",
+  "peeps",
+]
+filterwarnings = []
+# These are not all the custom markers, but most of the ones with repeat uses
+# `pipenv run pytest --markers` will list all markers including these
+markers = [
+  "install: tests having to do with `pipenv install`",
+  "update: tests having to do with `pipenv update`",
+  "needs_internet: integration tests that require internet to pass",
+  "basic: basic pipenv tests grouping",
+  "dev: tests having to do with dev and dev packages",
+  "system: related or interacting with the os",
+  "utils: grouping of pipenv utility functions",
+  "cli: test grouping that relate to command line like `pipenv --flag args`",
+  "requirements: tests that save and alter pip requirements",
+  "run: tests that run or execute python through pipenv",
+  "script: grouping of tests that execute scripts",
+  "keep_outdated: when an activity is supposed to keep something out of date",
+  "lock: tests that interact with pipenv lock",
+  "markers: pipenv environment markers",
+  "vcs: tests integration with pipenv and vertsion control systems",
+  "project: tests with the project object",
+  "sync: related to `pipenv sync`",
+  "rrule: relating to rrules (as in recurring time)",
+  "tzoffset: timezone offset",
+  "gettz: tests with gettz (get timezone) from dateutil lib",
+  "tzstr: timezone string",
+  "extras",
+  "extended",
+  "ext: extra non-categorized tests",
+]
+
+[tool.coverage.run]
+parallel = true
+
+[tool.mypy]
+ignore_missing_imports = true
+follow_imports = "skip"
+html_report = "mypyhtml"
+python_version = "3.7"
+mypy_path = "typeshed/pyi:typeshed/imports"
 
 [tool.towncrier]
 package = "pipenv"

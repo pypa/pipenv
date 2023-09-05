@@ -13,30 +13,30 @@ on:
         required: false
   push:
     paths-ignore:
-      - "news/**"
-      - "examples/**"
-      - "peeps/**"
+      - ".editorconfig"
+      - ".gitattributes"
+      - ".gitignore"
+      - ".gitmodules"
       - "*.ini"
       - "*.md"
       - "**/*.txt"
-      - ".gitignore"
-      - ".gitmodules"
-      - ".gitattributes"
-      - ".editorconfig"
+      - "examples/**"
+      - "news/**"
+      - "peeps/**"
     branches:
       - main
   pull_request:
     paths-ignore:
-      - "news/**"
-      - "examples/**"
-      - "peeps/**"
+      - ".editorconfig"
+      - ".gitattributes"
+      - ".gitignore"
+      - ".gitmodules"
       - "*.ini"
       - "*.md"
       - "**/*.txt"
-      - ".gitignore"
-      - ".gitmodules"
-      - ".gitattributes"
-      - ".editorconfig"
+      - "examples/**"
+      - "news/**"
+      - "peeps/**"
 permissions:
   contents: read # to fetch code (actions/checkout)
 jobs:
@@ -49,7 +49,7 @@ jobs:
       PYTHONIOENCODING: "utf-8"
       GIT_ASK_YESNO: "false"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: 3.x
@@ -61,10 +61,10 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
-          python-version: "3.11"
+          python-version: 3.x
       - run: |
           python -m pip install --upgrade wheel invoke parver beautifulsoup4 towncrier requests parse hatch-fancy-pypi-readme
           python -m invoke vendoring.update
@@ -75,16 +75,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.7, 3.8, 3.9, "3.10", "3.11"]  # "3.12-dev" Windows CI hangs indefinitely
+        python-version: [3.7, 3.8, 3.9, "3.10", 3.11, 3.12]
         os: [MacOS, Ubuntu, Windows]
+        exclude:  # Python 3.12 on Windows CI hangs indefinitely
+          - python-version: 3.12
+            os: Windows
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
 
       - name: Get python path
         id: python-path
@@ -134,7 +138,7 @@ jobs:
     needs: lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v4
         with:
           python-version: 3.x
