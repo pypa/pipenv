@@ -270,7 +270,7 @@ class Project:
         try:
             collected_hashes = set()
             # Grab the hashes from the new warehouse API.
-            r = session.get(pkg_url, timeout=10)
+            r = session.get(pkg_url, timeout=self.s.PIPENV_REQUESTS_TIMEOUT)
             api_releases = r.json()["releases"]
             cleaned_releases = {}
             for api_version, api_info in api_releases.items():
@@ -299,7 +299,7 @@ class Project:
 
         try:
             collected_hashes = set()
-            response = session.get(pkg_url, timeout=10)
+            response = session.get(pkg_url, timeout=self.s.PIPENV_REQUESTS_TIMEOUT)
             parser = PackageIndexHTMLParser()
             parser.feed(response.text)
             hrefs = parser.urls
@@ -316,7 +316,9 @@ class Project:
                 if version in parsed_url.path and parsed_url.path.endswith("/"):
                     # This might be a version-specific page. Fetch and parse it
                     version_url = urljoin(pkg_url, package_url)
-                    version_response = session.get(version_url, timeout=10)
+                    version_response = session.get(
+                        version_url, timeout=self.s.PIPENV_REQUESTS_TIMEOUT
+                    )
                     version_parser = PackageIndexHTMLParser()
                     version_parser.feed(version_response.text)
                     version_hrefs = version_parser.urls
