@@ -39,7 +39,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        python -m pip install --upgrade --upgrade-strategy=eager pip setuptools wheel twine
+        python -m pip install --upgrade --upgrade-strategy=eager pip setuptools build wheel twine
         python -m pip install -e . --upgrade
         python -m pipenv install --dev
       env:
@@ -47,7 +47,7 @@ jobs:
 
     - name: Build wheels
       run: |
-        python -m pipenv run python setup.py sdist bdist_wheel
+        python -m pipenv run python -m build
 
     # to upload to test pypi, pass repository_url: https://test.pypi.org/legacy/ and use secrets.TEST_PYPI_TOKEN
     - name: Publish a Python distribution to PyPI

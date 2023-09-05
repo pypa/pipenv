@@ -55,6 +55,6 @@ echo "pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha25
 
 pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
 
-echo "$pipenv run pytest -v -ra -n auto --cov-config setup.cfg --fulltrace tests"
+echo "$pipenv run pytest -v -ra -n auto --cov-config pyproject.toml --fulltrace tests"
 
-PIPENV_PYTHON=${PIPENV_PYTHON} ${PYTHON} -m pipenv run pytest -v -ra -n auto --cov-config setup.cfg --fulltrace tests
+PIPENV_PYTHON=${PIPENV_PYTHON} ${PYTHON} -m pipenv run pytest -v -ra -n auto --cov-config pyproject.toml --fulltrace tests
