@@ -1136,9 +1136,12 @@ class Project:
     def generate_package_pipfile_entry(self, package, pip_line, category=None):
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, InstallRequirement):
-            package = expansive_install_req_from_line(package.strip())
+            package, req_name = expansive_install_req_from_line(package.strip())
+        else:
+            _, req_name = expansive_install_req_from_line(pip_line.strip())
 
-        req_name = determine_package_name(package)
+        if req_name is None:
+            req_name = determine_package_name(package)
         path_specifier = determine_path_specifier(package)
         vcs_specifier = determine_vcs_specifier(package)
         name = self.get_package_name_in_pipfile(req_name, category=category)
@@ -1173,7 +1176,8 @@ class Project:
                     else:
                         vcs_part = pip_line
                     vcs_parts = vcs_part.rsplit("@", 1)
-                    entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
+                    if len(vcs_parts) > 1:
+                        entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
                     entry[vcs] = vcs_parts[0].strip()
 
                     # Check and extract subdirectory fragment

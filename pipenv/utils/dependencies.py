@@ -911,7 +911,7 @@ def expand_env_variables(line) -> AnyStr:
 
 
 def expansive_install_req_from_line(
-    name: str,
+    pip_line: str,
     comes_from: Optional[Union[str, InstallRequirement]] = None,
     *,
     use_pep517: Optional[bool] = None,
@@ -923,30 +923,32 @@ def expansive_install_req_from_line(
     user_supplied: bool = False,
     config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
     expand_env: bool = False,
-) -> InstallRequirement:
+) -> (InstallRequirement, str):
     """Creates an InstallRequirement from a name, which might be a
     requirement, directory containing 'setup.py', filename, or URL.
 
     :param line_source: An optional string describing where the line is from,
         for logging purposes in case of an error.
     """
-    name = name.strip("'")
-    if name.startswith("-e "):  # Editable requirements
-        name = name.split("-e ")[1]
-        return install_req_from_editable(name, line_source)
-    if has_name_with_extras(name):
-        name = name.split(" @ ", 1)[1]
+    name = None
+    pip_line = pip_line.strip("'")
+    for new_req_symbol in ("@ ", " @ "):  # Check for new style pip lines
+        if new_req_symbol in pip_line:
+            pip_line_parts = pip_line.split(new_req_symbol, 1)
+            name = pip_line_parts[0]
+            pip_line = pip_line_parts[1]
+    if pip_line.startswith("-e "):  # Editable requirements
+        pip_line = pip_line.split("-e ")[1]
+        return install_req_from_editable(pip_line, line_source), name
 
     if expand_env:
-        name = expand_env_variables(name)
+        pip_line = expand_env_variables(pip_line)
 
-    vcs_part = name
-    if "@ " in name:  # Check for new style vcs lines
-        vcs_part = name.split("@ ", 1)[1]
+    vcs_part = pip_line
     for vcs in VCS_LIST:
         if vcs_part.startswith(f"{vcs}+"):
             link = get_link_from_line(vcs_part)
-            return InstallRequirement(
+            install_req = InstallRequirement(
                 None,
                 comes_from,
                 link=link,
@@ -957,22 +959,23 @@ def expansive_install_req_from_line(
                 constraint=constraint,
                 user_supplied=user_supplied,
             )
-    if urlparse(name).scheme in ("http", "https", "file") or any(
-        name.endswith(s) for s in INSTALLABLE_EXTENSIONS
+            return install_req, name
+    if urlparse(pip_line).scheme in ("http", "https", "file") or any(
+        pip_line.endswith(s) for s in INSTALLABLE_EXTENSIONS
     ):
-        parts = parse_req_from_line(name, line_source)
+        parts = parse_req_from_line(pip_line, line_source)
     else:
         # It's a requirement
-        if "--index" in name:
-            name = name.split("--index")[0]
-        if " -i " in name:
-            name = name.split(" -i ")[0]
+        if "--index" in pip_line:
+            pip_line = pip_line.split("--index")[0]
+        if " -i " in pip_line:
+            pip_line = pip_line.split(" -i ")[0]
         # handle local version identifiers (like the ones torch uses in their public index)
-        if "+" in name:
-            name = name.split("+")[0]
-        parts = parse_req_from_line(name, line_source)
+        if "+" in pip_line:
+            pip_line = pip_line.split("+")[0]
+        parts = parse_req_from_line(pip_line, line_source)
 
-    return InstallRequirement(
+    install_req = InstallRequirement(
         parts.requirement,
         comes_from,
         link=parts.link,
@@ -986,6 +989,7 @@ def expansive_install_req_from_line(
         extras=parts.extras,
         user_supplied=user_supplied,
     )
+    return install_req, name
 
 
 def install_req_from_pipfile(name, pipfile):
@@ -1040,7 +1044,7 @@ def install_req_from_pipfile(name, pipfile):
             version = ""
         req_str = f"{name}{extras_str}{version}"
 
-    install_req = expansive_install_req_from_line(
+    install_req, _ = expansive_install_req_from_line(
         req_str,
         comes_from=None,
         use_pep517=False,

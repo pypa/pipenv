@@ -209,7 +209,7 @@ def do_install(
                         del os.environ["PYTHONHOME"]
                 st.console.print(f"Resolving {pkg_line}...", markup=False)
                 try:
-                    pkg_requirement = expansive_install_req_from_line(
+                    pkg_requirement, _ = expansive_install_req_from_line(
                         pkg_line, expand_env=True
                     )
                 except ValueError as e:

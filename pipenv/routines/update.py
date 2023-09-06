@@ -131,7 +131,7 @@ def upgrade(
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
         for package in package_args[:]:
-            install_req = expansive_install_req_from_line(package, expand_env=True)
+            install_req, _ = expansive_install_req_from_line(package, expand_env=True)
             if index_name:
                 install_req.index = index_name
             name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(

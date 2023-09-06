@@ -29,7 +29,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         for name, deps in project.environment.reverse_dependencies().items()
     }
     for result in installed_packages:
-        dep = expansive_install_req_from_line(
+        dep, _ = expansive_install_req_from_line(
             str(result.as_requirement()), expand_env=True
         )
         packages.update(as_pipfile(dep))
