@@ -968,6 +968,18 @@ def expansive_install_req_from_line(
     )
 
 
+def _file_path_from_pipfile(path_obj, pipfile_entry):
+    if path_obj.is_absolute():
+        req_str = str(path_obj.as_posix())
+    else:
+        req_str = f"./{str(path_obj.as_posix())}"
+    if pipfile_entry.get("extras"):
+        req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
+    if pipfile_entry.get("editable", False):
+        req_str = f"-e {req_str}"
+    return req_str
+
+
 def install_req_from_pipfile(name, pipfile):
     _pipfile = {}
     vcs = None
@@ -1009,20 +1021,10 @@ def install_req_from_pipfile(name, pipfile):
             req_str = f"{name}{extras_str}@ {req_str}{subdirectory}"
     elif "path" in _pipfile:
         path_obj = Path(_pipfile["path"])
-        if path_obj.is_absolute():
-            req_str = str(path_obj.as_posix())
-        else:
-            req_str = f"./{str(path_obj.as_posix())}"
-        if _pipfile.get("editable", False):
-            req_str = f"-e {req_str}"
+        req_str = _file_path_from_pipfile(path_obj, _pipfile)
     elif "file" in _pipfile:
         path_obj = Path(_pipfile["file"])
-        if path_obj.is_absolute():
-            req_str = str(path_obj.as_posix())
-        else:
-            req_str = f"./{str(path_obj.as_posix())}"
-        if _pipfile.get("editable", False):
-            req_str = f"-e {req_str}"
+        req_str = _file_path_from_pipfile(path_obj, _pipfile)
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)
