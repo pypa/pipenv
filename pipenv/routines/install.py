@@ -402,6 +402,7 @@ def do_install_dependencies(
                 install_req, markers, req_line = install_req_from_pipfile(
                     req_name, pipfile_entry
                 )
+                req_line = f"{req_line}; {markers}" if markers else f"{req_line}"
                 deps_list.append(
                     (
                         install_req,
