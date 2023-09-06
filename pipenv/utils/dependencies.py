@@ -1008,9 +1008,9 @@ def install_req_from_pipfile(name, pipfile):
         else:
             req_str = f"{name}{extras_str}@ {req_str}{subdirectory}"
     elif "path" in _pipfile:
-        req_str = str(Path(_pipfile["path"]).as_posix())
+        req_str = f"-e {str(Path(_pipfile['path']).as_posix())}"
     elif "file" in _pipfile:
-        req_str = str(Path(_pipfile["file"]).as_posix())
+        req_str = f"-e {str(Path(_pipfile['file']).as_posix())}"
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)
