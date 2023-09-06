@@ -1,0 +1,1 @@
+Handle case better where setup.py name is referencing a variable that is a string while encouraging folks to migrate their projects to pyproject.toml
