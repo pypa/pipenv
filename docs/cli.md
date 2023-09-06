@@ -1,10 +1,10 @@
 # Pipenv CLI Reference
 
-## pipenv 
+## pipenv
 
 ```bash
 pipenv [OPTIONS] COMMAND [ARGS]...
-```	
+```
 
 ## check
 
@@ -42,7 +42,7 @@ Environment Variables
 
 PIP_INDEX_URL
 
-```bash	
+```bash
    Provide a default for -i
 ```
 
@@ -118,7 +118,7 @@ Environment Variables
 
 PIP_INDEX_URL
 
-```bash	
+```bash
    Provide a default for -i
 ```
 
@@ -134,18 +134,14 @@ Environment Variables
 
 PIP_INDEX_URL
 
-```bash	
+```bash
    Provide a default for -i
 ```
 
-## verify 
+## verify
 
 Verify the hash in Pipfile.lock is up-to-date.
 
 ```bash
 pipenv verify [OPTIONS]
 ```
-
-
-
-

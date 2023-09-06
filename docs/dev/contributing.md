@@ -3,7 +3,7 @@
 If you're reading this, you're probably interested in contributing to Pipenv.
 Thank you very much! Open source projects live-and-die based on the support
 they receive from others, and the fact that you're even considering
-contributing to the Pipenv project is *very* generous of you.
+contributing to the Pipenv project is _very_ generous of you.
 
 This document lays out guidelines and advice for contributing to this project.
 If you're thinking of contributing, please start by reading this document and
@@ -17,7 +17,7 @@ contributors.
 
 ### Be Cordial
 
-> **Be cordial or be on your way**. *—Kenneth Reitz*
+> **Be cordial or be on your way**. _—Kenneth Reitz_
 
 Pipenv has one very important rule governing all forms of contribution,
 including reporting bugs or requesting features. This golden rule is [be cordial or be on your way](https://kennethreitz.org/essays/2013/01/27/be-cordial-or-be-on-your-way)
@@ -47,10 +47,10 @@ contribution accepted.
 
 ## Questions
 
-The GitHub issue tracker is for *bug reports* and *feature requests*. Please do
+The GitHub issue tracker is for _bug reports_ and _feature requests_. Please do
 not use it to ask questions about how to use Pipenv. These questions should
 instead be directed to [Stack Overflow](https://stackoverflow.com/). Make sure that your question is tagged
-with the ``pipenv`` tag when asking it on Stack Overflow, to ensure that it is
+with the `pipenv` tag when asking it on Stack Overflow, to ensure that it is
 answered promptly and accurately.
 
 ## Code Contributions
@@ -65,14 +65,14 @@ When contributing code, you'll want to follow this checklist:
    in this [document](#bug-reports).
 4. Write tests that demonstrate your bug or feature. Ensure that they fail.
 5. Make your change.
-6. Run the entire test suite again, confirming that all tests pass *including the ones you just added*.
-7. Send a GitHub Pull Request to the main repository's ``main`` branch. GitHub Pull Requests are the expected method of code collaboration on this project.
+6. Run the entire test suite again, confirming that all tests pass _including the ones you just added_.
+7. Send a GitHub Pull Request to the main repository's `main` branch. GitHub Pull Requests are the expected method of code collaboration on this project.
 
 The following sub-sections go into more detail on some of the points above.
 
-### Development Setup 
+### Development Setup
 
-The repository version of Pipenv must be installed over other global versions to resolve conflicts with the ``pipenv`` folder being implicitly added to ``sys.path``.
+The repository version of Pipenv must be installed over other global versions to resolve conflicts with the `pipenv` folder being implicitly added to `sys.path`.
 See [pypa/pipenv#2557](https://github.com/pypa/pipenv/issues/2557) for more details.
 
 Pipenv now uses pre-commit hooks similar to Pip in order to apply linting and
@@ -88,6 +88,7 @@ and install the pre-commit hooks locally:
    # Should you want to check the pre-commit configuration against all configured project files
    $ pre-commit run --all-files --verbose
 ```
+
 ### Code Review
 
 Contributions will not be merged until they have been code reviewed. You should
@@ -100,16 +101,16 @@ you must either apply the feedback or withdraw your contribution.
 
 To speed up testing, tests that rely on a package index for locking and
 installing use a local server that contains vendored packages in the
-``tests/pypi`` directory. Each vendored package should have it's own folder
+`tests/pypi` directory. Each vendored package should have it's own folder
 containing the necessary releases. When adding a release for a package, it is
-easiest to use either the ``.tar.gz`` or universal wheels (ex: ``py2.py3-none``). If
-a ``.tar.gz`` or universal wheel is not available, add wheels for all available
+easiest to use either the `.tar.gz` or universal wheels (ex: `py2.py3-none`). If
+a `.tar.gz` or universal wheel is not available, add wheels for all available
 architectures and platforms.
 
 ## Documentation Contributions
 
 Documentation improvements are always welcome! The documentation files live in
-the ``docs/`` directory of the codebase. They're written in
+the `docs/` directory of the codebase. They're written in
 [MarkDown](https://www.markdownguide.org/), and use [Sphinx](http://sphinx-doc.org/index.html) to generate the full suite of
 documentation.
 
@@ -117,15 +118,15 @@ When contributing documentation, please do your best to follow the style of the
 documentation files. This means a soft-limit of 79 characters wide in your text
 files and a semi-formal, yet friendly and approachable, prose style.
 
-When presenting Python code, use single-quoted strings (``'hello'`` instead of
-``"hello"``).
+When presenting Python code, use single-quoted strings (`'hello'` instead of
+`"hello"`).
 
 ## Bug Reports
 
 Bug reports are hugely important! They are recorded as [GitHub issues](https://github.com/pypa/pipenv/issues). Please
 be aware of the following things when filing bug reports:
 
-1. Avoid raising duplicate issues. *Please* use the GitHub issue search feature
+1. Avoid raising duplicate issues. _Please_ use the GitHub issue search feature
    to check whether your bug report or feature request has been mentioned in
    the past. Duplicate bug reports and feature requests are a huge maintenance
    burden on the limited resources of the project. If it is clear from your
@@ -134,50 +135,50 @@ be aware of the following things when filing bug reports:
    the duplicate then the issue will likely be closed extremely abruptly.
 
 2. When filing bug reports about exceptions or tracebacks, please include the
-   *complete* traceback. Partial tracebacks, or just the exception text, are
+   _complete_ traceback. Partial tracebacks, or just the exception text, are
    not helpful. Issues that do not contain complete tracebacks may be closed
    without warning.
 
-3.  Make sure you provide a suitable amount of information to work with. This
+3. Make sure you provide a suitable amount of information to work with. This
    means you should provide:
 
     - Guidance on **how to reproduce the issue**. Ideally, this should be a
-     *small* code sample that can be run immediately by the maintainers.
-     Failing that, let us know what you're doing, how often it happens, what
-     environment you're using, etc. Be thorough: it prevents us needing to ask
-     further questions.
-    
-    - Tell us **what you expected to happen**. When we run your example code,
-     what are we expecting to happen? What does "success" look like for your
-     code?
-   
-    - Tell us **what actually happens**. It's not helpful for you to say "it
-     doesn't work" or "it fails". Tell us *how* it fails: do you get an
-     exception? A hang? The packages installed seem incorrect?
-     How was the actual result different from your expected result?
-   
-    - Tell us **what version of Pipenv you're using**, and
-     **how you installed it**. Different versions of Pipenv behave
-     differently and have different bugs, and some distributors of Pipenv
-     ship patches on top of the code we supply.
+      _small_ code sample that can be run immediately by the maintainers.
+      Failing that, let us know what you're doing, how often it happens, what
+      environment you're using, etc. Be thorough: it prevents us needing to ask
+      further questions.
 
-   If you do not provide all of these things, it will take us much longer to
-   fix your problem. If we ask you to clarify these and you never respond, we
-   will close your issue without fixing it.
+    - Tell us **what you expected to happen**. When we run your example code,
+      what are we expecting to happen? What does "success" look like for your
+      code?
+
+    - Tell us **what actually happens**. It's not helpful for you to say "it
+      doesn't work" or "it fails". Tell us _how_ it fails: do you get an
+      exception? A hang? The packages installed seem incorrect?
+      How was the actual result different from your expected result?
+
+    - Tell us **what version of Pipenv you're using**, and
+      **how you installed it**. Different versions of Pipenv behave
+      differently and have different bugs, and some distributors of Pipenv
+      ship patches on top of the code we supply.
+
+If you do not provide all of these things, it will take us much longer to
+fix your problem. If we ask you to clarify these and you never respond, we
+will close your issue without fixing it.
 
 ## Run the tests
 
-Tests are written in ``pytest`` style and can be run very simply:
+Tests are written in `pytest` style and can be run very simply:
 
-```bash	
+```bash
  pytest
 ```
 
 However many tests depend on running a private pypi server on localhost:8080.
-This can be accomplished by using either the ``run-tests.sh`` or ``run-tests.bat`` scripts
-which will start the ``pypiserver`` process ahead of invoking pytest.
+This can be accomplished by using either the `run-tests.sh` or `run-tests.bat` scripts
+which will start the `pypiserver` process ahead of invoking pytest.
 
-You may also manually perform this step and then invoke pytest as you would normally.  Example:
+You may also manually perform this step and then invoke pytest as you would normally. Example:
 
     # Linux or MacOS
     pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
@@ -188,20 +189,20 @@ You may also manually perform this step and then invoke pytest as you would norm
 This will run all Pipenv tests, which can take awhile. To run a subset of the
 tests, the standard pytest filters are available, such as:
 
-- provide a directory or file: ``pytest tests/unit`` or ``pytest tests/unit/test_cmdparse.py``
-- provide a keyword expression: ``pytest -k test_lock_editable_vcs_without_install``
-- provide a nodeid: ``pytest tests/unit/test_cmdparse.py::test_parse``
-- provide a test marker: ``pytest -m lock``
+-   provide a directory or file: `pytest tests/unit` or `pytest tests/unit/test_cmdparse.py`
+-   provide a keyword expression: `pytest -k test_lock_editable_vcs_without_install`
+-   provide a nodeid: `pytest tests/unit/test_cmdparse.py::test_parse`
+-   provide a test marker: `pytest -m lock`
 
 There are a few other ways of running the tests:
 
 1. test scripts
 
-The scripts for bash or windows: ``run-tests.sh`` and ``run-tests.bat``
+The scripts for bash or windows: `run-tests.sh` and `run-tests.bat`
 
 Note that, you override the default Python Pipenv will use with
 PIPENV_PYTHON and the Python binary name with PYTHON in case it
-is not called ``python`` on your system or in case you have many.
+is not called `python` on your system or in case you have many.
 Here is an example how you can override both variables (you can
 override just one too):
 
@@ -209,14 +210,14 @@ override just one too):
 
 You can also do:
 
-   $ PYTHON=/opt/python/python3.10/python3 run-tests.sh
+$ PYTHON=/opt/python/python3.10/python3 run-tests.sh
 
 If you need to change how pytest is invoked, see how to run the
-test suite manually. The ``run-tests.sh`` script does the same
+test suite manually. The `run-tests.sh` script does the same
 steps the Github CI workflow does, and as such it is recommended
 you run it before you open a PR. Taking this second approach,
 will allow you, for example, to run a single test case, or
-``fail fast`` if you need it.
+`fail fast` if you need it.
 
 2. Manually
 
@@ -230,7 +231,7 @@ $ pipenv install --dev
 $ pipenv run pytest [--any optional arguments to pytest]
 ```
 
-The second options assumes you already have ``pipenv`` on your system.
+The second options assumes you already have `pipenv` on your system.
 And simply repeats all the steps in the script above.
 
 Preferably, you should be running your tests in a Linux container
@@ -282,4 +283,3 @@ export PATH
 # PIP_FIND_LINKS currently breaks test_uninstall.py
     unset PIP_FIND_LINKS
 ```
-
