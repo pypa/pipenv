@@ -988,7 +988,33 @@ def expansive_install_req_from_line(
     )
 
 
+def _file_path_from_pipfile(path_obj, pipfile_entry):
+    """Creates an installable file path from a pipfile entry.
+    Handles local and remote paths, files and directories;
+    supports extras and editable specification.
+    Outputs a pip installable line.
+    """
+    parsed_url = urlparse(str(path_obj))
+    if parsed_url.scheme in ["http", "https", "ftp", "file"]:
+        req_str = str(path_obj)
+    elif path_obj.is_absolute():
+        req_str = str(path_obj.as_posix())
+    else:
+        req_str = f"./{str(path_obj.as_posix())}"
+
+    if pipfile_entry.get("extras"):
+        req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
+    if pipfile_entry.get("editable", False):
+        req_str = f"-e {req_str}"
+
+    return req_str
+
+
 def install_req_from_pipfile(name, pipfile):
+    """Creates an InstallRequirement from a name and a pipfile entry.
+    Handles VCS, local & remote paths, and regular named requirements.
+    "file" and "path" entries are treated the same.
+    """
     _pipfile = {}
     vcs = None
     if hasattr(pipfile, "keys"):
@@ -1028,9 +1054,11 @@ def install_req_from_pipfile(name, pipfile):
         else:
             req_str = f"{name}{extras_str}@ {req_str}{subdirectory}"
     elif "path" in _pipfile:
-        req_str = str(Path(_pipfile["path"]).as_posix())
+        path_obj = Path(_pipfile["path"])
+        req_str = _file_path_from_pipfile(path_obj, _pipfile)
     elif "file" in _pipfile:
-        req_str = str(Path(_pipfile["file"]).as_posix())
+        path_obj = Path(_pipfile["file"])
+        req_str = _file_path_from_pipfile(path_obj, _pipfile)
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)
