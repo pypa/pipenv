@@ -42,9 +42,11 @@ def do_uninstall(
         raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
     if not categories:
         categories = project.get_package_categories(for_lockfile=True)
-    editable_pkgs = [
-        expansive_install_req_from_line(f"-e {p}").name for p in editable_packages if p
-    ]
+    editable_pkgs = []
+    for p in editable_packages:
+        if p:
+            install_req, name = expansive_install_req_from_line(f"-e {p}")
+            editable_pkgs.append(name)
     packages += editable_pkgs
     package_names = {p for p in packages if p}
     package_map = {canonicalize_name(p): p for p in packages if p}

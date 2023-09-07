@@ -454,7 +454,8 @@ class Lockfile(BaseModel):
             pip_line_specified = requirement_from_lockfile(
                 package_name, package_info, include_hashes=True, include_markers=True
             )
-            yield expansive_install_req_from_line(pip_line), pip_line_specified
+            install_req, _ = expansive_install_req_from_line(pip_line)
+            yield install_req, pip_line_specified
 
     def requirements_list(self, category: str) -> List[Dict]:
         if self.lockfile.get(category):

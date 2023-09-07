@@ -202,8 +202,11 @@ class Resolver:
             if not dep:
                 continue
             is_constraint = True
-            install_req = expansive_install_req_from_line(dep, expand_env=True)
-            package_name = determine_package_name(install_req)
+            install_req, package_name = expansive_install_req_from_line(
+                dep, expand_env=True
+            )
+            if package_name is None:
+                package_name = determine_package_name(install_req)
             original_deps[package_name] = dep
             install_reqs[package_name] = install_req
             index, extra_index, trust_host, remainder = parse_indexes(dep)
