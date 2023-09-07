@@ -924,11 +924,22 @@ def expansive_install_req_from_line(
     config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
     expand_env: bool = False,
 ) -> (InstallRequirement, str):
-    """Creates an InstallRequirement from a name, which might be a
-    requirement, directory containing 'setup.py', filename, or URL.
-
-    :param line_source: An optional string describing where the line is from,
-        for logging purposes in case of an error.
+    """Create an InstallRequirement from a pip-style requirement line.
+    InstallRequirement is a pip internal construct that represents an installable requirement,
+    and is used as an intermediary between the pip command and the resolver.
+    :param pip_line: A pip-style requirement line.
+    :param comes_from: The path to the requirements file the line was found in.
+    :param use_pep517: Whether to use PEP 517/518 when installing the
+        requirement.
+    :param isolated: Whether to isolate the requirements when installing them. (likely unused)
+    :param global_options: Extra global options to be used when installing the install req (likely unused)
+    :param hash_options: Extra hash options to be used when installing the install req (likely unused)
+    :param constraint: Whether the requirement is a constraint.
+    :param line_source: The source of the line (e.g. "requirements.txt").
+    :param user_supplied: Whether the requirement was directly provided by the user.
+    :param config_settings: Configuration settings to be used when installing the install req (likely unused)
+    :param expand_env: Whether to expand environment variables in the line. (definitely used)
+    :return: A tuple of the InstallRequirement and the name of the package (if determined).
     """
     name = None
     pip_line = pip_line.strip("'")

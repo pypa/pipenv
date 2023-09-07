@@ -1134,6 +1134,9 @@ class Project:
         self.write_toml(parsed)
 
     def generate_package_pipfile_entry(self, package, pip_line, category=None):
+        """Generate a package entry from pip install line
+        given the installreq package and the pip line that generated it.
+        """
         # Don't re-capitalize file URLs or VCSs.
         if not isinstance(package, InstallRequirement):
             package, req_name = expansive_install_req_from_line(package.strip())
