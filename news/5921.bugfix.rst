@@ -1,0 +1,2 @@
+Fallback to default vcs ref when no ref is supplied.
+More proactively determine package name from the pip line where possible, fallback to the existing file scanning logics when unable to determine name.
