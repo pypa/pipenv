@@ -969,14 +969,19 @@ def expansive_install_req_from_line(
 
 
 def _file_path_from_pipfile(path_obj, pipfile_entry):
-    if path_obj.is_absolute():
+    parsed_url = urlparse(str(path_obj))
+    if parsed_url.scheme in ["http", "https", "ftp", "file"]:
+        req_str = str(path_obj)
+    elif path_obj.is_absolute():
         req_str = str(path_obj.as_posix())
     else:
         req_str = f"./{str(path_obj.as_posix())}"
+
     if pipfile_entry.get("extras"):
         req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
     if pipfile_entry.get("editable", False):
         req_str = f"-e {req_str}"
+
     return req_str
 
 
