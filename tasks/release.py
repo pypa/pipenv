@@ -96,21 +96,21 @@ def release(
     )
     tag_content = _render_log()
     if dry_run:
-        ctx.run("towncrier --draft > CHANGELOG.draft.rst")
+        ctx.run("towncrier --draft > CHANGELOG.draft.md")
         log("would remove: news/*")
-        log("would remove: CHANGELOG.draft.rst")
+        log("would remove: CHANGELOG.draft.md")
         log("would update: pipenv/pipenv.1")
         log(f'Would commit with message: "Release v{version}"')
     else:
         if pre:
             log("generating towncrier draft...")
-            ctx.run("towncrier --draft > CHANGELOG.draft.rst")
+            ctx.run("towncrier --draft > CHANGELOG.draft.md")
             ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
             ctx.run("towncrier")
-            ctx.run(f"git add CHANGELOG.rst news/ {get_version_file(ctx).as_posix()}")
+            ctx.run(f"git add CHANGELOG.md news/ {get_version_file(ctx).as_posix()}")
             log("removing changelog draft if present")
-            draft_changelog = pathlib.Path("CHANGELOG.draft.rst")
+            draft_changelog = pathlib.Path("CHANGELOG.draft.md")
             if draft_changelog.exists():
                 draft_changelog.unlink()
         log("generating man files...")
@@ -188,7 +188,7 @@ def upload_dists(ctx, repo="pypi"):
 def generate_markdown(ctx, source_rstfile=None):
     log("Generating markdown from changelog...")
     if source_rstfile is None:
-        source_rstfile = "CHANGELOG.rst"
+        source_rstfile = "CHANGELOG.md"
     source_file = pathlib.Path(source_rstfile)
     dest_file = source_file.with_suffix(".md")
     ctx.run(
@@ -223,13 +223,13 @@ def generate_changelog(ctx, commit=False, draft=False):
     if draft:
         commit = False
         log("Writing draft to file...")
-        ctx.run("towncrier --draft > CHANGELOG.draft.rst")
+        ctx.run("towncrier --draft > CHANGELOG.draft.md")
     else:
         ctx.run("towncrier")
     if commit:
         log("Committing...")
-        ctx.run("git add CHANGELOG.rst")
-        ctx.run("git rm CHANGELOG.draft.rst")
+        ctx.run("git add CHANGELOG.md")
+        ctx.run("git rm CHANGELOG.draft.md")
         ctx.run('git commit -m "Update changelog."')
 
 

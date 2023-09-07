@@ -234,7 +234,7 @@ mypy_path = "typeshed/pyi:typeshed/imports"
 
 [tool.towncrier]
 package = "pipenv"
-filename = "CHANGELOG.rst"
+filename = "CHANGELOG.md"
 issue_format = "`#{issue} <https://github.com/pypa/pipenv/issues/{issue}>`_"
 directory = "news/"
 title_format = "{version} ({project_date})"

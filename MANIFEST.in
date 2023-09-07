@@ -1,4 +1,4 @@
-include LICENSE README.md CONTRIBUTING.md CHANGELOG.rst NOTICES HISTORY.txt
+include LICENSE README.md CONTRIBUTING.md CHANGELOG.md NOTICES HISTORY.txt
 include Makefile pyproject.toml get-pipenv.py *.yml
 include examples/Pipfil*
 include *.md
