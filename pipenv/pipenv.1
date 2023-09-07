@@ -27,42 +27,269 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Feb 18, 2023" "2023.2.18" "pipenv"
+.TH "PIPENV" "1" "Sep 07, 2023" "2023.9.7" "pipenv"
 .sp
-Pipenv uses a set of commands to manage your Project\(aqs dependencies and custom scripts.
-It replaces the use of \fBMakefile\fP, direct calls to \fBpip\fP and \fBpython \-m venv\fP or \fBvirtualenv\fP\&.
-to create virtual environments and install packages in them.
-Pipenv uses two files to do this: \fBPipfile\fP  and \fBPipfile.lock\fP (which will look familiar if you
-are used to packages manager like \fByarn\fP or \fBnpm\fP).
-.sp
-The main commands are:
+\fBNOTE:\fP
 .INDENT 0.0
-.IP \(bu 2
-\fBinstall\fP \-
+.INDENT 3.5
+This guide is written for Python 3.7+
+.UNINDENT
+.UNINDENT
+.SH MAKE SURE YOU HAVE PYTHON AND PIP
 .sp
-Will create a virtual env and install dependencies (if it does not exist already)
-The dependencies will be installed inside.
-.IP \(bu 2
-\fBinstall package==0.2\fP \-
+Before you go any further, make sure you have Python and that it’s available
+from your command line. You can check this by simply running
+.INDENT 0.0
+.INDENT 3.5
 .sp
-Will add the package in version 0.2 to the virtual environment and
-to \fBPipfile\fP and \fBPipfile.lock\fP
-.IP \(bu 2
-\fBuninstall\fP \- Will remove the dependency
-.IP \(bu 2
-\fBlock\fP \- Regenerate \fBPipfile.lock\fP and updates the dependencies inside it.
+.nf
+.ft C
+$ python \-\-version
+
+.ft P
+.fi
+.UNINDENT
 .UNINDENT
 .sp
-These are intended to replace \fB$ pip install\fP usage, as well as manual virtualenv management.
+You should get some output like \fB3.10.8\fP\&. If you do not have Python, please
+install the latest 3.x version from \fI\%python.org\fP
+.sp
+Additionally, make sure you have \fI\%pip\fP available.
+Check this by running
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pip \-\-version
+pip 22.3.1
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+If you installed Python from source, with an installer from \fI\%python.org\fP or via \fI\%Homebrew\fP, you likely already have pip.
+If you’re on Linux and installed using your OS package manager, you may have to \fI\%install pip\fP manually.
+.SH INSTALLING PIPENV
+.SS Preferred Installation of Pipenv
+.sp
+It is recommended that users on most platforms install pipenv from \fI\%pypi.org\fP using
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pip install pipenv \-\-user
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+pip \fI\%user installations\fP allow for installation into your home directory to prevent breaking any system\-wide packages.
+Due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow such as virtualenv, pipenv, tox, and similar software.
+.UNINDENT
+.UNINDENT
+.sp
+If \fBpipenv\fP isn’t available in your shell after installation,
+you’ll need to add the user site\-packages binary directory to your \fBPATH\fP\&.
+.sp
+On Linux and macOS you can find the \fI\%user base\fP binary directory by running
+\fBpython \-m site \-\-user\-base\fP and appending \fBbin\fP to the end. For example,
+this will typically print \fB~/.local\fP (with \fB~\fP expanded to the
+absolute path to your home directory), so you’ll need to add
+\fB~/.local/bin\fP to your \fBPATH\fP\&. You can set your \fBPATH\fP permanently by
+\fI\%modifying ~/.profile\fP\&.
+.sp
+On Windows you can find the user base binary directory by running
+\fBpython \-m site \-\-user\-site\fP and replacing \fBsite\-packages\fP with
+\fBScripts\fP\&. For example, this could return
+\fBC:\eUsers\eUsername\eAppData\eRoaming\ePython37\esite\-packages\fP, so you would
+need to set your \fBPATH\fP to include
+\fBC:\eUsers\eUsername\eAppData\eRoaming\ePython37\eScripts\fP\&. You can set your
+user \fBPATH\fP permanently in the \fI\%Control Panel\fP\&.
+.sp
+You may need to log out for the \fBPATH\fP changes to take effect.
+.sp
+To upgrade pipenv at any time:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pip install \-\-user \-\-upgrade pipenv
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SS Homebrew Installation of Pipenv
 .INDENT 0.0
 .IP \(bu 2
-\fBgraph\fP will show you a dependency graph of your installed dependencies.
+\fI\%Homebrew\fP is a popular open\-source package management system for macOS (or Linux).
+.UNINDENT
+.sp
+Once you have installed Homebrew simply run
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew install pipenv
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+To upgrade pipenv at any time:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ brew upgrade pipenv
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Homebrew installation is discouraged because it works better to install pipenv using pip on macOS.
+.UNINDENT
+.UNINDENT
+.SH INSTALLING PACKAGES FOR YOUR PROJECT
+.sp
+Pipenv manages dependencies on a per\-project basis. To install a package,
+change into your project’s directory (or just an empty directory for this
+tutorial) and run
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ cd myproject
+$ pipenv install <package>
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Pipenv is designed to be used by non\-privileged OS users. It is not meant
+to install or handle packages for the whole OS. Running Pipenv as \fBroot\fP
+or with \fBsudo\fP (or \fBAdmin\fP on Windows) is highly discouraged and might
+lead to unintend breakage of your OS.
+.UNINDENT
+.UNINDENT
+.sp
+Pipenv will install the package and create a \fBPipfile\fP
+for you in your project’s directory. The \fBPipfile\fP is used to track which
+dependencies your project needs in case you need to re\-install them, such as
+when you share your project with others.
+.sp
+For example when installing the \fBrequests\fP library, you should get output similar to this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv install requests
+Creating a virtualenv for this project...
+Pipfile: C:\eUsers\ematte\eProjects\epipenv\-triage\eexample\ePipfile
+Using C:/Users/matte/AppData/Local/Programs/Python/Python311/python.exe (3.11.2) to create virtualenv...
+[    ] Creating virtual environment...created virtual environment CPython3.11.2.final.0\-64 in 488ms
+  creator CPython3Windows(dest=C:\eUsers\ematte\e.virtualenvs\eexample\-7V6BFyzL, clear=False, no_vcs_ignore=False, global=False)
+  seeder FromAppData(download=False, pip=bundle, setuptools=bundle, wheel=bundle, via=copy, app_data_dir=C:\eUsers\ematte\eAppData\eLocal\epypa\evirtualenv)
+    added seed packages: pip==23.0, setuptools==67.1.0, wheel==0.38.4
+  activators BashActivator,BatchActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
+
+Successfully created virtual environment!
+Virtualenv location: C:\eUsers\ematte\e.virtualenvs\eexample\-7V6BFyzL
+Installing requests...
+Resolving requests...
+Installing...
+Adding requests to Pipfile\(aqs [packages] ...
+Installation Succeeded
+Installing dependencies from Pipfile.lock (3b5a71)...
+To activate this project\(aqs virtualenv, run pipenv shell.
+Alternatively, run a command inside the virtualenv with pipenv run.
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.SH USING INSTALLED PACKAGES
+.sp
+Now that \fBrequests\fP is installed you can create a simple \fBmain.py\fP file to use it:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+import requests
+
+response = requests.get(\(aqhttps://httpbin.org/ip\(aq)
+print(\(aqYour IP is {0}\(aq.format(response.json()[\(aqorigin\(aq]))
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Then you can run this script using \fBpipenv run\fP
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+$ pipenv run python main.py
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+You should get output similar to this:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.nf
+.ft C
+Your IP is 8.8.8.8
+
+.ft P
+.fi
+.UNINDENT
+.UNINDENT
+.sp
+Using \fB$ pipenv run\fP ensures that your installed packages are available to
+your script by activating the virtualenv. It is also possible to spawn a new shell
+that ensures all commands have access to your installed packages with \fB$ pipenv shell\fP\&.
+.SH VIRTUALENV MAPPING CAVEAT
+.INDENT 0.0
 .IP \(bu 2
-\fBshell\fP will spawn a shell with the virtualenv activated. This shell can be deactivated by using \fBexit\fP\&.
+Pipenv automatically maps projects to their specific virtualenvs.
 .IP \(bu 2
-\fBrun\fP will run a given command from the virtualenv, with any arguments forwarded (e.g. \fB$ pipenv run python\fP or \fB$ pipenv run pip freeze\fP).
+By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project’s root (e.g., \fBmy_project\-a3de50\fP).
 .IP \(bu 2
-\fBcheck\fP checks for security vulnerabilities and asserts that \fI\%PEP 508\fP requirements are being met by the current environment.
+Should you change your project’s path, you break such a default mapping and pipenv will no longer be able to find and to use the project’s virtualenv.
+.IP \(bu 2
+If you must move or rename a directory managed by pipenv, run ‘pipenv \-\-rm’ before renaming or moving your project directory. Then, after renaming or moving the directory run ‘pipenv install’ to recreate the virtualenv.
+.IP \(bu 2
+Customize this behavior with \fBPIPENV_CUSTOM_VENV_NAME\fP environment variable.
+.IP \(bu 2
+You might also prefer to set \fBPIPENV_VENV_IN_PROJECT=1\fP in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project’s directory.
 .UNINDENT
 .SH AUTHOR
 Python Packaging Authority

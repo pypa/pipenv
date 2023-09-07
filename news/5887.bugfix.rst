@@ -1,1 +1,0 @@
-Restore the ignore compatibility finder pip patch to resolve issues collecting hashes from google artifact registry (and possibly others).

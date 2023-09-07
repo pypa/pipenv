@@ -1,3 +1,28 @@
+2023.9.7 (2023-09-07)
+=====================
+Pipenv 2023.9.7 (2023-09-07)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Updates build to use exclusively ``pyproject.toml``
+  ---------------------------------------------------
+
+  Modernizes the build process by consolidating all of ``setuptools`` metadata within ``pyproject.toml`` and removing deprecated ``setup.cfg`` and ``setup.py``.  `#5837 <https://github.com/pypa/pipenv/issues/5837>`_
+
+Bug Fixes
+---------
+
+- Restore the ignore compatibility finder pip patch to resolve issues collecting hashes from google artifact registry (and possibly others).  `#5887 <https://github.com/pypa/pipenv/issues/5887>`_
+- Handle case better where setup.py name is referencing a variable that is a string while encouraging folks to migrate their projects to pyproject.toml  `#5905 <https://github.com/pypa/pipenv/issues/5905>`_
+- Better handling of local file install edge cases; handle local file extras.  `#5919 <https://github.com/pypa/pipenv/issues/5919>`_
+- Include the Pipfile markers in the install phase when using ``--skip-lock``.  `#5920 <https://github.com/pypa/pipenv/issues/5920>`_
+- Fallback to default vcs ref when no ref is supplied.
+  More proactively determine package name from the pip line where possible, fallback to the existing file scanning logics when unable to determine name.  `#5921 <https://github.com/pypa/pipenv/issues/5921>`_
+
+
 # 2023.9.1 (2023-09-01)
 
 # Pipenv 2023.9.1 (2023-09-01)

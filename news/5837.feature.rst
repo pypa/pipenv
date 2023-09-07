@@ -1,4 +1,0 @@
-Updates build to use exclusively ``pyproject.toml``
----------------------------------------------------
-
-Modernizes the build process by consolidating all of ``setuptools`` metadata within ``pyproject.toml`` and removing deprecated ``setup.cfg`` and ``setup.py``.
