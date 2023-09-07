@@ -96,7 +96,7 @@ setup(
     author_email='test@pipenv.package',
     license='MIT',
     packages=[],
-    install_requires=['six'],
+    install_requires=['six', 'setuptools'],
     zip_safe=False
 )
             """.strip()
