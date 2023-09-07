@@ -969,6 +969,11 @@ def expansive_install_req_from_line(
 
 
 def _file_path_from_pipfile(path_obj, pipfile_entry):
+    """Creates an installable file path from a pipfile entry.
+    Handles local and remote paths, files and directories;
+    supports extras and editable specification.
+    Outputs a pip installable line.
+    """
     parsed_url = urlparse(str(path_obj))
     if parsed_url.scheme in ["http", "https", "ftp", "file"]:
         req_str = str(path_obj)
@@ -986,6 +991,10 @@ def _file_path_from_pipfile(path_obj, pipfile_entry):
 
 
 def install_req_from_pipfile(name, pipfile):
+    """Creates an InstallRequirement from a name and a pipfile entry.
+    Handles VCS, local & remote paths, and regular named requirements.
+    "file" and "path" entries are treated the same.
+    """
     _pipfile = {}
     vcs = None
     if hasattr(pipfile, "keys"):
