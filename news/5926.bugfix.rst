@@ -1,1 +1,0 @@
-ignore_compatibility was supposed to default to False (except for hash collection)

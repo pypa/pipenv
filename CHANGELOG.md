@@ -1,3 +1,15 @@
+2023.9.8 (2023-09-08)
+=====================
+Pipenv 2023.9.8 (2023-09-08)
+============================
+
+
+Bug Fixes
+---------
+
+- ignore_compatibility was supposed to default to False (except for hash collection)  `#5926 <https://github.com/pypa/pipenv/issues/5926>`_
+
+
 2023.9.7 (2023-09-07)
 =====================
 Pipenv 2023.9.7 (2023-09-07)
