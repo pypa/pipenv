@@ -187,7 +187,11 @@ def requirement_from_lockfile(
             include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
             egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
             ref_str = "" if not ref or f"@{ref}" in url else f"@{ref}"
-            if is_editable_path(url) or "file://" in url:
+            if (
+                is_editable_path(url)
+                or "file://" in url
+                or package_info.get("editable", False)
+            ):
                 pip_line = f"-e {include_vcs}{url}{ref_str}{egg_fragment}{extras}"
                 pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
