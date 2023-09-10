@@ -14,7 +14,7 @@ from pipenv.exceptions import PipenvUsageError
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
     ({"django": ">1.10"}, {"django": "django>1.10"}),
-    ({"Django": ">1.10"}, {"django": "Django>1.10"}),
+    ({"Django": ">1.10"}, {"Django": "Django>1.10"}),
     ({"requests": {"extras": ["socks"], "version": ">1.10"}}, {"requests": "requests[socks]>1.10"}),
     ({"requests": {"extras": ["socks"], "version": "==1.10"}}, {"requests": "requests[socks]==1.10"}),
     (
@@ -71,7 +71,7 @@ def test_convert_deps_to_pip(deps, expected):
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip_star_specifier():
     deps = {"uvicorn": "*"}
-    expected = "uvicorn"
+    expected = {"uvicorn": "uvicorn"}
     assert dependencies.convert_deps_to_pip(deps) == expected
 
 
@@ -79,7 +79,7 @@ def test_convert_deps_to_pip_star_specifier():
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip_extras_no_version():
     deps = {"uvicorn": {"extras": ["standard"], "version": "*"}}
-    expected = "uvicorn[standard]"
+    expected = {"uvicorn": "uvicorn[standard]"}
     assert dependencies.convert_deps_to_pip(deps) == expected
 
 
