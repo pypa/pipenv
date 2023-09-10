@@ -13,10 +13,10 @@ from pipenv.exceptions import PipenvUsageError
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
-    ({"django": ">1.10"}, "django>1.10"),
-    ({"Django": ">1.10"}, "Django>1.10"),
-    ({"requests": {"extras": ["socks"], "version": ">1.10"}}, "requests[socks]>1.10"),
-    ({"requests": {"extras": ["socks"], "version": "==1.10"}}, "requests[socks]==1.10"),
+    ({"django": ">1.10"}, {"django": "django>1.10"}),
+    ({"Django": ">1.10"}, {"django": "Django>1.10"}),
+    ({"requests": {"extras": ["socks"], "version": ">1.10"}}, {"requests": "requests[socks]>1.10"}),
+    ({"requests": {"extras": ["socks"], "version": "==1.10"}}, {"requests": "requests[socks]==1.10"}),
     (
         {
             "dataclasses-json": {
@@ -25,11 +25,11 @@ DEP_PIP_PAIRS = [
                 "editable": True,
             }
         },
-        "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7",
+        {"dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"},
     ),
     (
         {"dataclasses-json": {"git": "https://github.com/lidatong/dataclasses-json.git", "ref": "v0.5.7"}},
-        "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7",
+        {"dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"},
     ),
     (
         # Extras in url
@@ -39,7 +39,7 @@ DEP_PIP_PAIRS = [
                 "extras": ["pipenv"],
             }
         },
-        "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip",
+        {"dparse": "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip"},
     ),
     (
         {
@@ -50,7 +50,7 @@ DEP_PIP_PAIRS = [
                 "editable": False,
             }
         },
-        "requests[security]@ git+https://github.com/requests/requests.git@main",
+        {"requests": "requests[security]@ git+https://github.com/requests/requests.git@main"},
     ),
 ]
 
@@ -64,7 +64,7 @@ def mock_unpack(link, source_dir, download_dir, only_download=False, session=Non
 @pytest.mark.parametrize("deps, expected", DEP_PIP_PAIRS)
 @pytest.mark.needs_internet
 def test_convert_deps_to_pip(deps, expected):
-    assert dependencies.convert_deps_to_pip(deps) == [expected]
+    assert dependencies.convert_deps_to_pip(deps) == expected
 
 
 @pytest.mark.utils
@@ -72,7 +72,7 @@ def test_convert_deps_to_pip(deps, expected):
 def test_convert_deps_to_pip_star_specifier():
     deps = {"uvicorn": "*"}
     expected = "uvicorn"
-    assert dependencies.convert_deps_to_pip(deps) == [expected]
+    assert dependencies.convert_deps_to_pip(deps) == expected
 
 
 @pytest.mark.utils
@@ -80,7 +80,7 @@ def test_convert_deps_to_pip_star_specifier():
 def test_convert_deps_to_pip_extras_no_version():
     deps = {"uvicorn": {"extras": ["standard"], "version": "*"}}
     expected = "uvicorn[standard]"
-    assert dependencies.convert_deps_to_pip(deps) == [expected]
+    assert dependencies.convert_deps_to_pip(deps) == expected
 
 
 @pytest.mark.utils
@@ -95,7 +95,7 @@ def test_convert_deps_to_pip_extras_no_version():
                     "hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
                 }
             },
-            "FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+            {"FooProject": "FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"},
         ),
         (
             {
@@ -105,7 +105,7 @@ def test_convert_deps_to_pip_extras_no_version():
                     "hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
                 }
             },
-            "FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+            {"FooProject": "FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"},
         ),
         (
             {
@@ -115,7 +115,7 @@ def test_convert_deps_to_pip_extras_no_version():
                     "extras": ["standard"],
                 }
             },
-            "git+https://github.com/encode/uvicorn.git@master#egg=uvicorn[standard]",
+            {"uvicorn": "git+https://github.com/encode/uvicorn.git@master#egg=uvicorn[standard]"},
         ),
     ],
 )
@@ -126,8 +126,8 @@ def test_convert_deps_to_pip_one_way(deps, expected):
 @pytest.mark.utils
 def test_convert_deps_to_pip_one_way():
     deps = {"uvicorn": {}}
-    expected = "uvicorn"
-    assert dependencies.convert_deps_to_pip(deps) == [expected.lower()]
+    expected = {"uvicorn": "uvicorn"}
+    assert dependencies.convert_deps_to_pip(deps) == expected
 
 
 @pytest.mark.utils
