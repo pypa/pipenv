@@ -83,7 +83,11 @@ def handle_parsed_args(parsed):
         with open(parsed.constraints_file) as constraints:
             file_constraints = constraints.read().strip().split("\n")
         os.unlink(parsed.constraints_file)
-        parsed.packages += sorted(file_constraints)
+        packages = {}
+        for line in file_constraints:
+            dep_name, pip_line = line.split(",", 1)
+            packages[dep_name] = pip_line
+        parsed.packages = packages
     return parsed
 
 
@@ -579,12 +583,8 @@ def resolve_packages(
         else None
     )
 
-    if not isinstance(packages, set):
-        packages = set(packages)
-    if not isinstance(constraints, set):
-        constraints = set(constraints) if constraints else set()
     if constraints:
-        packages |= constraints
+        packages.update(constraints)
 
     def resolve(
         packages, pre, project, sources, clear, system, category, requirements_dir=None
