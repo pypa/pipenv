@@ -343,12 +343,6 @@ def is_star(val):
     return isinstance(val, str) and val == "*"
 
 
-def is_pinned(val):
-    if isinstance(val, Mapping):
-        val = val.get("version")
-    return isinstance(val, str) and val.startswith("==")
-
-
 def is_pinned_requirement(ireq):
     """
     Returns whether an InstallRequirement is a "pinned" requirement.
@@ -1060,9 +1054,9 @@ def install_req_from_pipfile(name, pipfile):
                 vcs_url = vcs_url_parts[0]
                 fallback_ref = vcs_url_parts[1]
         req_str = f"{vcs_url}@{_pipfile.get('ref', fallback_ref)}{extras_str}"
-        if not req_str.startswith(f"{vcs}+"):
+        if not req_str.lstrip().startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
-        if f"{vcs}+file://" in req_str or _pipfile.get("editable", False):
+        if _pipfile.get("editable", False) or f"{vcs}+file://" in req_str:
             req_str = (
                 f"-e {req_str}#egg={name}{extras_str}{subdirectory.replace('#', '&')}"
             )

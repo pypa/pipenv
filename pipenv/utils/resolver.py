@@ -69,8 +69,7 @@ def get_package_finder(
     """Reduced Shim for compatibility to generate package finders."""
     py_version_info = None
     if python_versions:
-        py_version_info_python = max(python_versions)
-        py_version_info = tuple([int(part) for part in py_version_info_python])
+        py_version_info = [int(part) for part in python_versions.split(".")]
     target_python = TargetPython(
         platforms=[platform] if platform else None,
         py_version_info=py_version_info,
@@ -325,10 +324,15 @@ class Resolver:
 
     @cached_property
     def package_finder(self):
+        python_version = None
+        requires = self.project.parsed_pipfile.get("resolver", {})
+        if "python" in requires:
+            python_version = requires["python"]
         finder = get_package_finder(
             install_cmd=self.pip_command,
             options=self.pip_options,
             session=self.session,
+            python_versions=python_version,
         )
         return finder
 
@@ -863,7 +867,6 @@ def venv_resolve_deps(
 
 def resolve_deps(
     deps,
-    which,
     project,
     sources=None,
     python=False,

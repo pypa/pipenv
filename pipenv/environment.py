@@ -603,8 +603,15 @@ class Environment:
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         session = pip_command._build_session(pip_options)
+        python_version = None
+        requires = self.project.parsed_pipfile.get("resolver", {})
+        if "python" in requires:
+            python_version = requires["python"]
         finder = get_package_finder(
-            install_cmd=pip_command, options=pip_options, session=session
+            install_cmd=pip_command,
+            options=pip_options,
+            session=session,
+            python_versions=python_version,
         )
         yield finder
 

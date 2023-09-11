@@ -56,7 +56,6 @@ from pipenv.utils.internet import (
     proper_case,
 )
 from pipenv.utils.locking import atomic_open_for_write
-from pipenv.utils.project import get_default_pyproject_backend
 from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
     find_requirements,
@@ -93,6 +92,7 @@ DEFAULT_NEWLINES = "\n"
 NON_CATEGORY_SECTIONS = {
     "pipenv",
     "requires",
+    "resolver",
     "scripts",
     "source",
 }
@@ -706,27 +706,6 @@ class Project:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
             return toml.loads(contents)
-
-    def _read_pyproject(self) -> None:
-        pyproject = self.path_to("pyproject.toml")
-        if os.path.exists(pyproject):
-            self._pyproject = toml.load(pyproject)
-            build_system = self._pyproject.get("build-system", None)
-            if not os.path.exists(self.path_to("setup.py")):
-                if not build_system or not build_system.get("requires"):
-                    build_system = {
-                        "requires": ["setuptools>=40.8.0", "wheel"],
-                        "build-backend": get_default_pyproject_backend(),
-                    }
-                self._build_system = build_system
-
-    @property
-    def build_requires(self) -> list[str]:
-        return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
-
-    @property
-    def build_backend(self) -> str:
-        return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
     def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:

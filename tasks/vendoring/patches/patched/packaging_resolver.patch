@@ -1,0 +1,74 @@
+diff --git a/pipenv/patched/pip/_vendor/packaging/markers.py b/pipenv/patched/pip/_vendor/packaging/markers.py
+index bc16ff4a..cbf34469 100644
+--- a/pipenv/patched/pip/_vendor/packaging/markers.py
++++ b/pipenv/patched/pip/_vendor/packaging/markers.py
+@@ -6,8 +6,11 @@ import operator
+ import os
+ import platform
+ import sys
++from functools import lru_cache
+ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+
++from pipenv.patched.pip._vendor.packaging.version import Version, parse
++from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+ from pipenv.patched.pip._vendor.pyparsing import (  # noqa: N817
+     Forward,
+     Group,
+@@ -231,13 +234,26 @@ def _evaluate_markers(markers: List[Any], environment: Dict[str, str]) -> bool:
+             lhs, op, rhs = marker
+
+             if isinstance(lhs, Variable):
+-                lhs_value = _get_env(environment, lhs.value)
++                lookup_key = lhs.value
++                lhs_value = _get_env(environment, lookup_key)
+                 rhs_value = rhs.value
+             else:
+                 lhs_value = lhs.value
+-                rhs_value = _get_env(environment, rhs.value)
++                lookup_key = rhs.value
++                rhs_value = _get_env(environment, lookup_key)
++
++            if lookup_key in ["python_version", "python_full_version"] and lhs_value and (',' in lhs_value or '<' in lhs_value or '>' in lhs_value):
++                lhs_spec_set = SpecifierSet(lhs_value)
++                rhs_version = parse(rhs_value)
++                is_satisfied = lhs_spec_set.contains(rhs_version)
++            elif lookup_key == "os_name" and lhs_value and lhs_value == 'os_name' and ',' in lhs_value:
++                # Handle multiple os_name values
++                os_names = lhs_value.split(',')
++                is_satisfied = any(_eval_op(rhs_value, op, os_name) for os_name in os_names)
++            else:
++                is_satisfied = _eval_op(lhs_value, op, rhs_value)
+
+-            groups[-1].append(_eval_op(lhs_value, op, rhs_value))
++            groups[-1].append(is_satisfied)
+         else:
+             assert marker in ["and", "or"]
+             if marker == "or":
+@@ -254,10 +270,12 @@ def format_full_version(info: "sys._version_info") -> str:
+     return version
+
+
++@lru_cache()
+ def default_environment() -> Dict[str, str]:
++    from pipenv.project import Project
+     iver = format_full_version(sys.implementation.version)
+     implementation_name = sys.implementation.name
+-    return {
++    defaults = {
+         "implementation_name": implementation_name,
+         "implementation_version": iver,
+         "os_name": os.name,
+@@ -270,6 +288,13 @@ def default_environment() -> Dict[str, str]:
+         "python_version": ".".join(platform.python_version_tuple()[:2]),
+         "sys_platform": sys.platform,
+     }
++    project = Project()
++    requires = project.parsed_pipfile.get("resolver", {})
++    for k in defaults:
++        if requires.get(k):
++            defaults[k] = requires[k]
++
++    return defaults
+
+
+ class Marker:
