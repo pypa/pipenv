@@ -467,14 +467,14 @@ def convert_deps_to_pip(
     include_index=False,
 ):
     """ "Converts a Pipfile-formatted dependency to a pip-formatted one."""
-    dependencies = []
+    dependencies = {}
     if indexes is None:
         indexes = []
     for dep_name, dep in deps.items():
         req = dependency_as_pip_install_line(
             dep_name, dep, include_hashes, include_markers, include_index, indexes
         )
-        dependencies.append(req)
+        dependencies[dep_name] = req
     return dependencies
 
 
@@ -942,7 +942,7 @@ def expansive_install_req_from_line(
     :return: A tuple of the InstallRequirement and the name of the package (if determined).
     """
     name = None
-    pip_line = pip_line.strip("'")
+    pip_line = pip_line.strip("'").lstrip(" ")
     for new_req_symbol in ("@ ", " @ "):  # Check for new style pip lines
         if new_req_symbol in pip_line:
             pip_line_parts = pip_line.split(new_req_symbol, 1)

@@ -7,7 +7,7 @@ import tempfile
 import warnings
 from functools import lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -40,7 +40,6 @@ except ImportError:
 from .dependencies import (
     HackedPythonVersion,
     convert_deps_to_pip,
-    determine_package_name,
     expansive_install_req_from_line,
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
@@ -174,7 +173,7 @@ class Resolver:
     @classmethod
     def create(
         cls,
-        deps: Set[str],
+        deps: Dict[str, str],
         project: Project,
         index_lookup: Dict[str, str] = None,
         markers_lookup: Dict[str, str] = None,
@@ -198,15 +197,11 @@ class Resolver:
             sources = project.sources
         packages = project.get_pipfile_section(category)
         constraints = set()
-        for dep in deps:  # Build up the index and markers lookups
+        for package_name, dep in deps.items():  # Build up the index and markers lookups
             if not dep:
                 continue
             is_constraint = True
-            install_req, package_name = expansive_install_req_from_line(
-                dep, expand_env=True
-            )
-            if package_name is None:
-                package_name = determine_package_name(install_req)
+            install_req, _ = expansive_install_req_from_line(dep, expand_env=True)
             original_deps[package_name] = dep
             install_reqs[package_name] = install_req
             index, extra_index, trust_host, remainder = parse_indexes(dep)
@@ -782,7 +777,6 @@ def venv_resolve_deps(
             deps = convert_deps_to_pip(
                 deps, project.pipfile_sources(), include_index=True
             )
-            constraints = set(deps)
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
@@ -795,7 +789,7 @@ def venv_resolve_deps(
                         requirements_dir=req_dir,
                         packages=deps,
                         category=category,
-                        constraints=constraints,
+                        constraints=deps,
                     )
                     if results:
                         st.console.print(
@@ -831,7 +825,8 @@ def venv_resolve_deps(
                 with tempfile.NamedTemporaryFile(
                     mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
                 ) as constraints_file:
-                    constraints_file.write(str("\n".join(constraints)))
+                    for dep_name, pip_line in deps.items():
+                        constraints_file.write(f"{dep_name}, {pip_line}\n")
                 cmd.append("--constraints-file")
                 cmd.append(constraints_file.name)
                 st.console.print("Resolving dependencies...")
