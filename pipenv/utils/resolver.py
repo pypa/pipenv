@@ -25,6 +25,7 @@ from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
+from pipenv.patched.pip._vendor.packaging.markers import default_environment
 from pipenv.project import Project
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
@@ -161,7 +162,8 @@ class Resolver:
         self,
         req: InstallRequirement,
     ) -> bool:
-        if req.markers and not req.markers.evaluate():
+        defaults = default_environment(resolve_phase=True)
+        if req.markers and not req.markers.evaluate(defaults):
             err.print(
                 f"Could not find a matching version of {req}; {req.markers} for your environment, "
                 "its dependencies will be skipped.",

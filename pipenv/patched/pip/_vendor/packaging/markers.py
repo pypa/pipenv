@@ -6,10 +6,8 @@ import operator
 import os
 import platform
 import sys
-from functools import lru_cache
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from pipenv.patched.pip._vendor.packaging.version import Version, parse
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.pyparsing import (  # noqa: N817
     Forward,
@@ -244,8 +242,8 @@ def _evaluate_markers(markers: List[Any], environment: Dict[str, str]) -> bool:
 
             if lookup_key in ["python_version", "python_full_version"] and lhs_value and (',' in lhs_value or '<' in lhs_value or '>' in lhs_value):
                 lhs_spec_set = SpecifierSet(lhs_value)
-                rhs_version = parse(rhs_value)
-                is_satisfied = lhs_spec_set.contains(rhs_version)
+                rhs_spec_set = SpecifierSet(rhs_value)
+                is_satisfied = any(lhs_spec_set.contains(ver) for ver in rhs_spec_set)
             elif lookup_key == "os_name" and lhs_value and lhs_value == 'os_name' and ',' in lhs_value:
                 # Handle multiple os_name values
                 os_names = lhs_value.split(',')
@@ -270,8 +268,7 @@ def format_full_version(info: "sys._version_info") -> str:
     return version
 
 
-@lru_cache()
-def default_environment() -> Dict[str, str]:
+def default_environment(resolve_phase=False) -> Dict[str, str]:
     from pipenv.project import Project
     iver = format_full_version(sys.implementation.version)
     implementation_name = sys.implementation.name
@@ -288,11 +285,12 @@ def default_environment() -> Dict[str, str]:
         "python_version": ".".join(platform.python_version_tuple()[:2]),
         "sys_platform": sys.platform,
     }
-    project = Project()
-    requires = project.parsed_pipfile.get("resolver", {})
-    for k in defaults:
-        if requires.get(k):
-            defaults[k] = requires[k]
+    if resolve_phase:
+        project = Project()
+        requires = project.parsed_pipfile.get("resolver", {})
+        for k in defaults:
+            if requires.get(k):
+                defaults[k] = requires[k]
 
     return defaults
 
