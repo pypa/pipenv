@@ -2,7 +2,9 @@ import importlib.util
 import json
 import logging
 import os
+import platform
 import sys
+from typing import Dict
 
 try:
     from functools import cached_property
@@ -85,6 +87,34 @@ def handle_parsed_args(parsed):
             packages[dep_name] = pip_line
         parsed.packages = packages
     return parsed
+
+
+def _default_environment_override() -> Dict[str, str]:
+    from pipenv.patched.pip._vendor.packaging.markers import format_full_version
+    from pipenv.project import Project
+
+    iver = format_full_version(sys.implementation.version)
+    implementation_name = sys.implementation.name
+    defaults = {
+        "implementation_name": implementation_name,
+        "implementation_version": iver,
+        "os_name": os.name,
+        "platform_machine": platform.machine(),
+        "platform_release": platform.release(),
+        "platform_system": platform.system(),
+        "platform_version": platform.version(),
+        "python_full_version": platform.python_version(),
+        "platform_python_implementation": platform.python_implementation(),
+        "python_version": ".".join(platform.python_version_tuple()[:2]),
+        "sys_platform": sys.platform,
+    }
+    project = Project()
+    requires = project.parsed_pipfile.get("resolver", {})
+    for k in defaults:
+        if requires.get(k):
+            defaults[k] = requires[k]
+
+    return defaults
 
 
 class Entry:
@@ -466,9 +496,12 @@ def resolve_packages(
     category,
     constraints=None,
 ):
+    from pipenv.patched.pip._vendor.packaging import markers
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
 
+    original_default_environment = markers.default_environment
+    markers.default_environment = _default_environment_override
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"], "pypi_mirror")
         if "PIPENV_PYPI_MIRROR" in os.environ
@@ -517,6 +550,7 @@ def resolve_packages(
                 json.dump([], fh)
             else:
                 json.dump(results, fh)
+    markers.default_environment = original_default_environment
     if results:
         return results
     return []

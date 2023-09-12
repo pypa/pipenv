@@ -8,7 +8,6 @@ import platform
 import sys
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.pyparsing import (  # noqa: N817
     Forward,
     Group,
@@ -232,26 +231,12 @@ def _evaluate_markers(markers: List[Any], environment: Dict[str, str]) -> bool:
             lhs, op, rhs = marker
 
             if isinstance(lhs, Variable):
-                lookup_key = lhs.value
-                lhs_value = _get_env(environment, lookup_key)
+                lhs_value = _get_env(environment, lhs.value)
                 rhs_value = rhs.value
             else:
                 lhs_value = lhs.value
-                lookup_key = rhs.value
-                rhs_value = _get_env(environment, lookup_key)
-
-            if lookup_key in ["python_version", "python_full_version"] and lhs_value and (',' in lhs_value or '<' in lhs_value or '>' in lhs_value):
-                lhs_spec_set = SpecifierSet(lhs_value)
-                rhs_spec_set = SpecifierSet(rhs_value)
-                is_satisfied = any(lhs_spec_set.contains(ver) for ver in rhs_spec_set)
-            elif lookup_key == "os_name" and lhs_value and lhs_value == 'os_name' and ',' in lhs_value:
-                # Handle multiple os_name values
-                os_names = lhs_value.split(',')
-                is_satisfied = any(_eval_op(rhs_value, op, os_name) for os_name in os_names)
-            else:
-                is_satisfied = _eval_op(lhs_value, op, rhs_value)
-
-            groups[-1].append(is_satisfied)
+                rhs_value = _get_env(environment, rhs.value)
+            groups[-1].append(_eval_op(lhs_value, op, rhs_value))
         else:
             assert marker in ["and", "or"]
             if marker == "or":
@@ -268,11 +253,10 @@ def format_full_version(info: "sys._version_info") -> str:
     return version
 
 
-def default_environment(resolve_phase=False) -> Dict[str, str]:
-    from pipenv.project import Project
+def default_environment() -> Dict[str, str]:
     iver = format_full_version(sys.implementation.version)
     implementation_name = sys.implementation.name
-    defaults = {
+    return {
         "implementation_name": implementation_name,
         "implementation_version": iver,
         "os_name": os.name,
@@ -285,14 +269,6 @@ def default_environment(resolve_phase=False) -> Dict[str, str]:
         "python_version": ".".join(platform.python_version_tuple()[:2]),
         "sys_platform": sys.platform,
     }
-    if resolve_phase:
-        project = Project()
-        requires = project.parsed_pipfile.get("resolver", {})
-        for k in defaults:
-            if requires.get(k):
-                defaults[k] = requires[k]
-
-    return defaults
 
 
 class Marker:

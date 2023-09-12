@@ -147,9 +147,7 @@ def pep423_name(name):
 def translate_markers(pipfile_entry):
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
-    allowed_marker_keys = ["markers"] + list(
-        default_environment(resolve_phase=True).keys()
-    )
+    allowed_marker_keys = ["markers"] + list(default_environment().keys())
     provided_keys = list(pipfile_entry.keys()) if hasattr(pipfile_entry, "keys") else []
     pipfile_markers = set(provided_keys) & set(allowed_marker_keys)
     new_pipfile = dict(pipfile_entry).copy()
