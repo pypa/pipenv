@@ -1,7 +1,7 @@
 import os
 import re
-import urllib.parse
 from typing import Tuple
+from urllib.parse import quote, unquote
 
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.req import parse_requirements
@@ -41,7 +41,7 @@ def redact_netloc(netloc: str) -> Tuple[str]:
         else:
             # If it is, leave it as is
             password = ":" + password
-        user = urllib.parse.quote(user)
+        user = quote(user)
     return (f"{user}{password}@{netloc}",)
 
 
@@ -86,7 +86,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
                 if package.editable:
                     package_string = f"-e {package.link}"
                 else:
-                    package_string = urllib.parse.unquote(
+                    package_string = unquote(
                         redact_auth_from_url(package.original_link.url)
                     )
 
@@ -143,7 +143,7 @@ BAD_PACKAGES = (
 def requirement_from_lockfile(
     package_name, package_info, include_hashes=True, include_markers=True
 ):
-    from pipenv.utils.dependencies import is_editable_path, is_star
+    from pipenv.utils.dependencies import is_editable_path, is_star, normalize_vcs_url
 
     # Handle string requirements
     if isinstance(package_info, str):
@@ -166,36 +166,31 @@ def requirement_from_lockfile(
     # Handling vcs repositories
     for vcs in VCS_LIST:
         if vcs in package_info:
-            url = package_info[vcs]
+            vcs_url = package_info[vcs]
             ref = package_info.get("ref", "")
-            if ("ssh://" in url and url.count("@") >= 2) or (
-                "ssh://" not in url and "@" in url
-            ):
-                url_parts = url.rsplit("@", 1)
-                # Check if the second part matches the criteria to be a ref (vcs URLs would likely have a /)
-                if re.match(r"^[\w\.]+$", url_parts[1]):
-                    url = url_parts[0]
-                    if not ref:
-                        ref = url_parts[1]
-
+            # We have to handle the fact that some vcs urls have a ref in them
+            # and some have a netloc with a username and password in them, and some have both
+            vcs_url, fallback_ref = normalize_vcs_url(vcs_url)
+            if not ref:
+                ref = fallback_ref
             extras = (
                 "[{}]".format(",".join(package_info.get("extras", [])))
                 if "extras" in package_info
                 else ""
             )
             subdirectory = package_info.get("subdirectory", "")
-            include_vcs = "" if f"{vcs}+" in url else f"{vcs}+"
-            egg_fragment = "" if "#egg=" in url else f"#egg={package_name}"
-            ref_str = "" if not ref or f"@{ref}" in url else f"@{ref}"
+            include_vcs = "" if f"{vcs}+" in vcs_url else f"{vcs}+"
+            egg_fragment = "" if "#egg=" in vcs_url else f"#egg={package_name}"
+            ref_str = "" if not ref or f"@{ref}" in vcs_url else f"@{ref}"
             if (
-                is_editable_path(url)
-                or "file://" in url
+                is_editable_path(vcs_url)
+                or "file://" in vcs_url
                 or package_info.get("editable", False)
             ):
-                pip_line = f"-e {include_vcs}{url}{ref_str}{egg_fragment}{extras}"
+                pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}{extras}"
                 pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
-                pip_line = f"{package_name}{extras}@ {include_vcs}{url}{ref_str}"
+                pip_line = f"{package_name}{extras}@ {include_vcs}{vcs_url}{ref_str}"
                 pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
             return pip_line
     # Handling file-sourced packages
