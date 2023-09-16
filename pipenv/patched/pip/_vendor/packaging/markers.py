@@ -236,6 +236,7 @@ def _evaluate_markers(markers: List[Any], environment: Dict[str, str]) -> bool:
             else:
                 lhs_value = lhs.value
                 rhs_value = _get_env(environment, rhs.value)
+
             groups[-1].append(_eval_op(lhs_value, op, rhs_value))
         else:
             assert marker in ["and", "or"]
