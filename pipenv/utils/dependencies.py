@@ -1025,6 +1025,20 @@ def _file_path_from_pipfile(path_obj, pipfile_entry):
     return req_str
 
 
+def normalize_vcs_url(vcs_url):
+    """Return vcs_url and possible vcs_ref from a given vcs_url."""
+    # We have to handle the fact that some vcs urls have a ref in them
+    # and some have a netloc with a username and password in them, and some have both
+    vcs_ref = ""
+    if "@" in vcs_url:
+        parsed_url = urlparse(vcs_url)
+        if "@" in parsed_url.path:
+            url_parts = vcs_url.rsplit("@", 1)
+            vcs_url = url_parts[0]
+            vcs_ref = url_parts[1]
+    return vcs_url, vcs_ref
+
+
 def install_req_from_pipfile(name, pipfile):
     """Creates an InstallRequirement from a name and a pipfile entry.
     Handles VCS, local & remote paths, and regular named requirements.
@@ -1051,14 +1065,7 @@ def install_req_from_pipfile(name, pipfile):
         subdirectory = _pipfile.get("subdirectory", "")
         if subdirectory:
             subdirectory = f"#subdirectory={subdirectory}"
-        fallback_ref = ""
-        if ("ssh://" in vcs_url and vcs_url.count("@") >= 2) or (
-            "ssh://" not in vcs_url and "@" in vcs_url
-        ):
-            vcs_url_parts = vcs_url.rsplit("@", 1)
-            if re.match(r"^[\w\.]+$", vcs_url_parts[1]):
-                vcs_url = vcs_url_parts[0]
-                fallback_ref = vcs_url_parts[1]
+        vcs_url, fallback_ref = normalize_vcs_url(vcs_url)
         req_str = f"{vcs_url}@{_pipfile.get('ref', fallback_ref)}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"

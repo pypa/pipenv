@@ -1,0 +1,1 @@
+Eveb better handling of vcs branch references that contain special characters.
