@@ -234,7 +234,7 @@ Example:
 
 Note
 
-Each month, [PyUp.io](https://pyup.io>)updates the `safety` database of insecure Python packages and [makes it available to the open source community for free](https://pyup.io/safety/). Each time you run `pipenv check` to show you vulnerable dependencies,
+Each month, [PyUp.io](https://pyup.io) updates the `safety` database of insecure Python packages and [makes it available to the open source community for free](https://pyup.io/safety/). Each time you run `pipenv check` to show you vulnerable dependencies,
 Pipenv makes an API call to retrieve and use those results.
 
 For more up-to-date vulnerability data, you may also use your own safety API key by setting the environment variable `PIPENV_PYUP_API_KEY`.

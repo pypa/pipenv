@@ -2,7 +2,7 @@
 
 `Pipfile` contains the specification for the project top-level requirements and any desired specifiers.
 This file is managed by the developers invoking pipenv commands.
-The `Pipfile` uses inline tables and the [TOML Spec](https://github.com/toml-lang/toml#user-content-spec>).
+The `Pipfile` uses inline tables and the [TOML Spec](https://toml.io/en/latest#spec).
 
 `Pipfile.lock` replaces the `requirements.txt` file used in most Python projects and adds
 security benefits of tracking the packages hashes that were last locked.

@@ -13,7 +13,7 @@ Add a package to your project, recalibrating entire lock file using the Pipfile 
     $ pipenv install <package>
 
 - Note: This will create a `Pipfile` if one doesn't exist. If one does exist, it will automatically be edited with the new package you provided, the lock file updated and the new dependencies installed.
-- `pipenv install` is fully compatible with `pip install` [package specifiers](https://pip.pypa.io/en/stable/user_guide/#installing-packages>).
+- `pipenv install` is fully compatible with `pip install` [package specifiers](https://pip.pypa.io/en/stable/user_guide/#installing-packages).
 - Additional arguments may be supplied to `pip` by supplying `pipenv` with `--extra-pip-args`.
 
 Update everything (equivalent to `pipenv lock && pipenv sync`):
