@@ -770,8 +770,8 @@ class Environment:
         )
         if match is not None:
             if req.link is None:
-                return False
-            if req.editable and req.link and req.link.is_file:
+                return True
+            if req.editable and req.link.is_file:
                 requested_path = req.link.file_path
                 if os.path.exists(requested_path):
                     local_path = requested_path
@@ -796,7 +796,7 @@ class Environment:
                     and vcs_ref == requested_revision
                     and direct_url_metadata["url"] == pipfile_part[req.link.scheme]
                 )
-            elif req.link and req.link.is_vcs:
+            elif req.link.is_vcs:
                 return False
             elif req.specifier is not None:
                 return SpecifierSet(str(req.specifier)).contains(
