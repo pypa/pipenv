@@ -769,6 +769,8 @@ class Environment:
             None,
         )
         if match is not None:
+            if req.link is None:
+                return False
             if req.editable and req.link and req.link.is_file:
                 requested_path = req.link.file_path
                 if os.path.exists(requested_path):
