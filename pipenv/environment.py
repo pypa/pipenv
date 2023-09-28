@@ -769,9 +769,13 @@ class Environment:
             None,
         )
         if match is not None:
+            if req.specifier is not None:
+                return SpecifierSet(str(req.specifier)).contains(
+                    match.version, prereleases=True
+                )
             if req.link is None:
                 return True
-            if req.editable and req.link.is_file:
+            elif req.editable and req.link.is_file:
                 requested_path = req.link.file_path
                 if os.path.exists(requested_path):
                     local_path = requested_path
@@ -798,10 +802,6 @@ class Environment:
                 )
             elif req.link.is_vcs:
                 return False
-            elif req.specifier is not None:
-                return SpecifierSet(str(req.specifier)).contains(
-                    match.version, prereleases=True
-                )
             return True
         return False
 
