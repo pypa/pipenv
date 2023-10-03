@@ -520,6 +520,7 @@ def check(
         output=output,
         key=key,
         quiet=quiet,
+        verbose=state.verbose,
         exit_code=exit_code,
         policy_file=policy_file,
         save_json=save_json,

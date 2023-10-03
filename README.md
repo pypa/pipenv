@@ -337,4 +337,3 @@ Documentation resides over at [pipenv.pypa.io](https://pipenv.pypa.io/en/latest/
     <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=pypa/pipenv&type=Date" />
   </picture>
 </a>
-
