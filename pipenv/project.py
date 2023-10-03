@@ -1197,12 +1197,22 @@ class Project:
         else:
             return name, normalized_name, entry
 
-    def add_package_to_pipfile(self, package, pip_line, dev=False, category=None):
+    def add_package_to_pipfile(
+        self, package, pip_line, dev=False, category=None, exact=False
+    ):
         category = category if category else "dev-packages" if dev else "packages"
 
         name, normalized_name, entry = self.generate_package_pipfile_entry(
             package, pip_line, category=category
         )
+
+        if exact:
+            from pipenv.utils.resolver import resolve_deps
+
+            resolved_packages, resolver = resolve_deps(
+                {normalized_name: package.name}, None, self, category=category
+            )
+            entry = str(resolver.install_reqs[normalized_name].specifier)
 
         return self.add_pipfile_entry_to_pipfile(
             name, normalized_name, entry, category=category

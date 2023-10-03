@@ -212,6 +212,7 @@ def install(state, **kwargs):
         python=state.python,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
+        exact=state.installstate.exact,
         ignore_pipfile=state.installstate.ignore_pipfile,
         requirementstxt=state.installstate.requirementstxt,
         pre=state.installstate.pre,
