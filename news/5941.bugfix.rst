@@ -1,1 +1,0 @@
-Bump certifi from 2023.5.7 to 2023.7.22 in /examples to address a security vulnerability
