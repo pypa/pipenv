@@ -1226,6 +1226,7 @@ class Project:
             newly_added = True
 
         p[category][normalized_name] = entry
+        p[category] = dict(sorted(p[category].items()))
 
         # Write Pipfile.
         self.write_toml(p)
