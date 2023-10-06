@@ -1,3 +1,16 @@
+2023.10.3 (2023-10-03)
+======================
+Pipenv 2023.10.3 (2023-10-03)
+=============================
+
+
+Bug Fixes
+---------
+
+- Eveb better handling of vcs branch references that contain special characters.  `#5934 <https://github.com/pypa/pipenv/issues/5934>`_
+- Bump certifi from 2023.5.7 to 2023.7.22 in /examples to address a security vulnerability  `#5941 <https://github.com/pypa/pipenv/issues/5941>`_
+
+
 2023.9.8 (2023-09-08)
 =====================
 Pipenv 2023.9.8 (2023-09-08)

@@ -1,5 +1,6 @@
 import io
 import json as simplejson
+import logging
 import os
 import sys
 import tempfile
@@ -12,6 +13,40 @@ from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click, plette
 
 
+def build_options(
+    audit_and_monitor=True,
+    exit_code=True,
+    output="screen",
+    save_json="",
+    policy_file="",
+    safety_project=None,
+    temp_requirements_name="",
+):
+    options = [
+        "--audit-and-monitor" if audit_and_monitor else "--disable-audit-and-monitor",
+        "--exit-code" if exit_code else "--continue-on-error",
+    ]
+    formats = {"full-report": "--full-report", "minimal": "--json"}
+
+    if output in formats:
+        options.append(formats.get(output, ""))
+    elif output not in ["screen", "default"]:
+        options.append(f"--output={output}")
+
+    if save_json:
+        options.append(f"--save-json={save_json}")
+
+    if policy_file:
+        options.append(f"--policy-file={policy_file}")
+
+    if safety_project:
+        options.append(f"--project={safety_project}")
+
+    options.extend(["--file", temp_requirements_name])
+
+    return options
+
+
 def do_check(
     project,
     python=False,
@@ -21,6 +56,7 @@ def do_check(
     output="screen",
     key=None,
     quiet=False,
+    verbose=False,
     exit_code=True,
     policy_file="",
     save_json="",
@@ -31,6 +67,9 @@ def do_check(
     categories="",
 ):
     import json
+
+    if not verbose:
+        logging.getLogger("pipenv").setLevel(logging.WARN)
 
     if not system:
         # Ensure that virtualenv is available.
@@ -120,27 +159,6 @@ def do_check(
     else:
         ignored = []
 
-    options = [
-        "--audit-and-monitor" if audit_and_monitor else "--disable-audit-and-monitor",
-        "--exit-code" if exit_code else "--continue-on-error",
-    ]
-
-    formats = {"full-report": "--full-report", "minimal": "--json"}
-    if output in formats:
-        options.append(formats.get(output, ""))
-
-    elif output not in ["screen", "default"]:
-        options.append(f"--output={output}")
-
-    if save_json:
-        options.append(f"--save-json={save_json}")
-
-    if policy_file:
-        options.append(f"--policy-file={policy_file}")
-
-    if safety_project:
-        options.append(f"--project={safety_project}")
-
     if use_installed:
         target_venv_packages = run_command(
             _cmd + ["-m", "pip", "list", "--format=freeze"],
@@ -165,7 +183,15 @@ def do_check(
     temp_requirements.write(target_venv_packages.stdout.strip())
     temp_requirements.close()
 
-    options.extend(["--file", temp_requirements.name])
+    options = build_options(
+        audit_and_monitor=audit_and_monitor,
+        exit_code=exit_code,
+        output=output,
+        save_json=save_json,
+        policy_file=policy_file,
+        safety_project=safety_project,
+        temp_requirements_name=temp_requirements.name,
+    )
 
     cmd = _cmd + [safety_path, "check"] + options
 
