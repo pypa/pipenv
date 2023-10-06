@@ -9,7 +9,9 @@ from pipenv.utils.shell import cmd_list_to_shell, system_which
 from pipenv.vendor import click
 
 
-def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=None, quiet=False):
+def do_shell(
+    project, python=False, fancy=False, shell_args=None, pypi_mirror=None, quiet=False
+):
     # Ensure that virtualenv is available.
     ensure_project(
         project,

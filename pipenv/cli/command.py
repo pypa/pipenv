@@ -371,13 +371,7 @@ def lock(ctx, state, **kwargs):
 @pypi_mirror_option
 @python_option
 @pass_state
-def shell(
-    state,
-    fancy=False,
-    shell_args=None,
-    anyway=False,
-    quiet=False
-):
+def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
     """Spawns a shell within the virtualenv."""
     from pipenv.routines.shell import do_shell
 
@@ -403,7 +397,7 @@ def shell(
         fancy=fancy,
         shell_args=shell_args,
         pypi_mirror=state.pypi_mirror,
-        quiet=quiet
+        quiet=quiet,
     )
 
 
