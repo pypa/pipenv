@@ -364,6 +364,9 @@ def lock(ctx, state, **kwargs):
     default=False,
     help="Always spawn a sub-shell, even if one is already spawned.",
 )
+@option(
+    "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
+)
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option
 @python_option
@@ -373,6 +376,7 @@ def shell(
     fancy=False,
     shell_args=None,
     anyway=False,
+    quiet=False
 ):
     """Spawns a shell within the virtualenv."""
     from pipenv.routines.shell import do_shell
@@ -399,6 +403,7 @@ def shell(
         fancy=fancy,
         shell_args=shell_args,
         pypi_mirror=state.pypi_mirror,
+        quiet=quiet
     )
 
 
