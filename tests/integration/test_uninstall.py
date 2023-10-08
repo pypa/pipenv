@@ -245,6 +245,7 @@ def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
         assert "six" not in p.lockfile["default"]
 
 
+@pytest.mark.install
 @pytest.mark.uninstall
 def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
@@ -270,6 +271,7 @@ atomicwrites = "*"
         assert list(p.pipfile["packages"].keys()) == ["atomicwrites", "colorama", "parse"]
 
 
+@pytest.mark.install
 @pytest.mark.uninstall
 def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
