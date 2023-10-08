@@ -10,6 +10,15 @@ This file is managed automatically through locking actions.
 
 You should add both `Pipfile` and `Pipfile.lock` to the project's source control.
 
+## `[pipenv]` Directives
+
+`Pipfile` may contain a `[pipenv]` section to control the behaviour of pipenv itself. Some available settings include:
+
+* `allow_prereleases` - Tell pipenv to install pre-release versions of a package -i.e. a version with an alpha/beta/etc. suffix, such as _1.0b1_. Equivalent to passing the `--pre` flag on the command line.
+* `disable_pip_input` - Prevent pipenv from asking for input. Equivalent to the `--no-input` flag.
+* `install_search_all_sources` - Allow installation of packages from an existing `Pipfile.lock` to search all defined indexes for the constrained package version and hash signatures. See [Specifying Package Indexes](indexes.md).
+
+
 ## Example Pipfile
 
 Here is a simple example of a `Pipfile` and the resulting `Pipfile.lock`.
