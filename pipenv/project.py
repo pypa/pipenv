@@ -1227,7 +1227,7 @@ class Project:
 
         p[category][normalized_name] = entry
 
-        if self.settings.get("sort_alphabetical"):
+        if self.settings.get("sort_pipfile"):
             p[category] = dict(sorted(p[category].items()))
 
         # Write Pipfile.

@@ -565,7 +565,7 @@ def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_p
         with open(p.pipfile_path, "w") as f:
             contents = """
 [pipenv]
-sort_alphabetical = true
+sort_pipfile = true
 
 [packages]
 atomicwrites = "*"
