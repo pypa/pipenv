@@ -143,6 +143,7 @@ six = "==1.12.0"
         assert c.returncode == 0
 
 
+@pytest.mark.install
 @pytest.mark.uninstall
 def test_normalize_name_uninstall(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
@@ -188,6 +189,7 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.install
 @pytest.mark.uninstall
 def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
@@ -200,6 +202,7 @@ def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
 
 
 @pytest.mark.categories
+@pytest.mark.install
 @pytest.mark.uninstall
 def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
@@ -223,6 +226,7 @@ def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
 
 
 @pytest.mark.categories
+@pytest.mark.install
 @pytest.mark.uninstall
 def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
