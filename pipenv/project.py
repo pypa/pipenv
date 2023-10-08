@@ -1117,6 +1117,8 @@ class Project:
         p = self.parsed_pipfile
         if name:
             del p[category][name]
+            if self.settings.get("sort_pipfile"):
+                p[category] = dict(sorted(p[category].items()))
             self.write_toml(p)
             return True
         return False

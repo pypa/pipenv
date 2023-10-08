@@ -243,3 +243,54 @@ def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
 
         assert "six" not in p.lockfile.get("prereq", {})
         assert "six" not in p.lockfile["default"]
+
+
+@pytest.mark.uninstall
+def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+parse = "*"
+colorama = "*"
+build = "*"
+atomicwrites = "*"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall build")
+        assert c.returncode == 0
+        assert "build" not in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == ["atomicwrites", "colorama", "parse"]
+
+
+@pytest.mark.uninstall
+def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+parse = "*"
+colorama = "*"
+build = "*"
+atomicwrites = "*"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall build")
+        assert c.returncode == 0
+        assert "build" not in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "parse",
+            "colorama",
+            "atomicwrites",
+        ]
