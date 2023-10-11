@@ -27,7 +27,6 @@ from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
     argument,
-    echo,
     edit,
     group,
     option,
@@ -769,7 +768,7 @@ def do_py(project, ctx=None, system=False, bare=False):
         ctx.abort()
 
     try:
-        (echo if bare else console.print)(project._which("python", allow_global=system))
+        (print if bare else console.print)(project._which("python", allow_global=system))
     except AttributeError:
         console.print("No project found!", style="red")
         ctx.abort()
