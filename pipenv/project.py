@@ -1111,6 +1111,9 @@ class Project:
                 return name
         return None
 
+    def _sort_category(self, category):
+        return dict(sorted(category.items()))
+
     def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
         name = self.get_package_name_in_pipfile(package_name, category=category)
@@ -1118,7 +1121,7 @@ class Project:
         if name:
             del p[category][name]
             if self.settings.get("sort_pipfile"):
-                p[category] = dict(sorted(p[category].items()))
+                p[category] = self._sort_category(p[category])
             self.write_toml(p)
             return True
         return False
@@ -1230,7 +1233,7 @@ class Project:
         p[category][normalized_name] = entry
 
         if self.settings.get("sort_pipfile"):
-            p[category] = dict(sorted(p[category].items()))
+            p[category] = self._sort_category(p[category])
 
         # Write Pipfile.
         self.write_toml(p)
