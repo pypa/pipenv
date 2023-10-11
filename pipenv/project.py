@@ -1112,7 +1112,14 @@ class Project:
         return None
 
     def _sort_category(self, category):
-        return dict(sorted(category.items()))
+        # toml tables won't maintain sorted dictionary order
+        # so construct the table in the order that we need
+        sorted_category = dict(sorted(category.items()))
+        table = tomlkit.table()
+        for key, value in sorted_category.items():
+            table.add(key, value)
+
+        return table
 
     def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
