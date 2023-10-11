@@ -277,6 +277,36 @@ atomicwrites = "*"
 
 @pytest.mark.install
 @pytest.mark.uninstall
+def test_sorting_handles_str_values_and_dict_values(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+zipp = "*"
+parse = {version = "*"}
+colorama = "*"
+build = "*"
+atomicwrites = {version = "*"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall build")
+        assert c.returncode == 0
+        assert "build" not in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "atomicwrites",
+            "colorama",
+            "parse",
+            "zipp",
+        ]
+
+@pytest.mark.install
+@pytest.mark.uninstall
 def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:

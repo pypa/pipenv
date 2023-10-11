@@ -580,6 +580,34 @@ colorama = "*"
 
 @pytest.mark.basic
 @pytest.mark.install
+def test_sorting_handles_str_values_and_dict_values(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+zipp = {version = "*"}
+parse = "*"
+colorama = "*"
+atomicwrites = {version = "*"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install build")
+        assert c.returncode == 0
+        assert "build" in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "atomicwrites",
+            "build",
+            "colorama",
+            "parse",
+            "zipp",
+        ]
+
+
+@pytest.mark.basic
+@pytest.mark.install
 def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
