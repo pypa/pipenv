@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/index/package_finder.py
-index e74e6623..cc81f35c 100644
+index 2121ca327..04352c7d1 100644
 --- a/pipenv/patched/pip/_internal/index/package_finder.py
 +++ b/pipenv/patched/pip/_internal/index/package_finder.py
 @@ -125,6 +125,7 @@ class LinkEvaluator:
@@ -43,7 +43,7 @@ index e74e6623..cc81f35c 100644
 @@ -199,7 +203,7 @@ class LinkEvaluator:
                      return (LinkType.different_project, reason)
 
-                 supported_tags = self._target_python.get_tags()
+                 supported_tags = self._target_python.get_unsorted_tags()
 -                if not wheel.supported(supported_tags):
 +                if not wheel.supported(supported_tags) and not self._ignore_compatibility:
                      # Include the wheel's tags in the reason string to
@@ -66,7 +66,7 @@ index e74e6623..cc81f35c 100644
 +    def _sort_key(
 +        self,
 +        candidate: InstallationCandidate,
-+        ignore_compatibility: bool = True
++        ignore_compatibility: bool = True,
 +    ) -> CandidateSortingKey:
          """
          Function to pass as the `key` argument to a call to sorted() to sort
