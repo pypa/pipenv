@@ -297,7 +297,7 @@ class ListCommand(IndexGroupCommand):
 
         # Create and add a separator.
         if len(data) > 0:
-            pkg_strings.insert(1, " ".join(map(lambda x: "-" * x, sizes)))
+            pkg_strings.insert(1, " ".join("-" * x for x in sizes))
 
         for val in pkg_strings:
             write_output(val)
