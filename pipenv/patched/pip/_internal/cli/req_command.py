@@ -58,12 +58,9 @@ def _create_truststore_ssl_context() -> Optional["SSLContext"]:
         return None
 
     try:
-        import truststore
-    except ImportError:
-        raise CommandError(
-            "To use the truststore feature, 'truststore' must be installed into "
-            "pip's current environment."
-        )
+        from pipenv.patched.pip._vendor import truststore
+    except ImportError as e:
+        raise CommandError(f"The truststore feature is unavailable: {e}")
 
     return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 
@@ -123,7 +120,7 @@ class SessionCommandMixin(CommandContextMixIn):
             ssl_context = None
 
         session = PipSession(
-            cache=os.path.join(cache_dir, "http") if cache_dir else None,
+            cache=os.path.join(cache_dir, "http-v2") if cache_dir else None,
             retries=retries if retries is not None else options.retries,
             trusted_hosts=options.trusted_hosts,
             index_urls=self._get_index_urls(options),
@@ -268,7 +265,7 @@ class RequirementCommand(IndexGroupCommand):
         if "legacy-resolver" in options.deprecated_features_enabled:
             return "legacy"
 
-        return "2020-resolver"
+        return "resolvelib"
 
     @classmethod
     def make_requirement_preparer(
@@ -290,7 +287,7 @@ class RequirementCommand(IndexGroupCommand):
         legacy_resolver = False
 
         resolver_variant = cls.determine_resolver_variant(options)
-        if resolver_variant == "2020-resolver":
+        if resolver_variant == "resolvelib":
             lazy_wheel = "fast-deps" in options.features_enabled
             if lazy_wheel:
                 logger.warning(
@@ -352,7 +349,7 @@ class RequirementCommand(IndexGroupCommand):
         # The long import name and duplicated invocation is needed to convince
         # Mypy into correctly typechecking. Otherwise it would complain the
         # "Resolver" class being redefined.
-        if resolver_variant == "2020-resolver":
+        if resolver_variant == "resolvelib":
             import pipenv.patched.pip._internal.resolution.resolvelib.resolver
 
             return pipenv.patched.pip._internal.resolution.resolvelib.resolver.Resolver(

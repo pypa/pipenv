@@ -78,12 +78,10 @@ class Cache:
         if can_not_cache:
             return []
 
-        candidates = []
         path = self.get_path_for_link(link)
         if os.path.isdir(path):
-            for candidate in os.listdir(path):
-                candidates.append((candidate, path))
-        return candidates
+            return [(candidate, path) for candidate in os.listdir(path)]
+        return []
 
     def get_path_for_link(self, link: Link) -> str:
         """Return a directory to store cached items in for link."""
