@@ -526,6 +526,7 @@ def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skip(reason="pip 23.3 now vendors in truststore and so test assumptions invalid ")
 def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("""install -v dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """)
