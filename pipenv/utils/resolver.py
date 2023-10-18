@@ -463,15 +463,26 @@ class Resolver:
 
         return " and ".join(combined_markers).strip()
 
-    def _fold_markers(self, dependency_tree, install_req):
+    def _fold_markers(self, dependency_tree, install_req, checked_dependencies=None):
+        if checked_dependencies is None:
+            checked_dependencies = set()
+
         comes_from = dependency_tree[install_req.name]
+
+        # Check for recursion loop
+        if comes_from.name in checked_dependencies:
+            return None  # Or raise an error or handle cyclic dependencies differently
+
+        checked_dependencies.add(install_req.name)
 
         if comes_from == "Pipfile":
             pipfile_entry = self.pipfile_entries.get(install_req.name)
             if pipfile_entry and isinstance(pipfile_entry, dict):
                 return self._get_pipfile_markers(pipfile_entry)
         else:
-            markers = self._fold_markers(dependency_tree, comes_from)
+            markers = self._fold_markers(
+                dependency_tree, comes_from, checked_dependencies
+            )
             if markers:
                 self.markers_lookup[install_req.name] = markers
             return markers
