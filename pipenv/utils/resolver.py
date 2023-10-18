@@ -470,7 +470,7 @@ class Resolver:
         comes_from = dependency_tree[install_req.name]
 
         # Check for recursion loop
-        if comes_from in checked_dependencies:
+        if install_req.name in checked_dependencies:
             return None  # Or raise an error or handle cyclic dependencies differently
 
         checked_dependencies.add(install_req.name)
