@@ -467,6 +467,9 @@ class Resolver:
         if checked_dependencies is None:
             checked_dependencies = set()
 
+        if install_req.name is None:
+            return None  # Or handle this edge case differently
+
         comes_from = dependency_tree[install_req.name]
 
         # Check for recursion loop
