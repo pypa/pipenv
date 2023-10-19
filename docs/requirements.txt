@@ -18,6 +18,6 @@ Sphinx==4.5.0
 sphinx-click==4.4.0
 sphinxcontrib-spelling==7.7.0
 sphinxcontrib-websupport==1.2.4
-urllib3==1.26.17
+urllib3==1.26.18
 virtualenv>=20.20.0
 virtualenv-clone==0.5.7
