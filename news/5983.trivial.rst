@@ -1,0 +1,1 @@
+Update Ruff linter in CI to remove deperecated option "--format"
