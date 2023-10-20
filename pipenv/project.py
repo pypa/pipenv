@@ -1090,12 +1090,24 @@ class Project:
                 return name
         return None
 
+    def _sort_category(self, category):
+        # toml tables won't maintain sorted dictionary order
+        # so construct the table in the order that we need
+        sorted_category = dict(sorted(category.items()))
+        table = tomlkit.table()
+        for key, value in sorted_category.items():
+            table.add(key, value)
+
+        return table
+
     def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
         name = self.get_package_name_in_pipfile(package_name, category=category)
         p = self.parsed_pipfile
         if name:
             del p[category][name]
+            if self.settings.get("sort_pipfile"):
+                p[category] = self._sort_category(p[category])
             self.write_toml(p)
             return True
         return False
@@ -1205,6 +1217,9 @@ class Project:
             newly_added = True
 
         p[category][normalized_name] = entry
+
+        if self.settings.get("sort_pipfile"):
+            p[category] = self._sort_category(p[category])
 
         # Write Pipfile.
         self.write_toml(p)

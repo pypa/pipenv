@@ -147,7 +147,7 @@ class Resolver:
         )
 
     @staticmethod
-    @lru_cache()
+    @lru_cache
     def _get_pip_command():
         return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
@@ -467,15 +467,29 @@ class Resolver:
 
         return " and ".join(combined_markers).strip()
 
-    def _fold_markers(self, dependency_tree, install_req):
+    def _fold_markers(self, dependency_tree, install_req, checked_dependencies=None):
+        if checked_dependencies is None:
+            checked_dependencies = set()
+
+        if install_req.name is None:
+            return None  # Or handle this edge case differently
+
         comes_from = dependency_tree[install_req.name]
+
+        # Check for recursion loop
+        if install_req.name in checked_dependencies:
+            return None  # Or raise an error or handle cyclic dependencies differently
+
+        checked_dependencies.add(install_req.name)
 
         if comes_from == "Pipfile":
             pipfile_entry = self.pipfile_entries.get(install_req.name)
             if pipfile_entry and isinstance(pipfile_entry, dict):
                 return self._get_pipfile_markers(pipfile_entry)
         else:
-            markers = self._fold_markers(dependency_tree, comes_from)
+            markers = self._fold_markers(
+                dependency_tree, comes_from, checked_dependencies
+            )
             if markers:
                 self.markers_lookup[install_req.name] = markers
             return markers
@@ -934,7 +948,7 @@ def resolve_deps(
     return results, internal_resolver
 
 
-@lru_cache()
+@lru_cache
 def get_pipenv_sitedir() -> Optional[str]:
     site_dir = next(
         iter(d for d in pkg_resources.working_set if d.key.lower() == "pipenv"), None

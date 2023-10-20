@@ -13,7 +13,7 @@ export PIPENV_CACHE_DIR=`mktemp -d 2>/dev/null || mktemp -d -t 'pipenv_cache'`
 
 # on some Linux OS python is python3
 PYTHON=${PYTHON:-"python"}
-PIPENV_PYTHON="${PIPENV_PYTHON:-3.7}"
+PIPENV_PYTHON="${PIPENV_PYTHON:-3.8}"
 
 PIP_CALL="${PIP_CALL:-${PYTHON} -m pip install --user}"
 

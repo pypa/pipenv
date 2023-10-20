@@ -9,6 +9,7 @@ import os
 import site
 import sys
 import typing
+from functools import cached_property
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
@@ -29,14 +30,6 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
-
-try:
-    # this is only in Python3.8 and later
-    from functools import cached_property
-except ImportError:
-    # eventually distlib will remove cached property when they drop Python3.7
-    from pipenv.patched.pip._vendor.distlib.util import cached_property
-
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
@@ -776,7 +769,13 @@ class Environment:
             None,
         )
         if match is not None:
-            if req.editable and req.link and req.link.is_file:
+            if req.specifier is not None:
+                return SpecifierSet(str(req.specifier)).contains(
+                    match.version, prereleases=True
+                )
+            if req.link is None:
+                return True
+            elif req.editable and req.link.is_file:
                 requested_path = req.link.file_path
                 if os.path.exists(requested_path):
                     local_path = requested_path
@@ -801,12 +800,8 @@ class Environment:
                     and vcs_ref == requested_revision
                     and direct_url_metadata["url"] == pipfile_part[req.link.scheme]
                 )
-            elif req.link and req.link.is_vcs:
+            elif req.link.is_vcs:
                 return False
-            elif req.specifier is not None:
-                return SpecifierSet(str(req.specifier)).contains(
-                    match.version, prereleases=True
-                )
             return True
         return False
 

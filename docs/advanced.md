@@ -234,7 +234,7 @@ Example:
 
 Note
 
-Each month, [PyUp.io](https://pyup.io>)updates the `safety` database of insecure Python packages and [makes it available to the open source community for free](https://pyup.io/safety/). Each time you run `pipenv check` to show you vulnerable dependencies,
+Each month, [PyUp.io](https://pyup.io) updates the `safety` database of insecure Python packages and [makes it available to the open source community for free](https://pyup.io/safety/). Each time you run `pipenv check` to show you vulnerable dependencies,
 Pipenv makes an API call to retrieve and use those results.
 
 For more up-to-date vulnerability data, you may also use your own safety API key by setting the environment variable `PIPENV_PYUP_API_KEY`.
@@ -268,6 +268,8 @@ This allows you to easily read the code you're consuming, instead of looking it 
 Note
 
 The standard `EDITOR` environment variable is used for this. If you're using VS Code, for example, you'll want to `export EDITOR=code` (if you're on macOS you will want to [install the command](https://code.visualstudio.com/docs/setup/mac#_launching-from-the-command-line) on to your `PATH` first).
+
+## ☤ Automatic Python Installation
 
 This is a very fancy feature, and we're very proud of it:
 

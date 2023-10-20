@@ -23,6 +23,9 @@ class InstallationReport:
             # includes editable requirements), and false if the requirement was
             # downloaded from a PEP 503 index or --find-links.
             "is_direct": ireq.is_direct,
+            # is_yanked is true if the requirement was yanked from the index, but
+            # was still selected by pip to conform to PEP 592.
+            "is_yanked": ireq.link.is_yanked if ireq.link else False,
             # requested is true if the requirement was specified by the user (aka
             # top level requirement), and false if it was installed as a dependency of a
             # requirement. https://peps.python.org/pep-0376/#requested
@@ -33,7 +36,7 @@ class InstallationReport:
         }
         if ireq.user_supplied and ireq.extras:
             # For top level requirements, the list of requested extras, if any.
-            res["requested_extras"] = list(sorted(ireq.extras))
+            res["requested_extras"] = sorted(ireq.extras)
         return res
 
     def to_dict(self) -> Dict[str, Any]:

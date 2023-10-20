@@ -125,7 +125,7 @@ def cli(
             do_where(state.project, bare=True)
             return 0
         elif py:
-            do_py(state.project, ctx=ctx)
+            do_py(state.project, ctx=ctx, bare=True)
             return 0
         # --support was passed...
         elif support:
@@ -364,16 +364,14 @@ def lock(ctx, state, **kwargs):
     default=False,
     help="Always spawn a sub-shell, even if one is already spawned.",
 )
+@option(
+    "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
+)
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option
 @python_option
 @pass_state
-def shell(
-    state,
-    fancy=False,
-    shell_args=None,
-    anyway=False,
-):
+def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
     """Spawns a shell within the virtualenv."""
     from pipenv.routines.shell import do_shell
 
@@ -399,6 +397,7 @@ def shell(
         fancy=fancy,
         shell_args=shell_args,
         pypi_mirror=state.pypi_mirror,
+        quiet=quiet,
     )
 
 
@@ -520,6 +519,7 @@ def check(
         output=output,
         key=key,
         quiet=quiet,
+        verbose=state.verbose,
         exit_code=exit_code,
         policy_file=policy_file,
         save_json=save_json,
@@ -757,7 +757,7 @@ if __name__ == "__main__":
     cli()
 
 
-def do_py(project, ctx=None, system=False):
+def do_py(project, ctx=None, system=False, bare=False):
     if not project.virtualenv_exists:
         err.print(
             "[red]No virtualenv has been created for this project[/red] "
@@ -767,6 +767,7 @@ def do_py(project, ctx=None, system=False):
         ctx.abort()
 
     try:
-        console.print(project._which("python", allow_global=system))
+        (print if bare else console.print)(project._which("python", allow_global=system))
     except AttributeError:
         console.print("No project found!", style="red")
+        ctx.abort()

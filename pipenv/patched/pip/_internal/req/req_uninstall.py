@@ -274,7 +274,7 @@ class StashedUninstallPathSet:
 
     def commit(self) -> None:
         """Commits the uninstall by removing stashed files."""
-        for _, save_dir in self._save_dirs.items():
+        for save_dir in self._save_dirs.values():
             save_dir.cleanup()
         self._moves = []
         self._save_dirs = {}

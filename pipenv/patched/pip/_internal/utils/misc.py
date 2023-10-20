@@ -11,9 +11,11 @@ import stat
 import sys
 import sysconfig
 import urllib.parse
+from functools import partial
 from io import StringIO
 from itertools import filterfalse, tee, zip_longest
-from types import TracebackType
+from pathlib import Path
+from types import FunctionType, TracebackType
 from typing import (
     Any,
     BinaryIO,
@@ -33,6 +35,7 @@ from typing import (
     cast,
 )
 
+from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller
 from pipenv.patched.pip._vendor.tenacity import retry, stop_after_delay, wait_fixed
 
@@ -66,6 +69,8 @@ T = TypeVar("T")
 ExcInfo = Tuple[Type[BaseException], BaseException, TracebackType]
 VersionInfo = Tuple[int, int, int]
 NetlocTuple = Tuple[str, Tuple[Optional[str], Optional[str]]]
+OnExc = Callable[[FunctionType, Path, BaseException], Any]
+OnErr = Callable[[FunctionType, Path, ExcInfo], Any]
 
 
 def get_pip_version() -> str:
@@ -123,33 +128,75 @@ def get_prog() -> str:
 # Retry every half second for up to 3 seconds
 # Tenacity raises RetryError by default, explicitly raise the original exception
 @retry(reraise=True, stop=stop_after_delay(3), wait=wait_fixed(0.5))
-def rmtree(dir: str, ignore_errors: bool = False) -> None:
+def rmtree(
+    dir: str,
+    ignore_errors: bool = False,
+    onexc: Optional[OnExc] = None,
+) -> None:
+    if ignore_errors:
+        onexc = _onerror_ignore
+    if onexc is None:
+        onexc = _onerror_reraise
+    handler: OnErr = partial(
+        # `[func, path, Union[ExcInfo, BaseException]] -> Any` is equivalent to
+        # `Union[([func, path, ExcInfo] -> Any), ([func, path, BaseException] -> Any)]`.
+        cast(Union[OnExc, OnErr], rmtree_errorhandler),
+        onexc=onexc,
+    )
     if sys.version_info >= (3, 12):
-        shutil.rmtree(dir, ignore_errors=ignore_errors, onexc=rmtree_errorhandler)
+        # See https://docs.python.org/3.12/whatsnew/3.12.html#shutil.
+        shutil.rmtree(dir, onexc=handler)
     else:
-        shutil.rmtree(dir, ignore_errors=ignore_errors, onerror=rmtree_errorhandler)
+        shutil.rmtree(dir, onerror=handler)
+
+
+def _onerror_ignore(*_args: Any) -> None:
+    pass
+
+
+def _onerror_reraise(*_args: Any) -> None:
+    raise
 
 
 def rmtree_errorhandler(
-    func: Callable[..., Any], path: str, exc_info: Union[ExcInfo, BaseException]
+    func: FunctionType,
+    path: Path,
+    exc_info: Union[ExcInfo, BaseException],
+    *,
+    onexc: OnExc = _onerror_reraise,
 ) -> None:
-    """On Windows, the files in .svn are read-only, so when rmtree() tries to
-    remove them, an exception is thrown.  We catch that here, remove the
-    read-only attribute, and hopefully continue without problems."""
+    """
+    `rmtree` error handler to 'force' a file remove (i.e. like `rm -f`).
+
+    * If a file is readonly then it's write flag is set and operation is
+      retried.
+
+    * `onerror` is the original callback from `rmtree(... onerror=onerror)`
+      that is chained at the end if the "rm -f" still fails.
+    """
     try:
-        has_attr_readonly = not (os.stat(path).st_mode & stat.S_IWRITE)
+        st_mode = os.stat(path).st_mode
     except OSError:
         # it's equivalent to os.path.exists
         return
 
-    if has_attr_readonly:
+    if not st_mode & stat.S_IWRITE:
         # convert to read/write
-        os.chmod(path, stat.S_IWRITE)
-        # use the original function to repeat the operation
-        func(path)
-        return
-    else:
-        raise
+        try:
+            os.chmod(path, st_mode | stat.S_IWRITE)
+        except OSError:
+            pass
+        else:
+            # use the original function to repeat the operation
+            try:
+                func(path)
+                return
+            except OSError:
+                pass
+
+    if not isinstance(exc_info, BaseException):
+        _, exc_info, _ = exc_info
+    onexc(func, path, exc_info)
 
 
 def display_path(path: str) -> str:
@@ -530,6 +577,13 @@ def remove_auth_from_url(url: str) -> str:
 def redact_auth_from_url(url: str) -> str:
     """Replace the password in a given url with ****."""
     return _transform_url(url, _redact_netloc)[0]
+
+
+def redact_auth_from_requirement(req: Requirement) -> str:
+    """Replace the password in a given requirement url with ****."""
+    if not req.url:
+        return str(req)
+    return str(req).replace(req.url, redact_auth_from_url(req.url))
 
 
 class HiddenText:

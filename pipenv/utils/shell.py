@@ -19,7 +19,7 @@ from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
 
 
-@lru_cache()
+@lru_cache
 def make_posix(path: str) -> str:
     """
     Convert a path with possible windows-style separators to a posix-style path
