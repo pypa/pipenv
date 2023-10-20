@@ -1,14 +1,12 @@
+from __future__ import annotations
+
 import copy
 
 from typing import Any
-from typing import Dict
 from typing import Iterator
-from typing import List
-from typing import Optional
-from typing import Tuple
-from typing import Union
 
 from pipenv.vendor.tomlkit._compat import decode
+from pipenv.vendor.tomlkit._types import _CustomDict
 from pipenv.vendor.tomlkit._utils import merge_dicts
 from pipenv.vendor.tomlkit.exceptions import KeyAlreadyPresent
 from pipenv.vendor.tomlkit.exceptions import NonExistentKey
@@ -22,7 +20,6 @@ from pipenv.vendor.tomlkit.items import SingleKey
 from pipenv.vendor.tomlkit.items import Table
 from pipenv.vendor.tomlkit.items import Trivia
 from pipenv.vendor.tomlkit.items import Whitespace
-from pipenv.vendor.tomlkit.items import _CustomDict
 from pipenv.vendor.tomlkit.items import item as _item
 
 
@@ -37,16 +34,16 @@ class Container(_CustomDict):
     """
 
     def __init__(self, parsed: bool = False) -> None:
-        self._map: Dict[Key, int] = {}
-        self._body: List[Tuple[Optional[Key], Item]] = []
+        self._map: dict[SingleKey, int | tuple[int, ...]] = {}
+        self._body: list[tuple[Key | None, Item]] = []
         self._parsed = parsed
         self._table_keys = []
 
     @property
-    def body(self) -> List[Tuple[Optional[Key], Item]]:
+    def body(self) -> list[tuple[Key | None, Item]]:
         return self._body
 
-    def unwrap(self) -> Dict[str, Any]:
+    def unwrap(self) -> dict[str, Any]:
         unwrapped = {}
         for k, v in self.items():
             if k is None:
@@ -66,7 +63,7 @@ class Container(_CustomDict):
         return unwrapped
 
     @property
-    def value(self) -> Dict[str, Any]:
+    def value(self) -> dict[str, Any]:
         d = {}
         for k, v in self._body:
             if k is None:
@@ -95,9 +92,7 @@ class Container(_CustomDict):
                 for t in v.body:
                     t.value.parsing(parsing)
 
-    def add(
-        self, key: Union[Key, Item, str], item: Optional[Item] = None
-    ) -> "Container":
+    def add(self, key: Key | Item | str, item: Item | None = None) -> Container:
         """
         Adds an item to the current Container.
 
@@ -119,64 +114,38 @@ class Container(_CustomDict):
         return self.append(key, item)
 
     def _handle_dotted_key(self, key: Key, value: Item) -> None:
-        names = tuple(iter(key))
-        name = names[0]
+        if isinstance(value, (Table, AoT)):
+            raise TOMLKitError("Can't add a table to a dotted key")
+        name, *mid, last = key
         name._dotted = True
-        if name in self:
-            if not isinstance(value, Table):
-                table = Table(Container(True), Trivia(), False, is_super_table=True)
-                _table = table
-                for i, _name in enumerate(names[1:]):
-                    if i == len(names) - 2:
-                        _name.sep = key.sep
+        table = current = Table(Container(True), Trivia(), False, is_super_table=True)
+        for _name in mid:
+            _name._dotted = True
+            new_table = Table(Container(True), Trivia(), False, is_super_table=True)
+            current.append(_name, new_table)
+            current = new_table
 
-                        _table.append(_name, value)
-                    else:
-                        _name._dotted = True
-                        _table.append(
-                            _name,
-                            Table(
-                                Container(True),
-                                Trivia(),
-                                False,
-                                is_super_table=i < len(names) - 2,
-                            ),
-                        )
+        last.sep = key.sep
+        current.append(last, value)
 
-                        _table = _table[_name]
+        self.append(name, table)
+        return
 
-                value = table
+    def _get_last_index_before_table(self) -> int:
+        last_index = -1
+        for i, (k, v) in enumerate(self._body):
+            if isinstance(v, Null):
+                continue  # Null elements are inserted after deletion
 
-            self.append(name, value)
+            if isinstance(v, Whitespace) and not v.is_fixed():
+                continue
 
-            return
-        else:
-            table = Table(Container(True), Trivia(), False, is_super_table=True)
-            self.append(name, table)
+            if isinstance(v, (Table, AoT)) and not k.is_dotted():
+                break
+            last_index = i
+        return last_index + 1
 
-        for i, _name in enumerate(names[1:]):
-            if i == len(names) - 2:
-                _name.sep = key.sep
-
-                table.append(_name, value)
-            else:
-                _name._dotted = True
-                if _name in table.value:
-                    table = table.value[_name]
-                else:
-                    table.append(
-                        _name,
-                        Table(
-                            Container(True),
-                            Trivia(),
-                            False,
-                            is_super_table=i < len(names) - 2,
-                        ),
-                    )
-
-                    table = table[_name]
-
-    def append(self, key: Union[Key, str, None], item: Item) -> "Container":
+    def append(self, key: Key | str | None, item: Item) -> Container:
         """Similar to :meth:`add` but both key and value must be given."""
         if not isinstance(key, Key) and key is not None:
             key = SingleKey(key)
@@ -196,7 +165,11 @@ class Container(_CustomDict):
         if isinstance(item, Table):
             if not self._parsed:
                 item.invalidate_display_name()
-            if self._body and not (self._parsed or item.trivia.indent or prev_ws):
+            if (
+                self._body
+                and not (self._parsed or item.trivia.indent or prev_ws)
+                and not key.is_dotted()
+            ):
                 item.trivia.indent = "\n"
 
         if isinstance(item, AoT) and self._body and not self._parsed:
@@ -244,12 +217,15 @@ class Container(_CustomDict):
                             or key.is_dotted()
                             or current_body_element[0].is_dotted()
                         ):
-                            if not isinstance(current_idx, tuple):
-                                current_idx = (current_idx,)
+                            if key.is_dotted() and not self._parsed:
+                                idx = self._get_last_index_before_table()
+                            else:
+                                idx = len(self._body)
 
-                            self._map[key] = current_idx + (len(self._body),)
-                            self._body.append((key, item))
-                            self._table_keys.append(key)
+                            if idx < len(self._body):
+                                self._insert_at(idx, key, item)
+                            else:
+                                self._raw_append(key, item)
 
                             # Building a temporary proxy to check for errors
                             OutOfOrderTableProxy(self, self._map[key])
@@ -284,54 +260,41 @@ class Container(_CustomDict):
                 raise KeyAlreadyPresent(key)
 
         is_table = isinstance(item, (Table, AoT))
-        if key is not None and self._body and not self._parsed:
+        if (
+            key is not None
+            and self._body
+            and not self._parsed
+            and (not is_table or key.is_dotted())
+        ):
             # If there is already at least one table in the current container
             # and the given item is not a table, we need to find the last
             # item that is not a table and insert after it
             # If no such item exists, insert at the top of the table
-            key_after = None
-            for i, (k, v) in enumerate(self._body):
-                if isinstance(v, Null):
-                    continue  # Null elements are inserted after deletion
+            last_index = self._get_last_index_before_table()
 
-                if isinstance(v, Whitespace) and not v.is_fixed():
-                    continue
-
-                if not is_table and isinstance(v, (Table, AoT)):
-                    break
-
-                key_after = k or i  # last scalar, Array or InlineTable value
-
-            if key_after is not None:
-                if isinstance(key_after, int):
-                    if key_after + 1 < len(self._body):
-                        return self._insert_at(key_after + 1, key, item)
-                    else:
-                        previous_item = self._body[-1][1]
-                        if not (
-                            isinstance(previous_item, Whitespace)
-                            or ends_with_whitespace(previous_item)
-                            or is_table
-                            or "\n" in previous_item.trivia.trail
-                        ):
-                            previous_item.trivia.trail += "\n"
-                else:
-                    return self._insert_after(key_after, key, item)
+            if last_index < len(self._body):
+                return self._insert_at(last_index, key, item)
             else:
-                return self._insert_at(0, key, item)
+                previous_item = self._body[-1][1]
+                if not (
+                    isinstance(previous_item, Whitespace)
+                    or ends_with_whitespace(previous_item)
+                    or "\n" in previous_item.trivia.trail
+                ):
+                    previous_item.trivia.trail += "\n"
 
+        self._raw_append(key, item)
+        return self
+
+    def _raw_append(self, key: Key, item: Item) -> None:
         if key in self._map:
             current_idx = self._map[key]
-            if isinstance(current_idx, tuple):
-                current_idx = current_idx[-1]
-
-            current = self._body[current_idx][1]
-            if key is not None and not isinstance(current, Table):
-                raise KeyAlreadyPresent(key)
-
-            # Adding sub tables to a currently existing table
             if not isinstance(current_idx, tuple):
                 current_idx = (current_idx,)
+
+            current = self._body[current_idx[-1]][1]
+            if key is not None and not isinstance(current, Table):
+                raise KeyAlreadyPresent(key)
 
             self._map[key] = current_idx + (len(self._body),)
         else:
@@ -365,7 +328,7 @@ class Container(_CustomDict):
             dict.__delitem__(self, key.key)
             self._map.pop(key)
 
-    def remove(self, key: Union[Key, str]) -> "Container":
+    def remove(self, key: Key | str) -> Container:
         """Remove a key from the container."""
         if not isinstance(key, Key):
             key = SingleKey(key)
@@ -385,8 +348,8 @@ class Container(_CustomDict):
         return self
 
     def _insert_after(
-        self, key: Union[Key, str], other_key: Union[Key, str], item: Any
-    ) -> "Container":
+        self, key: Key | str, other_key: Key | str, item: Any
+    ) -> Container:
         if key is None:
             raise ValueError("Key cannot be null in insert_after()")
 
@@ -431,7 +394,7 @@ class Container(_CustomDict):
 
         return self
 
-    def _insert_at(self, idx: int, key: Union[Key, str], item: Any) -> "Container":
+    def _insert_at(self, idx: int, key: Key | str, item: Any) -> Container:
         if idx > len(self._body) - 1:
             raise ValueError(f"Unable to insert at position {idx}")
 
@@ -464,20 +427,25 @@ class Container(_CustomDict):
             elif v >= idx:
                 self._map[k] = v + 1
 
-        self._map[key] = idx
+        if key in self._map:
+            current_idx = self._map[key]
+            if not isinstance(current_idx, tuple):
+                current_idx = (current_idx,)
+            self._map[key] = current_idx + (idx,)
+        else:
+            self._map[key] = idx
         self._body.insert(idx, (key, item))
 
-        if key is not None:
-            dict.__setitem__(self, key.key, item.value)
+        dict.__setitem__(self, key.key, item.value)
 
         return self
 
-    def item(self, key: Union[Key, str]) -> Item:
+    def item(self, key: Key | str) -> Item:
         """Get an item for the given key."""
         if not isinstance(key, Key):
             key = SingleKey(key)
 
-        idx = self._map.get(key, None)
+        idx = self._map.get(key)
         if idx is None:
             raise NonExistentKey(key)
 
@@ -489,7 +457,7 @@ class Container(_CustomDict):
 
         return self._body[idx][1]
 
-    def last_item(self) -> Optional[Item]:
+    def last_item(self) -> Item | None:
         """Get the last item."""
         if self._body:
             return self._body[-1][1]
@@ -510,9 +478,7 @@ class Container(_CustomDict):
 
         return s
 
-    def _render_table(
-        self, key: Key, table: Table, prefix: Optional[str] = None
-    ) -> str:
+    def _render_table(self, key: Key, table: Table, prefix: str | None = None) -> str:
         cur = ""
 
         if table.display_name is not None:
@@ -581,23 +547,20 @@ class Container(_CustomDict):
 
         return cur
 
-    def _render_aot_table(self, table: Table, prefix: Optional[str] = None) -> str:
+    def _render_aot_table(self, table: Table, prefix: str | None = None) -> str:
         cur = ""
-
         _key = prefix or ""
+        open_, close = "[[", "]]"
 
-        if not table.is_super_table():
-            open_, close = "[[", "]]"
-
-            cur += (
-                f"{table.trivia.indent}"
-                f"{open_}"
-                f"{decode(_key)}"
-                f"{close}"
-                f"{table.trivia.comment_ws}"
-                f"{decode(table.trivia.comment)}"
-                f"{table.trivia.trail}"
-            )
+        cur += (
+            f"{table.trivia.indent}"
+            f"{open_}"
+            f"{decode(_key)}"
+            f"{close}"
+            f"{table.trivia.comment_ws}"
+            f"{decode(table.trivia.comment)}"
+            f"{table.trivia.trail}"
+        )
 
         for k, v in table.value.body:
             if isinstance(v, Table):
@@ -641,11 +604,11 @@ class Container(_CustomDict):
         return iter(dict.keys(self))
 
     # Dictionary methods
-    def __getitem__(self, key: Union[Key, str]) -> Union[Item, "Container"]:
+    def __getitem__(self, key: Key | str) -> Item | Container:
         if not isinstance(key, Key):
             key = SingleKey(key)
 
-        idx = self._map.get(key, None)
+        idx = self._map.get(key)
         if idx is None:
             raise NonExistentKey(key)
 
@@ -661,34 +624,32 @@ class Container(_CustomDict):
 
         return item
 
-    def __setitem__(self, key: Union[Key, str], value: Any) -> None:
+    def __setitem__(self, key: Key | str, value: Any) -> None:
         if key is not None and key in self:
             old_key = next(filter(lambda k: k == key, self._map))
             self._replace(old_key, key, value)
         else:
             self.append(key, value)
 
-    def __delitem__(self, key: Union[Key, str]) -> None:
+    def __delitem__(self, key: Key | str) -> None:
         self.remove(key)
 
-    def setdefault(self, key: Union[Key, str], default: Any) -> Any:
+    def setdefault(self, key: Key | str, default: Any) -> Any:
         super().setdefault(key, default=default)
         return self[key]
 
-    def _replace(
-        self, key: Union[Key, str], new_key: Union[Key, str], value: Item
-    ) -> None:
+    def _replace(self, key: Key | str, new_key: Key | str, value: Item) -> None:
         if not isinstance(key, Key):
             key = SingleKey(key)
 
-        idx = self._map.get(key, None)
+        idx = self._map.get(key)
         if idx is None:
             raise NonExistentKey(key)
 
         self._replace_at(idx, new_key, value)
 
     def _replace_at(
-        self, idx: Union[int, Tuple[int]], new_key: Union[Key, str], value: Item
+        self, idx: int | tuple[int], new_key: Key | str, value: Item
     ) -> None:
         value = _item(value)
 
@@ -784,10 +745,10 @@ class Container(_CustomDict):
             if key is not None:
                 dict.__setitem__(self, key.key, item.value)
 
-    def copy(self) -> "Container":
+    def copy(self) -> Container:
         return copy.copy(self)
 
-    def __copy__(self) -> "Container":
+    def __copy__(self) -> Container:
         c = self.__class__(self._parsed)
         for k, v in dict.items(self):
             dict.__setitem__(c, k, v)
@@ -798,8 +759,8 @@ class Container(_CustomDict):
         return c
 
     def _previous_item_with_index(
-        self, idx: Optional[int] = None, ignore=(Null,)
-    ) -> Optional[Tuple[int, Item]]:
+        self, idx: int | None = None, ignore=(Null,)
+    ) -> tuple[int, Item] | None:
         """Find the immediate previous item before index ``idx``"""
         if idx is None or idx > len(self._body):
             idx = len(self._body)
@@ -809,9 +770,7 @@ class Container(_CustomDict):
                 return i, v
         return None
 
-    def _previous_item(
-        self, idx: Optional[int] = None, ignore=(Null,)
-    ) -> Optional[Item]:
+    def _previous_item(self, idx: int | None = None, ignore=(Null,)) -> Item | None:
         """Find the immediate previous item before index ``idx``.
         If ``idx`` is not given, the last item is returned.
         """
@@ -820,7 +779,7 @@ class Container(_CustomDict):
 
 
 class OutOfOrderTableProxy(_CustomDict):
-    def __init__(self, container: Container, indices: Tuple[int]) -> None:
+    def __init__(self, container: Container, indices: tuple[int]) -> None:
         self._container = container
         self._internal_container = Container(True)
         self._tables = []
@@ -845,13 +804,13 @@ class OutOfOrderTableProxy(_CustomDict):
     def value(self):
         return self._internal_container.value
 
-    def __getitem__(self, key: Union[Key, str]) -> Any:
+    def __getitem__(self, key: Key | str) -> Any:
         if key not in self._internal_container:
             raise NonExistentKey(key)
 
         return self._internal_container[key]
 
-    def __setitem__(self, key: Union[Key, str], item: Any) -> None:
+    def __setitem__(self, key: Key | str, item: Any) -> None:
         if key in self._tables_map:
             table = self._tables[self._tables_map[key]]
             table[key] = item
@@ -873,7 +832,7 @@ class OutOfOrderTableProxy(_CustomDict):
                 self._container._remove_at(idx)
                 break
 
-    def __delitem__(self, key: Union[Key, str]) -> None:
+    def __delitem__(self, key: Key | str) -> None:
         if key in self._tables_map:
             table = self._tables[self._tables_map[key]]
             del table[key]
@@ -893,7 +852,7 @@ class OutOfOrderTableProxy(_CustomDict):
     def __len__(self) -> int:
         return dict.__len__(self)
 
-    def setdefault(self, key: Union[Key, str], default: Any) -> Any:
+    def setdefault(self, key: Key | str, default: Any) -> Any:
         super().setdefault(key, default=default)
         return self[key]
 

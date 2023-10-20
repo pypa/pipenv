@@ -5,9 +5,13 @@ import sys
 
 from ._core import Process
 
+# FreeBSD: https://www.freebsd.org/cgi/man.cgi?query=procfs
+# NetBSD: https://man.netbsd.org/NetBSD-9.3-STABLE/mount_procfs.8
+# DragonFlyBSD: https://www.dragonflybsd.org/cgi/web-man?command=procfs
+BSD_STAT_PPID = 2
 
-STAT_PPID = 3
-STAT_TTY = 6
+# See https://docs.kernel.org/filesystems/proc.html
+LINUX_STAT_PPID = 3
 
 STAT_PATTERN = re.compile(r"\(.+\)|\S+")
 
@@ -28,12 +32,21 @@ def detect_proc():
     raise ProcFormatError("unsupported proc format")
 
 
-def _get_stat(pid, name):
+def _use_bsd_stat_format():
+    try:
+        return os.uname().sysname.lower() in ("freebsd", "netbsd", "dragonfly")
+    except Exception:
+        return False
+
+
+def _get_ppid(pid, name):
     path = os.path.join("/proc", str(pid), name)
     with io.open(path, encoding="ascii", errors="replace") as f:
-        # We only care about TTY and PPID -- all numbers.
         parts = STAT_PATTERN.findall(f.read())
-        return parts[STAT_TTY], parts[STAT_PPID]
+    # We only care about TTY and PPID -- both are numbers.
+    if _use_bsd_stat_format():
+        return parts[BSD_STAT_PPID]
+    return parts[LINUX_STAT_PPID]
 
 
 def _get_cmdline(pid):
@@ -51,21 +64,20 @@ class ProcFormatError(EnvironmentError):
     pass
 
 
-def get_process_mapping():
+def iter_process_parents(pid, max_depth=10):
     """Try to look up the process tree via the /proc interface."""
     stat_name = detect_proc()
-    self_tty = _get_stat(os.getpid(), stat_name)[0]
-    processes = {}
-    for pid in os.listdir("/proc"):
-        if not pid.isdigit():
-            continue
-        try:
-            tty, ppid = _get_stat(pid, stat_name)
-            if tty != self_tty:
-                continue
+
+    # Inner generator function so we correctly throw an error eagerly if proc
+    # is not supported, rather than on the first call to the iterator. This
+    # allows the call site detects the correct implementation.
+    def _iter_process_parents(pid, max_depth):
+        for _ in range(max_depth):
+            ppid = _get_ppid(pid, stat_name)
             args = _get_cmdline(pid)
-            processes[pid] = Process(args=args, pid=pid, ppid=ppid)
-        except IOError:
-            # Process has disappeared - just ignore it.
-            continue
-    return processes
+            yield Process(args=args, pid=pid, ppid=ppid)
+            if ppid == "0":
+                break
+            pid = ppid
+
+    return _iter_process_parents(pid, max_depth)

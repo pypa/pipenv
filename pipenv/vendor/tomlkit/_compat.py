@@ -1,15 +1,15 @@
+from __future__ import annotations
+
 import contextlib
 import sys
 
 from typing import Any
-from typing import List
-from typing import Optional
 
 
 PY38 = sys.version_info >= (3, 8)
 
 
-def decode(string: Any, encodings: Optional[List[str]] = None):
+def decode(string: Any, encodings: list[str] | None = None):
     if not isinstance(string, bytes):
         return string
 

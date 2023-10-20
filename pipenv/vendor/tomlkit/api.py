@@ -1,15 +1,17 @@
+from __future__ import annotations
+
+import contextlib
 import datetime as _datetime
 
 from collections.abc import Mapping
 from typing import IO
 from typing import Iterable
-from typing import Optional
-from typing import Tuple
-from typing import Union
+from typing import TypeVar
 
 from pipenv.vendor.tomlkit._utils import parse_rfc3339
 from pipenv.vendor.tomlkit.container import Container
 from pipenv.vendor.tomlkit.exceptions import UnexpectedCharError
+from pipenv.vendor.tomlkit.items import CUSTOM_ENCODERS
 from pipenv.vendor.tomlkit.items import AoT
 from pipenv.vendor.tomlkit.items import Array
 from pipenv.vendor.tomlkit.items import Bool
@@ -17,6 +19,7 @@ from pipenv.vendor.tomlkit.items import Comment
 from pipenv.vendor.tomlkit.items import Date
 from pipenv.vendor.tomlkit.items import DateTime
 from pipenv.vendor.tomlkit.items import DottedKey
+from pipenv.vendor.tomlkit.items import Encoder
 from pipenv.vendor.tomlkit.items import Float
 from pipenv.vendor.tomlkit.items import InlineTable
 from pipenv.vendor.tomlkit.items import Integer
@@ -34,7 +37,7 @@ from pipenv.vendor.tomlkit.parser import Parser
 from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 
-def loads(string: Union[str, bytes]) -> TOMLDocument:
+def loads(string: str | bytes) -> TOMLDocument:
     """
     Parses a string into a TOMLDocument.
 
@@ -59,7 +62,7 @@ def dumps(data: Mapping, sort_keys: bool = False) -> str:
         raise TypeError(msg) from ex
 
 
-def load(fp: Union[IO[str], IO[bytes]]) -> TOMLDocument:
+def load(fp: IO[str] | IO[bytes]) -> TOMLDocument:
     """
     Load toml document from a file-like object.
     """
@@ -76,7 +79,7 @@ def dump(data: Mapping, fp: IO[str], *, sort_keys: bool = False) -> None:
     fp.write(dumps(data, sort_keys=sort_keys))
 
 
-def parse(string: Union[str, bytes]) -> TOMLDocument:
+def parse(string: str | bytes) -> TOMLDocument:
     """
     Parses a string or bytes into a TOMLDocument.
     """
@@ -91,12 +94,12 @@ def document() -> TOMLDocument:
 
 
 # Items
-def integer(raw: Union[str, int]) -> Integer:
+def integer(raw: str | int) -> Integer:
     """Create an integer item from a number or string."""
     return item(int(raw))
 
 
-def float_(raw: Union[str, float]) -> Float:
+def float_(raw: str | float) -> Float:
     """Create an float item from a number or string."""
     return item(float(raw))
 
@@ -175,7 +178,7 @@ def array(raw: str = None) -> Array:
     return value(raw)
 
 
-def table(is_super_table: Optional[bool] = None) -> Table:
+def table(is_super_table: bool | None = None) -> Table:
     """Create an empty table.
 
     :param is_super_table: if true, the table is a super table
@@ -224,7 +227,7 @@ def aot() -> AoT:
     return AoT([])
 
 
-def key(k: Union[str, Iterable[str]]) -> Key:
+def key(k: str | Iterable[str]) -> Key:
     """Create a key from a string. When a list of string is given,
     it will create a dotted key.
 
@@ -261,7 +264,7 @@ def value(raw: str) -> _Item:
     return v
 
 
-def key_value(src: str) -> Tuple[Key, _Item]:
+def key_value(src: str) -> tuple[Key, _Item]:
     """Parse a key-value pair from a string.
 
     :Example:
@@ -285,3 +288,21 @@ def nl() -> Whitespace:
 def comment(string: str) -> Comment:
     """Create a comment item."""
     return Comment(Trivia(comment_ws="  ", comment="# " + string))
+
+
+E = TypeVar("E", bound=Encoder)
+
+
+def register_encoder(encoder: E) -> E:
+    """Add a custom encoder, which should be a function that will be called
+    if the value can't otherwise be converted. It should takes a single value
+    and return a TOMLKit item or raise a ``TypeError``.
+    """
+    CUSTOM_ENCODERS.append(encoder)
+    return encoder
+
+
+def unregister_encoder(encoder: Encoder) -> None:
+    """Unregister a custom encoder."""
+    with contextlib.suppress(ValueError):
+        CUSTOM_ENCODERS.remove(encoder)

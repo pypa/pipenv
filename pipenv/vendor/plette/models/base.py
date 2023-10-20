@@ -1,5 +1,5 @@
 try:
-    import pipenv.vendor.cerberus as cerberus
+    import cerberus
 except ImportError:
     cerberus = None
 
