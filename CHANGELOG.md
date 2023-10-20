@@ -1,3 +1,31 @@
+2023.10.20 (2023-10-20)
+=======================
+Pipenv 2023.10.20 (2023-10-20)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Add quiet option to pipenv shell, hiding "Launching subshell in virtual environment..."  `#5966 <https://github.com/pypa/pipenv/issues/5966>`_
+- Vendor in pip==23.3 which includes updates to certifi, urllib3, and  adds truststore among other improvements.  `#5979 <https://github.com/pypa/pipenv/issues/5979>`_
+
+Behavior Changes
+----------------
+
+- Change ``--py`` to use ``print`` preventing insertion of newline characters  `#5969 <https://github.com/pypa/pipenv/issues/5969>`_
+
+Vendored Libraries
+------------------
+
+- Drop pep517 - as it is no longer used.  `#5970 <https://github.com/pypa/pipenv/issues/5970>`_
+
+Removals and Deprecations
+-------------------------
+
+- Drop support for Python 3.7  `#5879 <https://github.com/pypa/pipenv/issues/5879>`_
+
+
 2023.10.3 (2023-10-03)
 ======================
 

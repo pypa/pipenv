@@ -1,1 +1,0 @@
-Drop pep517 - as it is no longer used.
