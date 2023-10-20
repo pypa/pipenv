@@ -470,7 +470,9 @@ class Resolver:
         if install_req.name is None:
             return None  # Or handle this edge case differently
 
-        comes_from = dependency_tree[install_req.name]
+        comes_from = dependency_tree.get(install_req.name)
+        if comes_from is None:
+            return None  # Or handle this edge case differently
 
         # Check for recursion loop
         if install_req.name in checked_dependencies:
