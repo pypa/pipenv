@@ -94,22 +94,11 @@ WE_HAVE_HG = check_for_mercurial()
 def pytest_runtest_setup(item):
     if item.get_closest_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
         pytest.skip('requires internet')
-    if item.get_closest_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
-        pytest.skip('requires github ssh')
-    if item.get_closest_marker('needs_hg') is not None and not WE_HAVE_HG:
-        pytest.skip('requires mercurial')
-    if item.get_closest_marker('skip_py38') is not None and (
-        sys.version_info[:2] == (3, 8)
-    ):
-        pytest.skip('test not applicable on python 3.8')
-    if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
-        pytest.skip('test does not apply on OSX')
     if item.get_closest_marker('skip_windows') is not None and (os.name == 'nt'):
         pytest.skip('test does not run on windows')
 
 
 WE_HAVE_INTERNET = check_internet()
-WE_HAVE_GITHUB_SSH_KEYS = False
 
 
 class _Pipfile:
