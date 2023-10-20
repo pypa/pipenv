@@ -18,14 +18,16 @@ from pipenv.vendor.tomlkit.api import load
 from pipenv.vendor.tomlkit.api import loads
 from pipenv.vendor.tomlkit.api import nl
 from pipenv.vendor.tomlkit.api import parse
+from pipenv.vendor.tomlkit.api import register_encoder
 from pipenv.vendor.tomlkit.api import string
 from pipenv.vendor.tomlkit.api import table
 from pipenv.vendor.tomlkit.api import time
+from pipenv.vendor.tomlkit.api import unregister_encoder
 from pipenv.vendor.tomlkit.api import value
 from pipenv.vendor.tomlkit.api import ws
 
 
-__version__ = "0.11.7"
+__version__ = "0.12.1"
 __all__ = [
     "aot",
     "array",
@@ -52,4 +54,6 @@ __all__ = [
     "TOMLDocument",
     "value",
     "ws",
+    "register_encoder",
+    "unregister_encoder",
 ]

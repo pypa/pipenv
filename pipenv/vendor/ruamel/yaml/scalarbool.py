@@ -11,15 +11,13 @@ You can use these in an if statement, but not when testing equivalence
 
 from pipenv.vendor.ruamel.yaml.anchor import Anchor
 
-if False:  # MYPY
-    from typing import Text, Any, Dict, List  # NOQA
+from typing import Text, Any, Dict, List  # NOQA
 
 __all__ = ['ScalarBoolean']
 
 
 class ScalarBoolean(int):
-    def __new__(cls, *args, **kw):
-        # type: (Any, Any, Any) -> Any
+    def __new__(cls: Any, *args: Any, **kw: Any) -> Any:
         anchor = kw.pop('anchor', None)
         b = int.__new__(cls, *args, **kw)
         if anchor is not None:
@@ -27,21 +25,18 @@ class ScalarBoolean(int):
         return b
 
     @property
-    def anchor(self):
-        # type: () -> Any
+    def anchor(self) -> Any:
         if not hasattr(self, Anchor.attrib):
             setattr(self, Anchor.attrib, Anchor())
         return getattr(self, Anchor.attrib)
 
-    def yaml_anchor(self, any=False):
-        # type: (bool) -> Any
+    def yaml_anchor(self, any: bool = False) -> Any:
         if not hasattr(self, Anchor.attrib):
             return None
         if any or self.anchor.always_dump:
             return self.anchor
         return None
 
-    def yaml_set_anchor(self, value, always_dump=False):
-        # type: (Any, bool) -> None
+    def yaml_set_anchor(self, value: Any, always_dump: bool = False) -> None:
         self.anchor.value = value
         self.anchor.always_dump = always_dump

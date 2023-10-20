@@ -1,14 +1,12 @@
 import inspect
 import io
 import itertools
-import os
 import sys
 import typing as t
 from gettext import gettext as _
 
 from ._compat import isatty
 from ._compat import strip_ansi
-from ._compat import WIN
 from .exceptions import Abort
 from .exceptions import UsageError
 from .globals import resolve_color_default
@@ -73,7 +71,7 @@ def _build_prompt(
 
 def _format_default(default: t.Any) -> t.Any:
     if isinstance(default, (io.IOBase, LazyFile)) and hasattr(default, "name"):
-        return default.name  # type: ignore
+        return default.name
 
     return default
 
@@ -443,10 +441,9 @@ def clear() -> None:
     """
     if not isatty(sys.stdout):
         return
-    if WIN:
-        os.system("cls")
-    else:
-        sys.stdout.write("\033[2J\033[1;1H")
+
+    # ANSI escape \033[2J clears the screen, \033[1;1H moves the cursor
+    echo("\033[2J\033[1;1H", nl=False)
 
 
 def _interpret_color(

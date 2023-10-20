@@ -12,16 +12,19 @@ from pipenv.vendor.ruamel.yaml.constructor import (
 )
 from pipenv.vendor.ruamel.yaml.resolver import VersionedResolver
 
-if False:  # MYPY
-    from typing import Any, Dict, List, Union, Optional  # NOQA
-    from pipenv.vendor.ruamel.yaml.compat import StreamTextType, VersionType  # NOQA
+from typing import Any, Dict, List, Union, Optional  # NOQA
+from pipenv.vendor.ruamel.yaml.compat import StreamTextType, VersionType  # NOQA
 
 __all__ = ['BaseLoader', 'SafeLoader', 'Loader', 'RoundTripLoader']
 
 
 class BaseLoader(Reader, Scanner, Parser, Composer, BaseConstructor, VersionedResolver):
-    def __init__(self, stream, version=None, preserve_quotes=None):
-        # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
+    def __init__(
+        self,
+        stream: StreamTextType,
+        version: Optional[VersionType] = None,
+        preserve_quotes: Optional[bool] = None,
+    ) -> None:
         self.comment_handling = None
         Reader.__init__(self, stream, loader=self)
         Scanner.__init__(self, loader=self)
@@ -32,8 +35,12 @@ class BaseLoader(Reader, Scanner, Parser, Composer, BaseConstructor, VersionedRe
 
 
 class SafeLoader(Reader, Scanner, Parser, Composer, SafeConstructor, VersionedResolver):
-    def __init__(self, stream, version=None, preserve_quotes=None):
-        # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
+    def __init__(
+        self,
+        stream: StreamTextType,
+        version: Optional[VersionType] = None,
+        preserve_quotes: Optional[bool] = None,
+    ) -> None:
         self.comment_handling = None
         Reader.__init__(self, stream, loader=self)
         Scanner.__init__(self, loader=self)
@@ -44,8 +51,12 @@ class SafeLoader(Reader, Scanner, Parser, Composer, SafeConstructor, VersionedRe
 
 
 class Loader(Reader, Scanner, Parser, Composer, Constructor, VersionedResolver):
-    def __init__(self, stream, version=None, preserve_quotes=None):
-        # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
+    def __init__(
+        self,
+        stream: StreamTextType,
+        version: Optional[VersionType] = None,
+        preserve_quotes: Optional[bool] = None,
+    ) -> None:
         self.comment_handling = None
         Reader.__init__(self, stream, loader=self)
         Scanner.__init__(self, loader=self)
@@ -63,8 +74,12 @@ class RoundTripLoader(
     RoundTripConstructor,
     VersionedResolver,
 ):
-    def __init__(self, stream, version=None, preserve_quotes=None):
-        # type: (StreamTextType, Optional[VersionType], Optional[bool]) -> None
+    def __init__(
+        self,
+        stream: StreamTextType,
+        version: Optional[VersionType] = None,
+        preserve_quotes: Optional[bool] = None,
+    ) -> None:
         # self.reader = Reader.__init__(self, stream)
         self.comment_handling = None  # issue 385
         Reader.__init__(self, stream, loader=self)
