@@ -19,7 +19,10 @@ from typing import (
     Union,
 )
 
-from pipenv.patched.pip._vendor.pyparsing.core import cached_property
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from pipenv.patched.pip._vendor.pyparsing.core import cached_property
 from pipenv.vendor.pydantic import Field, root_validator
 
 from ..environment import (
