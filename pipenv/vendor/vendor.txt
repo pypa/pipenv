@@ -9,7 +9,7 @@ plette==0.4.4
 ptyprocess==0.7.0
 pydantic==1.10.10
 python-dotenv==1.0.0
-pythonfinder==2.0.5
+pythonfinder==2.0.6
 ruamel.yaml==0.17.21
 shellingham==1.5.0.post1
 tomli==2.0.1
