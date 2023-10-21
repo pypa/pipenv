@@ -1114,9 +1114,8 @@ class Project:
     def _sort_category(self, category):
         # toml tables won't maintain sorted dictionary order
         # so construct the table in the order that we need
-        sorted_category = dict(sorted(category.items()))
         table = tomlkit.table()
-        for key, value in sorted_category.items():
+        for key, value in sorted(category.items()):
             table.add(key, value)
 
         return table
