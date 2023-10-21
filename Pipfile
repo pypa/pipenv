@@ -41,3 +41,9 @@ test = "pytest -vvs"
 
 [pipenv]
 allow_prereleases = true
+
+[resolver]
+python_full_version = "3.7.13"
+python_version = "3.7"
+finder_python = "3.7"
+os_name = "win32"

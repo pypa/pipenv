@@ -2,7 +2,9 @@ import importlib.util
 import json
 import logging
 import os
+import platform
 import sys
+from typing import Dict
 
 try:
     from functools import cached_property
@@ -71,10 +73,6 @@ def get_parser():
     return parser
 
 
-def which(*args, **kwargs):
-    return sys.executable
-
-
 def handle_parsed_args(parsed):
     if parsed.verbose:
         os.environ["PIPENV_VERBOSITY"] = "1"
@@ -89,6 +87,34 @@ def handle_parsed_args(parsed):
             packages[dep_name] = pip_line
         parsed.packages = packages
     return parsed
+
+
+def _default_environment_override() -> Dict[str, str]:
+    from pipenv.patched.pip._vendor.packaging.markers import format_full_version
+    from pipenv.project import Project
+
+    iver = format_full_version(sys.implementation.version)
+    implementation_name = sys.implementation.name
+    defaults = {
+        "implementation_name": implementation_name,
+        "implementation_version": iver,
+        "os_name": os.name,
+        "platform_machine": platform.machine(),
+        "platform_release": platform.release(),
+        "platform_system": platform.system(),
+        "platform_version": platform.version(),
+        "python_full_version": platform.python_version(),
+        "platform_python_implementation": platform.python_implementation(),
+        "python_version": ".".join(platform.python_version_tuple()[:2]),
+        "sys_platform": sys.platform,
+    }
+    project = Project()
+    requires = project.parsed_pipfile.get("resolver", {})
+    for k in defaults:
+        if requires.get(k):
+            defaults[k] = requires[k]
+
+    return defaults
 
 
 class Entry:
@@ -345,32 +371,6 @@ class Entry:
         return specifier
 
     @property
-    def parent_deps(self):
-        if not self._parent_deps:
-            self._parent_deps = self.get_parent_deps(unnest=False)
-        return self._parent_deps
-
-    @property
-    def flattened_parents(self):
-        if not self._flattened_parents:
-            self._flattened_parents = self.get_parent_deps(unnest=True)
-        return self._flattened_parents
-
-    @property
-    def parents_in_pipfile(self):
-        if not self._parents_in_pipfile:
-            self._parents_in_pipfile = [
-                p
-                for p in self.flattened_parents
-                if p.normalized_name in self.pipfile_packages
-            ]
-        return self._parents_in_pipfile
-
-    @property
-    def is_updated(self):
-        return self.entry.specifiers != self.lockfile_entry.specifiers
-
-    @property
     def requirements(self):
         if not self._requires:
             self._requires = next(
@@ -387,60 +387,6 @@ class Entry:
     def updated_specifier(self) -> str:
         return str(self.entry.specifier)
 
-    @property
-    def original_specifier(self) -> str:
-        return self.lockfile_entry.specifiers
-
-    @property
-    def original_version(self):
-        if self.original_specifier:
-            return self.strip_version(self.original_specifier)
-        return None
-
-    def validate_specifiers(self):
-        if self.is_in_pipfile and not self.pipfile_entry.editable:
-            return self.pipfile_entry.requirement.specifier.contains(self.updated_version)
-        return True
-
-    def get_dependency(self, name):
-        if self.requirements:
-            return next(
-                iter(
-                    dep
-                    for dep in self.requirements.get("dependencies", [])
-                    if dep and dep.get("package_name", "") == name
-                ),
-                {},
-            )
-        return {}
-
-    def get_parent_deps(self, unnest=False):
-        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
-
-        parents = []
-        for spec in self.reverse_deps.get(self.normalized_name, {}).get("parents", set()):
-            spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
-            name = spec
-            parent = None
-            if spec_match is not None:
-                spec_index = spec.index(spec_match)
-                specifier = self.clean_specifier(
-                    spec[spec_index : len(spec_match)]
-                ).strip()
-                name_start = spec_index + len(spec_match)
-                name = spec[name_start:].strip()
-                parent = self.create_parent(name, specifier)
-            else:
-                name = spec
-                parent = self.create_parent(name)
-            if parent is not None:
-                parents.append(parent)
-            if not unnest or parent.pipfile_name is not None:
-                continue
-            if self.reverse_deps.get(parent.normalized_name, {}).get("parents", set()):
-                parents.extend(parent.flattened_parents)
-        return parents
-
     def get_constraints(self):
         """
         Retrieve all of the relevant constraints, aggregated from the pipfile, resolver,
@@ -450,16 +396,6 @@ class Entry:
         :rtype: Set
         """
         return self.resolver.parsed_constraints
-
-    def get_pipfile_constraint(self):
-        """
-        Retrieve the version constraint from the pipfile if it is specified there,
-        otherwise check the constraints of the parent dependencies and their conflicts.
-
-        :return: An **InstallRequirement** instance representing a version constraint
-        """
-        if self.is_in_pipfile:
-            return self.pipfile_entry
 
     def validate_constraints(self):
         """
@@ -489,20 +425,6 @@ class Entry:
                 )
                 raise DependencyConflict(msg)
         return True
-
-    def check_flattened_parents(self):
-        for parent in self.parents_in_pipfile:
-            if not parent.updated_specifier:
-                continue
-            if not parent.validate_specifiers():
-                from pipenv.exceptions import DependencyConflict
-
-                msg = (
-                    f"Cannot resolve conflicting versions: (Root: {self.name}) "
-                    f"{parent.pipfile_name}{parent.pipfile_entry.requirement.specifiers} (Pipfile) "
-                    f"Incompatible with {parent.name}{parent.updated_specifiers} (resolved)\n"
-                )
-                raise DependencyConflict(msg)
 
     def __getattribute__(self, key):
         result = None
@@ -574,9 +496,12 @@ def resolve_packages(
     category,
     constraints=None,
 ):
+    from pipenv.patched.pip._vendor.packaging import markers
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
 
+    original_default_environment = markers.default_environment
+    markers.default_environment = _default_environment_override
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"], "pypi_mirror")
         if "PIPENV_PYPI_MIRROR" in os.environ
@@ -591,7 +516,6 @@ def resolve_packages(
     ):
         return resolve_deps(
             packages,
-            which,
             project=project,
             pre=pre,
             category=category,
@@ -626,6 +550,7 @@ def resolve_packages(
                 json.dump([], fh)
             else:
                 json.dump(results, fh)
+    markers.default_environment = original_default_environment
     if results:
         return results
     return []

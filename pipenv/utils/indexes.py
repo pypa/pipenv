@@ -1,18 +1,11 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from argparse import ArgumentParser
 
 from pipenv.exceptions import PipenvUsageError
 from pipenv.patched.pip._vendor.urllib3.util import parse_url
-from pipenv.utils.constants import MYPY_RUNNING
-
-from .internet import create_mirror_source, is_pypi_url
-
-if MYPY_RUNNING:
-    from typing import List, Optional, Union  # noqa
-
-    from pipenv.project import Project, TSource  # noqa
+from pipenv.utils.internet import create_mirror_source, is_pypi_url
 
 
 def prepare_pip_source_args(sources, pip_args=None):
@@ -44,49 +37,11 @@ def prepare_pip_source_args(sources, pip_args=None):
     return pip_args
 
 
-def get_project_index(
-    project: Project,
-    index: str | TSource | None = None,
-    trusted_hosts: list[str] | None = None,
-) -> TSource:
-    from pipenv.project import SourceNotFound
-
-    if trusted_hosts is None:
-        trusted_hosts = []
-    if isinstance(index, Mapping):
-        return project.find_source(index.get("url"))
-    try:
-        source = project.find_source(index)
-    except SourceNotFound:
-        index_url = parse_url(index)
-        src_name = project.src_name_from_url(index)
-        verify_ssl = index_url.host not in trusted_hosts
-        source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
-    return source
-
-
 def get_source_list(
-    project: Project,
-    index: str | TSource | None = None,
-    extra_indexes: str | list[str] | None = None,
-    trusted_hosts: list[str] | None = None,
+    project,
     pypi_mirror: str | None = None,
-) -> list[TSource]:
+) -> list[dict[str, str | bool]]:
     sources = project.sources[:]
-    if index:
-        sources.append(get_project_index(project, index))
-    if extra_indexes:
-        if isinstance(extra_indexes, str):
-            extra_indexes = [extra_indexes]
-
-        for source in extra_indexes:
-            extra_src = get_project_index(project, source)
-            if not sources or extra_src["url"] != sources[0]["url"]:
-                sources.append(extra_src)
-
-        for source in project.sources:
-            if not sources or source["url"] != sources[0]["url"]:
-                sources.append(source)
 
     if pypi_mirror:
         sources = [
@@ -99,8 +54,6 @@ def get_source_list(
 
 
 def parse_indexes(line, strict=False):
-    from argparse import ArgumentParser
-
     comment_re = re.compile(r"(?:^|\s+)#.*$")
     line = comment_re.sub("", line)
     parser = ArgumentParser("indexes", allow_abbrev=False)

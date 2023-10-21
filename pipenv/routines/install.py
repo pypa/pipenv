@@ -17,7 +17,6 @@ from pipenv.utils.dependencies import (
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
 from pipenv.utils.pip import (
-    get_trusted_hosts,
     pip_install_deps,
 )
 from pipenv.utils.pipfile import ensure_pipfile
@@ -508,9 +507,6 @@ def batch_install(
     search_all_sources = project.settings.get("install_search_all_sources", False)
     sources = get_source_list(
         project,
-        index=None,
-        extra_indexes=None,
-        trusted_hosts=get_trusted_hosts(),
         pypi_mirror=pypi_mirror,
     )
     if search_all_sources:
