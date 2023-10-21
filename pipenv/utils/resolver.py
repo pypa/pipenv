@@ -148,7 +148,7 @@ class Resolver:
         )
 
     @staticmethod
-    @lru_cache()
+    @lru_cache
     def _get_pip_command():
         return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
@@ -945,7 +945,7 @@ def resolve_deps(
     return results, internal_resolver
 
 
-@lru_cache()
+@lru_cache
 def get_pipenv_sitedir() -> Optional[str]:
     site_dir = next(
         iter(d for d in pkg_resources.working_set if d.key.lower() == "pipenv"), None
