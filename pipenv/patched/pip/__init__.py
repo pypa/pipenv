@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-__version__ = "23.3"
+__version__ = "23.3.1"
 
 
 def main(args: Optional[List[str]] = None) -> int:
