@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import platform
-import sys
 import re
 import shutil
+import sys
 
 
 def is_type_checking():
@@ -19,7 +19,7 @@ def possibly_convert_to_windows_style_path(path):
     if not isinstance(path, str):
         path = str(path)
     # Check if the path is in Unix-style (Git Bash)
-    if os.name != 'nt':
+    if os.name != "nt":
         return path
     if os.path.exists(path):
         return path
@@ -72,19 +72,15 @@ def set_asdf_paths():
                 if os.path.isdir(os.path.join(python_versions, name)):
                     asdf_path = os.path.join(python_versions, name)
                     asdf_path = os.path.join(asdf_path, "bin")
-                    os.environ['PATH'] = asdf_path + os.pathsep + os.environ['PATH']
+                    os.environ["PATH"] = asdf_path + os.pathsep + os.environ["PATH"]
         except FileNotFoundError:
             pass
 
 
 def set_pyenv_paths():
     if PYENV_INSTALLED:
-        is_windows = False
-        if os.name == "nt":
-            python_versions = os.path.join(PYENV_ROOT, "pyenv-win", "versions")
-            is_windows = True
-        else:
-            python_versions = os.path.join(PYENV_ROOT, "versions")
+        python_versions = os.path.join(PYENV_ROOT, "versions")
+        is_windows = os.name == "nt"
         try:
             # Get a list of all files and directories in the given path
             all_files_and_dirs = os.listdir(python_versions)
@@ -94,6 +90,6 @@ def set_pyenv_paths():
                     pyenv_path = os.path.join(python_versions, name)
                     if not is_windows:
                         pyenv_path = os.path.join(pyenv_path, "bin")
-                    os.environ['PATH'] = pyenv_path + os.pathsep + os.environ['PATH']
+                    os.environ["PATH"] = pyenv_path + os.pathsep + os.environ["PATH"]
         except FileNotFoundError:
             pass

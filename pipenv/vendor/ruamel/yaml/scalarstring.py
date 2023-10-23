@@ -2,8 +2,8 @@
 
 from pipenv.vendor.ruamel.yaml.anchor import Anchor
 
-if False:  # MYPY
-    from typing import Text, Any, Dict, List  # NOQA
+from typing import Text, Any, Dict, List  # NOQA
+from pipenv.vendor.ruamel.yaml.compat import SupportsIndex
 
 __all__ = [
     'ScalarString',
@@ -21,35 +21,30 @@ __all__ = [
 class ScalarString(str):
     __slots__ = Anchor.attrib
 
-    def __new__(cls, *args, **kw):
-        # type: (Any, Any) -> Any
+    def __new__(cls, *args: Any, **kw: Any) -> Any:
         anchor = kw.pop('anchor', None)
         ret_val = str.__new__(cls, *args, **kw)
         if anchor is not None:
             ret_val.yaml_set_anchor(anchor, always_dump=True)
         return ret_val
 
-    def replace(self, old, new, maxreplace=-1):
-        # type: (Any, Any, int) -> Any
+    def replace(self, old: Any, new: Any, maxreplace: SupportsIndex = -1) -> Any:
         return type(self)((str.replace(self, old, new, maxreplace)))
 
     @property
-    def anchor(self):
-        # type: () -> Any
+    def anchor(self) -> Any:
         if not hasattr(self, Anchor.attrib):
             setattr(self, Anchor.attrib, Anchor())
         return getattr(self, Anchor.attrib)
 
-    def yaml_anchor(self, any=False):
-        # type: (bool) -> Any
+    def yaml_anchor(self, any: bool = False) -> Any:
         if not hasattr(self, Anchor.attrib):
             return None
         if any or self.anchor.always_dump:
             return self.anchor
         return None
 
-    def yaml_set_anchor(self, value, always_dump=False):
-        # type: (Any, bool) -> None
+    def yaml_set_anchor(self, value: Any, always_dump: bool = False) -> None:
         self.anchor.value = value
         self.anchor.always_dump = always_dump
 
@@ -59,8 +54,7 @@ class LiteralScalarString(ScalarString):
 
     style = '|'
 
-    def __new__(cls, value, anchor=None):
-        # type: (Text, Any) -> Any
+    def __new__(cls, value: Text, anchor: Any = None) -> Any:
         return ScalarString.__new__(cls, value, anchor=anchor)
 
 
@@ -72,8 +66,7 @@ class FoldedScalarString(ScalarString):
 
     style = '>'
 
-    def __new__(cls, value, anchor=None):
-        # type: (Text, Any) -> Any
+    def __new__(cls, value: Text, anchor: Any = None) -> Any:
         return ScalarString.__new__(cls, value, anchor=anchor)
 
 
@@ -82,8 +75,7 @@ class SingleQuotedScalarString(ScalarString):
 
     style = "'"
 
-    def __new__(cls, value, anchor=None):
-        # type: (Text, Any) -> Any
+    def __new__(cls, value: Text, anchor: Any = None) -> Any:
         return ScalarString.__new__(cls, value, anchor=anchor)
 
 
@@ -92,8 +84,7 @@ class DoubleQuotedScalarString(ScalarString):
 
     style = '"'
 
-    def __new__(cls, value, anchor=None):
-        # type: (Text, Any) -> Any
+    def __new__(cls, value: Text, anchor: Any = None) -> Any:
         return ScalarString.__new__(cls, value, anchor=anchor)
 
 
@@ -102,18 +93,15 @@ class PlainScalarString(ScalarString):
 
     style = ''
 
-    def __new__(cls, value, anchor=None):
-        # type: (Text, Any) -> Any
+    def __new__(cls, value: Text, anchor: Any = None) -> Any:
         return ScalarString.__new__(cls, value, anchor=anchor)
 
 
-def preserve_literal(s):
-    # type: (Text) -> Text
+def preserve_literal(s: Text) -> Text:
     return LiteralScalarString(s.replace('\r\n', '\n').replace('\r', '\n'))
 
 
-def walk_tree(base, map=None):
-    # type: (Any, Any) -> None
+def walk_tree(base: Any, map: Any = None) -> None:
     """
     the routine here walks over a simple yaml tree (recursing in
     dict values and list items) and converts strings that
@@ -133,7 +121,7 @@ def walk_tree(base, map=None):
 
     if isinstance(base, MutableMapping):
         for k in base:
-            v = base[k]  # type: Text
+            v: Text = base[k]
             if isinstance(v, str):
                 for ch in map:
                     if ch in v:
