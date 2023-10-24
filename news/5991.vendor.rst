@@ -1,1 +1,0 @@
-Update vendored pip to ``23.3.1``

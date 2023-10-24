@@ -1,1 +1,0 @@
-Additional safety check in _fold_markers logic that affected some lock resolutions in prior release.

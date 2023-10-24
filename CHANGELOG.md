@@ -1,3 +1,33 @@
+2023.10.24 (2023-10-24)
+=======================
+Pipenv 2023.10.24 (2023-10-24)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Officially support python 3.12  `#5987 <https://github.com/pypa/pipenv/issues/5987>`_
+
+Bug Fixes
+---------
+
+- Additional safety check in _fold_markers logic that affected some lock resolutions in prior release.  `#5988 <https://github.com/pypa/pipenv/issues/5988>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored versions of:
+    * click==8.1.7
+    * markupsafe==2.1.3
+    * pydantic==1.10.13
+    * pythonfinder==2.0.6
+    * ruamel.yaml==0.17.39
+    * shellingham==1.5.3
+    * tomlkit==0.12.1  `#5986 <https://github.com/pypa/pipenv/issues/5986>`_
+- Update vendored pip to ``23.3.1``  `#5991 <https://github.com/pypa/pipenv/issues/5991>`_
+
+
 2023.10.20 (2023-10-20)
 =======================
 
