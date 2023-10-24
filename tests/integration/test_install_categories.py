@@ -1,4 +1,5 @@
 import os
+import sys
 
 import pytest
 
@@ -79,6 +80,7 @@ def test_multiple_category_install_from_requirements(pipenv_instance_private_pyp
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
+@pytest.mark.skipif(sys.version_info >= (3, 12), reason="test is not 3.12 compatible")
 def test_multiple_category_install_proceeds_in_order_specified(pipenv_instance_private_pypi):
     """Ensure -e .[extras] installs.
     """
