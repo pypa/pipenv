@@ -239,7 +239,7 @@ class Project:
         if self.sessions.get(source["name"]):
             session = self.sessions[source["name"]]
         else:
-            session = get_requests_session(                
+            session = get_requests_session(
                 self.s.PIPENV_MAX_RETRIES,
                 source.get("verify_ssl", True),
                 cache_dir=self.s.PIPENV_CACHE_DIR,
