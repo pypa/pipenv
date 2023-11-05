@@ -261,6 +261,10 @@ class Resolver:
         if self.pre:
             pip_args.append("--pre")
         pip_args.extend(["--cache-dir", self.project.s.PIPENV_CACHE_DIR])
+        extra_pip_args = os.environ.get("PIPENV_EXTRA_PIP_ARGS")
+        if extra_pip_args:
+            extra_pip_args = json.loads(extra_pip_args)
+            pip_args.extend(extra_pip_args)
         return pip_args
 
     @property  # cached_property breaks authenticated private indexes
@@ -733,6 +737,7 @@ def venv_resolve_deps(
     pipfile=None,
     lockfile=None,
     old_lock_data=None,
+    extra_pip_args=None,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -784,7 +789,11 @@ def venv_resolve_deps(
             os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
         else:
             os.environ.pop("PIPENV_SITE_DIR", None)
-        with console.status("Locking...", spinner=project.s.PIPENV_SPINNER) as st:
+        if extra_pip_args:
+            os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
+        with console.status(
+            f"Locking {category}...", spinner=project.s.PIPENV_SPINNER
+        ) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the
