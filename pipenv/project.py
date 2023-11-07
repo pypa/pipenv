@@ -426,15 +426,11 @@ class Project:
 
         dot_venv = os.path.join(self.project_directory, ".venv")
 
-        # If there's no .venv in project root, set location based on config.
-        if not os.path.exists(dot_venv):
+        # If there's no .venv in project root or it is a folder, set location based on config.
+        if not os.path.exists(dot_venv) or os.path.isdir(dot_venv):
             if self.is_venv_in_project():
                 return dot_venv
             return str(get_workon_home().joinpath(self.virtualenv_name))
-
-        # If .venv in project root is a directory, use it.
-        if os.path.isdir(dot_venv):
-            return dot_venv
 
         # Now we assume .venv in project root is a file. Use its content.
         with open(dot_venv) as f:

@@ -63,6 +63,29 @@ def test_venv_at_project_root(true_value, pipenv_instance_pypi):
 
 
 @pytest.mark.dotvenv
+@pytest.mark.parametrize("false_value", FALSE_VALUES)
+def test_venv_in_project_disabled_with_existing_venv_dir(false_value, pipenv_instance_pypi):
+    venv_name = "my_project"
+    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+        prefix="pipenv-", suffix="temp_workon_home"
+    ) as workon_home:
+        os.environ['PIPENV_VENV_IN_PROJECT'] = false_value
+        os.environ['PIPENV_CUSTOM_VENV_NAME'] = venv_name
+        os.environ["WORKON_HOME"] = workon_home
+        os.mkdir('.venv')
+        c = p.pipenv('install')
+        assert c.returncode == 0
+        c = p.pipenv('--venv')
+        assert c.returncode == 0
+        venv_loc = Path(c.stdout.strip()).absolute()
+        assert venv_loc.exists()
+        assert venv_loc.joinpath('.project').exists()
+        venv_path = normalize_drive(venv_loc.as_posix())
+        venv_expected_path = Path(workon_home).joinpath(venv_name).absolute().as_posix()
+        assert venv_path == normalize_drive(venv_expected_path)
+
+
+@pytest.mark.dotvenv
 def test_reuse_previous_venv(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         os.mkdir('.venv')
