@@ -683,7 +683,7 @@ def ensure_path_is_relative(file_path):
             # appending the non-common parts of the absolute path
             rel_parts = up_levels + list(abs_path.parts[common_parts:])
             relative_path = Path(*rel_parts)
-            return relative_path.as_posix()
+            return str(relative_path)
 
 
 def determine_path_specifier(package: InstallRequirement):
