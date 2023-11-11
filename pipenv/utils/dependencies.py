@@ -1016,7 +1016,7 @@ def file_path_from_pipfile(path_str, pipfile_entry):
     if path_str.startswith(("http:", "https:", "ftp:")):
         req_str = path_str
     else:
-        req_str = f"./{str(ensure_path_is_relative(path_str))}"
+        req_str = ensure_path_is_relative(path_str)
 
     if pipfile_entry.get("extras"):
         req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
