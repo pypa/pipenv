@@ -87,7 +87,7 @@ def check_for_mercurial():
 
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
+PYPI_VENDOR_DIR = Path(TESTS_ROOT, 'pypi')
 WE_HAVE_HG = check_for_mercurial()
 
 
@@ -178,29 +178,22 @@ class _PipenvInstance:
         self.capfd = capfd
         if self.index_url is not None:
             self.pypi, _, _ = self.index_url.rpartition("/") if self.index_url else ""
-        self.env["PYTHONWARNINGS"] = "ignore:DEPRECATION"
         os.environ.pop("PIPENV_CUSTOM_VENV_NAME", None)
 
         self.original_dir = Path(__file__).parent.parent.parent
         self._path = TemporaryDirectory(prefix='pipenv-', suffix="-tests")
         path = Path(self._path.name)
-        try:
-            self.path = str(path.resolve())
-        except OSError:
-            self.path = str(path.absolute())
-        os.chdir(self.path)
+        self.path = str(path)
+        os.chdir(path)
 
         # set file creation perms
         self.pipfile_path = None
-        p_path = os.sep.join([self.path, 'Pipfile'])
+        p_path = Path(path / 'Pipfile')
         self.pipfile_path = p_path
 
         if pipfile:
             with contextlib.suppress(FileNotFoundError):
                 os.remove(p_path)
-
-            with open(p_path, 'a'):
-                os.utime(p_path, None)
 
             self._pipfile = _Pipfile(Path(p_path), index=self.index_url)
         else:
@@ -211,9 +204,11 @@ class _PipenvInstance:
 
     def __exit__(self, *args):
         warn_msg = 'Failed to remove resource: {!r}'
-        if self.pipfile_path:
-            with contextlib.suppress(OSError):
-                os.remove(self.pipfile_path)
+        try:
+            self.pipenv("--rm", block=False)
+        except subprocess.CalledProcessError as e:
+            _warn_msg = warn_msg.format(e)
+            warnings.warn(_warn_msg, ResourceWarning, stacklevel=1)
 
         os.chdir(self.original_dir)
         if self._path:
@@ -260,7 +255,7 @@ class _PipenvInstance:
 
     @property
     def pipfile(self):
-        p_path = os.sep.join([self.path, 'Pipfile'])
+        p_path = Path(self.path, 'Pipfile')
         with open(p_path) as f:
             return tomlkit.loads(f.read())
 
@@ -272,7 +267,7 @@ class _PipenvInstance:
 
     @property
     def lockfile_path(self):
-        return os.sep.join([self.path, 'Pipfile.lock'])
+        return Path(self.path, 'Pipfile.lock')
 
 
 if sys.version_info[:2] <= (3, 8):
