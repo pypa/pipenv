@@ -664,9 +664,14 @@ def ensure_path_is_relative(file_path):
     abs_path = Path(file_path).resolve()
     current_dir = Path.cwd()
 
+    # Check if the paths are on different drives
+    if abs_path.drive != current_dir.drive:
+        # If on different drives, return the absolute path
+        return abs_path
+
     try:
-        relative_path = abs_path.relative_to(current_dir)
-        return relative_path.as_posix()
+        # Try to create a relative path
+        return abs_path.relative_to(current_dir)
     except ValueError:
         # If the direct relative_to fails, manually compute the relative path
         common_parts = 0
@@ -676,14 +681,14 @@ def ensure_path_is_relative(file_path):
             else:
                 break
 
-            # Number of ".." needed are the extra parts in the current directory
-            # beyond the common parts
-            up_levels = [".."] * (len(current_dir.parts) - common_parts)
-            # The relative path is constructed by going up as needed and then
-            # appending the non-common parts of the absolute path
-            rel_parts = up_levels + list(abs_path.parts[common_parts:])
-            relative_path = Path(*rel_parts)
-            return str(relative_path)
+        # Number of ".." needed are the extra parts in the current directory
+        # beyond the common parts
+        up_levels = [".."] * (len(current_dir.parts) - common_parts)
+        # The relative path is constructed by going up as needed and then
+        # appending the non-common parts of the absolute path
+        rel_parts = up_levels + list(abs_path.parts[common_parts:])
+        relative_path = Path(*rel_parts)
+        return str(relative_path)
 
 
 def determine_path_specifier(package: InstallRequirement):
