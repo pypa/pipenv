@@ -166,7 +166,7 @@ class _Pipfile:
 
     @classmethod
     def get_fixture_path(cls, path, fixtures="test_artifacts"):
-        return Path(__file__).resolve().parent.parent / fixtures / path
+        return Path(Path(__file__).resolve().parent.parent / fixtures / path)
 
 
 class _PipenvInstance:
