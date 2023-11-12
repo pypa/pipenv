@@ -135,17 +135,15 @@ def walk_up(bottom):
     yield from walk_up(new_path)
 
 
-def find_requirements(max_depth=3):
-    """Returns the path of a requirements.txt file in parent directories."""
-    i = 0
-    for c, _, _ in walk_up(os.getcwd()):
-        i += 1
-        if i < max_depth:
-            r = os.path.join(c, "requirements.txt")
-            if os.path.isfile(r):
-                return r
+def find_requirements():
+    """Returns the path of a requirements.txt file in the current directory."""
+    current_dir = os.getcwd()
+    requirements_path = os.path.join(current_dir, "requirements.txt")
 
-    raise RuntimeError("No requirements.txt found!")
+    if os.path.isfile(requirements_path):
+        return requirements_path
+
+    raise RuntimeError("No requirements.txt found in the current directory!")
 
 
 # Borrowed from Pew.
