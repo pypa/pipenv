@@ -1,7 +1,6 @@
 import os
 
 import pytest
-from flaky import flaky
 
 
 from pipenv.project import Project
@@ -38,7 +37,6 @@ fake_package = {}
         assert c.returncode == 1
 
 
-@flaky
 @pytest.mark.markers
 def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
     """Markers should be converted during locking to help users who input this
@@ -56,7 +54,6 @@ def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
             "platform_python_implementation == 'CPython'"
 
 
-@flaky
 @pytest.mark.alt
 @pytest.mark.markers
 @pytest.mark.install
@@ -78,7 +75,6 @@ six = {version = "*", os_name = "== 'splashwear'"}
         assert c.returncode == 1
 
 
-@flaky
 @pytest.mark.markers
 def test_top_level_overrides_environment_markers(pipenv_instance_pypi):
     """Top-level environment markers should take precedence.
@@ -98,7 +94,6 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
         assert p.lockfile['default']['funcsigs']['markers'] == "os_name == 'splashwear'", p.lockfile['default']['funcsigs']
 
 
-@flaky
 @pytest.mark.markers
 @pytest.mark.install
 def test_global_overrides_environment_markers(pipenv_instance_private_pypi):
@@ -128,7 +123,6 @@ funcsigs = "*"
         assert p.lockfile['default']['funcsigs'].get('markers', '') == ''
 
 
-@flaky
 @pytest.mark.markers
 @pytest.mark.complex
 def test_resolver_unique_markers(pipenv_instance_pypi):
@@ -153,7 +147,6 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
         ]
 
 
-@flaky
 @pytest.mark.project
 @pytest.mark.needs_internet
 def test_environment_variable_value_does_not_change_hash(pipenv_instance_private_pypi):
