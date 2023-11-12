@@ -243,6 +243,7 @@ class Project:
                 self.s.PIPENV_MAX_RETRIES,
                 source.get("verify_ssl", True),
                 cache_dir=self.s.PIPENV_CACHE_DIR,
+                source=source.get("url"),
             )
             self.sessions[source["name"]] = session
         return session
