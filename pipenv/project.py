@@ -664,7 +664,7 @@ class Project:
     def requirements_location(self) -> str | None:
         if self._requirements_location is None:
             try:
-                loc = find_requirements(max_depth=self.s.PIPENV_MAX_DEPTH)
+                loc = find_requirements()
             except RuntimeError:
                 loc = None
             self._requirements_location = loc
