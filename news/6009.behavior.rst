@@ -1,1 +1,0 @@
-pipenv now ignores existing venv dir when ``PIPENV_VENV_IN_PROJECT`` is false.

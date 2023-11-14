@@ -1,1 +1,0 @@
-Assume the vcs and direct URL installs need to be reinstalled.

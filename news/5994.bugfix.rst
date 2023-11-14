@@ -1,1 +1,0 @@
-Pass through pipfile index urls when creating https session so that keyring fully works

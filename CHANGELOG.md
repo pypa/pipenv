@@ -1,3 +1,22 @@
+2023.11.14 (2023-11-14)
+=======================
+Pipenv 2023.11.14 (2023-11-14)
+==============================
+
+
+Behavior Changes
+----------------
+
+- pipenv now ignores existing venv dir when ``PIPENV_VENV_IN_PROJECT`` is false.  `#6009 <https://github.com/pypa/pipenv/issues/6009>`_
+
+Bug Fixes
+---------
+
+- Assume the vcs and direct URL installs need to be reinstalled.  `#5936 <https://github.com/pypa/pipenv/issues/5936>`_
+- Pass through pipfile index urls when creating https session so that keyring fully works  `#5994 <https://github.com/pypa/pipenv/issues/5994>`_
+- Fix Using dependencies from a URL fails on Windows.  `#6011 <https://github.com/pypa/pipenv/issues/6011>`_
+
+
 2023.10.24 (2023-10-24)
 =======================
 Pipenv 2023.10.24 (2023-10-24)
