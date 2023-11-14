@@ -258,6 +258,7 @@ def upgrade(state, **kwargs):
         dev=state.installstate.dev,
         system=state.system,
         lock_only=state.installstate.lock_only,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
