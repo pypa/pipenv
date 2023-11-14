@@ -43,7 +43,7 @@ To prevent pipenv from loading the `.env` file, set the `PIPENV_DONT_LOAD_ENV` e
 
     $ PIPENV_DONT_LOAD_ENV=1 pipenv shell
 
-See [theskumar/python-dotenv](https://github.com/theskumar/python-dotenv>) for more information on `.env` files.
+See [theskumar/python-dotenv](https://github.com/theskumar/python-dotenv) for more information on `.env` files.
 
 ## Shell Completion
 

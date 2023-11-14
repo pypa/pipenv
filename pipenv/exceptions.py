@@ -6,18 +6,11 @@ from traceback import format_tb
 from pipenv.vendor import click
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
-if sys.version_info[:2] >= (3, 7):
-    KnownException = namedtuple(
-        "KnownException",
-        ["exception_name", "match_string", "show_from_string", "prefix"],
-        defaults=[None, None, None, ""],
-    )
-else:
-    KnownException = namedtuple(
-        "KnownException",
-        ["exception_name", "match_string", "show_from_string", "prefix"],
-    )
-    KnownException.__new__.__defaults__ = (None, None, None, "")
+KnownException = namedtuple(
+    "KnownException",
+    ["exception_name", "match_string", "show_from_string", "prefix"],
+)
+KnownException.__new__.__defaults__ = (None, None, None, "")
 
 KNOWN_EXCEPTIONS = [
     KnownException("PermissionError", prefix="Permission Denied:"),

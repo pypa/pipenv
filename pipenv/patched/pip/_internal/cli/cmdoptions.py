@@ -92,10 +92,10 @@ def check_dist_restriction(options: Values, check_target: bool = False) -> None:
         )
 
     if check_target:
-        if dist_restriction_set and not options.target_dir:
+        if not options.dry_run and dist_restriction_set and not options.target_dir:
             raise CommandError(
                 "Can not use any platform or abi specific options unless "
-                "installing via '--target'"
+                "installing via '--target' or using '--dry-run'"
             )
 
 
@@ -670,7 +670,10 @@ def prefer_binary() -> Option:
         dest="prefer_binary",
         action="store_true",
         default=False,
-        help="Prefer older binary packages over newer source packages.",
+        help=(
+            "Prefer binary packages over source packages, even if the "
+            "source packages are newer."
+        ),
     )
 
 
@@ -823,7 +826,7 @@ def _handle_config_settings(
 ) -> None:
     key, sep, val = value.partition("=")
     if sep != "=":
-        parser.error(f"Arguments to {opt_str} must be of the form KEY=VAL")  # noqa
+        parser.error(f"Arguments to {opt_str} must be of the form KEY=VAL")
     dest = getattr(parser.values, option.dest)
     if dest is None:
         dest = {}
@@ -918,13 +921,13 @@ def _handle_merge_hash(
         algo, digest = value.split(":", 1)
     except ValueError:
         parser.error(
-            "Arguments to {} must be a hash name "  # noqa
+            "Arguments to {} must be a hash name "
             "followed by a value, like --hash=sha256:"
             "abcde...".format(opt_str)
         )
     if algo not in STRONG_HASHES:
         parser.error(
-            "Allowed hash algorithms for {} are {}.".format(  # noqa
+            "Allowed hash algorithms for {} are {}.".format(
                 opt_str, ", ".join(STRONG_HASHES)
             )
         )

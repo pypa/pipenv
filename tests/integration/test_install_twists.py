@@ -182,7 +182,7 @@ def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
     with pipenv_instance_private_pypi() as p:
-        requests_path = p._pipfile.get_fixture_path(f"{file_name}").as_posix()
+        requests_path = p._pipfile.get_fixture_path(f"{file_name}")
 
         # This tests for a bug when installing a zipfile
         c = p.pipenv(f"install {requests_path}")
@@ -248,7 +248,7 @@ name = "testindex"
         """
 
         for pkg_name in pkgs:
-            source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
+            source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/")
             shutil.copytree(source_path, pkg_name)
 
             pipfile_string += f'"{pkg_name}" = {{path = "./{pkg_name}", editable = true}}\n'

@@ -104,14 +104,6 @@ def pytest_runtest_setup(item):
         pytest.skip('test not applicable on python 3.8')
     if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
         pytest.skip('test does not apply on OSX')
-    if item.get_closest_marker('lte_py36') is not None and (
-        sys.version_info >= (3, 7)
-    ):
-        pytest.skip('test only runs on python < 3.7')
-    if item.get_closest_marker('skip_py36') is not None and (
-        sys.version_info[:2] == (3, 6)
-    ):
-        pytest.skip('test is skipped on python 3.6')
     if item.get_closest_marker('skip_windows') is not None and (os.name == 'nt'):
         pytest.skip('test does not run on windows')
 
@@ -174,7 +166,7 @@ class _Pipfile:
 
     @classmethod
     def get_fixture_path(cls, path, fixtures="test_artifacts"):
-        return Path(__file__).resolve().parent.parent / fixtures / path
+        return Path(Path(__file__).resolve().parent.parent / fixtures / path)
 
 
 class _PipenvInstance:

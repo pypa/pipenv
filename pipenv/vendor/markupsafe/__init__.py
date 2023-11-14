@@ -1,6 +1,7 @@
 import functools
 import re
 import string
+import sys
 import typing as t
 
 if t.TYPE_CHECKING:
@@ -10,23 +11,23 @@ if t.TYPE_CHECKING:
         def __html__(self) -> str:
             pass
 
+    _P = te.ParamSpec("_P")
 
-__version__ = "2.1.2"
+
+__version__ = "2.1.3"
 
 _strip_comments_re = re.compile(r"<!--.*?-->", re.DOTALL)
 _strip_tags_re = re.compile(r"<.*?>", re.DOTALL)
 
 
-def _simple_escaping_wrapper(name: str) -> t.Callable[..., "Markup"]:
-    orig = getattr(str, name)
-
-    @functools.wraps(orig)
-    def wrapped(self: "Markup", *args: t.Any, **kwargs: t.Any) -> "Markup":
-        args = _escape_argspec(list(args), enumerate(args), self.escape)  # type: ignore
+def _simple_escaping_wrapper(func: "t.Callable[_P, str]") -> "t.Callable[_P, Markup]":
+    @functools.wraps(func)
+    def wrapped(self: "Markup", *args: "_P.args", **kwargs: "_P.kwargs") -> "Markup":
+        arg_list = _escape_argspec(list(args), enumerate(args), self.escape)
         _escape_argspec(kwargs, kwargs.items(), self.escape)
-        return self.__class__(orig(self, *args, **kwargs))
+        return self.__class__(func(self, *arg_list, **kwargs))  # type: ignore[arg-type]
 
-    return wrapped
+    return wrapped  # type: ignore[return-value]
 
 
 class Markup(str):
@@ -69,7 +70,7 @@ class Markup(str):
 
     def __new__(
         cls, base: t.Any = "", encoding: t.Optional[str] = None, errors: str = "strict"
-    ) -> "Markup":
+    ) -> "te.Self":
         if hasattr(base, "__html__"):
             base = base.__html__()
 
@@ -78,22 +79,22 @@ class Markup(str):
 
         return super().__new__(cls, base, encoding, errors)
 
-    def __html__(self) -> "Markup":
+    def __html__(self) -> "te.Self":
         return self
 
-    def __add__(self, other: t.Union[str, "HasHTML"]) -> "Markup":
+    def __add__(self, other: t.Union[str, "HasHTML"]) -> "te.Self":
         if isinstance(other, str) or hasattr(other, "__html__"):
             return self.__class__(super().__add__(self.escape(other)))
 
         return NotImplemented
 
-    def __radd__(self, other: t.Union[str, "HasHTML"]) -> "Markup":
+    def __radd__(self, other: t.Union[str, "HasHTML"]) -> "te.Self":
         if isinstance(other, str) or hasattr(other, "__html__"):
             return self.escape(other).__add__(self)
 
         return NotImplemented
 
-    def __mul__(self, num: "te.SupportsIndex") -> "Markup":
+    def __mul__(self, num: "te.SupportsIndex") -> "te.Self":
         if isinstance(num, int):
             return self.__class__(super().__mul__(num))
 
@@ -101,7 +102,7 @@ class Markup(str):
 
     __rmul__ = __mul__
 
-    def __mod__(self, arg: t.Any) -> "Markup":
+    def __mod__(self, arg: t.Any) -> "te.Self":
         if isinstance(arg, tuple):
             # a tuple of arguments, each wrapped
             arg = tuple(_MarkupEscapeHelper(x, self.escape) for x in arg)
@@ -117,26 +118,28 @@ class Markup(str):
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({super().__repr__()})"
 
-    def join(self, seq: t.Iterable[t.Union[str, "HasHTML"]]) -> "Markup":
+    def join(self, seq: t.Iterable[t.Union[str, "HasHTML"]]) -> "te.Self":
         return self.__class__(super().join(map(self.escape, seq)))
 
     join.__doc__ = str.join.__doc__
 
-    def split(  # type: ignore
+    def split(  # type: ignore[override]
         self, sep: t.Optional[str] = None, maxsplit: int = -1
-    ) -> t.List["Markup"]:
+    ) -> t.List["te.Self"]:
         return [self.__class__(v) for v in super().split(sep, maxsplit)]
 
     split.__doc__ = str.split.__doc__
 
-    def rsplit(  # type: ignore
+    def rsplit(  # type: ignore[override]
         self, sep: t.Optional[str] = None, maxsplit: int = -1
-    ) -> t.List["Markup"]:
+    ) -> t.List["te.Self"]:
         return [self.__class__(v) for v in super().rsplit(sep, maxsplit)]
 
     rsplit.__doc__ = str.rsplit.__doc__
 
-    def splitlines(self, keepends: bool = False) -> t.List["Markup"]:  # type: ignore
+    def splitlines(  # type: ignore[override]
+        self, keepends: bool = False
+    ) -> t.List["te.Self"]:
         return [self.__class__(v) for v in super().splitlines(keepends)]
 
     splitlines.__doc__ = str.splitlines.__doc__
@@ -163,10 +166,10 @@ class Markup(str):
         value = _strip_comments_re.sub("", self)
         value = _strip_tags_re.sub("", value)
         value = " ".join(value.split())
-        return Markup(value).unescape()
+        return self.__class__(value).unescape()
 
     @classmethod
-    def escape(cls, s: t.Any) -> "Markup":
+    def escape(cls, s: t.Any) -> "te.Self":
         """Escape a string. Calls :func:`escape` and ensures that for
         subclasses the correct type is returned.
         """
@@ -175,45 +178,51 @@ class Markup(str):
         if rv.__class__ is not cls:
             return cls(rv)
 
-        return rv
+        return rv  # type: ignore[return-value]
 
-    for method in (
-        "__getitem__",
-        "capitalize",
-        "title",
-        "lower",
-        "upper",
-        "replace",
-        "ljust",
-        "rjust",
-        "lstrip",
-        "rstrip",
-        "center",
-        "strip",
-        "translate",
-        "expandtabs",
-        "swapcase",
-        "zfill",
-    ):
-        locals()[method] = _simple_escaping_wrapper(method)
+    __getitem__ = _simple_escaping_wrapper(str.__getitem__)
+    capitalize = _simple_escaping_wrapper(str.capitalize)
+    title = _simple_escaping_wrapper(str.title)
+    lower = _simple_escaping_wrapper(str.lower)
+    upper = _simple_escaping_wrapper(str.upper)
+    replace = _simple_escaping_wrapper(str.replace)
+    ljust = _simple_escaping_wrapper(str.ljust)
+    rjust = _simple_escaping_wrapper(str.rjust)
+    lstrip = _simple_escaping_wrapper(str.lstrip)
+    rstrip = _simple_escaping_wrapper(str.rstrip)
+    center = _simple_escaping_wrapper(str.center)
+    strip = _simple_escaping_wrapper(str.strip)
+    translate = _simple_escaping_wrapper(str.translate)
+    expandtabs = _simple_escaping_wrapper(str.expandtabs)
+    swapcase = _simple_escaping_wrapper(str.swapcase)
+    zfill = _simple_escaping_wrapper(str.zfill)
+    casefold = _simple_escaping_wrapper(str.casefold)
 
-    del method
+    if sys.version_info >= (3, 9):
+        removeprefix = _simple_escaping_wrapper(str.removeprefix)
+        removesuffix = _simple_escaping_wrapper(str.removesuffix)
 
-    def partition(self, sep: str) -> t.Tuple["Markup", "Markup", "Markup"]:
+    def partition(self, sep: str) -> t.Tuple["te.Self", "te.Self", "te.Self"]:
         l, s, r = super().partition(self.escape(sep))
         cls = self.__class__
         return cls(l), cls(s), cls(r)
 
-    def rpartition(self, sep: str) -> t.Tuple["Markup", "Markup", "Markup"]:
+    def rpartition(self, sep: str) -> t.Tuple["te.Self", "te.Self", "te.Self"]:
         l, s, r = super().rpartition(self.escape(sep))
         cls = self.__class__
         return cls(l), cls(s), cls(r)
 
-    def format(self, *args: t.Any, **kwargs: t.Any) -> "Markup":
+    def format(self, *args: t.Any, **kwargs: t.Any) -> "te.Self":
         formatter = EscapeFormatter(self.escape)
         return self.__class__(formatter.vformat(self, args, kwargs))
 
-    def __html_format__(self, format_spec: str) -> "Markup":
+    def format_map(  # type: ignore[override]
+        self, map: t.Mapping[str, t.Any]
+    ) -> "te.Self":
+        formatter = EscapeFormatter(self.escape)
+        return self.__class__(formatter.vformat(self, (), map))
+
+    def __html_format__(self, format_spec: str) -> "te.Self":
         if format_spec:
             raise ValueError("Unsupported format specification for Markup.")
 
@@ -268,8 +277,8 @@ class _MarkupEscapeHelper:
         self.obj = obj
         self.escape = escape
 
-    def __getitem__(self, item: t.Any) -> "_MarkupEscapeHelper":
-        return _MarkupEscapeHelper(self.obj[item], self.escape)
+    def __getitem__(self, item: t.Any) -> "te.Self":
+        return self.__class__(self.obj[item], self.escape)
 
     def __str__(self) -> str:
         return str(self.escape(self.obj))

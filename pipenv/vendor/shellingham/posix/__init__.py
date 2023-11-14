@@ -4,8 +4,37 @@ import re
 from .._core import SHELL_NAMES, ShellDetectionFailure
 from . import proc, ps
 
+# Based on QEMU docs: https://www.qemu.org/docs/master/user/main.html
+QEMU_BIN_REGEX = re.compile(
+    r"""qemu-
+        (alpha
+        |armeb
+        |arm
+        |m68k
+        |cris
+        |i386
+        |x86_64
+        |microblaze
+        |mips
+        |mipsel
+        |mips64
+        |mips64el
+        |mipsn32
+        |mipsn32el
+        |nios2
+        |ppc64
+        |ppc
+        |sh4eb
+        |sh4
+        |sparc
+        |sparc32plus
+        |sparc64
+    )""",
+    re.VERBOSE,
+)
 
-def _get_process_mapping():
+
+def _iter_process_parents(pid, max_depth=10):
     """Select a way to obtain process information from the system.
 
     * `/proc` is used if supported.
@@ -13,23 +42,11 @@ def _get_process_mapping():
     """
     for impl in (proc, ps):
         try:
-            mapping = impl.get_process_mapping()
+            iterator = impl.iter_process_parents(pid, max_depth)
         except EnvironmentError:
             continue
-        return mapping
+        return iterator
     raise ShellDetectionFailure("compatible proc fs or ps utility is required")
-
-
-def _iter_process_args(mapping, pid, max_depth):
-    """Traverse up the tree and yield each process's argument list."""
-    for _ in range(max_depth):
-        try:
-            proc = mapping[pid]
-        except KeyError:  # We've reached the root process. Give up.
-            break
-        if proc.args:  # Presumably the process should always have a name?
-            yield proc.args
-        pid = proc.ppid  # Go up one level.
 
 
 def _get_login_shell(proc_cmd):
@@ -71,6 +88,12 @@ def _get_shell(cmd, *args):
     if cmd.startswith("-"):  # Login shell! Let's use this.
         return _get_login_shell(cmd)
     name = os.path.basename(cmd).lower()
+    if name == "rosetta" or QEMU_BIN_REGEX.fullmatch(name):
+        # If the current process is Rosetta or QEMU, this likely is a
+        # containerized process. Parse out the actual command instead.
+        cmd = args[0]
+        args = args[1:]
+        name = os.path.basename(cmd).lower()
     if name in SHELL_NAMES:  # Command looks like a shell.
         return (name, cmd)
     shell = _get_interpreter_shell(name, args)
@@ -82,8 +105,7 @@ def _get_shell(cmd, *args):
 def get_shell(pid=None, max_depth=10):
     """Get the shell that the supplied pid or os.getpid() is running in."""
     pid = str(pid or os.getpid())
-    mapping = _get_process_mapping()
-    for proc_args in _iter_process_args(mapping, pid, max_depth):
+    for proc_args, _, _ in _iter_process_parents(pid, max_depth):
         shell = _get_shell(*proc_args)
         if shell:
             return shell

@@ -267,9 +267,9 @@ def get_csv_rows_for_installed(
         path = _fs_to_record_path(f, lib_dir)
         digest, length = rehash(f)
         installed_rows.append((path, digest, length))
-    for installed_record_path in installed.values():
-        installed_rows.append((installed_record_path, "", ""))
-    return installed_rows
+    return installed_rows + [
+        (installed_record_path, "", "") for installed_record_path in installed.values()
+    ]
 
 
 def get_console_script_specs(console: Dict[str, str]) -> List[str]:

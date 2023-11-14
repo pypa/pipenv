@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import re
 
 from collections.abc import Mapping
@@ -7,7 +9,6 @@ from datetime import time
 from datetime import timedelta
 from datetime import timezone
 from typing import Collection
-from typing import Union
 
 from pipenv.vendor.tomlkit._compat import decode
 
@@ -41,7 +42,7 @@ RFC_3339_TIME = re.compile(
 _utc = timezone(timedelta(), "UTC")
 
 
-def parse_rfc3339(string: str) -> Union[datetime, date, time]:
+def parse_rfc3339(string: str) -> datetime | date | time:
     m = RFC_3339_DATETIME.match(string)
     if m:
         year = int(m.group(1))
@@ -132,9 +133,11 @@ def escape_string(s: str, escape_sequences: Collection[str] = _basic_escapes) ->
 
         return i + inc
 
+    found_sequences = {seq for seq in escape_sequences if seq in s}
+
     i = 0
     while i < len(s):
-        for seq in escape_sequences:
+        for seq in found_sequences:
             seq_len = len(seq)
             if s[i:].startswith(seq):
                 start = flush(seq_len)

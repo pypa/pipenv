@@ -5,39 +5,36 @@ import copy
 
 # ToDo: at least on PY3 you could probably attach the tzinfo correctly to the object
 #       a more complete datetime might be used by safe loading as well
+#
+#       add type information (iso8601, spaced)
 
-if False:  # MYPY
-    from typing import Any, Dict, Optional, List  # NOQA
+from typing import Any, Dict, Optional, List  # NOQA
 
 
 class TimeStamp(datetime.datetime):
-    def __init__(self, *args, **kw):
-        # type: (Any, Any) -> None
-        self._yaml = dict(t=False, tz=None, delta=0)  # type: Dict[Any, Any]
+    def __init__(self, *args: Any, **kw: Any) -> None:
+        self._yaml: Dict[Any, Any] = dict(t=False, tz=None, delta=0)
 
-    def __new__(cls, *args, **kw):  # datetime is immutable
-        # type: (Any, Any) -> Any
+    def __new__(cls, *args: Any, **kw: Any) -> Any:  # datetime is immutable
         return datetime.datetime.__new__(cls, *args, **kw)
 
-    def __deepcopy__(self, memo):
-        # type: (Any) -> Any
+    def __deepcopy__(self, memo: Any) -> Any:
         ts = TimeStamp(self.year, self.month, self.day, self.hour, self.minute, self.second)
         ts._yaml = copy.deepcopy(self._yaml)
         return ts
 
     def replace(
         self,
-        year=None,
-        month=None,
-        day=None,
-        hour=None,
-        minute=None,
-        second=None,
-        microsecond=None,
-        tzinfo=True,
-        fold=None,
-    ):
-        # type: (Any, Any, Any, Any, Any, Any, Any, Any, Any) -> Any
+        year: Any = None,
+        month: Any = None,
+        day: Any = None,
+        hour: Any = None,
+        minute: Any = None,
+        second: Any = None,
+        microsecond: Any = None,
+        tzinfo: Any = True,
+        fold: Any = None,
+    ) -> Any:
         if year is None:
             year = self.year
         if month is None:

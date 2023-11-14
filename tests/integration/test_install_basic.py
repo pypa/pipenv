@@ -526,6 +526,7 @@ def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skip(reason="pip 23.3 now vendors in truststore and so test assumptions invalid ")
 def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("""install -v dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """)
@@ -556,3 +557,72 @@ dataclasses-json = {file = "https://files.pythonhosted.org/packages/85/94/1b3021
         assert c.returncode == 0
         c = p.pipenv("""run python -c "from dataclasses_json import dataclass_json" """)
         assert c.returncode == 0
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+atomicwrites = "*"
+colorama = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install build")
+        assert c.returncode == 0
+        assert "build" in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == ["atomicwrites", "build", "colorama"]
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_sorting_handles_str_values_and_dict_values(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+zipp = {version = "*"}
+parse = "*"
+colorama = "*"
+atomicwrites = {version = "*"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install build")
+        assert c.returncode == 0
+        assert "build" in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "atomicwrites",
+            "build",
+            "colorama",
+            "parse",
+            "zipp",
+        ]
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+atomicwrites = "*"
+colorama = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install build")
+        assert c.returncode == 0
+        assert "build" in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "atomicwrites",
+            "colorama",
+            "build",
+        ]

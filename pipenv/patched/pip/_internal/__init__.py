@@ -1,6 +1,5 @@
 from typing import List, Optional
 
-import pipenv.patched.pip._internal.utils.inject_securetransport  # noqa
 from pipenv.patched.pip._internal.utils import _log
 
 # init_logging() must be called before any call to logging.getLogger()

@@ -168,7 +168,7 @@ class Option:
     ):
         self._short_opts = []
         self._long_opts = []
-        self.prefixes = set()
+        self.prefixes: t.Set[str] = set()
 
         for opt in opts:
             prefix, value = split_opt(opt)
@@ -194,7 +194,7 @@ class Option:
     def takes_value(self) -> bool:
         return self.action in ("store", "append")
 
-    def process(self, value: str, state: "ParsingState") -> None:
+    def process(self, value: t.Any, state: "ParsingState") -> None:
         if self.action == "store":
             state.opts[self.dest] = value  # type: ignore
         elif self.action == "store_const":
@@ -272,12 +272,12 @@ class OptionParser:
         #: If this is set to `False`, the parser will stop on the first
         #: non-option.  Click uses this to implement nested subcommands
         #: safely.
-        self.allow_interspersed_args = True
+        self.allow_interspersed_args: bool = True
         #: This tells the parser how to deal with unknown options.  By
         #: default it will error out (which is sensible), but there is a
         #: second mode where it will ignore it and continue processing
         #: after shifting all the unknown options into the resulting args.
-        self.ignore_unknown_options = False
+        self.ignore_unknown_options: bool = False
 
         if ctx is not None:
             self.allow_interspersed_args = ctx.allow_interspersed_args
@@ -451,7 +451,7 @@ class OptionParser:
             if stop:
                 break
 
-        # If we got any unknown options we re-combinate the string of the
+        # If we got any unknown options we recombine the string of the
         # remaining options and re-attach the prefix, then report that
         # to the state as new larg.  This way there is basic combinatorics
         # that can be achieved while still ignoring unknown arguments.

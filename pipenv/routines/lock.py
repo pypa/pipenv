@@ -31,10 +31,10 @@ def do_lock(
             lockfile_categories.insert(0, "default")
     # Create the lockfile.
     lockfile = project.lockfile(categories=lockfile_categories)
-    # for category in lockfile_categories:
-    #     for k, v in lockfile.get(category, {}).copy().items():
-    #         if not hasattr(v, "keys"):
-    #             del lockfile[category][k]
+    for category in lockfile_categories:
+        for k, v in lockfile.get(category, {}).copy().items():
+            if not hasattr(v, "keys"):
+                del lockfile[category][k]
 
     # Resolve package to generate constraints before resolving other categories
     for category in lockfile_categories:

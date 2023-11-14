@@ -2,13 +2,23 @@
 
 `Pipfile` contains the specification for the project top-level requirements and any desired specifiers.
 This file is managed by the developers invoking pipenv commands.
-The `Pipfile` uses inline tables and the [TOML Spec](https://github.com/toml-lang/toml#user-content-spec>).
+The `Pipfile` uses inline tables and the [TOML Spec](https://toml.io/en/latest#spec).
 
 `Pipfile.lock` replaces the `requirements.txt` file used in most Python projects and adds
 security benefits of tracking the packages hashes that were last locked.
 This file is managed automatically through locking actions.
 
 You should add both `Pipfile` and `Pipfile.lock` to the project's source control.
+
+## `[pipenv]` Directives
+
+`Pipfile` may contain a `[pipenv]` section to control the behaviour of pipenv itself. Some available settings include:
+
+* `allow_prereleases` - Tell pipenv to install pre-release versions of a package -i.e. a version with an alpha/beta/etc. suffix, such as _1.0b1_. Equivalent to passing the `--pre` flag on the command line.
+* `disable_pip_input` - Prevent pipenv from asking for input. Equivalent to the `--no-input` flag.
+* `install_search_all_sources` - Allow installation of packages from an existing `Pipfile.lock` to search all defined indexes for the constrained package version and hash signatures. See [Specifying Package Indexes](indexes.md).
+* `sort_pipfile` - Sort package names alphabetically inside each category. Categories will be sorted and updated on `install` and `uninstall`. This is purely cosmetic to make reading easier for humans, and has no effect on installation order or dependency resolution. Note that `Pipfile.lock` packages are always sorted alphabetically.
+
 
 ## Example Pipfile
 

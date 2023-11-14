@@ -9,7 +9,9 @@ from pipenv.utils.shell import cmd_list_to_shell, system_which
 from pipenv.vendor import click
 
 
-def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=None):
+def do_shell(
+    project, python=False, fancy=False, shell_args=None, pypi_mirror=None, quiet=False
+):
     # Ensure that virtualenv is available.
     ensure_project(
         project,
@@ -25,7 +27,8 @@ def do_shell(project, python=False, fancy=False, shell_args=None, pypi_mirror=No
     from pipenv.shells import choose_shell
 
     shell = choose_shell(project)
-    click.echo("Launching subshell in virtual environment...", err=True)
+    if not quiet:
+        click.echo("Launching subshell in virtual environment...", err=True)
 
     fork_args = (
         project.virtualenv_location,

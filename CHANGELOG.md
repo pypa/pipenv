@@ -1,8 +1,70 @@
+2023.10.24 (2023-10-24)
+=======================
+Pipenv 2023.10.24 (2023-10-24)
+==============================
+
+
+Features & Improvements
+-----------------------
+
+- Officially support python 3.12  `#5987 <https://github.com/pypa/pipenv/issues/5987>`_
+
+Bug Fixes
+---------
+
+- Additional safety check in _fold_markers logic that affected some lock resolutions in prior release.  `#5988 <https://github.com/pypa/pipenv/issues/5988>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored versions of:
+    * click==8.1.7
+    * markupsafe==2.1.3
+    * pydantic==1.10.13
+    * pythonfinder==2.0.6
+    * ruamel.yaml==0.17.39
+    * shellingham==1.5.3
+    * tomlkit==0.12.1  `#5986 <https://github.com/pypa/pipenv/issues/5986>`_
+- Update vendored pip to ``23.3.1``  `#5991 <https://github.com/pypa/pipenv/issues/5991>`_
+
+
+2023.10.20 (2023-10-20)
+=======================
+
+Features & Improvements
+-----------------------
+
+- Add quiet option to pipenv shell, hiding "Launching subshell in virtual environment..."  `#5966 <https://github.com/pypa/pipenv/issues/5966>`_
+- Vendor in pip==23.3 which includes updates to certifi, urllib3, and  adds truststore among other improvements.  `#5979 <https://github.com/pypa/pipenv/issues/5979>`_
+
+Behavior Changes
+----------------
+
+- Change ``--py`` to use ``print`` preventing insertion of newline characters  `#5969 <https://github.com/pypa/pipenv/issues/5969>`_
+
+Vendored Libraries
+------------------
+
+- Drop pep517 - as it is no longer used.  `#5970 <https://github.com/pypa/pipenv/issues/5970>`_
+
+Removals and Deprecations
+-------------------------
+
+- Drop support for Python 3.7  `#5879 <https://github.com/pypa/pipenv/issues/5879>`_
+
+
+2023.10.3 (2023-10-03)
+======================
+
+Bug Fixes
+---------
+
+- Eveb better handling of vcs branch references that contain special characters.  `#5934 <https://github.com/pypa/pipenv/issues/5934>`_
+- Bump certifi from 2023.5.7 to 2023.7.22 in /examples to address a security vulnerability  `#5941 <https://github.com/pypa/pipenv/issues/5941>`_
+
+
 2023.9.8 (2023-09-08)
 =====================
-Pipenv 2023.9.8 (2023-09-08)
-============================
-
 
 Bug Fixes
 ---------
@@ -12,9 +74,6 @@ Bug Fixes
 
 2023.9.7 (2023-09-07)
 =====================
-Pipenv 2023.9.7 (2023-09-07)
-============================
-
 
 Features & Improvements
 -----------------------

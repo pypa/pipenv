@@ -9,6 +9,7 @@ import os
 import site
 import sys
 import typing
+from functools import cached_property
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
@@ -27,14 +28,6 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import make_posix, temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
-
-try:
-    # this is only in Python3.8 and later
-    from functools import cached_property
-except ImportError:
-    # eventually distlib will remove cached property when they drop Python3.7
-    from pipenv.patched.pip._vendor.distlib.util import cached_property
-
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
@@ -767,7 +760,13 @@ class Environment:
             None,
         )
         if match is not None:
-            if req.editable and req.link and req.link.is_file:
+            if req.specifier is not None:
+                return SpecifierSet(str(req.specifier)).contains(
+                    match.version, prereleases=True
+                )
+            if req.link is None:
+                return True
+            elif req.editable and req.link.is_file:
                 requested_path = req.link.file_path
                 if os.path.exists(requested_path):
                     local_path = requested_path
@@ -779,10 +778,21 @@ class Environment:
                 # Direct URL installs and VCS installs we assume are not satisfied
                 # since due to skip-lock we may be installing from Pipfile we have insufficient
                 # information to determine if a branch or ref has actually changed.
-                return False
-            elif req.specifier is not None:
-                return SpecifierSet(str(req.specifier)).contains(
-                    match.version, prereleases=True
+                direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
+                requested_revision = direct_url_metadata.get("vcs_info", {}).get(
+                    "requested_revision", ""
+                )
+                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
+                _, pipfile_part = as_pipfile(req).popitem()
+                vcs_ref = ""
+                for vcs in VCS_LIST:
+                    if pipfile_part.get(vcs):
+                        vcs_ref = pipfile_part[vcs].rsplit("@", 1)[-1]
+                        break
+                return (
+                    vcs_type == req.link.scheme
+                    and vcs_ref == requested_revision
+                    and direct_url_metadata["url"] == pipfile_part[req.link.scheme]
                 )
             return True
         return False

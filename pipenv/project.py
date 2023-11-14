@@ -243,6 +243,7 @@ class Project:
                 self.s.PIPENV_MAX_RETRIES,
                 source.get("verify_ssl", True),
                 cache_dir=self.s.PIPENV_CACHE_DIR,
+                source=source.get("url"),
             )
             self.sessions[source["name"]] = session
         return session
@@ -426,15 +427,11 @@ class Project:
 
         dot_venv = os.path.join(self.project_directory, ".venv")
 
-        # If there's no .venv in project root, set location based on config.
-        if not os.path.exists(dot_venv):
+        # If there's no .venv in project root or it is a folder, set location based on config.
+        if not os.path.exists(dot_venv) or os.path.isdir(dot_venv):
             if self.is_venv_in_project():
                 return dot_venv
             return str(get_workon_home().joinpath(self.virtualenv_name))
-
-        # If .venv in project root is a directory, use it.
-        if os.path.isdir(dot_venv):
-            return dot_venv
 
         # Now we assume .venv in project root is a file. Use its content.
         with open(dot_venv) as f:
@@ -1111,12 +1108,23 @@ class Project:
                 return name
         return None
 
+    def _sort_category(self, category):
+        # toml tables won't maintain sorted dictionary order
+        # so construct the table in the order that we need
+        table = tomlkit.table()
+        for key, value in sorted(category.items()):
+            table.add(key, value)
+
+        return table
+
     def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
         name = self.get_package_name_in_pipfile(package_name, category=category)
         p = self.parsed_pipfile
         if name:
             del p[category][name]
+            if self.settings.get("sort_pipfile"):
+                p[category] = self._sort_category(p[category])
             self.write_toml(p)
             return True
         return False
@@ -1226,6 +1234,9 @@ class Project:
             newly_added = True
 
         p[category][normalized_name] = entry
+
+        if self.settings.get("sort_pipfile"):
+            p[category] = self._sort_category(p[category])
 
         # Write Pipfile.
         self.write_toml(p)
