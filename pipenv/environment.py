@@ -778,22 +778,7 @@ class Environment:
                 # Direct URL installs and VCS installs we assume are not satisfied
                 # since due to skip-lock we may be installing from Pipfile we have insufficient
                 # information to determine if a branch or ref has actually changed.
-                direct_url_metadata = json.loads(match.get_metadata("direct_url.json"))
-                requested_revision = direct_url_metadata.get("vcs_info", {}).get(
-                    "requested_revision", ""
-                )
-                vcs_type = direct_url_metadata.get("vcs_info", {}).get("vcs", "")
-                _, pipfile_part = as_pipfile(req).popitem()
-                vcs_ref = ""
-                for vcs in VCS_LIST:
-                    if pipfile_part.get(vcs):
-                        vcs_ref = pipfile_part[vcs].rsplit("@", 1)[-1]
-                        break
-                return (
-                    vcs_type == req.link.scheme
-                    and vcs_ref == requested_revision
-                    and direct_url_metadata["url"] == pipfile_part[req.link.scheme]
-                )
+                return False
             return True
         return False
 
