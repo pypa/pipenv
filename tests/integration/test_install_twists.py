@@ -10,6 +10,35 @@ from pipenv.utils.shell import temp_environ
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
+def test_local_path_issue_6016(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        setup_py = os.path.join(p.path, "setup.py")
+        with open(setup_py, "w") as fh:
+            contents = """
+from setuptools import setup, find_packages
+setup(
+    name='testpipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='MIT',
+    packages=find_packages(),
+    install_requires=[],
+    extras_require={'dev': ['six']},
+    zip_safe=False
+)
+            """.strip()
+            fh.write(contents)
+        # project.write_toml({"packages": pipfile, "dev-packages": {}})
+        c = p.pipenv("install .")
+        assert c.returncode == 0
+        assert "testpipenv" in p.lockfile["default"]
+
+
+@pytest.mark.extras
+@pytest.mark.install
+@pytest.mark.local
 def test_local_extras_install(pipenv_instance_pypi):
     """Ensure -e .[extras] installs.
     """
