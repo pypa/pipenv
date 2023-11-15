@@ -667,11 +667,11 @@ def ensure_path_is_relative(file_path):
     # Check if the paths are on different drives
     if abs_path.drive != current_dir.drive:
         # If on different drives, return the absolute path
-        return abs_path
+        return str(abs_path)
 
     try:
         # Try to create a relative path
-        return abs_path.relative_to(current_dir)
+        return str(abs_path.relative_to(current_dir))
     except ValueError:
         # If the direct relative_to fails, manually compute the relative path
         common_parts = 0
