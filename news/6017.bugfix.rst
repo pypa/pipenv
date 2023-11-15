@@ -1,0 +1,1 @@
+Fix regression with path installs on most recent release ``2023.11.14``
