@@ -13,4 +13,4 @@ pythonfinder==2.0.6
 ruamel.yaml==0.17.39
 shellingham==1.5.3
 tomli==2.0.1
-tomlkit==0.12.1
+tomlkit==0.12.3
