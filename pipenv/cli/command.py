@@ -290,7 +290,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         editable_packages=state.installstate.editables,
         python=state.python,
         system=state.system,
-        lock=True,
+        lock=False,
         all_dev=all_dev,
         all=all,
         pypi_mirror=state.pypi_mirror,

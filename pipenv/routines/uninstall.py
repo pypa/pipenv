@@ -3,7 +3,6 @@ import sys
 
 from pipenv import exceptions
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
@@ -37,6 +36,8 @@ def do_uninstall(
     if not categories:
         categories = ["default"]
 
+    lockfile_content = project.lockfile_content
+
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
     # Determine packages and their dependencies for removal
@@ -45,50 +46,49 @@ def do_uninstall(
 
         for package in package_args[:]:
             install_req, _ = expansive_install_req_from_line(package, expand_env=True)
-
             name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
                 install_req, package, category=pipfile_category
             )
 
-            if normalized_name not in project.lockfile_content[category]:
-                continue
+            # Remove the package from the Pipfile
+            if project.remove_package_from_pipfile(
+                normalized_name, category=pipfile_category
+            ):
+                click.echo(f"Removed {normalized_name} from Pipfile.")
 
-            # Create a lock data for current state minus the package being removed
-            current_lock_data = project.lockfile_content[category].copy()
-            del current_lock_data[normalized_name]
+            # Rebuild the dependencies for resolution from the updated Pipfile
+            updated_packages = project.get_pipfile_section(pipfile_category)
 
             # Resolve dependencies with the package removed
             resolved_lock_data = venv_resolve_deps(
-                current_lock_data,
+                updated_packages,
                 which=project._which,
                 project=project,
                 lockfile={},
                 category=pipfile_category,
-                pre=False,  # Assuming pre-releases are not handled here
+                pre=False,  # TODO Handle pre-releases here
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
             )
 
             # Determine which dependencies are no longer needed
+            current_lock_data = lockfile_content[category]
             deps_to_remove = [
                 dep for dep in current_lock_data if dep not in resolved_lock_data
             ]
 
             # Remove unnecessary dependencies from Pipfile and lockfile
             for dep in deps_to_remove:
-                if project.remove_package_from_pipfile(dep, category=pipfile_category):
-                    del project.lockfile_content[category][dep]
+                if category in lockfile_content and dep in lockfile_content[category]:
+                    del lockfile_content[category][dep]
+
+    # Finalize changes to lockfile
+    lockfile_content.update({"_meta": project.get_lockfile_meta()})
+    project.write_lockfile(lockfile_content)
 
     # Perform uninstallation of packages and dependencies
     failure = False
     for package in package_args:
-        normalized_name = canonicalize_name(package)
-
-        # Check if the package is actually installed
-        if normalized_name not in project.installed_package_names:
-            click.echo(f"Package {package} not found and cannot be uninstalled.")
-            continue
-
         # Execute the uninstall command for the package
         click.secho(f"Uninstalling {package}...", fg="green", bold=True)
         with project.environment.activated():
@@ -106,8 +106,6 @@ def do_uninstall(
                 failure = True
                 continue
 
-    # Finalize changes
-    project.write_lockfile(project.lockfile_content)
     if lock:
         do_lock(project, system=system, pypi_mirror=pypi_mirror)
 
