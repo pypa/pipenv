@@ -27,7 +27,7 @@ from pipenv.vendor.tomlkit.api import value
 from pipenv.vendor.tomlkit.api import ws
 
 
-__version__ = "0.12.1"
+__version__ = "0.12.3"
 __all__ = [
     "aot",
     "array",

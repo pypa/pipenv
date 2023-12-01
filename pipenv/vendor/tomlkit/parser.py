@@ -1030,7 +1030,7 @@ class Parser:
                         InternalParserError,
                         "_parse_item() returned None on a non-bracket character.",
                     )
-
+        table.value._validate_out_of_order_table()
         if isinstance(result, Null):
             result = table
 
