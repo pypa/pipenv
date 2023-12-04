@@ -6,6 +6,7 @@ from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
+    get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
     pep423_name,
 )
@@ -14,6 +15,25 @@ from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click
+
+
+def _uninstall_from_environment(project, package, system=False):
+    # Execute the uninstall command for the package
+    click.secho(f"Uninstalling {package}...", fg="green", bold=True)
+    with project.environment.activated():
+        cmd = [
+            project_python(project, system=system),
+            get_runnable_pip(),
+            "uninstall",
+            package,
+            "-y",
+        ]
+        c = run_command(cmd, is_verbose=project.s.is_verbose())
+        click.secho(c.stdout, fg="cyan")
+        if c.returncode != 0:
+            click.echo(f"Error occurred while uninstalling package {package}.")
+            return False
+    return True
 
 
 def do_uninstall(
@@ -38,10 +58,52 @@ def do_uninstall(
 
     lockfile_content = project.lockfile_content
 
+    if all_dev:
+        click.secho(
+            click.style(
+                "Un-installing all {}...".format(
+                    click.style("[dev-packages]", fg="yellow")
+                ),
+                bold=True,
+            )
+        )
+        # Uninstall all dev-packages from environment
+        for package in project.get_pipfile_section("dev-packages"):
+            _uninstall_from_environment(project, package, system=system)
+        # Remove the package from the Pipfile
+        if project.reset_category_in_pipfile(category="dev-packages"):
+            click.echo("Removed [dev-packages] from Pipfile.")
+        # Finalize changes to lockfile
+        lockfile_content["develop"] = {}
+        lockfile_content.update({"_meta": project.get_lockfile_meta()})
+        project.write_lockfile(lockfile_content)
+
+    if all:
+        click.secho(
+            click.style(
+                "Un-installing all {}...".format(click.style("[packages]", fg="yellow")),
+                bold=True,
+            )
+        )
+        # Uninstall all dev-packages from environment
+        for package in project.get_pipfile_section("packages"):
+            _uninstall_from_environment(project, package, system=system)
+        # Remove the package from the Pipfile
+        if project.reset_category_in_pipfile(category="packages"):
+            click.echo("Removed [packages] from Pipfile.")
+
+        # Finalize changes to lockfile
+        lockfile_content["default"] = {}
+        lockfile_content.update({"_meta": project.get_lockfile_meta()})
+        project.write_lockfile(lockfile_content)
+
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
     # Determine packages and their dependencies for removal
     for category in categories:
+        category = get_lockfile_section_using_pipfile_category(
+            category
+        )  # In case they passed pipfile category
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
         for package in package_args[:]:
@@ -72,15 +134,21 @@ def do_uninstall(
             )
 
             # Determine which dependencies are no longer needed
-            current_lock_data = lockfile_content[category]
-            deps_to_remove = [
-                dep for dep in current_lock_data if dep not in resolved_lock_data
-            ]
-
-            # Remove unnecessary dependencies from Pipfile and lockfile
-            for dep in deps_to_remove:
-                if category in lockfile_content and dep in lockfile_content[category]:
-                    del lockfile_content[category][dep]
+            try:
+                current_lock_data = lockfile_content[category]
+                if current_lock_data:
+                    deps_to_remove = [
+                        dep for dep in current_lock_data if dep not in resolved_lock_data
+                    ]
+                    # Remove unnecessary dependencies from Pipfile and lockfile
+                    for dep in deps_to_remove:
+                        if (
+                            category in lockfile_content
+                            and dep in lockfile_content[category]
+                        ):
+                            del lockfile_content[category][dep]
+            except KeyError:
+                pass  # No lockfile data for this category
 
     # Finalize changes to lockfile
     lockfile_content.update({"_meta": project.get_lockfile_meta()})
@@ -89,22 +157,7 @@ def do_uninstall(
     # Perform uninstallation of packages and dependencies
     failure = False
     for package in package_args:
-        # Execute the uninstall command for the package
-        click.secho(f"Uninstalling {package}...", fg="green", bold=True)
-        with project.environment.activated():
-            cmd = [
-                project_python(project, system=system),
-                get_runnable_pip(),
-                "uninstall",
-                package,
-                "-y",
-            ]
-            c = run_command(cmd, is_verbose=project.s.is_verbose())
-            click.secho(c.stdout, fg="cyan")
-            if c.returncode != 0:
-                click.echo(f"Error occurred while uninstalling package {package}.")
-                failure = True
-                continue
+        _uninstall_from_environment(project, package, system=system)
 
     if lock:
         do_lock(project, system=system, pypi_mirror=pypi_mirror)
