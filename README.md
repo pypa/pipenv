@@ -98,6 +98,10 @@ Alternatively, some users prefer to use [Pipx](https://pypi.org/p/pipx):
 
     pipx install pipenv
 
+Or, some users prefer to use Python pip module
+
+    python -m pip install pipenv
+
 Refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for latest instructions.
 
 ✨🍰✨
