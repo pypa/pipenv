@@ -214,7 +214,7 @@ class PipfileLoader(pipfiles.Pipfile):
     @classmethod
     def populate_source(cls, source):
         """Derive missing values of source from the existing fields."""
-        # Only URL pararemter is mandatory, let the KeyError be thrown.
+        # Only URL parameter is mandatory, let the KeyError be thrown.
         if "name" not in source:
             source["name"] = get_url_name(source["url"])
         if "verify_ssl" not in source:

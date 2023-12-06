@@ -31,7 +31,7 @@ dynamic = [
 dependencies = [
   "certifi",
   "setuptools>=67",
-  "virtualenv>=20.24.2",
+  "virtualenv>=20.25",
 ]
 [project.optional-dependencies]
 dev = [
