@@ -150,6 +150,8 @@ def test_pipenv_check(pipenv_instance_private_pypi):
         assert c.returncode == 0
         c = p.pipenv('install six')
         assert c.returncode == 0
+        c = p.pipenv("run python -m pip install --upgrade pip")
+        assert c.returncode == 0
         # Note: added
         # 51457: py <=1.11.0 resolved (1.11.0 installed)!
         # this is installed via pytest, and causes a false positive
