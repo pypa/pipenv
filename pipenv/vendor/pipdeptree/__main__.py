@@ -5,19 +5,18 @@ import os
 import sys
 from typing import Sequence
 
+pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# for finding pipdeptree itself
+sys.path.append(pardir)
+# for finding stuff in vendor and patched
+sys.path.append(os.path.dirname(os.path.dirname(pardir)))
+
 from pipenv.vendor.pipdeptree._cli import get_options
 from pipenv.vendor.pipdeptree._discovery import get_installed_distributions
 from pipenv.vendor.pipdeptree._models import PackageDAG
 from pipenv.vendor.pipdeptree._non_host import handle_non_host_target
 from pipenv.vendor.pipdeptree._render import render
 from pipenv.vendor.pipdeptree._validate import validate
-
-
-pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# for finding pipdeptree itself
-sys.path.append(pardir)
-# for finding stuff in vendor and patched
-sys.path.append(os.path.dirname(os.path.dirname(pardir)))
 
 
 def main(args: Sequence[str] | None = None) -> None | int:
