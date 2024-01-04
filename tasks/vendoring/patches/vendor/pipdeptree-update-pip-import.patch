@@ -1,10 +1,18 @@
 diff --git a/pipenv/vendor/pipdeptree/__main__.py b/pipenv/vendor/pipdeptree/__main__.py
-index 85cca3c..a002019 100644
+index cb48791..d1c24f5 100644
 --- a/pipenv/vendor/pipdeptree/__main__.py
 +++ b/pipenv/vendor/pipdeptree/__main__.py
-@@ -1,5 +1,13 @@
+@@ -1,6 +1,7 @@
+ """The main entry point used for CLI."""
+ from __future__ import annotations
+ 
 +import os
  import sys
+ from typing import Sequence
+ 
+@@ -12,6 +13,13 @@ from pipdeptree._render import render
+ from pipenv.vendor.pipdeptree._validate import validate
+ 
  
 +pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 +# for finding pipdeptree itself
@@ -13,6 +21,6 @@ index 85cca3c..a002019 100644
 +sys.path.append(os.path.dirname(os.path.dirname(pardir)))
 +
 +
- from pipenv.vendor.pipdeptree import main
- 
- if __name__ == "__main__":
+ def main(args: Sequence[str] | None = None) -> None | int:
+     """CLI - The main function called as entry point."""
+     options = get_options(args)
