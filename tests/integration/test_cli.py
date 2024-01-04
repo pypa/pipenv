@@ -119,20 +119,28 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
 
         for dep_name, dep_constraint in requests_dependency:
             pat = fr'{dep_name}==[\d.]+'
-            dep_match = re.search(pat, output, flags=re.MULTILINE)
+            dep_match = re.search(pat,
+                                  output,
+                                  flags=re.MULTILINE | re.IGNORECASE)
             assert dep_match is not None, f'{pat} not found in {output}'
 
             # openpyxl should be indented
             if dep_name == 'openpyxl':
-                openpyxl_dep = re.search(r'^openpyxl', output, flags=re.MULTILINE)
+                openpyxl_dep = re.search(r'^openpyxl',
+                                         output,
+                                         flags=re.MULTILINE | re.IGNORECASE)
                 assert openpyxl_dep is None, f'openpyxl should not appear at beginning of lines in {output}'
 
                 assert 'openpyxl==2.5.4 [requires: et-xmlfile]' in output
             else:
-                dep_match = re.search(fr'^[ -]*{dep_name}==[\d.]+$', output, flags=re.MULTILINE)
+                dep_match = re.search(fr'^[ -]*{dep_name}==[\d.]+$',
+                                      output,
+                                      flags=re.MULTILINE | re.IGNORECASE)
                 assert dep_match is not None, f'{dep_name} not found at beginning of line in {output}'
 
-            dep_requests_match = re.search(fr'└── tablib==0.13.0 \[requires: {dep_constraint}', output, flags=re.MULTILINE)
+            dep_requests_match = re.search(fr'└── tablib==0.13.0 \[requires: {dep_constraint}',
+                                           output,
+                                           flags=re.MULTILINE | re.IGNORECASE)
             assert dep_requests_match is not None, f'constraint {dep_constraint} not found in {output}'
             assert dep_requests_match.start() > dep_match.start()
 
