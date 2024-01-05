@@ -247,6 +247,7 @@ class Factory:
         # Hopefully the Project model can correct this mismatch in the future.
         template = ireqs[0]
         assert template.req, "Candidates found on index must be PEP 508"
+        project_name = template.req.name
         name = canonicalize_name(template.req.name)
 
         extras: FrozenSet[str] = frozenset()
@@ -282,7 +283,7 @@ class Factory:
 
         def iter_index_candidate_infos() -> Iterator[IndexCandidateInfo]:
             result = self._finder.find_best_candidate(
-                project_name=name,
+                project_name=project_name,
                 specifier=specifier,
                 hashes=hashes,
             )
