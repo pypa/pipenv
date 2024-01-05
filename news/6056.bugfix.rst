@@ -1,0 +1,1 @@
+Fix a bug with locking projects that contains packages with non canonical names from private indexes
