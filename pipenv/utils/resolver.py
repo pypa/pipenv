@@ -25,6 +25,7 @@ from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor import pkg_resources, rich
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
@@ -200,6 +201,7 @@ class Resolver:
         for package_name, dep in deps.items():  # Build up the index and markers lookups
             if not dep:
                 continue
+            canonical_package_name = canonicalize_name(package_name)
             is_constraint = True
             install_req, _ = expansive_install_req_from_line(dep, expand_env=True)
             original_deps[package_name] = dep
@@ -210,14 +212,18 @@ class Resolver:
                 pipfile_entries[package_name] = pipfile_entry
                 if isinstance(pipfile_entry, dict):
                     if packages[package_name].get("index"):
-                        index_lookup[package_name] = packages[package_name].get("index")
+                        index_lookup[canonical_package_name] = packages[package_name].get(
+                            "index"
+                        )
                     if packages[package_name].get("skip_resolver"):
                         is_constraint = False
                         skipped[package_name] = dep
                 elif index:
-                    index_lookup[package_name] = index
+                    index_lookup[canonical_package_name] = index
                 else:
-                    index_lookup[package_name] = project.get_default_index()["name"]
+                    index_lookup[canonical_package_name] = project.get_default_index()[
+                        "name"
+                    ]
             if install_req.markers:
                 markers_lookup[package_name] = install_req.markers
             if is_constraint:
@@ -546,9 +552,13 @@ class Resolver:
             return set()
 
         sources = self.sources  # Enforce index restrictions
-        if ireq.name in self.index_lookup:
+        canonical_ireq_name = canonicalize_name(ireq.name)
+        if canonical_ireq_name in self.index_lookup:
             sources = list(
-                filter(lambda s: s.get("name") == self.index_lookup[ireq.name], sources)
+                filter(
+                    lambda s: s.get("name") == self.index_lookup[canonical_ireq_name],
+                    sources,
+                )
             )
         source = sources[0] if len(sources) else None
         if source:
