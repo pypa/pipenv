@@ -28,6 +28,7 @@ tomli = "*"
 pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
+semver = "*"
 
 [packages]
 pytz = "*"
