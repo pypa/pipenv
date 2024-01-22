@@ -1,29 +1,21 @@
 from __future__ import annotations
 
+import dataclasses
 import errno
 import operator
 import os
 import sys
-from collections import ChainMap, defaultdict
+from collections import defaultdict
+from dataclasses import field
+from functools import cached_property
 from itertools import chain
 from pathlib import Path
 from typing import (
     Any,
     DefaultDict,
-    Dict,
     Generator,
     Iterator,
-    List,
-    Optional,
-    Tuple,
-    Union,
 )
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from pipenv.patched.pip._vendor.pyparsing.core import cached_property
-from pipenv.vendor.pydantic import Field, root_validator
 
 from ..environment import (
     ASDF_DATA_DIR,
@@ -40,7 +32,6 @@ from ..utils import (
     parse_pyenv_version_order,
     split_version_and_name,
 )
-from .common import FinderBaseModel
 from .mixins import PathEntry
 from .python import PythonFinder
 
@@ -55,38 +46,32 @@ def exists_and_is_accessible(path):
             raise
 
 
-class SystemPath(FinderBaseModel):
+@dataclasses.dataclass(unsafe_hash=True)
+class SystemPath:
     global_search: bool = True
-    paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(
+    paths: dict[str, PythonFinder | PathEntry] = field(
         default_factory=lambda: defaultdict(PathEntry)
     )
-    executables_tracking: List[PathEntry] = Field(default_factory=lambda: list())
-    python_executables_tracking: Dict[str, PathEntry] = Field(
-        default_factory=lambda: dict()
+    executables_tracking: list[PathEntry] = field(default_factory=list)
+    python_executables_tracking: dict[str, PathEntry] = field(
+        default_factory=dict, init=False
     )
-    path_order: List[str] = Field(default_factory=lambda: list())
-    python_version_dict: Dict[Tuple, Any] = Field(
+    path_order: list[str] = field(default_factory=list)
+    python_version_dict: dict[tuple, Any] = field(
         default_factory=lambda: defaultdict(list)
     )
-    version_dict_tracking: Dict[Tuple, List[PathEntry]] = Field(
+    version_dict_tracking: dict[tuple, list[PathEntry]] = field(
         default_factory=lambda: defaultdict(list)
     )
     only_python: bool = False
-    pyenv_finder: Optional[PythonFinder] = None
-    asdf_finder: Optional[PythonFinder] = None
+    pyenv_finder: PythonFinder | None = None
+    asdf_finder: PythonFinder | None = None
     system: bool = False
     ignore_unsupported: bool = False
-    finders_dict: Dict[str, PythonFinder] = Field(default_factory=lambda: dict())
+    finders_dict: dict[str, PythonFinder] = field(default_factory=dict)
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        keep_untouched = (cached_property,)
-
-    def __init__(self, **data):
-        super().__init__(**data)
+    def __post_init__(self):
+        # Initialize python_executables_tracking
         python_executables = {}
         for child in self.paths.values():
             if child.pythons:
@@ -96,24 +81,20 @@ class SystemPath(FinderBaseModel):
                 python_executables.update(dict(finder.pythons))
         self.python_executables_tracking = python_executables
 
-    @root_validator(pre=True)
-    def set_defaults(cls, values):
-        values["python_version_dict"] = defaultdict(list)
-        values["pyenv_finder"] = None
-        values["asdf_finder"] = None
-        values["path_order"] = []
-        values["_finders"] = {}
-        values["paths"] = defaultdict(PathEntry)
-        paths = values.get("paths")
-        if paths:
-            values["executables"] = [
-                p
-                for p in ChainMap(
-                    *(child.children_ref.values() for child in paths.values())
-                )
-                if p.is_executable
+        self.python_version_dict = defaultdict(list)
+        self.pyenv_finder = self.pyenv_finder or None
+        self.asdf_finder = self.asdf_finder or None
+        self.path_order = self.path_order or []
+        self.finders_dict = self.finders_dict or {}
+
+        # The part with 'paths' seems to be setting up 'executables'
+        if self.paths:
+            self.executables_tracking = [
+                child
+                for path_entry in self.paths.values()
+                for child in path_entry.children_ref.values()
+                if child.is_executable
             ]
-        return values
 
     def _register_finder(self, finder_name, finder):
         if finder_name not in self.finders_dict:
