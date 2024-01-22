@@ -53,10 +53,8 @@ def _render_log():
 
 
 release_help = {
-    "manual": "Build the man pages.",
     "dry_run": "No-op, simulate what would happen if run for real.",
     "pre": "Build a pre-release version, must be paired with a tag.",
-    "tag": "A release tag, e.g. 'a', 'b', 'rc', 'post'.",
 }
 
 
