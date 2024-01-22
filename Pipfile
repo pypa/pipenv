@@ -14,7 +14,7 @@ stdeb = {version="*", sys_platform = "== 'linux'"}
 zipp = {version = "==3.6.0", markers = "python_version < '3.10'"}
 pre-commit = "==2.*"
 atomicwrites = {version = "*", sys_platform = "== 'win32'"}
-pytest-cov = "==3.*"
+pytest-cov = "==4.*"
 typing-extensions = "==4.*"
 waitress = {version = "*", sys_platform = "== 'win32'"}
 gunicorn = {version = "*", sys_platform = "== 'linux'"}
