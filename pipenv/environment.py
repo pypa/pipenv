@@ -669,7 +669,7 @@ class Environment:
     def get_package_requirements(self, pkg=None):
         from itertools import chain
 
-        from pipenv.vendor.pipdeptree import PackageDAG
+        from pipenv.vendor.pipdeptree._models import PackageDAG
 
         flatten = chain.from_iterable
 

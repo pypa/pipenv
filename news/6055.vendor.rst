@@ -1,0 +1,1 @@
+Bump version of pipdeptree to 0.13.2
