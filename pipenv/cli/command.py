@@ -284,6 +284,8 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
     """Uninstalls a provided package and removes it from Pipfile."""
     from pipenv.routines.uninstall import do_uninstall
 
+    pre = state.installstate.pre
+
     retcode = do_uninstall(
         state.project,
         packages=state.installstate.packages,
@@ -293,6 +295,7 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
         lock=False,
         all_dev=all_dev,
         all=all,
+        pre=pre,
         pypi_mirror=state.pypi_mirror,
         categories=state.installstate.categories,
         ctx=ctx,

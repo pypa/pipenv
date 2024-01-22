@@ -45,6 +45,7 @@ def do_uninstall(
     lock=False,
     all_dev=False,
     all=False,
+    pre=False,
     pypi_mirror=None,
     ctx=None,
     categories=None,
@@ -128,7 +129,7 @@ def do_uninstall(
                 project=project,
                 lockfile={},
                 category=pipfile_category,
-                pre=False,  # TODO Handle pre-releases here
+                pre=pre,
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
             )
