@@ -327,7 +327,7 @@ You can read more about [pip's implementation of vcs support here](https://pip.p
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
 
-    
+
 ### PURPOSE AND ADVANTAGES OF PIPENV
 
 To understand the problems that Pipenv solves, it's useful to show how Python package management has evolved.
