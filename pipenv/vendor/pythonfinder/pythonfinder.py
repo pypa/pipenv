@@ -13,7 +13,7 @@ from .utils import version_re
 
 @dataclasses.dataclass(unsafe_hash=True)
 class Finder:
-    path_prepend: str | None = None
+    path: str | None = None
     system: bool = False
     global_search: bool = True
     ignore_unsupported: bool = True
@@ -28,7 +28,7 @@ class Finder:
         set_asdf_paths()
         set_pyenv_paths()
         return SystemPath.create(
-            path=self.path_prepend,
+            path=self.path,
             system=self.system,
             global_search=self.global_search,
             ignore_unsupported=self.ignore_unsupported,
