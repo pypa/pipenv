@@ -98,6 +98,10 @@ Alternatively, some users prefer to use [Pipx](https://pypi.org/p/pipx):
 
     pipx install pipenv
 
+Or, some users prefer to use Python pip module
+
+    python -m pip install pipenv
+
 Refer to the [documentation](https://pipenv.pypa.io/en/latest/#install-pipenv-today) for latest instructions.
 
 ✨🍰✨
@@ -322,6 +326,55 @@ You can read more about [pip's implementation of vcs support here](https://pip.p
     Loading .env environment variables...
     Launching subshell in virtual environment. Type 'exit' or 'Ctrl+D' to return.
     $ ▯
+
+
+### PURPOSE AND ADVANTAGES OF PIPENV
+
+To understand the problems that Pipenv solves, it's useful to show how Python package management has evolved.
+
+Take yourself back to the first Python iteration. We had Python, but there was no clean way to install packages.
+
+Then came Easy Install, a package that installs other Python packages with relative ease. But it came with a catch: it wasn't easy to uninstall packages that were no longer needed.
+
+Enter pip, which most Python users are familiar with. pip lets us install and uninstall packages. We could specify versions, run pip freeze > requirements.txt to output a list of installed packages to a text file, and use that same text file to install everything an app needed with pip install -r requirements.txt.
+
+But pip didn't include a way to isolate packages from each other. We might work on apps that use different versions of the same libraries, so we needed a way to enable that.
+
+
+Pipenv aims to solve several problems.
+First, the problem of needing the pip library for package installation, plus a library for creating a virtual environment, plus a library for managing virtual environments, plus all the commands associated with those libraries. That's a lot to manage. Pipenv ships with package management and virtual environment support, so you can use one tool to install, uninstall, track, and document your dependencies and to create, use, and organize your virtual environments. When you start a project with it, Pipenv will automatically create a virtual environment for that project if you aren't already using one.
+
+Pipenv accomplishes this dependency management by abandoning the requirements.txt norm and trading it for a new document called a Pipfile. When you install a library with Pipenv, a Pipfile for your project is automatically updated with the details of that installation, including version information and possibly the Git repository location, file path, and other information.
+
+Second, Pipenv wants to make it easier to manage complex interdependencies.
+
+Using Pipenv, which gives you Pipfile, lets you avoid these problems by managing dependencies for different environments for you. This command will install the main project dependencies:
+
+ pipenv install
+
+Adding the --dev tag will install the dev/testing requirements:
+
+ pipenv install --dev
+To generate a Pipfile.lock file, run:
+
+pipenv lock
+
+You can also run Python scripts with Pipenv. To run a top-level Python script called hello.py, run:
+
+pipenv run python hello.py
+
+And you will see your expected result in the console.
+
+To start a shell, run:
+
+pipenv shell
+
+If you would like to convert a project that currently uses a requirements.txt file to use Pipenv, install Pipenv and run:
+
+pipenv install requirements.txt
+
+This will create a Pipfile and install the specified requirements.
+
 
 Documentation
 ---------------

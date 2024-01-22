@@ -44,6 +44,7 @@ class Container(_CustomDict):
         return self._body
 
     def unwrap(self) -> dict[str, Any]:
+        """Returns as pure python object (ppo)"""
         unwrapped = {}
         for k, v in self.items():
             if k is None:
@@ -64,6 +65,7 @@ class Container(_CustomDict):
 
     @property
     def value(self) -> dict[str, Any]:
+        """The wrapped dict value"""
         d = {}
         for k, v in self._body:
             if k is None:
@@ -145,7 +147,19 @@ class Container(_CustomDict):
             last_index = i
         return last_index + 1
 
-    def append(self, key: Key | str | None, item: Item) -> Container:
+    def _validate_out_of_order_table(self, key: SingleKey | None = None) -> None:
+        if key is None:
+            for k in self._map:
+                assert k is not None
+                self._validate_out_of_order_table(k)
+            return
+        if key not in self._map or not isinstance(self._map[key], tuple):
+            return
+        OutOfOrderTableProxy(self, self._map[key])
+
+    def append(
+        self, key: Key | str | None, item: Item, validate: bool = True
+    ) -> Container:
         """Similar to :meth:`add` but both key and value must be given."""
         if not isinstance(key, Key) and key is not None:
             key = SingleKey(key)
@@ -227,8 +241,8 @@ class Container(_CustomDict):
                             else:
                                 self._raw_append(key, item)
 
-                            # Building a temporary proxy to check for errors
-                            OutOfOrderTableProxy(self, self._map[key])
+                            if validate:
+                                self._validate_out_of_order_table(key)
 
                             return self
 
@@ -286,7 +300,7 @@ class Container(_CustomDict):
         self._raw_append(key, item)
         return self
 
-    def _raw_append(self, key: Key, item: Item) -> None:
+    def _raw_append(self, key: Key | None, item: Item) -> None:
         if key in self._map:
             current_idx = self._map[key]
             if not isinstance(current_idx, tuple):
@@ -297,7 +311,7 @@ class Container(_CustomDict):
                 raise KeyAlreadyPresent(key)
 
             self._map[key] = current_idx + (len(self._body),)
-        else:
+        elif key is not None:
             self._map[key] = len(self._body)
 
         self._body.append((key, item))
@@ -605,21 +619,8 @@ class Container(_CustomDict):
 
     # Dictionary methods
     def __getitem__(self, key: Key | str) -> Item | Container:
-        if not isinstance(key, Key):
-            key = SingleKey(key)
-
-        idx = self._map.get(key)
-        if idx is None:
-            raise NonExistentKey(key)
-
-        if isinstance(idx, tuple):
-            # The item we are getting is an out of order table
-            # so we need a proxy to retrieve the proper objects
-            # from the parent container
-            return OutOfOrderTableProxy(self, idx)
-
-        item = self._body[idx][1]
-        if item.is_boolean():
+        item = self.item(key)
+        if isinstance(item, Item) and item.is_boolean():
             return item.value
 
         return item
@@ -700,12 +701,18 @@ class Container(_CustomDict):
         if isinstance(value, Table):
             # Insert a cosmetic new line for tables if:
             # - it does not have it yet OR is not followed by one
-            # - it is not the last item
+            # - it is not the last item, or
+            # - The table being replaced has a newline
             last, _ = self._previous_item_with_index()
             idx = last if idx < 0 else idx
             has_ws = ends_with_whitespace(value)
+            replace_has_ws = (
+                isinstance(v, Table)
+                and v.value.body
+                and isinstance(v.value.body[-1][1], Whitespace)
+            )
             next_ws = idx < last and isinstance(self._body[idx + 1][1], Whitespace)
-            if idx < last and not (next_ws or has_ws):
+            if (idx < last or replace_has_ws) and not (next_ws or has_ws):
                 value.append(None, Whitespace("\n"))
 
             dict.__setitem__(self, new_key.key, value.value)
@@ -792,10 +799,12 @@ class OutOfOrderTableProxy(_CustomDict):
                 self._tables.append(item)
                 table_idx = len(self._tables) - 1
                 for k, v in item.value.body:
-                    self._internal_container.append(k, v)
+                    self._internal_container.append(k, v, validate=False)
                     self._tables_map[k] = table_idx
                     if k is not None:
                         dict.__setitem__(self, k.key, v)
+
+        self._internal_container._validate_out_of_order_table()
 
     def unwrap(self) -> str:
         return self._internal_container.unwrap()

@@ -6,7 +6,7 @@ import subprocess
 import sys
 
 import invoke
-from parver import Version
+import semver
 
 from pipenv.__version__ import __version__
 from pipenv.utils.shell import temp_environ
@@ -53,46 +53,22 @@ def _render_log():
 
 
 release_help = {
-    "manual": "Build the man pages.",
     "dry_run": "No-op, simulate what would happen if run for real.",
-    "local": "Build package locally and upload to PyPI.",
     "pre": "Build a pre-release version, must be paired with a tag.",
-    "tag": "A release tag, e.g. 'a', 'b', 'rc', 'post'.",
-    "month_offset": "How many months to offset the release date by.",
 }
 
 
 @invoke.task(help=release_help)
 def release(
     ctx,
-    manual=False,
-    local=False,
     dry_run=False,
     pre=False,
-    tag=None,
-    month_offset="0",
-    version=None,
 ):
-    trunc_month = False
-    if pre:
-        trunc_month = True
     drop_dist_dirs(ctx)
-    if not version:
-        version = bump_version(
-            ctx,
-            dry_run=dry_run,
-            pre=pre,
-            tag=tag,
-            month_offset=month_offset,
-            trunc_month=trunc_month,
-        )
     version = bump_version(
         ctx,
         dry_run=dry_run,
         pre=pre,
-        tag=tag,
-        month_offset=month_offset,
-        trunc_month=trunc_month,
     )
     tag_content = _render_log()
     if dry_run:
@@ -132,16 +108,6 @@ def release(
         # generate_markdown(ctx)
         # clean_mdchangelog(ctx)
         ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
-    if local:
-        build_dists(ctx)
-        dist_pattern = f'{PACKAGE_NAME.replace("-", "[-_]")}-*'
-        artifacts = list(ROOT.joinpath("dist").glob(dist_pattern))
-        if dry_run:
-            filename_display = "\n".join(f"  {a}" for a in artifacts)
-            log(f"Would upload dists: {filename_display}")
-        else:
-            upload_dists(ctx)
-            bump_version(ctx, dev=True)
 
 
 def drop_dist_dirs(ctx):
@@ -257,9 +223,9 @@ def clean_mdchangelog(ctx, filename=None, content=None):
 @invoke.task
 def tag_version(ctx, push=False):
     version = find_version(ctx)
-    version = Version.parse(version)
-    log("Tagging revision: v%s" % version.normalize())
-    ctx.run("git tag v%s" % version.normalize())
+    version = semver.VersionInfo.parse(version)
+    log("Tagging revision: v%s" % version)
+    ctx.run("git tag v%s" % version)
     if push:
         log("Pushing tags...")
         ctx.run("git push origin master")
@@ -292,76 +258,40 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
 
 
 @invoke.task
-def bump_version(
-    ctx,
-    dry_run=False,
-    dev=False,
-    pre=False,
-    tag=None,
-    commit=False,
-    month_offset="0",
-    trunc_month=False,
-):
-    current_version = Version.parse(__version__)
-    current_date = datetime.date(*current_version.release)
-    today = datetime.date.today()
-    day_offset = 0
-    month_offset = int(month_offset)
-    if month_offset:
-        # if we are offsetting by a month, grab the first day of the month
-        trunc_month = True
-    elif (
-        current_date == today
-        and not current_version.is_prerelease
-        and not current_version.is_release_candidate
-    ):
-        day_offset = 1
-    target_day = date_offset(
-        today, month_offset=month_offset, day_offset=day_offset, truncate=trunc_month
-    )
-    log(f"target_day: {target_day}")
-    target_timetuple = target_day.timetuple()[:3]
-    new_version = current_version.replace(release=target_timetuple)
-    if pre and dev:
-        raise RuntimeError("Can't use 'pre' and 'dev' together!")
-    if dev:
-        new_version = new_version.replace(pre=None).bump_dev()
-    elif pre:
-        if not tag:
-            print('Using "pre" requires a corresponding tag.')
-            return
-        tag_version = re.match(
-            r"(?P<tag>alpha|a|beta|b|c|preview|pre|rc)(?P<version>[0-9]+)?", tag
-        )
-        tag_dict = tag_version.groupdict()
-        tag = tag_dict.get("tag", tag)
-        tag_version = int(tag_dict["version"]) if tag_dict["version"] is not None else 0
-        if new_version.dev is not None:
-            new_version = new_version.replace(dev=None)
-        if new_version.pre_tag:
-            if new_version.pre_tag != tag:
-                log(f"Swapping prerelease tag: {new_version.pre_tag} for {tag}")
-                new_version = new_version.replace(pre_tag=tag, pre=tag_version)
-        else:
-            new_version = new_version.replace(pre_tag=tag, pre=tag_version)
-        if tag_version == 0:
-            new_version = new_version.bump_pre(tag=tag)
+def bump_version(ctx, dry_run=False, pre=False):
+    current_version = semver.VersionInfo.parse(__version__)
+
+    # Prompt the user for version change type
+    while True:
+        change_type = input("Enter the version change type (major/minor/patch): ").lower()
+        if change_type in ["major", "minor", "patch"]:
+            break
+        print("Invalid input. Please enter 'major', 'minor', or 'patch'.")
+
+    # Bump the version based on the user input
+    if change_type == "major":
+        new_version = current_version.bump_major()
+    elif change_type == "minor":
+        new_version = current_version.bump_minor()
     else:
-        new_version = new_version.replace(pre=None, dev=None)
-    log("Updating version to %s" % new_version.normalize())
+        new_version = current_version.bump_patch()
+
+    # Pre-release handling code
+    if pre:
+        new_version = new_version.bump_prerelease()
+
+    # Update the version file
+    log("Updating version to %s" % new_version)
     version = find_version(ctx)
     log("Found current version: %s" % version)
     if dry_run:
-        log("Would update to: %s" % new_version.normalize())
+        log("Would update to: %s" % new_version)
     else:
-        log("Updating to: %s" % new_version.normalize())
+        log("Updating to: %s" % new_version)
         version_file = get_version_file(ctx)
         file_contents = version_file.read_text()
-        version_file.write_text(
-            file_contents.replace(version, str(new_version.normalize()))
-        )
-        if commit:
-            ctx.run(f"git add {version_file.as_posix()}")
-            log("Committing...")
-            ctx.run('git commit -s -m "Bumped version."')
+        version_file.write_text(file_contents.replace(version, str(new_version)))
+        ctx.run(f"git add {version_file.as_posix()}")
+        log("Committing...")
+        ctx.run('git commit -s -m "Bumped version to %s."' % new_version)
     return str(new_version)

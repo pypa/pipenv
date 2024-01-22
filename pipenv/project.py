@@ -1023,7 +1023,7 @@ class Project:
         return sources
 
     def get_default_index(self):
-        return self.pipfile_sources()[0]
+        return self.populate_source(self.pipfile_sources()[0])
 
     def get_index_by_name(self, index_name):
         for source in self.pipfile_sources():

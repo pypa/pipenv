@@ -285,6 +285,33 @@ pipenv-test-private-package = {version = "*", index = "testpypi"}
         assert c.returncode == 0
 
 
+@pytest.mark.lock
+@pytest.mark.index
+@pytest.mark.install  # private indexes need to be uncached for resolution
+@pytest.mark.requirements
+@pytest.mark.needs_internet
+def test_private_index_lock_requirements_for_not_canonical_package(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, 'w') as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pipenv_test_private_package = {version = "*", index = "testpypi"}
+            """.strip()
+            f.write(contents)
+        c = p.pipenv('lock')
+        assert c.returncode == 0
+
+
 @pytest.mark.index
 @pytest.mark.install
 def test_lock_updated_source(pipenv_instance_private_pypi):

@@ -19,18 +19,17 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Create Release
       id: create_release
-      uses: actions/create-release@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: ncipollo/release-action@v1
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
+        tag: ${{ github.ref }}
+        name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
+        token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Set up Python 3.10
       uses: actions/setup-python@v4
@@ -56,7 +55,7 @@ jobs:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
         # repository_url: https://test.pypi.org/legacy/
-        packages_dir: dist/
+        packages-dir: dist/
 
     # git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:master
     # we need to use a deploy key for this to get around branch protection as the default token fails
