@@ -5,7 +5,7 @@ name = "pypi"
 
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
-sphinx = "==4.*"
+sphinx = "*"
 sphinx-click = "==4.*"
 sphinxcontrib-spelling = "==7.*"
 click = "==8.0.3"
