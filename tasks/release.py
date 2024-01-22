@@ -258,7 +258,7 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
 
 
 @invoke.task
-def bump_version(ctx, dry_run=False, pre=False):
+def bump_version(ctx, dry_run=False, pre=False, dev=False):
     current_version = semver.VersionInfo.parse(__version__)
 
     # Prompt the user for version change type
@@ -279,6 +279,8 @@ def bump_version(ctx, dry_run=False, pre=False):
     # Pre-release handling code
     if pre:
         new_version = new_version.bump_prerelease()
+    if dev:
+        new_version = new_version.bump_prerelease(current_version, "dev")
 
     # Update the version file
     log("Updating version to %s" % new_version)
