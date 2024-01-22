@@ -1,38 +1,30 @@
 from __future__ import annotations
 
+import dataclasses
 import operator
-from typing import Any, Optional
+from typing import Any, Iterable
 
+from .environment import set_asdf_paths, set_pyenv_paths
 from .exceptions import InvalidPythonVersion
-from .models.common import FinderBaseModel
 from .models.path import PathEntry, SystemPath
 from .models.python import PythonVersion
-from .environment import set_asdf_paths, set_pyenv_paths
-from .utils import Iterable, version_re
+from .utils import version_re
 
 
-class Finder(FinderBaseModel):
-    path_prepend: Optional[str] = None
+@dataclasses.dataclass(unsafe_hash=True)
+class Finder:
+    path_prepend: str | None = None
     system: bool = False
     global_search: bool = True
     ignore_unsupported: bool = True
     sort_by_path: bool = False
-    system_path: Optional[SystemPath] = None
+    system_path: SystemPath | None = dataclasses.field(default=None, init=False)
 
-    def __init__(self, **data) -> None:
-        super().__init__(**data)
+    def __post_init__(self):
         self.system_path = self.create_system_path()
 
-    @property
-    def __hash__(self) -> int:
-        return hash(
-            (self.path_prepend, self.system, self.global_search, self.ignore_unsupported)
-        )
-
-    def __eq__(self, other) -> bool:
-        return self.__hash__ == other.__hash__
-
     def create_system_path(self) -> SystemPath:
+        # Implementation of set_asdf_paths and set_pyenv_paths might need to be adapted.
         set_asdf_paths()
         set_pyenv_paths()
         return SystemPath.create(
