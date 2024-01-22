@@ -1,3 +1,21 @@
+2023.11.17 (2024-01-21)
+=======================
+Pipenv 2023.11.17 (2024-01-21)
+==============================
+
+
+Bug Fixes
+---------
+
+- Add markers to Pipfile when parsing requirements.txt  `#6008 <https://github.com/pypa/pipenv/issues/6008>`_
+- Fix KeyError when using a source without a name in Pipfile  `#6021 <https://github.com/pypa/pipenv/issues/6021>`_
+- Fix a bug with locking projects that contains packages with non canonical names from private indexes  `#6056 <https://github.com/pypa/pipenv/issues/6056>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored tomlkit to ``0.12.3``  `#6024 <https://github.com/pypa/pipenv/issues/6024>`_
+- Bump version of pipdeptree to 0.13.2  `#6055 <https://github.com/pypa/pipenv/issues/6055>`_
 2023.11.15 (2023-11-15)
 =======================
 Pipenv 2023.11.15 (2023-11-15)
