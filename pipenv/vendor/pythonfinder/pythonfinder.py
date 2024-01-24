@@ -171,7 +171,7 @@ class Finder:
             dev=dev,
             arch=arch,
             name=name,
-            sort_by_path=self.sort_by_path,
+            sort_by_path=sort_by_path,
         )
 
     def find_all_python_versions(
