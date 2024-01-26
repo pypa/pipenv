@@ -259,7 +259,6 @@ def find_python(finder, line=None):
         result = next(iter(finder.find_all_python_versions()), None)
     elif line and line[0].isdigit() or re.match(r"^\d+(\.\d+)*$", line):
         version_info = parse_python_version(line)
-        print(version_info)
         result = finder.find_python_version(
             major=version_info.get("major"),
             minor=version_info.get("minor"),
@@ -268,11 +267,8 @@ def find_python(finder, line=None):
             dev=version_info.get("is_devrelease"),
             sort_by_path=True,
         )
-        print(f"result: {result}")
     else:
-        print(line)
         result = finder.find_python_version(name=line, sort_by_path=True)
-        print(result)
     if not result:
         result = finder.which(line)
     if not result and "python" not in line.lower():
