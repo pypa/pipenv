@@ -428,7 +428,6 @@ class SystemPath:
         def alternate_sub_finder(obj):
             return obj.find_all_python_versions(None, None, None, None, None, None, name)
 
-        major, minor, patch, name = split_version_and_name(major, minor, patch, name)
         if major and minor and patch:
             _tuple_pre = pre if pre is not None else False
             _tuple_dev = dev if dev is not None else False
