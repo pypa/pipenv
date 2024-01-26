@@ -42,8 +42,8 @@ def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi
                 venv_loc = Path(c.stdout.strip()).absolute()
                 assert venv_loc.exists()
                 assert venv_loc.joinpath('.project').exists()
-                venv_path = normalize_drive(venv_loc.as_posix())
-                venv_expected_path = Path(workon_home).joinpath(venv_name).absolute().as_posix()
+                venv_path = Path(venv_loc)
+                venv_expected_path = Path(workon_home).joinpath(venv_name)
                 assert venv_path == normalize_drive(venv_expected_path)
 
 
