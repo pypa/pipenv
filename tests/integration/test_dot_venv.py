@@ -39,7 +39,7 @@ def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi
                 assert c.returncode == 0
                 c = p.pipenv('--venv')
                 assert c.returncode == 0
-                venv_loc = Path(c.stdout.strip()).absolute()
+                venv_loc = Path(c.stdout.strip()).resolve()
                 assert venv_loc.exists()
                 assert venv_loc.joinpath('.project').exists()
                 venv_path = Path(venv_loc)
@@ -77,7 +77,7 @@ def test_venv_in_project_disabled_with_existing_venv_dir(false_value, pipenv_ins
         assert c.returncode == 0
         c = p.pipenv('--venv')
         assert c.returncode == 0
-        venv_loc = Path(c.stdout.strip()).absolute()
+        venv_loc = Path(c.stdout.strip()).resolve()
         assert venv_loc.exists()
         assert venv_loc.joinpath('.project').exists()
         venv_path = Path(venv_loc)
@@ -115,7 +115,7 @@ def test_venv_file(venv_name, pipenv_instance_pypi):
 
             c = p.pipenv('--venv')
             assert c.returncode == 0
-            venv_loc = Path(c.stdout.strip()).absolute()
+            venv_loc = Path(c.stdout.strip()).resolve()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
             venv_path = Path(venv_loc)
@@ -145,7 +145,7 @@ def test_empty_venv_file(pipenv_instance_pypi):
 
             c = p.pipenv('--venv')
             assert c.returncode == 0
-            venv_loc = Path(c.stdout.strip()).absolute()
+            venv_loc = Path(c.stdout.strip()).resolve()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
             venv_path = Path(venv_loc)
