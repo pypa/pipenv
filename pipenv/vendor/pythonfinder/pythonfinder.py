@@ -22,8 +22,6 @@ class Finder:
     system_path: SystemPath | None = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
-        if self.path is None:
-            self.path = Path("/")
         self.system_path = self.create_system_path()
 
 

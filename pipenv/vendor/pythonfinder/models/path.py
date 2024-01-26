@@ -496,8 +496,8 @@ class SystemPath:
             path_instance = ensure_path(path)
             path_entries.update(
                 {
-                    path_instance.as_posix(): PathEntry.create(
-                        path=path_instance.absolute(),
+                    path_instance: PathEntry.create(
+                        path=path_instance.resolve(),
                         is_root=True,
                         only_python=only_python,
                     )
