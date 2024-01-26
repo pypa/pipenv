@@ -42,9 +42,9 @@ def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi
                 venv_loc = Path(c.stdout.strip()).resolve()
                 assert venv_loc.exists()
                 assert venv_loc.joinpath('.project').exists()
-                venv_path = Path(venv_loc)
-                venv_expected_path = Path(workon_home).joinpath(venv_name)
-                assert venv_path == venv_expected_path
+                venv_path = Path(venv_loc).resolve()
+                venv_expected_path = Path(workon_home).joinpath(venv_name).resolve()
+                assert os.path.samefile(venv_path, venv_expected_path)
 
 
 @pytest.mark.dotvenv
@@ -80,9 +80,9 @@ def test_venv_in_project_disabled_with_existing_venv_dir(false_value, pipenv_ins
         venv_loc = Path(c.stdout.strip()).resolve()
         assert venv_loc.exists()
         assert venv_loc.joinpath('.project').exists()
-        venv_path = Path(venv_loc)
-        venv_expected_path = Path(workon_home).joinpath(venv_name)
-        assert venv_path == venv_expected_path
+        venv_path = Path(venv_loc).resolve()
+        venv_expected_path = Path(workon_home).joinpath(venv_name).resolve()
+        assert os.path.samefile(venv_path, venv_expected_path)
 
 
 @pytest.mark.dotvenv
@@ -118,12 +118,12 @@ def test_venv_file(venv_name, pipenv_instance_pypi):
             venv_loc = Path(c.stdout.strip()).resolve()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
-            venv_path = Path(venv_loc)
+            venv_path = Path(venv_loc).resolve()
             if os.path.sep in venv_name:
                 venv_expected_path = Path(p.path).joinpath(venv_name)
             else:
                 venv_expected_path = Path(workon_home).joinpath(venv_name)
-            assert venv_path == venv_expected_path
+            assert venv_path == venv_expected_path.resolve()
 
 
 @pytest.mark.dotvenv
