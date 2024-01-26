@@ -275,7 +275,7 @@ def find_python(finder, line=None):
         print(result)
     if not result:
         result = finder.which(line)
-    if not result and not line.startswith("python"):
+    if not result and "python" not in line.lower():
         line = f"python{line}"
         result = find_python(finder, line)
 
