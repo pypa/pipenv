@@ -396,7 +396,6 @@ def test_create_pipfile_requires_python_full_version(pipenv_instance_private_pyp
     with pipenv_instance_private_pypi(pipfile=False) as p:
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
         python_full_version = f"{python_version}.{sys.version_info.micro}"
-        sys.path.append(str(Path(sys.executable).parent))
         c = p.pipenv(f"--python {python_full_version}")
         assert c.returncode == 0
         assert p.pipfile["requires"] == {

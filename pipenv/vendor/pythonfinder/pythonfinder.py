@@ -204,11 +204,11 @@ class Finder:
             filter(lambda v: v and v.as_python, versions), key=version_sort, reverse=True
         )
         path_map = {}
-        for path in path_list:
+        for p in path_list:
             try:
-                resolved_path = path.path.resolve()
-            except OSError:
-                resolved_path = path.path.absolute()
-            if not path_map.get(resolved_path.as_posix()):
-                path_map[resolved_path.as_posix()] = path
-        return path_list
+                resolved_path = p.path.resolve(strict=True)
+            except (OSError, RuntimeError):
+                resolved_path = p.path.absolute()
+            if resolved_path not in path_map:
+                path_map[resolved_path] = p
+        return [path_map[p] for p in path_map]
