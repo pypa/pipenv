@@ -3,6 +3,7 @@ from __future__ import annotations
 import dataclasses
 import operator
 from typing import Any, Iterable
+from pathlib import Path
 
 from .environment import set_asdf_paths, set_pyenv_paths
 from .exceptions import InvalidPythonVersion
@@ -21,7 +22,10 @@ class Finder:
     system_path: SystemPath | None = dataclasses.field(default=None, init=False)
 
     def __post_init__(self):
+        if self.path is None:
+            self.path = Path("/")
         self.system_path = self.create_system_path()
+
 
     def create_system_path(self) -> SystemPath:
         # Implementation of set_asdf_paths and set_pyenv_paths might need to be adapted.

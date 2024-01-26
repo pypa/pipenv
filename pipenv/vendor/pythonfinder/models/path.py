@@ -504,7 +504,7 @@ class SystemPath:
                 }
             )
             paths = [path, *paths]
-        _path_objects = [ensure_path(p.strip('"')) for p in paths]
+        _path_objects = [ensure_path(p) for p in paths]
         path_entries.update(
             {
                 p.as_posix(): PathEntry.create(
