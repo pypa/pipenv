@@ -282,13 +282,11 @@ class PythonFinder(PathEntry):
             return path_entry.as_python.version_sort
 
         unnested = [sub_finder(self.roots[path]) for path in self.roots]
-        print(f"unnested: {unnested}")
         unnested = [
             p
             for p in unnested
             if p is not None and p.is_python and p.as_python is not None
         ]
-        print(unnested)
         paths = sorted(list(unnested), key=version_sort, reverse=True)
         return next(iter(p for p in paths if p is not None), None)
 
