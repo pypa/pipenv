@@ -282,11 +282,13 @@ class PythonFinder(PathEntry):
             return path_entry.as_python.version_sort
 
         unnested = [sub_finder(self.roots[path]) for path in self.roots]
+        print(f"unnested: {unnested}")
         unnested = [
             p
             for p in unnested
             if p is not None and p.is_python and p.as_python is not None
         ]
+        print(unnested)
         paths = sorted(list(unnested), key=version_sort, reverse=True)
         return next(iter(p for p in paths if p is not None), None)
 
@@ -388,37 +390,29 @@ class PythonVersion:
             self.is_debug,
         )
 
-    def matches(
-        self,
-        major: int | None = None,
-        minor: int | None = None,
-        patch: int | None = None,
-        pre: bool = False,
-        dev: bool = False,
-        arch: str | None = None,
-        debug: bool = False,
-        python_name: str | None = None,
-    ) -> bool:
+    def matches(self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None, debug=False,
+                python_name=None):
         result = False
         if arch:
             own_arch = self.get_architecture()
             if arch.isdigit():
                 arch = f"{arch}bit"
+
         if (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
+            # Check if patch is None OR self.patch equals patch
             and (patch is None or self.patch == patch)
             and (pre is None or self.is_prerelease == pre)
             and (dev is None or self.is_devrelease == dev)
             and (arch is None or own_arch == arch)
             and (debug is None or self.is_debug == debug)
-            and (
-                python_name is None
-                or (python_name and self.name)
-                and (self.name == python_name or self.name.startswith(python_name))
-            )
+            and (python_name is None or
+                 (python_name and self.name) and
+                 (self.name == python_name or self.name.startswith(python_name)))
         ):
             result = True
+
         return result
 
     def as_major(self) -> PythonVersion:

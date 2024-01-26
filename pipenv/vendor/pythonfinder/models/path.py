@@ -31,6 +31,7 @@ from ..utils import (
     parse_asdf_version_order,
     parse_pyenv_version_order,
     split_version_and_name,
+    looks_like_python,
 )
 from .mixins import PathEntry
 from .python import PythonFinder
@@ -363,17 +364,15 @@ class SystemPath:
 
     def _filter_paths(self, finder) -> Iterator:
         for path in self._get_paths():
-            if path is None:
+            if not path:
                 continue
-            python_versions = finder(path)
-            if python_versions is not None:
-                for python in python_versions:
-                    if python is not None:
-                        yield python
+            python_version = finder(path)
+            if python_version:
+                yield python_version
 
     def _get_all_pythons(self, finder) -> Iterator:
         for python in self._filter_paths(finder):
-            if python is not None and python.is_python:
+            if python:
                 yield python
 
     def get_pythons(self, finder) -> Iterator:

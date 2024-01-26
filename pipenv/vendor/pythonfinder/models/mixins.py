@@ -292,17 +292,10 @@ class PathEntry:
             if self.is_python and self.as_python and version_matcher(self.py_version):
                 return self
 
-        matching_pythons = [
-            [entry, entry.as_python.version_sort]
-            for entry in self._iter_pythons()
-            if (
-                entry is not None
-                and entry.as_python is not None
-                and version_matcher(entry.py_version)
-            )
-        ]
-        results = sorted(matching_pythons, key=lambda r: (r[1], r[0]), reverse=True)
-        return next(iter(r[0] for r in results if r is not None), None)
+        for entry in self._iter_pythons():
+            if entry is not None and entry.as_python is not None:
+                if version_matcher(entry.as_python):
+                    return entry
 
     def _filter_children(self) -> Iterator[Path]:
         if not os.access(str(self.path), os.R_OK):
