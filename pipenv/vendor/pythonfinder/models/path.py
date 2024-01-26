@@ -158,9 +158,9 @@ class SystemPath:
 
     def _handle_virtualenv_and_system_paths(self):
         venv = os.environ.get("VIRTUAL_ENV")
+        bin_dir = "Scripts" if os.name == "nt" else "bin"
         if venv:
             venv_path = Path(venv).resolve()
-            bin_dir = "Scripts" if os.name == "nt" else "bin"
             venv_bin_path = venv_path / bin_dir
             if venv_bin_path.exists() and (self.system or self.global_search):
                 self.path_order = [str(venv_bin_path)] + self.path_order
