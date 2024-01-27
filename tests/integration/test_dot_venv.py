@@ -145,7 +145,7 @@ def test_empty_venv_file(pipenv_instance_pypi):
 
             c = p.pipenv('--venv')
             assert c.returncode == 0
-            venv_loc = Path(c.stdout.strip()).resolve()
+            venv_loc = Path(c.stdout.strip()).absolute()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
             venv_path = Path(venv_loc)
