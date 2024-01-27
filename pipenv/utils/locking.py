@@ -3,10 +3,11 @@ import itertools
 import os
 import stat
 from contextlib import contextmanager, suppress
+from dataclasses import dataclass, field
 from json import JSONDecodeError
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.utils.dependencies import (
@@ -25,7 +26,6 @@ from pipenv.utils.pipfile import DEFAULT_NEWLINES, ProjectFile
 from pipenv.utils.requirements import normalize_name
 from pipenv.utils.requirementslib import is_editable, is_vcs, merge_items
 from pipenv.vendor.plette import lockfiles
-from pipenv.vendor.pydantic import BaseModel, Field
 
 
 def merge_markers(entry, markers):
@@ -235,22 +235,24 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> 
         os.rename(f.name, target)  # No os.replace() on Python 2.
 
 
-class Lockfile(BaseModel):
-    path: Path = Field(
+@dataclass
+class Lockfile:
+    lockfile: lockfiles.Lockfile
+    path: Path = field(
         default_factory=lambda: Path(os.curdir).joinpath("Pipfile.lock").absolute()
     )
-    _requirements: Optional[list] = Field(default_factory=list)
-    _dev_requirements: Optional[list] = Field(default_factory=list)
+    _requirements: Optional[List[Any]] = field(default_factory=list)
+    _dev_requirements: Optional[List[Any]] = field(default_factory=list)
     projectfile: ProjectFile = None
-    lockfile: lockfiles.Lockfile
     newlines: str = DEFAULT_NEWLINES
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        # keep_untouched = (cached_property,)
+    def __post_init__(self):
+        if not self.path:
+            self.path = Path(os.curdir).absolute()
+        if not self.projectfile:
+            self.projectfile = self.load_projectfile(os.curdir, create=False)
+        if not self.lockfile:
+            self.lockfile = self.projectfile.model
 
     @property
     def section_keys(self):

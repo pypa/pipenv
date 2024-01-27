@@ -2,6 +2,7 @@ import itertools
 import operator
 import re
 from collections.abc import Mapping, Set
+from dataclasses import dataclass, fields
 from functools import reduce
 from typing import Optional
 
@@ -12,7 +13,6 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
     Specifier,
     SpecifierSet,
 )
-from pipenv.vendor.pydantic import BaseModel
 
 MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
 DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
@@ -22,7 +22,8 @@ class RequirementError(Exception):
     pass
 
 
-class PipenvMarkers(BaseModel):
+@dataclass
+class PipenvMarkers:
     os_name: Optional[str] = None
     sys_platform: Optional[str] = None
     platform_machine: Optional[str] = None
@@ -41,14 +42,14 @@ class PipenvMarkers(BaseModel):
             marker = Marker(marker_string)
         except InvalidMarker:
             raise RequirementError(
-                "Invalid requirement: Invalid marker %r" % marker_string
+                f"Invalid requirement: Invalid marker {marker_string!r}"
             )
         return marker
 
     @classmethod
     def from_pipfile(cls, name, pipfile):
-        attr_fields = list(cls.__fields__)
-        found_keys = [k for k in pipfile if k in attr_fields]
+        attr_fields = list(fields(cls))
+        found_keys = [k.name for k in attr_fields if k.name in pipfile]
         marker_strings = [f"{k} {pipfile[k]}" for k in found_keys]
         if pipfile.get("markers"):
             marker_strings.append(pipfile.get("markers"))

@@ -14,16 +14,6 @@ os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 
 def _ensure_modules():
-    # Can be removed when we drop pydantic
-    spec = importlib.util.spec_from_file_location(
-        "typing_extensions",
-        location=os.path.join(
-            os.path.dirname(__file__), "patched", "pip", "_vendor", "typing_extensions.py"
-        ),
-    )
-    typing_extensions = importlib.util.module_from_spec(spec)
-    sys.modules["typing_extensions"] = typing_extensions
-    spec.loader.exec_module(typing_extensions)
     # Ensure when pip gets invoked it uses our patched version
     spec = importlib.util.spec_from_file_location(
         "pip",
