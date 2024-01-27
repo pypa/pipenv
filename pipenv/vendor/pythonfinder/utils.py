@@ -235,10 +235,10 @@ def ensure_path(path: Path | str) -> Path:
     :return: A fully expanded Path object.
     """
     if isinstance(path, Path):
-        return path.resolve()
+        return path.absolute()
     # Expand environment variables and user tilde in the path
     expanded_path = os.path.expandvars(os.path.expanduser(path))
-    return Path(expanded_path).resolve()
+    return Path(expanded_path).absolute()
 
 
 def resolve_path(path: Path | str) -> Path:

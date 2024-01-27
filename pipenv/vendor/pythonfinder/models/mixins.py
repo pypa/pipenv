@@ -51,22 +51,22 @@ class PathEntry:
         return children or self._gen_children()
 
     def __str__(self) -> str:
-        return f"{self.path.as_posix()}"
+        return f"{self.path}"
 
     def __lt__(self, other) -> bool:
-        return self.path.as_posix() < other.path.as_posix()
+        return self.path < other.path
 
     def __lte__(self, other) -> bool:
-        return self.path.as_posix() <= other.path.as_posix()
+        return self.path <= other.path
 
     def __gt__(self, other) -> bool:
-        return self.path.as_posix() > other.path.as_posix()
+        return self.path > other.path
 
     def __gte__(self, other) -> bool:
-        return self.path.as_posix() >= other.path.as_posix()
+        return self.path >= other.path
 
     def __eq__(self, other) -> bool:
-        return self.path.as_posix() == other.path.as_posix()
+        return self.path == other.path
 
     def which(self, name) -> PathEntry | None:
         """Search in this path for an executable.
@@ -84,9 +84,9 @@ class PathEntry:
         if self.path is not None:
             found = next(
                 (
-                    children[(self.path / child).as_posix()]
+                    children[(self.path / child)]
                     for child in valid_names
-                    if (self.path / child).as_posix() in children
+                    if (self.path / child) in children
                 ),
                 None,
             )
@@ -207,7 +207,7 @@ class PathEntry:
         if not self.pythons_ref:
             self.pythons_ref = defaultdict(PathEntry)
             for python in self._iter_pythons():
-                python_path = python.path.as_posix()
+                python_path = python.path
                 self.pythons_ref[python_path] = python
         return self.pythons_ref
 
@@ -320,7 +320,7 @@ class PathEntry:
 
                 try:
                     entry = PathEntry.create(path=child_path, **pass_args)
-                    self.children_ref[child_path.as_posix()] = entry
+                    self.children_ref[child_path] = entry
                 except (InvalidPythonVersion, ValueError):
                     continue  # Or handle as needed
 
@@ -367,7 +367,7 @@ class PathEntry:
                 child_creation_args["name"] = _new.name
             for pth, python in pythons.items():
                 pth = ensure_path(pth)
-                children[pth.as_posix()] = PathEntry(
+                children[str(path)] = PathEntry(
                     py_version=python, path=pth, **child_creation_args
                 )
             _new.children_ref = children

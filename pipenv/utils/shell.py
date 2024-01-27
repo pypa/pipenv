@@ -268,7 +268,7 @@ def find_python(finder, line=None):
             sort_by_path=True,
         )
     else:
-        result = finder.find_python_version(name=line, sort_by_path=True)
+        result = finder.find_python_version(name=line)
     if not result:
         result = finder.which(line)
     if not result and "python" not in line.lower():

@@ -227,7 +227,7 @@ class SystemPath:
             if not current_path.endswith("shims"):
                 normalized = resolve_path(current_path)
                 new_order.append(normalized)
-        new_order = [ensure_path(p).as_posix() for p in new_order]
+        new_order = [ensure_path(p) for p in new_order]
         self.path_order = new_order
 
     def _remove_path(self, path) -> SystemPath:
@@ -507,7 +507,7 @@ class SystemPath:
         _path_objects = [ensure_path(p) for p in paths]
         path_entries.update(
             {
-                p.as_posix(): PathEntry.create(
+                str(p): PathEntry.create(
                     path=p.absolute(), is_root=True, only_python=only_python
                 )
                 for p in _path_objects
