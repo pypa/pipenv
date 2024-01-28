@@ -1,11 +1,10 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import platform
 import shutil
 import sys
-
+from pathlib import Path
 
 PYENV_ROOT = os.path.expanduser(
     os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))

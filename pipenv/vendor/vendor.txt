@@ -7,7 +7,7 @@ pipdeptree==2.13.1
 plette==0.4.4
 ptyprocess==0.7.0
 python-dotenv==1.0.0
-pythonfinder==2.0.6
+pythonfinder==2.1.0
 ruamel.yaml==0.17.39
 shellingham==1.5.3
 tomli==2.0.1

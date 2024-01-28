@@ -388,8 +388,17 @@ class PythonVersion:
             self.is_debug,
         )
 
-    def matches(self, major=None, minor=None, patch=None, pre=False, dev=False, arch=None, debug=False,
-                python_name=None):
+    def matches(
+        self,
+        major: int | None = None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool = False,
+        dev: bool = False,
+        arch: str | None = None,
+        debug: bool = False,
+        python_name: str | None = None,
+    ) -> bool:
         result = False
         if arch:
             own_arch = self.get_architecture()
@@ -405,9 +414,11 @@ class PythonVersion:
             and (dev is None or self.is_devrelease == dev)
             and (arch is None or own_arch == arch)
             and (debug is None or self.is_debug == debug)
-            and (python_name is None or
-                 (python_name and self.name) and
-                 (self.name == python_name or self.name.startswith(python_name)))
+            and (
+                python_name is None
+                or (python_name and self.name)
+                and (self.name == python_name or self.name.startswith(python_name))
+            )
         ):
             result = True
 

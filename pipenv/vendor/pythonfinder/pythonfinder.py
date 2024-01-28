@@ -3,7 +3,6 @@ from __future__ import annotations
 import dataclasses
 import operator
 from typing import Any, Iterable
-from pathlib import Path
 
 from .environment import set_asdf_paths, set_pyenv_paths
 from .exceptions import InvalidPythonVersion
@@ -23,7 +22,6 @@ class Finder:
 
     def __post_init__(self):
         self.system_path = self.create_system_path()
-
 
     def create_system_path(self) -> SystemPath:
         # Implementation of set_asdf_paths and set_pyenv_paths might need to be adapted.

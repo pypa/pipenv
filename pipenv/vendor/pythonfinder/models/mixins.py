@@ -24,7 +24,7 @@ from ..utils import (
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from pipenv.vendor.pythonfinder.models.python import PythonVersion
+    from .python import PythonVersion
 
 
 @dataclasses.dataclass(unsafe_hash=True)
@@ -45,10 +45,6 @@ class PathEntry:
     def __post_init__(self):
         if not self.children_ref:
             self._gen_children()
-
-    def set_children(self, children):
-        # If children are not provided, generate them
-        return children or self._gen_children()
 
     def __str__(self) -> str:
         return f"{self.path}"
