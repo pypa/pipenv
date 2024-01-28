@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import dataclasses
 import logging
 import os
 import platform
 import sys
 from collections import defaultdict
+from dataclasses import field
+from functools import cached_property
 from pathlib import Path, WindowsPath
 from typing import (
     Any,
@@ -14,12 +17,9 @@ from typing import (
     Iterator,
     List,
     Optional,
-    Tuple,
-    Union,
 )
 
 from pipenv.patched.pip._vendor.packaging.version import Version
-from pipenv.vendor.pydantic import Field, validator
 
 from ..environment import ASDF_DATA_DIR, PYENV_ROOT, SYSTEM_ARCH
 from ..exceptions import InvalidPythonVersion
@@ -34,35 +34,25 @@ from ..utils import (
     parse_pyenv_version_order,
     parse_python_version,
 )
-from .common import FinderBaseModel
 from .mixins import PathEntry
 
 logger = logging.getLogger(__name__)
 
 
+@dataclasses.dataclass
 class PythonFinder(PathEntry):
-    root: Path
-    # should come before versions, because its value is used in versions's default initializer.
-    #: Whether to ignore any paths which raise exceptions and are not actually python
+    root: Path = field(default_factory=Path)
     ignore_unsupported: bool = True
-    #: Glob path for python versions off of the root directory
     version_glob_path: str = "versions/*"
-    #: The function to use to sort version order when returning an ordered version set
     sort_function: Optional[Callable] = None
-    #: The root locations used for discovery
-    roots: Dict = Field(default_factory=lambda: defaultdict())
-    #: List of paths discovered during search
-    paths: List = Field(default_factory=lambda: list())
-    #: Versions discovered in the specified paths
-    _versions: Dict = Field(default_factory=lambda: defaultdict())
-    pythons_ref: Dict = Field(default_factory=lambda: defaultdict())
+    roots: Dict = field(default_factory=lambda: defaultdict())
+    paths: Optional[List[PathEntry]] = field(default_factory=list)
+    _versions: Dict = field(default_factory=lambda: defaultdict())
+    pythons_ref: Dict = field(default_factory=lambda: defaultdict())
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        # keep_untouched = (cached_property,)
+    def __post_init__(self):
+        # Ensuring that paths are set correctly
+        self.paths = self.get_paths(self.paths)
 
     @property
     def version_paths(self) -> Any:
@@ -157,7 +147,7 @@ class PythonFinder(PathEntry):
                 )
                 yield (base_path, entry, version_tuple)
 
-    @property
+    @cached_property
     def versions(self) -> DefaultDict[tuple, PathEntry]:
         if not self._versions:
             for _, entry, version_tuple in self._iter_versions():
@@ -166,20 +156,21 @@ class PythonFinder(PathEntry):
 
     def _iter_pythons(self) -> Iterator:
         for path, entry, version_tuple in self._iter_versions():
-            if path.as_posix() in self._pythons:
-                yield self._pythons[path.as_posix()]
+            if str(path) in self._pythons:
+                yield self._pythons[str(path)]
             elif version_tuple not in self.versions:
                 for python in entry.find_all_python_versions():
                     yield python
             else:
                 yield self.versions[version_tuple]
 
-    @validator("paths", pre=True, always=True)
-    def get_paths(cls, v) -> list[PathEntry]:
-        if v is not None:
-            return v
+    def get_paths(self, paths) -> list[PathEntry]:
+        # If paths are provided, use them
+        if paths is not None:
+            return paths
 
-        _paths = [base for _, base in cls._iter_version_bases()]
+        # Otherwise, generate paths using _iter_version_bases
+        _paths = [base for _, base in self._iter_version_bases()]
         return _paths
 
     @property
@@ -189,7 +180,7 @@ class PythonFinder(PathEntry):
 
             self.pythons_ref = defaultdict(PathEntry)
             for python in self._iter_pythons():
-                python_path = python.path.as_posix()
+                python_path = str(python.path)
                 self.pythons_ref[python_path] = python
         return self.pythons_ref
 
@@ -312,27 +303,21 @@ class PythonFinder(PathEntry):
         return non_empty_match
 
 
-class PythonVersion(FinderBaseModel):
+@dataclasses.dataclass
+class PythonVersion:
     major: int = 0
-    minor: Optional[int] = None
-    patch: Optional[int] = None
+    minor: int | None = None
+    patch: int | None = None
     is_prerelease: bool = False
     is_postrelease: bool = False
     is_devrelease: bool = False
     is_debug: bool = False
-    version: Optional[Version] = None
-    architecture: Optional[str] = None
-    comes_from: Optional["PathEntry"] = None
-    executable: Optional[Union[str, WindowsPath, Path]] = None
-    company: Optional[str] = None
-    name: Optional[str] = None
-
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        # keep_untouched = (cached_property,)
+    version: Version | None = None
+    architecture: str | None = None
+    comes_from: PathEntry | None = None
+    executable: str | WindowsPath | Path | None = None
+    company: str | None = None
+    name: str | None = None
 
     def __getattribute__(self, key):
         result = super().__getattribute__(key)
@@ -341,10 +326,10 @@ class PythonVersion(FinderBaseModel):
             if self.executable:
                 executable = self.executable
             elif self.comes_from:
-                executable = self.comes_from.path.as_posix()
+                executable = self.comes_from.path
             if executable is not None:
                 if not isinstance(executable, str):
-                    executable = executable.as_posix()
+                    executable = executable
                 instance_dict = self.parse_executable(executable)
                 for k in instance_dict.keys():
                     try:
@@ -419,9 +404,11 @@ class PythonVersion(FinderBaseModel):
             own_arch = self.get_architecture()
             if arch.isdigit():
                 arch = f"{arch}bit"
+
         if (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
+            # Check if patch is None OR self.patch equals patch
             and (patch is None or self.patch == patch)
             and (pre is None or self.is_prerelease == pre)
             and (dev is None or self.is_devrelease == dev)
@@ -434,6 +421,7 @@ class PythonVersion(FinderBaseModel):
             )
         ):
             result = True
+
         return result
 
     def as_major(self) -> PythonVersion:
@@ -501,7 +489,7 @@ class PythonVersion(FinderBaseModel):
             return self.architecture
         arch = None
         if self.comes_from is not None:
-            arch, _ = platform.architecture(self.comes_from.path.as_posix())
+            arch, _ = platform.architecture(str(self.comes_from.path))
         elif self.executable is not None:
             arch, _ = platform.architecture(self.executable)
         if arch is None:
@@ -529,17 +517,31 @@ class PythonVersion(FinderBaseModel):
         from ..environment import IGNORE_UNSUPPORTED
 
         ignore_unsupported = ignore_unsupported or IGNORE_UNSUPPORTED
-        path_name = getattr(path, "name", path.path.name)  # str
-        if not path.is_python:
-            if not (ignore_unsupported or IGNORE_UNSUPPORTED):
-                raise ValueError("Not a valid python path: %s" % path.path)
+
+        # Check if path is a string, a PathEntry, or a PythonFinder object
+        if isinstance(path, str):
+            path_obj = Path(path)  # Convert string to Path object
+            path_name = path_obj.name
+            path_str = path
+        elif hasattr(path, "path") and isinstance(path.path, Path):
+            path_obj = path.path
+            path_name = getattr(path, "name", path_obj.name)
+            path_str = str(path.path.absolute())
+        elif isinstance(path, PythonFinder):  # If path is a PythonFinder object
+            path_name = None
+            path_str = path.path
+        else:
+            raise ValueError(
+                f"Invalid path type: {type(path)}. Expected str, PathEntry, or PythonFinder."
+            )
+
         try:
             instance_dict = cls.parse(path_name)
         except Exception:
-            instance_dict = cls.parse_executable(path.path.absolute().as_posix())
+            instance_dict = cls.parse_executable(path_str)
         else:
-            if instance_dict.get("minor") is None and looks_like_python(path.path.name):
-                instance_dict = cls.parse_executable(path.path.absolute().as_posix())
+            if instance_dict.get("minor") is None and looks_like_python(path_obj.name):
+                instance_dict = cls.parse_executable(path_str)
 
         if (
             not isinstance(instance_dict.get("version"), Version)
@@ -547,14 +549,12 @@ class PythonVersion(FinderBaseModel):
         ):
             raise ValueError("Not a valid python path: %s" % path)
         if instance_dict.get("patch") is None:
-            instance_dict = cls.parse_executable(path.path.absolute().as_posix())
+            instance_dict = cls.parse_executable(path_str)
         if name is None:
             name = path_name
         if company is None:
-            company = guess_company(path.path.as_posix())
-        instance_dict.update(
-            {"comes_from": path, "name": name, "executable": path.path.as_posix()}
-        )
+            company = guess_company(path_str)
+        instance_dict.update({"comes_from": path, "name": name, "executable": path_str})
         return cls(**instance_dict)
 
     @classmethod
@@ -564,7 +564,7 @@ class PythonVersion(FinderBaseModel):
         if path is None:
             raise TypeError("Must pass a valid path to parse.")
         if not isinstance(path, str):
-            path = path.as_posix()
+            path = str(path)
         # if not looks_like_python(path):
         #     raise ValueError("Path %r does not look like a valid python path" % path)
         try:
@@ -595,7 +595,7 @@ class PythonVersion(FinderBaseModel):
         exe_path = ensure_path(
             getattr(launcher_entry.info.install_path, "executable_path", default_path)
         )
-        company = getattr(launcher_entry, "company", guess_company(exe_path.as_posix()))
+        company = getattr(launcher_entry, "company", guess_company(exe_path))
         creation_dict.update(
             {
                 "architecture": getattr(
@@ -620,17 +620,11 @@ class PythonVersion(FinderBaseModel):
         return cls(**kwargs)
 
 
-class VersionMap(FinderBaseModel):
+@dataclasses.dataclass
+class VersionMap:
     versions: DefaultDict[
-        Tuple[int, Optional[int], Optional[int], bool, bool, bool], List[PathEntry]
-    ] = defaultdict(list)
-
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        # keep_untouched = (cached_property,)
+        tuple[int, int | None, int | None, bool, bool, bool], list[PathEntry]
+    ] = field(default_factory=lambda: defaultdict(list))
 
     def add_entry(self, entry) -> None:
         version = entry.as_python

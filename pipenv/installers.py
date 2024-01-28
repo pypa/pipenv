@@ -3,17 +3,18 @@ import os
 import re
 import sys
 from abc import ABCMeta, abstractmethod
+from dataclasses import dataclass, field
 from typing import Optional
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_windows_executable
-from pipenv.vendor.pydantic import BaseModel
 
 
-class Version(BaseModel):
+@dataclass
+class Version:
     major: int
     minor: int
-    patch: Optional[int] = None
+    patch: Optional[int] = field(default=None)
 
     def __str__(self):
         parts = [self.major, self.minor]
@@ -30,8 +31,6 @@ class Version(BaseModel):
         major = int(match.group(1))
         minor = int(match.group(2))
         patch = match.group(3)
-        # prerelease = match.group(4)  # Not used
-        # prerelease_num = match.group(5)
 
         if patch is not None:
             patch = int(patch)
@@ -47,7 +46,7 @@ class Version(BaseModel):
         """
         return (self.major, self.minor, self.patch or 0)
 
-    def matches_minor(self, other):
+    def matches_minor(self, other: "Version"):
         """Check whether this version matches the other in (major, minor)."""
         return (self.major, self.minor) == (other.major, other.minor)
 

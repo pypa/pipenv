@@ -1,29 +1,21 @@
 from __future__ import annotations
 
+import dataclasses
 import errno
 import operator
 import os
 import sys
-from collections import ChainMap, defaultdict
+from collections import defaultdict
+from dataclasses import field
+from functools import cached_property
 from itertools import chain
 from pathlib import Path
 from typing import (
     Any,
     DefaultDict,
-    Dict,
     Generator,
     Iterator,
-    List,
-    Optional,
-    Tuple,
-    Union,
 )
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from pipenv.patched.pip._vendor.pyparsing.core import cached_property
-from pipenv.vendor.pydantic import Field, root_validator
 
 from ..environment import (
     ASDF_DATA_DIR,
@@ -35,12 +27,10 @@ from ..utils import (
     dedup,
     ensure_path,
     is_in_path,
-    normalize_path,
     parse_asdf_version_order,
     parse_pyenv_version_order,
-    split_version_and_name,
+    resolve_path,
 )
-from .common import FinderBaseModel
 from .mixins import PathEntry
 from .python import PythonFinder
 
@@ -55,38 +45,32 @@ def exists_and_is_accessible(path):
             raise
 
 
-class SystemPath(FinderBaseModel):
+@dataclasses.dataclass(unsafe_hash=True)
+class SystemPath:
     global_search: bool = True
-    paths: Dict[str, Union[PythonFinder, PathEntry]] = Field(
+    paths: dict[str, PythonFinder | PathEntry] = field(
         default_factory=lambda: defaultdict(PathEntry)
     )
-    executables_tracking: List[PathEntry] = Field(default_factory=lambda: list())
-    python_executables_tracking: Dict[str, PathEntry] = Field(
-        default_factory=lambda: dict()
+    executables_tracking: list[PathEntry] = field(default_factory=list)
+    python_executables_tracking: dict[str, PathEntry] = field(
+        default_factory=dict, init=False
     )
-    path_order: List[str] = Field(default_factory=lambda: list())
-    python_version_dict: Dict[Tuple, Any] = Field(
+    path_order: list[str] = field(default_factory=list)
+    python_version_dict: dict[tuple, Any] = field(
         default_factory=lambda: defaultdict(list)
     )
-    version_dict_tracking: Dict[Tuple, List[PathEntry]] = Field(
+    version_dict_tracking: dict[tuple, list[PathEntry]] = field(
         default_factory=lambda: defaultdict(list)
     )
     only_python: bool = False
-    pyenv_finder: Optional[PythonFinder] = None
-    asdf_finder: Optional[PythonFinder] = None
+    pyenv_finder: PythonFinder | None = None
+    asdf_finder: PythonFinder | None = None
     system: bool = False
     ignore_unsupported: bool = False
-    finders_dict: Dict[str, PythonFinder] = Field(default_factory=lambda: dict())
+    finders_dict: dict[str, PythonFinder] = field(default_factory=dict)
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        keep_untouched = (cached_property,)
-
-    def __init__(self, **data):
-        super().__init__(**data)
+    def __post_init__(self):
+        # Initialize python_executables_tracking
         python_executables = {}
         for child in self.paths.values():
             if child.pythons:
@@ -96,24 +80,20 @@ class SystemPath(FinderBaseModel):
                 python_executables.update(dict(finder.pythons))
         self.python_executables_tracking = python_executables
 
-    @root_validator(pre=True)
-    def set_defaults(cls, values):
-        values["python_version_dict"] = defaultdict(list)
-        values["pyenv_finder"] = None
-        values["asdf_finder"] = None
-        values["path_order"] = []
-        values["_finders"] = {}
-        values["paths"] = defaultdict(PathEntry)
-        paths = values.get("paths")
-        if paths:
-            values["executables"] = [
-                p
-                for p in ChainMap(
-                    *(child.children_ref.values() for child in paths.values())
-                )
-                if p.is_executable
+        self.python_version_dict = defaultdict(list)
+        self.pyenv_finder = self.pyenv_finder or None
+        self.asdf_finder = self.asdf_finder or None
+        self.path_order = [str(p) for p in self.path_order] or []
+        self.finders_dict = self.finders_dict or {}
+
+        # The part with 'paths' seems to be setting up 'executables'
+        if self.paths:
+            self.executables_tracking = [
+                child
+                for path_entry in self.paths.values()
+                for child in path_entry.children_ref.values()
+                if child.is_executable
             ]
-        return values
 
     def _register_finder(self, finder_name, finder):
         if finder_name not in self.finders_dict:
@@ -126,11 +106,11 @@ class SystemPath(FinderBaseModel):
 
     @staticmethod
     def check_for_pyenv():
-        return PYENV_INSTALLED or os.path.exists(normalize_path(PYENV_ROOT))
+        return PYENV_INSTALLED or os.path.exists(resolve_path(PYENV_ROOT))
 
     @staticmethod
     def check_for_asdf():
-        return ASDF_INSTALLED or os.path.exists(normalize_path(ASDF_DATA_DIR))
+        return ASDF_INSTALLED or os.path.exists(resolve_path(ASDF_DATA_DIR))
 
     @property
     def executables(self) -> list[PathEntry]:
@@ -174,57 +154,59 @@ class SystemPath(FinderBaseModel):
                 self.version_dict_tracking[version].append(entry)
         return self.version_dict_tracking
 
+    def _handle_virtualenv_and_system_paths(self):
+        venv = os.environ.get("VIRTUAL_ENV")
+        bin_dir = "Scripts" if os.name == "nt" else "bin"
+        if venv:
+            venv_path = Path(venv).resolve()
+            venv_bin_path = venv_path / bin_dir
+            if venv_bin_path.exists() and (self.system or self.global_search):
+                self.path_order = [str(venv_bin_path), *self.path_order]
+                self.paths[str(venv_bin_path)] = self.get_path(venv_bin_path)
+
+        if self.system:
+            syspath_bin = Path(sys.executable).resolve().parent
+            if (syspath_bin / bin_dir).exists():
+                syspath_bin = syspath_bin / bin_dir
+            if str(syspath_bin) not in self.path_order:
+                self.path_order = [str(syspath_bin), *self.path_order]
+                self.paths[str(syspath_bin)] = PathEntry.create(
+                    path=syspath_bin, is_root=True, only_python=False
+                )
+
     def _run_setup(self) -> SystemPath:
         path_order = self.path_order[:]
         if self.global_search and "PATH" in os.environ:
-            path_order = path_order + os.environ["PATH"].split(os.pathsep)
+            path_order += os.environ["PATH"].split(os.pathsep)
         path_order = list(dedup(path_order))
-        path_instances = [ensure_path(p.strip('"')) for p in path_order]
+        path_instances = [
+            Path(p.strip('"')).resolve()
+            for p in path_order
+            if exists_and_is_accessible(Path(p.strip('"')).resolve())
+        ]
+
+        # Update paths with PathEntry objects
         self.paths.update(
             {
-                p.as_posix(): PathEntry.create(
-                    path=p.absolute(), is_root=True, only_python=self.only_python
+                str(p): PathEntry.create(
+                    path=p, is_root=True, only_python=self.only_python
                 )
                 for p in path_instances
-                if exists_and_is_accessible(p)
             }
         )
-        self.path_order = [
-            p.as_posix() for p in path_instances if exists_and_is_accessible(p)
-        ]
-        #: slice in pyenv
-        if self.check_for_pyenv() and "pyenv" not in self.finders:
-            self._setup_pyenv()
-        #: slice in asdf
-        if self.check_for_asdf() and "asdf" not in self.finders:
-            self._setup_asdf()
-        venv = os.environ.get("VIRTUAL_ENV")
-        if venv:
-            venv = ensure_path(venv)
-        if os.name == "nt":
-            bin_dir = "Scripts"
-        else:
-            bin_dir = "bin"
-        if venv and (self.system or self.global_search):
-            path_order = [(venv / bin_dir).as_posix(), *self.path_order]
-            self.path_order = path_order
-            self.paths[venv] = self.get_path(venv.joinpath(bin_dir))
-        if self.system:
-            syspath = Path(sys.executable)
-            syspath_bin = syspath.parent
-            if syspath_bin.name != bin_dir and syspath_bin.joinpath(bin_dir).exists():
-                syspath_bin = syspath_bin / bin_dir
-            path_order = [syspath_bin.as_posix(), *self.path_order]
-            self.paths[syspath_bin] = PathEntry.create(
-                path=syspath_bin, is_root=True, only_python=False
-            )
-            self.path_order = path_order
+
+        # Update path_order to use absolute paths
+        self.path_order = [str(p) for p in path_instances]
+
+        # Handle virtual environment and system paths
+        self._handle_virtualenv_and_system_paths()
+
         return self
 
     def _get_last_instance(self, path) -> int:
         reversed_paths = reversed(self.path_order)
-        paths = [normalize_path(p) for p in reversed_paths]
-        normalized_target = normalize_path(path)
+        paths = [resolve_path(p) for p in reversed_paths]
+        normalized_target = resolve_path(path)
         last_instance = next(iter(p for p in paths if normalized_target in p), None)
         if last_instance is None:
             raise ValueError(f"No instance found on path for target: {path!s}")
@@ -241,7 +223,7 @@ class SystemPath(FinderBaseModel):
         else:
             before_path = self.path_order[: start_idx + 1]
             after_path = self.path_order[start_idx + 2 :]
-        path_order = before_path + [p.as_posix() for p in paths] + after_path
+        path_order = before_path + [str(p) for p in paths] + after_path
         self.path_order = path_order
         return self
 
@@ -250,23 +232,23 @@ class SystemPath(FinderBaseModel):
         new_order = []
         for current_path in path_copy:
             if not current_path.endswith("shims"):
-                normalized = normalize_path(current_path)
+                normalized = resolve_path(current_path)
                 new_order.append(normalized)
-        new_order = [ensure_path(p).as_posix() for p in new_order]
+        new_order = [ensure_path(p) for p in new_order]
         self.path_order = new_order
 
     def _remove_path(self, path) -> SystemPath:
         path_copy = [p for p in reversed(self.path_order[:])]
         new_order = []
-        target = normalize_path(path)
-        path_map = {normalize_path(pth): pth for pth in self.paths.keys()}
+        target = resolve_path(path)
+        path_map = {resolve_path(pth): pth for pth in self.paths.keys()}
         if target in path_map:
             del self.paths[path_map[target]]
         for current_path in path_copy:
-            normalized = normalize_path(current_path)
+            normalized = resolve_path(current_path)
             if normalized != target:
                 new_order.append(normalized)
-        new_order = [ensure_path(p).as_posix() for p in reversed(new_order)]
+        new_order = [str(p) for p in reversed(new_order)]
         self.path_order = new_order
         return self
 
@@ -275,28 +257,31 @@ class SystemPath(FinderBaseModel):
             return self
 
         os_path = os.environ["PATH"].split(os.pathsep)
+        asdf_data_dir = Path(ASDF_DATA_DIR)
         asdf_finder = PythonFinder.create(
-            root=ASDF_DATA_DIR,
+            root=asdf_data_dir,
             ignore_unsupported=True,
             sort_function=parse_asdf_version_order,
             version_glob_path="installs/python/*",
         )
         asdf_index = None
         try:
-            asdf_index = self._get_last_instance(ASDF_DATA_DIR)
+            asdf_index = self._get_last_instance(asdf_data_dir)
         except ValueError:
-            asdf_index = 0 if is_in_path(next(iter(os_path), ""), ASDF_DATA_DIR) else -1
+            asdf_index = 0 if is_in_path(next(iter(os_path), ""), asdf_data_dir) else -1
         if asdf_index is None:
             # we are in a virtualenv without global pyenv on the path, so we should
             # not write pyenv to the path here
             return self
         # * These are the root paths for the finder
         _ = [p for p in asdf_finder.roots]
-        self._slice_in_paths(asdf_index, [asdf_finder.root])
-        self.paths[asdf_finder.root] = asdf_finder
-        self.paths.update(asdf_finder.roots)
+        self._slice_in_paths(asdf_index, [str(asdf_finder.root)])
+        self.paths[str(asdf_finder.root)] = asdf_finder
+        self.paths.update(
+            {str(root): asdf_finder.roots[root] for root in asdf_finder.roots}
+        )
         self.asdf_finder = asdf_finder
-        self._remove_path(normalize_path(os.path.join(ASDF_DATA_DIR, "shims")))
+        self._remove_path(asdf_data_dir / "shims")
         self._register_finder("asdf", asdf_finder)
         return self
 
@@ -305,26 +290,28 @@ class SystemPath(FinderBaseModel):
             return self
 
         os_path = os.environ["PATH"].split(os.pathsep)
-
+        pyenv_root = Path(PYENV_ROOT)
         pyenv_finder = PythonFinder.create(
-            root=PYENV_ROOT,
+            root=pyenv_root,
             sort_function=parse_pyenv_version_order,
             version_glob_path="versions/*",
             ignore_unsupported=self.ignore_unsupported,
         )
         try:
-            pyenv_index = self._get_last_instance(PYENV_ROOT)
+            pyenv_index = self._get_last_instance(pyenv_root)
         except ValueError:
-            pyenv_index = 0 if is_in_path(next(iter(os_path), ""), PYENV_ROOT) else -1
+            pyenv_index = 0 if is_in_path(next(iter(os_path), ""), pyenv_root) else -1
         if pyenv_index is None:
             # we are in a virtualenv without global pyenv on the path, so we should
             # not write pyenv to the path here
             return self
         # * These are the root paths for the finder
         _ = [p for p in pyenv_finder.roots]
-        self._slice_in_paths(pyenv_index, [pyenv_finder.root])
-        self.paths[pyenv_finder.root] = pyenv_finder
-        self.paths.update(pyenv_finder.roots)
+        self._slice_in_paths(pyenv_index, [str(pyenv_finder.root)])
+        self.paths[str(pyenv_finder.root)] = pyenv_finder
+        self.paths.update(
+            {str(root): pyenv_finder.roots[root] for root in pyenv_finder.roots}
+        )
         self.pyenv_finder = pyenv_finder
         self._remove_shims()
         self._register_finder("pyenv", pyenv_finder)
@@ -333,15 +320,15 @@ class SystemPath(FinderBaseModel):
     def get_path(self, path) -> PythonFinder | PathEntry:
         if path is None:
             raise TypeError("A path must be provided in order to generate a path entry.")
-        path = ensure_path(path)
-        _path = self.paths.get(path)
+        path_str = path if isinstance(path, str) else str(path.absolute())
+        _path = self.paths.get(path_str)
         if not _path:
-            _path = self.paths.get(path.as_posix())
-        if not _path and path.as_posix() in self.path_order and path.exists():
+            _path = self.paths.get(path_str)
+        if not _path and path_str in self.path_order and path.exists():
             _path = PathEntry.create(
                 path=path.absolute(), is_root=True, only_python=self.only_python
             )
-            self.paths[path.as_posix()] = _path
+            self.paths[path_str] = _path
         if not _path:
             raise ValueError(f"Path not found or generated: {path!r}")
         return _path
@@ -388,17 +375,15 @@ class SystemPath(FinderBaseModel):
 
     def _filter_paths(self, finder) -> Iterator:
         for path in self._get_paths():
-            if path is None:
+            if not path:
                 continue
-            python_versions = finder(path)
-            if python_versions is not None:
-                for python in python_versions:
-                    if python is not None:
-                        yield python
+            python_version = finder(path)
+            if python_version:
+                yield python_version
 
     def _get_all_pythons(self, finder) -> Iterator:
         for python in self._filter_paths(finder):
-            if python is not None and python.is_python:
+            if python:
                 yield python
 
     def get_pythons(self, finder) -> Iterator:
@@ -454,34 +439,49 @@ class SystemPath(FinderBaseModel):
         def alternate_sub_finder(obj):
             return obj.find_all_python_versions(None, None, None, None, None, None, name)
 
-        major, minor, patch, name = split_version_and_name(major, minor, patch, name)
-        if major and minor and patch:
-            _tuple_pre = pre if pre is not None else False
-            _tuple_dev = dev if dev is not None else False
-
         if sort_by_path:
-            paths = [self.get_path(k) for k in self.path_order]
-            for path in paths:
-                found_version = sub_finder(path)
-                if found_version:
-                    return found_version
-            if name and not (minor or patch or pre or dev or arch or major):
-                for path in paths:
-                    found_version = alternate_sub_finder(path)
-                    if found_version:
-                        return found_version
+            found_version = self._find_version_by_path(
+                sub_finder,
+                alternate_sub_finder,
+                name,
+                minor,
+                patch,
+                pre,
+                dev,
+                arch,
+                major,
+            )
+            if found_version:
+                return found_version
 
         ver = next(iter(self.get_pythons(sub_finder)), None)
-        if not ver and name and not (minor or patch or pre or dev or arch or major):
+        if not ver and name and not any([minor, patch, pre, dev, arch, major]):
             ver = next(iter(self.get_pythons(alternate_sub_finder)), None)
 
-        if ver:
-            if ver.as_python.version_tuple[:5] in self.python_version_dict:
-                self.python_version_dict[ver.as_python.version_tuple[:5]].append(ver)
-            else:
-                self.python_version_dict[ver.as_python.version_tuple[:5]] = [ver]
+        self._update_python_version_dict(ver)
 
         return ver
+
+    def _find_version_by_path(self, sub_finder, alternate_sub_finder, name, *args):
+        paths = [self.get_path(k) for k in self.path_order]
+        for path in paths:
+            found_version = sub_finder(path)
+            if found_version:
+                return found_version
+        if name and not any(args):
+            for path in paths:
+                found_version = alternate_sub_finder(path)
+                if found_version:
+                    return found_version
+        return None
+
+    def _update_python_version_dict(self, ver):
+        if ver:
+            version_key = ver.as_python.version_tuple[:5]
+            if version_key in self.python_version_dict:
+                self.python_version_dict[version_key].append(ver)
+            else:
+                self.python_version_dict[version_key] = [ver]
 
     @classmethod
     def create(
@@ -509,24 +509,24 @@ class SystemPath(FinderBaseModel):
         if global_search:
             if "PATH" in os.environ:
                 paths = os.environ["PATH"].split(os.pathsep)
-        path_order = []
+        path_order = [str(path)]
         if path:
             path_order = [path]
             path_instance = ensure_path(path)
             path_entries.update(
                 {
-                    path_instance.as_posix(): PathEntry.create(
-                        path=path_instance.absolute(),
+                    path_instance: PathEntry.create(
+                        path=path_instance.resolve(),
                         is_root=True,
                         only_python=only_python,
                     )
                 }
             )
             paths = [path, *paths]
-        _path_objects = [ensure_path(p.strip('"')) for p in paths]
+        _path_objects = [ensure_path(p) for p in paths]
         path_entries.update(
             {
-                p.as_posix(): PathEntry.create(
+                str(p): PathEntry.create(
                     path=p.absolute(), is_root=True, only_python=only_python
                 )
                 for p in _path_objects

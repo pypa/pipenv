@@ -13,7 +13,7 @@ from typing import Any, Iterator
 
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 
-from .environment import PYENV_ROOT, possibly_convert_to_windows_style_path
+from .environment import PYENV_ROOT
 from .exceptions import InvalidPythonVersion
 
 version_re_str = (
@@ -234,25 +234,27 @@ def ensure_path(path: Path | str) -> Path:
     :type path: str or :class:`~pathlib.Path`
     :return: A fully expanded Path object.
     """
-    path = possibly_convert_to_windows_style_path(path)
     if isinstance(path, Path):
-        return path
-    path = Path(os.path.expandvars(path))
-    return path.absolute()
+        return path.absolute()
+    # Expand environment variables and user tilde in the path
+    expanded_path = os.path.expandvars(os.path.expanduser(path))
+    return Path(expanded_path).absolute()
 
 
-def _filter_none(k, v) -> bool:
-    if v:
-        return True
-    return False
+def resolve_path(path: Path | str) -> Path:
+    """
+    Resolves the path to an absolute path, expanding user variables and environment variables.
+    """
+    # Convert to Path object if it's a string
+    if isinstance(path, str):
+        path = Path(path)
 
+    # Expand user and variables
+    path = path.expanduser()
+    path = Path(os.path.expandvars(str(path)))
 
-def normalize_path(path: str) -> str:
-    return os.path.normpath(
-        os.path.normcase(
-            os.path.abspath(os.path.expandvars(os.path.expanduser(str(path))))
-        )
-    )
+    # Resolve to absolute path
+    return path.resolve()
 
 
 def filter_pythons(path: str | Path) -> Iterable | Path:
@@ -282,7 +284,7 @@ def unnest(item) -> Iterable[Any]:
 
 
 def parse_pyenv_version_order(filename="version") -> list[str]:
-    version_order_file = normalize_path(os.path.join(PYENV_ROOT, filename))
+    version_order_file = resolve_path(os.path.join(PYENV_ROOT, filename))
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
         with open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
@@ -292,7 +294,7 @@ def parse_pyenv_version_order(filename="version") -> list[str]:
 
 
 def parse_asdf_version_order(filename: str = ".tool-versions") -> list[str]:
-    version_order_file = normalize_path(os.path.join("~", filename))
+    version_order_file = resolve_path(os.path.join("~", filename))
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
         with open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
@@ -336,9 +338,8 @@ def split_version_and_name(
     return (major, minor, patch, name)
 
 
-# TODO: Reimplement in vistir
 def is_in_path(path, parent):
-    return normalize_path(str(path)).startswith(normalize_path(str(parent)))
+    return resolve_path(str(path)).startswith(resolve_path(str(parent)))
 
 
 def expand_paths(path, only_python=True) -> Iterator:
