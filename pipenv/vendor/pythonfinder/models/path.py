@@ -27,11 +27,9 @@ from ..utils import (
     dedup,
     ensure_path,
     is_in_path,
-    resolve_path,
     parse_asdf_version_order,
     parse_pyenv_version_order,
-    split_version_and_name,
-    looks_like_python,
+    resolve_path,
 )
 from .mixins import PathEntry
 from .python import PythonFinder
@@ -163,7 +161,7 @@ class SystemPath:
             venv_path = Path(venv).resolve()
             venv_bin_path = venv_path / bin_dir
             if venv_bin_path.exists() and (self.system or self.global_search):
-                self.path_order = [str(venv_bin_path)] + self.path_order
+                self.path_order = [str(venv_bin_path), *self.path_order]
                 self.paths[str(venv_bin_path)] = self.get_path(venv_bin_path)
 
         if self.system:
@@ -171,21 +169,30 @@ class SystemPath:
             if (syspath_bin / bin_dir).exists():
                 syspath_bin = syspath_bin / bin_dir
             if str(syspath_bin) not in self.path_order:
-                self.path_order = [str(syspath_bin)] + self.path_order
-                self.paths[str(syspath_bin)] = PathEntry.create(path=syspath_bin, is_root=True, only_python=False)
-
+                self.path_order = [str(syspath_bin), *self.path_order]
+                self.paths[str(syspath_bin)] = PathEntry.create(
+                    path=syspath_bin, is_root=True, only_python=False
+                )
 
     def _run_setup(self) -> SystemPath:
         path_order = self.path_order[:]
         if self.global_search and "PATH" in os.environ:
             path_order += os.environ["PATH"].split(os.pathsep)
         path_order = list(dedup(path_order))
-        path_instances = [Path(p.strip('"')).resolve() for p in path_order if
-                          exists_and_is_accessible(Path(p.strip('"')).resolve())]
+        path_instances = [
+            Path(p.strip('"')).resolve()
+            for p in path_order
+            if exists_and_is_accessible(Path(p.strip('"')).resolve())
+        ]
 
         # Update paths with PathEntry objects
         self.paths.update(
-            {str(p): PathEntry.create(path=p, is_root=True, only_python=self.only_python) for p in path_instances}
+            {
+                str(p): PathEntry.create(
+                    path=p, is_root=True, only_python=self.only_python
+                )
+                for p in path_instances
+            }
         )
 
         # Update path_order to use absolute paths
@@ -270,7 +277,9 @@ class SystemPath:
         _ = [p for p in asdf_finder.roots]
         self._slice_in_paths(asdf_index, [str(asdf_finder.root)])
         self.paths[str(asdf_finder.root)] = asdf_finder
-        self.paths.update({str(root): asdf_finder.roots[root] for root in asdf_finder.roots})
+        self.paths.update(
+            {str(root): asdf_finder.roots[root] for root in asdf_finder.roots}
+        )
         self.asdf_finder = asdf_finder
         self._remove_path(asdf_data_dir / "shims")
         self._register_finder("asdf", asdf_finder)
@@ -300,7 +309,9 @@ class SystemPath:
         _ = [p for p in pyenv_finder.roots]
         self._slice_in_paths(pyenv_index, [str(pyenv_finder.root)])
         self.paths[str(pyenv_finder.root)] = pyenv_finder
-        self.paths.update({str(root): pyenv_finder.roots[root] for root in pyenv_finder.roots})
+        self.paths.update(
+            {str(root): pyenv_finder.roots[root] for root in pyenv_finder.roots}
+        )
         self.pyenv_finder = pyenv_finder
         self._remove_shims()
         self._register_finder("pyenv", pyenv_finder)
@@ -422,7 +433,6 @@ class SystemPath:
         name: str | None = None,
         sort_by_path: bool = False,
     ) -> PathEntry:
-
         def sub_finder(obj):
             return obj.find_python_version(major, minor, patch, pre, dev, arch, name)
 
@@ -430,8 +440,17 @@ class SystemPath:
             return obj.find_all_python_versions(None, None, None, None, None, None, name)
 
         if sort_by_path:
-            found_version = self._find_version_by_path(sub_finder, alternate_sub_finder, name, minor, patch, pre, dev,
-                                                       arch, major)
+            found_version = self._find_version_by_path(
+                sub_finder,
+                alternate_sub_finder,
+                name,
+                minor,
+                patch,
+                pre,
+                dev,
+                arch,
+                major,
+            )
             if found_version:
                 return found_version
 
