@@ -41,8 +41,8 @@ multicommand = "bash -c \"cd docs && make html\""
         c = p.pipenv('run notfoundscript')
         assert c.returncode != 0
         assert c.stdout == ''
-        if os.name != 'nt':     # TODO: Implement this message for Windows.
-            assert 'not found' in c.stderr
+        if os.name != 'nt':
+            assert 'could not be found' in c.stderr
 
         project = Project()
 
