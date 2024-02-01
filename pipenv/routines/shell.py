@@ -98,8 +98,6 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     run_args = [project, script]
     run_kwargs = {"env": env}
-    # We're using `do_run_nt` on CI (even if we're running on a non-nt machine)
-    # as a workaround for https://github.com/pypa/pipenv/issues/4909.
     if os.name == "nt":
         run_fn = do_run_nt
     else:
