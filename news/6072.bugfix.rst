@@ -1,1 +1,0 @@
-Remove logic that treats ``CI`` variable to use ``do_run_nt`` shell logic, as the original reasons for that patch were no longer valid.

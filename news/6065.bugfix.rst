@@ -1,1 +1,0 @@
-Removal of pydantic from pythonfinder and pipenv; reduced complexity of pythonfinder pathlib usage (avoid posix conversions).

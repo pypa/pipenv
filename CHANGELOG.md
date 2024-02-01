@@ -1,3 +1,15 @@
+2023.12.0 (2024-02-01)
+======================
+Pipenv 2023.12.0 (2024-02-01)
+=============================
+
+
+Bug Fixes
+---------
+
+- Removal of pydantic from pythonfinder and pipenv; reduced complexity of pythonfinder pathlib usage (avoid posix conversions).  `#6065 <https://github.com/pypa/pipenv/issues/6065>`_
+- Adjusted logic which assumed any file, path or VCS install should be considered editable.  Instead relies on the user specified editable flag to mark requirement as editable install.  `#6069 <https://github.com/pypa/pipenv/issues/6069>`_
+- Remove logic that treats ``CI`` variable to use ``do_run_nt`` shell logic, as the original reasons for that patch were no longer valid.  `#6072 <https://github.com/pypa/pipenv/issues/6072>`_
 2023.11.17 (2024-01-21)
 =======================
 Pipenv 2023.11.17 (2024-01-21)

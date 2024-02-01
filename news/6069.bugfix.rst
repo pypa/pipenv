@@ -1,1 +1,0 @@
-Adjusted logic which assumed any file, path or VCS install should be considered editable.  Instead relies on the user specified editable flag to mark requirement as editable install.
