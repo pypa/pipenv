@@ -769,15 +769,13 @@ class Project:
                 pass
         if not lockfile_loaded:
             with open(self.pipfile_location) as pf:
-                lockfile = plette.Lockfile.with_meta_from(
-                    plette.Pipfile.load(pf), categories=categories
-                )
-                lockfile = lockfile._data
+                pipfile = plette.Pipfile.load(pf)
+                lockfile = plette.Lockfile.with_meta_from(pipfile, categories=categories)
 
         if categories is None:
             categories = self.get_package_categories(for_lockfile=True)
         for category in categories:
-            lock_section = lockfile.get(category)
+            lock_section = getattr(lockfile, category)
             if lock_section is None:
                 lockfile[category] = lock_section = {}
             for key in list(lock_section.keys()):
@@ -993,16 +991,14 @@ class Project:
         # pipfile is mutated!
         self.clear_pipfile_cache()
 
-    def write_lockfile(self, content):
+    def write_lockfile(self, lockfile):
         """Write out the lockfile."""
-        s = self._lockfile_encoder.encode(content)
         open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
         with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
-            f.write(s)
+            lockfile.dump(f)
             # Write newline at end of document. GH-319.
             # Only need '\n' here; the file object handles the rest.
-            if not s.endswith("\n"):
-                f.write("\n")
+            f.write("\n")
 
     def pipfile_sources(self, expand_vars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:

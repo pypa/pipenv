@@ -66,7 +66,7 @@ class Pipfile(BaseModel):
                 "requires": getattr(self, "requires", {}),
             },
             "default": getattr(self, "packages", {}),
-            "develop": getattr(self, "dev-packages", {}),
+            "develop": getattr(getattr(self, "dev-packages"), "packages", {}),
         }
         data["_meta"].update(asdict(getattr(self, "sources", {})))
         for category, values in self.__dict__.items():

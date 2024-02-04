@@ -32,7 +32,7 @@ def do_lock(
     # Create the lockfile.
     lockfile = project.lockfile(categories=lockfile_categories)
     for category in lockfile_categories:
-        for k, v in lockfile.get(category, {}).copy().items():
+        for k, v in getattr(lockfile, category, {}).copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
 
@@ -57,7 +57,8 @@ def do_lock(
 
         # Prune old lockfile category as new one will be created.
         with contextlib.suppress(KeyError):
-            old_lock_data = lockfile.pop(category)
+            old_lock_data = getattr(lockfile, category)
+            delattr(lockfile, category)
 
         from pipenv.utils.resolver import venv_resolve_deps
 
@@ -80,12 +81,17 @@ def do_lock(
     for category in lockfile_categories:
         if category == "default":
             pass
-        if lockfile.get(category):
-            lockfile[category].update(
-                overwrite_with_default(lockfile.get("default", {}), lockfile[category])
+        cat = getattr(lockfile, category, None)
+        if cat:
+            cat.update(
+                overwrite_with_default(
+                    getattr(lockfile, "default", {}), getattr(lockfile, category)
+                )
             )
     if write:
-        lockfile.update({"_meta": project.get_lockfile_meta()})
+        lockfile.develop = {}
+        lockfile.meta = project.get_lockfile_meta()
+        lockfile.dump(open("balls", "w"))
         project.write_lockfile(lockfile)
         click.echo(
             "{}".format(

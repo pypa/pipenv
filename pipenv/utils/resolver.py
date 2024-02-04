@@ -880,10 +880,10 @@ def venv_resolve_deps(
                     )
                     click.echo(f"Output: {c.stdout.strip()}", err=True)
                     click.echo(f"Error: {c.stderr.strip()}", err=True)
-    if lockfile_section not in lockfile:
-        lockfile[lockfile_section] = {}
+    if not getattr(lockfile, lockfile_section, None):
+        setattr(lockfile, lockfile_section, {})
     return prepare_lockfile(
-        project, results, pipfile, lockfile[lockfile_section], old_lock_data
+        project, results, pipfile, getattr(lockfile, lockfile_section), old_lock_data
     )
 
 

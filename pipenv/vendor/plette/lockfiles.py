@@ -26,13 +26,24 @@ def flatten_versions(d):
 
 
 class DCJSONEncoder(json.JSONEncoder):
+
     def default(self, o):
         if dataclasses.is_dataclass(o):
+            requires = {}
+            if hasattr(o, "_meta") and "requires" in o._meta:
+                requires = o._meta.pop("requires")
+
             o = dataclasses.asdict(o)
+
             if "_meta" in o:
-                o["_meta"]["pipfile-spec"] = o["_meta"].pop("pipfile_spec")
-                o["_meta"]["hash"] = {o["_meta"]["hash"]["name"]: o["_meta"]["hash"]["value"]}
-                o["_meta"]["sources"] = o["_meta"]["sources"].pop("sources")
+                if "pipfile_spec" in o["_meta"]:
+                    o["_meta"]["pipfile-spec"] = o["_meta"].pop("pipfile_spec")
+                if "name" in o["_meta"]["hash"]:
+                    o["_meta"]["hash"] = {o["_meta"]["hash"]["name"]: o["_meta"]["hash"]["value"]}
+                if "sources" in o["_meta"]["sources"]:
+                    o["_meta"]["sources"] = o["_meta"]["sources"].pop("sources")
+
+                o["_meta"]["requires"] = requires
 
             remove_empty_values(o)
 
@@ -47,6 +58,7 @@ class DCJSONEncoder(json.JSONEncoder):
             if "requires" not in o["_meta"]:
                 o["_meta"]["requires"] = {}
             return o
+
         return super().default(o)
 
 
@@ -68,8 +80,8 @@ def _copy_jsonsafe(value):
 class Lockfile(BaseModel):
     """Representation of a Pipfile.lock."""
 
-    _meta: Optional[Meta]
-    default: Optional[dict] =  field(default_factory=dict)
+    _meta: Optional[Meta] = field(default_factory=Meta)
+    default: Optional[dict] = field(default_factory=dict)
     develop: Optional[dict] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -138,7 +150,7 @@ class Lockfile(BaseModel):
         return cls(data)
 
     def __getitem__(self, key):
-        value = self[key]
+        value = getattr(self, key)
         try:
             if key == "_meta":
                 return Meta(**value)
@@ -150,7 +162,7 @@ class Lockfile(BaseModel):
         return self.meta.hash == pipfile.get_hash()
 
     def dump(self, fh):
-        json.dump(self, fh, cls=DCJSONEncoder)
+        json.dump(self, fh, cls=DCJSONEncoder, indent=4, sort_keys=True)
         self.meta = self._meta
 
     @property

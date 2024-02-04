@@ -278,9 +278,8 @@ class Lockfile:
     def __getitem__(self, k, *args, **kwargs):
         retval = None
         lockfile = self.lockfile
-        try:
-            retval = lockfile[k]
-        except KeyError:
+        retval = getattr(lockfile, k)
+        if retval is None:
             if "-" in k:
                 section, _, pkg_type = k.rpartition("-")
                 vals = getattr(lockfile.get(section, {}), "_data", {})
