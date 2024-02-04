@@ -353,7 +353,6 @@ def find_a_system_python(line):
     # Use the windows finder executable
     if (line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
-    print(line)
     python_entry = find_python(finder, line)
     return python_entry
 
