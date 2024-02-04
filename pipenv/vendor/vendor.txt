@@ -4,7 +4,7 @@ colorama==0.4.6
 dparse==0.6.3
 pexpect==4.8.0
 pipdeptree==2.13.1
-plette==0.4.4
+plette==1.0.0
 ptyprocess==0.7.0
 python-dotenv==1.0.0
 pythonfinder==2.1.0

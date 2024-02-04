@@ -1,41 +1,53 @@
+# pylint: disable=missing-module-docstring,missing-class-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=no-member
+
+import dataclasses
 import json
 import numbers
 
 import collections.abc as collections_abc
 
+from dataclasses import dataclass, field, asdict
+from typing import Optional
 
-from .models import DataView, Meta, PackageCollection
-
-
-class _LockFileEncoder(json.JSONEncoder):
-    """A specilized JSON encoder to convert loaded data into a lock file.
-
-    This adds a few characteristics to the encoder:
-
-    * The JSON is always prettified with indents and spaces.
-    * The output is always UTF-8-encoded text, never binary, even on Python 2.
-    """
-    def __init__(self):
-        super(_LockFileEncoder, self).__init__(
-            indent=4, separators=(",", ": "), sort_keys=True,
-        )
-
-    def encode(self, obj):
-        content = super(_LockFileEncoder, self).encode(obj)
-        if not isinstance(content, str):
-            content = content.decode("utf-8")
-        content += "\n"
-        return content
-
-    def iterencode(self, obj):
-        for chunk in super(_LockFileEncoder, self).iterencode(obj):
-            if not isinstance(chunk, str):
-                chunk = chunk.decode("utf-8")
-            yield chunk
-        yield "\n"
-
+from .models import BaseModel, Meta, PackageCollection, Package, remove_empty_values
 
 PIPFILE_SPEC_CURRENT = 6
+
+
+def flatten_versions(d):
+    copy = {}
+    # Iterate over a copy of the dictionary
+    for key, value in d.items():
+        # If the key is "version", replace the key with the value
+        copy[key] = value["version"]
+    return copy
+
+
+class DCJSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if dataclasses.is_dataclass(o):
+            o = dataclasses.asdict(o)
+            if "_meta" in o:
+                o["_meta"]["pipfile-spec"] = o["_meta"].pop("pipfile_spec")
+                o["_meta"]["hash"] = {o["_meta"]["hash"]["name"]: o["_meta"]["hash"]["value"]}
+                o["_meta"]["sources"] = o["_meta"]["sources"].pop("sources")
+
+            remove_empty_values(o)
+
+            for section in ["default", "develop"]:
+                try:
+                    o[section] = flatten_versions(o[section])
+                except KeyError:
+                    continue
+            # add silly default values
+            if "develop" not in o:
+                o["develop"] = {}
+            if "requires" not in o["_meta"]:
+                o["_meta"]["requires"] = {}
+            return o
+        return super().default(o)
 
 
 def _copy_jsonsafe(value):
@@ -52,127 +64,99 @@ def _copy_jsonsafe(value):
     return str(value)
 
 
-class Lockfile(DataView):
-    """Representation of a Pipfile.lock.
-    """
-    __SCHEMA__ = {
-        "_meta": {"type": "dict", "required": True},
-        "default": {"type": "dict", "required": True},
-        "develop": {"type": "dict", "required": True},
-    }
+@dataclass
+class Lockfile(BaseModel):
+    """Representation of a Pipfile.lock."""
+
+    _meta: Optional[Meta]
+    default: Optional[dict] =  field(default_factory=dict)
+    develop: Optional[dict] = field(default_factory=dict)
+
+    def __post_init__(self):
+        """Run validation methods if declared.
+        The validation method can be a simple check
+        that raises ValueError or a transformation to
+        the field value.
+        The validation is performed by calling a function named:
+            `validate_<field_name>(self, value) -> field.type`
+        """
+        super().__post_init__()
+        self.meta = self._meta
+
+    def validate__meta(self, value):
+        return self.validate_meta(value)
+
+    def validate_meta(self, value):
+        if "_meta" in value:
+            value = value["_meta"]
+        if 'pipfile-spec' in value:
+            value['pipfile_spec'] = value.pop('pipfile-spec')
+        return Meta(**value)
+
+    def validate_default(self, value):
+        packages = {}
+        for name, spec in value.items():
+            packages[name] = Package(spec)
+        return packages
 
     @classmethod
-    def validate(cls, data):
-        super(Lockfile, cls).validate(data)
-        for key, value in data.items():
-            if key == "_meta":
-                Meta.validate(value)
-            else:
-                PackageCollection.validate(value)
-
-    @classmethod
-    def load(cls, f, encoding=None):
+    def load(cls, fh, encoding=None):
         if encoding is None:
-            data = json.load(f)
+            data = json.load(fh)
         else:
-            data = json.loads(f.read().decode(encoding))
-        return cls(data)
+            data = json.loads(fh.read().decode(encoding))
+        return cls(**data)
 
     @classmethod
     def with_meta_from(cls, pipfile, categories=None):
         data = {
             "_meta": {
-                "hash": _copy_jsonsafe(pipfile.get_hash()._data),
+                "hash": pipfile.get_hash().__dict__,
                 "pipfile-spec": PIPFILE_SPEC_CURRENT,
-                "requires": _copy_jsonsafe(pipfile._data.get("requires", {})),
-                "sources": _copy_jsonsafe(pipfile.sources._data),
+                "requires": _copy_jsonsafe(getattr(pipfile, "requires", {})),
             },
         }
+
+        data["_meta"].update(asdict(pipfile.sources))
+
         if categories is None:
-            data["default"] = _copy_jsonsafe(pipfile._data.get("packages", {}))
-            data["develop"] = _copy_jsonsafe(pipfile._data.get("dev-packages", {}))
+            data["default"] = _copy_jsonsafe(getattr(pipfile, "packages", {}))
+            data["develop"] = _copy_jsonsafe(getattr(pipfile, "dev-packages", {}))
         else:
             for category in categories:
-                if category == "default" or category == "packages":
-                    data["default"] = _copy_jsonsafe(pipfile._data.get("packages", {}))
-                elif category == "develop" or category == "dev-packages":
-                    data["develop"] = _copy_jsonsafe(pipfile._data.get("dev-packages", {}))
+                if category in ["default", "packages"]:
+                    data["default"] = _copy_jsonsafe(getattr(pipfile,"packages", {}))
+                elif category in ["develop", "dev-packages"]:
+                    data["develop"] = _copy_jsonsafe(
+                            getattr(pipfile,"dev-packages", {}))
                 else:
-                    data[category] = _copy_jsonsafe(pipfile._data.get(category, {}))
+                    data[category] = _copy_jsonsafe(getattr(pipfile, category, {}))
         if "default" not in data:
-            data["default"]  = {}
+            data["default"] = {}
         if "develop" not in data:
             data["develop"] = {}
         return cls(data)
 
     def __getitem__(self, key):
-        value = self._data[key]
+        value = self[key]
         try:
             if key == "_meta":
-                return Meta(value)
-            else:
-                return PackageCollection(value)
+                return Meta(**value)
+            return PackageCollection(value)
         except KeyError:
             return value
-
-    def __setitem__(self, key, value):
-        if isinstance(value, DataView):
-            self._data[key] = value._data
-        else:
-            self._data[key] = value
 
     def is_up_to_date(self, pipfile):
         return self.meta.hash == pipfile.get_hash()
 
-    def dump(self, f, encoding=None):
-        encoder = _LockFileEncoder()
-        if encoding is None:
-            for chunk in encoder.iterencode(self._data):
-                f.write(chunk)
-        else:
-            content = encoder.encode(self._data)
-            f.write(content.encode(encoding))
+    def dump(self, fh):
+        json.dump(self, fh, cls=DCJSONEncoder)
+        self.meta = self._meta
 
     @property
     def meta(self):
-        try:
-            return self["_meta"]
-        except KeyError:
-            raise AttributeError("meta")
+        return self._meta
 
     @meta.setter
     def meta(self, value):
-        self["_meta"] = value
-
-    @property
-    def _meta(self):
-        try:
-            return self["_meta"]
-        except KeyError:
-            raise AttributeError("meta")
-
-    @_meta.setter
-    def _meta(self, value):
-        self["_meta"] = value
-
-    @property
-    def default(self):
-        try:
-            return self["default"]
-        except KeyError:
-            raise AttributeError("default")
-
-    @default.setter
-    def default(self, value):
-        self["default"] = value
-
-    @property
-    def develop(self):
-        try:
-            return self["develop"]
-        except KeyError:
-            raise AttributeError("develop")
-
-    @develop.setter
-    def develop(self, value):
-        self["develop"] = value
+        self._meta = value
