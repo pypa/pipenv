@@ -1,3 +1,13 @@
+2023.12.1 (2024-02-04)
+======================
+Pipenv 2023.12.1 (2024-02-04)
+=============================
+
+
+Bug Fixes
+---------
+
+- Remove debug print statements that should not have made it into the last release.  `#6079 <https://github.com/pypa/pipenv/issues/6079>`_
 2023.12.0 (2024-02-01)
 ======================
 Pipenv 2023.12.0 (2024-02-01)
