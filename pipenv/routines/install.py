@@ -36,6 +36,7 @@ def do_install(
     python=False,
     pypi_mirror=None,
     system=False,
+    exact=False,
     ignore_pipfile=False,
     requirementstxt=False,
     pre=False,
@@ -243,7 +244,11 @@ def do_install(
                     if categories:
                         for category in categories:
                             added, cat, normalized_name = project.add_package_to_pipfile(
-                                pkg_requirement, pkg_line, dev, category
+                                pkg_requirement,
+                                pkg_line,
+                                dev,
+                                category=category,
+                                exact=exact,
                             )
                             if added:
                                 new_packages.append((normalized_name, cat))
@@ -253,7 +258,7 @@ def do_install(
                                 )
                     else:
                         added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, pkg_line, dev
+                            pkg_requirement, pkg_line, dev, exact=exact
                         )
                         if added:
                             new_packages.append((normalized_name, cat))
