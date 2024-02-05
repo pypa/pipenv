@@ -288,17 +288,22 @@ class Subversion(VersionControl):
             display_path(dest),
         )
         if verbosity <= 0:
-            flag = "--quiet"
+            cmd_args = make_command(
+                "checkout",
+                "--quiet",
+                self.get_remote_call_options(),
+                rev_options.to_args(),
+                url,
+                dest,
+            )
         else:
-            flag = ""
-        cmd_args = make_command(
-            "checkout",
-            flag,
-            self.get_remote_call_options(),
-            rev_options.to_args(),
-            url,
-            dest,
-        )
+            cmd_args = make_command(
+                "checkout",
+                self.get_remote_call_options(),
+                rev_options.to_args(),
+                url,
+                dest,
+            )
         self.run_command(cmd_args)
 
     def switch(self, dest: str, url: HiddenText, rev_options: RevOptions) -> None:
