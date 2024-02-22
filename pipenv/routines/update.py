@@ -1,9 +1,9 @@
 import sys
 from collections import defaultdict
 
-from pipenv.routines.install import do_sync
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
+from pipenv.routines.sync import do_sync
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_pipfile_category_using_lockfile_section,

@@ -639,7 +639,7 @@ def run_open(state, module, *args, **kwargs):
 @pass_context
 def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
-    from pipenv.routines.install import do_sync
+    from pipenv.routines.sync import do_sync
 
     retcode = do_sync(
         state.project,

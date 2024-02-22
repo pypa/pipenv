@@ -192,6 +192,8 @@ def do_install(
                 extra_pip_args=extra_pip_args,
                 categories=categories,
                 skip_lock=skip_lock,
+                packages=packages,
+                editable_packages=editable_packages,
             )
 
         for pkg_line in pkg_list:
@@ -296,60 +298,6 @@ def do_install(
                 project.remove_package_from_pipfile(pkg_name, category)
             raise e
     sys.exit(0)
-
-
-def do_sync(
-    project,
-    dev=False,
-    python=None,
-    bare=False,
-    user=False,
-    clear=False,
-    unused=False,
-    pypi_mirror=None,
-    system=False,
-    deploy=False,
-    extra_pip_args=None,
-    categories=None,
-    site_packages=False,
-):
-    # The lock file needs to exist because sync won't write to it.
-    if not project.lockfile_exists:
-        raise exceptions.LockfileNotFound("Pipfile.lock")
-
-    # Ensure that virtualenv is available if not system.
-    ensure_project(
-        project,
-        python=python,
-        validate=False,
-        system=system,
-        deploy=deploy,
-        pypi_mirror=pypi_mirror,
-        clear=clear,
-        site_packages=site_packages,
-    )
-
-    # Install everything.
-    requirements_dir = fileutils.create_tracked_tempdir(
-        suffix="-requirements", prefix="pipenv-"
-    )
-    if system:
-        project.s.PIPENV_USE_SYSTEM = True
-        os.environ["PIPENV_USE_SYSTEM"] = "1"
-    do_init(
-        project,
-        dev=dev,
-        allow_global=system,
-        requirements_dir=requirements_dir,
-        ignore_pipfile=True,  # Don't check if Pipfile and lock match.
-        pypi_mirror=pypi_mirror,
-        deploy=deploy,
-        system=system,
-        extra_pip_args=extra_pip_args,
-        categories=categories,
-    )
-    if not bare:
-        console.print("[green]All dependencies are now up-to-date![/green]")
 
 
 def do_install_dependencies(
@@ -595,7 +543,11 @@ def do_init(
     extra_pip_args=None,
     categories=None,
     skip_lock=False,
+    packages=None,
+    editable_packages=None,
 ):
+    from pipenv.routines.update import do_update
+
     """Executes the init functionality."""
     python = None
     if project.s.PIPENV_PYTHON is not None:
@@ -645,13 +597,14 @@ def do_init(
                     msg.format(old_hash[-6:], new_hash[-6:]),
                     style="bold yellow",
                 )
-                do_lock(
+                do_update(
                     project,
-                    system=system,
                     pre=pre,
-                    write=True,
+                    system=system,
                     pypi_mirror=pypi_mirror,
                     categories=categories,
+                    packages=packages,
+                    editable_packages=editable_packages,
                 )
     # Write out the lockfile if it doesn't exist.
     if not project.lockfile_exists and not skip_lock:
