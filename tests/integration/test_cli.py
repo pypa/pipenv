@@ -288,6 +288,11 @@ def test_pipenv_verify_without_pipfile(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_verify_without_pipfile_lock(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+sqlalchemy = "<=1.2.3"
+""".strip()
         c = p.pipenv('verify')
         assert c.returncode == 1
         assert 'Pipfile.lock is out-of-date.' in c.stderr
