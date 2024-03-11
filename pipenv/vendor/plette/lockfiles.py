@@ -8,7 +8,7 @@ import numbers
 
 import collections.abc as collections_abc
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, fields
 from typing import Optional
 
 from .models import BaseModel, Meta, PackageCollection, Package, remove_empty_values
@@ -25,40 +25,38 @@ def flatten_versions(d):
     return copy
 
 
+def packages_to_dict(packages):
+    packages_as_dict = {}
+    for package in packages:
+        name = package.pop("name")
+        values = {k: v for k, v in package.items() if v}
+        packages_as_dict[name] = values
+
+    return packages_as_dict
+
+
 class DCJSONEncoder(json.JSONEncoder):
 
     def default(self, o):
+
         if dataclasses.is_dataclass(o):
-            requires = {}
-            if hasattr(o, "_meta") and "requires" in o._meta:
-                requires = o._meta.pop("requires")
-
-            o = dataclasses.asdict(o)
-
             if "_meta" in o:
-                if "pipfile_spec" in o["_meta"]:
-                    o["_meta"]["pipfile-spec"] = o["_meta"].pop("pipfile_spec")
-                if "name" in o["_meta"]["hash"]:
-                    o["_meta"]["hash"] = {o["_meta"]["hash"]["name"]: o["_meta"]["hash"]["value"]}
-                if "sources" in o["_meta"]["sources"]:
-                    o["_meta"]["sources"] = o["_meta"]["sources"].pop("sources")
-
-                o["_meta"]["requires"] = requires
+                o["_meta"]["pipfile-spec"] = o["_meta"].pop("pipfile_spec")
+                o["_meta"]["hash"] = {o["_meta"]["hash"]["name"]: o["_meta"]["hash"]["value"]}
+                o["_meta"]["sources"] = o["_meta"]["sources"].pop("sources")
 
             remove_empty_values(o)
 
-            for section in ["default", "develop"]:
-                try:
-                    o[section] = flatten_versions(o[section])
-                except KeyError:
-                    continue
-            # add silly default values
+            if "default" in o:
+                o["default"] = packages_to_dict(o["default"]["packages"])
+            if "develop" in o:
+                o["develop"] = packages_to_dict(o["develop"]["packages"])
+
             if "develop" not in o:
                 o["develop"] = {}
             if "requires" not in o["_meta"]:
                 o["_meta"]["requires"] = {}
             return o
-
         return super().default(o)
 
 
@@ -80,9 +78,9 @@ def _copy_jsonsafe(value):
 class Lockfile(BaseModel):
     """Representation of a Pipfile.lock."""
 
-    _meta: Optional[Meta] = field(default_factory=Meta)
-    default: Optional[dict] = field(default_factory=dict)
-    develop: Optional[dict] = field(default_factory=dict)
+    _meta: Optional[Meta]
+    default: Optional = field(init=True,)
+    develop: Optional = field(init=True,)
 
     def __post_init__(self):
         """Run validation methods if declared.
@@ -106,10 +104,24 @@ class Lockfile(BaseModel):
         return Meta(**value)
 
     def validate_default(self, value):
+        if value is None:
+            return PackageCollection(packages=[])
+        packages = []
+        for name, spec in value.items():
+            if isinstance(spec, str):
+                spec = {"version": spec}
+            packages.append(Package(name=name, **spec))
+        return PackageCollection(packages=packages)
+
+    def validate_develop(self, value):
+        if value is None:
+            return PackageCollection(packages=[])
         packages = {}
         for name, spec in value.items():
-            packages[name] = Package(spec)
-        return packages
+            if isinstance(spec, str):
+                spec = {"version": spec}
+            packages.append(Package(name=name, **spec))
+        return PackageCollection(packages=packages)
 
     @classmethod
     def load(cls, fh, encoding=None):
@@ -147,23 +159,33 @@ class Lockfile(BaseModel):
             data["default"] = {}
         if "develop" not in data:
             data["develop"] = {}
-        return cls(data)
+        return cls(**data)
 
     def __getitem__(self, key):
-        value = getattr(self, key)
-        try:
-            if key == "_meta":
-                return Meta(**value)
-            return PackageCollection(value)
-        except KeyError:
-            return value
+        value = self.__dict__[key]
+        if key == "_meta":
+            return Meta(**value)
+        return value
+
+    def __setitem__(self, key, value):
+        if key == "_meta":
+            self._meta = Meta(**value)
+        else:
+            self.__dict__[key] = value
 
     def is_up_to_date(self, pipfile):
         return self.meta.hash == pipfile.get_hash()
 
+    def to_dict(self):
+        d = {}
+        for field in fields(self):
+            d[field.name] = getattr(self, field.name)
+
+        return d
+
     def dump(self, fh):
-        json.dump(self, fh, cls=DCJSONEncoder, indent=4, sort_keys=True)
-        self.meta = self._meta
+        d = self.to_dict()
+        json.dump(d, fh)
 
     @property
     def meta(self):

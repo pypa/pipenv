@@ -5,7 +5,7 @@ from dataclasses import dataclass, asdict
 
 from typing import Optional
 
-import pipenv.vendor.tomlkit as tomlkit
+from pipenv.vendor import tomlkit
 
 
 from .models import (
@@ -66,7 +66,7 @@ class Pipfile(BaseModel):
                 "requires": getattr(self, "requires", {}),
             },
             "default": getattr(self, "packages", {}),
-            "develop": getattr(getattr(self, "dev-packages"), "packages", {}),
+            "develop": getattr(self, "dev-packages", {}),
         }
         data["_meta"].update(asdict(getattr(self, "sources", {})))
         for category, values in self.__dict__.items():

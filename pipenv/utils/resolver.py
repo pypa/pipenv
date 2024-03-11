@@ -766,6 +766,8 @@ def venv_resolve_deps(
     :raises RuntimeError: Raised on resolution failure
     :return: The lock data
     :rtype: dict
+
+    TODO: the constraints file format is not documented.
     """
     lockfile_section = get_lockfile_section_using_pipfile_category(category)
 

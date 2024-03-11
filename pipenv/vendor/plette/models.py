@@ -6,7 +6,6 @@ import os
 import re
 import shlex
 
-
 from dataclasses import dataclass
 
 from typing import Optional, List, Union
@@ -131,11 +130,15 @@ class PackageSpecfiers(BaseModel):
 @dataclass
 class Package(BaseModel):
 
-    version: Union[Optional[str],Optional[dict]] = "*"
+    name: str
+    version: Optional[str] = "*"
     specifiers: Optional[PackageSpecfiers] = None
     editable: Optional[bool] = None
     extras: Optional[PackageSpecfiers] = None
     path: Optional[str] = None
+    hashes: Optional[List[Hash]] = None
+    sys_platform: Optional[str] = None
+    index: Optional[str] = None
 
     def validate_extras(self, value):
         if value is None:
@@ -228,12 +231,47 @@ class PackageCollection(BaseModel):
             packages = {}
             for k, v in value.items():
                 if isinstance(v, dict):
-                    packages[k] = Package(**v)
+                    packages[k] = Package(name=k, **v)
+                elif isinstance(v, str):
+                    packages[k] = Package(name=k, version=v)
                 else:
-                    packages[k] = Package(version=v)
+                    raise ValidationError(f"Invalid package specifier {k}: {v}")
             return packages
         return value
 
+    def __getitem__(self, item):
+        for p in self.packages:
+            if p.name == item:
+                return p
+
+        return Package(name=item)
+
+    def keys(self):
+        return (p.name for p in self.packages)
+
+    def __delitem__(self, key):
+        for p in self.packages:
+            if p.name == key:
+                self.packages.remove(p)
+                return
+        raise KeyError(f"Package {key} not found")
+
+    def __setitem__(self, key, value):
+        if isinstance(value, Package):
+            self.packages.append(value)
+        elif isinstance(value, dict):
+            self.packages.append(Package(name=key, **value))
+        else:
+            raise TypeError(f"Unexpected type {type(value)} for {value}")
+
+    def __contains__(self, item):
+        for p in self.packages:
+            if p.name == item:
+                return True
+        return False
+
+    def to_dict(self):
+        return {p.name: p for p in self.packages}
 
 @dataclass
 class ScriptCollection(BaseModel):

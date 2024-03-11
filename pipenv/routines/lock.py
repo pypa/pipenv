@@ -3,7 +3,7 @@ import contextlib
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
-from pipenv.vendor import click
+from pipenv.vendor import click, plette
 
 
 def do_lock(
@@ -31,8 +31,13 @@ def do_lock(
             lockfile_categories.insert(0, "default")
     # Create the lockfile.
     lockfile = project.lockfile(categories=lockfile_categories)
+
     for category in lockfile_categories:
-        for k, v in getattr(lockfile, category, {}).copy().items():
+        pc = getattr(lockfile, category, {})
+        if isinstance(pc, plette.models.PackageCollection):
+            pc = pc.to_dict()
+
+        for k, v in pc.copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
 
@@ -91,7 +96,7 @@ def do_lock(
     if write:
         lockfile.develop = {}
         lockfile.meta = project.get_lockfile_meta()
-        lockfile.dump(open("balls", "w"))
+        import pdb; pdb.set_trace()
         project.write_lockfile(lockfile)
         click.echo(
             "{}".format(
