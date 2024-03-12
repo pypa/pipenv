@@ -471,7 +471,7 @@ class Project:
                 self.lockfile_content[category].keys()
             )
             results[category] = set(category_packages)
-            results["combined"] = set(results["combined"]) | set(category_packages)
+            results["combined"] = set(results["combined"]) | set(results[category])
         return results
 
     @property
@@ -1302,9 +1302,7 @@ class Project:
             with open(self.pipfile_location) as pf:
                 ppfile = plette.Pipfile.load(pf)
 
-                default_lockfile = plette.Lockfile.with_meta_from(
-                    ppfile, categories=[]
-                )
+                default_lockfile = plette.Lockfile.with_meta_from(ppfile, categories=[])
                 default_lockfile = default_lockfile.to_dict()
                 j["_meta"] = default_lockfile["_meta"]
                 lockfile_modified = True

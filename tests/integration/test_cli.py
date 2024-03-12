@@ -148,6 +148,11 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason='required by check')
 def test_pipenv_check(pipenv_instance_private_pypi):
+    """
+    Test pipenv check
+
+    note: this subcommand test will fail if the uninstall command is not working
+    """
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv('install pyyaml')
         assert c.returncode == 0

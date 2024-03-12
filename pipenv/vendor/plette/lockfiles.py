@@ -188,7 +188,7 @@ class Lockfile(BaseModel):
 
     def dump(self, fh):
         d = self.to_dict()
-        json.dump(d, fh)
+        json.dump(d, fh, indent=4)
 
     def pop(self, key, default=None):
         value = getattr(self, key, default)
