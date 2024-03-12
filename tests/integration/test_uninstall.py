@@ -148,7 +148,12 @@ six = "==1.12.0"
 def test_normalize_name_uninstall(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+name = "pypi"
+url = "{p.index_url}"
+verify_ssl = true
+
 # Pre comment
 [packages]
 Requests = "*"
