@@ -177,12 +177,17 @@ python_DateUtil = "*"
 def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
-        [packages]
-        pytest = "==4.6.11"
+            contents = f"""
+[[source]]
+name = "pypi"
+url = "{p.index_url}"
+verify_ssl = true
 
-        [dev-packages]
-        six = "*"
+[packages]
+pytest = "==4.6.11"
+
+[dev-packages]
+six = "*"
         """
             f.write(contents)
         c = p.pipenv("install")
@@ -213,12 +218,12 @@ def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
-        [packages]
-        six = "*"
+[packages]
+six = "*"
 
-        [prereq]
-        six = "*"
-        """
+[prereq]
+six = "*"
+"""
             f.write(contents)
         c = p.pipenv("install")
         assert c.returncode == 0
