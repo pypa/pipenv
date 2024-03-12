@@ -22,6 +22,7 @@ from pipenv.patched.pip._internal.utils.unpacking import unpack_file
 from pipenv.patched.pip._vendor.packaging import specifiers
 from pipenv.utils.fileutils import is_valid_url, normalize_path, url_to_path
 from pipenv.vendor import tomlkit
+from pipenv.vendor.plette.models import PackageCollection
 
 STRING_TYPE = Union[bytes, str, str]
 S = TypeVar("S", bytes, str, str)
@@ -545,6 +546,13 @@ def remap(
     if kwargs:
         raise TypeError("unexpected keyword arguments: %r" % kwargs.keys())
 
+    # when running pipenv install bottle
+    # with plette version 0.4.4 root is dict with the following structure
+    # {'bottle': {'hashes':
+    #  ['sha256:d6f15f9d422670b7c073d63bd8d287b135388da187a0f3e3c19293626ce034ea',
+    #   'sha256:e1a9c94970ae6d710b3fb4526294dfeb86f2cb4a81eff3a4b98dc40fb0e5e021'],
+    #   'index': 'pypi', 'version': '==0.12.25'}}
+
     path, registry, stack = (), {}, [(None, root)]
     new_items_stack = []
     while stack:
@@ -637,6 +645,9 @@ def merge_items(target_list, sourced=False):
 
         else:
             remerge_visit = default_visit
+
+        if isinstance(target, PackageCollection):
+            target = target.to_dict()
 
         ret = remap(target, enter=remerge_enter, visit=remerge_visit, exit=remerge_exit)
 

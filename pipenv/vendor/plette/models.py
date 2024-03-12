@@ -43,6 +43,9 @@ class BaseModel:
             if (method := getattr(self, f"validate_{name}", None)):
                 setattr(self, name, method(getattr(self, name)))
 
+    def get(self, key, default=None):
+        return getattr(self, key, default)
+
 
 @dataclass
 class Hash(BaseModel):
@@ -94,6 +97,12 @@ class Hash(BaseModel):
     def as_line(self):
         return f"{self.name}:{self.value}"
 
+    def get(self, key, default=None):
+        if key == self.name:
+            return self.value
+
+        raise KeyError(f"Unknown key {key}")
+
 
 @dataclass
 class Source(BaseModel):
@@ -139,6 +148,7 @@ class Package(BaseModel):
     hashes: Optional[List[Hash]] = None
     sys_platform: Optional[str] = None
     index: Optional[str] = None
+    markers: Optional[str] = None
 
     def validate_extras(self, value):
         if value is None:
@@ -156,6 +166,13 @@ class Package(BaseModel):
             return "*"
 
         raise ValidationError(f"Unknown type {type(value)} for version")
+
+    def to_dict(self):
+        d = {}
+        for k, v in self.__dict__.items():
+            if v is not None:
+                d[k] = v
+        return d
 
 
 @dataclass(init=False)
@@ -270,8 +287,17 @@ class PackageCollection(BaseModel):
                 return True
         return False
 
+    def __iter__(self):
+        return (d for d in self.packages)
+
     def to_dict(self):
-        return {p.name: p for p in self.packages}
+        pkgs = {}
+        for p in self.packages:
+            pkg = p.to_dict()
+            pkgs[pkg.pop('name')] = pkg
+
+        return pkgs
+
 
 @dataclass
 class ScriptCollection(BaseModel):

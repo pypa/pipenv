@@ -114,7 +114,7 @@ class Lockfile(BaseModel):
         return PackageCollection(packages=packages)
 
     def validate_develop(self, value):
-        if value is None:
+        if not value:
             return PackageCollection(packages=[])
         packages = {}
         for name, spec in value.items():
@@ -182,6 +182,9 @@ class Lockfile(BaseModel):
             d[field.name] = getattr(self, field.name)
 
         return d
+
+    def items(self):
+        return self.to_dict().items()
 
     def dump(self, fh):
         d = self.to_dict()

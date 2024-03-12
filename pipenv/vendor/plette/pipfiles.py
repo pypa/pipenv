@@ -65,16 +65,29 @@ class Pipfile(BaseModel):
             "_meta": {
                 "requires": getattr(self, "requires", {}),
             },
-            "default": getattr(self, "packages", {}),
-            "develop": getattr(self, "dev-packages", {}),
         }
+
+        for section in ("develop", "default"):
+            obj = getattr(self, section, {})
+            if obj:
+                data[section] = obj.to_dict()
+            else:
+                data[section] = obj
+
         data["_meta"].update(asdict(getattr(self, "sources", {})))
+
         for category, values in self.__dict__.items():
             if category in PIPFILE_SECTIONS or category in (
                     "default", "develop", "pipenv"):
                 continue
+
+            if hasattr(values, "to_dict"):
+                values = values.to_dict()
+
             data[category] = values
+
         remove_empty_values(data)
+
         return data
 
     def get_hash(self):

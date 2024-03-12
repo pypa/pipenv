@@ -96,7 +96,6 @@ def do_lock(
     if write:
         lockfile.develop = {}
         lockfile.meta = project.get_lockfile_meta()
-        import pdb; pdb.set_trace()
         project.write_lockfile(lockfile)
         click.echo(
             "{}".format(
