@@ -145,6 +145,7 @@ class Package(BaseModel):
     editable: Optional[bool] = None
     extras: Optional[PackageSpecfiers] = None
     path: Optional[str] = None
+    file: Optional[str] = None
     hashes: Optional[List[Hash]] = None
     sys_platform: Optional[str] = None
     index: Optional[str] = None
