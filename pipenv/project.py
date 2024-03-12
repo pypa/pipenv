@@ -471,7 +471,7 @@ class Project:
                 self.lockfile_content[category].keys()
             )
             results[category] = set(category_packages)
-            results["combined"] = results["combined"] | category_packages
+            results["combined"] = set(results["combined"]) | set(category_packages)
         return results
 
     @property
@@ -1283,8 +1283,9 @@ class Project:
         if self.ensure_proper_casing():
             self.write_toml(self.parsed_pipfile)
 
-    def load_lockfile(self, expand_env_vars=True):
+    def load_lockfile(self, expand_env_vars=True) -> plette.Lockfile:
         lockfile_modified = False
+
         with open(self.lockfile_location, encoding="utf-8") as lock:
             try:
                 j = json.load(lock)
@@ -1299,10 +1300,13 @@ class Project:
                 j = {}
         if not j.get("_meta"):
             with open(self.pipfile_location) as pf:
+                ppfile = plette.Pipfile.load(pf)
+
                 default_lockfile = plette.Lockfile.with_meta_from(
-                    plette.Pipfile.load(pf), categories=[]
+                    ppfile, categories=[]
                 )
-                j["_meta"] = default_lockfile._data["_meta"]
+                default_lockfile = default_lockfile.to_dict()
+                j["_meta"] = default_lockfile["_meta"]
                 lockfile_modified = True
         if j.get("default") is None:
             j["default"] = {}
@@ -1312,7 +1316,9 @@ class Project:
             lockfile_modified = True
 
         if lockfile_modified:
-            self.write_lockfile(j)
+            lf = plette.Lockfile(**j)
+            with open(self.lockfile_location, "w", encoding="utf-8") as lock:
+                lf.dump(lock)
 
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
@@ -1320,8 +1326,7 @@ class Project:
                 j["_meta"]["sources"][i]["url"] = os.path.expandvars(
                     j["_meta"]["sources"][i]["url"]
                 )
-
-        return j
+        return plette.Lockfile(**j)
 
     def get_lockfile_hash(self):
         if not os.path.exists(self.lockfile_location):

@@ -106,6 +106,8 @@ class Lockfile(BaseModel):
     def validate_default(self, value):
         if value is None:
             return PackageCollection(packages=[])
+        elif value == {"packages": []}:
+            return PackageCollection(packages=[])
         packages = []
         for name, spec in value.items():
             if isinstance(spec, str):
@@ -115,6 +117,8 @@ class Lockfile(BaseModel):
 
     def validate_develop(self, value):
         if not value:
+            return PackageCollection(packages=[])
+        elif value == {"packages": []}:
             return PackageCollection(packages=[])
         packages = {}
         for name, spec in value.items():
@@ -173,15 +177,11 @@ class Lockfile(BaseModel):
         else:
             self.__dict__[key] = value
 
+    def __contains__(self, key):
+        return key in self.__dict__
+
     def is_up_to_date(self, pipfile):
         return self.meta.hash == pipfile.get_hash()
-
-    def to_dict(self):
-        d = {}
-        for field in fields(self):
-            d[field.name] = getattr(self, field.name)
-
-        return d
 
     def items(self):
         return self.to_dict().items()
@@ -190,6 +190,13 @@ class Lockfile(BaseModel):
         d = self.to_dict()
         json.dump(d, fh)
 
+    def pop(self, key, default=None):
+        value = getattr(self, key, default)
+        if value:
+            delattr(self, key)
+
+        return key
+
     @property
     def meta(self):
         return self._meta
@@ -197,3 +204,21 @@ class Lockfile(BaseModel):
     @meta.setter
     def meta(self, value):
         self._meta = value
+
+    def to_dict(self):
+        d = {}
+        if isinstance(self.meta, Meta):
+            d["_meta"] = asdict(self.meta)
+            d["_meta"]["sources"] = asdict(self.meta.sources).pop("sources")
+        else:
+            d["_meta"] = self._meta
+
+        for field in fields(self):
+            if field.name in ["_meta"]:
+                continue
+            value = getattr(self, field.name, {})
+            if hasattr(value, "to_dict"):
+                d[field.name] = value.to_dict()
+            else:
+                d[field.name] = value
+        return d

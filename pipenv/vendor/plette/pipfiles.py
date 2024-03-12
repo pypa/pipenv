@@ -110,7 +110,6 @@ class Pipfile(BaseModel):
             # TOML content directly, and load the new in-memory document.
             sep = "" if content.startswith("\n") else "\n"
             content = DEFAULT_SOURCE_TOML + sep + content
-        data = tomlkit.loads(content)
         data["sources"] = data.pop("source")
         packages_sections = {}
         data_sections = list(data.keys())
@@ -140,3 +139,10 @@ class Pipfile(BaseModel):
         if encoding is not None:
             content = content.encode(encoding)
         f.write(content)
+
+    def __getattr__(self, key):
+
+        item = getattr(self.__dict__, key)
+        if hasattr(item, "to_dict"):
+            return item.to_dict()
+        return item
