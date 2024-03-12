@@ -351,8 +351,12 @@ class SourceCollection(BaseModel):
 
 @dataclass
 class Requires(BaseModel):
+
     python_version: Optional[str] = None
     python_full_version: Optional[str] = None
+
+    def items(self):
+        return self.__dict__.items()
 
 
 META_SECTIONS = {
@@ -390,7 +394,7 @@ class Meta(BaseModel):
             return Hash.from_line(value)
 
     def validate_requires(self, value):
-        return Requires(value)
+        return Requires(**value)
 
     def validate_sources(self, value):
         return SourceCollection(value)

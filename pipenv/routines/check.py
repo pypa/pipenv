@@ -112,7 +112,9 @@ def do_check(
     p = plette.Lockfile.with_meta_from(p)
     failed = False
     # Assert each specified requirement.
-    for marker, specifier in p._data["_meta"]["requires"].items():
+    for marker, specifier in p._meta.requires.items():
+        if specifier is None:
+            continue
         if marker in results:
             try:
                 assert results[marker] == specifier
