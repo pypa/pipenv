@@ -154,17 +154,12 @@ def requirement_from_lockfile(
             return f"{package_name}=={package_info}"
         else:
             return package_name
-
-    markers = (
-        "; {}".format(package_info["markers"])
-        if include_markers and "markers" in package_info and package_info["markers"]
-        else ""
-    )
-    os_markers = (
-        "; {}".format(package_info["os_markers"])
-        if include_markers and "os_markers" in package_info and package_info["os_markers"]
-        else ""
-    )
+    
+    os_markers = ""
+    markers = ""
+    if include_markers:
+        markers = f"; {package_info.get('markers', '')}"
+        os_markers = f"; {package_info.get('os_markers', '')}"
 
     # Handling vcs repositories
     for vcs in VCS_LIST:

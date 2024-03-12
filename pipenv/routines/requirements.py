@@ -15,10 +15,9 @@ def generate_requirements(
     categories="",
 ):
     lockfile = project.load_lockfile(expand_env_vars=False)
-
-    for i, package_index in enumerate(lockfile["_meta"]["sources"]):
+    for i, package_index in enumerate(lockfile["_meta"].sources):
         prefix = "-i" if i == 0 else "--extra-index-url"
-        click.echo(" ".join([prefix, package_index["url"]]))
+        click.echo(" ".join([prefix, package_index.url]))
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []

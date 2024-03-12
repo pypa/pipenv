@@ -177,7 +177,7 @@ class Lockfile(BaseModel):
 
     def __getitem__(self, key):
         value = self.__dict__[key]
-        if key == "_meta":
+        if key == "_meta" and isinstance(value, dict):
             return Meta(**value)
         return value
 
