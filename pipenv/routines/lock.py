@@ -94,7 +94,6 @@ def do_lock(
                 )
             )
     if write:
-        lockfile.develop = {}
         lockfile.meta = project.get_lockfile_meta()
         project.write_lockfile(lockfile)
         click.echo(

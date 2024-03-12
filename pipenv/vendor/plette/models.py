@@ -395,7 +395,9 @@ class Meta(BaseModel):
             return Hash.from_line(value)
 
     def validate_requires(self, value):
-        return Requires(**value)
+        if isinstance(value, dict):
+            return Requires(**value)
+        return Requires()
 
     def validate_sources(self, value):
         return SourceCollection(value)

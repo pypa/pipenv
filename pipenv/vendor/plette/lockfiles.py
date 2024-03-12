@@ -120,7 +120,7 @@ class Lockfile(BaseModel):
             return PackageCollection(packages=[])
         elif value == {"packages": []}:
             return PackageCollection(packages=[])
-        packages = {}
+        packages = []
         for name, spec in value.items():
             if isinstance(spec, str):
                 spec = {"version": spec}
@@ -137,6 +137,17 @@ class Lockfile(BaseModel):
 
     @classmethod
     def with_meta_from(cls, pipfile, categories=None):
+        def get_dev_packages(pipfile):
+            if isinstance(pipfile, dict):
+                if hasattr(pipfile, "dev-packages"):
+                    return pipfile["dev-packages"]
+                return pipfile["develop"]
+            else:
+                try:
+                    return pipfile.dev_packages.to_dict()
+                except AttributeError:
+                    return pipfile.dev_packages
+
         data = {
             "_meta": {
                 "hash": pipfile.get_hash().__dict__,
@@ -153,10 +164,9 @@ class Lockfile(BaseModel):
         else:
             for category in categories:
                 if category in ["default", "packages"]:
-                    data["default"] = _copy_jsonsafe(getattr(pipfile,"packages", {}))
+                    data["default"] = _copy_jsonsafe(getattr(pipfile, "packages", {}))
                 elif category in ["develop", "dev-packages"]:
-                    data["develop"] = _copy_jsonsafe(
-                            getattr(pipfile,"dev-packages", {}))
+                    data["develop"] = _copy_jsonsafe(get_dev_packages(pipfile))
                 else:
                     data[category] = _copy_jsonsafe(getattr(pipfile, category, {}))
         if "default" not in data:

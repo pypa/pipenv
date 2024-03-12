@@ -111,6 +111,10 @@ class Pipfile(BaseModel):
             sep = "" if content.startswith("\n") else "\n"
             content = DEFAULT_SOURCE_TOML + sep + content
         data["sources"] = data.pop("source")
+
+        if "dev-packages" in data:
+            data["dev_packages"] = data.pop("dev-packages")
+
         packages_sections = {}
         data_sections = list(data.keys())
         for k in data_sections:
