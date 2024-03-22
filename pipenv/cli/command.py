@@ -391,8 +391,8 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
     # Use fancy mode for Windows or pwsh on *nix.
     if (
         os.name == "nt"
-        or os.environ["PIPENV_SHELL"].split(os.path.sep)[-1] == "pwsh"
-        or os.environ["SHELL"].split(os.path.sep)[-1] == "pwsh"
+        or (os.environ.get("PIPENV_SHELL") or "").split(os.path.sep)[-1] == "pwsh"
+        or (os.environ.get("SHELL") or "").split(os.path.sep)[-1] == "pwsh"
     ):
         fancy = True
     do_shell(
