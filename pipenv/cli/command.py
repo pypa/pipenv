@@ -391,8 +391,12 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
             sys.exit(1)
     # Load .env file.
     load_dot_env(state.project)
-    # Use fancy mode for Windows.
-    if os.name == "nt":
+    # Use fancy mode for Windows or pwsh on *nix.
+    if (
+        os.name == "nt"
+        or (os.environ.get("PIPENV_SHELL") or "").split(os.path.sep)[-1] == "pwsh"
+        or (os.environ.get("SHELL") or "").split(os.path.sep)[-1] == "pwsh"
+    ):
         fancy = True
     do_shell(
         state.project,
