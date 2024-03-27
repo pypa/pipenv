@@ -99,7 +99,7 @@ class RequirementSet:
                         "or contact the package author to fix the version number"
                     ),
                     issue=12063,
-                    gone_in="24.0",
+                    gone_in="24.1",
                 )
             for dep in req.get_dist().iter_dependencies():
                 if any(isinstance(spec, LegacySpecifier) for spec in dep.specifier):
@@ -115,5 +115,5 @@ class RequirementSet:
                             "or contact the package author to fix the version number"
                         ),
                         issue=12063,
-                        gone_in="24.0",
+                        gone_in="24.1",
                     )

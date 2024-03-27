@@ -181,6 +181,16 @@ class InstallRequirement:
         # but after loading this flag should be treated as read only.
         self.use_pep517 = use_pep517
 
+        # If config settings are provided, enforce PEP 517.
+        if self.config_settings:
+            if self.use_pep517 is False:
+                logger.warning(
+                    "--no-use-pep517 ignored for %s "
+                    "because --config-settings are specified.",
+                    self,
+                )
+            self.use_pep517 = True
+
         # This requirement needs more preparation before it can be built
         self.needs_more_preparation = False
 
@@ -191,7 +201,7 @@ class InstallRequirement:
         if self.req:
             s = redact_auth_from_requirement(self.req)
             if self.link:
-                s += " from {}".format(redact_auth_from_url(self.link.url))
+                s += f" from {redact_auth_from_url(self.link.url)}"
         elif self.link:
             s = redact_auth_from_url(self.link.url)
         else:
@@ -221,7 +231,7 @@ class InstallRequirement:
         attributes = vars(self)
         names = sorted(attributes)
 
-        state = ("{}={!r}".format(attr, attributes[attr]) for attr in sorted(names))
+        state = (f"{attr}={attributes[attr]!r}" for attr in sorted(names))
         return "<{name} object: {{{state}}}>".format(
             name=self.__class__.__name__,
             state=", ".join(state),
@@ -508,15 +518,7 @@ class InstallRequirement:
         )
 
         if pyproject_toml_data is None:
-            if self.config_settings:
-                deprecated(
-                    reason=f"Config settings are ignored for project {self}.",
-                    replacement=(
-                        "to use --use-pep517 or add a "
-                        "pyproject.toml file to the project"
-                    ),
-                    gone_in="24.0",
-                )
+            assert not self.config_settings
             self.use_pep517 = False
             return
 
@@ -755,8 +757,8 @@ class InstallRequirement:
 
         if os.path.exists(archive_path):
             response = ask_path_exists(
-                "The file {} exists. (i)gnore, (w)ipe, "
-                "(b)ackup, (a)bort ".format(display_path(archive_path)),
+                f"The file {display_path(archive_path)} exists. (i)gnore, (w)ipe, "
+                "(b)ackup, (a)bort ",
                 ("i", "w", "b", "a"),
             )
             if response == "i":
@@ -828,6 +830,13 @@ class InstallRequirement:
         )
 
         if self.editable and not self.is_wheel:
+            if self.config_settings:
+                logger.warning(
+                    "--config-settings ignored for legacy editable install of %s. "
+                    "Consider upgrading to a version of setuptools "
+                    "that supports PEP 660 (>= 64).",
+                    self,
+                )
             install_editable_legacy(
                 global_options=global_options if global_options is not None else [],
                 prefix=prefix,
@@ -906,7 +915,7 @@ def check_legacy_setup_py_options(
             reason="--build-option and --global-option are deprecated.",
             issue=11859,
             replacement="to use --config-settings",
-            gone_in="24.0",
+            gone_in="24.2",
         )
         logger.warning(
             "Implying --no-binary=:all: due to the presence of "

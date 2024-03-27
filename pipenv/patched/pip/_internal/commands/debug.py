@@ -95,7 +95,7 @@ def show_actual_vendor_versions(vendor_txt_versions: Dict[str, str]) -> None:
         elif parse_version(actual_version) != parse_version(expected_version):
             extra_message = (
                 " (CONFLICT: vendor.txt suggests version should"
-                " be {})".format(expected_version)
+                f" be {expected_version})"
             )
         logger.info("%s==%s%s", module_name, actual_version, extra_message)
 
@@ -120,7 +120,7 @@ def show_tags(options: Values) -> None:
     if formatted_target:
         suffix = f" (target: {formatted_target})"
 
-    msg = "Compatible tags: {}{}".format(len(tags), suffix)
+    msg = f"Compatible tags: {len(tags)}{suffix}"
     logger.info(msg)
 
     if options.verbose < 1 and len(tags) > tag_limit:
@@ -134,9 +134,7 @@ def show_tags(options: Values) -> None:
             logger.info(str(tag))
 
         if tags_limited:
-            msg = (
-                "...\n[First {tag_limit} tags shown. Pass --verbose to show all.]"
-            ).format(tag_limit=tag_limit)
+            msg = f"...\n[First {tag_limit} tags shown. Pass --verbose to show all.]"
             logger.info(msg)
 
 

@@ -368,9 +368,7 @@ class Link(KeyBasedCompareMixin):
         else:
             rp = ""
         if self.comes_from:
-            return "{} (from {}){}".format(
-                redact_auth_from_url(self._url), self.comes_from, rp
-            )
+            return f"{redact_auth_from_url(self._url)} (from {self.comes_from}){rp}"
         else:
             return redact_auth_from_url(str(self._url))
 
