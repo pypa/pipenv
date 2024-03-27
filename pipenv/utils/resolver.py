@@ -771,10 +771,10 @@ def venv_resolve_deps(
 
     if not deps:
         if not project.pipfile_exists:
-            return None
+            return {}
         deps = project.parsed_pipfile.get(category, {})
     if not deps:
-        return None
+        return {}
 
     if not pipfile:
         pipfile = getattr(project, category, {})

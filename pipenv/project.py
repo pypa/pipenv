@@ -1133,6 +1133,16 @@ class Project:
             return True
         return False
 
+    def reset_category_in_pipfile(self, category):
+        # Read and append Pipfile.
+        p = self.parsed_pipfile
+        if category:
+            del p[category]
+            p[category] = {}
+            self.write_toml(p)
+            return True
+        return False
+
     def remove_packages_from_pipfile(self, packages):
         parsed = self.parsed_pipfile
         packages = {pep423_name(pkg) for pkg in packages}
