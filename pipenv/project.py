@@ -236,6 +236,8 @@ class Project:
             return ["packages", "dev-packages"] + list(package_categories)
 
     def get_requests_session_for_source(self, source):
+        if not (source and source.get("name")):
+            return None
         if self.sessions.get(source["name"]):
             session = self.sessions[source["name"]]
         else:
@@ -268,6 +270,8 @@ class Project:
     def get_hashes_from_pypi(self, ireq, source):
         pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
         session = self.get_requests_session_for_source(source)
+        if not session:
+            return None
         try:
             collected_hashes = set()
             # Grab the hashes from the new warehouse API.
@@ -1125,6 +1129,16 @@ class Project:
             del p[category][name]
             if self.settings.get("sort_pipfile"):
                 p[category] = self._sort_category(p[category])
+            self.write_toml(p)
+            return True
+        return False
+
+    def reset_category_in_pipfile(self, category):
+        # Read and append Pipfile.
+        p = self.parsed_pipfile
+        if category:
+            del p[category]
+            p[category] = {}
             self.write_toml(p)
             return True
         return False
