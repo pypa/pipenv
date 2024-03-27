@@ -31,9 +31,7 @@ def _get(
     value = d[key]
     if not isinstance(value, expected_type):
         raise DirectUrlValidationError(
-            "{!r} has unexpected type for {} (expected {})".format(
-                value, key, expected_type
-            )
+            f"{value!r} has unexpected type for {key} (expected {expected_type})"
         )
     return value
 

@@ -462,7 +462,7 @@ def install_req_from_req_string(
         raise InstallationError(
             "Packages installed from PyPI cannot depend on packages "
             "which are not also hosted on PyPI.\n"
-            "{} depends on {} ".format(comes_from.name, req)
+            f"{comes_from.name} depends on {req} "
         )
 
     return InstallRequirement(

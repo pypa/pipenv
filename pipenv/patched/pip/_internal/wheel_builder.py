@@ -140,15 +140,15 @@ def _verify_one(req: InstallRequirement, wheel_path: str) -> None:
     w = Wheel(os.path.basename(wheel_path))
     if canonicalize_name(w.name) != canonical_name:
         raise InvalidWheelFilename(
-            "Wheel has unexpected file name: expected {!r}, "
-            "got {!r}".format(canonical_name, w.name),
+            f"Wheel has unexpected file name: expected {canonical_name!r}, "
+            f"got {w.name!r}",
         )
     dist = get_wheel_distribution(FilesystemWheel(wheel_path), canonical_name)
     dist_verstr = str(dist.version)
     if canonicalize_version(dist_verstr) != canonicalize_version(w.version):
         raise InvalidWheelFilename(
-            "Wheel has unexpected file name: expected {!r}, "
-            "got {!r}".format(dist_verstr, w.version),
+            f"Wheel has unexpected file name: expected {dist_verstr!r}, "
+            f"got {w.version!r}",
         )
     metadata_version_value = dist.metadata_version
     if metadata_version_value is None:
@@ -160,8 +160,7 @@ def _verify_one(req: InstallRequirement, wheel_path: str) -> None:
         raise UnsupportedWheel(msg)
     if metadata_version >= Version("1.2") and not isinstance(dist.version, Version):
         raise UnsupportedWheel(
-            "Metadata 1.2 mandates PEP 440 version, "
-            "but {!r} is not".format(dist_verstr)
+            f"Metadata 1.2 mandates PEP 440 version, but {dist_verstr!r} is not"
         )
 
 

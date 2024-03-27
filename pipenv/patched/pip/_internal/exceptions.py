@@ -247,10 +247,7 @@ class NoneMetadataError(PipError):
     def __str__(self) -> str:
         # Use `dist` in the error message because its stringification
         # includes more information, like the version and location.
-        return "None {} metadata found for distribution: {}".format(
-            self.metadata_name,
-            self.dist,
-        )
+        return f"None {self.metadata_name} metadata found for distribution: {self.dist}"
 
 
 class UserInstallationInvalid(InstallationError):
@@ -594,7 +591,7 @@ class HashMismatch(HashError):
         self.gots = gots
 
     def body(self) -> str:
-        return "    {}:\n{}".format(self._requirement_name(), self._hash_comparison())
+        return f"    {self._requirement_name()}:\n{self._hash_comparison()}"
 
     def _hash_comparison(self) -> str:
         """
@@ -616,11 +613,9 @@ class HashMismatch(HashError):
         lines: List[str] = []
         for hash_name, expecteds in self.allowed.items():
             prefix = hash_then_or(hash_name)
-            lines.extend(
-                ("        Expected {} {}".format(next(prefix), e)) for e in expecteds
-            )
+            lines.extend((f"        Expected {next(prefix)} {e}") for e in expecteds)
             lines.append(
-                "             Got        {}\n".format(self.gots[hash_name].hexdigest())
+                f"             Got        {self.gots[hash_name].hexdigest()}\n"
             )
         return "\n".join(lines)
 

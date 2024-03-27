@@ -1,5 +1,5 @@
 diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/index/package_finder.py
-index 2121ca327..04352c7d1 100644
+index ec9ebc367..40a6c8182 100644
 --- a/pipenv/patched/pip/_internal/index/package_finder.py
 +++ b/pipenv/patched/pip/_internal/index/package_finder.py
 @@ -125,6 +125,7 @@ class LinkEvaluator:
@@ -76,13 +76,13 @@ index 2121ca327..04352c7d1 100644
                  )
              except ValueError:
 -                raise UnsupportedWheel(
--                    "{} is not a supported wheel for this platform. It "
--                    "can't be sorted.".format(wheel.filename)
+-                    f"{wheel.filename} is not a supported wheel for this platform. It "
+-                    "can't be sorted."
 -                )
 +                if not ignore_compatibility:
 +                    raise UnsupportedWheel(
-+                        "{} is not a supported wheel for this platform. It "
-+                        "can't be sorted.".format(wheel.filename)
++                        f"{wheel.filename} is not a supported wheel for this platform. It "
++                        "can't be sorted."
 +                    )
 +                pri = -support_num
              if self._prefer_binary:

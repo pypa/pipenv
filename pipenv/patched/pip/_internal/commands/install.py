@@ -607,12 +607,8 @@ class InstallCommand(RequirementCommand):
             version = package_set[project_name][0]
             for dependency in missing[project_name]:
                 message = (
-                    "{name} {version} requires {requirement}, "
+                    f"{project_name} {version} requires {dependency[1]}, "
                     "which is not installed."
-                ).format(
-                    name=project_name,
-                    version=version,
-                    requirement=dependency[1],
                 )
                 parts.append(message)
 

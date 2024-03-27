@@ -160,10 +160,7 @@ class _InstallRequirementBackedCandidate(Candidate):
         return f"{self.name} {self.version}"
 
     def __repr__(self) -> str:
-        return "{class_name}({link!r})".format(
-            class_name=self.__class__.__name__,
-            link=str(self._link),
-        )
+        return f"{self.__class__.__name__}({str(self._link)!r})"
 
     def __hash__(self) -> int:
         return hash((self.__class__, self._link))
@@ -358,10 +355,7 @@ class AlreadyInstalledCandidate(Candidate):
         return str(self.dist)
 
     def __repr__(self) -> str:
-        return "{class_name}({distribution!r})".format(
-            class_name=self.__class__.__name__,
-            distribution=self.dist,
-        )
+        return f"{self.__class__.__name__}({self.dist!r})"
 
     def __hash__(self) -> int:
         return hash((self.__class__, self.name, self.version))
@@ -459,11 +453,7 @@ class ExtrasCandidate(Candidate):
         return "{}[{}] {}".format(name, ",".join(self.extras), rest)
 
     def __repr__(self) -> str:
-        return "{class_name}(base={base!r}, extras={extras!r})".format(
-            class_name=self.__class__.__name__,
-            base=self.base,
-            extras=self.extras,
-        )
+        return f"{self.__class__.__name__}(base={self.base!r}, extras={self.extras!r})"
 
     def __hash__(self) -> int:
         return hash((self.base, self.extras))

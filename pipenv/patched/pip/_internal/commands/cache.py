@@ -175,7 +175,7 @@ class CacheCommand(Command):
             files += self._find_http_files(options)
         else:
             # Add the pattern to the log message
-            no_matching_msg += ' for pattern "{}"'.format(args[0])
+            no_matching_msg += f' for pattern "{args[0]}"'
 
         if not files:
             logger.warning(no_matching_msg)

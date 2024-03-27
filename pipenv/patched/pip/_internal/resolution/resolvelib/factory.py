@@ -774,8 +774,8 @@ class Factory:
             info = "the requested packages"
 
         msg = (
-            "Cannot install {} because these package versions "
-            "have conflicting dependencies.".format(info)
+            f"Cannot install {info} because these package versions "
+            "have conflicting dependencies."
         )
         logger.critical(msg)
         msg = "\nThe conflict is caused by:"

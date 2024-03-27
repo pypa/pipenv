@@ -231,9 +231,7 @@ class Resolver(BaseResolver):
             tags = compatibility_tags.get_supported()
             if requirement_set.check_supported_wheels and not wheel.supported(tags):
                 raise InstallationError(
-                    "{} is not a supported wheel on this platform.".format(
-                        wheel.filename
-                    )
+                    f"{wheel.filename} is not a supported wheel on this platform."
                 )
 
         # This next bit is really a sanity check.
@@ -287,9 +285,9 @@ class Resolver(BaseResolver):
         )
         if does_not_satisfy_constraint:
             raise InstallationError(
-                "Could not satisfy constraints for '{}': "
+                f"Could not satisfy constraints for '{install_req.name}': "
                 "installation from path or url cannot be "
-                "constrained to a version".format(install_req.name)
+                "constrained to a version"
             )
         # If we're now installing a constraint, mark the existing
         # object for real installation.
@@ -398,9 +396,9 @@ class Resolver(BaseResolver):
                 # "UnicodeEncodeError: 'ascii' codec can't encode character"
                 # in Python 2 when the reason contains non-ascii characters.
                 "The candidate selected for download or install is a "
-                "yanked version: {candidate}\n"
-                "Reason for being yanked: {reason}"
-            ).format(candidate=best_candidate, reason=reason)
+                f"yanked version: {best_candidate}\n"
+                f"Reason for being yanked: {reason}"
+            )
             logger.warning(msg)
 
         return link

@@ -164,16 +164,14 @@ def message_about_scripts_not_on_PATH(scripts: Sequence[str]) -> Optional[str]:
     for parent_dir, dir_scripts in warn_for.items():
         sorted_scripts: List[str] = sorted(dir_scripts)
         if len(sorted_scripts) == 1:
-            start_text = "script {} is".format(sorted_scripts[0])
+            start_text = f"script {sorted_scripts[0]} is"
         else:
             start_text = "scripts {} are".format(
                 ", ".join(sorted_scripts[:-1]) + " and " + sorted_scripts[-1]
             )
 
         msg_lines.append(
-            "The {} installed in '{}' which is not on PATH.".format(
-                start_text, parent_dir
-            )
+            f"The {start_text} installed in '{parent_dir}' which is not on PATH."
         )
 
     last_line_fmt = (
@@ -321,9 +319,7 @@ def get_console_script_specs(console: Dict[str, str]) -> List[str]:
             scripts_to_generate.append("pip = " + pip_script)
 
         if os.environ.get("ENSUREPIP_OPTIONS", "") != "altinstall":
-            scripts_to_generate.append(
-                "pip{} = {}".format(sys.version_info[0], pip_script)
-            )
+            scripts_to_generate.append(f"pip{sys.version_info[0]} = {pip_script}")
 
         scripts_to_generate.append(f"pip{get_major_minor_version()} = {pip_script}")
         # Delete any other versioned pip entry points
@@ -336,9 +332,7 @@ def get_console_script_specs(console: Dict[str, str]) -> List[str]:
             scripts_to_generate.append("easy_install = " + easy_install_script)
 
         scripts_to_generate.append(
-            "easy_install-{} = {}".format(
-                get_major_minor_version(), easy_install_script
-            )
+            f"easy_install-{get_major_minor_version()} = {easy_install_script}"
         )
         # Delete any other versioned easy_install entry points
         easy_install_ep = [
@@ -408,10 +402,10 @@ class ScriptFile:
 class MissingCallableSuffix(InstallationError):
     def __init__(self, entry_point: str) -> None:
         super().__init__(
-            "Invalid script entry point: {} - A callable "
+            f"Invalid script entry point: {entry_point} - A callable "
             "suffix is required. Cf https://packaging.python.org/"
             "specifications/entry-points/#use-for-scripts for more "
-            "information.".format(entry_point)
+            "information."
         )
 
 
@@ -712,7 +706,7 @@ def req_error_context(req_description: str) -> Generator[None, None, None]:
     try:
         yield
     except InstallationError as e:
-        message = "For req: {}. {}".format(req_description, e.args[0])
+        message = f"For req: {req_description}. {e.args[0]}"
         raise InstallationError(message) from e
 
 

@@ -168,7 +168,7 @@ def warn_legacy_versions_and_specifiers(package_set: PackageSet) -> None:
                     f"release a version with a conforming version number"
                 ),
                 issue=12063,
-                gone_in="24.0",
+                gone_in="24.1",
             )
         for dep in package_details.dependencies:
             if any(isinstance(spec, LegacySpecifier) for spec in dep.specifier):
@@ -183,5 +183,5 @@ def warn_legacy_versions_and_specifiers(package_set: PackageSet) -> None:
                         f"release a version with a conforming dependency specifiers"
                     ),
                     issue=12063,
-                    gone_in="24.0",
+                    gone_in="24.1",
                 )

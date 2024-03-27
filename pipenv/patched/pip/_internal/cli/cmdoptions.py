@@ -582,10 +582,7 @@ def _handle_python_version(
     """
     version_info, error_msg = _convert_python_version(value)
     if error_msg is not None:
-        msg = "invalid --python-version value: {!r}: {}".format(
-            value,
-            error_msg,
-        )
+        msg = f"invalid --python-version value: {value!r}: {error_msg}"
         raise_option_error(parser, option=option, msg=msg)
 
     parser.values.python_version = version_info
@@ -921,9 +918,9 @@ def _handle_merge_hash(
         algo, digest = value.split(":", 1)
     except ValueError:
         parser.error(
-            "Arguments to {} must be a hash name "
+            f"Arguments to {opt_str} must be a hash name "
             "followed by a value, like --hash=sha256:"
-            "abcde...".format(opt_str)
+            "abcde..."
         )
     if algo not in STRONG_HASHES:
         parser.error(

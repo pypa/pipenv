@@ -75,8 +75,16 @@ SUPPORTED_OPTIONS_REQ: List[Callable[..., optparse.Option]] = [
     cmdoptions.config_settings,
 ]
 
+SUPPORTED_OPTIONS_EDITABLE_REQ: List[Callable[..., optparse.Option]] = [
+    cmdoptions.config_settings,
+]
+
+
 # the 'dest' string values
 SUPPORTED_OPTIONS_REQ_DEST = [str(o().dest) for o in SUPPORTED_OPTIONS_REQ]
+SUPPORTED_OPTIONS_EDITABLE_REQ_DEST = [
+    str(o().dest) for o in SUPPORTED_OPTIONS_EDITABLE_REQ
+]
 
 logger = logging.getLogger(__name__)
 
@@ -178,31 +186,25 @@ def handle_requirement_line(
 
     assert line.is_requirement
 
+    # get the options that apply to requirements
     if line.is_editable:
-        # For editable requirements, we don't support per-requirement
-        # options, so just return the parsed requirement.
-        return ParsedRequirement(
-            requirement=line.requirement,
-            is_editable=line.is_editable,
-            comes_from=line_comes_from,
-            constraint=line.constraint,
-        )
+        supported_dest = SUPPORTED_OPTIONS_EDITABLE_REQ_DEST
     else:
-        # get the options that apply to requirements
-        req_options = {}
-        for dest in SUPPORTED_OPTIONS_REQ_DEST:
-            if dest in line.opts.__dict__ and line.opts.__dict__[dest]:
-                req_options[dest] = line.opts.__dict__[dest]
+        supported_dest = SUPPORTED_OPTIONS_REQ_DEST
+    req_options = {}
+    for dest in supported_dest:
+        if dest in line.opts.__dict__ and line.opts.__dict__[dest]:
+            req_options[dest] = line.opts.__dict__[dest]
 
-        line_source = f"line {line.lineno} of {line.filename}"
-        return ParsedRequirement(
-            requirement=line.requirement,
-            is_editable=line.is_editable,
-            comes_from=line_comes_from,
-            constraint=line.constraint,
-            options=req_options,
-            line_source=line_source,
-        )
+    line_source = f"line {line.lineno} of {line.filename}"
+    return ParsedRequirement(
+        requirement=line.requirement,
+        is_editable=line.is_editable,
+        comes_from=line_comes_from,
+        constraint=line.constraint,
+        options=req_options,
+        line_source=line_source,
+    )
 
 
 def handle_option_line(

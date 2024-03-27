@@ -603,8 +603,8 @@ class RequirementPreparer:
                 )
             except NetworkConnectionError as exc:
                 raise InstallationError(
-                    "Could not install requirement {} because of HTTP "
-                    "error {} for URL {}".format(req, exc, link)
+                    f"Could not install requirement {req} because of HTTP "
+                    f"error {exc} for URL {link}"
                 )
         else:
             file_path = self._downloaded[link.url]
@@ -684,9 +684,9 @@ class RequirementPreparer:
         with indent_log():
             if self.require_hashes:
                 raise InstallationError(
-                    "The editable requirement {} cannot be installed when "
+                    f"The editable requirement {req} cannot be installed when "
                     "requiring hashes, because there is no single file to "
-                    "hash.".format(req)
+                    "hash."
                 )
             req.ensure_has_source_dir(self.src_dir)
             req.update_editable()
@@ -714,7 +714,7 @@ class RequirementPreparer:
         assert req.satisfied_by, "req should have been satisfied but isn't"
         assert skip_reason is not None, (
             "did not get skip reason skipped but req.satisfied_by "
-            "is set to {}".format(req.satisfied_by)
+            f"is set to {req.satisfied_by}"
         )
         logger.info(
             "Requirement %s: %s (%s)", skip_reason, req, req.satisfied_by.version

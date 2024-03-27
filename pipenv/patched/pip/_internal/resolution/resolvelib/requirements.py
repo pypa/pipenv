@@ -15,10 +15,7 @@ class ExplicitRequirement(Requirement):
         return str(self.candidate)
 
     def __repr__(self) -> str:
-        return "{class_name}({candidate!r})".format(
-            class_name=self.__class__.__name__,
-            candidate=self.candidate,
-        )
+        return f"{self.__class__.__name__}({self.candidate!r})"
 
     @property
     def project_name(self) -> NormalizedName:
@@ -50,10 +47,7 @@ class SpecifierRequirement(Requirement):
         return str(self._ireq.req)
 
     def __repr__(self) -> str:
-        return "{class_name}({requirement!r})".format(
-            class_name=self.__class__.__name__,
-            requirement=str(self._ireq.req),
-        )
+        return f"{self.__class__.__name__}({str(self._ireq.req)!r})"
 
     @property
     def project_name(self) -> NormalizedName:
@@ -116,10 +110,7 @@ class RequiresPythonRequirement(Requirement):
         return f"Python {self.specifier}"
 
     def __repr__(self) -> str:
-        return "{class_name}({specifier!r})".format(
-            class_name=self.__class__.__name__,
-            specifier=str(self.specifier),
-        )
+        return f"{self.__class__.__name__}({str(self.specifier)!r})"
 
     @property
     def project_name(self) -> NormalizedName:
@@ -155,10 +146,7 @@ class UnsatisfiableRequirement(Requirement):
         return f"{self._name} (unavailable)"
 
     def __repr__(self) -> str:
-        return "{class_name}({name!r})".format(
-            class_name=self.__class__.__name__,
-            name=str(self._name),
-        )
+        return f"{self.__class__.__name__}({str(self._name)!r})"
 
     @property
     def project_name(self) -> NormalizedName:

@@ -64,10 +64,10 @@ def msg_to_json(msg: Message) -> Dict[str, Any]:
         key = json_name(field)
         if multi:
             value: Union[str, List[str]] = [
-                sanitise_header(v) for v in msg.get_all(field)
+                sanitise_header(v) for v in msg.get_all(field)  # type: ignore
             ]
         else:
-            value = sanitise_header(msg.get(field))
+            value = sanitise_header(msg.get(field))  # type: ignore
             if key == "keywords":
                 # Accept both comma-separated and space-separated
                 # forms, for better compatibility with old data.
