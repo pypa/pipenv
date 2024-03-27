@@ -14,6 +14,7 @@ def do_lock(
     write=True,
     pypi_mirror=None,
     categories=None,
+    extra_pip_args=None,
 ):
     """Executes the freeze functionality."""
     if not pre:
@@ -74,6 +75,7 @@ def do_lock(
             pipfile=packages,
             lockfile=lockfile,
             old_lock_data=old_lock_data,
+            extra_pip_args=extra_pip_args,
         )
 
     # Overwrite any category packages with default packages.
