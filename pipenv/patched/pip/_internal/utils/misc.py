@@ -77,11 +77,7 @@ def get_pip_version() -> str:
     pip_pkg_dir = os.path.join(os.path.dirname(__file__), "..", "..")
     pip_pkg_dir = os.path.abspath(pip_pkg_dir)
 
-    return "pip {} from {} (python {})".format(
-        __version__,
-        pip_pkg_dir,
-        get_major_minor_version(),
-    )
+    return f"pip {__version__} from {pip_pkg_dir} (python {get_major_minor_version()})"
 
 
 def normalize_version_info(py_version_info: Tuple[int, ...]) -> Tuple[int, int, int]:
@@ -145,9 +141,9 @@ def rmtree(
     )
     if sys.version_info >= (3, 12):
         # See https://docs.python.org/3.12/whatsnew/3.12.html#shutil.
-        shutil.rmtree(dir, onexc=handler)
+        shutil.rmtree(dir, onexc=handler)  # type: ignore
     else:
-        shutil.rmtree(dir, onerror=handler)
+        shutil.rmtree(dir, onerror=handler)  # type: ignore
 
 
 def _onerror_ignore(*_args: Any) -> None:
@@ -279,13 +275,13 @@ def strtobool(val: str) -> int:
 
 def format_size(bytes: float) -> str:
     if bytes > 1000 * 1000:
-        return "{:.1f} MB".format(bytes / 1000.0 / 1000)
+        return f"{bytes / 1000.0 / 1000:.1f} MB"
     elif bytes > 10 * 1000:
-        return "{} kB".format(int(bytes / 1000))
+        return f"{int(bytes / 1000)} kB"
     elif bytes > 1000:
-        return "{:.1f} kB".format(bytes / 1000.0)
+        return f"{bytes / 1000.0:.1f} kB"
     else:
-        return "{} bytes".format(int(bytes))
+        return f"{int(bytes)} bytes"
 
 
 def tabulate(rows: Iterable[Iterable[Any]]) -> Tuple[List[str], List[int]]:
@@ -522,9 +518,7 @@ def redact_netloc(netloc: str) -> str:
     else:
         user = urllib.parse.quote(user)
         password = ":****"
-    return "{user}{password}@{netloc}".format(
-        user=user, password=password, netloc=netloc
-    )
+    return f"{user}{password}@{netloc}"
 
 
 def _transform_url(
@@ -592,7 +586,7 @@ class HiddenText:
         self.redacted = redacted
 
     def __repr__(self) -> str:
-        return "<HiddenText {!r}>".format(str(self))
+        return f"<HiddenText {str(self)!r}>"
 
     def __str__(self) -> str:
         return self.redacted

@@ -71,16 +71,16 @@ def uninstallation_paths(dist: BaseDistribution) -> Generator[str, None, None]:
 
     entries = dist.iter_declared_entries()
     if entries is None:
-        msg = "Cannot uninstall {dist}, RECORD file not found.".format(dist=dist)
+        msg = f"Cannot uninstall {dist}, RECORD file not found."
         installer = dist.installer
         if not installer or installer == "pip":
-            dep = "{}=={}".format(dist.raw_name, dist.version)
+            dep = f"{dist.raw_name}=={dist.version}"
             msg += (
                 " You might be able to recover from this via: "
-                "'pip install --force-reinstall --no-deps {}'.".format(dep)
+                f"'pip install --force-reinstall --no-deps {dep}'."
             )
         else:
-            msg += " Hint: The package was installed by {}.".format(installer)
+            msg += f" Hint: The package was installed by {installer}."
         raise UninstallationError(msg)
 
     for entry in entries:
@@ -172,8 +172,7 @@ def compress_for_output_listing(paths: Iterable[str]) -> Tuple[Set[str], Set[str
             folders.add(os.path.dirname(path))
         files.add(path)
 
-    # probably this one https://github.com/python/mypy/issues/390
-    _normcased_files = set(map(os.path.normcase, files))  # type: ignore
+    _normcased_files = set(map(os.path.normcase, files))
 
     folders = compact(folders)
 

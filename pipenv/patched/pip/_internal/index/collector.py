@@ -478,6 +478,7 @@ class LinkCollector:
                 page_validator=self.session.is_secure_origin,
                 expand_dir=False,
                 cache_link_parsing=False,
+                project_name=project_name,
             )
             for loc in self.search_scope.get_index_urls_locations(project_name)
         ).values()
@@ -488,6 +489,7 @@ class LinkCollector:
                 page_validator=self.session.is_secure_origin,
                 expand_dir=True,
                 cache_link_parsing=True,
+                project_name=project_name,
             )
             for loc in self.find_links
         ).values()

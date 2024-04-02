@@ -355,8 +355,9 @@ class PipSession(requests.Session):
             # is typically considered a transient error so we'll go ahead and
             # retry it.
             # A 500 may indicate transient error in Amazon S3
+            # A 502 may be a transient error from a CDN like CloudFlare or CloudFront
             # A 520 or 527 - may indicate transient error in CloudFlare
-            status_forcelist=[500, 503, 520, 527],
+            status_forcelist=[500, 502, 503, 520, 527],
             # Add a small amount of back off between failed requests in
             # order to prevent hammering the service.
             backoff_factor=0.25,
