@@ -1412,6 +1412,7 @@ class Array(Item, _CustomList):
                 if (
                     idx == 0
                     and len(self._value) > 0
+                    and self._value[idx].indent
                     and "\n" not in self._value[idx].indent.s
                 ):
                     # Remove the indentation of the first item if not newline

@@ -1,9 +1,11 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 import sys
 from pipenv.vendor.ruamel.yaml.anchor import Anchor
 
-from typing import Text, Any, Dict, List  # NOQA
+if False:  # MYPY
+    from typing import Text, Any, Dict, List  # NOQA
 
 __all__ = ['ScalarFloat', 'ExponentialFloat', 'ExponentialCapsFloat']
 

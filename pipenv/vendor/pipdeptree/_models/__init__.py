@@ -4,8 +4,8 @@ from .dag import PackageDAG, ReversedPackageDAG
 from .package import DistPackage, ReqPackage
 
 __all__ = [
-    "ReqPackage",
     "DistPackage",
     "PackageDAG",
+    "ReqPackage",
     "ReversedPackageDAG",
 ]

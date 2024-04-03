@@ -11,12 +11,12 @@ def get_installed_distributions(
     user_only: bool = False,  # noqa: FBT001, FBT002
 ) -> list[DistInfoDistribution]:
     try:
-        from pipenv.patched.pip._internal.metadata import pkg_resources
+        from pipenv.patched.pip._internal.metadata import pkg_resources  # noqa: PLC0415, PLC2701
     except ImportError:
         # For backward compatibility with python ver. 2.7 and pip
         # version 20.3.4 (the latest pip version that works with python
         # version 2.7)
-        from pipenv.patched.pip._internal.utils import misc
+        from pipenv.patched.pip._internal.utils import misc  # noqa: PLC0415, PLC2701 # pragma: no cover
 
         return misc.get_installed_distributions(  # type: ignore[no-any-return,attr-defined]
             local_only=local_only,

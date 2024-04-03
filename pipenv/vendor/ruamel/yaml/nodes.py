@@ -1,8 +1,10 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 import sys
 
-from typing import Dict, Any, Text, Optional  # NOQA
+if False:  # MYPY
+    from typing import Dict, Any, Text, Optional  # NOQA
 from pipenv.vendor.ruamel.yaml.tag import Tag
 
 
@@ -78,6 +80,7 @@ class ScalarNode(Node):
     """
     styles:
       ? -> set() ? key, no value
+      - -> suppressable null value in set
       " -> double quoted
       ' -> single quoted
       | -> literal style

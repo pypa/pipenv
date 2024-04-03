@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 """
 stuff to deal with comments and formatting on dict/list/ordereddict/set
@@ -18,12 +19,14 @@ from pipenv.vendor.ruamel.yaml.tag import Tag
 
 from collections.abc import MutableSet, Sized, Set, Mapping
 
-from typing import Any, Dict, Optional, List, Union, Optional, Iterator  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Union, Optional, Iterator  # NOQA
 
 # fmt: off
 __all__ = ['CommentedSeq', 'CommentedKeySeq',
            'CommentedMap', 'CommentedOrderedMap',
            'CommentedSet', 'comment_attrib', 'merge_attrib',
+           'TaggedScalar',
            'C_POST', 'C_PRE', 'C_SPLIT_ON_FIRST_BLANK', 'C_BLANK_LINE_PRESERVE_SPACE',
            ]
 # fmt: on
@@ -219,6 +222,9 @@ class Format:
         if self._flow_style is None:
             return default
         return self._flow_style
+
+    def __repr__(self) -> str:
+        return f'Format({self._flow_style})'
 
 
 class LineCol:
@@ -432,7 +438,11 @@ class CommentedBase:
     def yaml_set_ctag(self, value: Tag) -> None:
         setattr(self, Tag.attrib, value)
 
-    def copy_attributes(self, t: Any, memo: Any = None) -> None:
+    def copy_attributes(self, t: Any, memo: Any = None) -> Any:
+        """
+        copies the YAML related attributes, not e.g. .values
+        returns target
+        """
         # fmt: off
         for a in [Comment.attrib, Format.attrib, LineCol.attrib, Anchor.attrib,
                   Tag.attrib, merge_attrib]:
@@ -441,6 +451,7 @@ class CommentedBase:
                     setattr(t, a, copy.deepcopy(getattr(self, a, memo)))
                 else:
                     setattr(t, a, getattr(self, a))
+        return t
         # fmt: on
 
     def _yaml_add_eol_comment(self, comment: Any, key: Any) -> None:
@@ -1140,6 +1151,9 @@ class TaggedScalar(CommentedBase):
 
     def __getitem__(self, pos: int) -> Any:
         return self.value[pos]
+
+    def __repr__(self) -> str:
+        return f'TaggedScalar(value={self.value!r}, style={self.style!r}, tag={self.tag!r})'
 
 
 def dump_comments(d: Any, name: str = "", sep: str = '.', out: Any = sys.stdout) -> None:

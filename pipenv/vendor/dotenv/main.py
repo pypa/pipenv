@@ -1,6 +1,7 @@
 import io
 import logging
 import os
+import pathlib
 import shutil
 import sys
 import tempfile
@@ -131,17 +132,21 @@ def rewrite(
     path: StrPath,
     encoding: Optional[str],
 ) -> Iterator[Tuple[IO[str], IO[str]]]:
-    if not os.path.isfile(path):
-        with open(path, mode="w", encoding=encoding) as source:
-            source.write("")
+    pathlib.Path(path).touch()
+
     with tempfile.NamedTemporaryFile(mode="w", encoding=encoding, delete=False) as dest:
+        error = None
         try:
             with open(path, encoding=encoding) as source:
                 yield (source, dest)
-        except BaseException:
-            os.unlink(dest.name)
-            raise
-    shutil.move(dest.name, path)
+        except BaseException as err:
+            error = err
+
+    if error is None:
+        shutil.move(dest.name, path)
+    else:
+        os.unlink(dest.name)
+        raise error from None
 
 
 def set_key(
@@ -280,7 +285,10 @@ def find_dotenv(
 
     def _is_interactive():
         """ Decide whether this is running in a REPL or IPython notebook """
-        main = __import__('__main__', None, None, fromlist=['__file__'])
+        try:
+            main = __import__('__main__', None, None, fromlist=['__file__'])
+        except ModuleNotFoundError:
+            return False
         return not hasattr(main, '__file__')
 
     if usecwd or _is_interactive() or getattr(sys, 'frozen', False):
@@ -291,7 +299,9 @@ def find_dotenv(
         frame = sys._getframe()
         current_file = __file__
 
-        while frame.f_code.co_filename == current_file:
+        while frame.f_code.co_filename == current_file or not os.path.exists(
+            frame.f_code.co_filename
+        ):
             assert frame.f_back is not None
             frame = frame.f_back
         frame_filename = frame.f_code.co_filename

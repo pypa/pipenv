@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 """
 some helper functions that might be generally useful
@@ -9,8 +10,9 @@ from functools import partial
 import re
 
 
-from typing import Any, Dict, Optional, List, Text, Callable, Union  # NOQA
-from .compat import StreamTextType  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Text, Callable, Union  # NOQA
+    from .compat import StreamTextType  # NOQA
 
 
 class LazyEval:
@@ -73,12 +75,12 @@ def create_timestamp(
     tz_hour: Any,
     tz_minute: Any,
 ) -> Union[datetime.datetime, datetime.date]:
-    # create a timestamp from match against timestamp_regexp
+    # create a timestamp from matching against timestamp_regexp
     MAX_FRAC = 999999
     year = int(year)
     month = int(month)
     day = int(day)
-    if not hour:
+    if hour is None:
         return datetime.date(year, month, day)
     hour = int(hour)
     minute = int(minute)
@@ -97,16 +99,20 @@ def create_timestamp(
             fraction = frac
     else:
         fraction = 0
+    tzinfo = None
     delta = None
     if tz_sign:
         tz_hour = int(tz_hour)
         tz_minute = int(tz_minute) if tz_minute else 0
-        delta = datetime.timedelta(
-            hours=tz_hour, minutes=tz_minute, seconds=1 if frac > MAX_FRAC else 0,
+        td = datetime.timedelta(
+            hours=tz_hour, minutes=tz_minute,
         )
         if tz_sign == '-':
-            delta = -delta
-    elif frac > MAX_FRAC:
+            td = -td
+        tzinfo = datetime.timezone(td, name=tz)
+    elif tz == 'Z':
+        tzinfo = datetime.timezone(datetime.timedelta(hours=0), name=tz)
+    if frac > MAX_FRAC:
         delta = -datetime.timedelta(seconds=1)
     # should do something else instead (or hook this up to the preceding if statement
     # in reverse
@@ -116,7 +122,7 @@ def create_timestamp(
     #                           datetime.timezone.utc)
     # the above is not good enough though, should provide tzinfo. In Python3 that is easily
     # doable drop that kind of support for Python2 as it has not native tzinfo
-    data = datetime.datetime(year, month, day, hour, minute, second, fraction)
+    data = datetime.datetime(year, month, day, hour, minute, second, fraction, tzinfo)
     if delta:
         data -= delta
     return data

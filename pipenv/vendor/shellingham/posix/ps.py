@@ -31,7 +31,7 @@ def iter_process_parents(pid, max_depth=10):
     processes_mapping = {}
     for line in output.split("\n"):
         try:
-            pid, ppid, args = line.strip().split(None, 2)
+            _pid, ppid, args = line.strip().split(None, 2)
             # XXX: This is not right, but we are really out of options.
             # ps does not offer a sane way to decode the argument display,
             # and this is "Good Enough" for obtaining shell names. Hopefully
@@ -40,7 +40,7 @@ def iter_process_parents(pid, max_depth=10):
             args = tuple(a.strip() for a in args.split(" "))
         except ValueError:
             continue
-        processes_mapping[pid] = Process(args=args, pid=pid, ppid=ppid)
+        processes_mapping[_pid] = Process(args=args, pid=_pid, ppid=ppid)
 
     for _ in range(max_depth):
         try:

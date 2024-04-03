@@ -5,7 +5,7 @@ import sys
 from inspect import getsourcefile
 from pathlib import Path
 from shutil import copytree
-from subprocess import call
+from subprocess import call  # noqa: S404
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 

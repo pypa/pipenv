@@ -1,10 +1,12 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 import warnings
 
 from pipenv.vendor.ruamel.yaml.util import configobj_walker as new_configobj_walker
 
-from typing import Any
+if False:  # MYPY
+    from typing import Any
 
 
 def configobj_walker(cfg: Any) -> Any:

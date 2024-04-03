@@ -1,9 +1,11 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 import re
 
-from typing import Any, Dict, List, Union, Text, Optional  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import VersionType  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, List, Union, Text, Optional  # NOQA
+    from pipenv.vendor.ruamel.yaml.compat import VersionType  # NOQA
 
 from pipenv.vendor.ruamel.yaml.tag import Tag
 from pipenv.vendor.ruamel.yaml.compat import _DEFAULT_YAML_VERSION  # NOQA
@@ -330,6 +332,7 @@ class VersionedResolver(BaseResolver):
         if isinstance(version, list):
             return tuple(version)
         # assume string
+        assert isinstance(version, str)
         return tuple(map(int, version.split('.')))
 
     @property

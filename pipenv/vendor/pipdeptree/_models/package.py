@@ -1,31 +1,55 @@
 from __future__ import annotations
 
+import re
 from abc import ABC, abstractmethod
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import PackageNotFoundError, metadata, version
 from inspect import ismodule
 from typing import TYPE_CHECKING
 
-from pipenv.patched.pip._vendor.pkg_resources import Requirement
+from pipenv.patched.pip._vendor.pkg_resources import Requirement  # noqa: PLC2701
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._internal.metadata import BaseDistribution
     from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
 
 
+def pep503_normalize(name: str) -> str:
+    return re.sub("[-_.]+", "-", name)
+
+
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
+    UNKNOWN_LICENSE_STR = "(Unknown license)"
+
     def __init__(self, obj: DistInfoDistribution) -> None:
         self._obj: DistInfoDistribution = obj
-
-    @property
-    def key(self) -> str:
-        return self._obj.key  # type: ignore[no-any-return]
+        self.key = pep503_normalize(obj.key)
 
     @property
     def project_name(self) -> str:
         return self._obj.project_name  # type: ignore[no-any-return]
+
+    def licenses(self) -> str:
+        try:
+            dist_metadata = metadata(self.key)
+        except PackageNotFoundError:
+            return self.UNKNOWN_LICENSE_STR
+
+        license_strs: list[str] = []
+        classifiers = dist_metadata.get_all("Classifier", [])
+
+        for classifier in classifiers:
+            line = str(classifier)
+            if line.startswith("License"):
+                license_str = line.split(":: ")[-1]
+                license_strs.append(license_str)
+
+        if len(license_strs) == 0:
+            return self.UNKNOWN_LICENSE_STR
+
+        return f'({", ".join(license_strs)})'
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
@@ -36,12 +60,8 @@ class Package(ABC):
         raise NotImplementedError
 
     @abstractmethod
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str]:
         raise NotImplementedError
-
-    @property
-    def version_spec(self) -> None | str:
-        return None
 
     def render(
         self,
@@ -64,12 +84,12 @@ class Package(ABC):
         #
         # This is a hacky backward compatible (with older versions of pip) fix.
         try:
-            from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement
+            from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
         except ImportError:
-            from pipenv.patched.pip import FrozenRequirement  # type: ignore[attr-defined, no-redef]
+            from pipenv.patched.pip import FrozenRequirement  # type: ignore[attr-defined, no-redef] # noqa: PLC0415 # pragma: no cover
 
         try:
-            from pipenv.patched.pip._internal import metadata
+            from pipenv.patched.pip._internal import metadata  # noqa: PLC0415, PLC2701 # pragma: no cover
         except ImportError:
             our_dist: BaseDistribution = obj  # type: ignore[assignment]
         else:
@@ -89,7 +109,8 @@ class Package(ABC):
 
 
 class DistPackage(Package):
-    """Wrapper class for pkg_resources.Distribution instances.
+    """
+    Wrapper class for pkg_resources.Distribution instances.
 
     :param obj: pkg_resources.Distribution to wrap over
     :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree in
@@ -100,9 +121,19 @@ class DistPackage(Package):
     def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
         super().__init__(obj)
         self.req = req
+        self._project_name = ""
 
     def requires(self) -> list[Requirement]:
         return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
+
+    @property
+    def project_name(self) -> str:
+        if not self._project_name:
+            try:
+                self._project_name = metadata(self.key)["name"]
+            except (PackageNotFoundError, KeyError):
+                self._project_name = self._obj.project_name
+        return self._project_name
 
     @property
     def version(self) -> str:
@@ -128,7 +159,8 @@ class DistPackage(Package):
         return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
 
     def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
-        """Return a DistPackage instance associated to a requirement.
+        """
+        Return a DistPackage instance associated to a requirement.
 
         This association is necessary for reversing the PackageDAG.
         If `req` is None, and the `req` attribute of the current instance is also None, then the same instance will be
@@ -142,12 +174,13 @@ class DistPackage(Package):
             return self
         return self.__class__(self._obj, req)
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str]:
         return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
 
 
 class ReqPackage(Package):
-    """Wrapper class for Requirements instance.
+    """
+    Wrapper class for Requirements instance.
 
     :param obj: The `Requirements` instance to wrap over
     :param dist: optional `pkg_resources.Distribution` instance for this requirement
@@ -186,7 +219,7 @@ class ReqPackage(Package):
             except PackageNotFoundError:
                 pass
             # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
-            if self.key in {"setuptools"}:
+            if self.key == "setuptools":
                 return self.UNKNOWN_VERSION
             try:
                 m = import_module(self.key)
@@ -213,12 +246,12 @@ class ReqPackage(Package):
         req_obj = Requirement.parse(req_version_str)  # type: ignore[no-untyped-call]
         return self.installed_version not in req_obj
 
-    def as_dict(self) -> dict[str, str | None]:
+    def as_dict(self) -> dict[str, str]:
         return {
             "key": self.key,
             "package_name": self.project_name,
             "installed_version": self.installed_version,
-            "required_version": self.version_spec,
+            "required_version": self.version_spec if self.version_spec is not None else "Any",
         }
 
 

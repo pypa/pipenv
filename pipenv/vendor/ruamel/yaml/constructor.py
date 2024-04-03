@@ -1,7 +1,8 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 import datetime
-import base64
+from datetime import timedelta as TimeDelta
 import binascii
 import sys
 import types
@@ -34,7 +35,8 @@ from pipenv.vendor.ruamel.yaml.scalarbool import ScalarBoolean
 from pipenv.vendor.ruamel.yaml.timestamp import TimeStamp
 from pipenv.vendor.ruamel.yaml.util import timestamp_regexp, create_timestamp
 
-from typing import Any, Dict, List, Set, Iterator, Union, Optional  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, List, Set, Iterator, Union, Optional  # NOQA
 
 
 __all__ = ['BaseConstructor', 'SafeConstructor', 'Constructor',
@@ -511,6 +513,8 @@ class SafeConstructor(BaseConstructor):
             return sign * float(value_s)
 
     def construct_yaml_binary(self, node: Any) -> Any:
+        import base64
+
         try:
             value = self.construct_scalar(node).encode('ascii')
         except UnicodeEncodeError as exc:
@@ -662,6 +666,8 @@ class Constructor(SafeConstructor):
         return self.construct_scalar(node)
 
     def construct_python_bytes(self, node: Any) -> Any:
+        import base64
+
         try:
             value = self.construct_scalar(node).encode('ascii')
         except UnicodeEncodeError as exc:
@@ -1487,14 +1493,17 @@ class RoundTripConstructor(SafeConstructor):
             state = SafeConstructor.construct_mapping(self, node, deep=True)
             data.__setstate__(state)
         elif is_dataclass(data):
-            mapping = SafeConstructor.construct_mapping(self, node)
+            mapping = SafeConstructor.construct_mapping(self, node, deep=True)
             init_var_defaults = {}
             for field in data.__dataclass_fields__.values():
                 # nprintf('field', field, field.default is MISSING,
                 #          isinstance(field.type, InitVar))
                 # in 3.7, InitVar is a singleton
                 if (
-                    isinstance(field.type, InitVar) or field.type is InitVar
+                    isinstance(field.type, InitVar)
+                    or field.type is InitVar
+                    # this following is for handling from __future__ import allocations
+                    or (isinstance(field.type, str) and field.type.startswith('InitVar'))
                 ) and field.default is not MISSING:
                     init_var_defaults[field.name] = field.default
             for attr, value in mapping.items():
@@ -1588,6 +1597,10 @@ class RoundTripConstructor(SafeConstructor):
     def construct_yaml_set(self, node: Any) -> Iterator[CommentedSet]:
         data = CommentedSet()
         data._yaml_set_line_col(node.start_mark.line, node.start_mark.column)
+        if node.flow_style is True:
+            data.fa.set_flow_style()
+        elif node.flow_style is False:
+            data.fa.set_block_style()
         yield data
         self.construct_setting(node, data)
 
@@ -1672,20 +1685,21 @@ class RoundTripConstructor(SafeConstructor):
         else:
             return create_timestamp(**values)
             # return SafeConstructor.construct_yaml_timestamp(self, node, values)
-        dd = create_timestamp(**values)  # this has delta applied
+        # print('>>>>>>>> here', values)
+        dd = create_timestamp(**values)  # this has tzinfo
         delta = None
         if values['tz_sign']:
-            tz_hour = int(values['tz_hour'])
+            hours = values['tz_hour']
+            tz_hour = int(hours)
             minutes = values['tz_minute']
             tz_minute = int(minutes) if minutes else 0
-            delta = datetime.timedelta(hours=tz_hour, minutes=tz_minute)
+            # ToDo: double work, replace with extraction from dd.tzinfo
+            delta = TimeDelta(hours=tz_hour, minutes=tz_minute)
             if values['tz_sign'] == '-':
                 delta = -delta
-        # should check for None and solve issue 366 should be tzinfo=delta)
-        # isinstance(datetime.datetime.now, datetime.date) is true)
         if isinstance(dd, datetime.datetime):
             data = TimeStamp(
-                dd.year, dd.month, dd.day, dd.hour, dd.minute, dd.second, dd.microsecond,
+                dd.year, dd.month, dd.day, dd.hour, dd.minute, dd.second, dd.microsecond, dd.tzinfo,  # NOQA
             )
         else:
             # ToDo: make this into a DateStamp?

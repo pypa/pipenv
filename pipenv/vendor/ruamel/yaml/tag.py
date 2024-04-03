@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 """
 In round-trip mode the original tag needs to be preserved, but the tag
@@ -10,7 +11,8 @@ A Tag that is created for dumping only (on an object loaded without a tag) has a
 only.
 """
 
-from typing import Any, Dict, Optional, List, Union, Optional, Iterator  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Union, Optional, Iterator  # NOQA
 
 tag_attrib = '_yaml_tag'
 
