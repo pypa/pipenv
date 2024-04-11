@@ -1,31 +1,15 @@
 from __future__ import annotations
 
-import sys
 from collections import defaultdict, deque
 from fnmatch import fnmatch
 from itertools import chain
 from typing import TYPE_CHECKING, Iterator, List, Mapping
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-
 if TYPE_CHECKING:
-    from importlib.metadata import Distribution
+    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
 
 
-from .package import DistPackage, InvalidRequirementError, ReqPackage
-
-
-def render_invalid_reqs_text_if_necessary(dist_name_to_invalid_reqs_dict: dict[str, list[str]]) -> None:
-    if not dist_name_to_invalid_reqs_dict:
-        return
-
-    print("Warning!!! Invalid requirement strings found for the following distributions:", file=sys.stderr)  # noqa: T201
-    for dist_name, invalid_reqs in dist_name_to_invalid_reqs_dict.items():
-        print(dist_name, file=sys.stderr)  # noqa: T201
-
-        for invalid_req in invalid_reqs:
-            print(f'  Skipping "{invalid_req}"', file=sys.stderr)  # noqa: T201
-    print("-" * 72, file=sys.stderr)  # noqa: T201
+from .package import DistPackage, ReqPackage, pep503_normalize
 
 
 class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
@@ -52,33 +36,22 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
     """
 
     @classmethod
-    def from_pkgs(cls, pkgs: list[Distribution]) -> PackageDAG:
+    def from_pkgs(cls, pkgs: list[DistInfoDistribution]) -> PackageDAG:
         dist_pkgs = [DistPackage(p) for p in pkgs]
         idx = {p.key: p for p in dist_pkgs}
         m: dict[DistPackage, list[ReqPackage]] = {}
-        dist_name_to_invalid_reqs_dict: dict[str, list[str]] = {}
         for p in dist_pkgs:
             reqs = []
-            requires_iterator = p.requires()
-            while True:
-                try:
-                    req = next(requires_iterator)
-                except InvalidRequirementError as err:
-                    # We can't work with invalid requirement strings. Let's warn the user about them.
-                    dist_name_to_invalid_reqs_dict.setdefault(p.project_name, []).append(str(err))
-                    continue
-                except StopIteration:
-                    break
-                d = idx.get(canonicalize_name(req.name))
-                # Distribution.requires only returns the name of requirements in the metadata file, which may not be the
-                # same as the name in PyPI. We should try to retain the original package names for requirements.
+            for r in p.requires():
+                # Requirement key is not sufficiently normalized in pkg_resources - apply additional normalization
+                d = idx.get(pep503_normalize(r.key))
+                # pip's _vendor.packaging.requirements.Requirement uses the exact casing of a dependency's name found in
+                # a project's build config, which is not ideal when rendering.
                 # See https://github.com/tox-dev/pipdeptree/issues/242
-                req.name = d.project_name if d is not None else req.name
-                pkg = ReqPackage(req, d)
+                r.project_name = d.project_name if d is not None else r.project_name
+                pkg = ReqPackage(r, d)
                 reqs.append(pkg)
             m[p] = reqs
-
-        render_invalid_reqs_text_if_necessary(dist_name_to_invalid_reqs_dict)
 
         return cls(m)
 
@@ -137,11 +110,16 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         if include is None and exclude is None:
             return self
 
+        # Note: In following comparisons, we use lower cased values so
+        # that user may specify `key` or `project_name`. As per the
+        # documentation, `key` is simply
+        # `project_name.lower()`. Refer:
+        # https://setuptools.readthedocs.io/en/latest/pkg_resources.html#distribution-objects
         include_with_casing_preserved: list[str] = []
         if include:
             include_with_casing_preserved = include
-            include = [canonicalize_name(i) for i in include]
-        exclude = {canonicalize_name(s) for s in exclude} if exclude else set()
+            include = [s.lower() for s in include]
+        exclude = {s.lower() for s in exclude} if exclude else set()
 
         # Check for mutual exclusion of show_only and exclude sets
         # after normalizing the values to lowercase
@@ -186,9 +164,7 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
                             # a dependency is missing
                             continue
 
-        non_existent_includes = [
-            i for i in include_with_casing_preserved if canonicalize_name(i) not in matched_includes
-        ]
+        non_existent_includes = [i for i in include_with_casing_preserved if i.lower() not in matched_includes]
         if non_existent_includes:
             raise ValueError("No packages matched using the following patterns: " + ", ".join(non_existent_includes))
 
@@ -266,7 +242,7 @@ class ReversedPackageDAG(PackageDAG):
             for v in vs:
                 assert isinstance(v, DistPackage)
                 node = next((p for p in m if p.key == v.key), v.as_parent_of(None))
-                m[node].append(k)
+                m[node].append(k)  # type: ignore[arg-type]
             if k.key not in child_keys:
                 assert isinstance(k, ReqPackage)
                 assert k.dist is not None
