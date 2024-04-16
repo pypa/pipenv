@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 import warnings
 
@@ -17,7 +18,8 @@ from pipenv.vendor.ruamel.yaml.events import (
 )
 from pipenv.vendor.ruamel.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 
-from typing import Any, Dict, Optional, List  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List  # NOQA
 
 __all__ = ['Composer', 'ComposerError']
 

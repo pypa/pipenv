@@ -32,7 +32,7 @@ More detailed installation instructions can be found in the [installing Pipenv](
 
 - Enables truly *deterministic builds*, while easily specifying *only what you want*.
 - Generates and checks file hashes for locked dependencies when installing from `Pipfile.lock`.
-- Automatically install required Python version when `pyenv` is available.
+- Automatically installs required Python version when `pyenv` is available.
 - Automatically finds your project home, recursively, by looking for a `Pipfile`.
 - Automatically generates a `Pipfile`, if one doesn't exist.
 - Automatically creates a virtualenv in a standard customizable location.

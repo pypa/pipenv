@@ -30,6 +30,7 @@ def render(options: Options, tree: PackageDAG) -> None:
             encoding=options.encoding_type,
             list_all=options.all,
             frozen=options.freeze,
+            include_license=options.license,
         )
 
 

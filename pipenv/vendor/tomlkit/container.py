@@ -227,9 +227,9 @@ class Container(_CustomDict):
                     if item.is_super_table():
                         # We need to merge both super tables
                         if (
-                            self._table_keys[-1] != current_body_element[0]
-                            or key.is_dotted()
+                            key.is_dotted()
                             or current_body_element[0].is_dotted()
+                            or self._table_keys[-1] != current_body_element[0]
                         ):
                             if key.is_dotted() and not self._parsed:
                                 idx = self._get_last_index_before_table()

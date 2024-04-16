@@ -57,7 +57,7 @@ class PopenSpawn(SpawnBase):
 
         self._read_queue = Queue()
         self._read_thread = threading.Thread(target=self._read_incoming)
-        self._read_thread.setDaemon(True)
+        self._read_thread.daemon = True
         self._read_thread.start()
 
     _read_reached_eof = False

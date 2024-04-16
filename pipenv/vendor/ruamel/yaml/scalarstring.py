@@ -1,9 +1,11 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 from pipenv.vendor.ruamel.yaml.anchor import Anchor
 
-from typing import Text, Any, Dict, List  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import SupportsIndex
+if False:  # MYPY
+    from typing import Text, Any, Dict, List  # NOQA
+    from pipenv.vendor.ruamel.yaml.compat import SupportsIndex
 
 __all__ = [
     'ScalarString',

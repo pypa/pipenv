@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 """
 You cannot subclass bool, and this is necessary for round-tripping anchored
@@ -11,7 +12,8 @@ You can use these in an if statement, but not when testing equivalence
 
 from pipenv.vendor.ruamel.yaml.anchor import Anchor
 
-from typing import Text, Any, Dict, List  # NOQA
+if False:  # MYPY
+    from typing import Text, Any, Dict, List  # NOQA
 
 __all__ = ['ScalarBoolean']
 

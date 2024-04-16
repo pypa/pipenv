@@ -1,15 +1,15 @@
 diff --git a/pipenv/vendor/pipdeptree/__main__.py b/pipenv/vendor/pipdeptree/__main__.py
-index cb48791..77ebab7 100644
+index dcd738e..a751954 100644
 --- a/pipenv/vendor/pipdeptree/__main__.py
 +++ b/pipenv/vendor/pipdeptree/__main__.py
-@@ -1,9 +1,16 @@
- """The main entry point used for CLI."""
+@@ -2,9 +2,16 @@
+
  from __future__ import annotations
- 
+
 +import os
  import sys
  from typing import Sequence
- 
+
 +pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 +# for finding pipdeptree itself
 +sys.path.append(pardir)

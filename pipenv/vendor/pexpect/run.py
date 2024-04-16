@@ -66,7 +66,7 @@ def run(command, timeout=30, withexitstatus=False, events=None,
     The 'events' argument should be either a dictionary or a tuple list that
     contains patterns and responses. Whenever one of the patterns is seen
     in the command output, run() will send the associated response string.
-    So, run() in the above example can be also written as:
+    So, run() in the above example can be also written as::
 
         run("mencoder dvd://1 -o video.avi -oac copy -ovc copy",
             events=[(TIMEOUT,print_ticks)], timeout=5)

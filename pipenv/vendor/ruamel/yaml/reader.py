@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 # This module contains abstractions for the input stream. You don't have to
 # looks further, there are no pretty code.
@@ -24,7 +25,8 @@ import codecs
 from pipenv.vendor.ruamel.yaml.error import YAMLError, FileMark, StringMark, YAMLStreamError
 from pipenv.vendor.ruamel.yaml.util import RegExp
 
-from typing import Any, Dict, Optional, List, Union, Text, Tuple, Optional  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Union, Text, Tuple, Optional  # NOQA
 # from ruamel.compat import StreamTextType  # NOQA
 
 __all__ = ['Reader', 'ReaderError']

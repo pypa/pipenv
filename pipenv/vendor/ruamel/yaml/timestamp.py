@@ -1,19 +1,21 @@
-# coding: utf-8
 
-import datetime
+from __future__ import annotations
+
 import copy
+import datetime
 
 # ToDo: at least on PY3 you could probably attach the tzinfo correctly to the object
 #       a more complete datetime might be used by safe loading as well
 #
 #       add type information (iso8601, spaced)
 
-from typing import Any, Dict, Optional, List  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List  # NOQA
 
 
 class TimeStamp(datetime.datetime):
     def __init__(self, *args: Any, **kw: Any) -> None:
-        self._yaml: Dict[Any, Any] = dict(t=False, tz=None, delta=0)
+        self._yaml: Dict[str, Any] = dict(t=False, tz=None, delta=0)
 
     def __new__(cls, *args: Any, **kw: Any) -> Any:  # datetime is immutable
         return datetime.datetime.__new__(cls, *args, **kw)

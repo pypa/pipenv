@@ -43,8 +43,26 @@ else:
     class _CustomList(MutableSequence, list):
         """Adds MutableSequence mixin while pretending to be a builtin list"""
 
+        def __add__(self, other):
+            new_list = self.copy()
+            new_list.extend(other)
+            return new_list
+
+        def __iadd__(self, other):
+            self.extend(other)
+            return self
+
     class _CustomDict(MutableMapping, dict):
         """Adds MutableMapping mixin while pretending to be a builtin dict"""
+
+        def __or__(self, other):
+            new_dict = self.copy()
+            new_dict.update(other)
+            return new_dict
+
+        def __ior__(self, other):
+            self.update(other)
+            return self
 
     class _CustomInt(Integral, int):
         """Adds Integral mixin while pretending to be a builtin int"""
@@ -54,7 +72,7 @@ else:
 
 
 def wrap_method(
-    original_method: Callable[Concatenate[WT, P], Any]
+    original_method: Callable[Concatenate[WT, P], Any],
 ) -> Callable[Concatenate[WT, P], Any]:
     def wrapper(self: WT, *args: P.args, **kwargs: P.kwargs) -> Any:
         result = original_method(self, *args, **kwargs)
