@@ -35,7 +35,8 @@ _RESERVED_IDS: Final[frozenset[str]] = frozenset(
 
 
 def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
-    """Produce a Mermaid flowchart from the dependency graph.
+    """
+    Produce a Mermaid flowchart from the dependency graph.
 
     :param tree: dependency graph
 

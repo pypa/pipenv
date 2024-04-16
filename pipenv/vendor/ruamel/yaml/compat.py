@@ -1,24 +1,29 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 # partially from package six by Benjamin Peterson
 
 import sys
 import os
 import io
-import traceback
 from abc import abstractmethod
 import collections.abc
 
 
+from pipenv.vendor.ruamel.yaml.docinfo import Version  # NOQA
 # fmt: off
-from typing import Any, Dict, Optional, List, Union, BinaryIO, IO, Text, Tuple  # NOQA
-from typing import Optional  # NOQA
-try:
-    from typing import SupportsIndex as SupportsIndex  # in order to reexport for mypy
-except ImportError:
-    SupportsIndex = int  # type: ignore
-# fmt: on
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Union, BinaryIO, IO, Text, Tuple  # NOQA
+    from typing import Optional  # NOQA
+    try:
+        from typing import SupportsIndex as SupportsIndex  # in order to reexport for mypy
+    except ImportError:
+        SupportsIndex = int  # type: ignore
 
+    StreamType = Any
+    StreamTextType = StreamType
+    VersionType = Union[str , Tuple[int, int] , List[int] , Version , None]
+# fmt: on
 
 _DEFAULT_YAML_VERSION = (1, 2)
 
@@ -50,12 +55,6 @@ class ordereddict(OrderedDict):  # type: ignore
 StringIO = io.StringIO
 BytesIO = io.BytesIO
 
-# StreamType = Union[BinaryIO, IO[str], IO[unicode],  StringIO]
-# StreamType = Union[BinaryIO, IO[str], StringIO]  # type: ignore
-StreamType = Any
-
-StreamTextType = StreamType  # Union[Text, StreamType]
-VersionType = Union[List[int], str, Tuple[int, int]]
 
 builtins_module = 'builtins'
 
@@ -97,17 +96,17 @@ if bool(_debug):
 
 # used from yaml util when testing
 def dbg(val: Any = None) -> Any:
-    global _debug
-    if _debug is None:
+    debug = _debug
+    if debug is None:
         # set to true or false
         _debugx = os.environ.get('YAMLDEBUG')
         if _debugx is None:
-            _debug = 0
+            debug = 0
         else:
-            _debug = int(_debugx)
+            debug = int(_debugx)
     if val is None:
-        return _debug
-    return _debug & val
+        return debug
+    return debug & val
 
 
 class Nprint:
@@ -117,6 +116,8 @@ class Nprint:
         self._file_name = file_name
 
     def __call__(self, *args: Any, **kw: Any) -> None:
+        import traceback
+
         if not bool(_debug):
             return
         out = sys.stdout if self._file_name is None else open(self._file_name, 'a')

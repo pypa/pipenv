@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 class Options(Namespace):
     freeze: bool
     python: str
-    all: bool  # noqa: A003
+    all: bool
     local_only: bool
     user_only: bool
     warn: Literal["silence", "suppress", "fail"]
@@ -26,6 +26,7 @@ class Options(Namespace):
     output_format: str | None
     depth: float
     encoding: str
+    license: bool
 
 
 class _Formatter(ArgumentDefaultsHelpFormatter):
@@ -47,16 +48,6 @@ def build_parser() -> ArgumentParser:
         help=(
             "warning control: suppress will show warnings but return 0 whether or not they are present; silence will "
             "not show warnings at all and  always return 0; fail will show warnings and  return 1 if any are present"
-        ),
-    )
-    parser.add_argument(
-        "-r",
-        "--reverse",
-        action="store_true",
-        default=False,
-        help=(
-            "render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of "
-            "packages that need them under them"
         ),
     )
 
@@ -106,6 +97,21 @@ def build_parser() -> ArgumentParser:
         help="limit the depth of the tree (text render only)",
         metavar="D",
     )
+    render.add_argument(
+        "-r",
+        "--reverse",
+        action="store_true",
+        default=False,
+        help=(
+            "render the dependency tree in the reverse fashion ie. the sub-dependencies are listed with the list of "
+            "packages that need them under them"
+        ),
+    )
+    render.add_argument(
+        "--license",
+        action="store_true",
+        help="list the license(s) of a package (text render only)",
+    )
 
     render_type = render.add_mutually_exclusive_group()
     render_type.add_argument(
@@ -142,11 +148,13 @@ def get_options(args: Sequence[str] | None) -> Options:
 
     if parsed_args.exclude and (parsed_args.all or parsed_args.packages):
         return parser.error("cannot use --exclude with --packages or --all")
+    if parsed_args.license and parsed_args.freeze:
+        return parser.error("cannot use --license with --freeze")
 
     return cast(Options, parsed_args)
 
 
 __all__ = [
-    "get_options",
     "Options",
+    "get_options",
 ]

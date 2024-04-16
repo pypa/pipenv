@@ -143,8 +143,8 @@ class pxssh (spawn):
         # used to set shell command-line prompt to UNIQUE_PROMPT.
         self.PROMPT_SET_SH = r"PS1='[PEXPECT]\$ '"
         self.PROMPT_SET_CSH = r"set prompt='[PEXPECT]\$ '"
-        self.SSH_OPTS = ("-o'RSAAuthentication=no'"
-                + " -o 'PubkeyAuthentication=no'")
+        self.PROMPT_SET_ZSH = "prompt restore;\nPS1='[PEXPECT]%(!.#.$) '"
+        self.SSH_OPTS = (" -o 'PubkeyAuthentication=no'")
 # Disabling host key checking, makes you vulnerable to MITM attacks.
 #                + " -o 'StrictHostKeyChecking=no'"
 #                + " -o 'UserKnownHostsFile /dev/null' ")
@@ -152,7 +152,7 @@ class pxssh (spawn):
         # displaying a GUI password dialog. I have not figured out how to
         # disable only SSH_ASKPASS without also disabling X11 forwarding.
         # Unsetting SSH_ASKPASS on the remote side doesn't disable it! Annoying!
-        #self.SSH_OPTS = "-x -o'RSAAuthentication=no' -o 'PubkeyAuthentication=no'"
+        #self.SSH_OPTS = "-x -o 'PubkeyAuthentication=no'"
         self.force_password = False
 
         self.debug_command_string = debug_command_string
@@ -530,8 +530,11 @@ class pxssh (spawn):
         if i == 0: # csh-style
             self.sendline(self.PROMPT_SET_CSH)
             i = self.expect([TIMEOUT, self.PROMPT], timeout=10)
-            if i == 0:
-                return False
+            if i == 0: # zsh-style
+                self.sendline(self.PROMPT_SET_ZSH)
+                i = self.expect([TIMEOUT, self.PROMPT], timeout=10)
+                if i == 0:
+                    return False
         return True
 
 # vi:ts=4:sw=4:expandtab:ft=python:

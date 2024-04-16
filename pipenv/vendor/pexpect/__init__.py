@@ -1,6 +1,6 @@
 '''Pexpect is a Python module for spawning child applications and controlling
 them automatically. Pexpect can be used for automating interactive applications
-such as ssh, ftp, passwd, telnet, etc. It can be used to a automate setup
+such as ssh, ftp, passwd, telnet, etc. It can be used to automate setup
 scripts for duplicating software package installations on different servers. It
 can be used for automated software testing. Pexpect is in the spirit of Don
 Libes' Expect, but Pexpect is pure Python. Other Expect-like modules for Python
@@ -28,6 +28,12 @@ For example::
     child = pexpect.spawn('scp foo user@example.com:.')
     child.expect('Password:')
     child.sendline(mypassword)
+
+Context manager can be used for the spawn() function::
+
+    with pexpect.spawn('scp foo user@example.com:.') as child:
+        child.expect('Password:')
+        child.sendline(mypassword)
 
 This works even for commands that ask for passwords or other input outside of
 the normal stdio streams. For example, ssh reads input directly from the TTY
@@ -75,7 +81,7 @@ if sys.platform != 'win32':
     from .pty_spawn import spawn, spawnu
     from .run import run, runu
 
-__version__ = '4.8.0'
+__version__ = '4.9.0'
 __revision__ = ''
 __all__ = ['ExceptionPexpect', 'EOF', 'TIMEOUT', 'spawn', 'spawnu', 'run', 'runu',
            'which', 'split_command_line', '__version__', '__revision__']

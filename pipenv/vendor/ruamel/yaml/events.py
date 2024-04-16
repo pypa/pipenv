@@ -1,8 +1,10 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 # Abstract classes.
 
-from typing import Any, Dict, Optional, List  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List  # NOQA
 from pipenv.vendor.ruamel.yaml.tag import Tag
 
 SHOW_LINES = False

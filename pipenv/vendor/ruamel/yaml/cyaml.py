@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 from _ruamel_yaml import CParser, CEmitter  # type: ignore
 
@@ -7,8 +8,9 @@ from pipenv.vendor.ruamel.yaml.representer import Representer, SafeRepresenter, 
 from pipenv.vendor.ruamel.yaml.resolver import Resolver, BaseResolver
 
 
-from typing import Any, Union, Optional  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import StreamTextType, StreamType, VersionType  # NOQA
+if False:  # MYPY
+    from typing import Any, Union, Optional  # NOQA
+    from pipenv.vendor.ruamel.yaml.compat import StreamTextType, StreamType, VersionType  # NOQA
 
 __all__ = ['CBaseLoader', 'CSafeLoader', 'CLoader', 'CBaseDumper', 'CSafeDumper', 'CDumper']
 

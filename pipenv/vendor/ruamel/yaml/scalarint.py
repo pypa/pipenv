@@ -1,8 +1,10 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 from pipenv.vendor.ruamel.yaml.anchor import Anchor
 
-from typing import Text, Any, Dict, List  # NOQA
+if False:  # MYPY
+    from typing import Text, Any, Dict, List  # NOQA
 
 __all__ = ['ScalarInt', 'BinaryInt', 'OctalInt', 'HexInt', 'HexCapsInt', 'DecimalInt']
 

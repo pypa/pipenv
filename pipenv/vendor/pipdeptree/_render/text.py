@@ -7,19 +7,21 @@ if TYPE_CHECKING:
     from pipenv.vendor.pipdeptree._models import DistPackage, PackageDAG, ReqPackage
 
 
-def render_text(
+def render_text(  # noqa: PLR0913
     tree: PackageDAG,
     *,
     max_depth: float,
     encoding: str,
     list_all: bool = True,
     frozen: bool = False,
+    include_license: bool = False,
 ) -> None:
-    """Print tree as text on console.
+    """
+    Print tree as text on console.
 
     :param tree: the package tree
     :param list_all: whether to list all the pgks at the root level or only those that are the sub-dependencies
-    :param frozen: show the names of the pkgs in the output that's favourable to pip --freeze
+    :param frozen: show the names of the pkgs in the output that's favorable to pip --freeze
     :returns: None
 
     """
@@ -30,10 +32,10 @@ def render_text(
     if not list_all:
         nodes = [p for p in nodes if p.key not in branch_keys]
 
-    if encoding in ("utf-8", "utf-16", "utf-32"):
-        _render_text_with_unicode(tree, nodes, max_depth, frozen)
+    if encoding in {"utf-8", "utf-16", "utf-32"}:
+        _render_text_with_unicode(tree, nodes, max_depth, frozen, include_license)
     else:
-        _render_text_without_unicode(tree, nodes, max_depth, frozen)
+        _render_text_without_unicode(tree, nodes, max_depth, frozen, include_license)
 
 
 def _render_text_with_unicode(
@@ -41,10 +43,13 @@ def _render_text_with_unicode(
     nodes: list[DistPackage],
     max_depth: float,
     frozen: bool,  # noqa: FBT001
+    include_license: bool,  # noqa: FBT001
 ) -> None:
+    assert not (frozen and include_license)
+
     use_bullets = not frozen
 
-    def aux(  # noqa: PLR0913
+    def aux(  # noqa: PLR0913, PLR0917
         node: DistPackage | ReqPackage,
         parent: DistPackage | ReqPackage | None = None,
         indent: int = 0,
@@ -82,6 +87,9 @@ def _render_text_with_unicode(
                 prefix += " " if use_bullets else ""
             next_prefix = prefix
             node_str = prefix + bullet + node_str
+        elif include_license:
+            node_str += " " + node.licenses()
+
         result = [node_str]
 
         children = tree.get_children(node.key)
@@ -113,7 +121,10 @@ def _render_text_without_unicode(
     nodes: list[DistPackage],
     max_depth: float,
     frozen: bool,  # noqa: FBT001
+    include_license: bool,  # noqa: FBT001
 ) -> None:
+    assert not (frozen and include_license)
+
     use_bullets = not frozen
 
     def aux(
@@ -128,6 +139,8 @@ def _render_text_without_unicode(
         if parent:
             prefix = " " * indent + ("- " if use_bullets else "")
             node_str = prefix + node_str
+        elif include_license:
+            node_str += " " + node.licenses()
         result = [node_str]
         children = [
             aux(c, node, indent=indent + 2, cur_chain=[*cur_chain, c.project_name], depth=depth + 1)

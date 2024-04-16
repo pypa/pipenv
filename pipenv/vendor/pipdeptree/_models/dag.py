@@ -9,11 +9,12 @@ if TYPE_CHECKING:
     from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
 
 
-from .package import DistPackage, ReqPackage
+from .package import DistPackage, ReqPackage, pep503_normalize
 
 
 class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
-    """Representation of Package dependencies as directed acyclic graph using a dict as the underlying datastructure.
+    """
+    Representation of Package dependencies as directed acyclic graph using a dict as the underlying datastructure.
 
     The nodes and their relationships (edges) are internally stored using a map as follows,
 
@@ -42,7 +43,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         for p in dist_pkgs:
             reqs = []
             for r in p.requires():
-                d = idx.get(r.key)
+                # Requirement key is not sufficiently normalized in pkg_resources - apply additional normalization
+                d = idx.get(pep503_normalize(r.key))
                 # pip's _vendor.packaging.requirements.Requirement uses the exact casing of a dependency's name found in
                 # a project's build config, which is not ideal when rendering.
                 # See https://github.com/tox-dev/pipdeptree/issues/242
@@ -54,7 +56,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         return cls(m)
 
     def __init__(self, m: dict[DistPackage, list[ReqPackage]]) -> None:
-        """Initialize the PackageDAG object.
+        """
+        Initialize the PackageDAG object.
 
         :param dict m: dict of node objects (refer class docstring)
         :returns: None
@@ -65,7 +68,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         self._index: dict[str, DistPackage] = {p.key: p for p in list(self._obj)}
 
     def get_node_as_parent(self, node_key: str) -> DistPackage | None:
-        """Get the node from the keys of the dict representing the DAG.
+        """
+        Get the node from the keys of the dict representing the DAG.
 
         This method is useful if the dict representing the DAG contains different kind of objects in keys and values.
         Use this method to look up a node obj as a parent (from the keys of the dict) given a node key.
@@ -80,7 +84,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
             return None
 
     def get_children(self, node_key: str) -> list[ReqPackage]:
-        """Get child nodes for a node by its key.
+        """
+        Get child nodes for a node by its key.
 
         :param node_key: key of the node to get children of
         :returns: child nodes
@@ -90,7 +95,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         return self._obj[node] if node else []
 
     def filter_nodes(self, include: list[str] | None, exclude: set[str] | None) -> PackageDAG:  # noqa: C901, PLR0912
-        """Filter nodes in a graph by given parameters.
+        """
+        Filter nodes in a graph by given parameters.
 
         If a node is included, then all it's children are also included.
 
@@ -165,7 +171,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         return self.__class__(m)
 
     def reverse(self) -> ReversedPackageDAG:
-        """Reverse the DAG, or turn it upside-down.
+        """
+        Reverse the DAG, or turn it upside-down.
 
         In other words, the directions of edges of the nodes in the DAG will be reversed.
 
@@ -192,7 +199,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
         return ReversedPackageDAG(dict(m))  # type: ignore[arg-type]
 
     def sort(self) -> PackageDAG:
-        """Return sorted tree in which the underlying _obj dict is an dict, sorted alphabetically by the keys.
+        """
+        Return sorted tree in which the underlying _obj dict is an dict, sorted alphabetically by the keys.
 
         :returns: Instance of same class with dict
 
@@ -211,7 +219,8 @@ class PackageDAG(Mapping[DistPackage, List[ReqPackage]]):
 
 
 class ReversedPackageDAG(PackageDAG):
-    """Representation of Package dependencies in the reverse order.
+    """
+    Representation of Package dependencies in the reverse order.
 
     Similar to it's super class `PackageDAG`, the underlying datastructure is a dict, but here the keys are expected to
     be of type `ReqPackage` and each item in the values of type `DistPackage`.
@@ -221,7 +230,8 @@ class ReversedPackageDAG(PackageDAG):
     """
 
     def reverse(self) -> PackageDAG:  # type: ignore[override]
-        """Reverse the already reversed DAG to get the PackageDAG again.
+        """
+        Reverse the already reversed DAG to get the PackageDAG again.
 
         :returns: reverse of the reversed DAG
 

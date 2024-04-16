@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 # The following YAML grammar is LL(1) and is parsed by a recursive descent
 # parser.
@@ -83,7 +84,8 @@ from pipenv.vendor.ruamel.yaml.comments import C_PRE, C_POST, C_SPLIT_ON_FIRST_B
 from pipenv.vendor.ruamel.yaml.compat import nprint, nprintf  # NOQA
 from pipenv.vendor.ruamel.yaml.tag import Tag
 
-from typing import Any, Dict, Optional, List, Optional  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Optional  # NOQA
 
 __all__ = ['Parser', 'RoundTripParser', 'ParserError']
 
@@ -314,11 +316,14 @@ class Parser:
         else:
             value = yaml_version, None
         if self.loader is not None and hasattr(self.loader, 'tags'):
+            # ToDo: this is used to keep a single loaded file from losing its version
+            # info, but  it affects following versions that have no explicit directive
             self.loader.version = yaml_version
             if self.loader.tags is None:
                 self.loader.tags = {}
             for k in self.tag_handles:
                 self.loader.tags[k] = self.tag_handles[k]
+                self.loader.doc_infos[-1].tags.append((k, self.tag_handles[k]))
         for key in self.DEFAULT_TAGS:
             if key not in self.tag_handles:
                 self.tag_handles[key] = self.DEFAULT_TAGS[key]
@@ -383,6 +388,10 @@ class Parser:
                 )
         elif self.scanner.check_token(TagToken):
             token = self.scanner.get_token()
+            try:
+                self.move_token_comment(token)
+            except NotImplementedError:
+                pass
             start_mark = tag_mark = token.start_mark
             end_mark = token.end_mark
             # tag = token.value
@@ -412,6 +421,9 @@ class Parser:
                 if pt.comment and pt.comment[0]:
                     comment = [pt.comment[0], []]
                     pt.comment[0] = None
+                elif pt.comment and pt.comment[0] is None and pt.comment[1]:
+                    comment = [None, pt.comment[1]]
+                    pt.comment[1] = None
             elif self.loader:
                 if pt.comment:
                     comment = pt.comment
@@ -432,7 +444,6 @@ class Parser:
                 dimplicit = (False, True)
             else:
                 dimplicit = (False, False)
-            # nprint('se', token.value, token.comment)
             event = ScalarEvent(
                 anchor,
                 tag,
@@ -821,8 +832,8 @@ class RoundTripParserSC(RoundTripParser):
             return None
         if not comment[0]:
             return None
-        if comment[0][0] != line + 1:
-            nprintf('>>>dcxxx', comment, line)
+        # if comment[0][0] != line + 1:
+        #     nprintf('>>>dcxxx', comment, line)
         assert comment[0][0] == line + 1
         # if comment[0] - line > 1:
         #     return

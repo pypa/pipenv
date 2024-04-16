@@ -108,23 +108,29 @@ class REPLWrapper(object):
                              + command)
         return u''.join(res + [self.child.before])
 
-def python(command="python"):
+def python(command=sys.executable):
     """Start a Python shell and return a :class:`REPLWrapper` object."""
     return REPLWrapper(command, u">>> ", u"import sys; sys.ps1={0!r}; sys.ps2={1!r}")
 
-def bash(command="bash"):
-    """Start a bash shell and return a :class:`REPLWrapper` object."""
-    bashrc = os.path.join(os.path.dirname(__file__), 'bashrc.sh')
-    child = pexpect.spawn(command, ['--rcfile', bashrc], echo=False,
-                          encoding='utf-8')
+def _repl_sh(command, args, non_printable_insert):
+    child = pexpect.spawn(command, args, echo=False, encoding='utf-8')
 
     # If the user runs 'env', the value of PS1 will be in the output. To avoid
     # replwrap seeing that as the next prompt, we'll embed the marker characters
     # for invisible characters in the prompt; these show up when inspecting the
     # environment variable, but not when bash displays the prompt.
-    ps1 = PEXPECT_PROMPT[:5] + u'\\[\\]' + PEXPECT_PROMPT[5:]
-    ps2 = PEXPECT_CONTINUATION_PROMPT[:5] + u'\\[\\]' + PEXPECT_CONTINUATION_PROMPT[5:]
+    ps1 = PEXPECT_PROMPT[:5] + non_printable_insert + PEXPECT_PROMPT[5:]
+    ps2 = PEXPECT_CONTINUATION_PROMPT[:5] + non_printable_insert + PEXPECT_CONTINUATION_PROMPT[5:]
     prompt_change = u"PS1='{0}' PS2='{1}' PROMPT_COMMAND=''".format(ps1, ps2)
 
     return REPLWrapper(child, u'\\$', prompt_change,
                        extra_init_cmd="export PAGER=cat")
+
+def bash(command="bash"):
+    """Start a bash shell and return a :class:`REPLWrapper` object."""
+    bashrc = os.path.join(os.path.dirname(__file__), 'bashrc.sh')
+    return _repl_sh(command, ['--rcfile', bashrc], non_printable_insert='\\[\\]')
+
+def zsh(command="zsh", args=("--no-rcs", "-V", "+Z")):
+    """Start a zsh shell and return a :class:`REPLWrapper` object."""
+    return _repl_sh(command, list(args), non_printable_insert='%(!..)')

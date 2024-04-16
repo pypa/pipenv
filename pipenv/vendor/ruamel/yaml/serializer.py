@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 from pipenv.vendor.ruamel.yaml.error import YAMLError
 from pipenv.vendor.ruamel.yaml.compat import nprint, DBG_NODE, dbg, nprintf  # NOQA
@@ -18,8 +19,9 @@ from pipenv.vendor.ruamel.yaml.events import (
 )
 from pipenv.vendor.ruamel.yaml.nodes import MappingNode, ScalarNode, SequenceNode
 
-from typing import Any, Dict, Union, Text, Optional  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import VersionType  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Union, Text, Optional  # NOQA
+    from pipenv.vendor.ruamel.yaml.compat import VersionType  # NOQA
 
 __all__ = ['Serializer', 'SerializerError']
 

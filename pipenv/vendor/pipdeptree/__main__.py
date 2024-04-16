@@ -1,4 +1,5 @@
 """The main entry point used for CLI."""
+
 from __future__ import annotations
 
 import os
@@ -43,7 +44,7 @@ def main(args: Sequence[str] | None = None) -> None | int:
         try:
             tree = tree.filter_nodes(show_only, exclude)
         except ValueError as e:
-            if options.warn in ("suppress", "fail"):
+            if options.warn in {"suppress", "fail"}:
                 print(e, file=sys.stderr)  # noqa: T201
                 return_code |= 1 if options.warn == "fail" else 0
             return return_code
