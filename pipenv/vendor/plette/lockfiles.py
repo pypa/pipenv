@@ -4,7 +4,7 @@ import numbers
 import collections.abc as collections_abc
 
 
-from .models import DataView, Meta, PackageCollection
+from pipenv.vendor.plette.models import DataModel, Meta, PackageCollection
 
 
 class _LockFileEncoder(json.JSONEncoder):
@@ -52,7 +52,7 @@ def _copy_jsonsafe(value):
     return str(value)
 
 
-class Lockfile(DataView):
+class Lockfile(DataModel):
     """Representation of a Pipfile.lock.
     """
     __SCHEMA__ = {
@@ -63,7 +63,6 @@ class Lockfile(DataView):
 
     @classmethod
     def validate(cls, data):
-        super(Lockfile, cls).validate(data)
         for key, value in data.items():
             if key == "_meta":
                 Meta.validate(value)

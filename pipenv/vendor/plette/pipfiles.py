@@ -4,7 +4,7 @@ import json
 import pipenv.vendor.tomlkit as tomlkit
 
 from .models import (
-    DataView, Hash, Requires, PipfileSection, Pipenv,
+    DataModel, Hash, Requires, PipfileSection, Pipenv,
     PackageCollection, ScriptCollection, SourceCollection,
 )
 
@@ -26,7 +26,7 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 """
 
-class Pipfile(DataView):
+class Pipfile(DataModel):
     """Representation of a Pipfile.
     """
     __SCHEMA__ = {}

@@ -1,13 +1,13 @@
 __all__ = [
-    "DataView", "DataViewCollection", "DataViewMapping", "DataViewSequence",
-    "validate", "ValidationError",
+    "DataView", "DataModelCollection", "DataModelMapping", "DataModelSequence",
+    "validate", "DataValidationError",
     "Hash", "Package", "Requires", "Source", "Script",
     "Meta", "PackageCollection", "ScriptCollection", "SourceCollection",
 ]
 
 from .base import (
-    DataView, DataViewCollection, DataViewMapping, DataViewSequence,
-    validate, ValidationError,
+    DataModel, DataModelCollection, DataModelMapping, DataModelSequence,
+    DataValidationError,
 )
 
 from .hashes import Hash

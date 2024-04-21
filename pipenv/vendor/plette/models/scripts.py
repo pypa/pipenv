@@ -1,37 +1,31 @@
 import re
 import shlex
 
-from .base import DataView
+from .base import DataModel, DataValidationError
 
 
-class Script(DataView):
+class Script(DataModel):
     """Parse a script line (in Pipfile's [scripts] section).
 
     This always works in POSIX mode, even on Windows.
     """
-    # This extra layer is intentional. Cerberus does not allow validation of
-    # non-mapping inputs, so we wrap this in a top-level key. The Script model
-    # class implements extra hacks to make this work.
-    __SCHEMA__ = {
-        "__script__": {
-            "oneof_type": ["string", "list"], "required": True, "empty": False,
-            "schema": {"type": "string"},
-        },
+    __OPTIONAL__ = {
+        "script": (str,list)
     }
 
     def __init__(self, data):
-        super(Script, self).__init__(data)
+        self.validate(data)
         if isinstance(data, str):
             data = shlex.split(data)
-        self._parts = [data[0]]
-        self._parts.extend(data[1:])
+        self._parts = data[::]
 
     @classmethod
     def validate(cls, data):
-        # HACK: Make this validatable for Cerberus. See comments in validation
-        # side for more information.
-        return super(Script, cls).validate({"__script__": data})
-
+        if not data:
+            raise DataValidationError("Script cannot be empty")
+        for k, types in cls.__OPTIONAL__.items():
+            if not isinstance(data, types):
+                raise DataValidationError(f"Invalid type for field {t}: {type(data[t])}")
     def __repr__(self):
         return "Script({0!r})".format(self._parts)
 
