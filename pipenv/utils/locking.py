@@ -14,6 +14,7 @@ from pipenv.utils.dependencies import (
     clean_resolved_dep,
     determine_vcs_revision_hash,
     expansive_install_req_from_line,
+    normalize_vcs_url,
     pep423_name,
     translate_markers,
 )
@@ -61,9 +62,16 @@ def format_requirement_for_lockfile(
     if req.link and req.link.is_vcs:
         vcs = req.link.scheme.split("+", 1)[0]
         entry["ref"] = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
-        entry[vcs] = original_deps.get(name, req.link.url)
+
+        if name in original_deps:
+            entry[vcs] = original_deps[name]
+        else:
+            vcs_url, _ = normalize_vcs_url(req.link.url)
+            entry[vcs] = vcs_url
         if pipfile_entry.get("subdirectory"):
             entry["subdirectory"] = pipfile_entry["subdirectory"]
+        elif req.link.subdirectory_fragment:
+            entry["subdirectory"] = req.link.subdirectory_fragment
     if req.req:
         entry["version"] = str(req.specifier)
     elif version:

@@ -532,7 +532,8 @@ def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
         assert "git" in p.lockfile["default"]["pep508-package"]
         assert "sibling-package" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["sibling-package"]
-        assert "subdirectory" in p.lockfile["default"]["sibling-package"]["git"]
+        assert "subdirectory" in p.lockfile["default"]["sibling-package"]
+        assert p.lockfile["default"]["sibling-package"]["subdirectory"] == "parent_folder/sibling_package"
         assert "version" not in p.lockfile["default"]["sibling-package"]
 
 
