@@ -22,7 +22,7 @@ parse = "*"
 importlib-metadata = {version = "*"}
 colorama= {version = "*", sys_platform = "== 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
-invoke = "==2.0.0"
+invoke = "*"
 exceptiongroup = "==1.1.0"
 tomli = "*"
 pyyaml = "==6.0.1"
