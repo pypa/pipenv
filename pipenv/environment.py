@@ -4,7 +4,6 @@ import contextlib
 import importlib
 import importlib.metadata
 import importlib.util
-import itertools
 import json
 import os
 import site
@@ -21,6 +20,7 @@ from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
@@ -557,7 +557,6 @@ class Environment:
 
         with self.get_finder() as finder:
             for dist in packages:
-                typ = "unknown"
                 all_candidates = finder.find_all_candidates(dist.name)
                 if not self.pipfile.get("pre", finder.allow_all_prereleases):
                     # Remove prereleases
@@ -575,22 +574,24 @@ class Environment:
                 best_candidate_result = candidate_evaluator.compute_best_candidate(
                     all_candidates
                 )
-                remote_version = best_candidate_result.best_candidate.version
+                remote_version = parse_version(
+                    str(best_candidate_result.best_candidate.version)
+                )
                 if best_candidate_result.best_candidate.link.is_wheel:
-                    typ = "wheel"
+                    pass
                 else:
-                    typ = "sdist"
+                    pass
                 # This is dirty but makes the rest of the code much cleaner
                 dist.latest_version = remote_version
-                dist.latest_filetype = typ
                 yield dist
+
     def get_outdated_packages(
         self, pre: bool = False
     ) -> list[importlib.metadata.Distribution]:
         return [
             pkg
             for pkg in self.get_package_info(pre=pre)
-            if pkg.latest_version._key > pkg.parsed_version._key
+            if pkg.latest_version > parse_version(pkg.version)
         ]
 
     @classmethod
@@ -619,7 +620,9 @@ class Environment:
     def get_package_requirements(self, pkg=None):
         from itertools import chain
 
-        from pipenv.vendor.pipdeptree._models import PackageDAG
+        from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
+        from pipenv.vendor.pipdeptree._models.dag import PackageDAG
+        from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
 
         flatten = chain.from_iterable
 
@@ -627,7 +630,20 @@ class Environment:
         if pkg:
             packages = [p for p in packages if p.name == pkg]
 
-        tree = PackageDAG.from_pkgs(packages).sort()
+        try:
+            tree = PackageDAG.from_pkgs(packages)
+        except InvalidRequirementError as e:
+            console.print(f"Invalid requirement: {e}", style="yellow")
+            tree = PackageDAG({})
+        except UndefinedEnvironmentName:
+            # Handle the case when 'extra' environment variable is not defined
+            tree = PackageDAG({})
+        except Exception as e:
+            # Handle any other exceptions that may occur during PackageDAG initialization
+            console.print(f"Failed to create PackageDAG: {e}", style="yellow")
+            tree = PackageDAG({})
+
+        tree = tree.sort()
         branch_keys = {r.name for r in flatten(tree.values())}
         if pkg is None:
             nodes = [p for p in tree if p.name not in branch_keys]
@@ -680,11 +696,7 @@ class Environment:
         return rdeps
 
     def get_working_set(self):
-        """Retrieve the working set of installed packages for the environment.
-
-        :return: The working set for the environment
-        :rtype: :class:`pkg_resources.WorkingSet`
-        """
+        """Retrieve the working set of installed packages for the environment."""
 
         return importlib.metadata.distributions(path=self.sys_path)
 
@@ -703,8 +715,7 @@ class Environment:
             iter(
                 d
                 for d in self.get_distributions()
-                if req.name
-                and canonicalize_name(d.name) == canonicalize_name(req.name)
+                if req.name and canonicalize_name(d.name) == canonicalize_name(req.name)
             ),
             None,
         )
