@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import contextlib
-import importlib.metadata
 import importlib.util
 import json
 import os
@@ -21,12 +20,18 @@ from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.utils import console
+from pipenv.utils.dependencies import normalized_name
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
+
+if sys.version_info < (3, 10):
+    import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
@@ -35,7 +40,7 @@ if typing.TYPE_CHECKING:
     from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor import tomlkit
 
-BASE_WORKING_SET = importlib.metadata.distributions()
+BASE_WORKING_SET = importlib_metadata.distributions()
 
 
 class Environment:
@@ -44,7 +49,7 @@ class Environment:
         prefix: str | None = None,
         python: str | None = None,
         is_venv: bool = False,
-        base_working_set: list[importlib.metadata.Distribution] = None,
+        base_working_set: list[importlib_metadata.Distribution] = None,
         pipfile: tomlkit.toml_document.TOMLDocument | TPipfile | None = None,
         sources: list[TSource] | None = None,
         project: Project | None = None,
@@ -477,7 +482,7 @@ class Environment:
                 ]
                 pth.write_text("\n".join(contents))
 
-    def get_distributions(self) -> Generator[importlib.metadata.Distribution, None, None]:
+    def get_distributions(self) -> Generator[importlib_metadata.Distribution, None, None]:
         """
         Retrieves the distributions installed on the library path of the environment
 
@@ -487,13 +492,13 @@ class Environment:
 
         libdirs = self.base_paths["libdirs"]
         for libdir in libdirs:
-            dists = importlib.metadata.distributions(path=[str(libdir)])
+            dists = importlib_metadata.distributions(path=[str(libdir)])
             yield from dists
 
-    def find_egg(self, egg_dist: importlib.metadata.Distribution) -> str:
+    def find_egg(self, egg_dist: importlib_metadata.Distribution) -> str:
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
-        search_filename = f"{egg_dist.name}.egg-link"
+        search_filename = f"{normalized_name(egg_dist)}.egg-link"
         try:
             user_site = site.getusersitepackages()
         except AttributeError:
@@ -504,7 +509,7 @@ class Environment:
             if os.path.isfile(egg):
                 return egg
 
-    def locate_dist(self, dist: importlib.metadata.Distribution) -> str:
+    def locate_dist(self, dist: importlib_metadata.Distribution) -> str:
         """Given a distribution, try to find a corresponding egg link first.
 
         If the egg - link doesn 't exist, return the supplied distribution."""
@@ -512,7 +517,7 @@ class Environment:
         location = self.find_egg(dist)
         return location or dist._path
 
-    def dist_is_in_project(self, dist: importlib.metadata.Distribution) -> bool:
+    def dist_is_in_project(self, dist: importlib_metadata.Distribution) -> bool:
         """Determine whether the supplied distribution is in the environment."""
         libdirs = self.base_paths["libdirs"]
         location = Path(self.locate_dist(dist))
@@ -522,13 +527,13 @@ class Environment:
 
         return any(location.is_relative_to(libdir) for libdir in libdirs)
 
-    def get_installed_packages(self) -> list[importlib.metadata.Distribution]:
+    def get_installed_packages(self) -> list[importlib_metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
         packages = [
             pkg
             for pkg in workingset
-            if self.dist_is_in_project(pkg) and pkg.name != "python"
+            if self.dist_is_in_project(pkg) and normalized_name(pkg) != "python"
         ]
         return packages
 
@@ -551,12 +556,13 @@ class Environment:
 
     def get_package_info(
         self, pre: bool = False
-    ) -> Generator[importlib.metadata.Distribution, None, None]:
+    ) -> Generator[importlib_metadata.Distribution, None, None]:
         packages = self.get_installed_packages()
 
         with self.get_finder() as finder:
             for dist in packages:
-                all_candidates = finder.find_all_candidates(dist.name)
+                name = normalized_name(dist)
+                all_candidates = finder.find_all_candidates(name)
                 if not self.pipfile.get("pre", finder.allow_all_prereleases):
                     # Remove prereleases
                     all_candidates = [
@@ -567,9 +573,7 @@ class Environment:
 
                 if not all_candidates:
                     continue
-                candidate_evaluator = finder.make_candidate_evaluator(
-                    project_name=dist.name
-                )
+                candidate_evaluator = finder.make_candidate_evaluator(project_name=name)
                 best_candidate_result = candidate_evaluator.compute_best_candidate(
                     all_candidates
                 )
@@ -586,7 +590,7 @@ class Environment:
 
     def get_outdated_packages(
         self, pre: bool = False
-    ) -> list[importlib.metadata.Distribution]:
+    ) -> list[importlib_metadata.Distribution]:
         return [
             pkg
             for pkg in self.get_package_info(pre=pre)
@@ -627,7 +631,7 @@ class Environment:
 
         packages = self.get_installed_packages()
         if pkg:
-            packages = [p for p in packages if p.name == pkg]
+            packages = [p for p in packages if normalized_name(p) == pkg]
 
         try:
             tree = PackageDAG.from_pkgs(packages)
@@ -697,7 +701,7 @@ class Environment:
     def get_working_set(self):
         """Retrieve the working set of installed packages for the environment."""
 
-        return importlib.metadata.distributions(path=self.sys_path)
+        return importlib_metadata.distributions(path=self.sys_path)
 
     def is_installed(self, pkgname):
         """Given a package name, returns whether it is installed in the environment
@@ -707,14 +711,15 @@ class Environment:
         :rtype: bool
         """
 
-        return any(d for d in self.get_distributions() if d.name == pkgname)
+        return any(d for d in self.get_distributions() if normalized_name(d) == pkgname)
 
     def is_satisfied(self, req: InstallRequirement):
         match = next(
             iter(
                 d
                 for d in self.get_distributions()
-                if req.name and canonicalize_name(d.name) == canonicalize_name(req.name)
+                if req.name
+                and canonicalize_name(normalized_name(d)) == canonicalize_name(req.name)
             ),
             None,
         )
