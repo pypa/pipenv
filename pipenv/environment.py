@@ -525,7 +525,12 @@ class Environment:
         if not location:
             return False
 
-        return any(location.is_relative_to(libdir) for libdir in libdirs)
+        # Since is_relative_to is not available in Python 3.8, we use a workaround
+        if sys.version_info == (3, 8):
+            location_str = str(location)
+            return any(location_str.startswith(str(libdir)) for libdir in libdirs)
+        else:
+            return any(location.is_relative_to(libdir) for libdir in libdirs)
 
     def get_installed_packages(self) -> list[importlib_metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
