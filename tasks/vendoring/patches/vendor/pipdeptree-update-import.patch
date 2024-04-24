@@ -1,21 +1,27 @@
 diff --git a/pipenv/vendor/pipdeptree/__main__.py b/pipenv/vendor/pipdeptree/__main__.py
-index 5bf3f65..e5fe226 100644
+index 4216676,e5fe226..0000000
 --- a/pipenv/vendor/pipdeptree/__main__.py
 +++ b/pipenv/vendor/pipdeptree/__main__.py
-@@ -2,9 +2,16 @@
+@@@ -5,11 -6,17 +6,17 @@@ import o
+  import sys
+  from typing import Sequence
 
- from __future__ import annotations
-
-+import os
- import sys
- from typing import Sequence
-
-+pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-+# for finding pipdeptree itself
-+sys.path.append(pardir)
-+# for finding stuff in vendor and patched
-+sys.path.append(os.path.dirname(os.path.dirname(pardir)))
++ pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++ # for finding pipdeptree itself
++ sys.path.append(pardir)
++ # for finding stuff in vendor and patched
++ sys.path.append(os.path.dirname(os.path.dirname(pardir)))
 +
- from pipdeptree._cli import get_options
- from pipdeptree._discovery import get_installed_distributions
- from pipdeptree._models import PackageDAG
+ -from pipdeptree._cli import get_options
+ -from pipdeptree._discovery import get_installed_distributions
+ -from pipdeptree._models import PackageDAG
+ -from pipdeptree._render import render
+ -from pipdeptree._validate import validate
+ +from pipenv.vendor.pipdeptree._cli import get_options
+ +from pipenv.vendor.pipdeptree._discovery import get_installed_distributions
+ +from pipenv.vendor.pipdeptree._models import PackageDAG
+ +from pipenv.vendor.pipdeptree._render import render
+ +from pipenv.vendor.pipdeptree._validate import validate
+
+
+  def main(args: Sequence[str] | None = None) -> None | int:
