@@ -49,7 +49,7 @@ def iter_entry_points(group_name):
         from importlib.metadata import entry_points
     except ImportError:
         try:
-            from importlib_metadata import entry_points
+            from pipenv.vendor.importlib_metadata import entry_points
         except ImportError:
             try:
                 from pipenv.patched.pip._vendor.pkg_resources import iter_entry_points
