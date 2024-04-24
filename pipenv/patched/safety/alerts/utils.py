@@ -3,7 +3,7 @@ import os
 import sys
 
 from functools import wraps
-from pipenv.vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pathlib import Path
 
 import pipenv.vendor.click as click

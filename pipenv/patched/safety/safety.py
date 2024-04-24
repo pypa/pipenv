@@ -9,9 +9,9 @@ import time
 from datetime import datetime
 
 import pipenv.patched.pip._vendor.requests as requests
-from pipenv.vendor.packaging.specifiers import SpecifierSet
-from pipenv.vendor.packaging.utils import canonicalize_name
-from pipenv.vendor.packaging.version import parse as parse_version, Version, LegacyVersion, parse
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version, Version, LegacyVersion, parse
 
 from .constants import (API_MIRRORS, CACHE_FILE, OPEN_MIRRORS, REQUEST_TIMEOUT, API_BASE_URL)
 from .errors import (DatabaseFetchError, DatabaseFileNotFoundError,

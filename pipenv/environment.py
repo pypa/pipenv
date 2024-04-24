@@ -657,7 +657,7 @@ class Environment:
             nodes = [p for p in tree if p.project_name not in branch_keys]
         else:
             nodes = [p for p in tree if p.project_name == pkg]
-        key_tree = {k.name: v for k, v in tree.items()}
+        key_tree = {k.project_name: v for k, v in tree.items()}
 
         return [self._get_requirements_for_package(p, key_tree) for p in nodes]
 
