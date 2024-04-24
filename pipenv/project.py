@@ -462,8 +462,8 @@ class Project:
         return self.environment.get_installed_packages()
 
     @property
-    def installed_package_names(self) -> list[str]:
-        return get_canonical_names([pkg.key for pkg in self.installed_packages])
+    def installed_package_names(self):
+        return get_canonical_names([pkg.name for pkg in self.installed_packages])
 
     @property
     def lockfile_package_names(self) -> dict[str, set[str]]:

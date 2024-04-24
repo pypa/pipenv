@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import importlib
+import importlib.metadata
 import importlib.util
 import itertools
 import json
@@ -18,7 +19,6 @@ import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils import console
@@ -26,7 +26,7 @@ from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
-from pipenv.utils.shell import make_posix, temp_environ
+from pipenv.utils.shell import temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if typing.TYPE_CHECKING:
@@ -36,7 +36,7 @@ if typing.TYPE_CHECKING:
     from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor import tomlkit
 
-BASE_WORKING_SET = pkg_resources.WorkingSet(sys.path)
+BASE_WORKING_SET = importlib.metadata.distributions()
 
 
 class Environment:
@@ -45,13 +45,13 @@ class Environment:
         prefix: str | None = None,
         python: str | None = None,
         is_venv: bool = False,
-        base_working_set: pkg_resources.WorkingSet = None,
+        base_working_set: list[importlib.metadata.Distribution] = None,
         pipfile: tomlkit.toml_document.TOMLDocument | TPipfile | None = None,
         sources: list[TSource] | None = None,
         project: Project | None = None,
     ):
         super().__init__()
-        self._modules = {"pkg_resources": pkg_resources, "pipenv": pipenv}
+        self._modules = {"pipenv": pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
         prefix = normalize_path(prefix)
         self._python = None
@@ -91,57 +91,12 @@ class Environment:
             module = importlib.import_module(name)
         return module
 
-    @classmethod
-    def resolve_dist(
-        cls, dist: pkg_resources.Distribution, working_set: pkg_resources.WorkingSet
-    ) -> set[pkg_resources.Distribution]:
-        """Given a local distribution and a working set, returns all dependencies from the set.
-
-        :param dist: A single distribution to find the dependencies of
-        :type dist: :class:`pkg_resources.Distribution`
-        :param working_set: A working set to search for all packages
-        :type working_set: :class:`pkg_resources.WorkingSet`
-        :return: A set of distributions which the package depends on, including the package
-        :rtype: set(:class:`pkg_resources.Distribution`)
-        """
-
-        deps = set()
-        deps.add(dist)
-        try:
-            reqs = dist.requires()
-        # KeyError = limited metadata can be found
-        except (KeyError, AttributeError, OSError):  # The METADATA file can't be found
-            return deps
-        for req in reqs:
-            try:
-                dist = working_set.find(req)
-            except pkg_resources.VersionConflict:
-                # https://github.com/pypa/pipenv/issues/4549
-                # The requirement is already present with incompatible version.
-                continue
-            deps |= cls.resolve_dist(dist, working_set)
-        return deps
-
-    def extend_dists(self, dist: pkg_resources.Distribution) -> None:
-        extras = self.resolve_dist(dist, self.base_working_set)
-        self.extra_dists.append(dist)
-        if extras:
-            self.extra_dists.extend(extras)
-
-    def add_dist(self, dist_name: str) -> None:
-        dist = pkg_resources.get_distribution(pkg_resources.Requirement(dist_name))
-        self.extend_dists(dist)
-
     @cached_property
     def python_version(self) -> str:
         with self.activated():
             sysconfig = self.safe_import("sysconfig")
             py_version = sysconfig.get_python_version()
             return py_version
-
-    def find_libdir(self) -> Path | None:
-        libdir = self.prefix / "lib"
-        return next(iter(list(libdir.iterdir())), None)
 
     @property
     def python_info(self) -> dict[str, str]:
@@ -207,7 +162,7 @@ class Environment:
         'stdlib': '/home/hawk/.pyenv/versions/3.7.1/lib/python3.7'}
         """
 
-        prefix = make_posix(self.prefix.as_posix())
+        prefix = Path(self.prefix)
         paths = {}
         if self._base_paths:
             paths = self._base_paths.copy()
@@ -247,24 +202,24 @@ class Environment:
         if not os.path.exists(paths["purelib"]) and not os.path.exists(paths["platlib"]):
             lib_paths = self.get_lib_paths()
             paths.update(lib_paths)
-        paths["PATH"] = paths["scripts"] + os.pathsep + os.defpath
+        paths["PATH"] = str(paths["scripts"]) + os.pathsep + os.defpath
         if "prefix" not in paths:
             paths["prefix"] = prefix
-        purelib = paths["purelib"] = make_posix(paths["purelib"])
-        platlib = paths["platlib"] = make_posix(paths["platlib"])
+        purelib = paths["purelib"] = Path(paths["purelib"])
+        platlib = paths["platlib"] = Path(paths["platlib"])
         if purelib == platlib:
-            lib_dirs = purelib
+            lib_dirs = [purelib]
         else:
-            lib_dirs = purelib + os.pathsep + platlib
+            lib_dirs = [purelib, platlib]
         paths["libdir"] = purelib
-        paths["PYTHONPATH"] = os.pathsep.join(["", ".", lib_dirs])
+        paths["PYTHONPATH"] = os.pathsep.join(["", ".", str(purelib), str(platlib)])
         paths["libdirs"] = lib_dirs
         return paths
 
     @cached_property
     def script_basedir(self) -> str:
         """Path to the environment scripts dir"""
-        prefix = make_posix(self.prefix.as_posix())
+        prefix = Path(self.prefix)
         paths = get_paths(
             self.install_scheme,
             vars={
@@ -376,7 +331,7 @@ class Environment:
         if c.returncode == 0:
             paths = json.loads(c.stdout)
             if "purelib" in paths:
-                paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
+                paths["libdir"] = paths["purelib"] = Path(paths["purelib"])
             for key in (
                 "platlib",
                 "scripts",
@@ -386,7 +341,7 @@ class Environment:
                 "platinclude",
             ):
                 if key in paths:
-                    paths[key] = make_posix(paths[key])
+                    paths[key] = Path(paths[key])
             return paths
         else:
             console.print(f"Failed to load paths: {c.stderr}", style="yellow")
@@ -406,10 +361,10 @@ class Environment:
         if c.returncode == 0:
             paths = json.loads(c.stdout)
             if "purelib" in paths:
-                paths["libdir"] = paths["purelib"] = make_posix(paths["purelib"])
+                paths["libdir"] = paths["purelib"] = Path(paths["purelib"])
             for key in ("platlib", "platstdlib", "stdlib"):
                 if key in paths:
-                    paths[key] = make_posix(paths[key])
+                    paths[key] = Path(paths[key])
             return paths
         else:
             console.print(f"Failed to load paths: {c.stderr}", style="yellow")
@@ -457,7 +412,7 @@ class Environment:
             paths = json.loads(c.stdout)
             for key in ("include", "platinclude"):
                 if key in paths:
-                    paths[key] = make_posix(paths[key])
+                    paths[key] = Path(paths[key])
             return paths
         else:
             console.print(f"Failed to load paths: {c.stderr}", style="yellow")
@@ -523,7 +478,7 @@ class Environment:
                 ]
                 pth.write_text("\n".join(contents))
 
-    def get_distributions(self) -> Generator[pkg_resources.Distribution, None, None]:
+    def get_distributions(self) -> Generator[importlib.metadata.Distribution, None, None]:
         """
         Retrieves the distributions installed on the library path of the environment
 
@@ -531,14 +486,15 @@ class Environment:
         :rtype: iterator
         """
 
-        libdirs = self.base_paths["libdirs"].split(os.pathsep)
-        dists = (pkg_resources.find_distributions(libdir) for libdir in libdirs)
-        yield from itertools.chain.from_iterable(dists)
+        libdirs = self.base_paths["libdirs"]
+        for libdir in libdirs:
+            dists = importlib.metadata.distributions(path=[str(libdir)])
+            yield from dists
 
-    def find_egg(self, egg_dist: pkg_resources.Distribution) -> str:
+    def find_egg(self, egg_dist: importlib.metadata.Distribution) -> str:
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
-        search_filename = f"{egg_dist.project_name}.egg-link"
+        search_filename = f"{egg_dist.name}.egg-link"
         try:
             user_site = site.getusersitepackages()
         except AttributeError:
@@ -549,36 +505,31 @@ class Environment:
             if os.path.isfile(egg):
                 return egg
 
-    def locate_dist(self, dist: pkg_resources.Distribution) -> str:
+    def locate_dist(self, dist: importlib.metadata.Distribution) -> str:
         """Given a distribution, try to find a corresponding egg link first.
 
         If the egg - link doesn 't exist, return the supplied distribution."""
 
         location = self.find_egg(dist)
-        return location or dist.location
+        return location or dist._path
 
-    def dist_is_in_project(self, dist: pkg_resources.Distribution) -> bool:
+    def dist_is_in_project(self, dist: importlib.metadata.Distribution) -> bool:
         """Determine whether the supplied distribution is in the environment."""
-        from .environments import normalize_pipfile_path as _normalized
+        libdirs = self.base_paths["libdirs"]
+        location = Path(self.locate_dist(dist))
 
-        prefixes = [
-            _normalized(prefix)
-            for prefix in self.base_paths["libdirs"].split(os.pathsep)
-            if _normalized(prefix).startswith(_normalized(self.prefix.as_posix()))
-        ]
-        location = self.locate_dist(dist)
         if not location:
             return False
-        location = _normalized(make_posix(location))
-        return any(location.startswith(prefix) for prefix in prefixes)
 
-    def get_installed_packages(self) -> list[pkg_resources.Distribution]:
+        return any(location.is_relative_to(libdir) for libdir in libdirs)
+
+    def get_installed_packages(self) -> list[importlib.metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
         packages = [
             pkg
             for pkg in workingset
-            if self.dist_is_in_project(pkg) and pkg.key != "python"
+            if self.dist_is_in_project(pkg) and pkg.name != "python"
         ]
         return packages
 
@@ -601,13 +552,13 @@ class Environment:
 
     def get_package_info(
         self, pre: bool = False
-    ) -> Generator[pkg_resources.Distribution, None, None]:
+    ) -> Generator[importlib.metadata.Distribution, None, None]:
         packages = self.get_installed_packages()
 
         with self.get_finder() as finder:
             for dist in packages:
                 typ = "unknown"
-                all_candidates = finder.find_all_candidates(dist.key)
+                all_candidates = finder.find_all_candidates(dist.name)
                 if not self.pipfile.get("pre", finder.allow_all_prereleases):
                     # Remove prereleases
                     all_candidates = [
@@ -619,7 +570,7 @@ class Environment:
                 if not all_candidates:
                     continue
                 candidate_evaluator = finder.make_candidate_evaluator(
-                    project_name=dist.key
+                    project_name=dist.name
                 )
                 best_candidate_result = candidate_evaluator.compute_best_candidate(
                     all_candidates
@@ -633,10 +584,9 @@ class Environment:
                 dist.latest_version = remote_version
                 dist.latest_filetype = typ
                 yield dist
-
     def get_outdated_packages(
         self, pre: bool = False
-    ) -> list[pkg_resources.Distribution]:
+    ) -> list[importlib.metadata.Distribution]:
         return [
             pkg
             for pkg in self.get_package_info(pre=pre)
@@ -675,15 +625,15 @@ class Environment:
 
         packages = self.get_installed_packages()
         if pkg:
-            packages = [p for p in packages if p.key == pkg]
+            packages = [p for p in packages if p.name == pkg]
 
         tree = PackageDAG.from_pkgs(packages).sort()
-        branch_keys = {r.key for r in flatten(tree.values())}
+        branch_keys = {r.name for r in flatten(tree.values())}
         if pkg is None:
-            nodes = [p for p in tree if p.key not in branch_keys]
+            nodes = [p for p in tree if p.name not in branch_keys]
         else:
-            nodes = [p for p in tree if p.key == pkg]
-        key_tree = {k.key: v for k, v in tree.items()}
+            nodes = [p for p in tree if p.name == pkg]
+        key_tree = {k.name: v for k, v in tree.items()}
 
         return [self._get_requirements_for_package(p, key_tree) for p in nodes]
 
@@ -736,8 +686,7 @@ class Environment:
         :rtype: :class:`pkg_resources.WorkingSet`
         """
 
-        working_set = pkg_resources.WorkingSet(self.sys_path)
-        return working_set
+        return importlib.metadata.distributions(path=self.sys_path)
 
     def is_installed(self, pkgname):
         """Given a package name, returns whether it is installed in the environment
@@ -747,7 +696,7 @@ class Environment:
         :rtype: bool
         """
 
-        return any(d for d in self.get_distributions() if d.project_name == pkgname)
+        return any(d for d in self.get_distributions() if d.name == pkgname)
 
     def is_satisfied(self, req: InstallRequirement):
         match = next(
@@ -755,7 +704,7 @@ class Environment:
                 d
                 for d in self.get_distributions()
                 if req.name
-                and canonicalize_name(d.project_name) == canonicalize_name(req.name)
+                and canonicalize_name(d.name) == canonicalize_name(req.name)
             ),
             None,
         )
