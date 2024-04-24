@@ -5,6 +5,7 @@ import logging
 import os
 import platform
 import sys
+import winreg
 from collections import defaultdict
 from dataclasses import field
 from functools import cached_property
@@ -37,6 +38,14 @@ from ..utils import (
 from .mixins import PathEntry
 
 logger = logging.getLogger(__name__)
+
+
+class WindowsLauncherEntry:
+    def __init__(self, version: Version, install_path: str, executable_path: str, company: Optional[str]):
+        self.version = version
+        self.install_path = install_path
+        self.executable_path = executable_path
+        self.company = company
 
 
 @dataclasses.dataclass
@@ -103,7 +112,13 @@ class PythonFinder(PathEntry):
         py_version = next(iter(entry.find_all_python_versions()), None)
         return py_version
 
-    def _iter_version_bases(self) -> Iterator[tuple[Path, PathEntry]]:
+    def _iter_version_bases(self):
+        # Yield versions from the Windows launcher
+        if os.name == "nt":
+            for launcher_entry in self.find_python_versions_from_windows_launcher():
+                yield (launcher_entry.install_path, launcher_entry)
+
+        # Yield versions from the existing logic
         for p in self.get_version_order():
             bin_dir = self.get_bin_dir(p)
             if bin_dir.exists() and bin_dir.is_dir():
@@ -275,6 +290,7 @@ class PythonFinder(PathEntry):
         :returns: A :class:`~pythonfinder.models.PathEntry` instance matching the version requested.
         """
 
+
         def sub_finder(obj):
             return obj.find_python_version(major, minor, patch, pre, dev, arch, name)
 
@@ -301,6 +317,38 @@ class PythonFinder(PathEntry):
         matches = (p.which(name) for p in self.paths)
         non_empty_match = next(iter(m for m in matches if m is not None), None)
         return non_empty_match
+
+    def find_python_versions_from_windows_launcher(self):
+        # Open the registry key for Python launcher
+        key_path = r"Software\Python\PythonCore"
+        try:
+            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
+                num_subkeys, _, _ = winreg.QueryInfoKey(key)
+
+                for i in range(num_subkeys):
+                    version_key_name = winreg.EnumKey(key, i)
+                    version_key_path = f"{key_path}\\{version_key_name}"
+
+                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, version_key_path) as version_key:
+                        try:
+                            install_path = winreg.QueryValue(version_key, "InstallPath")
+                            executable_path = winreg.QueryValue(version_key, "ExecutablePath")
+                            company = winreg.QueryValue(version_key, "Company")
+                        except FileNotFoundError:
+                            continue
+
+                        version = Version(version_key_name)
+                        launcher_entry = WindowsLauncherEntry(
+                            version=version,
+                            install_path=install_path,
+                            executable_path=executable_path,
+                            company=company,
+                        )
+                        yield launcher_entry
+
+        except FileNotFoundError:
+            # Python launcher registry key not found, no Python versions registered
+            return
 
 
 @dataclasses.dataclass
@@ -577,39 +625,28 @@ class PythonVersion:
         return result_dict
 
     @classmethod
-    def from_windows_launcher(
-        cls, launcher_entry, name=None, company=None
-    ) -> PythonVersion:
+    def from_windows_launcher(cls, launcher_entry, name=None, company=None):
         """Create a new PythonVersion instance from a Windows Launcher Entry
 
-        :param launcher_entry: A python launcher environment object.
+        :param launcher_entry: A WindowsLauncherEntry object.
         :param Optional[str] name: The name of the distribution.
         :param Optional[str] company: The name of the distributing company.
         :return: An instance of a PythonVersion.
         """
-        creation_dict = cls.parse(launcher_entry.info.version)
-        base_path = ensure_path(launcher_entry.info.install_path.__getattr__(""))
-        default_path = base_path / "python.exe"
-        if not default_path.exists():
-            default_path = base_path / "Scripts" / "python.exe"
-        exe_path = ensure_path(
-            getattr(launcher_entry.info.install_path, "executable_path", default_path)
+        py_version = cls.create(
+            major=launcher_entry.version.major,
+            minor=launcher_entry.version.minor,
+            patch=launcher_entry.version.micro,
+            is_prerelease=launcher_entry.version.is_prerelease,
+            is_devrelease=launcher_entry.version.is_devrelease,
+            is_debug=False,  # Assuming debug information is not available from the registry
+            architecture=None,  # Assuming architecture information is not available from the registry
+            executable=launcher_entry.executable_path,
+            company=launcher_entry.company,
         )
-        company = getattr(launcher_entry, "company", guess_company(exe_path))
-        creation_dict.update(
-            {
-                "architecture": getattr(
-                    launcher_entry.info, "sys_architecture", SYSTEM_ARCH
-                ),
-                "executable": exe_path,
-                "name": name,
-                "company": company,
-            }
-        )
-        py_version = cls.create(**creation_dict)
-        comes_from = PathEntry.create(exe_path, only_python=True, name=name)
+        comes_from = PathEntry.create(launcher_entry.executable_path, only_python=True, name=name)
         py_version.comes_from = comes_from
-        py_version.name = comes_from.name
+        py_version.name = name
         return py_version
 
     @classmethod
