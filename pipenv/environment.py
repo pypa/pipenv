@@ -29,7 +29,7 @@ from pipenv.utils.shell import temp_environ
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if sys.version_info < (3, 10):
-    import importlib_metadata
+    from pipenv.vendor import importlib_metadata
 else:
     import importlib.metadata as importlib_metadata
 
