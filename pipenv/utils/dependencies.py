@@ -8,7 +8,6 @@ import tempfile
 import zipfile
 from contextlib import contextmanager
 from functools import lru_cache
-from importlib.metadata import Distribution
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
@@ -49,18 +48,6 @@ from .constants import (
     VCS_SCHEMES,
 )
 from .markers import PipenvMarkers
-
-
-def normalized_name(dist: Distribution) -> Optional[str]:
-    """Borrowed from importlib_metadata/_py39compat.py
-    Honor name normalization for distributions that don't provide ``_normalized_name``.
-    """
-    try:
-        return dist._normalized_name
-    except AttributeError:
-        from . import Prepared  # -> delay to prevent circular imports.
-
-        return Prepared.normalize(getattr(dist, "name", None) or dist.metadata["Name"])
 
 
 def get_version(pipfile_entry):

@@ -20,12 +20,12 @@ from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.utils import console
-from pipenv.utils.dependencies import normalized_name
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
+from pipenv.vendor.importlib_metadata._py39compat import normalized_name
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if sys.version_info < (3, 10):
