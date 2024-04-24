@@ -525,19 +525,7 @@ class Environment:
         if not location:
             return False
 
-        # Since is_relative_to is not available in Python 3.8, we use a workaround
-        if sys.version_info == (3, 8):
-
-            def is_subpath(path, base_path):
-                # Ensure both paths are absolute and resolve any symlinks
-                abs_path = path.resolve()
-                abs_base_path = base_path.resolve()
-                # Convert to string and check prefix match
-                return abs_path.parts[: len(abs_base_path.parts)] == abs_base_path.parts
-
-            return any(is_subpath(location, Path(libdir)) for libdir in libdirs)
-        else:
-            return any(location.is_relative_to(libdir) for libdir in libdirs)
+        return any(location.is_relative_to(libdir) for libdir in libdirs)
 
     def get_installed_packages(self) -> list[importlib_metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
