@@ -652,7 +652,7 @@ class Environment:
             tree = PackageDAG({})
 
         tree = tree.sort()
-        branch_keys = {r.name for r in flatten(tree.values())}
+        branch_keys = {r.project_name for r in flatten(tree.values())}
         if pkg is None:
             nodes = [p for p in tree if p.project_name not in branch_keys]
         else:
