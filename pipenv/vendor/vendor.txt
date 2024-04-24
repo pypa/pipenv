@@ -6,6 +6,7 @@ importlib-metadata==6.5.1
 packaging==24.0
 pexpect==4.9.0
 pipdeptree==2.18.1
+    zipp==3.18.1
 plette==0.4.4
 ptyprocess==0.7.0
 python-dotenv==1.0.1
@@ -14,4 +15,3 @@ ruamel.yaml==0.18.6
 shellingham==1.5.4
 tomli==2.0.1
 tomlkit==0.12.4
-zipp==3.18.1
