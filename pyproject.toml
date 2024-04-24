@@ -32,7 +32,6 @@ dependencies = [
   "certifi",
   "setuptools>=67",
   "virtualenv>=20.24.2",
-  "zipp", # For importlib_metadata vendoring
 ]
 [project.optional-dependencies]
 dev = [

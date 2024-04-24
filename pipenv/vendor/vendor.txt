@@ -13,3 +13,4 @@ ruamel.yaml==0.18.6
 shellingham==1.5.4
 tomli==2.0.1
 tomlkit==0.12.4
+zipp==3.18.1
