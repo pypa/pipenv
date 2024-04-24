@@ -102,6 +102,10 @@ GLOBAL_REPLACEMENT = [
         "from pipenv.patched.pip._vendor.typing_extensions import",
     ),
     (
+        "import zipp",
+        "from pipenv.vendor import zipp",
+    ),
+    (
         "from pipenv.patched.pip._vendor.typing_extensions",
         "from pipenv.patched.pip._vendor.typing_extensions",
     ),

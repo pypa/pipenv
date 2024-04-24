@@ -5,7 +5,7 @@ import re
 import abc
 import sys
 import json
-import zipp
+import pipenv.vendor.zipp as zipp
 import email
 import types
 import inspect
