@@ -526,7 +526,7 @@ class Environment:
             return False
 
         # Since is_relative_to is not available in Python 3.8, we use a workaround
-        if sys.version_info == (3, 8):
+        if sys.version_info < (3, 9):
             location_str = str(location)
             return any(location_str.startswith(str(libdir)) for libdir in libdirs)
         else:
