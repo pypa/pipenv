@@ -654,9 +654,9 @@ class Environment:
         tree = tree.sort()
         branch_keys = {r.name for r in flatten(tree.values())}
         if pkg is None:
-            nodes = [p for p in tree if p.name not in branch_keys]
+            nodes = [p for p in tree if p.project_name not in branch_keys]
         else:
-            nodes = [p for p in tree if p.name == pkg]
+            nodes = [p for p in tree if p.project_name == pkg]
         key_tree = {k.name: v for k, v in tree.items()}
 
         return [self._get_requirements_for_package(p, key_tree) for p in nodes]
