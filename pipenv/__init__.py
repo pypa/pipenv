@@ -11,7 +11,7 @@ sys.path.insert(0, PIP_ROOT)
 
 # Load patched pip instead of system pip
 os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
-os.environ["_PIP_USE_IMPORTLIB_METADATA"] = "1"
+os.environ["PIP_USE_IMPORTLIB_METADATA"] = "1"
 
 
 def _ensure_modules():
