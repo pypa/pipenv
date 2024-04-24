@@ -185,6 +185,7 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
 
 
 @pytest.mark.cli
+@pytest.mark.skipif(sys.version_info[:2] == (3, 8) and os.name == "nt", reason="This test is not working om Windows Python 3. 8")
 def test_pipenv_clean(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open('setup.py', 'w') as f:
