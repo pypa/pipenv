@@ -92,7 +92,7 @@ class Dependency(object):
 
 class DparseJSONEncoder(JSONEncoder):
     def default(self, o):
-        from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
 
         if isinstance(o, SpecifierSet):
             return str(o)

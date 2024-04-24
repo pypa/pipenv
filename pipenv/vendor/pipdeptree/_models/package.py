@@ -6,8 +6,8 @@ from importlib.metadata import Distribution, PackageNotFoundError, metadata, ver
 from inspect import ismodule
 from typing import TYPE_CHECKING, Iterator
 
-from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.vendor.packaging.utils import canonicalize_name
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution

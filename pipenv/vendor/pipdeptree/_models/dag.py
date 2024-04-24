@@ -6,7 +6,7 @@ from fnmatch import fnmatch
 from itertools import chain
 from typing import TYPE_CHECKING, Iterator, List, Mapping
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.packaging.utils import canonicalize_name
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution

@@ -8,7 +8,7 @@ from importlib.metadata import Distribution, distributions
 from pathlib import Path
 from typing import Iterable, Tuple
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.packaging.utils import canonicalize_name
 
 
 def get_installed_distributions(

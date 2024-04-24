@@ -58,7 +58,6 @@ PATCHED_RENAMES = {}
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.pip",
     "requests": "pipenv.patched.pip._vendor.requests",
-    "packaging": "pipenv.patched.pip._vendor.packaging",
     # "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
     "pyparsing": "pipenv.patched.pip._vendor.pyparsing",
