@@ -7,11 +7,12 @@ import os
 import sys
 import time
 from datetime import datetime
+from typing import List
 
 import pipenv.patched.pip._vendor.requests as requests
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import parse as parse_version, Version, LegacyVersion, parse
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version, parse
 
 from .constants import (API_MIRRORS, CACHE_FILE, OPEN_MIRRORS, REQUEST_TIMEOUT, API_BASE_URL)
 from .errors import (DatabaseFetchError, DatabaseFileNotFoundError,
@@ -20,6 +21,12 @@ from .errors import (DatabaseFetchError, DatabaseFileNotFoundError,
 from .models import Vulnerability, CVE, Severity
 from .util import RequirementFile, read_requirements, Package, build_telemetry_data, sync_safety_context, SafetyContext, \
     validate_expiration_date, is_a_remote_mirror
+
+
+if sys.version_info < (3, 10):
+    from pipenv.vendor import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
 
 session = requests.session()
 
@@ -583,23 +590,27 @@ def get_announcements(key, proxy, telemetry=True):
     return announcements
 
 
-def get_packages(files=False, stdin=False):
-
+def get_packages(files=False, stdin=False) -> List[Package]:
     if files:
         return list(itertools.chain.from_iterable(read_requirements(f, resolve=True) for f in files))
 
     if stdin:
         return list(read_requirements(sys.stdin))
 
-    import pipenv.patched.pip._vendor.pkg_resources as pkg_resources
-
     return [
-        Package(name=d.key, version=d.version, found=d.location, insecure_versions=[], secure_versions=[],
-                latest_version=None, latest_version_without_known_vulnerabilities=None, more_info_url=None) for d in
-        pkg_resources.working_set
-        if d.key not in {"python", "wsgiref", "argparse"}
+        Package(
+            name=dist.metadata["Name"],
+            version=str(dist.version),
+            found=str(dist.locate_file("")),
+            insecure_versions=[],
+            secure_versions=[],
+            latest_version=None,
+            latest_version_without_known_vulnerabilities=None,
+            more_info_url=None,
+        )
+        for dist in importlib_metadata.distributions()
+        if dist.metadata["Name"] not in {"python", "wsgiref", "argparse"}
     ]
-
 
 def read_vulnerabilities(fh):
     try:
