@@ -1,5 +1,5 @@
 diff --git a/pipenv/vendor/pipdeptree/__main__.py b/pipenv/vendor/pipdeptree/__main__.py
-index dcd738e..a751954 100644
+index 5bf3f65..e5fe226 100644
 --- a/pipenv/vendor/pipdeptree/__main__.py
 +++ b/pipenv/vendor/pipdeptree/__main__.py
 @@ -2,9 +2,16 @@
@@ -16,6 +16,6 @@ index dcd738e..a751954 100644
 +# for finding stuff in vendor and patched
 +sys.path.append(os.path.dirname(os.path.dirname(pardir)))
 +
- from pipenv.vendor.pipdeptree._cli import get_options
- from pipenv.vendor.pipdeptree._discovery import get_installed_distributions
- from pipenv.vendor.pipdeptree._models import PackageDAG
+ from pipdeptree._cli import get_options
+ from pipdeptree._discovery import get_installed_distributions
+ from pipdeptree._models import PackageDAG
