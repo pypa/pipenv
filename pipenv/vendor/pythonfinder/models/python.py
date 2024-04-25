@@ -5,7 +5,6 @@ import logging
 import os
 import platform
 import sys
-import winreg
 from collections import defaultdict
 from dataclasses import field
 from functools import cached_property
@@ -322,6 +321,7 @@ class PythonFinder(PathEntry):
         # Open the registry key for Python launcher
         key_path = r"Software\Python\PythonCore"
         try:
+            import winreg
             with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
                 num_subkeys, _, _ = winreg.QueryInfoKey(key)
 
