@@ -72,7 +72,7 @@ class Pipfile(DataModel):
             return value
 
     def __setitem__(self, key, value):
-        if isinstance(value, DataView):
+        if isinstance(value, DataModel):
             self._data[key] = value._data
         else:
             self._data[key] = value

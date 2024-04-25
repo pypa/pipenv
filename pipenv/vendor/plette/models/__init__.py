@@ -1,6 +1,6 @@
 __all__ = [
-    "DataView", "DataModelCollection", "DataModelMapping", "DataModelSequence",
-    "validate", "DataValidationError",
+    "DataModel", "DataModelCollection", "DataModelMapping", "DataModelSequence",
+    "DataValidationError",
     "Hash", "Package", "Requires", "Source", "Script",
     "Meta", "PackageCollection", "ScriptCollection", "SourceCollection",
 ]
