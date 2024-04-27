@@ -71,12 +71,12 @@ jobs:
   tests:
     name: ${{matrix.os}} / ${{ matrix.python-version }}
     needs: lint
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         python-version: [3.8, 3.9, "3.10", 3.11, 3.12]
-        os: [MacOS, Ubuntu, Windows]
+        os: [MacOS-12, Ubuntu-latest, Windows-latest]
 
     steps:
       - uses: actions/checkout@v4
