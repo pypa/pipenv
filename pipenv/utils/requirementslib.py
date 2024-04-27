@@ -181,23 +181,6 @@ def is_installable_file(path):
     return False
 
 
-def get_dist_metadata(dist):
-    from email.parser import FeedParser
-
-    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
-
-    if isinstance(dist, DistInfoDistribution) and dist.has_metadata("METADATA"):
-        metadata = dist.get_metadata("METADATA")
-    elif dist.has_metadata("PKG-INFO"):
-        metadata = dist.get_metadata("PKG-INFO")
-    else:
-        metadata = ""
-
-    feed_parser = FeedParser()
-    feed_parser.feed(metadata)
-    return feed_parser.close()
-
-
 def get_setup_paths(base_path, subdirectory=None):
     # type: (S, Optional[S]) -> Dict[S, Optional[S]]
     if base_path is None:

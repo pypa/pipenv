@@ -32,7 +32,6 @@ from pipenv.patched.pip._internal.exceptions import ConfigurationError
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
-from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils import err
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
@@ -63,7 +62,6 @@ from pipenv.utils.shell import (
     find_windows_executable,
     get_workon_home,
     is_virtual_environment,
-    load_path,
     looks_like_dir,
     safe_expandvars,
     system_which,
@@ -77,6 +75,11 @@ try:
 except ImportError:
     # eventually distlib will remove cached property when they drop Python3.7
     from pipenv.patched.pip._vendor.distlib.util import cached_property
+
+if sys.version_info < (3, 10):
+    from pipenv.vendor import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
 
 if is_type_checking():
     from typing import Dict, List, Union
@@ -453,17 +456,12 @@ class Project:
         return str(get_workon_home().joinpath(name))
 
     @property
-    def working_set(self) -> pkg_resources.WorkingSet:
-        sys_path = load_path(self.which("python"))
-        return pkg_resources.WorkingSet(sys_path)
-
-    @property
     def installed_packages(self):
         return self.environment.get_installed_packages()
 
     @property
-    def installed_package_names(self) -> list[str]:
-        return get_canonical_names([pkg.key for pkg in self.installed_packages])
+    def installed_package_names(self):
+        return get_canonical_names([pkg.name for pkg in self.installed_packages])
 
     @property
     def lockfile_package_names(self) -> dict[str, set[str]]:
@@ -516,7 +514,7 @@ class Project:
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
-    def get_outdated_packages(self) -> list[pkg_resources.Distribution]:
+    def get_outdated_packages(self) -> list[importlib_metadata.Distribution]:
         return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod

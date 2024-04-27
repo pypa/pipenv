@@ -1,0 +1,1 @@
+Fix a bug that passes pipenv check command if Pipfile.lock not exist

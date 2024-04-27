@@ -133,6 +133,9 @@ def do_check(
     else:
         if not quiet and not project.s.is_quiet():
             click.secho("Passed!", fg="green")
+    # Check for lockfile exists
+    if not project.lockfile_exists:
+        return
     if not quiet and not project.s.is_quiet():
         if use_installed:
             click.secho(
