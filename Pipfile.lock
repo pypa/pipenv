@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b8d2126bc8bb139755c193b41d494c886fe5560760a5cddee992db697707a88d"
+            "sha256": "5838e1d97601cb8455abaa6ecf7208d7551ca334d9ab356349b6206d017f7a13"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -392,6 +392,14 @@
             "markers": "python_version >= '3.8'",
             "version": "==7.1.0"
         },
+        "importlib-resources": {
+            "hashes": [
+                "sha256:50d10f043df931902d4194ea07ec57960f66a80449ff867bfe782b4c486ba78c",
+                "sha256:cdb2b453b8046ca4e3798eb1d84f3cce1446a0e8e7b5ef4efb600f19fc398145"
+            ],
+            "markers": "python_version < '3.12' and python_version >= '3.9'",
+            "version": "==6.4.0"
+        },
         "incremental": {
             "hashes": [
                 "sha256:912feeb5e0f7e0188e6f42241d2f450002e11bbc0937c65865045854c24c0bd0",
@@ -609,11 +617,11 @@
         },
         "packaging": {
             "hashes": [
-                "sha256:048fb0e9405036518eaaf48a55953c750c11e1a1b68e0dd1a9d62ed0c092cfc5",
-                "sha256:8c491190033a9af7e1d931d0b5dacc2ef47509b34dd0de67ed209b5203fc88c7"
+                "sha256:2ddfb553fdf02fb784c234c7ba6ccc288296ceabec964ad2eae3777778130bc5",
+                "sha256:eb82c5e3e56209074766e6885bb04b8c38a0c015d0a30036ebe7ece34c9989e9"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==23.2"
+            "version": "==24.0"
         },
         "parse": {
             "hashes": [
@@ -640,11 +648,11 @@
         },
         "pip": {
             "hashes": [
-                "sha256:5052d7889c1f9d05224cd41741acb7c5d6fa735ab34e339624a614eaaa7e7d76",
-                "sha256:7fd9972f96db22c8077a1ee2691b172c8089b17a5652a44494a9ecb0d78f9149"
+                "sha256:ba0d021a166865d2265246961bec0152ff124de910c5cc39f1156ce3fa7c69dc",
+                "sha256:ea9bd1a847e8c5774a5777bb398c19e80bcd4e2aa16a4b301b718fe6f593aba2"
             ],
             "markers": "python_version >= '3.7'",
-            "version": "==23.3.2"
+            "version": "==24.0"
         },
         "pipenv": {
             "editable": true,
@@ -723,12 +731,12 @@
         },
         "pypiserver": {
             "hashes": [
-                "sha256:09f2f797f92b30e92287821e2dc3ca72c8011aec6a2570019254adf98318ee5c",
-                "sha256:70760efadc3d89b3e1b3f54f078a6520f6c6a0c3dd718b46cd0cf466c9fd01b2"
+                "sha256:3f15a94969265add2ef44a035117b8dd18d7525af871ed58ac2571276293579b",
+                "sha256:8c7ed96b2f76f2843e4a27002846bd7ebb7217e143cf60456ee6fa2a415c2d73"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.6'",
-            "version": "==1.5.2"
+            "version": "==2.1.1"
         },
         "pyproject-hooks": {
             "hashes": [
