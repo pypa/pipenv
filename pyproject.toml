@@ -141,7 +141,10 @@ ignore = [
 ]
 line-length = 137
 target-version = "py37"
-
+[tool.ruff.lint.per-file-ignores]
+"tests/pypi/*" = ["D"]
+"tests/fixtures/*" = ["D"]
+"tests/test_artifacts/*" = ["D"]
 
 [tool.ruff.mccabe]
 max-complexity = 44
