@@ -19,7 +19,7 @@ PACKAGE_NAME = "pipenv"
 
 
 def log(msg):
-    print("[release] %s" % msg)
+    print(f"[release] {msg}")
 
 
 def get_version_file(ctx):
@@ -126,11 +126,11 @@ def build_dists(ctx):
         executable = ctx.run(
             "python -c 'import sys; print(sys.executable)'", hide=True
         ).stdout.strip()
-        log("Building sdist using %s ...." % executable)
+        log(f"Building sdist using {executable} ....")
         os.environ["PIPENV_PYTHON"] = py_version
         ctx.run("pipenv install --dev", env=env)
         ctx.run("pipenv run pip install -e . --upgrade --upgrade-strategy=eager", env=env)
-        log("Building wheel using python %s ...." % py_version)
+        log(f"Building wheel using python {py_version} ....")
         ctx.run("pipenv run python -m build", env=env)
 
 
@@ -224,8 +224,8 @@ def clean_mdchangelog(ctx, filename=None, content=None):
 def tag_version(ctx, push=False):
     version = find_version(ctx)
     version = semver.VersionInfo.parse(version)
-    log("Tagging revision: v%s" % version)
-    ctx.run("git tag v%s" % version)
+    log(f"Tagging revision: v{version}")
+    ctx.run(f"git tag v{version}")
     if push:
         log("Pushing tags...")
         ctx.run("git push origin master")
@@ -283,17 +283,17 @@ def bump_version(ctx, dry_run=False, pre=False, dev=False):
         new_version = new_version.bump_prerelease(current_version, "dev")
 
     # Update the version file
-    log("Updating version to %s" % new_version)
+    log(f"Updating version to {new_version}")
     version = find_version(ctx)
-    log("Found current version: %s" % version)
+    log(f"Found current version: {version}")
     if dry_run:
-        log("Would update to: %s" % new_version)
+        log(f"Would update to: {new_version}")
     else:
-        log("Updating to: %s" % new_version)
+        log(f"Updating to: {new_version}")
         version_file = get_version_file(ctx)
         file_contents = version_file.read_text()
         version_file.write_text(file_contents.replace(version, str(new_version)))
         ctx.run(f"git add {version_file.as_posix()}")
         log("Committing...")
-        ctx.run('git commit -s -m "Bumped version to %s."' % new_version)
+        ctx.run(f'git commit -s -m "Bumped version to {new_version}."')
     return str(new_version)

@@ -310,7 +310,7 @@ class Environment:
         lines = pylib_lines + pyinc_lines
         if scripts:
             lines.append(
-                "u'scripts': u'{0}'.format(%s)" % sysconfig_line.format("scripts")
+                "u'scripts': u'{{0}}'.format({})".format(sysconfig_line.format("scripts"))
             )
         if py_version:
             lines.append(
