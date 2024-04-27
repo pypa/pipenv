@@ -113,6 +113,9 @@ exclude = '''
 exclude = [
   "pipenv/patched/*",
   "pipenv/vendor/*",
+  "ests/pypi/*",
+  "tests/fixtures/*",
+  "tests/test_artifacts/*",
 ]
 select = [
   "ASYNC",
@@ -140,11 +143,7 @@ ignore = [
   "PLW2901",
 ]
 line-length = 137
-target-version = "py37"
-[tool.ruff.lint.per-file-ignores]
-"tests/pypi/*" = ["D"]
-"tests/fixtures/*" = ["D"]
-"tests/test_artifacts/*" = ["D"]
+target-version = "py38"
 
 [tool.ruff.mccabe]
 max-complexity = 44
