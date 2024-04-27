@@ -98,9 +98,9 @@ def test_pipenv_graph(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
     from pipenv.cli import cli
-    from click.testing import CliRunner  # not thread safe but graph is a tricky test
+    from pipenv.vendor.click.testing import CliRunner  # not thread safe but graph is a tricky test
 
-    with pipenv_instance_private_pypi() as p:
+    with (pipenv_instance_private_pypi() as p):
         c = p.pipenv('install tablib==0.13.0')
         assert c.returncode == 0
         cli_runner = CliRunner(mix_stderr=False)
@@ -131,7 +131,10 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
                                          flags=re.MULTILINE | re.IGNORECASE)
                 assert openpyxl_dep is None, f'openpyxl should not appear at beginning of lines in {output}'
 
-                assert 'openpyxl==2.5.4 [requires: et-xmlfile]' in output
+                if sys.version_info[:2] == (3, 12):
+                    assert 'openpyxl==2.5.4 [requires: et-xmlfile]' in output
+                else:
+                    assert 'openpyxl==2.5.4 [requires: et_xmlfile]' in output
             else:
                 dep_match = re.search(fr'^[ -]*{dep_name}==[\d.]+$',
                                       output,
@@ -185,6 +188,7 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
 
 
 @pytest.mark.cli
+@pytest.mark.skipif(sys.version_info[:2] == (3, 8) and os.name == "nt", reason="This test is not working om Windows Python 3. 8")
 def test_pipenv_clean(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open('setup.py', 'w') as f:

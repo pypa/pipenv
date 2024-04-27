@@ -1,21 +1,26 @@
 from __future__ import annotations
 
-import re
 from abc import ABC, abstractmethod
 from importlib import import_module
-from importlib.metadata import PackageNotFoundError, metadata, version
+from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Iterator
 
-from pipenv.patched.pip._vendor.pkg_resources import Requirement  # noqa: PLC2701
+from pipenv.vendor.packaging.requirements import InvalidRequirement, Requirement
+from pipenv.vendor.packaging.utils import canonicalize_name
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._internal.metadata import BaseDistribution
-    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
+    from importlib.metadata import Distribution
+
+from pipenv.vendor.pipdeptree._adapter import PipBaseDistributionAdapter
 
 
-def pep503_normalize(name: str) -> str:
-    return re.sub("[-_.]+", "-", name)
+class InvalidRequirementError(ValueError):
+    """
+    An invalid requirement string was found.
+
+    When raising an exception, this should provide just the problem requirement string.
+    """
 
 
 class Package(ABC):
@@ -23,13 +28,9 @@ class Package(ABC):
 
     UNKNOWN_LICENSE_STR = "(Unknown license)"
 
-    def __init__(self, obj: DistInfoDistribution) -> None:
-        self._obj: DistInfoDistribution = obj
-        self.key = pep503_normalize(obj.key)
-
-    @property
-    def project_name(self) -> str:
-        return self._obj.project_name  # type: ignore[no-any-return]
+    def __init__(self, project_name: str) -> None:
+        self.project_name = project_name
+        self.key = canonicalize_name(project_name)
 
     def licenses(self) -> str:
         try:
@@ -73,32 +74,12 @@ class Package(ABC):
         return render(frozen=frozen)
 
     @staticmethod
-    def as_frozen_repr(obj: DistInfoDistribution) -> str:
-        # The `pipenv.patched.pip._internal.metadata` modules were introduced in 21.1.1
-        # and the `pipenv.patched.pip._internal.operations.freeze.FrozenRequirement`
-        # class now expects dist to be a subclass of
-        # `pipenv.patched.pip._internal.metadata.BaseDistribution`, however the
-        # `pipenv.patched.pip._internal.utils.misc.get_installed_distributions` continues
-        # to return objects of type
-        # pipenv.patched.pip._vendor.pkg_resources.DistInfoDistribution.
-        #
-        # This is a hacky backward compatible (with older versions of pip) fix.
-        try:
-            from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415 # pragma: no cover
-        except ImportError:
-            from pipenv.patched.pip import FrozenRequirement  # type: ignore[attr-defined, no-redef] # noqa: PLC0415 # pragma: no cover
+    def as_frozen_repr(dist: Distribution) -> str:
+        from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
 
-        try:
-            from pipenv.patched.pip._internal import metadata  # noqa: PLC0415, PLC2701 # pragma: no cover
-        except ImportError:
-            our_dist: BaseDistribution = obj  # type: ignore[assignment]
-        else:
-            our_dist = metadata.pkg_resources.Distribution(obj)
+        adapter = PipBaseDistributionAdapter(dist)
+        fr = FrozenRequirement.from_dist(adapter)  # type: ignore[arg-type]
 
-        try:
-            fr = FrozenRequirement.from_dist(our_dist)
-        except TypeError:
-            fr = FrozenRequirement.from_dist(our_dist, [])  # type: ignore[call-arg]
         return str(fr).strip()
 
     def __repr__(self) -> str:
@@ -110,39 +91,47 @@ class Package(ABC):
 
 class DistPackage(Package):
     """
-    Wrapper class for pkg_resources.Distribution instances.
+    Wrapper class for importlib.metadata.Distribution instances.
 
-    :param obj: pkg_resources.Distribution to wrap over
+    :param obj: importlib.metadata.Distribution to wrap over
     :param req: optional ReqPackage object to associate this DistPackage with. This is useful for displaying the tree in
         reverse
 
     """
 
-    def __init__(self, obj: DistInfoDistribution, req: ReqPackage | None = None) -> None:
-        super().__init__(obj)
+    def __init__(self, obj: Distribution, req: ReqPackage | None = None) -> None:
+        super().__init__(obj.metadata["Name"])
+        self._obj = obj
         self.req = req
-        self._project_name = ""
 
-    def requires(self) -> list[Requirement]:
-        return self._obj.requires()  # type: ignore[no-untyped-call,no-any-return]
+    def requires(self) -> Iterator[Requirement]:
+        """
+        Return an iterator of the distribution's required dependencies.
 
-    @property
-    def project_name(self) -> str:
-        if not self._project_name:
+        :raises InvalidRequirementError: If the metadata contains invalid requirement strings.
+        """
+        for r in self._obj.requires or []:
             try:
-                self._project_name = metadata(self.key)["name"]
-            except (PackageNotFoundError, KeyError):
-                self._project_name = self._obj.project_name
-        return self._project_name
+                req = Requirement(r)
+            except InvalidRequirement:
+                raise InvalidRequirementError(r) from None
+            if not req.marker or req.marker.evaluate():
+                # Make sure that we're either dealing with a dependency that has no environment markers or does but
+                # are evaluated True against the existing environment (if it's False, it means they cannot be
+                # installed). "extra" markers are always evaluated False here which is what we want when retrieving
+                # only required dependencies.
+                yield req
 
     @property
     def version(self) -> str:
-        return self._obj.version  # type: ignore[no-any-return]
+        return self._obj.version
+
+    def unwrap(self) -> Distribution:
+        """Exposes the internal `importlib.metadata.Distribution` object."""
+        return self._obj
 
     def render_as_root(self, *, frozen: bool) -> str:
-        if not frozen:
-            return f"{self.project_name}=={self.version}"
-        return self.as_frozen_repr(self._obj)
+        return self.as_frozen_repr(self._obj) if frozen else f"{self.project_name}=={self.version}"
 
     def render_as_branch(self, *, frozen: bool) -> str:
         assert self.req is not None
@@ -156,7 +145,8 @@ class DistPackage(Package):
 
     def as_requirement(self) -> ReqPackage:
         """Return a ReqPackage representation of this DistPackage."""
-        return ReqPackage(self._obj.as_requirement(), dist=self)  # type: ignore[no-untyped-call]
+        spec = f"{self.project_name}=={self.version}"
+        return ReqPackage(Requirement(spec), dist=self)
 
     def as_parent_of(self, req: ReqPackage | None) -> DistPackage:
         """
@@ -180,24 +170,25 @@ class DistPackage(Package):
 
 class ReqPackage(Package):
     """
-    Wrapper class for Requirements instance.
+    Wrapper class for Requirement instance.
 
-    :param obj: The `Requirements` instance to wrap over
-    :param dist: optional `pkg_resources.Distribution` instance for this requirement
+    :param obj: The `Requirement` instance to wrap over
+    :param dist: optional `importlib.metadata.Distribution` instance for this requirement
 
     """
 
     UNKNOWN_VERSION = "?"
 
     def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
-        super().__init__(obj)
+        super().__init__(obj.name)
+        self._obj = obj
         self.dist = dist
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
             return f"{self.project_name}=={self.installed_version}"
         if self.dist:
-            return self.as_frozen_repr(self.dist._obj)  # noqa: SLF001
+            return self.as_frozen_repr(self.dist.unwrap())
         return self.project_name
 
     def render_as_branch(self, *, frozen: bool) -> str:
@@ -208,8 +199,11 @@ class ReqPackage(Package):
 
     @property
     def version_spec(self) -> str | None:
-        specs = sorted(self._obj.specs, reverse=True)  # `reverse` makes '>' prior to '<'
-        return ",".join(["".join(sp) for sp in specs]) if specs else None
+        result = None
+        specs = sorted(map(str, self._obj.specifier), reverse=True)  # `reverse` makes '>' prior to '<'
+        if specs:
+            result = ",".join(specs)
+        return result
 
     @property
     def installed_version(self) -> str:
@@ -241,10 +235,8 @@ class ReqPackage(Package):
         # unknown installed version is also considered conflicting
         if self.installed_version == self.UNKNOWN_VERSION:
             return True
-        ver_spec = self.version_spec if self.version_spec else ""
-        req_version_str = f"{self.project_name}{ver_spec}"
-        req_obj = Requirement.parse(req_version_str)  # type: ignore[no-untyped-call]
-        return self.installed_version not in req_obj
+
+        return self.installed_version not in self._obj.specifier
 
     def as_dict(self) -> dict[str, str]:
         return {

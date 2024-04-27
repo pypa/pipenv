@@ -19,7 +19,7 @@ from typing import (
     Optional,
 )
 
-from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.vendor.packaging.version import Version
 
 from ..environment import ASDF_DATA_DIR, PYENV_ROOT, SYSTEM_ARCH
 from ..exceptions import InvalidPythonVersion

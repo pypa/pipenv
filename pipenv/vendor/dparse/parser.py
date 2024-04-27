@@ -15,11 +15,11 @@ from .errors import MalformedDependencyFileError
 from .regex import HASH_REGEX
 
 from .dependencies import DependencyFile, Dependency
-from pipenv.patched.pip._vendor.packaging.requirements import Requirement as PackagingRequirement,\
+from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement,\
     InvalidRequirement
 from . import filetypes
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pip._vendor.packaging.version import Version, InvalidVersion
+from pipenv.vendor.packaging.specifiers import SpecifierSet
+from pipenv.vendor.packaging.version import Version, InvalidVersion
 import json
 
 if sys.version_info >= (3, 11):

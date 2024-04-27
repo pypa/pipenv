@@ -11,7 +11,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from typing import Any, Iterator
 
-from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
+from pipenv.vendor.packaging.version import InvalidVersion, Version
 
 from .environment import PYENV_ROOT
 from .exceptions import InvalidPythonVersion
@@ -97,7 +97,7 @@ def get_python_version(path) -> str:
 
 
 def parse_python_version(version_str: str) -> dict[str, str | int | Version]:
-    from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+    from pipenv.vendor.packaging.version import parse as parse_version
 
     is_debug = False
     if version_str.endswith("-debug"):
