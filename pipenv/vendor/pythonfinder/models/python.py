@@ -327,22 +327,34 @@ class PythonFinder(PathEntry):
 
                 for i in range(num_subkeys):
                     version_key_name = winreg.EnumKey(key, i)
-                    version_key_path = f"{key_path}\\{version_key_name}"
 
-                    with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, version_key_path) as version_key:
+                    with winreg.OpenKey(key, version_key_name) as version_key:
                         try:
-                            install_path = winreg.QueryValue(version_key, "InstallPath")
-                            executable_path = winreg.QueryValue(version_key, "ExecutablePath")
-                            company = winreg.QueryValue(version_key, "Company")
+                            install_path_key = winreg.OpenKey(version_key, "InstallPath")
+                            try:
+                                executable_path = winreg.QueryValue(install_path_key, "ExecutablePath")
+                            except FileNotFoundError:
+                                # TODO: Only a valid default for PythonCore, otherwise skip.
+                                executable_path = winreg.QueryValue(install_path_key, None)+"\\python.exe"
                         except FileNotFoundError:
                             continue
 
-                        version = Version(version_key_name)
+                        try:
+                            version = Version(winreg.QueryValue(key, "SysVersion"))
+                        except FileNotFoundError:
+                            # TODO: Only a valid default for PythonCore, otherwise unknown so will need to be probed later.
+                            version = Version(version_key_name)
+
+                        try:
+                            architecture = winreg.QueryValue(key, "SysArchitecture")
+                        except FileNotFoundError:
+                            # TODO: Implement PEP-514 defaults for architecture for PythonCore based on key and OS architecture.
+                            architecture = None
+                        
                         launcher_entry = WindowsLauncherEntry(
                             version=version,
-                            install_path=install_path,
                             executable_path=executable_path,
-                            company=company,
+                            company="PythonCore",
                         )
                         yield launcher_entry
 
