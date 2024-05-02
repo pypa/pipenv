@@ -653,7 +653,7 @@ class PythonVersion:
             is_prerelease=launcher_entry.version.is_prerelease,
             is_devrelease=launcher_entry.version.is_devrelease,
             is_debug=False,  # Assuming debug information is not available from the registry
-            architecture=None,  # Assuming architecture information is not available from the registry
+            architecture=launcher_entry.architecture,
             executable=launcher_entry.executable_path,
             company=launcher_entry.company,
         )
