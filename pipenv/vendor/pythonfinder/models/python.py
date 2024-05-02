@@ -45,7 +45,7 @@ class WindowsLauncherEntry:
         self.install_path = install_path
         self.executable_path = executable_path
         self.company = company
-
+        self.architecture = architecture
 
 @dataclasses.dataclass
 class PythonFinder(PathEntry):
