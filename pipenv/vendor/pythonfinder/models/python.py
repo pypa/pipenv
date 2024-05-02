@@ -355,6 +355,7 @@ class PythonFinder(PathEntry):
                             version=version,
                             executable_path=executable_path,
                             company="PythonCore",
+                            architecture=architecture,
                         )
                         yield launcher_entry
 
