@@ -40,7 +40,7 @@ logger = logging.getLogger(__name__)
 
 
 class WindowsLauncherEntry:
-    def __init__(self, version: Version, install_path: str, executable_path: str, company: Optional[str]):
+    def __init__(self, version: Version, install_path: str, executable_path: str, company: str, architecture: Optional[str]):
         self.version = version
         self.install_path = install_path
         self.executable_path = executable_path
