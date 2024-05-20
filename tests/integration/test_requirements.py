@@ -116,6 +116,54 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(pipen
 
 
 @pytest.mark.requirements
+def test_requirements_generates_requirements_with_root_only(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        packages = ('requests', '2.31.0')
+        sub_packages = ('urllib3', '2.2.1')  # subpackages not explicitly written in Pipfile.
+        dev_packages = ('flask', '0.12.2')
+
+        with open(p.pipfile_path, 'w') as f:
+            contents = f"""
+            [packages]
+            {packages[0]} = "=={packages[1]}"
+            [dev-packages]
+            {dev_packages[0]} = "=={dev_packages[1]}"
+            """.strip()
+            f.write(contents)
+        p.pipenv('lock')
+
+        c = p.pipenv('requirements --root-only')
+        assert c.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' in c.stdout
+        assert f'{sub_packages[0]}=={sub_packages[1]}' not in c.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' not in c.stdout
+
+        d = p.pipenv('requirements --dev --root-only')
+        assert d.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' in d.stdout
+        assert f'{sub_packages[0]}=={sub_packages[1]}' not in d.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' in d.stdout
+
+        e = p.pipenv('requirements --dev-only --root-only')
+        assert e.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' not in e.stdout
+        assert f'{sub_packages[0]}=={sub_packages[1]}' not in e.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' in e.stdout
+
+        f = p.pipenv('requirements --categories=dev-packages --root-only')
+        assert f.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' not in f.stdout
+        assert f'{sub_packages[0]}=={sub_packages[1]}' not in f.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' in f.stdout
+
+        g = p.pipenv('requirements --categories=packages,dev-packages --root-only')
+        assert g.returncode == 0
+        assert f'{packages[0]}=={packages[1]}' in g.stdout
+        assert f'{sub_packages[0]}=={sub_packages[1]}' not in g.stdout
+        assert f'{dev_packages[0]}=={dev_packages[1]}' in g.stdout
+
+
+@pytest.mark.requirements
 def test_requirements_with_git_requirements(pipenv_instance_pypi):
     req_hash = '3264a0046e1aa3c0a813335286ebdbc651f58b13'
     lockfile = {
