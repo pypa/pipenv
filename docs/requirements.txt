@@ -12,7 +12,7 @@ myst-parser[linkify]==0.18.1
 -e .
 Pygments==2.15.0
 pytz==2022.7.1
-requests==2.31.0
+requests==2.32.0
 snowballstemmer==2.2.0
 Sphinx==4.5.0
 sphinx-click==4.4.0
