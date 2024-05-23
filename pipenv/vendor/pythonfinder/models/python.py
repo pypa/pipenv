@@ -319,49 +319,55 @@ class PythonFinder(PathEntry):
 
     def find_python_versions_from_windows_launcher(self):
         # Open the registry key for Python launcher
-        key_path = r"Software\Python\PythonCore"
-        try:
-            import winreg
-            with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
-                num_subkeys, _, _ = winreg.QueryInfoKey(key)
+        import winreg
+        registry_keys = [
+            (winreg.HKEY_CURRENT_USER, r"Software\Python"),
+            (winreg.HKEY_LOCAL_MACHINE, r"Software\Python\PythonCore"),
+            (winreg.HKEY_LOCAL_MACHINE, r"Software\Wow6432Node\Python\PythonCore")
+        ]
+        for key, key_path in registry_keys:
+            try:
+                with winreg.OpenKey(key, key_path) as key:
+                    num_subkeys, _, _ = winreg.QueryInfoKey(key)
 
-                for i in range(num_subkeys):
-                    version_key_name = winreg.EnumKey(key, i)
+                    for i in range(num_subkeys):
+                        version_key_name = winreg.EnumKey(key, i)
 
-                    with winreg.OpenKey(key, version_key_name) as version_key:
-                        try:
-                            install_path_key = winreg.OpenKey(version_key, "InstallPath")
+                        with winreg.OpenKey(key, version_key_name) as version_key:
                             try:
-                                executable_path = winreg.QueryValue(install_path_key, "ExecutablePath")
+                                install_path_key = winreg.OpenKey(version_key, "InstallPath")
+                                try:
+                                    executable_path = winreg.QueryValue(install_path_key, "ExecutablePath")
+                                except FileNotFoundError:
+                                    # TODO: Only a valid default for PythonCore, otherwise skip.
+                                    executable_path = winreg.QueryValue(install_path_key, None)+"\\python.exe"
                             except FileNotFoundError:
-                                # TODO: Only a valid default for PythonCore, otherwise skip.
-                                executable_path = winreg.QueryValue(install_path_key, None)+"\\python.exe"
-                        except FileNotFoundError:
-                            continue
+                                continue
 
-                        try:
-                            version = Version(winreg.QueryValue(key, "SysVersion"))
-                        except FileNotFoundError:
-                            # TODO: Only a valid default for PythonCore, otherwise unknown so will need to be probed later.
-                            version = Version(version_key_name)
+                            try:
+                                version = Version(winreg.QueryValue(key, "SysVersion"))
+                            except FileNotFoundError:
+                                # TODO: Only a valid default for PythonCore, otherwise unknown so will need to be probed later.
+                                version = Version(version_key_name)
 
-                        try:
-                            architecture = winreg.QueryValue(key, "SysArchitecture")
-                        except FileNotFoundError:
-                            # TODO: Implement PEP-514 defaults for architecture for PythonCore based on key and OS architecture.
-                            architecture = None
-                        
-                        launcher_entry = WindowsLauncherEntry(
-                            version=version,
-                            executable_path=executable_path,
-                            company="PythonCore",
-                            architecture=architecture,
-                        )
-                        yield launcher_entry
+                            try:
+                                architecture = winreg.QueryValue(key, "SysArchitecture")
+                            except FileNotFoundError:
+                                # TODO: Implement PEP-514 defaults for architecture for PythonCore based on key and OS architecture.
+                                architecture = None
 
-        except FileNotFoundError:
-            # Python launcher registry key not found, no Python versions registered
-            return
+                            launcher_entry = WindowsLauncherEntry(
+                                version=version,
+                                executable_path=executable_path,
+                                company="PythonCore",
+                                architecture=architecture,
+                            )
+                            yield launcher_entry
+
+            except FileNotFoundError:
+                # Python launcher registry key not found, no Python versions registered
+                pass
+        return None
 
 
 @dataclasses.dataclass
