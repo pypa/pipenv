@@ -745,10 +745,10 @@ def verify(state):
     help="Only add requirement of the specified categories.",
 )
 @option(
-    "--root-only",
+    "--from-pipfile",
     is_flag=True,
     default=False,
-    help="Only include root dependencies from Pipfile.",
+    help="Only include dependencies from Pipfile.",
 )
 @pass_state
 def requirements(
@@ -758,7 +758,7 @@ def requirements(
     hash=False,
     exclude_markers=False,
     categories="",
-    root_only=False,
+    from_pipfile=False,
 ):
     from pipenv.routines.requirements import generate_requirements
 
@@ -769,7 +769,7 @@ def requirements(
         include_hashes=hash,
         include_markers=not exclude_markers,
         categories=categories,
-        root_only=root_only,
+        from_pipfile=from_pipfile,
     )
 
 

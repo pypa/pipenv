@@ -116,7 +116,7 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(pipen
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_with_root_only(pipenv_instance_pypi):
+def test_requirements_generates_requirements_with_from_pipfile(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         packages = ('requests', '2.31.0')
         sub_packages = ('urllib3', '2.2.1')  # subpackages not explicitly written in Pipfile.
@@ -132,31 +132,31 @@ def test_requirements_generates_requirements_with_root_only(pipenv_instance_pypi
             f.write(contents)
         p.pipenv('lock')
 
-        c = p.pipenv('requirements --root-only')
+        c = p.pipenv('requirements --from-pipfile')
         assert c.returncode == 0
         assert f'{packages[0]}=={packages[1]}' in c.stdout
         assert f'{sub_packages[0]}=={sub_packages[1]}' not in c.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' not in c.stdout
 
-        d = p.pipenv('requirements --dev --root-only')
+        d = p.pipenv('requirements --dev --from-pipfile')
         assert d.returncode == 0
         assert f'{packages[0]}=={packages[1]}' in d.stdout
         assert f'{sub_packages[0]}=={sub_packages[1]}' not in d.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' in d.stdout
 
-        e = p.pipenv('requirements --dev-only --root-only')
+        e = p.pipenv('requirements --dev-only --from-pipfile')
         assert e.returncode == 0
         assert f'{packages[0]}=={packages[1]}' not in e.stdout
         assert f'{sub_packages[0]}=={sub_packages[1]}' not in e.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' in e.stdout
 
-        f = p.pipenv('requirements --categories=dev-packages --root-only')
+        f = p.pipenv('requirements --categories=dev-packages --from-pipfile')
         assert f.returncode == 0
         assert f'{packages[0]}=={packages[1]}' not in f.stdout
         assert f'{sub_packages[0]}=={sub_packages[1]}' not in f.stdout
         assert f'{dev_packages[0]}=={dev_packages[1]}' in f.stdout
 
-        g = p.pipenv('requirements --categories=packages,dev-packages --root-only')
+        g = p.pipenv('requirements --categories=packages,dev-packages --from-pipfile')
         assert g.returncode == 0
         assert f'{packages[0]}=={packages[1]}' in g.stdout
         assert f'{sub_packages[0]}=={sub_packages[1]}' not in g.stdout

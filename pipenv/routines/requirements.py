@@ -13,7 +13,7 @@ def generate_requirements(
     include_hashes=False,
     include_markers=True,
     categories="",
-    root_only=False,
+    from_pipfile=False,
 ):
     lockfile = project.load_lockfile(expand_env_vars=False)
     pipfile_root_package_names = project.pipfile_package_names["combined"]
@@ -29,7 +29,7 @@ def generate_requirements(
         for category in categories_list:
             category = get_lockfile_section_using_pipfile_category(category.strip())
             category_deps = lockfile.get(category, {})
-            if root_only:
+            if from_pipfile:
                 category_deps = {
                     k: v
                     for k, v in category_deps.items()
@@ -39,14 +39,16 @@ def generate_requirements(
     else:
         if dev or dev_only:
             dev_deps = lockfile["develop"]
-            if root_only:
+            if from_pipfile:
                 dev_deps = {
-                    k: v for k, v in dev_deps.items() if k in pipfile_root_package_names
+                    k: v
+                    for k, v in dev_deps.items()
+                    if k in pipfile_root_package_names
                 }
             deps.update(dev_deps)
         if not dev_only:
             default_deps = lockfile["default"]
-            if root_only:
+            if from_pipfile:
                 default_deps = {
                     k: v
                     for k, v in default_deps.items()
