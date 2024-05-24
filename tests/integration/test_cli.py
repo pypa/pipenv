@@ -148,6 +148,7 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
             assert dep_requests_match.start() > dep_match.start()
 
 
+@pytest.mark.skip(reason="There is a disputed vulnerability about pip 24.0 messing up this test.")
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason='required by check')
 def test_pipenv_check(pipenv_instance_private_pypi):
