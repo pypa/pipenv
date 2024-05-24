@@ -458,7 +458,7 @@ pytz = "*"
 [requires]
 python_version = "{version}"
 """)
-            c = p.pipenv("install --verbose")
+            c = p.pipenv("install")
             assert c.returncode != 0
 
 
