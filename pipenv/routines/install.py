@@ -68,88 +68,20 @@ def do_install(
         site_packages=site_packages,
         categories=categories,
     )
-    # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or dev):
-        if not (ignore_pipfile or deploy):
-            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
-        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
-            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
-    # Load the --pre settings from the Pipfile.
-    if not pre:
-        pre = project.settings.get("allow_prereleases")
-    remote = requirementstxt and is_valid_url(requirementstxt)
-    if "default" in categories:
-        raise exceptions.PipenvUsageError(
-            message="Cannot install to category `default`-- did you mean `packages`?"
-        )
-    if "develop" in categories:
-        raise exceptions.PipenvUsageError(
-            message="Cannot install to category `develop`-- did you mean `dev-packages`?"
-        )
-    # Warn and exit if --system is used without a pipfile.
-    if (system and package_args) and not project.s.PIPENV_VIRTUALENV:
-        raise exceptions.SystemUsageError
-    # Automatically use an activated virtualenv.
-    if project.s.PIPENV_USE_SYSTEM:
-        system = True
-    if system:
-        project.s.PIPENV_USE_SYSTEM = True
-        os.environ["PIPENV_USE_SYSTEM"] = "1"
-    # Check if the file is remote or not
-    if remote:
-        err.print(
-            "Remote requirements file provided! Downloading...",
-            style="bold",
-        )
-        fd = NamedTemporaryFile(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
-        )
-        temp_reqs = fd.name
-        requirements_url = requirementstxt
-        # Download requirements file
-        try:
-            download_file(requirements_url, temp_reqs, project.s.PIPENV_MAX_RETRIES)
-        except OSError:
-            fd.close()
-            os.unlink(temp_reqs)
-            err.print(
-                f"Unable to find requirements file at {requirements_url}.",
-                style="red",
-            )
-            sys.exit(1)
-        finally:
-            fd.close()
-        # Replace the url with the temporary requirements file
-        requirementstxt = temp_reqs
-    if requirementstxt:
-        error, traceback = None, None
-        err.print(
-            "Requirements file provided! Importing into Pipfile...",
-            style="bold",
-        )
-        try:
-            import_requirements(
-                project,
-                r=project.path_to(requirementstxt),
-                dev=dev,
-                categories=categories,
-            )
-        except (UnicodeDecodeError, PipError) as e:
-            # Don't print the temp file path if remote since it will be deleted.
-            req_path = project.path_to(requirementstxt)
-            error = f"Unexpected syntax in {req_path}. Are you sure this is a requirements.txt style file?"
-            traceback = e
-        except AssertionError as e:
-            error = (
-                "Requirements file doesn't appear to exist. Please ensure the file exists in your "
-                "project directory or you provided the correct path."
-            )
-            traceback = e
-        finally:
-            if error and traceback:
-                console.print(error, style="red")
-                err.print(str(traceback), style="yellow")
-                sys.exit(1)
+
+    do_install_validations(
+        project,
+        package_args,
+        requirements_directory,
+        dev=dev,
+        system=system,
+        ignore_pipfile=ignore_pipfile,
+        requirementstxt=requirementstxt,
+        pre=pre,
+        deploy=deploy,
+        categories=categories,
+        skip_lock=skip_lock,
+    )
 
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
@@ -301,6 +233,103 @@ def do_install(
             project.remove_package_from_pipfile(pkg_name, category)
         raise e
     sys.exit(0)
+
+
+def do_install_validations(
+    project,
+    package_args,
+    requirements_directory,
+    dev=False,
+    system=False,
+    ignore_pipfile=False,
+    requirementstxt=False,
+    pre=False,
+    deploy=False,
+    categories=None,
+    skip_lock=False,
+):
+    # Don't attempt to install develop and default packages if Pipfile is missing
+    if not project.pipfile_exists and not (package_args or dev):
+        if not (ignore_pipfile or deploy):
+            raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
+        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
+            raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
+    # Load the --pre settings from the Pipfile.
+    if not pre:
+        pre = project.settings.get("allow_prereleases")
+    remote = requirementstxt and is_valid_url(requirementstxt)
+    if "default" in categories:
+        raise exceptions.PipenvUsageError(
+            message="Cannot install to category `default`-- did you mean `packages`?"
+        )
+    if "develop" in categories:
+        raise exceptions.PipenvUsageError(
+            message="Cannot install to category `develop`-- did you mean `dev-packages`?"
+        )
+    # Warn and exit if --system is used without a pipfile.
+    if (system and package_args) and not project.s.PIPENV_VIRTUALENV:
+        raise exceptions.SystemUsageError
+    # Automatically use an activated virtualenv.
+    if project.s.PIPENV_USE_SYSTEM:
+        system = True
+    if system:
+        project.s.PIPENV_USE_SYSTEM = True
+        os.environ["PIPENV_USE_SYSTEM"] = "1"
+    # Check if the file is remote or not
+    if remote:
+        err.print(
+            "Remote requirements file provided! Downloading...",
+            style="bold",
+        )
+        fd = NamedTemporaryFile(
+            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
+        )
+        temp_reqs = fd.name
+        requirements_url = requirementstxt
+        # Download requirements file
+        try:
+            download_file(requirements_url, temp_reqs, project.s.PIPENV_MAX_RETRIES)
+        except OSError:
+            fd.close()
+            os.unlink(temp_reqs)
+            err.print(
+                f"Unable to find requirements file at {requirements_url}.",
+                style="red",
+            )
+            sys.exit(1)
+        finally:
+            fd.close()
+        # Replace the url with the temporary requirements file
+        requirementstxt = temp_reqs
+    if requirementstxt:
+        error, traceback = None, None
+        err.print(
+            "Requirements file provided! Importing into Pipfile...",
+            style="bold",
+        )
+        try:
+            import_requirements(
+                project,
+                r=project.path_to(requirementstxt),
+                dev=dev,
+                categories=categories,
+            )
+        except (UnicodeDecodeError, PipError) as e:
+            # Don't print the temp file path if remote since it will be deleted.
+            req_path = project.path_to(requirementstxt)
+            error = f"Unexpected syntax in {req_path}. Are you sure this is a requirements.txt style file?"
+            traceback = e
+        except AssertionError as e:
+            error = (
+                "Requirements file doesn't appear to exist. Please ensure the file exists in your "
+                "project directory or you provided the correct path."
+            )
+            traceback = e
+        finally:
+            if error and traceback:
+                console.print(error, style="red")
+                err.print(str(traceback), style="yellow")
+                sys.exit(1)
 
 
 def do_install_dependencies(
