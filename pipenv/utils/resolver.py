@@ -730,7 +730,9 @@ def resolve(cmd, st, project):
         echo(out.strip(), err=True)
         if not is_verbose:
             echo(err, err=True)
-        raise RuntimeError("Failed to lock Pipfile.lock!")
+        st.console.print(
+            "Failed to lock Pipfile.lock -- run with `--verbose` for more information."
+        )
     if is_verbose:
         echo(out.strip(), err=True)
     return subprocess.CompletedProcess(c.args, returncode, out, err)
