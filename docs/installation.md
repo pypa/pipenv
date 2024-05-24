@@ -12,14 +12,14 @@ from your command line. You can check this by simply running
 
     $ python --version
 
-You should get some output like `3.10.8`. If you do not have Python, please
+You should get some output like `3.12.1`. If you do not have Python, please
 install the latest 3.x version from [python.org](https://python.org)
 
-Additionally, make sure you have [pip] available.
+Additionally, make sure you have [pip] available, assuming you install via pip, our preferred method of installation.
 Check this by running
 
     $ pip --version
-    pip 22.3.1
+    pip 24.0
 
 If you installed Python from source, with an installer from [python.org] or via [Homebrew], you likely already have pip.
 If you're on Linux and installed using your OS package manager, you may have to [install pip](https://pip.pypa.io/en/stable/installing/) manually.
@@ -114,24 +114,32 @@ For example when installing the `requests` library, you should get output simila
 
     $ pipenv install requests
     Creating a virtualenv for this project...
-    Pipfile: C:\Users\matte\Projects\pipenv-triage\example\Pipfile
-    Using C:/Users/matte/AppData/Local/Programs/Python/Python311/python.exe (3.11.2) to create virtualenv...
-    [    ] Creating virtual environment...created virtual environment CPython3.11.2.final.0-64 in 488ms
-      creator CPython3Windows(dest=C:\Users\matte\.virtualenvs\example-7V6BFyzL, clear=False, no_vcs_ignore=False, global=False)
-      seeder FromAppData(download=False, pip=bundle, setuptools=bundle, wheel=bundle, via=copy, app_data_dir=C:\Users\matte\AppData\Local\pypa\virtualenv)
-        added seed packages: pip==23.0, setuptools==67.1.0, wheel==0.38.4
-      activators BashActivator,BatchActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
+    Pipfile: /home/matteius/pipenv-triage/test_install2/Pipfile
+    Using default python from /mnt/extra/miniconda3/bin/python (3.12.1) to create virtualenv...
+    ⠹ Creating virtual environment...created virtual environment CPython3.12.1.final.0-64 in 139ms
+      creator CPython3Posix(dest=/home/matteius/Envs/test_install2-DMnDbAT9, clear=False, no_vcs_ignore=False, global=False)
+      seeder FromAppData(download=False, pip=bundle, via=copy, app_data_dir=/home/matteius/.local/share/virtualenv)
+        added seed packages: pip==24.0
+      activators BashActivator,CShellActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
 
-    Successfully created virtual environment!
-    Virtualenv location: C:\Users\matte\.virtualenvs\example-7V6BFyzL
+    ✔ Successfully created virtual environment!
+    Virtualenv location: /home/matteius/Envs/test_install2-DMnDbAT9
+    Creating a Pipfile for this project...
     Installing requests...
     Resolving requests...
-    Installing...
-    Adding requests to Pipfile's [packages] ...
-    Installation Succeeded
-    Installing dependencies from Pipfile.lock (3b5a71)...
+    Added requests to Pipfile's [packages] ...
+    ✔ Installation Succeeded
+    Pipfile.lock not found, creating...
+    Locking [packages] dependencies...
+    Building requirements...
+    Resolving dependencies...
+    ✔ Success!
+    Locking [dev-packages] dependencies...
+    Updated Pipfile.lock (1977acb1ba9778abb66054090e2618a0a1f1759b1b3b32afd8a7d404ba18b4fb)!
     To activate this project's virtualenv, run pipenv shell.
     Alternatively, run a command inside the virtualenv with pipenv run.
+    Installing dependencies from Pipfile.lock (18b4fb)...
+
 
 ## Using installed packages
 

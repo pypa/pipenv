@@ -5,13 +5,13 @@ The commands reference for pipenv (incomplete)
 ## install
 
 ``$ pipenv install`` is used for installing packages into the pipenv virtual environment
-and updating your Pipfile and Pipfile.lock.
+and updating your Pipfile and Pipfile.lock in the case of adding new packages.
 
 Along with the basic installation command, which takes the form:
 
     $ pipenv install <package_name>
 
-Running the above will install the package `<package_name>` and add it to the default packages section in the `Pipfile.lock`
+Running the above will install the package `<package_name>` and add it to the default packages section in the `Pipfile` and all of its dependencies to the `Pipfile.lock`.
 
 The user can provide these additional parameters:
 
@@ -28,10 +28,9 @@ The user can provide these additional parameters:
 
 General Interface Note:
 ```{note}
-    It has been confusing to many users of pipenv that running install will completely relock the lock file.
-    Based on feedback in pipenv issue reports, we are considering changing install to only relock when adding or changing a package.
-    For now, to install lock file versions (without modification of the lock file) use: pipenv sync
-    To modify only specific packages and their subdependencies use: pipenv update <package_name>
+    It was confusing to users that prior to pipenv 3000, the install would relock the lock file every time it was run.
+    Based on feedback in pipenv issue reports, we changed the install command to only update lock when adding or changing a package.
+    If you wish to relock the entire set of Pipfile specifiers, please continue to utilize `pipenv lock`
 ```
 
 ## sync

@@ -6,9 +6,9 @@ Clone / create project repository:
 
 Install from `Pipfile.lock`, if there is one:
 
-    $ pipenv sync
+    $ pipenv install
 
-Add a package to your project, recalibrating entire lock file using the Pipfile specifiers:
+Add a package to your project, recalibrating subset of lock file using the Pipfile specifiers:
 
     $ pipenv install <package>
 
