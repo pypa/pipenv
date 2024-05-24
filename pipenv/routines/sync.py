@@ -47,6 +47,7 @@ def do_sync(
         allow_global=system,
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
+        skip_lock=True,  # Don't re-lock
         pypi_mirror=pypi_mirror,
         deploy=deploy,
         system=system,

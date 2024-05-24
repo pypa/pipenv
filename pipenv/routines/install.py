@@ -631,10 +631,14 @@ def do_init(
                     editable_packages=editable_packages,
                 )
     # Write out the lockfile if it doesn't exist.
-    if not project.lockfile_exists and not skip_lock:
+    if not project.lockfile_exists:
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
-        if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
+        if (
+            (system or allow_global)
+            and not (project.s.PIPENV_VIRTUALENV)
+            and skip_lock is False
+        ):
             raise exceptions.PipenvOptionsError(
                 "--system",
                 "--system is intended to be used for Pipfile installation, "
