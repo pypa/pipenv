@@ -25,7 +25,7 @@ from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
-from pipenv.vendor.importlib_metadata._py39compat import normalized_name
+from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if sys.version_info < (3, 10):
