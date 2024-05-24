@@ -41,9 +41,7 @@ def generate_requirements(
             dev_deps = lockfile["develop"]
             if from_pipfile:
                 dev_deps = {
-                    k: v
-                    for k, v in dev_deps.items()
-                    if k in pipfile_root_package_names
+                    k: v for k, v in dev_deps.items() if k in pipfile_root_package_names
                 }
             deps.update(dev_deps)
         if not dev_only:
