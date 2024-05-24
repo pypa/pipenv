@@ -1,5 +1,5 @@
 diff --git a/pipenv/vendor/pipdeptree/__main__.py b/pipenv/vendor/pipdeptree/__main__.py
-index dcd738e..a751954 100644
+index 4216676..a48fc1a 100644
 --- a/pipenv/vendor/pipdeptree/__main__.py
 +++ b/pipenv/vendor/pipdeptree/__main__.py
 @@ -2,9 +2,16 @@

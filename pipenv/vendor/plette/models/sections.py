@@ -1,32 +1,30 @@
-from .base import DataView, DataViewMapping, DataViewSequence
+from .base import DataModel, DataModelSequence, DataModelMapping
 from .hashes import Hash
 from .packages import Package
 from .scripts import Script
 from .sources import Source
 
 
-class PackageCollection(DataViewMapping):
+class PackageCollection(DataModelMapping):
     item_class = Package
 
 
-class ScriptCollection(DataViewMapping):
+class ScriptCollection(DataModelMapping):
     item_class = Script
 
 
-class SourceCollection(DataViewSequence):
+class SourceCollection(DataModelSequence):
     item_class = Source
 
 
-class Requires(DataView):
+class Requires(DataModel):
     """Representation of the `[requires]` section in a Pipfile."""
 
-    __SCHEMA__ = {
-        "python_version": {
-            "type": "string",
-        },
-        "python_full_version": {
-            "type": "string",
-        },
+    __SCHEMA__ = {}
+
+    __OPTIONAL__ = {
+        "python_version": str,
+        "python_full_version": str,
     }
 
     @property
@@ -50,7 +48,8 @@ META_SECTIONS = {
     "sources": SourceCollection,
 }
 
-class PipfileSection(DataView):
+
+class PipfileSection(DataModel):
 
     """
     Dummy pipfile validator that needs to be completed in a future PR
@@ -61,31 +60,31 @@ class PipfileSection(DataView):
     def validate(cls, data):
         pass
 
-class Meta(DataView):
+
+class Meta(DataModel):
     """Representation of the `_meta` section in a Pipfile.lock."""
 
     __SCHEMA__ = {
-        "hash": {"type": "dict", "required": True},
-        "pipfile-spec": {"type": "integer", "required": True, "min": 0},
-        "requires": {"type": "dict", "required": True},
-        "sources": {"type": "list", "required": True},
+        "hash": "dict",
+        "pipfile-spec": "integer",
+        "requires": "dict",
+        "sources": "list"
     }
 
     @classmethod
     def validate(cls, data):
-        super(Meta, cls).validate(data)
         for key, klass in META_SECTIONS.items():
             klass.validate(data[key])
 
     def __getitem__(self, key):
-        value = super(Meta, self).__getitem__(key)
+        value = super().__getitem__(key)
         try:
             return META_SECTIONS[key](value)
         except KeyError:
             return value
 
     def __setitem__(self, key, value):
-        if isinstance(value, DataView):
+        if isinstance(value, DataModel):
             self._data[key] = value._data
         else:
             self._data[key] = value
@@ -131,9 +130,9 @@ class Meta(DataView):
         self["sources"] = value
 
 
-class Pipenv(DataView):
+class Pipenv(DataModel):
     """Represent the [pipenv] section in Pipfile"""
-
-    __SCHEMA__ = {
-        "allow_prereleases": {"type": "boolean", "required": False},
+    __SCHEMA__ = {}
+    __OPTIONAL__ = {
+        "allow_prereleases": bool,
     }

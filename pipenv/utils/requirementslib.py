@@ -181,23 +181,6 @@ def is_installable_file(path):
     return False
 
 
-def get_dist_metadata(dist):
-    from email.parser import FeedParser
-
-    from pipenv.patched.pip._vendor.pkg_resources import DistInfoDistribution
-
-    if isinstance(dist, DistInfoDistribution) and dist.has_metadata("METADATA"):
-        metadata = dist.get_metadata("METADATA")
-    elif dist.has_metadata("PKG-INFO"):
-        metadata = dist.get_metadata("PKG-INFO")
-    else:
-        metadata = ""
-
-    feed_parser = FeedParser()
-    feed_parser.feed(metadata)
-    return feed_parser.close()
-
-
 def get_setup_paths(base_path, subdirectory=None):
     # type: (S, Optional[S]) -> Dict[S, Optional[S]]
     if base_path is None:
@@ -378,7 +361,7 @@ def get_path(root, path, default=_UNSET):
                     cur = cur[seg]
                 except (ValueError, KeyError, IndexError, TypeError):
                     if not getattr(cur, "__iter__", None):
-                        exc = TypeError("%r object is not indexable" % type(cur).__name__)
+                        exc = TypeError(f"{type(cur).__name__!r} object is not indexable")
                     raise PathAccessError(exc, seg, path)
     except PathAccessError:
         if default is _UNSET:
@@ -446,7 +429,7 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
         except AttributeError:
             ret = new_parent.__class__(vals)  # frozensets
     else:
-        raise RuntimeError("unexpected iterable type: %r" % type(new_parent))
+        raise RuntimeError(f"unexpected iterable type: {type(new_parent)!r}")
     return ret
 
 
@@ -536,14 +519,14 @@ def remap(
     # TODO: improve argument formatting in sphinx doc
     # TODO: enter() return (False, items) to continue traverse but cancel copy?
     if not callable(visit):
-        raise TypeError("visit expected callable, not: %r" % visit)
+        raise TypeError(f"visit expected callable, not: {visit!r}")
     if not callable(enter):
-        raise TypeError("enter expected callable, not: %r" % enter)
+        raise TypeError(f"enter expected callable, not: {enter!r}")
     if not callable(exit):
-        raise TypeError("exit expected callable, not: %r" % exit)
+        raise TypeError(f"exit expected callable, not: {exit!r}")
     reraise_visit = kwargs.pop("reraise_visit", True)
     if kwargs:
-        raise TypeError("unexpected keyword arguments: %r" % kwargs.keys())
+        raise TypeError(f"unexpected keyword arguments: {kwargs.keys()!r}")
 
     path, registry, stack = (), {}, [(None, root)]
     new_items_stack = []
@@ -568,7 +551,7 @@ def remap(
                 # TODO: handle False?
                 raise TypeError(
                     "enter should return a tuple of (new_parent,"
-                    " items_iterator), not: %r" % res
+                    f" items_iterator), not: {res!r}"
                 )
             if new_items is not False:
                 # traverse unless False is explicitly passed
@@ -600,7 +583,7 @@ def remap(
         try:
             new_items_stack[-1][1].append(visited_item)
         except IndexError:
-            raise TypeError("expected remappable root, not: %r" % root)
+            raise TypeError(f"expected remappable root, not: {root!r}")
     return value
 
 

@@ -1,0 +1,4 @@
+``pipenv`` converts off ``pkg_resources`` API usages.  This necessitated also vendoring in:
+* latest ``pipdeptree==2.18.1`` which also converted off ``pkg_resources``
+* ``importlib-metadata==6.5.1`` to continue supporting python 3.8 and 3.9
+* ``packaging==24.0`` since the packaging we were utilizing in pip's _vendor was insufficient for this conversion.

@@ -1,14 +1,24 @@
 import os
+import sys
 from functools import lru_cache
+from typing import Optional
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.pkg_resources import Requirement, get_distribution
+from pipenv.patched.pip._vendor.typing_extensions import TYPE_CHECKING
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv
 from pipenv.vendor import click
+
+if TYPE_CHECKING:
+    from pipenv.patched.pip._vendor.typing_extensions import STRING_TYPE
+
+if sys.version_info < (3, 10):
+    from pipenv.vendor import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
 
 
 def ensure_project(
@@ -88,11 +98,12 @@ def ensure_project(
 
 
 @lru_cache
-def get_setuptools_version():
-    # type: () -> Optional[STRING_TYPE]
-
-    setuptools_dist = get_distribution(Requirement("setuptools"))
-    return getattr(setuptools_dist, "version", None)
+def get_setuptools_version() -> Optional["STRING_TYPE"]:
+    try:
+        setuptools_dist = importlib_metadata.distribution("setuptools")
+        return str(setuptools_dist.version)
+    except ImportError:
+        return None
 
 
 def get_default_pyproject_backend():

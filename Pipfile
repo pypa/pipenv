@@ -19,10 +19,10 @@ typing-extensions = "==4.*"
 waitress = {version = "*", sys_platform = "== 'win32'"}
 gunicorn = {version = "*", sys_platform = "== 'linux'"}
 parse = "*"
-importlib-metadata = {version = "*"}
+importlib-metadata = "*"
 colorama= {version = "*", sys_platform = "== 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
-invoke = "==2.0.0"
+invoke = "*"
 exceptiongroup = "==1.1.0"
 tomli = "*"
 pyyaml = "==6.0.1"

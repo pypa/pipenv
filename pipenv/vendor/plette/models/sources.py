@@ -1,9 +1,9 @@
 import os
 
-from .base import DataView
+from .base import DataModel
 
 
-class Source(DataView):
+class Source(DataModel):
     """Information on a "simple" Python package index.
 
     This could be PyPI, or a self-hosted index server, etc. The server
@@ -11,9 +11,9 @@ class Source(DataView):
     package API.
     """
     __SCHEMA__ = {
-        "name": {"type": "string", "required": True},
-        "url": {"type": "string", "required": True},
-        "verify_ssl": {"type": "boolean", "required": True},
+        "name": str,
+        "url": str,
+        "verify_ssl": bool,
     }
 
     @property

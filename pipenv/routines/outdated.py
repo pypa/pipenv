@@ -3,6 +3,7 @@ from collections import namedtuple
 from collections.abc import Mapping
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.routines.lock import do_lock
 from pipenv.utils.dependencies import (
     as_pipfile,
@@ -19,8 +20,8 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
 
     installed_packages = project.environment.get_installed_packages()
     outdated_packages = {
-        canonicalize_name(pkg.project_name): package_info(
-            pkg.project_name, pkg.parsed_version, pkg.latest_version
+        canonicalize_name(pkg.name): package_info(
+            pkg.name, parse_version(pkg.version), pkg.latest_version
         )
         for pkg in project.environment.get_outdated_packages()
     }
@@ -29,9 +30,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         for name, deps in project.environment.reverse_dependencies().items()
     }
     for result in installed_packages:
-        dep, _ = expansive_install_req_from_line(
-            str(result.as_requirement()), expand_env=True
-        )
+        dep, _ = expansive_install_req_from_line(f"{result.name}=={result.version}")
         packages.update(as_pipfile(dep))
 
     updated_packages = {}
@@ -41,7 +40,9 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
     for category in project.get_package_categories(for_lockfile=True):
         for package in lockfile.get(category, []):
             try:
-                updated_packages[package] = lockfile[category][package]["version"]
+                updated_packages[package] = parse_version(
+                    lockfile[category][package]["version"]
+                )
             except KeyError:  # noqa: PERF203
                 pass
     outdated = []
@@ -51,10 +52,12 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         if norm_name in updated_packages:
             version = packages[package]
             if isinstance(version, Mapping):
-                version = version.get("version")
+                version = parse_version(version.get("version"))
+            else:
+                version = parse_version(version)
             if updated_packages[norm_name] != version:
                 outdated.append(
-                    package_info(package, updated_packages[norm_name], packages[package])
+                    package_info(package, str(version), str(updated_packages[norm_name]))
                 )
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])
