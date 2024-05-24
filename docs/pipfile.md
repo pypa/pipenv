@@ -267,7 +267,7 @@ All named categories (other than the special default/develop) will use the categ
 ## General Notes and Recommendations
 
 - Keep both `Pipfile` and `Pipfile.lock` in version control.
-- `pipenv install pacckage-name` adds specifiers to `Pipfile` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of `pip`.
+- `pipenv install package-name` adds specifiers to `Pipfile` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of `pip`.
 - Not all the required sub-dependencies need be specified in `Pipfile`, instead only add specifiers that make sense for the stability of your project.
 Example:  `requests` requires `cryptography` but (for reasons) you want to ensure `cryptography` is pinned to a particular version set.
 - Consider specifying your target Python version in your `Pipfile`'s `[requires]` section.

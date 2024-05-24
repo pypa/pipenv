@@ -42,12 +42,8 @@ def do_update(
         site_packages=site_packages,
         clear=clear,
     )
-    if packages is None:
-        packages = []
-    if editable_packages is None:
-        editable_packages = []
-    packages = [p for p in packages if p]
-    editable = [p for p in editable_packages if p]
+    packages = [p for p in (packages or []) if p]
+    editable = [p for p in (editable_packages or []) if p]
     if not outdated:
         outdated = bool(dry_run)
     if not packages:
