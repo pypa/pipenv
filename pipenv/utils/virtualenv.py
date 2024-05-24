@@ -1,5 +1,6 @@
 import contextlib
 import os
+import re
 import shutil
 import sys
 from pathlib import Path
@@ -237,6 +238,22 @@ def ensure_python(project, python=None):
     # Find out which python is desired.
     if not python:
         python = project.required_python_version
+        if python:
+            range_pattern = r"^[<>]=?|!="
+            if re.search(range_pattern, python):
+                click.echo(
+                    "{}: Python version range specifier '{}' is not supported. {}".format(
+                        click.style("Error", fg="red", bold=True),
+                        click.style(python, fg="cyan"),
+                        click.style(
+                            "Please use an absolute version number or specify the path to the Python executable on Pipfile.",
+                            fg="yellow",
+                        ),
+                    ),
+                    err=True,
+                )
+                abort()
+
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
     path_to_python = find_a_system_python(python)
