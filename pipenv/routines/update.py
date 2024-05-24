@@ -95,9 +95,7 @@ def do_update(
             categories=categories,
             python=python,
             bare=bare,
-            user=False,
             clear=clear,
-            unused=False,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
         )

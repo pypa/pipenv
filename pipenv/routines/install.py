@@ -151,19 +151,15 @@ def do_install(
                 err.print(str(traceback), style="yellow")
                 sys.exit(1)
 
-    # Allow more than one package to be provided.
-    package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
     # Install all dependencies, if none was provided.
     # This basically ensures that we have a pipfile and lockfile, then it locks and
     # installs from the lockfile
     new_packages = []
     if not packages and not editable_packages:
-        # Update project settings with prerelease preference.
         if pre:
             project.update_settings({"allow_prereleases": pre})
         do_init(
             project,
-            dev=dev,
             allow_global=system,
             ignore_pipfile=ignore_pipfile,
             system=system,
@@ -176,14 +172,12 @@ def do_install(
             skip_lock=skip_lock,
         )
 
-    # This is for if the user passed in dependencies, then we want to make sure we
+    # This is for if the user passed in dependencies; handle with the update routine
     else:
-        # make a tuple of (display_name, entry)
         pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
         if not system and not project.virtualenv_exists:
             do_init(
                 project,
-                dev=dev,
                 system=system,
                 allow_global=system,
                 requirements_dir=requirements_directory,
@@ -279,31 +273,39 @@ def do_install(
             # Update project settings with pre-release preference.
             if pre:
                 project.update_settings({"allow_prereleases": pre})
-        try:
-            do_init(
-                project,
-                dev=dev,
-                system=system,
-                allow_global=system,
-                requirements_dir=requirements_directory,
-                deploy=deploy,
-                pypi_mirror=pypi_mirror,
-                extra_pip_args=extra_pip_args,
-                categories=categories,
-                skip_lock=skip_lock,
-            )
-        except Exception as e:
-            # If we fail to install, remove the package from the Pipfile.
-            for pkg_name, category in new_packages:
-                project.remove_package_from_pipfile(pkg_name, category)
-            raise e
+    try:
+        do_init(
+            project,
+            system=system,
+            allow_global=system,
+            requirements_dir=requirements_directory,
+            deploy=deploy,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+            categories=categories,
+            skip_lock=skip_lock,
+        )
+        do_install_dependencies(
+            project,
+            dev=dev,
+            allow_global=system,
+            requirements_dir=requirements_directory,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+            categories=categories,
+            skip_lock=skip_lock,
+        )
+    except Exception as e:
+        # If we fail to install, remove the package from the Pipfile.
+        for pkg_name, category in new_packages:
+            project.remove_package_from_pipfile(pkg_name, category)
+        raise e
     sys.exit(0)
 
 
 def do_install_dependencies(
     project,
     dev=False,
-    dev_only=False,
     bare=False,
     allow_global=False,
     ignore_hashes=False,
@@ -319,15 +321,12 @@ def do_install_dependencies(
     """
     procs = queue.Queue(maxsize=1)
     if not categories:
-        if dev and dev_only:
-            categories = ["dev-packages"]
-        elif dev:
+        if dev:
             categories = ["packages", "dev-packages"]
         else:
             categories = ["packages"]
 
     for category in categories:
-        # Load the lockfile if it exists, or if dev_only is being used.
         lockfile = None
         pipfile = None
         if skip_lock:
@@ -343,7 +342,6 @@ def do_install_dependencies(
                     f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
                     style="bold",
                 )
-        dev = dev or dev_only
         if skip_lock:
             deps_list = []
             for req_name, pipfile_entry in pipfile.items():
@@ -359,7 +357,7 @@ def do_install_dependencies(
                 )
         else:
             deps_list = list(
-                lockfile.get_requirements(dev=dev, only=dev_only, categories=[category])
+                lockfile.get_requirements(dev=dev, only=False, categories=[category])
             )
         editable_or_vcs_deps = [
             (dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)
@@ -531,8 +529,6 @@ def _cleanup_procs(project, procs):
 
 def do_init(
     project,
-    dev=False,
-    dev_only=False,
     allow_global=False,
     ignore_pipfile=False,
     system=False,
@@ -548,7 +544,6 @@ def do_init(
 ):
     from pipenv.routines.update import do_update
 
-    """Executes the init functionality."""
     python = None
     if project.s.PIPENV_PYTHON is not None:
         python = project.s.PIPENV_PYTHON
@@ -590,7 +585,7 @@ def do_init(
                 )
             else:
                 if old_hash:
-                    msg = "Pipfile.lock ({0}) out of date, updating to ({1})..."
+                    msg = "Pipfile.lock ({0}) out of date: run `pipfile lock` to update to ({1})..."
                 else:
                     msg = "Pipfile.lock is corrupt, replaced with ({1})..."
                 err.print(
@@ -630,17 +625,6 @@ def do_init(
                 pypi_mirror=pypi_mirror,
                 categories=categories,
             )
-    do_install_dependencies(
-        project,
-        dev=dev,
-        dev_only=dev_only,
-        allow_global=allow_global,
-        requirements_dir=requirements_dir,
-        pypi_mirror=pypi_mirror,
-        extra_pip_args=extra_pip_args,
-        categories=categories,
-        skip_lock=skip_lock,
-    )
 
     # Hint the user what to do to activate the virtualenv.
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:

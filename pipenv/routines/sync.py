@@ -1,7 +1,7 @@
 import os
 
 from pipenv import exceptions
-from pipenv.routines.install import do_init
+from pipenv.routines.install import do_init, do_install_dependencies
 from pipenv.utils import console, fileutils
 from pipenv.utils.project import ensure_project
 
@@ -11,9 +11,7 @@ def do_sync(
     dev=False,
     python=None,
     bare=False,
-    user=False,
     clear=False,
-    unused=False,
     pypi_mirror=None,
     system=False,
     deploy=False,
@@ -46,13 +44,21 @@ def do_sync(
         os.environ["PIPENV_USE_SYSTEM"] = "1"
     do_init(
         project,
-        dev=dev,
         allow_global=system,
         requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
         pypi_mirror=pypi_mirror,
         deploy=deploy,
         system=system,
+        extra_pip_args=extra_pip_args,
+        categories=categories,
+    )
+    do_install_dependencies(
+        project,
+        dev=dev,
+        allow_global=system,
+        requirements_dir=requirements_dir,
+        pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,
         categories=categories,
     )
