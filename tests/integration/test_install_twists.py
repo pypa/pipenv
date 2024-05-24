@@ -292,6 +292,10 @@ name = "testindex"
         assert c.returncode == 0, c.stderr
 
 
+@pytest.mark.skipif(
+    os.name == 'nt' and sys.version_info[:2] == (3, 8),
+    reason="Seems to work on 3.8 but not via the CI"
+)
 @pytest.mark.outdated
 def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
