@@ -887,6 +887,7 @@ def venv_resolve_deps(
                     )
                     click.echo(f"Output: {c.stdout.strip()}", err=True)
                     click.echo(f"Error: {c.stderr.strip()}", err=True)
+                    sys.exit(1)
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     return prepare_lockfile(
