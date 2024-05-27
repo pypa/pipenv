@@ -241,18 +241,11 @@ def ensure_python(project, python=None):
         if python:
             range_pattern = r"^[<>]=?|!="
             if re.search(range_pattern, python):
-                click.echo(
-                    "{}: Python version range specifier '{}' is not supported. {}".format(
-                        click.style("Error", fg="red", bold=True),
-                        click.style(python, fg="cyan"),
-                        click.style(
-                            "Please use an absolute version number or specify the path to the Python executable on Pipfile.",
-                            fg="yellow",
-                        ),
-                    ),
-                    err=True,
+                err.print(
+                    f"[bold red]Error[/bold red]: Python version range specifier '[cyan]{python}[/cyan]' is not supported. "
+                    "[yellow]Please use an absolute version number or specify the path to the Python executable on Pipfile.[/yellow]"
                 )
-                abort()
+                sys.exit(1)
 
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
