@@ -82,6 +82,8 @@ def do_lock(
                 lockfile=lockfile,
                 old_lock_data=old_lock_data,
             )
+        except RuntimeError:
+            sys.exit(1)
 
         except Exception:
             err.print(traceback.format_exc())
