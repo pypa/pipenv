@@ -1,10 +1,15 @@
 import contextlib
 import sys
+import traceback
 
+from pipenv.patched.pip._vendor import rich
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.vendor import click
+
+console = rich.console.Console()
+err = rich.console.Console(stderr=True)
 
 
 def do_lock(
@@ -79,6 +84,7 @@ def do_lock(
             )
 
         except Exception:
+            err.print(traceback.format_exc())
             sys.exit(1)
 
     # Overwrite any category packages with default packages.
