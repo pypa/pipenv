@@ -1,0 +1,3 @@
+This is an enhancement of error message regards to https://github.com/pypa/pipenv/issues/6073.
+Inside `do_lock` method, exceptions in `venv_resolve_deps` wasn't properly handled by far. This PR handles exception to improve this problem.
+Since RuntimeError raised inside `venv_resolve_deps` can't be easily modified, (it's related to so many components) it raises sys.exit(1) when RuntimeError occurs, and additional traceback log is added on general Exception.
