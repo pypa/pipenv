@@ -319,6 +319,7 @@ class PythonFinder(PathEntry):
 
     def find_python_versions_from_windows_launcher(self):
         import winreg
+        import platform
 
         registry_keys = [
             (winreg.HKEY_CURRENT_USER, r"Software\Python"),
@@ -328,71 +329,96 @@ class PythonFinder(PathEntry):
 
         for hive, key_path in registry_keys:
             try:
-                with winreg.OpenKey(hive, key_path) as root_key:
-                    num_companies, _, _ = winreg.QueryInfoKey(root_key)
-
-                    for i in range(num_companies):
-                        company = winreg.EnumKey(root_key, i)
-                        if company == "PyLauncher":
-                            continue
-
-                        with winreg.OpenKey(root_key, company) as company_key:
-                            num_tags, _, _ = winreg.QueryInfoKey(company_key)
-
-                            for j in range(num_tags):
-                                tag = winreg.EnumKey(company_key, j)
-
-                                with winreg.OpenKey(company_key, tag) as tag_key:
-                                    display_name = self._get_registry_value(tag_key, "DisplayName",
-                                                                            default=f"Python {tag}")
-                                    support_url = self._get_registry_value(tag_key, "SupportUrl",
-                                                                           default="http://www.python.org/")
-                                    version = self._get_registry_value(tag_key, "Version", default=tag[:3])
-                                    sys_version = self._get_registry_value(tag_key, "SysVersion", default=tag[:3])
-                                    sys_architecture = self._get_registry_value(tag_key, "SysArchitecture")
-
-                                    if company == "PythonCore" and not sys_architecture:
-                                        # TODO: Implement PEP-514 defaults for architecture for PythonCore based on key and OS architecture.
-                                        sys_architecture = None
-
-                                    try:
-                                        with winreg.OpenKey(tag_key, "InstallPath") as install_path_key:
-                                            install_path = self._get_registry_value(install_path_key, None)
-                                            executable_path = self._get_registry_value(install_path_key,
-                                                                                       "ExecutablePath")
-                                            windowed_executable_path = self._get_registry_value(install_path_key,
-                                                                                                "WindowedExecutablePath")
-
-                                            if company == "PythonCore" and not executable_path:
-                                                executable_path = os.path.join(install_path, "python.exe")
-                                            if company == "PythonCore" and not windowed_executable_path:
-                                                windowed_executable_path = os.path.join(install_path, "pythonw.exe")
-
-                                            launcher_entry = WindowsLauncherEntry(
-                                                version=Version(sys_version),
-                                                executable_path=executable_path,
-                                                windowed_executable_path=windowed_executable_path,
-                                                company=company,
-                                                tag=tag,
-                                                display_name=display_name,
-                                                support_url=support_url,
-                                                architecture=sys_architecture,
-                                            )
-                                            yield launcher_entry
-
-                                    except FileNotFoundError:
-                                        continue
-
+                root_key = winreg.OpenKey(hive, key_path)
             except FileNotFoundError:
-                pass
+                continue
 
-    def _get_registry_value(self, key, value_name, default=None):
+            num_companies, _, _ = winreg.QueryInfoKey(root_key)
+
+            for i in range(num_companies):
+                company = winreg.EnumKey(root_key, i)
+                if company == "PyLauncher":
+                    continue
+
+                company_key = winreg.OpenKey(root_key, company)
+                num_tags, _, _ = winreg.QueryInfoKey(company_key)
+
+                for j in range(num_tags):
+                    tag = winreg.EnumKey(company_key, j)
+                    tag_key = winreg.OpenKey(company_key, tag)
+
+                    display_name = self._get_win_registry_value(tag_key, "DisplayName", default=f"Python {tag}")
+                    support_url = self._get_win_registry_value(tag_key, "SupportUrl", default="http://www.python.org/")
+                    sys_version = self._get_win_registry_value(tag_key, "SysVersion")
+                    sys_architecture = self._get_win_registry_value(tag_key, "SysArchitecture")
+
+                    if company == "PythonCore" and not sys_architecture:
+                        sys_architecture = self._get_python_win_core_architecture(key_path, hive, platform)
+
+                    launcher_entry = self._create_win_launcher_entry(tag_key, company, tag, display_name, support_url,
+                                                                     sys_version, sys_architecture)
+                    if launcher_entry:
+                        yield launcher_entry
+
+                    tag_key.Close()
+
+                company_key.Close()
+
+            root_key.Close()
+
+    def _get_python_win_core_architecture(self, key_path, hive, platform):
+        import winreg
+        if key_path == r"Software\Wow6432Node\Python" or not platform.machine().endswith('64'):
+            return "32bit"
+        elif hive == winreg.HKEY_LOCAL_MACHINE:
+            return "64bit"
+        else:
+            return None
+
+    def _create_win_launcher_entry(self, tag_key, company, tag, display_name, support_url, sys_version, sys_architecture):
+        import winreg
         try:
-            import winreg
-            # TODO: Not specified in PEP-514, but probably should reject any value that isn't `winreg.REG_SZ`.
-            # PEP-514's (faulty) example code uses `winreg.QueryValue`, which can only return `winreg.REG_SZ` values.
-            # They document "string value" which could match `winreg.REG_SZ` or `winreg.REG_EXPAND_SZ`.
-            return winreg.QueryValueEx(key, value_name)[0]
+            install_path_key = winreg.OpenKey(tag_key, "InstallPath")
+        except FileNotFoundError:
+            return None
+
+        install_path = self._get_win_registry_value(install_path_key, None)
+        executable_path = self._get_win_registry_value(install_path_key, "ExecutablePath")
+        windowed_executable_path = self._get_win_registry_value(install_path_key, "WindowedExecutablePath")
+
+        if company == "PythonCore":
+            if not executable_path and install_path:
+                executable_path = os.path.join(install_path, "python.exe")
+            if not windowed_executable_path and install_path:
+                windowed_executable_path = os.path.join(install_path, "pythonw.exe")
+
+        if not install_path or not executable_path:
+            install_path_key.Close()
+            return None
+
+        launcher_entry = WindowsLauncherEntry(
+            version=Version(sys_version),
+            executable_path=executable_path,
+            windowed_executable_path=windowed_executable_path,
+            company=company,
+            tag=tag,
+            display_name=display_name,
+            support_url=support_url,
+            architecture=sys_architecture,
+            install_path=install_path,
+        )
+
+        install_path_key.Close()
+        return launcher_entry
+
+    def _get_win_registry_value(self, key, value_name, default=None):
+        import winreg
+
+        try:
+            value, value_type = winreg.QueryValueEx(key, value_name)
+            if value_type != winreg.REG_SZ:
+                return default
+            return value
         except FileNotFoundError:
             return default
 
