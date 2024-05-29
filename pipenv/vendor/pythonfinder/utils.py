@@ -339,7 +339,7 @@ def split_version_and_name(
 
 
 def is_in_path(path, parent):
-    return resolve_path(str(path)).startswith(resolve_path(str(parent)))
+    return str(resolve_path(str(path))).startswith(str(resolve_path(str(parent))))
 
 
 def expand_paths(path, only_python=True) -> Iterator:

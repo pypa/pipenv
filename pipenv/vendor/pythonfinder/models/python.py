@@ -39,13 +39,18 @@ from .mixins import PathEntry
 logger = logging.getLogger(__name__)
 
 
+@dataclasses.dataclass
 class WindowsLauncherEntry:
-    def __init__(self, version: Version, install_path: str, executable_path: str, company: str, architecture: Optional[str]):
-        self.version = version
-        self.install_path = install_path
-        self.executable_path = executable_path
-        self.company = company
-        self.architecture = architecture
+    version: Version
+    install_path: str
+    executable_path: str
+    windowed_executable_path: str
+    company: str
+    architecture: Optional[str]
+    display_name: Optional[str]
+    support_url: Optional[str]
+    tag: Optional[str]
+
 
 
 @dataclasses.dataclass
@@ -162,7 +167,6 @@ class PythonFinder(PathEntry):
                 )
                 yield (base_path, entry, version_tuple)
 
-    @cached_property
     def versions(self) -> DefaultDict[tuple, PathEntry]:
         if not self._versions:
             for _, entry, version_tuple in self._iter_versions():

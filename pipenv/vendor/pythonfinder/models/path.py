@@ -216,7 +216,7 @@ class SystemPath:
         reversed_paths = reversed(self.path_order)
         paths = [resolve_path(p) for p in reversed_paths]
         normalized_target = resolve_path(path)
-        last_instance = next(iter(p for p in paths if normalized_target in p), None)
+        last_instance = next(iter(p for p in paths if normalized_target == p), None)
         if last_instance is None:
             raise ValueError(f"No instance found on path for target: {path!s}")
         path_index = self.path_order.index(last_instance)
@@ -263,15 +263,20 @@ class SystemPath:
 
     def _setup_windows_launcher(self) -> SystemPath:
         if os.name == "nt":
-            windows_finder = PythonFinder.create()
+            windows_finder = PythonFinder.create(
+                root=Path("."),  # Use appropriate root directory for Windows launcher
+                sort_function=None,  # Provide a sorting function if needed
+                version_glob_path="python*",  # Adjust the glob pattern if necessary
+                ignore_unsupported=True,
+            )
             for launcher_entry in windows_finder.find_python_versions_from_windows_launcher():
                 version = PythonVersion.from_windows_launcher(launcher_entry)
-                windows_finder.versions[version.version_tuple] = PathEntry.create(
+                path_entry = PathEntry.create(
                     path=launcher_entry.install_path,
                     is_root=True,
                     only_python=True,
-                    pythons={launcher_entry.install_path: version},
                 )
+                windows_finder._versions[version.version_tuple] = path_entry
             self._register_finder("windows", windows_finder)
         return self
 
