@@ -47,6 +47,7 @@ class WindowsLauncherEntry:
         self.company = company
         self.architecture = architecture
 
+
 @dataclasses.dataclass
 class PythonFinder(PathEntry):
     root: Path = field(default_factory=Path)

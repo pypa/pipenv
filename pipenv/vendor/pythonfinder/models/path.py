@@ -32,7 +32,7 @@ from ..utils import (
     resolve_path,
 )
 from .mixins import PathEntry
-from .python import PythonFinder
+from .python import PythonFinder, PythonVersion
 
 
 def exists_and_is_accessible(path):
@@ -201,6 +201,15 @@ class SystemPath:
         # Handle virtual environment and system paths
         self._handle_virtualenv_and_system_paths()
 
+        # Setup Windows launcher finder
+        self._setup_windows_launcher()
+
+        # Setup ASDF finder
+        self._setup_asdf()
+
+        # Setup pyenv finder
+        self._setup_pyenv()
+
         return self
 
     def _get_last_instance(self, path) -> int:
@@ -250,6 +259,20 @@ class SystemPath:
                 new_order.append(normalized)
         new_order = [str(p) for p in reversed(new_order)]
         self.path_order = new_order
+        return self
+
+    def _setup_windows_launcher(self) -> SystemPath:
+        if os.name == "nt":
+            windows_finder = PythonFinder.create()
+            for launcher_entry in windows_finder.find_python_versions_from_windows_launcher():
+                version = PythonVersion.from_windows_launcher(launcher_entry)
+                windows_finder.versions[version.version_tuple] = PathEntry.create(
+                    path=launcher_entry.install_path,
+                    is_root=True,
+                    only_python=True,
+                    pythons={launcher_entry.install_path: version},
+                )
+            self._register_finder("windows", windows_finder)
         return self
 
     def _setup_asdf(self) -> SystemPath:
