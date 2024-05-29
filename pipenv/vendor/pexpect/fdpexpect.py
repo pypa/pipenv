@@ -1,6 +1,10 @@
-'''This is like pexpect, but it will work with any file descriptor that you
+'''This is like :mod:`pexpect`, but it will work with any file descriptor that you
 pass it. You are responsible for opening and close the file descriptor.
 This allows you to use Pexpect with sockets and named pipes (FIFOs).
+
+.. note::
+    socket.fileno() does not give a readable file descriptor on windows.
+    Use :mod:`pexpect.socket_pexpect` for cross-platform socket support
 
 PEXPECT LICENSE
 

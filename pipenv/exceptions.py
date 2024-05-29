@@ -157,7 +157,7 @@ class PipenvUsageError(UsageError):
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
             hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
         if self.ctx is not None:
-            click.echo(self.ctx.get_usage() + "\n%s" % hint, file=file, color=color)
+            click.echo(self.ctx.get_usage() + f"\n{hint}", file=file, color=color)
         click.echo(self.message, file=file)
 
 

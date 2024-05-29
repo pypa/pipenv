@@ -6,7 +6,7 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from pipenv.utils.constants import FALSE_VALUES, TRUE_VALUES
-from pipenv.utils.shell import normalize_drive, temp_environ
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.dotvenv
@@ -17,7 +17,7 @@ def test_venv_in_project(true_value, pipenv_instance_pypi):
         with pipenv_instance_pypi() as p:
             c = p.pipenv('install dataclasses-json')
             assert c.returncode == 0
-            assert normalize_drive(p.path) in p.pipenv('--venv').stdout
+            assert p.path in p.pipenv('--venv').stdout
 
 
 @pytest.mark.dotvenv
@@ -39,12 +39,12 @@ def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi
                 assert c.returncode == 0
                 c = p.pipenv('--venv')
                 assert c.returncode == 0
-                venv_loc = Path(c.stdout.strip()).absolute()
+                venv_loc = Path(c.stdout.strip()).resolve()
                 assert venv_loc.exists()
                 assert venv_loc.joinpath('.project').exists()
-                venv_path = normalize_drive(venv_loc.as_posix())
-                venv_expected_path = Path(workon_home).joinpath(venv_name).absolute().as_posix()
-                assert venv_path == normalize_drive(venv_expected_path)
+                venv_path = Path(venv_loc).resolve()
+                venv_expected_path = Path(workon_home).joinpath(venv_name).resolve()
+                assert os.path.samefile(venv_path, venv_expected_path)
 
 
 @pytest.mark.dotvenv
@@ -54,12 +54,35 @@ def test_venv_at_project_root(true_value, pipenv_instance_pypi):
         os.environ['PIPENV_VENV_IN_PROJECT'] = true_value
         c = p.pipenv('install')
         assert c.returncode == 0
-        assert normalize_drive(p.path) in p.pipenv('--venv').stdout
+        assert p.path in p.pipenv('--venv').stdout
         del os.environ['PIPENV_VENV_IN_PROJECT']
         os.mkdir('subdir')
         os.chdir('subdir')
         # should still detect installed
-        assert normalize_drive(p.path) in p.pipenv('--venv').stdout
+        assert p.path in p.pipenv('--venv').stdout
+
+
+@pytest.mark.dotvenv
+@pytest.mark.parametrize("false_value", FALSE_VALUES)
+def test_venv_in_project_disabled_with_existing_venv_dir(false_value, pipenv_instance_pypi):
+    venv_name = "my_project"
+    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+        prefix="pipenv-", suffix="temp_workon_home"
+    ) as workon_home:
+        os.environ['PIPENV_VENV_IN_PROJECT'] = false_value
+        os.environ['PIPENV_CUSTOM_VENV_NAME'] = venv_name
+        os.environ["WORKON_HOME"] = workon_home
+        os.mkdir('.venv')
+        c = p.pipenv('install')
+        assert c.returncode == 0
+        c = p.pipenv('--venv')
+        assert c.returncode == 0
+        venv_loc = Path(c.stdout.strip()).resolve()
+        assert venv_loc.exists()
+        assert venv_loc.joinpath('.project').exists()
+        venv_path = Path(venv_loc).resolve()
+        venv_expected_path = Path(workon_home).joinpath(venv_name).resolve()
+        assert os.path.samefile(venv_path, venv_expected_path)
 
 
 @pytest.mark.dotvenv
@@ -68,7 +91,7 @@ def test_reuse_previous_venv(pipenv_instance_pypi):
         os.mkdir('.venv')
         c = p.pipenv('install dataclasses-json')
         assert c.returncode == 0
-        assert normalize_drive(p.path) in p.pipenv('--venv').stdout
+        assert p.path in p.pipenv('--venv').stdout
 
 
 @pytest.mark.dotvenv
@@ -92,15 +115,15 @@ def test_venv_file(venv_name, pipenv_instance_pypi):
 
             c = p.pipenv('--venv')
             assert c.returncode == 0
-            venv_loc = Path(c.stdout.strip()).absolute()
+            venv_loc = Path(c.stdout.strip()).resolve()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
-            venv_path = normalize_drive(venv_loc.as_posix())
+            venv_path = Path(venv_loc).resolve()
             if os.path.sep in venv_name:
-                venv_expected_path = Path(p.path).joinpath(venv_name).absolute().as_posix()
+                venv_expected_path = Path(p.path).joinpath(venv_name)
             else:
-                venv_expected_path = Path(workon_home).joinpath(venv_name).absolute().as_posix()
-            assert venv_path == normalize_drive(venv_expected_path)
+                venv_expected_path = Path(workon_home).joinpath(venv_name)
+            assert venv_path == venv_expected_path.resolve()
 
 
 @pytest.mark.dotvenv
@@ -125,10 +148,9 @@ def test_empty_venv_file(pipenv_instance_pypi):
             venv_loc = Path(c.stdout.strip()).absolute()
             assert venv_loc.exists()
             assert venv_loc.joinpath('.project').exists()
-            from pathlib import PurePosixPath
-            venv_path = normalize_drive(venv_loc.as_posix())
-            venv_path_parent = str(PurePosixPath(venv_path).parent)
-            assert venv_path_parent == Path(workon_home).absolute().as_posix()
+            venv_path = Path(venv_loc)
+            venv_path_parent = Path(venv_path.parent)
+            assert venv_path_parent == Path(workon_home)
 
 
 @pytest.mark.dotvenv

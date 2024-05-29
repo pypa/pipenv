@@ -285,15 +285,18 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
     """Uninstalls a provided package and removes it from Pipfile."""
     from pipenv.routines.uninstall import do_uninstall
 
+    pre = state.installstate.pre
+
     retcode = do_uninstall(
         state.project,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         python=state.python,
         system=state.system,
-        lock=True,
+        lock=False,
         all_dev=all_dev,
         all=all,
+        pre=pre,
         pypi_mirror=state.pypi_mirror,
         categories=state.installstate.categories,
         ctx=ctx,
@@ -389,8 +392,12 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
             sys.exit(1)
     # Load .env file.
     load_dot_env(state.project)
-    # Use fancy mode for Windows.
-    if os.name == "nt":
+    # Use fancy mode for Windows or pwsh on *nix.
+    if (
+        os.name == "nt"
+        or (os.environ.get("PIPENV_SHELL") or "").split(os.path.sep)[-1] == "pwsh"
+        or (os.environ.get("SHELL") or "").split(os.path.sep)[-1] == "pwsh"
+    ):
         fancy = True
     do_shell(
         state.project,
@@ -738,9 +745,21 @@ def verify(state):
     default="",
     help="Only add requirement of the specified categories.",
 )
+@option(
+    "--from-pipfile",
+    is_flag=True,
+    default=False,
+    help="Only include dependencies from Pipfile.",
+)
 @pass_state
 def requirements(
-    state, dev=False, dev_only=False, hash=False, exclude_markers=False, categories=""
+    state,
+    dev=False,
+    dev_only=False,
+    hash=False,
+    exclude_markers=False,
+    categories="",
+    from_pipfile=False,
 ):
     from pipenv.routines.requirements import generate_requirements
 
@@ -751,6 +770,7 @@ def requirements(
         include_hashes=hash,
         include_markers=not exclude_markers,
         categories=categories,
+        from_pipfile=from_pipfile,
     )
 
 

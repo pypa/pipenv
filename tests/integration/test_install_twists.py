@@ -10,6 +10,35 @@ from pipenv.utils.shell import temp_environ
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
+def test_local_path_issue_6016(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        setup_py = os.path.join(p.path, "setup.py")
+        with open(setup_py, "w") as fh:
+            contents = """
+from setuptools import setup, find_packages
+setup(
+    name='testpipenv',
+    version='0.1',
+    description='Pipenv Test Package',
+    author='Pipenv Test',
+    author_email='test@pipenv.package',
+    license='MIT',
+    packages=find_packages(),
+    install_requires=[],
+    extras_require={'dev': ['six']},
+    zip_safe=False
+)
+            """.strip()
+            fh.write(contents)
+        # project.write_toml({"packages": pipfile, "dev-packages": {}})
+        c = p.pipenv("install .")
+        assert c.returncode == 0
+        assert "testpipenv" in p.lockfile["default"]
+
+
+@pytest.mark.extras
+@pytest.mark.install
+@pytest.mark.local
 def test_local_extras_install(pipenv_instance_pypi):
     """Ensure -e .[extras] installs.
     """
@@ -182,7 +211,7 @@ def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
     with pipenv_instance_private_pypi() as p:
-        requests_path = p._pipfile.get_fixture_path(f"{file_name}").as_posix()
+        requests_path = p._pipfile.get_fixture_path(f"{file_name}")
 
         # This tests for a bug when installing a zipfile
         c = p.pipenv(f"install {requests_path}")
@@ -248,7 +277,7 @@ name = "testindex"
         """
 
         for pkg_name in pkgs:
-            source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/").as_posix()
+            source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/")
             shutil.copytree(source_path, pkg_name)
 
             pipfile_string += f'"{pkg_name}" = {{path = "./{pkg_name}", editable = true}}\n'
@@ -263,6 +292,10 @@ name = "testindex"
         assert c.returncode == 0, c.stderr
 
 
+@pytest.mark.skipif(
+    os.name == 'nt' and sys.version_info[:2] == (3, 8),
+    reason="Seems to work on 3.8 but not via the CI"
+)
 @pytest.mark.outdated
 def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:

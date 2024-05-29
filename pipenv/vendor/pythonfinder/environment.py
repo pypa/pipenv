@@ -2,42 +2,14 @@ from __future__ import annotations
 
 import os
 import platform
-import re
 import shutil
 import sys
-
-
-def is_type_checking():
-    try:
-        from typing import TYPE_CHECKING
-    except ImportError:
-        return False
-    return TYPE_CHECKING
-
-
-def possibly_convert_to_windows_style_path(path):
-    if not isinstance(path, str):
-        path = str(path)
-    # Check if the path is in Unix-style (Git Bash)
-    if os.name != "nt":
-        return path
-    if os.path.exists(path):
-        return path
-    match = re.match(r"[/\\]([a-zA-Z])[/\\](.*)", path)
-    if match is None:
-        return path
-    drive, rest_of_path = match.groups()
-    rest_of_path = rest_of_path.replace("/", "\\")
-    revised_path = f"{drive.upper()}:\\{rest_of_path}"
-    if os.path.exists(revised_path):
-        return revised_path
-    return path
-
+from pathlib import Path
 
 PYENV_ROOT = os.path.expanduser(
     os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
 )
-PYENV_ROOT = possibly_convert_to_windows_style_path(PYENV_ROOT)
+PYENV_ROOT = Path(PYENV_ROOT)
 PYENV_INSTALLED = shutil.which("pyenv") is not None
 ASDF_DATA_DIR = os.path.expanduser(
     os.path.expandvars(os.environ.get("ASDF_DATA_DIR", "~/.asdf"))
@@ -53,7 +25,6 @@ else:
 
 
 IGNORE_UNSUPPORTED = bool(os.environ.get("PYTHONFINDER_IGNORE_UNSUPPORTED", False))
-MYPY_RUNNING = os.environ.get("MYPY_RUNNING", is_type_checking())
 SUBPROCESS_TIMEOUT = os.environ.get("PYTHONFINDER_SUBPROCESS_TIMEOUT", 5)
 """The default subprocess timeout for determining python versions
 

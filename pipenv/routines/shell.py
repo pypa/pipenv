@@ -3,7 +3,6 @@ import subprocess
 import sys
 from os.path import expandvars
 
-from pipenv import environments
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, system_which
 from pipenv.vendor import click
@@ -99,9 +98,7 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     run_args = [project, script]
     run_kwargs = {"env": env}
-    # We're using `do_run_nt` on CI (even if we're running on a non-nt machine)
-    # as a workaround for https://github.com/pypa/pipenv/issues/4909.
-    if os.name == "nt" or environments.PIPENV_IS_CI:
+    if os.name == "nt":
         run_fn = do_run_nt
     else:
         run_fn = do_run_posix

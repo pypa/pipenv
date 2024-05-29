@@ -53,9 +53,8 @@ def test_urls_work(pipenv_instance_pypi):
 @pytest.mark.files
 def test_file_urls_work(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        whl = Path(__file__).parent.parent.joinpath(
-            "pypi", "six", "six-1.11.0-py2.py3-none-any.whl"
-        )
+        whl = Path(Path(__file__).resolve().parent.parent / "pypi" / "six" / "six-1.11.0-py2.py3-none-any.whl")
+
         try:
             whl = whl.resolve()
         except OSError:
@@ -172,7 +171,7 @@ install_search_all_sources = true
 def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         # six_path = os.path.join(p.path, "six")
-        six_path = p._pipfile.get_fixture_path("git/six/").as_posix()
+        six_path = p._pipfile.get_fixture_path("git/six/")
         c = subprocess_run(["git", "clone", six_path, "./six"])
         assert c.returncode == 0
         c = p.pipenv("install -e ./six")

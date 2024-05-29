@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 # Scanner produces tokens of the following types:
 # STREAM-START
@@ -28,13 +29,13 @@
 # Read comments in the Scanner code for more details.
 #
 
-import inspect
 from pipenv.vendor.ruamel.yaml.error import MarkedYAMLError, CommentMark  # NOQA
 from pipenv.vendor.ruamel.yaml.tokens import *  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import check_anchorname_char, nprint, nprintf  # NOQA
+from pipenv.vendor.ruamel.yaml.docinfo import Version, Tag  # NOQA
+from pipenv.vendor.ruamel.yaml.compat import check_anchorname_char, _debug, nprint, nprintf  # NOQA
 
-from typing import Any, Dict, Optional, List, Union, Text  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import VersionType  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, Optional, List, Union, Text, Tuple  # NOQA
 
 __all__ = ['Scanner', 'RoundTripScanner', 'ScannerError']
 
@@ -44,9 +45,9 @@ _THE_END_SPACE_TAB = ' \n\0\t\r\x85\u2028\u2029'
 _SPACE_TAB = ' \t'
 
 
-def xprintf(*args: Any, **kw: Any) -> Any:
-    return nprintf(*args, **kw)
-    pass
+if _debug != 0:
+    def xprintf(*args: Any, **kw: Any) -> Any:
+        return nprintf(*args, **kw)
 
 
 class ScannerError(MarkedYAMLError):
@@ -84,7 +85,6 @@ class Scanner:
             self.loader._scanner = self
         self.reset_scanner()
         self.first_time = False
-        self.yaml_version: Any = None
 
     @property
     def flow_level(self) -> int:
@@ -142,6 +142,8 @@ class Scanner:
         # A simple key may start with ALIAS, ANCHOR, TAG, SCALAR(flow),
         # '[', or '{' tokens.
         self.possible_simple_keys: Dict[Any, Any] = {}
+        self.yaml_version: Any = None
+        self.tag_directives: List[Tuple[Any, Any]] = []
 
     @property
     def reader(self) -> Any:
@@ -911,6 +913,7 @@ class Scanner:
                 self.reader.get_mark(),
             )
         self.yaml_version = (major, minor)
+        self.loader.doc_infos[-1].doc_version = Version(major, minor)
         return self.yaml_version
 
     def scan_yaml_directive_number(self, start_mark: Any) -> Any:
@@ -942,7 +945,9 @@ class Scanner:
         while srp() == ' ':
             srf()
         prefix = self.scan_tag_directive_prefix(start_mark)
-        return (handle, prefix)
+        ret_val = (handle, prefix)
+        self.tag_directives.append(ret_val)
+        return ret_val
 
     def scan_tag_directive_handle(self, start_mark: Any) -> Any:
         # See the specification for details.
@@ -1979,17 +1984,23 @@ class CommentBase:
         self.line = line
         self.column = column
         self.used = ' '
-        info = inspect.getframeinfo(inspect.stack()[3][0])
-        self.function = info.function
-        self.fline = info.lineno
-        self.ufun = None
-        self.uline = None
+        if _debug != 0:
+            import inspect
+
+            info = inspect.getframeinfo(inspect.stack()[3][0])
+            self.function = info.function
+            self.fline = info.lineno
+            self.ufun = None
+            self.uline = None
 
     def set_used(self, v: Any = '+') -> None:
         self.used = v
-        info = inspect.getframeinfo(inspect.stack()[1][0])
-        self.ufun = info.function  # type: ignore
-        self.uline = info.lineno  # type: ignore
+        if _debug != 0:
+            import inspect
+
+            info = inspect.getframeinfo(inspect.stack()[1][0])
+            self.ufun = info.function  # type: ignore
+            self.uline = info.lineno  # type: ignore
 
     def set_assigned(self) -> None:
         self.used = '|'
@@ -2087,22 +2098,29 @@ class ScannedComments:
 
     def unprocessed(self, use: Any = False) -> Any:
         while len(self.unused) > 0:
-            first = self.unused.pop(0) if use else self.unused[0]
-            info = inspect.getframeinfo(inspect.stack()[1][0])
-            xprintf('using', first, self.comments[first].value, info.function, info.lineno)
+            if _debug != 0:
+                import inspect
+
+                first = self.unused.pop(0) if use else self.unused[0]
+                info = inspect.getframeinfo(inspect.stack()[1][0])
+                xprintf('using', first, self.comments[first].value, info.function, info.lineno)
             yield first, self.comments[first]
             if use:
                 self.comments[first].set_used()
 
     def assign_pre(self, token: Any) -> Any:
         token_line = token.start_mark.line
-        info = inspect.getframeinfo(inspect.stack()[1][0])
-        xprintf('assign_pre', token_line, self.unused, info.function, info.lineno)
+        if _debug != 0:
+            import inspect
+
+            info = inspect.getframeinfo(inspect.stack()[1][0])
+            xprintf('assign_pre', token_line, self.unused, info.function, info.lineno)
         gobbled = False
         while self.unused and self.unused[0] < token_line:
             gobbled = True
             first = self.unused.pop(0)
-            xprintf('assign_pre < ', first)
+            if _debug != 0:
+                xprintf('assign_pre < ', first)
             self.comments[first].set_used()
             token.add_comment_pre(first)
         return gobbled
@@ -2119,7 +2137,8 @@ class ScannedComments:
             tokens[-idx], ValueToken,
         ):
             idx += 1
-        xprintf('idx1', idx)
+        if _debug != 0:
+            xprintf('idx1', idx)
         if (
             len(tokens) > idx
             and isinstance(tokens[-idx], ScalarToken)
@@ -2133,13 +2152,15 @@ class ScannedComments:
                 try:
                     eol_idx = self.unused.pop(0)
                     self.comments[eol_idx].set_used()
-                    xprintf('>>>>>a', idx, eol_idx, KEYCMNT)
+                    if _debug != 0:
+                        xprintf('>>>>>a', idx, eol_idx, KEYCMNT)
                     tokens[-idx].add_comment_eol(eol_idx, KEYCMNT)
                 except IndexError:
                     raise NotImplementedError
                 return
         except IndexError:
-            xprintf('IndexError1')
+            if _debug != 0:
+                xprintf('IndexError1')
             pass
         try:
             if isinstance(tokens[-idx], ScalarToken) and isinstance(
@@ -2153,24 +2174,30 @@ class ScannedComments:
                     raise NotImplementedError
                 return
         except IndexError:
-            xprintf('IndexError2')
+            if _debug != 0:
+                xprintf('IndexError2')
             pass
         for t in tokens:
             xprintf('tt-', t)
-        xprintf('not implemented EOL', type(tokens[-idx]))
+        if _debug != 0:
+            xprintf('not implemented EOL', type(tokens[-idx]))
         import sys
 
         sys.exit(0)
 
     def assign_post(self, token: Any) -> Any:
         token_line = token.start_mark.line
-        info = inspect.getframeinfo(inspect.stack()[1][0])
-        xprintf('assign_post', token_line, self.unused, info.function, info.lineno)
+        if _debug != 0:
+            import inspect
+
+            info = inspect.getframeinfo(inspect.stack()[1][0])
+            xprintf('assign_post', token_line, self.unused, info.function, info.lineno)
         gobbled = False
         while self.unused and self.unused[0] < token_line:
             gobbled = True
             first = self.unused.pop(0)
-            xprintf('assign_post < ', first)
+            if _debug != 0:
+                xprintf('assign_post < ', first)
             self.comments[first].set_used()
             token.add_comment_post(first)
         return gobbled
@@ -2218,11 +2245,12 @@ class RoundTripScannerSC(Scanner):  # RoundTripScanner Split Comments
         if self.tokens[0].start_mark.line == self.tokens[-1].start_mark.line:
             return True
         if True:
-            xprintf('-x--', len(self.tokens))
-            for t in self.tokens:
-                xprintf(t)
-            # xprintf(self.comments.last())
-            xprintf(self.comments.str_unprocessed())  # type: ignore
+            if _debug != 0:
+                xprintf('-x--', len(self.tokens))
+                for t in self.tokens:
+                    xprintf(t)
+                # xprintf(self.comments.last())
+                xprintf(self.comments.str_unprocessed())  # type: ignore
         self.comments.assign_pre(self.tokens[0])  # type: ignore
         self.comments.assign_eol(self.tokens)  # type: ignore
         return False

@@ -14,7 +14,7 @@ class MissingParameter(Exception):
 
     @classmethod
     def get_message(cls, param):
-        return "Missing Parameter: %s" % param
+        return f"Missing Parameter: {param}"
 
     def show(self, param):
         print(self.message, file=sys.stderr, flush=True)
@@ -37,9 +37,9 @@ class FileCorruptException(OSError):
         super().__init__(self.message)
 
     def get_message(self, path, backup_path=None):
-        message = "ERROR: Failed to load file at %s" % path
+        message = f"ERROR: Failed to load file at {path}"
         if backup_path:
-            msg = "it will be backed up to %s and removed" % backup_path
+            msg = f"it will be backed up to {backup_path} and removed"
         else:
             msg = "it will be removed and replaced on the next lock."
         message = f"{message}\nYour lockfile is corrupt, {msg}"
@@ -55,9 +55,9 @@ class LockfileCorruptException(FileCorruptException):
         super().__init__(self.message)
 
     def get_message(self, path, backup_path=None):
-        message = "ERROR: Failed to load lockfile at %s" % path
+        message = f"ERROR: Failed to load lockfile at {path}"
         if backup_path:
-            msg = "it will be backed up to %s and removed" % backup_path
+            msg = f"it will be backed up to {backup_path} and removed"
         else:
             msg = "it will be removed and replaced on the next lock."
         message = f"{message}\nYour lockfile is corrupt, {msg}"
@@ -73,9 +73,9 @@ class PipfileCorruptException(FileCorruptException):
         super().__init__(self.message)
 
     def get_message(self, path, backup_path=None):
-        message = "ERROR: Failed to load Pipfile at %s" % path
+        message = f"ERROR: Failed to load Pipfile at {path}"
         if backup_path:
-            msg = "it will be backed up to %s and removed" % backup_path
+            msg = f"it will be backed up to {backup_path} and removed"
         else:
             msg = "it will be removed and replaced on the next lock."
         message = f"{message}\nYour Pipfile is corrupt, {msg}"

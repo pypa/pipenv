@@ -123,7 +123,7 @@ def load_pyproject_toml(
         # a version of setuptools that supports that backend.
 
         build_system = {
-            "requires": ["setuptools>=40.8.0", "wheel"],
+            "requires": ["setuptools>=40.8.0"],
             "build-backend": "setuptools.build_meta:__legacy__",
         }
 

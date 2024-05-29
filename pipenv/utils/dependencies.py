@@ -660,34 +660,43 @@ def find_package_name_from_directory(directory):
     return None
 
 
+def ensure_path_is_relative(file_path):
+    abs_path = Path(file_path).resolve()
+    current_dir = Path.cwd()
+
+    # Check if the paths are on different drives
+    if abs_path.drive != current_dir.drive:
+        # If on different drives, return the absolute path
+        return str(abs_path)
+
+    try:
+        # Try to create a relative path
+        return str(abs_path.relative_to(current_dir))
+    except ValueError:
+        # If the direct relative_to fails, manually compute the relative path
+        common_parts = 0
+        for part_a, part_b in zip(abs_path.parts, current_dir.parts):
+            if part_a == part_b:
+                common_parts += 1
+            else:
+                break
+
+        # Number of ".." needed are the extra parts in the current directory
+        # beyond the common parts
+        up_levels = [".."] * (len(current_dir.parts) - common_parts)
+        # The relative path is constructed by going up as needed and then
+        # appending the non-common parts of the absolute path
+        rel_parts = up_levels + list(abs_path.parts[common_parts:])
+        relative_path = Path(*rel_parts)
+        return str(relative_path)
+
+
 def determine_path_specifier(package: InstallRequirement):
     if package.link:
         if package.link.scheme in ["http", "https"]:
             return package.link.url_without_fragment
         if package.link.scheme == "file":
-            abs_path = Path(package.link.file_path).resolve()
-            current_dir = Path.cwd()
-
-            try:
-                relative_path = abs_path.relative_to(current_dir)
-                return relative_path.as_posix()
-            except ValueError:
-                # If the direct relative_to fails, manually compute the relative path
-                common_parts = 0
-                for part_a, part_b in zip(abs_path.parts, current_dir.parts):
-                    if part_a == part_b:
-                        common_parts += 1
-                    else:
-                        break
-
-                # Number of ".." needed are the extra parts in the current directory
-                # beyond the common parts
-                up_levels = [".."] * (len(current_dir.parts) - common_parts)
-                # The relative path is constructed by going up as needed and then
-                # appending the non-common parts of the absolute path
-                rel_parts = up_levels + list(abs_path.parts[common_parts:])
-                relative_path = Path(*rel_parts)
-                return relative_path.as_posix()
+            return ensure_path_is_relative(package.link.file_path)
 
 
 def determine_vcs_specifier(package: InstallRequirement):
@@ -1003,19 +1012,16 @@ def expansive_install_req_from_line(
     return install_req, name
 
 
-def _file_path_from_pipfile(path_obj, pipfile_entry):
+def file_path_from_pipfile(path_str, pipfile_entry):
     """Creates an installable file path from a pipfile entry.
     Handles local and remote paths, files and directories;
     supports extras and editable specification.
     Outputs a pip installable line.
     """
-    parsed_url = urlparse(str(path_obj))
-    if parsed_url.scheme in ["http", "https", "ftp", "file"]:
-        req_str = str(path_obj)
-    elif path_obj.is_absolute():
-        req_str = str(path_obj.as_posix())
+    if path_str.startswith(("http:", "https:", "ftp:")):
+        req_str = path_str
     else:
-        req_str = f"./{str(path_obj.as_posix())}"
+        req_str = ensure_path_is_relative(path_str)
 
     if pipfile_entry.get("extras"):
         req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
@@ -1076,11 +1082,9 @@ def install_req_from_pipfile(name, pipfile):
         else:
             req_str = f"{name}{extras_str}@ {req_str}{subdirectory}"
     elif "path" in _pipfile:
-        path_obj = Path(_pipfile["path"])
-        req_str = _file_path_from_pipfile(path_obj, _pipfile)
+        req_str = file_path_from_pipfile(_pipfile["path"], _pipfile)
     elif "file" in _pipfile:
-        path_obj = Path(_pipfile["file"])
-        req_str = _file_path_from_pipfile(path_obj, _pipfile)
+        req_str = file_path_from_pipfile(_pipfile["file"], _pipfile)
     else:
         # We ensure version contains an operator. Default to equals (==)
         _pipfile["version"] = version = get_version(pipfile)
@@ -1203,9 +1207,7 @@ def is_required_version(version, specified_version):
 
 def is_editable(pipfile_entry):
     if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("editable", False) or any(
-            pipfile_entry.get(key) for key in ("file", "path") + VCS_LIST
-        )
+        return pipfile_entry.get("editable", False)
     return False
 
 

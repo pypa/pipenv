@@ -1,18 +1,15 @@
 from __future__ import annotations
 
+import dataclasses
 import os
 from collections import defaultdict
-from pathlib import Path
+from dataclasses import field
 from typing import (
     TYPE_CHECKING,
     Any,
-    Dict,
     Generator,
     Iterator,
-    Optional,
 )
-
-from pipenv.vendor.pydantic import BaseModel, Field, validator
 
 from ..exceptions import InvalidPythonVersion
 from ..utils import (
@@ -25,51 +22,47 @@ from ..utils import (
 )
 
 if TYPE_CHECKING:
-    from pipenv.vendor.pythonfinder.models.python import PythonVersion
+    from pathlib import Path
+
+    from .python import PythonVersion
 
 
-class PathEntry(BaseModel):
-    is_root: bool = Field(default=False, order=False)
-    name: Optional[str] = None
-    path: Optional[Path] = None
-    children_ref: Optional[Any] = Field(default_factory=lambda: dict())
-    only_python: Optional[bool] = False
-    py_version_ref: Optional[Any] = None
-    pythons_ref: Optional[Dict[Any, Any]] = defaultdict(lambda: None)
-    is_dir_ref: Optional[bool] = None
-    is_executable_ref: Optional[bool] = None
-    is_python_ref: Optional[bool] = None
+@dataclasses.dataclass(unsafe_hash=True)
+class PathEntry:
+    is_root: bool = False
+    name: str | None = None
+    path: Path | None = None
+    children_ref: dict[str, Any] = field(default_factory=dict)
+    only_python: bool | None = False
+    py_version_ref: Any | None = None
+    pythons_ref: dict[str, Any] | None = field(
+        default_factory=lambda: defaultdict(lambda: None)
+    )
+    is_dir_ref: bool | None = None
+    is_executable_ref: bool | None = None
+    is_python_ref: bool | None = None
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-
-    @validator("children", pre=True, always=True, check_fields=False)
-    def set_children(cls, v, values, **kwargs):
-        path = values.get("path")
-        if path:
-            values["name"] = path.name
-        return v or cls()._gen_children()
+    def __post_init__(self):
+        if not self.children_ref:
+            self._gen_children()
 
     def __str__(self) -> str:
-        return f"{self.path.as_posix()}"
+        return f"{self.path}"
 
     def __lt__(self, other) -> bool:
-        return self.path.as_posix() < other.path.as_posix()
+        return self.path < other.path
 
     def __lte__(self, other) -> bool:
-        return self.path.as_posix() <= other.path.as_posix()
+        return self.path <= other.path
 
     def __gt__(self, other) -> bool:
-        return self.path.as_posix() > other.path.as_posix()
+        return self.path > other.path
 
     def __gte__(self, other) -> bool:
-        return self.path.as_posix() >= other.path.as_posix()
+        return self.path >= other.path
 
     def __eq__(self, other) -> bool:
-        return self.path.as_posix() == other.path.as_posix()
+        return self.path == other.path
 
     def which(self, name) -> PathEntry | None:
         """Search in this path for an executable.
@@ -87,9 +80,9 @@ class PathEntry(BaseModel):
         if self.path is not None:
             found = next(
                 (
-                    children[(self.path / child).as_posix()]
+                    children[(self.path / child)]
                     for child in valid_names
-                    if (self.path / child).as_posix() in children
+                    if (self.path / child) in children
                 ),
                 None,
             )
@@ -210,7 +203,7 @@ class PathEntry(BaseModel):
         if not self.pythons_ref:
             self.pythons_ref = defaultdict(PathEntry)
             for python in self._iter_pythons():
-                python_path = python.path.as_posix()
+                python_path = python.path
                 self.pythons_ref[python_path] = python
         return self.pythons_ref
 
@@ -295,17 +288,10 @@ class PathEntry(BaseModel):
             if self.is_python and self.as_python and version_matcher(self.py_version):
                 return self
 
-        matching_pythons = [
-            [entry, entry.as_python.version_sort]
-            for entry in self._iter_pythons()
-            if (
-                entry is not None
-                and entry.as_python is not None
-                and version_matcher(entry.py_version)
-            )
-        ]
-        results = sorted(matching_pythons, key=lambda r: (r[1], r[0]), reverse=True)
-        return next(iter(r[0] for r in results if r is not None), None)
+        for entry in self._iter_pythons():
+            if entry is not None and entry.as_python is not None:
+                if version_matcher(entry.as_python):
+                    return entry
 
     def _filter_children(self) -> Iterator[Path]:
         if not os.access(str(self.path), os.R_OK):
@@ -316,39 +302,26 @@ class PathEntry(BaseModel):
             children = self.path.iterdir()
         return children
 
-    def _gen_children(self) -> Iterator:
-        pass_name = self.name != self.path.name
-        pass_args = {"is_root": False, "only_python": self.only_python}
-        if pass_name:
-            if self.name is not None and isinstance(self.name, str):
-                pass_args["name"] = self.name
-            elif self.path is not None and isinstance(self.path.name, str):
-                pass_args["name"] = self.path.name
+    def _gen_children(self):
+        if self.is_dir and self.is_root and self.path is not None:
+            # Assuming _filter_children returns an iterator over child paths
+            for child_path in self._filter_children():
+                pass_name = self.name != self.path.name
+                pass_args = {"is_root": False, "only_python": self.only_python}
+                if pass_name:
+                    if self.name is not None and isinstance(self.name, str):
+                        pass_args["name"] = self.name
+                    elif self.path is not None and isinstance(self.path.name, str):
+                        pass_args["name"] = self.path.name
 
-        if not self.is_dir:
-            yield (self.path.as_posix(), self)
-        elif self.is_root:
-            for child in self._filter_children():
-                if self.only_python:
-                    try:
-                        entry = PathEntry.create(path=child, **pass_args)
-                    except (InvalidPythonVersion, ValueError):
-                        continue
-                else:
-                    try:
-                        entry = PathEntry.create(path=child, **pass_args)
-                    except (InvalidPythonVersion, ValueError):
-                        continue
-                yield (child.as_posix(), entry)
-        return
+                try:
+                    entry = PathEntry.create(path=child_path, **pass_args)
+                    self.children_ref[child_path] = entry
+                except (InvalidPythonVersion, ValueError):
+                    continue  # Or handle as needed
 
     @property
     def children(self) -> dict[str, PathEntry]:
-        children = getattr(self, "children_ref", {})
-        if not children:
-            for child_key, child_val in self._gen_children():
-                children[child_key] = child_val
-            self.children_ref = children
         return self.children_ref
 
     @classmethod
@@ -360,7 +333,7 @@ class PathEntry(BaseModel):
         pythons: dict[str, PythonVersion] | None = None,
         name: str | None = None,
     ) -> PathEntry:
-        """Helper method for creating new :class:`pythonfinder.models.PathEntry` instances.
+        """Helper method for creating new :class:`PathEntry` instances.
 
         :param str path: Path to the specified location.
         :param bool is_root: Whether this is a root from the environment PATH variable, defaults to False
@@ -390,7 +363,7 @@ class PathEntry(BaseModel):
                 child_creation_args["name"] = _new.name
             for pth, python in pythons.items():
                 pth = ensure_path(pth)
-                children[pth.as_posix()] = PathEntry(
+                children[str(path)] = PathEntry(
                     py_version=python, path=pth, **child_creation_args
                 )
             _new.children_ref = children

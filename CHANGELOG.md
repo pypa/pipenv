@@ -1,3 +1,74 @@
+2023.12.1 (2024-02-04)
+======================
+Pipenv 2023.12.1 (2024-02-04)
+=============================
+
+
+Bug Fixes
+---------
+
+- Remove debug print statements that should not have made it into the last release.  `#6079 <https://github.com/pypa/pipenv/issues/6079>`_
+2023.12.0 (2024-02-01)
+======================
+Pipenv 2023.12.0 (2024-02-01)
+=============================
+
+
+Bug Fixes
+---------
+
+- Removal of pydantic from pythonfinder and pipenv; reduced complexity of pythonfinder pathlib usage (avoid posix conversions).  `#6065 <https://github.com/pypa/pipenv/issues/6065>`_
+- Adjusted logic which assumed any file, path or VCS install should be considered editable.  Instead relies on the user specified editable flag to mark requirement as editable install.  `#6069 <https://github.com/pypa/pipenv/issues/6069>`_
+- Remove logic that treats ``CI`` variable to use ``do_run_nt`` shell logic, as the original reasons for that patch were no longer valid.  `#6072 <https://github.com/pypa/pipenv/issues/6072>`_
+2023.11.17 (2024-01-21)
+=======================
+Pipenv 2023.11.17 (2024-01-21)
+==============================
+
+
+Bug Fixes
+---------
+
+- Add markers to Pipfile when parsing requirements.txt  `#6008 <https://github.com/pypa/pipenv/issues/6008>`_
+- Fix KeyError when using a source without a name in Pipfile  `#6021 <https://github.com/pypa/pipenv/issues/6021>`_
+- Fix a bug with locking projects that contains packages with non canonical names from private indexes  `#6056 <https://github.com/pypa/pipenv/issues/6056>`_
+
+Vendored Libraries
+------------------
+
+- Update vendored tomlkit to ``0.12.3``  `#6024 <https://github.com/pypa/pipenv/issues/6024>`_
+- Bump version of pipdeptree to 0.13.2  `#6055 <https://github.com/pypa/pipenv/issues/6055>`_
+2023.11.15 (2023-11-15)
+=======================
+Pipenv 2023.11.15 (2023-11-15)
+==============================
+
+
+Bug Fixes
+---------
+
+- Fix regression with path installs on most recent release ``2023.11.14``  `#6017 <https://github.com/pypa/pipenv/issues/6017>`_
+
+
+2023.11.14 (2023-11-14)
+=======================
+Pipenv 2023.11.14 (2023-11-14)
+==============================
+
+
+Behavior Changes
+----------------
+
+- pipenv now ignores existing venv dir when ``PIPENV_VENV_IN_PROJECT`` is false.  `#6009 <https://github.com/pypa/pipenv/issues/6009>`_
+
+Bug Fixes
+---------
+
+- Assume the vcs and direct URL installs need to be reinstalled.  `#5936 <https://github.com/pypa/pipenv/issues/5936>`_
+- Pass through pipfile index urls when creating https session so that keyring fully works  `#5994 <https://github.com/pypa/pipenv/issues/5994>`_
+- Fix Using dependencies from a URL fails on Windows.  `#6011 <https://github.com/pypa/pipenv/issues/6011>`_
+
+
 2023.10.24 (2023-10-24)
 =======================
 Pipenv 2023.10.24 (2023-10-24)

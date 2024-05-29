@@ -1,42 +1,34 @@
 from __future__ import annotations
 
+import dataclasses
 import operator
-from typing import Any, Optional
+from typing import Any, Iterable
 
+from .environment import set_asdf_paths, set_pyenv_paths
 from .exceptions import InvalidPythonVersion
-from .models.common import FinderBaseModel
 from .models.path import PathEntry, SystemPath
 from .models.python import PythonVersion
-from .environment import set_asdf_paths, set_pyenv_paths
-from .utils import Iterable, version_re
+from .utils import version_re
 
 
-class Finder(FinderBaseModel):
-    path_prepend: Optional[str] = None
+@dataclasses.dataclass(unsafe_hash=True)
+class Finder:
+    path: str | None = None
     system: bool = False
     global_search: bool = True
     ignore_unsupported: bool = True
     sort_by_path: bool = False
-    system_path: Optional[SystemPath] = None
+    system_path: SystemPath | None = dataclasses.field(default=None, init=False)
 
-    def __init__(self, **data) -> None:
-        super().__init__(**data)
+    def __post_init__(self):
         self.system_path = self.create_system_path()
 
-    @property
-    def __hash__(self) -> int:
-        return hash(
-            (self.path_prepend, self.system, self.global_search, self.ignore_unsupported)
-        )
-
-    def __eq__(self, other) -> bool:
-        return self.__hash__ == other.__hash__
-
     def create_system_path(self) -> SystemPath:
+        # Implementation of set_asdf_paths and set_pyenv_paths might need to be adapted.
         set_asdf_paths()
         set_pyenv_paths()
         return SystemPath.create(
-            path=self.path_prepend,
+            path=self.path,
             system=self.system,
             global_search=self.global_search,
             ignore_unsupported=self.ignore_unsupported,
@@ -179,7 +171,7 @@ class Finder(FinderBaseModel):
             dev=dev,
             arch=arch,
             name=name,
-            sort_by_path=self.sort_by_path,
+            sort_by_path=sort_by_path,
         )
 
     def find_all_python_versions(
@@ -212,11 +204,11 @@ class Finder(FinderBaseModel):
             filter(lambda v: v and v.as_python, versions), key=version_sort, reverse=True
         )
         path_map = {}
-        for path in path_list:
+        for p in path_list:
             try:
-                resolved_path = path.path.resolve()
-            except OSError:
-                resolved_path = path.path.absolute()
-            if not path_map.get(resolved_path.as_posix()):
-                path_map[resolved_path.as_posix()] = path
-        return path_list
+                resolved_path = p.path.resolve(strict=True)
+            except (OSError, RuntimeError):
+                resolved_path = p.path.absolute()
+            if resolved_path not in path_map:
+                path_map[resolved_path] = p
+        return [path_map[p] for p in path_map]

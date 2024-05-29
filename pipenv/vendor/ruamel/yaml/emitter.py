@@ -1,4 +1,5 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 # Emitter expects events obeying the following grammar:
 # stream ::= STREAM-START document* STREAM-END
@@ -17,8 +18,9 @@ from pipenv.vendor.ruamel.yaml.compat import nprint, dbg, DBG_EVENT, \
 # fmt: on
 
 
-from typing import Any, Dict, List, Union, Text, Tuple, Optional  # NOQA
-from pipenv.vendor.ruamel.yaml.compat import StreamType  # NOQA
+if False:  # MYPY
+    from typing import Any, Dict, List, Union, Text, Tuple, Optional  # NOQA
+    from pipenv.vendor.ruamel.yaml.compat import StreamType  # NOQA
 
 __all__ = ['Emitter', 'EmitterError']
 
@@ -48,6 +50,9 @@ class ScalarAnalysis:
         self.allow_double_quoted = allow_double_quoted
         self.allow_block = allow_block
 
+    def __repr__(self) -> str:
+        return f'scalar={self.scalar!r}, empty={self.empty}, multiline={self.multiline}, allow_flow_plain={self.allow_flow_plain}, allow_block_plain={self.allow_block_plain}, allow_single_quoted={self.allow_single_quoted}, allow_double_quoted={self.allow_double_quoted}, allow_block={self.allow_block}'  # NOQA
+
 
 class Indents:
     # replacement for the list based stack of None/int
@@ -59,6 +64,14 @@ class Indents:
 
     def pop(self) -> Any:
         return self.values.pop()[0]
+
+    def seq_seq(self) -> bool:
+        try:
+            if self.values[-2][1] and self.values[-1][1]:
+                return True
+        except IndexError:
+            pass
+        return False
 
     def last_seq(self) -> bool:
         # return the seq(uence) value for the element added before the last one
@@ -416,7 +429,6 @@ class Emitter:
                 # nprint('@', self.indention, self.no_newline, self.column)
                 self.expect_scalar()
             elif isinstance(self.event, SequenceStartEvent):
-                # nprint('@', self.indention, self.no_newline, self.column)
                 i2, n2 = self.indention, self.no_newline  # NOQA
                 if self.event.comment:
                     if self.event.flow_style is False:
@@ -442,6 +454,10 @@ class Emitter:
                     self.expect_flow_sequence(force_flow_indent)
                 else:
                     self.expect_block_sequence()
+                if self.indents.seq_seq():
+                    # - -
+                    self.indention = True
+                    self.no_newline = False
             elif isinstance(self.event, MappingStartEvent):
                 if self.event.flow_style is False and self.event.comment:
                     self.write_post_comment(self.event)
@@ -612,7 +628,8 @@ class Emitter:
                 self.expect_node(mapping=True)
 
     def expect_flow_mapping_simple_value(self) -> None:
-        self.write_indicator(self.prefixed_colon, False)
+        if getattr(self.event, 'style', '?') != '-':  # suppress for flow style sets
+            self.write_indicator(self.prefixed_colon, False)
         self.states.append(self.expect_flow_mapping_key)
         self.expect_node(mapping=True)
 
@@ -841,7 +858,7 @@ class Emitter:
             self.analysis = self.analyze_scalar(self.event.value)
         if self.event.style == '"' or self.canonical:
             return '"'
-        if (not self.event.style or self.event.style == '?') and (
+        if (not self.event.style or self.event.style == '?' or self.event.style == '-') and (
             self.event.implicit[0] or not self.event.implicit[2]
         ):
             if not (
@@ -851,6 +868,8 @@ class Emitter:
                 and self.analysis.allow_flow_plain
                 or (not self.flow_level and self.analysis.allow_block_plain)
             ):
+                return ""
+            if self.event.style == '-':
                 return ""
         self.analysis.allow_block = True
         if self.event.style and self.event.style in '|>':
@@ -889,7 +908,7 @@ class Emitter:
         elif self.style == '>':
             try:
                 cmx = self.event.comment[1][0]
-            except (IndexError, TypeError):
+            except (IndexError, TypeError) as e:  # NOQA
                 cmx = ""
             self.write_folded(self.analysis.scalar, cmx)
             if (
@@ -1712,6 +1731,8 @@ class Emitter:
             self.write_line_break()
 
     def write_pre_comment(self, event: Any) -> bool:
+        if event.comment is None:
+            return False
         comments = event.comment[1]
         if comments is None:
             return False
@@ -1743,7 +1764,6 @@ class RoundTripEmitter(Emitter):
         if not ctag:
             raise EmitterError('tag must not be empty')
         tag = str(ctag)
-        # print('handling', repr(tag))
         if tag == '!' or tag == '!!':
             return tag
         handle = ctag.handle

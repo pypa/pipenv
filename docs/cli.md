@@ -82,6 +82,14 @@ Spawns a command installed into the virtualenv.
 pipenv run [OPTIONS] COMMAND [ARGS]...
 ```
 
+## scripts
+
+Lists scripts in current environment config.
+
+```bash
+pipenv scripts [OPTIONS]
+```
+
 ## shell
 
 Spawns a shell within the virtualenv.

@@ -1,8 +1,10 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 from pipenv.vendor.ruamel.yaml.compat import nprintf  # NOQA
 
-from typing import Text, Any, Dict, Optional, List  # NOQA
+if False:  # MYPY
+    from typing import Text, Any, Dict, Optional, List  # NOQA
 from .error import StreamMark  # NOQA
 
 SHOW_LINES = True

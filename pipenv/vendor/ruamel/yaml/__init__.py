@@ -1,13 +1,14 @@
-# coding: utf-8
+
+from __future__ import annotations
 
 if False:  # MYPY
     from typing import Dict, Any  # NOQA
 
 _package_data = dict(
     full_package_name='ruamel.yaml',
-    version_info=(0, 17, 39),
-    __version__='0.17.39',
-    version_timestamp='2023-10-19 17:37:02',
+    version_info=(0, 18, 6),
+    __version__='0.18.6',
+    version_timestamp='2024-02-07 07:43:33',
     author='Anthon van der Neut',
     author_email='a.van.der.neut@ruamel.eu',
     description='ruamel.yaml is a YAML parser/emitter that supports roundtrip preservation of comments, seq/map flow style, and map key order',  # NOQA
@@ -39,8 +40,7 @@ _package_data = dict(
         fl8excl='_test/lib,branch_default',
     ),
     # universal=True,
-    python_requires='>=3',
-    rtfd='yaml',
+    python_requires='>=3.7',
 )  # type: Dict[Any, Any]
 
 

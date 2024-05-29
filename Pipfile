@@ -5,7 +5,7 @@ name = "pypi"
 
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
-sphinx = "==4.*"
+sphinx = "*"
 sphinx-click = "==4.*"
 sphinxcontrib-spelling = "==7.*"
 click = "==8.0.3"
@@ -14,20 +14,21 @@ stdeb = {version="*", sys_platform = "== 'linux'"}
 zipp = {version = "==3.6.0", markers = "python_version < '3.10'"}
 pre-commit = "==2.*"
 atomicwrites = {version = "*", sys_platform = "== 'win32'"}
-pytest-cov = "==3.*"
+pytest-cov = "==4.*"
 typing-extensions = "==4.*"
 waitress = {version = "*", sys_platform = "== 'win32'"}
 gunicorn = {version = "*", sys_platform = "== 'linux'"}
 parse = "*"
-importlib-metadata = {version = "*"}
+importlib-metadata = "*"
 colorama= {version = "*", sys_platform = "== 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
-invoke = "==2.0.0"
+invoke = "*"
 exceptiongroup = "==1.1.0"
 tomli = "*"
 pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
+semver = "*"
 
 [packages]
 pytz = "*"

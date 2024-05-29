@@ -58,7 +58,6 @@ PATCHED_RENAMES = {}
 LIBRARY_RENAMES = {
     "pip": "pipenv.patched.pip",
     "requests": "pipenv.patched.pip._vendor.requests",
-    "packaging": "pipenv.patched.pip._vendor.packaging",
     # "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
     "pyparsing": "pipenv.patched.pip._vendor.pyparsing",
@@ -100,6 +99,10 @@ GLOBAL_REPLACEMENT = [
     (
         "from typing_extensions import",
         "from pipenv.patched.pip._vendor.typing_extensions import",
+    ),
+    (
+        "import zipp",
+        "from pipenv.vendor import zipp",
     ),
     (
         "from pipenv.patched.pip._vendor.typing_extensions",
@@ -144,14 +147,14 @@ def _get_patched_dir(ctx):
 def clean_vendor(ctx, vendor_dir):
     # Old _vendor cleanup
     remove_all(vendor_dir.glob("*.pyc"))
-    log("Cleaning %s" % vendor_dir)
+    log(f"Cleaning {vendor_dir}")
     for item in vendor_dir.iterdir():
         if item.is_dir():
             shutil.rmtree(str(item))
         elif item.name not in FILE_WHITE_LIST:
             item.unlink()
         else:
-            log("Skipping %s" % item)
+            log(f"Skipping {item}")
 
 
 def detect_all_vendored_libs(ctx):
@@ -213,13 +216,13 @@ def rewrite_file_imports(item, vendored_libs):
 
     for lib, to_lib in vendored_libs.items():
         text = re.sub(
-            r"(?m)^(\s*)import %s((?:\.\S*)?\s+as)" % lib,
-            r"\1import %s\2" % to_lib,
+            rf"(?m)^(\s*)import {lib}((?:\.\S*)?\s+as)",
+            rf"\1import {to_lib}\2",
             text,
         )
-        text = re.sub(r"(?m)^(\s*)from %s([\s\.]+)" % lib, r"\1from %s\2" % to_lib, text)
+        text = re.sub(rf"(?m)^(\s*)from {lib}([\s\.]+)", rf"\1from {to_lib}\2", text)
         text = re.sub(
-            r"(?m)^(\s*)import %s(\s*[,\n#])" % lib,
+            rf"(?m)^(\s*)import {lib}(\s*[,\n#])",
             rf"\1import {to_lib} as {lib}\2",
             text,
         )
@@ -229,8 +232,8 @@ def rewrite_file_imports(item, vendored_libs):
 
 
 def apply_patch(ctx, patch_file_path):
-    log("Applying patch %s" % patch_file_path.name)
-    ctx.run("git apply --ignore-whitespace --verbose %s" % patch_file_path)
+    log(f"Applying patch {patch_file_path.name}")
+    ctx.run(f"git apply --ignore-whitespace --verbose {patch_file_path}")
 
 
 def _recursive_write_to_zip(zf, path, root=None):
@@ -264,7 +267,7 @@ def rename_if_needed(ctx, vendor_dir, item):
 
 def _ensure_package_in_requirements(ctx, requirements_file, package):
     requirement = None
-    log("using requirements file: %s" % requirements_file)
+    log(f"using requirements file: {requirements_file}")
     req_file_lines = list(requirements_file.read_text().splitlines())
     if package:
         match = [r for r in req_file_lines if r.strip().lower().startswith(package)]
@@ -277,10 +280,10 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
                 ):
                     matched_req = f"{m}"
                     requirement = matched_req
-                    log("Matched req: %r" % matched_req)
+                    log(f"Matched req: {matched_req!r}")
         if not matched_req:
             req_file_lines.append(f"{package}")
-            log("Writing requirements file: %s" % requirements_file)
+            log(f"Writing requirements file: {requirements_file}")
             requirements_file.write_text("\n".join(req_file_lines))
             requirement = f"{package}"
     return requirement
@@ -289,7 +292,7 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
 def install(ctx, vendor_dir, package=None):
     requirements_file = vendor_dir / f"{vendor_dir.name}.txt"
     requirement = f"-r {requirements_file.as_posix()}"
-    log("Using requirements file: %s" % requirement)
+    log(f"Using requirements file: {requirement}")
     if package:
         requirement = _ensure_package_in_requirements(ctx, requirements_file, package)
     # We use --no-deps because we want to ensure that all of our dependencies
@@ -375,7 +378,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
     post_install_cleanup(ctx, vendor_dir)
     # Detect the vendored packages/modules
     vendored_libs = detect_all_vendored_libs(ctx)
-    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
+    log("Detected vendored libraries: {}".format(", ".join(vendored_libs)))
 
     # Apply pre-patches
     log("Applying pre-patches...")
@@ -392,7 +395,7 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
     for item in vendor_dir.iterdir():
         if item.is_dir():
             if rewrite and not package or (package and item.name.lower() in package):
-                log("Rewriting imports for %s..." % item)
+                log(f"Rewriting imports for {item}...")
                 rewrite_imports(item, vendored_libs)
             rename_if_needed(ctx, vendor_dir, item)
         elif item.name not in FILE_WHITE_LIST and (
@@ -416,12 +419,12 @@ def redo_imports(ctx, library, vendor_dir=None):
         vendor_dir = _get_vendor_dir(ctx)
     else:
         vendor_dir = Path(vendor_dir).absolute()
-    log("Using vendor dir: %s" % vendor_dir)
+    log(f"Using vendor dir: {vendor_dir}")
     vendored_libs = detect_all_vendored_libs(ctx)
     item = vendor_dir / library
     library_name = vendor_dir / f"{library}.py"
-    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
-    log("Rewriting imports for %s..." % item)
+    log("Detected vendored libraries: {}".format(", ".join(vendored_libs)))
+    log(f"Rewriting imports for {item}...")
     if item.is_dir():
         rewrite_imports(item, vendored_libs)
     else:
@@ -432,9 +435,9 @@ def redo_imports(ctx, library, vendor_dir=None):
 def rewrite_all_imports(ctx):
     vendor_dir = _get_vendor_dir(ctx)
     patched_dir = _get_patched_dir(ctx)
-    log("Using vendor dir: %s" % vendor_dir)
+    log(f"Using vendor dir: {vendor_dir}")
     vendored_libs = detect_all_vendored_libs(ctx)
-    log("Detected vendored libraries: %s" % ", ".join(vendored_libs))
+    log("Detected vendored libraries: {}".format(", ".join(vendored_libs)))
     log("Rewriting all imports related to vendored libs")
     for item in itertools.chain(patched_dir.iterdir(), vendor_dir.iterdir()):
         if item.is_dir():
@@ -758,14 +761,14 @@ def main(ctx, package=None, type=None):
         target_dirs = [vendor_dir, patched_dir]
     if package:
         if type is None or type == "vendor":
-            log("Using vendor dir: %s" % vendor_dir)
+            log(f"Using vendor dir: {vendor_dir}")
             vendor(ctx, vendor_dir, package=package)
             download_licenses(ctx, vendor_dir, package=package)
         elif type == "patched":
-            log("Using patched dir: %s" % patched_dir)
+            log(f"Using patched dir: {patched_dir}")
             vendor(ctx, patched_dir, package=package)
             download_licenses(ctx, patched_dir, package=package)
-        log("Vendored %s" % package)
+        log(f"Vendored {package}")
         return
     for package_dir in target_dirs:
         clean_vendor(ctx, package_dir)

@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pipenv.utils.fileutils import normalize_drive, normalize_path
 from pipenv.vendor import click
-from pipenv.vendor.pythonfinder.utils import ensure_path
+from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
@@ -237,7 +237,6 @@ def find_python(finder, line=None):
     :return: A path to python
     :rtype: str
     """
-
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
     if line:
@@ -258,12 +257,20 @@ def find_python(finder, line=None):
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
     elif line and line[0].isdigit() or re.match(r"^\d+(\.\d+)*$", line):
-        result = finder.find_python_version(line)
+        version_info = parse_python_version(line)
+        result = finder.find_python_version(
+            major=version_info.get("major"),
+            minor=version_info.get("minor"),
+            patch=version_info.get("patch"),
+            pre=version_info.get("is_prerelease"),
+            dev=version_info.get("is_devrelease"),
+            sort_by_path=True,
+        )
     else:
         result = finder.find_python_version(name=line)
     if not result:
         result = finder.which(line)
-    if not result and not line.startswith("python"):
+    if not result and "python" not in line.lower():
         line = f"python{line}"
         result = find_python(finder, line)
 

@@ -405,9 +405,9 @@ class VersionControl:
         scheme, netloc, path, query, frag = urllib.parse.urlsplit(url)
         if "+" not in scheme:
             raise ValueError(
-                "Sorry, {!r} is a malformed VCS url. "
+                f"Sorry, {url!r} is a malformed VCS url. "
                 "The format is <vcs>+<protocol>://<url>, "
-                "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp".format(url)
+                "e.g. svn+http://myrepo/svn/MyApp#egg=MyApp"
             )
         # Remove the vcs prefix.
         scheme = scheme.split("+", 1)[1]
@@ -417,9 +417,9 @@ class VersionControl:
             path, rev = path.rsplit("@", 1)
             if not rev:
                 raise InstallationError(
-                    "The URL {!r} has an empty revision (after @) "
+                    f"The URL {url!r} has an empty revision (after @) "
                     "which is not supported. Include a revision after @ "
-                    "or remove @ from the URL.".format(url)
+                    "or remove @ from the URL."
                 )
         url = urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
         return url, rev, user_pass
@@ -566,7 +566,7 @@ class VersionControl:
             self.name,
             url,
         )
-        response = ask_path_exists("What to do?  {}".format(prompt[0]), prompt[1])
+        response = ask_path_exists(f"What to do?  {prompt[0]}", prompt[1])
 
         if response == "a":
             sys.exit(-1)

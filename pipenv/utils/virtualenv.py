@@ -347,7 +347,7 @@ def find_a_system_python(line):
 
     from pipenv.vendor.pythonfinder import Finder
 
-    finder = Finder(system=False, global_search=True)
+    finder = Finder(system=True, global_search=True)
     if not line:
         return next(iter(finder.find_all_python_versions()), None)
     # Use the windows finder executable

@@ -2,6 +2,7 @@ import contextlib
 import io
 import itertools
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -14,7 +15,6 @@ from pipenv.utils.requirementslib import is_editable, is_vcs, merge_items
 from pipenv.utils.toml import tomlkit_value_to_python
 from pipenv.vendor import tomlkit
 from pipenv.vendor.plette import pipfiles
-from pipenv.vendor.pydantic import BaseModel, Field, validator
 
 DEFAULT_NEWLINES = "\n"
 
@@ -149,10 +149,11 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-class ProjectFile(BaseModel):
+@dataclass
+class ProjectFile:
     location: str
     line_ending: str
-    model: Optional[Any] = Field(default_factory=lambda: {})
+    model: Optional[Any] = field(default_factory=dict)
 
     @classmethod
     def read(cls, location: str, model_cls, invalid_ok: bool = False) -> "ProjectFile":
@@ -263,32 +264,32 @@ class PipfileLoader(pipfiles.Pipfile):
         return super().__getattribute__(key)
 
 
-class Pipfile(BaseModel):
+@dataclass
+class Pipfile:
     path: Path
     projectfile: ProjectFile
-    pipfile: Optional[PipfileLoader]
-    _pyproject: Optional[tomlkit.TOMLDocument] = tomlkit.document()
-    build_system: Optional[Dict] = {}
-    _requirements: Optional[List] = []
-    _dev_requirements: Optional[List] = []
+    pipfile: Optional[PipfileLoader] = None
+    _pyproject: Optional[tomlkit.TOMLDocument] = field(default_factory=tomlkit.document)
+    build_system: Optional[Dict] = field(default_factory=dict)
+    _requirements: Optional[List] = field(default_factory=list)
+    _dev_requirements: Optional[List] = field(default_factory=list)
 
-    class Config:
-        validate_assignment = True
-        arbitrary_types_allowed = True
-        allow_mutation = True
-        include_private_attributes = True
-        # keep_untouched = (cached_property,)
+    def __post_init__(self):
+        # Validators or equivalent logic here
+        self.path = self._get_path(self.path)
+        self.projectfile = self._get_projectfile(self.projectfile, {"path": self.path})
+        self.pipfile = self._get_pipfile(self.pipfile, {"projectfile": self.projectfile})
 
-    @validator("path", pre=True, always=True)
-    def _get_path(cls, v):
+    @staticmethod
+    def _get_path(v: Path) -> Path:
         return v or Path(os.curdir).absolute()
 
-    @validator("projectfile", pre=True, always=True)
-    def _get_projectfile(cls, v, values):
-        return v or cls.load_projectfile(os.curdir, create=False)
+    @staticmethod
+    def _get_projectfile(v: ProjectFile, values: dict) -> ProjectFile:
+        return v or Pipfile.load_projectfile(os.curdir, create=False)
 
-    @validator("pipfile", pre=True, always=True)
-    def _get_pipfile(cls, v, values):
+    @staticmethod
+    def _get_pipfile(v: PipfileLoader, values: dict) -> PipfileLoader:
         return v or values["projectfile"].model
 
     @property
@@ -378,17 +379,9 @@ class Pipfile(BaseModel):
         return pf
 
     @classmethod
-    def load_projectfile(cls, path, create=False):
-        # type: (Text, bool) -> ProjectFile
-        """Given a path, load or create the necessary pipfile.
+    def load_projectfile(cls, path: str, create: bool = False) -> ProjectFile:
+        """..."""
 
-        :param Text path: Path to the project root or pipfile
-        :param bool create: Whether to create the pipfile if not found, defaults to True
-        :raises OSError: Thrown if the project root directory doesn't exist
-        :raises FileNotFoundError: Thrown if the pipfile doesn't exist and ``create=False``
-        :return: A project file instance for the supplied project
-        :rtype: :class:`~project.ProjectFile`
-        """
         if not path:
             raise RuntimeError("Must pass a path to classmethod 'Pipfile.load'")
         if not isinstance(path, Path):
@@ -396,23 +389,14 @@ class Pipfile(BaseModel):
         pipfile_path = path if path.is_file() else path.joinpath("Pipfile")
         project_path = pipfile_path.parent
         if not project_path.exists():
-            raise FileNotFoundError("%s is not a valid project path!" % path)
+            raise RequirementError(f"{path} is not a valid project path!")
         elif (not pipfile_path.exists() or not pipfile_path.is_file()) and not create:
-            raise RequirementError("%s is not a valid Pipfile" % pipfile_path)
-        return cls.read_projectfile(pipfile_path.as_posix())
+            raise RequirementError(f"{pipfile_path} is not a valid Pipfile")
+        return cls.read_projectfile(pipfile_path)
 
     @classmethod
-    def load(cls, path, create=False):
-        # type: (Text, bool) -> Pipfile
-        """Given a path, load or create the necessary pipfile.
-
-        :param Text path: Path to the project root or pipfile
-        :param bool create: Whether to create the pipfile if not found, defaults to True
-        :raises OSError: Thrown if the project root directory doesn't exist
-        :raises FileNotFoundError: Thrown if the pipfile doesn't exist and ``create=False``
-        :return: A pipfile instance pointing at the supplied project
-        :rtype:: class:`~pipfile.Pipfile`
-        """
+    def load(cls, path: str, create: bool = False) -> "Pipfile":
+        """..."""
 
         projectfile = cls.load_projectfile(path, create=create)
         pipfile = projectfile.model

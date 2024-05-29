@@ -68,15 +68,19 @@ The user can provide these additional parameters:
 
 ## run
 
-``run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python`` or ``$ pipenv run pip freeze``).
+``$ pipenv run`` will run a given command from the virtualenv, with any arguments forwarded (e.g. ``$ pipenv run python`` or ``$ pipenv run pip freeze``).
 
 ## shell
 
-``shell`` will spawn a shell with the virtualenv activated. This shell can be deactivated by using ``exit``.
+``$ pipenv shell`` will spawn a shell with the virtualenv activated. This shell can be deactivated by using ``exit``.
 
 ## graph
-``graph`` will show you a dependency graph of your installed dependencies where each root node is a specifier from the ``Pipfile``.
+``$ pipenv graph`` will show you a dependency graph of your installed dependencies where each root node is a specifier from the ``Pipfile``.
 
 ## check
 
-``check`` checks for security vulnerabilities and asserts that [PEP 508](https://www.python.org/dev/peps/pep-0508/) requirements are being met by the project's lock file or current environment.
+``$ pipenv check`` checks for security vulnerabilities and asserts that [PEP 508](https://www.python.org/dev/peps/pep-0508/) requirements are being met by the project's lock file or current environment.
+
+
+## scripts
+``$ pipenv scripts`` will list the scripts in the current environment config.

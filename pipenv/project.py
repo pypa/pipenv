@@ -32,7 +32,6 @@ from pipenv.patched.pip._internal.exceptions import ConfigurationError
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
-from pipenv.patched.pip._vendor import pkg_resources
 from pipenv.utils import err
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import (
@@ -63,7 +62,6 @@ from pipenv.utils.shell import (
     find_windows_executable,
     get_workon_home,
     is_virtual_environment,
-    load_path,
     looks_like_dir,
     safe_expandvars,
     system_which,
@@ -77,6 +75,11 @@ try:
 except ImportError:
     # eventually distlib will remove cached property when they drop Python3.7
     from pipenv.patched.pip._vendor.distlib.util import cached_property
+
+if sys.version_info < (3, 10):
+    from pipenv.vendor import importlib_metadata
+else:
+    import importlib.metadata as importlib_metadata
 
 if is_type_checking():
     from typing import Dict, List, Union
@@ -236,6 +239,8 @@ class Project:
             return ["packages", "dev-packages"] + list(package_categories)
 
     def get_requests_session_for_source(self, source):
+        if not (source and source.get("name")):
+            return None
         if self.sessions.get(source["name"]):
             session = self.sessions[source["name"]]
         else:
@@ -243,6 +248,7 @@ class Project:
                 self.s.PIPENV_MAX_RETRIES,
                 source.get("verify_ssl", True),
                 cache_dir=self.s.PIPENV_CACHE_DIR,
+                source=source.get("url"),
             )
             self.sessions[source["name"]] = session
         return session
@@ -267,6 +273,8 @@ class Project:
     def get_hashes_from_pypi(self, ireq, source):
         pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
         session = self.get_requests_session_for_source(source)
+        if not session:
+            return None
         try:
             collected_hashes = set()
             # Grab the hashes from the new warehouse API.
@@ -426,15 +434,11 @@ class Project:
 
         dot_venv = os.path.join(self.project_directory, ".venv")
 
-        # If there's no .venv in project root, set location based on config.
-        if not os.path.exists(dot_venv):
+        # If there's no .venv in project root or it is a folder, set location based on config.
+        if not os.path.exists(dot_venv) or os.path.isdir(dot_venv):
             if self.is_venv_in_project():
                 return dot_venv
             return str(get_workon_home().joinpath(self.virtualenv_name))
-
-        # If .venv in project root is a directory, use it.
-        if os.path.isdir(dot_venv):
-            return dot_venv
 
         # Now we assume .venv in project root is a file. Use its content.
         with open(dot_venv) as f:
@@ -452,17 +456,12 @@ class Project:
         return str(get_workon_home().joinpath(name))
 
     @property
-    def working_set(self) -> pkg_resources.WorkingSet:
-        sys_path = load_path(self.which("python"))
-        return pkg_resources.WorkingSet(sys_path)
-
-    @property
     def installed_packages(self):
         return self.environment.get_installed_packages()
 
     @property
-    def installed_package_names(self) -> list[str]:
-        return get_canonical_names([pkg.key for pkg in self.installed_packages])
+    def installed_package_names(self):
+        return get_canonical_names([pkg.name for pkg in self.installed_packages])
 
     @property
     def lockfile_package_names(self) -> dict[str, set[str]]:
@@ -515,7 +514,7 @@ class Project:
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
-    def get_outdated_packages(self) -> list[pkg_resources.Distribution]:
+    def get_outdated_packages(self) -> list[importlib_metadata.Distribution]:
         return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
@@ -1026,7 +1025,7 @@ class Project:
         return sources
 
     def get_default_index(self):
-        return self.pipfile_sources()[0]
+        return self.populate_source(self.pipfile_sources()[0])
 
     def get_index_by_name(self, index_name):
         for source in self.pipfile_sources():
@@ -1128,6 +1127,16 @@ class Project:
             del p[category][name]
             if self.settings.get("sort_pipfile"):
                 p[category] = self._sort_category(p[category])
+            self.write_toml(p)
+            return True
+        return False
+
+    def reset_category_in_pipfile(self, category):
+        # Read and append Pipfile.
+        p = self.parsed_pipfile
+        if category:
+            del p[category]
+            p[category] = {}
             self.write_toml(p)
             return True
         return False
