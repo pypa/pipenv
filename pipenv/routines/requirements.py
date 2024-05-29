@@ -13,8 +13,10 @@ def generate_requirements(
     include_hashes=False,
     include_markers=True,
     categories="",
+    from_pipfile=False,
 ):
     lockfile = project.load_lockfile(expand_env_vars=False)
+    pipfile_root_package_names = project.pipfile_package_names["combined"]
 
     for i, package_index in enumerate(lockfile["_meta"]["sources"]):
         prefix = "-i" if i == 0 else "--extra-index-url"
@@ -26,12 +28,31 @@ def generate_requirements(
     if categories_list:
         for category in categories_list:
             category = get_lockfile_section_using_pipfile_category(category.strip())
-            deps.update(lockfile.get(category, {}))
+            category_deps = lockfile.get(category, {})
+            if from_pipfile:
+                category_deps = {
+                    k: v
+                    for k, v in category_deps.items()
+                    if k in pipfile_root_package_names
+                }
+            deps.update(category_deps)
     else:
         if dev or dev_only:
-            deps.update(lockfile["develop"])
+            dev_deps = lockfile["develop"]
+            if from_pipfile:
+                dev_deps = {
+                    k: v for k, v in dev_deps.items() if k in pipfile_root_package_names
+                }
+            deps.update(dev_deps)
         if not dev_only:
-            deps.update(lockfile["default"])
+            default_deps = lockfile["default"]
+            if from_pipfile:
+                default_deps = {
+                    k: v
+                    for k, v in default_deps.items()
+                    if k in pipfile_root_package_names
+                }
+            deps.update(default_deps)
 
     pip_installable_lines = requirements_from_lockfile(
         deps, include_hashes=include_hashes, include_markers=include_markers
