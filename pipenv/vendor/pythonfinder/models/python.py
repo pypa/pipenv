@@ -389,7 +389,10 @@ class PythonFinder(PathEntry):
     def _get_registry_value(self, key, value_name, default=None):
         try:
             import winreg
-            return winreg.QueryValue(key, value_name)
+            # TODO: Not specified in PEP-514, but probably should reject any value that isn't `winreg.REG_SZ`.
+            # PEP-514's (faulty) example code uses `winreg.QueryValue`, which can only return `winreg.REG_SZ` values.
+            # They document "string value" which could match `winreg.REG_SZ` or `winreg.REG_EXPAND_SZ`.
+            return winreg.QueryValueEx(key, value_name)[0]
         except FileNotFoundError:
             return default
 
