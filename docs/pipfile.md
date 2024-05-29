@@ -238,11 +238,10 @@ This guarantees you're installing the same exact packages on any network as the 
 where the lock file was last updated, even on untrusted networks.
 
 We recommend designing CI/CD deployments whereby the build does not alter the lock file as a side effect.
-In other words, you can use `pipenv lock` or `pipenv upgrade` to adjust your lockfile through local development,
-the PR process and approve those lock changes before deploying to production that version of the lockfile.
-In other words avoid having your CI issue `lock`, `update`, `upgrade` `uninstall` commands that will relock.
-Note:  It is counterintuitive that `pipenv install` re-locks and `pipenv sync` or `pipenv install --deploy` does not.
-Based on feedback, we may change this behavior of `pipenv install` to not re-lock in the future but be mindful of this when designing CI pipelines today.
+In other words, you can use `pipenv lock` or `pipenv upgrade` to adjust your lockfile through local development.
+The PR process of reviewing and approving those lock changes before deploying to production that version of the lockfile
+is a recommended best practice.
+In other words: always avoid having your CI issue `lock`, `update`, `upgrade` `uninstall` or any commands that will relock.
 
 ```{admonition} Generate requirements.txt output from lock file
   $ pipenv requirements
