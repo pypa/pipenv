@@ -24,7 +24,7 @@ The user can provide these additional parameters:
     --categories — Install packages to the category groups specified here.
     --system — Install packages to the system site-packages rather than into your virtualenv.
     --deploy — Verifies the _meta hash of the lock file is up to date with the ``Pipfile``, aborts install if not.
-    --ignore-pipfile — Install from the Pipfile.lock and completely ignore Pipfile information.
+    --ignore-pipfile — Install from the Pipfile.lock completely ignoring Pipfile information.
 
 General Interface Note:
 ```{note}
