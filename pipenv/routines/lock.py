@@ -1,9 +1,15 @@
 import contextlib
+import sys
+import traceback
 
+from pipenv.patched.pip._vendor import rich
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.vendor import click
+
+console = rich.console.Console()
+err = rich.console.Console(stderr=True)
 
 
 def do_lock(
@@ -61,20 +67,27 @@ def do_lock(
 
         from pipenv.utils.resolver import venv_resolve_deps
 
-        # Mutates the lockfile
-        venv_resolve_deps(
-            packages,
-            which=project._which,
-            project=project,
-            category=pipfile_category,
-            clear=clear,
-            pre=pre,
-            allow_global=system,
-            pypi_mirror=pypi_mirror,
-            pipfile=packages,
-            lockfile=lockfile,
-            old_lock_data=old_lock_data,
-        )
+        try:
+            # Mutates the lockfile
+            venv_resolve_deps(
+                packages,
+                which=project._which,
+                project=project,
+                category=pipfile_category,
+                clear=clear,
+                pre=pre,
+                allow_global=system,
+                pypi_mirror=pypi_mirror,
+                pipfile=packages,
+                lockfile=lockfile,
+                old_lock_data=old_lock_data,
+            )
+        except RuntimeError:
+            sys.exit(1)
+
+        except Exception:
+            err.print(traceback.format_exc())
+            sys.exit(1)
 
     # Overwrite any category packages with default packages.
     for category in lockfile_categories:
