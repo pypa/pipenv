@@ -730,7 +730,9 @@ def resolve(cmd, st, project):
         echo(out.strip(), err=True)
         if not is_verbose:
             echo(err, err=True)
-        raise RuntimeError("Failed to lock Pipfile.lock!")
+        st.console.print(
+            "Failed to lock Pipfile.lock -- run with `--verbose` for more information."
+        )
     if is_verbose:
         echo(out.strip(), err=True)
     return subprocess.CompletedProcess(c.args, returncode, out, err)
@@ -885,6 +887,7 @@ def venv_resolve_deps(
                     )
                     click.echo(f"Output: {c.stdout.strip()}", err=True)
                     click.echo(f"Error: {c.stderr.strip()}", err=True)
+                    sys.exit(1)
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     return prepare_lockfile(
