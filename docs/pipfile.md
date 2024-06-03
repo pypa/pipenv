@@ -238,11 +238,10 @@ This guarantees you're installing the same exact packages on any network as the 
 where the lock file was last updated, even on untrusted networks.
 
 We recommend designing CI/CD deployments whereby the build does not alter the lock file as a side effect.
-In other words, you can use `pipenv lock` or `pipenv upgrade` to adjust your lockfile through local development,
-the PR process and approve those lock changes before deploying to production that version of the lockfile.
-In other words avoid having your CI issue `lock`, `update`, `upgrade` `uninstall` or `install` commands that will relock.
-Note:  It is counterintuitive that `pipenv install` re-locks and `pipenv sync` or `pipenv install --deploy` does not.
-Based on feedback, we may change this behavior of `pipenv install` to not re-lock in the future but be mindful of this when designing CI pipelines today.
+In other words, you can use `pipenv lock` or `pipenv upgrade` to adjust your lockfile through local development.
+The PR process of reviewing and approving those lock changes before deploying to production that version of the lockfile
+is a recommended best practice.
+In other words: always avoid having your CI issue `lock`, `update`, `upgrade` `uninstall` or any commands that will relock.
 
 ```{admonition} Generate requirements.txt output from lock file
   $ pipenv requirements
@@ -267,7 +266,7 @@ All named categories (other than the special default/develop) will use the categ
 ## General Notes and Recommendations
 
 - Keep both `Pipfile` and `Pipfile.lock` in version control.
-- `pipenv install` adds specifiers to `Pipfile` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of `pip`.
+- `pipenv install package-name` adds specifiers to `Pipfile` and rebuilds the lock file based on the Pipfile specs, by utilizing the internal resolver of `pip`.
 - Not all the required sub-dependencies need be specified in `Pipfile`, instead only add specifiers that make sense for the stability of your project.
 Example:  `requests` requires `cryptography` but (for reasons) you want to ensure `cryptography` is pinned to a particular version set.
 - Consider specifying your target Python version in your `Pipfile`'s `[requires]` section.

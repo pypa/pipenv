@@ -1,9 +1,9 @@
 import sys
 from collections import defaultdict
 
-from pipenv.routines.install import do_sync
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
+from pipenv.routines.sync import do_sync
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_pipfile_category_using_lockfile_section,
@@ -42,8 +42,8 @@ def do_update(
         site_packages=site_packages,
         clear=clear,
     )
-    packages = [p for p in packages if p]
-    editable = [p for p in editable_packages if p]
+    packages = [p for p in (packages or []) if p]
+    editable = [p for p in (editable_packages or []) if p]
     if not outdated:
         outdated = bool(dry_run)
     if not packages:
@@ -91,9 +91,7 @@ def do_update(
             categories=categories,
             python=python,
             bare=bare,
-            user=False,
             clear=clear,
-            unused=False,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
         )

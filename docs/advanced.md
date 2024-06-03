@@ -15,19 +15,23 @@ argument `--extra-pip-args="--use-feature=truststore"`. It is possible to supply
 
 You may want to use `pipenv` as part of a deployment process.
 
-You can enforce that your `Pipfile.lock` is up to date using the `--deploy` flag:
+You can enforce that your `Pipfile.lock` is in parity with your `Pipfile` by using the `--deploy` flag:
 
     $ pipenv install --deploy
 
-This will fail a build if the `Pipfile.lock` is out–of–date, instead of generating a new one.
+This will fail a build if the `Pipfile.lock` `_meta` `hash` is out of date from the Pipfile contents.
 
-Or you can install packages exactly as specified in `Pipfile.lock` using the `sync` command:
+Or you can install packages exactly as specified in `Pipfile.lock` using the `install` or `sync` command:
 
-    $ pipenv sync
+    $ pipenv install
 
-Note
+    or
 
-    ``pipenv install --ignore-pipfile`` is nearly equivalent to ``pipenv sync``, but ``pipenv sync`` will *never* attempt to re-lock your dependencies as it is considered an atomic operation.  ``pipenv install`` by default does attempt to re-lock unless using the ``--deploy`` flag.
+    $ pipenv install
+
+Note:  Legacy versions of pipenv (prior to pipenv 3000) would relock dependencies when running `pipenv install`.  This behavior was changed in pipenv 3000 to only relock dependencies when supply package specifiers to the `install` command.
+
+    ``pipenv sync`` is nearly equivalent to ``pipenv install`` at this point, except pipenv install provides more functionality for adding and upgrading packages.
 
 You may only wish to verify your `Pipfile.lock` is up-to-date with dependencies specified in the `Pipfile`, without installing:
 
@@ -332,16 +336,7 @@ Here's an example `tox.ini` for both local and external testing:
         pipenv run ruff .
 
 Pipenv will automatically use the virtualenv provided by `tox`. If `pipenv install --dev` installs e.g. `pytest`, then installed command `pytest` will be present in given virtualenv and can be called directly by `pytest tests` instead of `pipenv run pytest tests`.
-
-You might also want to add `--ignore-pipfile` to `pipenv install`, as to not accidentally modify the lock-file on each test run. This causes Pipenv
-to ignore changes to the `Pipfile` and (more importantly) prevents it from adding the current environment to `Pipfile.lock`. This might be important as the current environment (i.e. the virtualenv provisioned by tox) will usually
-contain the current project (which may or may not be desired) and additional dependencies from `tox`'s `deps` directive. The initial provisioning may
-alternatively be disabled by adding `skip_install = True` to tox.ini.
-
-This method requires you to be explicit about updating the lock-file, which is probably a good idea in any case.
-
-A 3rd party plugin, [tox-pipenv](https://tox-pipenv.readthedocs.io/en/latest/) is also available to use Pipenv natively with tox.
-
+W
 ✨🍰✨
 
 ## ☤ Working with Platform-Provided Python Components

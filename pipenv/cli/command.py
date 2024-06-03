@@ -646,16 +646,14 @@ def run_open(state, module, *args, **kwargs):
 @pass_context
 def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
-    from pipenv.routines.install import do_sync
+    from pipenv.routines.sync import do_sync
 
     retcode = do_sync(
         state.project,
         dev=state.installstate.dev,
         python=state.python,
         bare=bare,
-        user=user,
         clear=state.clear,
-        unused=unused,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,
