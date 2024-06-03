@@ -1,0 +1,1 @@
+Pipenv only supports absolute python version. If the user specifies a Python version with inequality signs like >=3.12, <3.12 in the [requires] field, the code has been modified to explicitly express in an error log that absolute versioning must be used.
