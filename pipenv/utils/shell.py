@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
+from pipenv.utils import err
 from pipenv.utils.fileutils import normalize_drive, normalize_path
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
@@ -410,7 +411,7 @@ def project_python(project, system=False):
         interpreters = [i for i in interpreters if i]  # filter out not found interpreters
         python = interpreters[0] if interpreters else None
     if not python:
-        click.secho("The Python interpreter can't be found.", fg="red", err=True)
+        err.print("The Python interpreter can't be found.", style="red")
         sys.exit(1)
     return Path(python).as_posix()
 
