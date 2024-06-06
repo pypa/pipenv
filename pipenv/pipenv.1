@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Feb 04, 2024" "2023.12.1" "pipenv"
+.TH "PIPENV" "1" "Jun 06, 2024" "3000.0.0" "pipenv"
 .sp
 \fBNOTE:\fP
 .INDENT 0.0
@@ -51,10 +51,10 @@ $ python \-\-version
 .UNINDENT
 .UNINDENT
 .sp
-You should get some output like \fB3.10.8\fP\&. If you do not have Python, please
+You should get some output like \fB3.12.1\fP\&. If you do not have Python, please
 install the latest 3.x version from \fI\%python.org\fP
 .sp
-Additionally, make sure you have \fI\%pip\fP available.
+Additionally, make sure you have \fI\%pip\fP available, assuming you install via pip, our preferred method of installation.
 Check this by running
 .INDENT 0.0
 .INDENT 3.5
@@ -62,7 +62,7 @@ Check this by running
 .nf
 .ft C
 $ pip \-\-version
-pip 22.3.1
+pip 24.0
 
 .ft P
 .fi
@@ -206,24 +206,31 @@ For example when installing the \fBrequests\fP library, you should get output si
 .ft C
 $ pipenv install requests
 Creating a virtualenv for this project...
-Pipfile: C:\eUsers\ematte\eProjects\epipenv\-triage\eexample\ePipfile
-Using C:/Users/matte/AppData/Local/Programs/Python/Python311/python.exe (3.11.2) to create virtualenv...
-[    ] Creating virtual environment...created virtual environment CPython3.11.2.final.0\-64 in 488ms
-  creator CPython3Windows(dest=C:\eUsers\ematte\e.virtualenvs\eexample\-7V6BFyzL, clear=False, no_vcs_ignore=False, global=False)
-  seeder FromAppData(download=False, pip=bundle, setuptools=bundle, wheel=bundle, via=copy, app_data_dir=C:\eUsers\ematte\eAppData\eLocal\epypa\evirtualenv)
-    added seed packages: pip==23.0, setuptools==67.1.0, wheel==0.38.4
-  activators BashActivator,BatchActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
+Pipfile: /home/matteius/pipenv\-triage/test_install2/Pipfile
+Using default python from /mnt/extra/miniconda3/bin/python (3.12.1) to create virtualenv...
+⠹ Creating virtual environment...created virtual environment CPython3.12.1.final.0\-64 in 139ms
+  creator CPython3Posix(dest=/home/matteius/Envs/test_install2\-DMnDbAT9, clear=False, no_vcs_ignore=False, global=False)
+  seeder FromAppData(download=False, pip=bundle, via=copy, app_data_dir=/home/matteius/.local/share/virtualenv)
+    added seed packages: pip==24.0
+  activators BashActivator,CShellActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
 
-Successfully created virtual environment!
-Virtualenv location: C:\eUsers\ematte\e.virtualenvs\eexample\-7V6BFyzL
+✔ Successfully created virtual environment!
+Virtualenv location: /home/matteius/Envs/test_install2\-DMnDbAT9
+Creating a Pipfile for this project...
 Installing requests...
 Resolving requests...
-Installing...
-Adding requests to Pipfile\(aqs [packages] ...
-Installation Succeeded
-Installing dependencies from Pipfile.lock (3b5a71)...
+Added requests to Pipfile\(aqs [packages] ...
+✔ Installation Succeeded
+Pipfile.lock not found, creating...
+Locking [packages] dependencies...
+Building requirements...
+Resolving dependencies...
+✔ Success!
+Locking [dev\-packages] dependencies...
+Updated Pipfile.lock (1977acb1ba9778abb66054090e2618a0a1f1759b1b3b32afd8a7d404ba18b4fb)!
 To activate this project\(aqs virtualenv, run pipenv shell.
 Alternatively, run a command inside the virtualenv with pipenv run.
+Installing dependencies from Pipfile.lock (18b4fb)...
 
 .ft P
 .fi

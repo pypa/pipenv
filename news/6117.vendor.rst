@@ -1,1 +1,0 @@
-Vendor in ``pip==24.0``
