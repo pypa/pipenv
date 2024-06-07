@@ -28,7 +28,7 @@ The user can provide these additional parameters:
 
 General Interface Note:
 ```{note}
-    It was confusing to users that prior to pipenv 3000, the install would relock the lock file every time it was run.
+    It was confusing to users that prior to pipenv 2024, the install would relock the lock file every time it was run.
     Based on feedback in pipenv issue reports, we changed the install command to only update lock when adding or changing a package.
     If you wish to relock the entire set of Pipfile specifiers, please continue to utilize `pipenv lock`
 ```

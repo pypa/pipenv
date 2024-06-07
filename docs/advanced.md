@@ -29,7 +29,7 @@ Or you can install packages exactly as specified in `Pipfile.lock` using the `in
 
     $ pipenv install
 
-Note:  Legacy versions of pipenv (prior to pipenv 3000) would relock dependencies when running `pipenv install`.  This behavior was changed in pipenv 3000 to only relock dependencies when supply package specifiers to the `install` command.
+Note:  Legacy versions of pipenv (prior to pipenv 2024) would relock dependencies when running `pipenv install`.  This behavior was changed in pipenv 2024.0.0 to only relock dependencies when supply package specifiers to the `install` command.
 
     ``pipenv sync`` is nearly equivalent to ``pipenv install`` at this point, except pipenv install provides more functionality for adding and upgrading packages.
 
