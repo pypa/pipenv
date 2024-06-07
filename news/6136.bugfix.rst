@@ -1,1 +1,0 @@
-Fix a bug that vcs subdependencies were locked without their subdirectory fragment if they had one

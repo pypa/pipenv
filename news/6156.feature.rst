@@ -1,1 +1,0 @@
-The ``pipenv requirements`` subcommand now supports the ``--from-pipfile`` flag. When this flag is used, the requirements file will only include the packages explicitly listed in the Pipfile, excluding any sub-packages.
