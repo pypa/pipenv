@@ -7,7 +7,7 @@ packaging==24.0
 pexpect==4.9.0
 pipdeptree==2.18.1
     zipp==3.18.1
-plette==2.0.2
+plette==2.1.0
 ptyprocess==0.7.0
 python-dotenv==1.0.1
 pythonfinder==2.1.0
