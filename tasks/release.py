@@ -8,7 +8,6 @@ import sys
 import invoke
 import semver
 
-from pipenv.__version__ import __version__
 from pipenv.utils.shell import temp_environ
 
 from .vendoring import _get_git_root, drop_dir
@@ -258,15 +257,28 @@ def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
 
 
 @invoke.task
-def bump_version(ctx, dry_run=False, pre=False, dev=False):
-    current_version = semver.VersionInfo.parse(__version__)
+def bump_version(
+    ctx, dry_run=False, pre=False, dev=False, minor=False, major=False, patch=False
+):
+    version = find_version(ctx)
+    current_version = semver.VersionInfo.parse(version)
 
     # Prompt the user for version change type
-    while True:
-        change_type = input("Enter the version change type (major/minor/patch): ").lower()
-        if change_type in ["major", "minor", "patch"]:
-            break
-        print("Invalid input. Please enter 'major', 'minor', or 'patch'.")
+    if not minor and not major and not patch:
+        while True:
+            change_type = input(
+                "Enter the version change type (major/minor/patch): "
+            ).lower()
+            if change_type in ["major", "minor", "patch"]:
+                break
+            print("Invalid input. Please enter 'major', 'minor', or 'patch'.")
+
+    if minor:
+        change_type = "minor"
+    if major:
+        change_type = "major"
+    if patch:
+        change_type = "patch"
 
     # Bump the version based on the user input
     if change_type == "major":
@@ -275,19 +287,18 @@ def bump_version(ctx, dry_run=False, pre=False, dev=False):
         new_version = current_version.bump_minor()
     else:
         new_version = current_version.bump_patch()
-
     # Pre-release handling code
     if pre:
         new_version = new_version.bump_prerelease()
     if dev:
-        new_version = new_version.bump_prerelease(current_version, "dev")
+        new_version = new_version.bump_prerelease("dev")
 
     # Update the version file
-    log(f"Updating version to {new_version}")
-    version = find_version(ctx)
     log(f"Found current version: {version}")
+    log(f"Updating version to {new_version}")
+
     if dry_run:
-        log(f"Would update to: {new_version}")
+        sys.exit(0)
     else:
         log(f"Updating to: {new_version}")
         version_file = get_version_file(ctx)
