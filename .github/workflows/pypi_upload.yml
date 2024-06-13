@@ -63,7 +63,7 @@ jobs:
       run: |
         git config --local user.name 'github-actions[bot]'
         git config --local user.email 'github-actions[bot]@users.noreply.github.com'
-        python -m pipenv run inv release.bump-version --dev
+        python -m pipenv run inv release.bump-version --dev --patch
 
     - name: Push changes
       uses: ad-m/github-push-action@master
