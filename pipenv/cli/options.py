@@ -77,6 +77,7 @@ class InstallState:
     def __init__(self):
         self.dev = False
         self.pre = False
+        self.exact = False
         self.ignore_pipfile = False
         self.code = False
         self.requirementstxt = None
@@ -127,6 +128,24 @@ def editable_option(f):
         callback=callback,
         type=click_types.Path(file_okay=False),
         help="An editable Python package URL or path, often to a VCS repository.",
+    )(f)
+
+
+def exact_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        state.installstate.exact = value
+        return value
+
+    return option(
+        "--exact",
+        is_flag=True,
+        default=False,
+        expose_value=False,
+        help="Add exact package version to Pipfile when installing, instead of *.",
+        callback=callback,
+        type=click_types.BOOL,
+        show_envvar=True,
     )(f)
 
 
@@ -607,6 +626,7 @@ def install_options(f):
     f = sync_options(f)
     f = index_option(f)
     f = requirementstxt_option(f)
+    f = exact_option(f)
     f = ignore_pipfile_option(f)
     f = editable_option(f)
     f = package_arg(f)
