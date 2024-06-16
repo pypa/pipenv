@@ -6,62 +6,51 @@ import sys
 from pathlib import Path
 
 from pipenv import environments, exceptions
-from pipenv.patched.pip._vendor import rich
+from pipenv.utils import Confirm, console, err
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.environment import ensure_environment
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_python, shorten_path
-from pipenv.vendor import click
-
-console = rich.console.Console()
-err = rich.console.Console(stderr=True)
 
 
 def warn_in_virtualenv(project):
     # Only warn if pipenv isn't already active.
     if environments.is_in_virtualenv() and not project.s.is_quiet():
-        click.echo(
-            "{}: Pipenv found itself running within a virtual environment, "
-            "so it will automatically use that environment, instead of "
-            "creating its own for any project. You can set "
-            "{} to force pipenv to ignore that environment and create "
-            "its own instead. You can set {} to suppress this "
-            "warning.".format(
-                click.style("Courtesy Notice", fg="green"),
-                click.style("PIPENV_IGNORE_VIRTUALENVS=1", bold=True),
-                click.style("PIPENV_VERBOSITY=-1", bold=True),
-            ),
-            err=True,
+        err.print("[green]Courtesy Notice[/green]:")
+        err.print(
+            "Pipenv found itself running within a virtual environment, ",
+            "so it will automatically use that environment, instead of ",
+            "creating its own for any project. You can set",
+        )
+        err.print(
+            "[bold]PIPENV_IGNORE_VIRTUALENVS=1[/bold]",
+            "to force pipenv to ignore that environment and create ",
+            "its own instead.",
+        )
+        err.print(
+            "You can set [bold]PIPENV_VERBOSITY=-1[/bold] to suppress this warning."
         )
 
 
 def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv."""
-
-    click.secho("Creating a virtualenv for this project...", bold=True, err=True)
-
-    click.echo(
-        "Pipfile: " + click.style(project.pipfile_location, fg="yellow", bold=True),
-        err=True,
-    )
+    err.print("[bold]Creating a virtualenv for this project[/bold]")
+    err.print(f"Pipfile: [bold][yellow]{project.pipfile_location}[/yellow][/bold]")
 
     # Default to using sys.executable, if Python wasn't provided.
     using_string = "Using"
     if not python:
         python = sys.executable
         using_string = "Using default python from"
-    click.echo(
-        "{} {} {} {}".format(
-            click.style(using_string, bold=True),
-            click.style(python, fg="yellow", bold=True),
-            click.style(f"({python_version(python)})", fg="green"),
-            click.style("to create virtualenv...", bold=True),
-        ),
-        err=True,
+
+    err.print(
+        f"[bold]{using_string}[/bold] [bold][yellow]{python}[/yellow][/bold]"
+        f"[green]{python_version(python)}[green] "
+        "[bold]to create virtualenv...[/bold]"
     )
 
     if site_packages:
-        click.secho("Making site-packages available...", bold=True, err=True)
+        err.print("[bold]Making site-packages available...[/bold]")
 
     if pypi_mirror:
         pip_config = {"PIP_INDEX_URL": pypi_mirror}
@@ -74,7 +63,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     ):
         cmd = _create_virtualenv_cmd(project, python, site_packages=site_packages)
         c = subprocess_run(cmd, env=pip_config)
-        click.secho(f"{c.stdout}", fg="cyan", err=True)
+        err.print(f"[cyan]{c.stdout}[/cyan]")
         if c.returncode != 0:
             error = (
                 c.stderr if project.s.is_verbose() else exceptions.prettify_exc(c.stderr)
@@ -91,9 +80,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
                 )
             )
     if error is not None:
-        raise exceptions.VirtualenvCreationException(
-            extra=click.style(f"{error}", fg="red")
-        )
+        raise exceptions.VirtualenvCreationException(extra=f"[red]{error}[/red]")
 
     # Associate project directory with the environment.
     project_file_name = os.path.join(project.virtualenv_location, ".project")
@@ -139,9 +126,6 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
 def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
 
-    def abort():
-        sys.exit(1)
-
     if not project.virtualenv_exists:
         try:
             # Ensure environment variables are set properly.
@@ -153,10 +137,11 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
             # Create the virtualenv.
             # Abort if --system (or running in a virtualenv).
             if project.s.PIPENV_USE_SYSTEM:
-                click.secho(
+                err.print(
+                    "[red]"
                     "You are attempting to re–create a virtualenv that "
                     "Pipenv did not create. Aborting.",
-                    fg="red",
+                    "[/red]",
                 )
                 sys.exit(1)
             do_create_virtualenv(
@@ -177,16 +162,15 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
         if python is not None and not isinstance(python, str):
             python = python.path.as_posix()
 
-        click.secho("Virtualenv already exists!", fg="red", err=True)
+        err.print("[red]Virtualenv already exists![/red]")
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
         # about, so confirm first.
         if "VIRTUAL_ENV" in os.environ and not (
-            project.s.PIPENV_YES
-            or click.confirm("Use existing virtualenv?", default=True)
+            project.s.PIPENV_YES or Confirm.ask("Use existing virtualenv?", default=True)
         ):
-            abort()
-        click.echo(click.style("Using existing virtualenv...", bold=True), err=True)
+            sys.exit(1)
+        err.print("[bold]Using existing virtualenv...[/bold]")
         # Remove the virtualenv.
         cleanup_virtualenv(project, bare=True)
         # Call this function again.
@@ -201,19 +185,15 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
 def cleanup_virtualenv(project, bare=True):
     """Removes the virtualenv directory from the system."""
     if not bare:
-        click.secho("Environment creation aborted.", fg="red")
+        console.pritn("[red]Environment creation aborted.[/red]")
     try:
         # Delete the virtualenv.
         shutil.rmtree(project.virtualenv_location)
     except OSError as e:
-        click.echo(
-            "{} An error occurred while removing {}!".format(
-                click.style("Error: ", fg="red", bold=True),
-                click.style(project.virtualenv_location, fg="green"),
-            ),
-            err=True,
+        err.print(
+            f"[bold][red]Error:[/red][/bold] An error occurred while removing [green]{project.virtualenv_location}[/green]!"
         )
-        click.secho(e, fg="cyan", err=True)
+        err.print(f"[cyan]{e}[/cyan]")
 
 
 def ensure_python(project, python=None):
@@ -222,15 +202,10 @@ def ensure_python(project, python=None):
         python = project.s.PIPENV_PYTHON
 
     def abort(msg=""):
-        click.echo(
-            "{}\nYou can specify specific versions of Python with:\n{}".format(
-                click.style(msg, fg="red"),
-                click.style(
-                    "$ pipenv --python {}".format(os.sep.join(("path", "to", "python"))),
-                    fg="yellow",
-                ),
-            ),
-            err=True,
+        err.print(f"[red]{msg}[/red]")
+        err.print("You can specify specific versions of Python with:")
+        err.print(
+            f"[yellow]$ pipenv --python {os.sep.join('path', 'to', 'python')}[/yellow]"
         )
         sys.exit(1)
 
@@ -251,17 +226,14 @@ def ensure_python(project, python=None):
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
     path_to_python = find_a_system_python(python)
     if project.s.is_verbose():
-        click.echo(f"Using python: {python}", err=True)
-        click.echo(f"Path to python: {path_to_python}", err=True)
+        err.print(f"Using python: {python}")
+        err.print(f"Path to python: {path_to_python}")
     if not path_to_python and python is not None:
         # We need to install Python.
-        click.echo(
-            "{}: Python {} {}".format(
-                click.style("Warning", fg="red", bold=True),
-                click.style(python, fg="cyan"),
-                "was not found on your system...",
-            ),
-            err=True,
+        err.print(
+            "[bold][red]Warning:[/red][/bold]"
+            f"Python [cyan]{python}[/cyan]"
+            "was not found on your system..."
         )
         # check for python installers
         from pipenv.installers import Asdf, InstallerError, InstallerNotFound, Pyenv
@@ -288,25 +260,21 @@ def ensure_python(project, python=None):
                     abort()
                 except InstallerError as e:
                     abort(f"Something went wrong while installing Python:\n{e.err}")
-                s = "{} {} {}".format(
+                s = (
                     "Would you like us to install",
-                    click.style(f"CPython {version}", fg="green"),
+                    f"[green]CPython {version}[/green]",
                     f"with {installer}?",
                 )
+
                 # Prompt the user to continue...
-                if not (project.s.PIPENV_YES or click.confirm(s, default=True)):
+                if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
                     abort()
                 else:
                     # Tell the user we're installing Python.
-                    click.echo(
-                        "{} {} {} {}{}".format(
-                            click.style("Installing", bold=True),
-                            click.style(f"CPython {version}", bold=True, fg="green"),
-                            click.style(f"with {installer.cmd}", bold=True),
-                            click.style("(this may take a few minutes)"),
-                            click.style("...", bold=True),
-                        )
+                    console.print(
+                        "f[bold]Installing [green]CPython[/green][/bold] {version} with {installer.cmd}[/bold]"
                     )
+                    console.print("(this may take a few minutes)[bold]...[/bold]")
                     with console.status(
                         "Installing python...", spinner=project.s.PIPENV_SPINNER
                     ):
@@ -316,27 +284,24 @@ def ensure_python(project, python=None):
                             err.print(
                                 environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                             )
-                            click.echo("Something went wrong...", err=True)
-                            click.secho(e.err, fg="cyan", err=True)
+                            err.print("Something went wrong...")
+                            err.print(f"[cyan]{e.err}[/cyan]")
                         else:
                             console.print(
                                 environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
                             )
                             # Print the results, in a beautiful blue...
-                            click.secho(c.stdout, fg="cyan", err=True)
+                            err.print(f"[cyan]{c.stdout}[/cyan]")
                     # Find the newly installed Python, hopefully.
                     version = str(version)
                     path_to_python = find_a_system_python(version)
                     try:
                         assert python_version(path_to_python) == version
                     except AssertionError:
-                        click.echo(
-                            "{}: The Python you just installed is not available on your {}, apparently."
-                            "".format(
-                                click.style("Warning", fg="red", bold=True),
-                                click.style("PATH", bold=True),
-                            ),
-                            err=True,
+                        err.print(
+                            "[bold][red]Warning:[/red][/bold]"
+                            " The Python you just installed is not available "
+                            "on your [bold]PATH[/bold], apparently."
                         )
                         sys.exit(1)
     return path_to_python
@@ -371,30 +336,26 @@ def do_where(project, virtualenv=False, bare=True):
     """Executes the where functionality."""
     if not virtualenv:
         if not project.pipfile_exists:
-            click.echo(
+            err.print(
                 "No Pipfile present at project home. Consider running "
-                "{} first to automatically generate a Pipfile for you."
-                "".format(click.style("`pipenv install`", fg="green")),
-                err=True,
+                "[green]`pipenv install`[/green] first to automatically generate a Pipfile for you."
             )
             return
         location = project.pipfile_location
         # Shorten the virtual display of the path to the virtualenv.
         if not bare:
             location = shorten_path(location)
-            click.echo(
-                "Pipfile found at {}.\n  Considering this to be the project home."
-                "".format(click.style(location, fg="green")),
-                err=True,
+            err.print(
+                f"Pipfile found at [green]{location}[/green].\nConsidering this to be the project home."
             )
         else:
-            click.echo(project.project_directory)
+            console.print(project.project_directory)
     else:
         location = project.virtualenv_location
         if not bare:
-            click.secho(f"Virtualenv location: {location}", fg="green", err=True)
+            err.print(f"[green]Virtualenv location: {location}[/green]")
         else:
-            click.echo(location)
+            console.print(location)
 
 
 def inline_activate_virtual_environment(project):
@@ -435,10 +396,8 @@ def _inline_activate_virtualenv(project):
             exec(code, {"__file__": activate_this})
     # Catch all errors, just in case.
     except Exception:
-        click.echo(
-            "{}: There was an unexpected error while activating your "
-            "virtualenv. Continuing anyway...".format(
-                click.style("Warning", fg="red", bold=True)
-            ),
-            err=True,
+        err.print(
+            "[bold][red]Warning: [/red][/bold]"
+            "There was an unexpected error while activating your "
+            "virtualenv. Continuing anyway..."
         )
