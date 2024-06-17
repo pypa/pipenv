@@ -354,12 +354,11 @@ def test_install_venv_project_directory(pipenv_instance_pypi):
         c = p.pipenv("install six")
         assert c.returncode == 0
 
-        venv_loc = None
-
-        venv_loc_patt = r"^Virtualenv location:\s*(.*)$"
-        match = re.search(venv_loc_patt, c.stderr, re.MULTILINE)
+        venv_loc_patt = r"Virtualenv location:(.*?)(?=Pipfile\.lock)"
+        match = re.search(venv_loc_patt, c.stderr, re.DOTALL)
 
         assert match
+
         # Extract the matched text
         venv_loc = match.group(1).strip()
 
