@@ -353,7 +353,10 @@ def do_where(project, virtualenv=False, bare=True):
     else:
         location = project.virtualenv_location
         if not bare:
+            _width = err.width
+            err.width = 1000
             err.print(f"[green]Virtualenv location: {location}[/green]")
+            err.width = _width
         else:
             console.print(location)
 
