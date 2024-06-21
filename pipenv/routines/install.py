@@ -608,7 +608,7 @@ def do_init(
             if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
                 err.print(
                     f"Pipfile.lock ({old_hash[-6:]}) out of date, but installation uses --system so"
-                    f"re-building lockfile must happen in isolation."
+                    f" re-building lockfile must happen in isolation."
                     f" Please rebuild lockfile in a virtualenv.  Continuing anyway...",
                     style="yellow",
                 )
