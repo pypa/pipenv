@@ -3,28 +3,20 @@ from pipenv.vendor import click
 
 def format_help(help):
     """Formats the help string."""
-    help = help.replace("Options:", str(click.style("Options:", bold=True)))
-    help = help.replace(
-        "Usage: pipenv", str("Usage: {}".format(click.style("pipenv", bold=True)))
-    )
-    help = help.replace("  check", str(click.style("  check", fg="red", bold=True)))
-    help = help.replace("  clean", str(click.style("  clean", fg="red", bold=True)))
-    help = help.replace("  graph", str(click.style("  graph", fg="red", bold=True)))
-    help = help.replace(
-        "  install", str(click.style("  install", fg="magenta", bold=True))
-    )
-    help = help.replace("  lock", str(click.style("  lock", fg="green", bold=True)))
-    help = help.replace("  open", str(click.style("  open", fg="red", bold=True)))
-    help = help.replace("  run", str(click.style("  run", fg="yellow", bold=True)))
-    help = help.replace("  shell", str(click.style("  shell", fg="yellow", bold=True)))
-    help = help.replace(
-        "  scripts", str(click.style("  scripts", fg="yellow", bold=True))
-    )
-    help = help.replace("  sync", str(click.style("  sync", fg="green", bold=True)))
-    help = help.replace(
-        "  uninstall", str(click.style("  uninstall", fg="magenta", bold=True))
-    )
-    help = help.replace("  update", str(click.style("  update", fg="green", bold=True)))
+    help = help.replace("Options:", "[bold]Options:[/bold]")
+    help = help.replace("Usage: pipenv", "Usage: [bold]pipenv[/bold]")
+    help = help.replace("  check", "[bold red]  check[/red bold]")
+    help = help.replace("  clean", "[bold red]  clean[/red bold]")
+    help = help.replace("  graph", "[bold red]  graph[/red bold]")
+    help = help.replace("  install", "[bold magenta]  install[/magenta bold]")
+    help = help.replace("  lock", "[bold green]  lock[/green bold]")
+    help = help.replace("  open", "[bold red]  open[/red bold]")
+    help = help.replace("  run", "[bold yellow]  run[/yellow bold]")
+    help = help.replace("  shell", "[bold yellow]  shell[/yellow bold]")
+    help = help.replace("  scripts", "[bold yellow]  scripts[/yellow bold]")
+    help = help.replace("  sync", "[bold green]  sync[/green bold]")
+    help = help.replace("  uninstall", "[bold magenta]  uninstall[/magenta bold]")
+    help = help.replace("  update", "[bold green]  update[/green bold]")
     additional_help = """
 Usage Examples:
    Create a new project using Python 3.7, specifically:
@@ -52,14 +44,14 @@ Usage Examples:
    $ {}
 
 Commands:""".format(
-        click.style("pipenv --python 3.7", fg="yellow"),
-        click.style("pipenv --rm", fg="yellow"),
-        click.style("pipenv install --dev", fg="yellow"),
-        click.style("pipenv lock --pre", fg="yellow"),
-        click.style("pipenv graph", fg="yellow"),
-        click.style("pipenv check", fg="yellow"),
-        click.style("pipenv install -e .", fg="yellow"),
-        click.style("pipenv run pip freeze", fg="yellow"),
+        "[yellow]pipenv --python 3.7[/yellow]",
+        "[yellow]pipenv --rm[/yellow]",
+        "[yellow]pipenv install --dev[/yellow]",
+        "[yellow]pipenv lock --pre[/yellow]",
+        "[yellow]pipenv graph[/yellow]",
+        "[yellow]pipenv check[/yellow]",
+        "[yellow]pipenv install -e .[/yellow]",
+        "[yellow]pipenv run pip freeze[/yellow]",
     )
     help = help.replace("Commands:", additional_help)
     return help

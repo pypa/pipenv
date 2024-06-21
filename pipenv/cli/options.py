@@ -2,7 +2,7 @@ import os
 import re
 
 from pipenv.project import Project
-from pipenv.utils import err
+from pipenv.utils import console, err
 from pipenv.utils.internet import is_valid_url
 from pipenv.vendor.click import (
     BadArgumentUsage,
@@ -35,7 +35,7 @@ class PipenvGroup(DYMMixin, Group):
             if value and not ctx.resilient_parsing:
                 if not ctx.invoked_subcommand:
                     # legit main help
-                    echo(format_help(ctx.get_help()))
+                    console.print(format_help(ctx.get_help()), highlight=False)
                 else:
                     # legit sub-command help
                     echo(ctx.get_help(), color=ctx.color)
