@@ -1,4 +1,4 @@
-# Frequently Encountered PiPenv Problems
+# Frequently Encountered Pipenv Problems
 
 Pipenv is constantly being improved by volunteers, but is still a very young
 project with limited resources, and has some quirks that needs to be dealt
