@@ -10,7 +10,6 @@ from pipenv.vendor.click import (
     Group,
     Option,
     argument,
-    echo,
     make_pass_decorator,
     option,
 )
@@ -33,12 +32,7 @@ class PipenvGroup(DYMMixin, Group):
 
         def show_help(ctx, param, value):
             if value and not ctx.resilient_parsing:
-                if not ctx.invoked_subcommand:
-                    # legit main help
-                    console.print(format_help(ctx.get_help()), highlight=False)
-                else:
-                    # legit sub-command help
-                    echo(ctx.get_help(), color=ctx.color)
+                console.print(format_help(ctx.get_help()), highlight=False)
                 ctx.exit()
 
         return Option(

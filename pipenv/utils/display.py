@@ -1,6 +1,3 @@
-from pipenv.vendor import click
-
-
 def format_help(help):
     """Formats the help string."""
     help = help.replace("Options:", "[bold]Options:[/bold]")
