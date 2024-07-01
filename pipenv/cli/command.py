@@ -186,10 +186,8 @@ def cli(
             pypi_mirror=state.pypi_mirror,
             clear=state.clear,
         )
-    # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
-        # Display help to user, if no commands were passed.
-        print(format_help(ctx.get_help()))
+        console.print(format_help(ctx.get_help()))
 
 
 @cli.command(
