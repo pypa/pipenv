@@ -32,7 +32,7 @@ class PipenvGroup(DYMMixin, Group):
 
         def show_help(ctx, param, value):
             if value and not ctx.resilient_parsing:
-                console.print(format_help(ctx.get_help()), highlight=False)
+                console.print(format_help(ctx.get_help()))
                 ctx.exit()
 
         return Option(
