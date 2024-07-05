@@ -1,6 +1,6 @@
 alabaster==0.7.13
 Babel==2.12.1
-certifi==2023.7.22
+certifi==2024.7.4
 chardet==3.0.4
 click==8.0.3
 docutils==0.17.1
