@@ -614,7 +614,7 @@ def do_init(
                 )
             else:
                 if old_hash:
-                    msg = "Pipfile.lock ({0}) out of date: run `pipfile lock` to update to ({1})..."
+                    msg = "Pipfile.lock ({0}) out of date: run `pipenv lock` to update to ({1})..."
                 else:
                     msg = "Pipfile.lock is corrupt, replaced with ({1})..."
                 err.print(
