@@ -1,0 +1,1 @@
+Fix loading dot env twice #6198
