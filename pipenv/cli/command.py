@@ -390,8 +390,7 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
                 "New shell not activated to avoid nested environments."
             )
             sys.exit(1)
-    # Load .env file.
-    load_dot_env(state.project)
+
     # Use fancy mode for Windows or pwsh on *nix.
     if (
         os.name == "nt"
