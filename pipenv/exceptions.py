@@ -58,15 +58,14 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 sys.excepthook = handle_exception
 
 
-class PipenvException(ClickException):
-    message = "{}: {{}}".format(click.style("ERROR", fg="red", bold=True))
+class PipenvException:
+    message = "[bold][red]ERROR[/red][/bold]: {}"
 
     def __init__(self, message=None, **kwargs):
         if not message:
             message = "Pipenv encountered a problem and had to exit."
         extra = kwargs.pop("extra", [])
         message = self.message.format(message)
-        ClickException.__init__(self, message)
         self.extra = extra
 
     def show(self, file=None):
