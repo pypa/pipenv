@@ -3,8 +3,18 @@ import sys
 from collections import namedtuple
 from traceback import format_tb
 
+from pipenv.patched.pip._vendor.rich.console import Console
+from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.vendor import click
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
+
+
+def unstyle(text: str) -> str:
+    """Remove all styles from the given text."""
+    styled_text = Text.from_markup(text)
+    stripped_text = styled_text.strip_styles()
+    return stripped_text.to_plain_text()
+
 
 KnownException = namedtuple(
     "KnownException",
@@ -48,27 +58,27 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 sys.excepthook = handle_exception
 
 
-class PipenvException(ClickException):
-    message = "{}: {{}}".format(click.style("ERROR", fg="red", bold=True))
+class PipenvException:
+    message = "[bold][red]ERROR[/red][/bold]: {}"
 
     def __init__(self, message=None, **kwargs):
         if not message:
             message = "Pipenv encountered a problem and had to exit."
         extra = kwargs.pop("extra", [])
         message = self.message.format(message)
-        ClickException.__init__(self, message)
         self.extra = extra
 
     def show(self, file=None):
         if file is None:
             file = sys.stderr
+        console = Console(file=file)
         if self.extra:
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
                 extra = f"[pipenv.exceptions.{self.__class__.__name__}]: {extra}"
-                click.echo(extra, file=file)
-        click.echo(f"{self.message}", file=file)
+                console.print(extra)
+        console.print(f"{self.message}")
 
 
 class PipenvCmdError(PipenvException):
@@ -275,11 +285,9 @@ class VirtualenvCreationException(VirtualenvException):
         self.message = message
         extra = kwargs.pop("extra", None)
         if extra is not None and isinstance(extra, str):
-            extra = click.unstyle(f"{extra}")
+            extra = unstyle(f"{extra}")
             if "KeyboardInterrupt" in extra:
-                extra = click.style(
-                    "Virtualenv creation interrupted by user", fg="red", bold=True
-                )
+                extra = "[red][/bold]Virtualenv creation interrupted by user[red][/bold]"
             self.extra = extra = [extra]
         VirtualenvException.__init__(self, message, extra=extra)
 

@@ -67,7 +67,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.vendor import click, plette, tomlkit
+from pipenv.vendor import plette, tomlkit
 
 try:
     # this is only in Python3.8 and later
@@ -360,11 +360,8 @@ class Project:
 
         except Exception:
             if self.s.is_verbose():
-                click.echo(
-                    "{}: Error generating hash for {}".format(
-                        click.style("Warning", bold=True, fg="red"), ireq.name
-                    ),
-                    err=True,
+                err.print(
+                    f"[bold red]Warning[/bold red]: Error generating hash for {ireq.name}"
                 )
             return None
 
@@ -1306,11 +1303,8 @@ class Project:
                 j = json.load(lock)
                 self._lockfile_newlines = preferred_newlines(lock)
             except JSONDecodeError:
-                click.secho(
-                    "Pipfile.lock is corrupted; ignoring contents.",
-                    fg="yellow",
-                    bold=True,
-                    err=True,
+                err.print(
+                    "[bold yellow]Pipfile.lock is corrupted; ignoring contents.[/bold yellow]"
                 )
                 j = {}
         if not j.get("_meta"):

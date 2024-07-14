@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -353,11 +354,15 @@ def test_install_venv_project_directory(pipenv_instance_pypi):
         c = p.pipenv("install six")
         assert c.returncode == 0
 
-        venv_loc = None
-        for line in c.stderr.splitlines():
-            if line.startswith("Virtualenv location:"):
-                venv_loc = Path(line.split(":", 1)[-1].strip())
-        assert venv_loc is not None
+        venv_loc_patt = r"Virtualenv location:(.*?)(?=Pipfile\.lock)"
+        match = re.search(venv_loc_patt, c.stderr, re.DOTALL)
+
+        assert match
+
+        # Extract the matched text
+        venv_loc = match.group(1).strip()
+
+        venv_loc = Path(venv_loc)
         assert venv_loc.joinpath(".project").exists()
 
 

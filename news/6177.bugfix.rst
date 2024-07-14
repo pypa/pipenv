@@ -1,0 +1,1 @@
+Fix bump version in CI/CD pipeline
