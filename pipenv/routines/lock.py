@@ -12,6 +12,7 @@ def do_lock(
     clear=False,
     pre=False,
     write=True,
+    quiet=False,
     pypi_mirror=None,
     categories=None,
     extra_pip_args=None,
@@ -46,15 +47,15 @@ def do_lock(
             packages = project.get_pipfile_section(pipfile_category)
 
         if write:
-            # Alert the user of progress.
-            click.echo(
-                "{} {} {}".format(
-                    click.style("Locking"),
-                    click.style(f"[{pipfile_category}]", fg="yellow"),
-                    click.style("dependencies..."),
-                ),
-                err=True,
-            )
+            if not quiet:  # Alert the user of progress.
+                click.echo(
+                    "{} {} {}".format(
+                        click.style("Locking"),
+                        click.style(f"[{pipfile_category}]", fg="yellow"),
+                        click.style("dependencies..."),
+                    ),
+                    err=True,
+                )
 
         # Prune old lockfile category as new one will be created.
         with contextlib.suppress(KeyError):
@@ -89,15 +90,16 @@ def do_lock(
     if write:
         lockfile.update({"_meta": project.get_lockfile_meta()})
         project.write_lockfile(lockfile)
-        click.echo(
-            "{}".format(
-                click.style(
-                    f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
-                    bold=True,
-                )
-            ),
-            err=True,
-        )
+        if not quiet:
+            click.echo(
+                "{}".format(
+                    click.style(
+                        f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
+                        bold=True,
+                    )
+                ),
+                err=True,
+            )
     else:
         return lockfile
 
