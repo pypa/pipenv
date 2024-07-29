@@ -24,10 +24,10 @@ index d30d477be..7901af121 100644
 @@ -3,6 +3,7 @@ import sys
  from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
 
- from pip._vendor.packaging.requirements import InvalidRequirement
+ from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
 +from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
- from pip._vendor.packaging.utils import NormalizedName, canonicalize_name
- from pip._vendor.packaging.version import Version
+ from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+ from pipenv.patched.pip._vendor.packaging.version import Version
 
 @@ -254,7 +255,10 @@ class _InstallRequirementBackedCandidate(Candidate):
          yield self._factory.make_requires_python_requirement(self.dist.requires_python)
