@@ -41,4 +41,3 @@ index d30d477be..7901af121 100644
 
 
  class LinkCandidate(_InstallRequirementBackedCandidate):
-
