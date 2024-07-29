@@ -186,10 +186,8 @@ def cli(
             pypi_mirror=state.pypi_mirror,
             clear=state.clear,
         )
-    # Check this again before exiting for empty ``pipenv`` command.
     elif ctx.invoked_subcommand is None:
-        # Display help to user, if no commands were passed.
-        print(format_help(ctx.get_help()))
+        console.print(format_help(ctx.get_help()))
 
 
 @cli.command(
@@ -258,6 +256,7 @@ def upgrade(state, **kwargs):
         dev=state.installstate.dev,
         system=state.system,
         lock_only=state.installstate.lock_only,
+        extra_pip_args=state.installstate.extra_pip_args,
     )
 
 
@@ -389,8 +388,7 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
                 "New shell not activated to avoid nested environments."
             )
             sys.exit(1)
-    # Load .env file.
-    load_dot_env(state.project)
+
     # Use fancy mode for Windows or pwsh on *nix.
     if (
         os.name == "nt"
@@ -646,16 +644,14 @@ def run_open(state, module, *args, **kwargs):
 @pass_context
 def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
-    from pipenv.routines.install import do_sync
+    from pipenv.routines.sync import do_sync
 
     retcode = do_sync(
         state.project,
         dev=state.installstate.dev,
         python=state.python,
         bare=bare,
-        user=user,
         clear=state.clear,
-        unused=unused,
         pypi_mirror=state.pypi_mirror,
         system=state.system,
         extra_pip_args=state.installstate.extra_pip_args,

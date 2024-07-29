@@ -10,7 +10,7 @@ class Script(DataModel):
     This always works in POSIX mode, even on Windows.
     """
     __OPTIONAL__ = {
-        "script": (str,list)
+        "script": (str, list, dict)
     }
 
     def __init__(self, data):
@@ -25,7 +25,7 @@ class Script(DataModel):
             raise DataValidationError("Script cannot be empty")
         for k, types in cls.__OPTIONAL__.items():
             if not isinstance(data, types):
-                raise DataValidationError(f"Invalid type for field {t}: {type(data[t])}")
+                raise DataValidationError(f"Invalid type for {k}: {type(data)}")
     def __repr__(self):
         return "Script({0!r})".format(self._parts)
 

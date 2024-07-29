@@ -1,3 +1,57 @@
+2024.0.1 (2024-06-11)
+=====================
+Pipenv 2024.0.1 (2024-06-11)
+============================
+
+
+No significant changes.
+
+
+2024.0.0 (2024-06-06)
+=====================
+Pipenv 2024.0.0 (2024-06-06)
+============================
+
+Features & Improvements
+-----------------------
+
+- Supply any ``--extra-pip-args`` also in the resolver steps.  `#6006 <https://github.com/pypa/pipenv/issues/6006>`_
+- The ``uninstall`` command now does the inverse of ``upgrade`` which means it no longer invokes a full ``lock`` cycle which was problematic for projects with many dependencies.  `#6029 <https://github.com/pypa/pipenv/issues/6029>`_
+- The ``pipenv requirements`` subcommand now supports the ``--from-pipfile`` flag. When this flag is used, the requirements file will only include the packages explicitly listed in the Pipfile, excluding any sub-packages.  `#6156 <https://github.com/pypa/pipenv/issues/6156>`_
+
+Behavior Changes
+----------------
+
+- ``pipenv==3000.0.0`` denotes the first major release of our semver strategy.
+  As much requested, the ``install`` no longer does a complete lock operation.  Instead ``install`` follows the same code path as pipenv update (which is upgrade + sync).
+  This is what most new users expect the behavior to be; it is a behavioral change, a necessary one to make the tool more usable.
+  Remember that complete lock resolution can be invoked with ``pipenv lock`` just as before.  `#6098 <https://github.com/pypa/pipenv/issues/6098>`_
+
+Bug Fixes
+---------
+
+- Fix a bug that passes pipenv check command if Pipfile.lock not exist  `#6126 <https://github.com/pypa/pipenv/issues/6126>`_
+- Fix a bug that vcs subdependencies were locked without their subdirectory fragment if they had one  `#6136 <https://github.com/pypa/pipenv/issues/6136>`_
+- ``pipenv`` converts off ``pkg_resources`` API usages.  This necessitated also vendoring in:
+  * latest ``pipdeptree==2.18.1`` which also converted off ``pkg_resources``
+  * ``importlib-metadata==7.1.0`` to continue supporting python 3.8 and 3.9
+  * ``packaging==24.0`` since the packaging we were utilizing in pip's _vendor was insufficient for this conversion.  `#6139 <https://github.com/pypa/pipenv/issues/6139>`_
+- Pipenv only supports absolute python version. If the user specifies a Python version with inequality signs like >=3.12, <3.12 in the [requires] field, the code has been modified to explicitly express in an error log that absolute versioning must be used.  `#6164 <https://github.com/pypa/pipenv/issues/6164>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``pip==24.0``  `#6117 <https://github.com/pypa/pipenv/issues/6117>`_
+- Spring 2024 Vendoring includes:
+  * ``click-didyoumean==0.3.1``
+  * ``expect==4.9.0``
+  * ``pipdeptree==2.16.2``
+  * ``python-dotenv==1.0.1``
+  * ``ruamel.yaml==0.18.6``
+  * ``shellingham==1.5.4``
+  * ``tomlkit==0.12.4``  `#6118 <https://github.com/pypa/pipenv/issues/6118>`_
+
+
 2023.12.1 (2024-02-04)
 ======================
 Pipenv 2023.12.1 (2024-02-04)

@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 
+from pipenv.utils import err
 from pipenv.utils.fileutils import normalize_drive, normalize_path
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
@@ -410,7 +411,7 @@ def project_python(project, system=False):
         interpreters = [i for i in interpreters if i]  # filter out not found interpreters
         python = interpreters[0] if interpreters else None
     if not python:
-        click.secho("The Python interpreter can't be found.", fg="red", err=True)
+        err.print("The Python interpreter can't be found.", style="red")
         sys.exit(1)
     return Path(python).as_posix()
 
@@ -425,13 +426,10 @@ def system_which(command, path=None):
         env = {"PATH": path} if path else None
         c = subprocess_run(f"{_which} {command}", shell=True, env=env)
         if c.returncode == 127:
-            click.echo(
-                "{}: the {} system utility is required for Pipenv to find Python installations properly."
-                "\n  Please install it.".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style(_which, fg="yellow"),
-                ),
-                err=True,
+            err.print(
+                f"[bold][red]Warning[/red][/bold]: the [yellow]{_which}[/yellow]"
+                "system utility is required for Pipenv to find Python installations properly."
+                "\nPlease install it."
             )
         if c.returncode == 0:
             result = next(iter(c.stdout.splitlines()), None)
@@ -447,7 +445,7 @@ def shorten_path(location, bold=False):
     short = short.split(os.sep)
     short[-1] = original.split(os.sep)[-1]
     if bold:
-        short[-1] = str(click.style(short[-1], bold=True))
+        short[-1] = f"[bold]{short[-1]}[/bold]"
     return os.sep.join(short)
 
 

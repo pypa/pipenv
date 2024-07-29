@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -353,11 +354,15 @@ def test_install_venv_project_directory(pipenv_instance_pypi):
         c = p.pipenv("install six")
         assert c.returncode == 0
 
-        venv_loc = None
-        for line in c.stderr.splitlines():
-            if line.startswith("Virtualenv location:"):
-                venv_loc = Path(line.split(":", 1)[-1].strip())
-        assert venv_loc is not None
+        venv_loc_patt = r"Virtualenv location:(.*?)(?=Pipfile\.lock)"
+        match = re.search(venv_loc_patt, c.stderr, re.DOTALL)
+
+        assert match
+
+        # Extract the matched text
+        venv_loc = match.group(1).strip()
+
+        venv_loc = Path(venv_loc)
         assert venv_loc.joinpath(".project").exists()
 
 
@@ -402,6 +407,64 @@ def test_create_pipfile_requires_python_full_version(pipenv_instance_private_pyp
             'python_full_version': python_full_version,
             'python_version': python_version
             }
+
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.virtualenv
+def test_install_with_pipfile_including_exact_python_version(pipenv_instance_pypi):
+    valid_version = f"{sys.version_info.major}.{sys.version_info.minor}"
+
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, 'w') as f:
+            f.write(f"""
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pytz = "*"
+
+[requires]
+python_version = "{valid_version}"
+""")
+
+        c = p.pipenv("install")
+        assert c.returncode == 0
+        assert os.path.isfile(p.pipfile_path)
+        assert p.pipfile["requires"]["python_version"] == valid_version
+
+        c = p.pipenv("--rm")
+        assert c.returncode == 0
+
+@pytest.mark.basic
+@pytest.mark.install
+@pytest.mark.virtualenv
+def test_install_with_pipfile_including_invalid_python_version(pipenv_instance_pypi):
+    invalid_versions = [
+        f">={sys.version_info.major}.{sys.version_info.minor}",
+        f"<={sys.version_info.major}.{sys.version_info.minor}",
+        f">{sys.version_info.major}.{sys.version_info.minor}",
+        f"<{sys.version_info.major}.{sys.version_info.minor}",
+    ]
+
+    with pipenv_instance_pypi() as p:
+        for version in invalid_versions:
+            with open(p.pipfile_path, 'w') as f:
+                f.write(f"""
+[[source]]
+url = "https://test.pypi.org/simple"
+verify_ssl = true
+name = "testpypi"
+
+[packages]
+pytz = "*"
+
+[requires]
+python_version = "{version}"
+""")
+            c = p.pipenv("install")
+            assert c.returncode != 0
 
 
 @pytest.mark.basic

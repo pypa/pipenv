@@ -1,9 +1,11 @@
+import json
+import os
 import sys
 from collections import defaultdict
 
-from pipenv.routines.install import do_sync
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
+from pipenv.routines.sync import do_sync
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_pipfile_category_using_lockfile_section,
@@ -42,8 +44,8 @@ def do_update(
         site_packages=site_packages,
         clear=clear,
     )
-    packages = [p for p in packages if p]
-    editable = [p for p in editable_packages if p]
+    packages = [p for p in (packages or []) if p]
+    editable = [p for p in (editable_packages or []) if p]
     if not outdated:
         outdated = bool(dry_run)
     if not packages:
@@ -62,6 +64,7 @@ def do_update(
             pre=pre,
             pypi_mirror=pypi_mirror,
             write=not outdated,
+            extra_pip_args=extra_pip_args,
         )
     else:
         upgrade(
@@ -75,6 +78,7 @@ def do_update(
             index_url=index_url,
             dev=dev,
             lock_only=lock_only,
+            extra_pip_args=extra_pip_args,
         )
 
     if outdated:
@@ -91,9 +95,7 @@ def do_update(
             categories=categories,
             python=python,
             bare=bare,
-            user=False,
             clear=clear,
-            unused=False,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
         )
@@ -110,6 +112,7 @@ def upgrade(
     categories=None,
     dev=False,
     lock_only=False,
+    extra_pip_args=None,
 ):
     lockfile = project.lockfile()
     if not pre:
@@ -122,6 +125,9 @@ def upgrade(
     index_name = None
     if index_url:
         index_name = add_index_to_pipfile(project, index_url)
+
+    if extra_pip_args:
+        os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
 
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
