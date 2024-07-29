@@ -1,0 +1,1 @@
+Remove linuxbrew from path when detecting shells.

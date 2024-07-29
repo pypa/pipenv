@@ -35,6 +35,11 @@ def _get_activate_script(cmd, venv):
     This is POSIX-only at the moment since the compat (pexpect-based) shell
     does not work elsewhere anyway.
     """
+
+    # Split on linuxbrew in case users have installed there shell using it.
+    # Otherwise the `nu` substring will trigger the nu shell path.
+    cmd = cmd.split(".linuxbrew")[-1]
+
     # Suffix and source command for other shells.
     # Support for fish shell.
     if "fish" in cmd:
