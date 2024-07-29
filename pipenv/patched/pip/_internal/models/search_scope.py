@@ -3,6 +3,7 @@ import logging
 import os
 import posixpath
 import urllib.parse
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
@@ -14,13 +15,19 @@ from pipenv.patched.pip._internal.utils.misc import normalize_path, redact_auth_
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
 class SearchScope:
-
     """
     Encapsulates the locations that pip is configured to search.
     """
 
     __slots__ = ["find_links", "index_urls", "no_index", "index_lookup", "index_restricted"]
+
+    find_links: List[str]
+    index_urls: List[str]
+    no_index: bool
+    index_lookup: Dict[str, str]
+    index_restricted: bool
 
     @classmethod
     def create(
@@ -67,20 +74,6 @@ class SearchScope:
             index_lookup=index_lookup,
             index_restricted=index_restricted,
         )
-
-    def __init__(
-        self,
-        find_links: List[str],
-        index_urls: List[str],
-        no_index: bool,
-        index_lookup: Optional[Dict[str, List[str]]] = None,
-        index_restricted: bool = False,
-    ) -> None:
-        self.find_links = find_links
-        self.index_urls = index_urls
-        self.no_index = no_index
-        self.index_lookup = index_lookup if index_lookup else {}
-        self.index_restricted = index_restricted
 
     def get_formatted_locations(self) -> str:
         lines = []

@@ -17,6 +17,7 @@ from typing import (
     Generator,
     Iterable,
     List,
+    NoReturn,
     Optional,
     Tuple,
 )
@@ -24,17 +25,11 @@ from typing import (
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.exceptions import InstallationError, RequirementsFileParseError
 from pipenv.patched.pip._internal.models.search_scope import SearchScope
-from pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pip._internal.network.utils import raise_for_status
 from pipenv.patched.pip._internal.utils.encoding import auto_decode
-from pipenv.patched.pip._internal.utils.urls import get_url_scheme
 
 if TYPE_CHECKING:
-    # NoReturn introduced in 3.6.2; imported only for type checking to maintain
-    # pip compatibility with older patch versions of Python 3.6
-    from typing import NoReturn
-
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.network.session import PipSession
 
 __all__ = ["parse_requirements"]
 
@@ -136,7 +131,7 @@ class ParsedLine:
 
 def parse_requirements(
     filename: str,
-    session: PipSession,
+    session: "PipSession",
     finder: Optional["PackageFinder"] = None,
     options: Optional[optparse.Values] = None,
     constraint: bool = False,
@@ -213,7 +208,7 @@ def handle_option_line(
     lineno: int,
     finder: Optional["PackageFinder"] = None,
     options: Optional[optparse.Values] = None,
-    session: Optional[PipSession] = None,
+    session: Optional["PipSession"] = None,
 ) -> None:
     if opts.hashes:
         logger.warning(
@@ -281,7 +276,7 @@ def handle_line(
     line: ParsedLine,
     options: Optional[optparse.Values] = None,
     finder: Optional["PackageFinder"] = None,
-    session: Optional[PipSession] = None,
+    session: Optional["PipSession"] = None,
 ) -> Optional[ParsedRequirement]:
     """Handle a single parsed requirements line; This can result in
     creating/yielding requirements, or updating the finder.
@@ -324,7 +319,7 @@ def handle_line(
 class RequirementsFileParser:
     def __init__(
         self,
-        session: PipSession,
+        session: "PipSession",
         line_parser: LineParser,
     ) -> None:
         self._session = session
@@ -529,7 +524,7 @@ def expand_env_variables(lines_enum: ReqFileLines) -> ReqFileLines:
         yield line_number, line
 
 
-def get_file_content(url: str, session: PipSession) -> Tuple[str, str]:
+def get_file_content(url: str, session: "PipSession") -> Tuple[str, str]:
     """Gets the content of a file; it may be a filename, file: URL, or
     http: URL.  Returns (location, content).  Content is unicode.
     Respects # -*- coding: declarations on the retrieved files.
@@ -537,10 +532,12 @@ def get_file_content(url: str, session: PipSession) -> Tuple[str, str]:
     :param url:         File path or url.
     :param session:     PipSession instance.
     """
-    scheme = get_url_scheme(url)
-
+    scheme = urllib.parse.urlsplit(url).scheme
     # Pip has special support for file:// URLs (LocalFSAdapter).
     if scheme in ["http", "https", "file"]:
+        # Delay importing heavy network modules until absolutely necessary.
+        from pipenv.patched.pip._internal.network.utils import raise_for_status
+
         resp = session.get(url)
         raise_for_status(resp)
         return resp.url, resp.text

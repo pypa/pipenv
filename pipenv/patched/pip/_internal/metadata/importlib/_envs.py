@@ -15,7 +15,7 @@ from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.utils.deprecation import deprecated
 from pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
 
-from ._compat import BadMetadata, BasePath, get_dist_name, get_info_location
+from ._compat import BadMetadata, BasePath, get_dist_canonical_name, get_info_location
 from ._dists import Distribution
 
 logger = logging.getLogger(__name__)
@@ -61,14 +61,13 @@ class _DistributionFinder:
         for dist in importlib.metadata.distributions(path=[location]):
             info_location = get_info_location(dist)
             try:
-                raw_name = get_dist_name(dist)
+                name = get_dist_canonical_name(dist)
             except BadMetadata as e:
                 logger.warning("Skipping %s due to %s", info_location, e.reason)
                 continue
-            normalized_name = canonicalize_name(raw_name)
-            if normalized_name in self._found_names:
+            if name in self._found_names:
                 continue
-            self._found_names.add(normalized_name)
+            self._found_names.add(name)
             yield dist, info_location
 
     def find(self, location: str) -> Iterator[BaseDistribution]:
@@ -150,7 +149,7 @@ class _DistributionFinder:
 def _emit_egg_deprecation(location: Optional[str]) -> None:
     deprecated(
         reason=f"Loading egg at {location} is deprecated.",
-        replacement="to use pip for package installation.",
+        replacement="to use pip for package installation",
         gone_in="24.3",
         issue=12330,
     )
@@ -181,9 +180,10 @@ class Environment(BaseEnvironment):
             yield from finder.find_linked(location)
 
     def get_distribution(self, name: str) -> Optional[BaseDistribution]:
+        canonical_name = canonicalize_name(name)
         matches = (
             distribution
             for distribution in self.iter_all_distributions()
-            if distribution.canonical_name == canonicalize_name(name)
+            if distribution.canonical_name == canonical_name
         )
         return next(matches, None)

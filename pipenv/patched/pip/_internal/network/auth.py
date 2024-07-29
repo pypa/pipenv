@@ -3,6 +3,7 @@
 Contains interface (MultiDomainBasicAuth) and associated glue code for
 providing credentials in the context of network requests.
 """
+
 import logging
 import os
 import shutil
@@ -47,12 +48,12 @@ class KeyRingBaseProvider(ABC):
     has_keyring: bool
 
     @abstractmethod
-    def get_auth_info(self, url: str, username: Optional[str]) -> Optional[AuthInfo]:
-        ...
+    def get_auth_info(
+        self, url: str, username: Optional[str]
+    ) -> Optional[AuthInfo]: ...
 
     @abstractmethod
-    def save_auth_info(self, url: str, username: str, password: str) -> None:
-        ...
+    def save_auth_info(self, url: str, username: str, password: str) -> None: ...
 
 
 class KeyRingNullProvider(KeyRingBaseProvider):
@@ -151,7 +152,7 @@ class KeyRingCliProvider(KeyRingBaseProvider):
         env["PYTHONIOENCODING"] = "utf-8"
         subprocess.run(
             [self.keyring, "set", service_name, username],
-            input=f"{password}{os.linesep}".encode("utf-8"),
+            input=f"{password}{os.linesep}".encode(),
             env=env,
             check=True,
         )
@@ -270,6 +271,10 @@ class MultiDomainBasicAuth(AuthBase):
         try:
             return self.keyring_provider.get_auth_info(url, username)
         except Exception as exc:
+            # Log the full exception (with stacktrace) at debug, so it'll only
+            # show up when running in verbose mode.
+            logger.debug("Keyring is skipped due to an exception", exc_info=True)
+            # Always log a shortened version of the exception.
             logger.warning(
                 "Keyring is skipped due to an exception: %s",
                 str(exc),

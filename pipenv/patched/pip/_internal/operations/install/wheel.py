@@ -28,6 +28,7 @@ from typing import (
     List,
     NewType,
     Optional,
+    Protocol,
     Sequence,
     Set,
     Tuple,
@@ -50,7 +51,7 @@ from pipenv.patched.pip._internal.metadata import (
 from pipenv.patched.pip._internal.models.direct_url import DIRECT_URL_METADATA_NAME, DirectUrl
 from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
 from pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, replace
-from pipenv.patched.pip._internal.utils.misc import captured_stdout, ensure_dir, hash_file, partition
+from pipenv.patched.pip._internal.utils.misc import StreamWrapper, ensure_dir, hash_file, partition
 from pipenv.patched.pip._internal.utils.unpacking import (
     current_umask,
     is_within_directory,
@@ -60,7 +61,6 @@ from pipenv.patched.pip._internal.utils.unpacking import (
 from pipenv.patched.pip._internal.utils.wheel import parse_wheel
 
 if TYPE_CHECKING:
-    from typing import Protocol
 
     class File(Protocol):
         src_record_path: "RecordPath"
@@ -288,17 +288,15 @@ def get_console_script_specs(console: Dict[str, str]) -> List[str]:
     # the wheel metadata at build time, and so if the wheel is installed with
     # a *different* version of Python the entry points will be wrong. The
     # correct fix for this is to enhance the metadata to be able to describe
-    # such versioned entry points, but that won't happen till Metadata 2.0 is
-    # available.
-    # In the meantime, projects using versioned entry points will either have
+    # such versioned entry points.
+    # Currently, projects using versioned entry points will either have
     # incorrect versioned entry points, or they will not be able to distribute
     # "universal" wheels (i.e., they will need a wheel per Python version).
     #
     # Because setuptools and pip are bundled with _ensurepip and virtualenv,
-    # we need to use universal wheels. So, as a stopgap until Metadata 2.0, we
+    # we need to use universal wheels. As a workaround, we
     # override the versioned entry points in the wheel and generate the
-    # correct ones. This code is purely a short-term measure until Metadata 2.0
-    # is available.
+    # correct ones.
     #
     # To add the level of hack in this section of code, in order to support
     # ensurepip this code will look for an ``ENSUREPIP_OPTIONS`` environment
@@ -360,12 +358,6 @@ class ZipBackedFile:
         return self._zip_file.getinfo(self.src_record_path)
 
     def save(self) -> None:
-        # directory creation is lazy and after file filtering
-        # to ensure we don't install empty dirs; empty dirs can't be
-        # uninstalled.
-        parent_dir = os.path.dirname(self.dest_path)
-        ensure_dir(parent_dir)
-
         # When we open the output file below, any existing file is truncated
         # before we start writing the new contents. This is fine in most
         # cases, but can cause a segfault if pip has loaded a shared
@@ -379,9 +371,13 @@ class ZipBackedFile:
 
         zipinfo = self._getinfo()
 
-        with self._zip_file.open(zipinfo) as f:
-            with open(self.dest_path, "wb") as dest:
-                shutil.copyfileobj(f, dest)
+        # optimization: the file is created by open(),
+        # skip the decompression when there is 0 bytes to decompress.
+        with open(self.dest_path, "wb") as dest:
+            if zipinfo.file_size > 0:
+                with self._zip_file.open(zipinfo) as f:
+                    blocksize = min(zipinfo.file_size, 1024 * 1024)
+                    shutil.copyfileobj(f, dest, blocksize)
 
         if zip_item_is_executable(zipinfo):
             set_extracted_file_to_default_mode_plus_executable(self.dest_path)
@@ -423,7 +419,7 @@ class PipScriptMaker(ScriptMaker):
         return super().make(specification, options)
 
 
-def _install_wheel(
+def _install_wheel(  # noqa: C901, PLR0915 function is too long
     name: str,
     wheel_zip: ZipFile,
     wheel_path: str,
@@ -507,9 +503,9 @@ def _install_wheel(
                 _, scheme_key, dest_subpath = normed_path.split(os.path.sep, 2)
             except ValueError:
                 message = (
-                    "Unexpected file in {}: {!r}. .data directory contents"
-                    " should be named like: '<scheme key>/<path>'."
-                ).format(wheel_path, record_path)
+                    f"Unexpected file in {wheel_path}: {record_path!r}. .data directory"
+                    " contents should be named like: '<scheme key>/<path>'."
+                )
                 raise InstallationError(message)
 
             try:
@@ -517,10 +513,11 @@ def _install_wheel(
             except KeyError:
                 valid_scheme_keys = ", ".join(sorted(scheme_paths))
                 message = (
-                    "Unknown scheme key used in {}: {} (for file {!r}). .data"
-                    " directory contents should be in subdirectories named"
-                    " with a valid scheme key ({})"
-                ).format(wheel_path, scheme_key, record_path, valid_scheme_keys)
+                    f"Unknown scheme key used in {wheel_path}: {scheme_key} "
+                    f"(for file {record_path!r}). .data directory contents "
+                    f"should be in subdirectories named with a valid scheme "
+                    f"key ({valid_scheme_keys})"
+                )
                 raise InstallationError(message)
 
             dest_path = os.path.join(scheme_path, dest_subpath)
@@ -581,7 +578,15 @@ def _install_wheel(
     script_scheme_files = map(ScriptFile, script_scheme_files)
     files = chain(files, script_scheme_files)
 
+    existing_parents = set()
     for file in files:
+        # directory creation is lazy and after file filtering
+        # to ensure we don't install empty dirs; empty dirs can't be
+        # uninstalled.
+        parent_dir = os.path.dirname(file.dest_path)
+        if parent_dir not in existing_parents:
+            ensure_dir(parent_dir)
+            existing_parents.add(parent_dir)
         file.save()
         record_installed(file.src_record_path, file.dest_path, file.changed)
 
@@ -604,7 +609,9 @@ def _install_wheel(
 
     # Compile all of the pyc files for the installed files
     if pycompile:
-        with captured_stdout() as stdout:
+        with contextlib.redirect_stdout(
+            StreamWrapper.from_stream(sys.stdout)
+        ) as stdout:
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore")
                 for path in pyc_source_file_paths():
