@@ -68,7 +68,7 @@ class SearchScope:
             find_links=built_find_links,
             index_urls=index_urls,
             no_index=no_index,
-            index_lookup=index_lookup,
+            index_lookup=index_lookup or {},
             index_restricted=index_restricted,
         )
 
