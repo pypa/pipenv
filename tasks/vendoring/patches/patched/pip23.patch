@@ -147,4 +147,3 @@ index 200c38287..c92ef2d0d 100644
 
  if chardet is not None:
      target = chardet.__name__
-
