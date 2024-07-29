@@ -82,21 +82,31 @@ def do_uninstall(
     if all:
         click.secho(
             click.style(
-                "Un-installing all {}...".format(click.style("[packages]", fg="yellow")),
+                "Un-installing all packages...",
                 bold=True,
             )
         )
-        # Uninstall all dev-packages from environment
-        for package in project.get_pipfile_section("packages"):
-            _uninstall_from_environment(project, package, system=system)
-        # Remove the package from the Pipfile
-        if project.reset_category_in_pipfile(category="packages"):
-            click.echo("Removed [packages] from Pipfile.")
+        # Uninstall all packages from all groups
+        for category in project.pipfile_sources:
+            if category in ["source", "requires"]:
+                continue
+            for package in project.get_pipfile_section(category):
+                _uninstall_from_environment(project, package, system=system)
+            # Remove the packages from the Pipfile
+            if project.reset_category_in_pipfile(category=category):
+                click.echo(f"Removed [{category}] from Pipfile.")
 
-        # Finalize changes to lockfile
-        lockfile_content["default"] = {}
+        # Clear all categories in the lockfile
+        for category in list(lockfile_content.keys()):
+            if category != "_meta":
+                lockfile_content[category] = {}
+
         lockfile_content.update({"_meta": project.get_lockfile_meta()})
         project.write_lockfile(lockfile_content)
+
+        # Call do_purge to remove all packages from the environment
+        do_purge(project, bare=False, downloads=False, allow_global=system)
+        return
 
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
