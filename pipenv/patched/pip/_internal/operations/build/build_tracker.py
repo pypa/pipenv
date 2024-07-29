@@ -3,9 +3,8 @@ import hashlib
 import logging
 import os
 from types import TracebackType
-from typing import Dict, Generator, Optional, Set, Type, Union
+from typing import Dict, Generator, Optional, Type, Union
 
-from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
@@ -99,7 +98,7 @@ class BuildTracker:
         except FileNotFoundError:
             pass
         else:
-            message = "{} is already being built: {}".format(req.link, contents)
+            message = f"{req.link} is already being built: {contents}"
             raise LookupError(message)
 
         # If we're here, req should really not be building already.

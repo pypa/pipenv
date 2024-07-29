@@ -2,16 +2,7 @@ import logging
 import os
 import shlex
 import subprocess
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Iterable,
-    List,
-    Mapping,
-    Optional,
-    Union,
-)
+from typing import Any, Callable, Iterable, List, Literal, Mapping, Optional, Union
 
 from pipenv.patched.pip._vendor.rich.markup import escape
 
@@ -19,12 +10,6 @@ from pipenv.patched.pip._internal.cli.spinners import SpinnerInterface, open_spi
 from pipenv.patched.pip._internal.exceptions import InstallationSubprocessError
 from pipenv.patched.pip._internal.utils.logging import VERBOSE, subprocess_logger
 from pipenv.patched.pip._internal.utils.misc import HiddenText
-
-if TYPE_CHECKING:
-    # Literal was introduced in Python 3.8.
-    #
-    # TODO: Remove `if TYPE_CHECKING` when dropping support for Python 3.7.
-    from typing import Literal
 
 CommandArgs = List[Union[str, HiddenText]]
 

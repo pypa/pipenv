@@ -668,16 +668,10 @@ class Project:
 
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
-        """Parse Pipfile into a TOMLFile and cache it
-
-        (call clear_pipfile_cache() afterwards if mutating)"""
+        """Parse Pipfile into a TOMLFile and cache it"""
         contents = self.read_pipfile()
-        # use full contents to get around str/bytes 2/3 issues
-        cache_key = (self.pipfile_location, contents)
-        if cache_key not in _pipfile_cache:
-            parsed = self._parse_pipfile(contents)
-            _pipfile_cache[cache_key] = parsed
-        return _pipfile_cache[cache_key]
+        parsed = self._parse_pipfile(contents)
+        return parsed
 
     def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.

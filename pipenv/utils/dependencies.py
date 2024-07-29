@@ -893,7 +893,6 @@ def get_link_from_line(line):
     link = create_link(
         urlunsplit(parsed_url._replace(scheme=original_scheme))  # type: ignore
     )
-
     return link
 
 

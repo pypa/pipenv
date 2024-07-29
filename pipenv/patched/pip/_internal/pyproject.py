@@ -1,16 +1,22 @@
 import importlib.util
 import os
+import sys
 from collections import namedtuple
 from typing import Any, List, Optional
 
-from pipenv.patched.pip._vendor import tomli
-from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    from pipenv.patched.pip._vendor import tomli as tomllib
+
+from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
 
 from pipenv.patched.pip._internal.exceptions import (
     InstallationError,
     InvalidPyProjectBuildRequires,
     MissingPyProjectBuildRequires,
 )
+from pipenv.patched.pip._internal.utils.packaging import get_requirement
 
 
 def _is_list_of_str(obj: Any) -> bool:
@@ -61,7 +67,7 @@ def load_pyproject_toml(
 
     if has_pyproject:
         with open(pyproject_toml, encoding="utf-8") as f:
-            pp_toml = tomli.loads(f.read())
+            pp_toml = tomllib.loads(f.read())
         build_system = pp_toml.get("build-system")
     else:
         build_system = None
@@ -151,7 +157,7 @@ def load_pyproject_toml(
     # Each requirement must be valid as per PEP 508
     for requirement in requires:
         try:
-            Requirement(requirement)
+            get_requirement(requirement)
         except InvalidRequirement as error:
             raise InvalidPyProjectBuildRequires(
                 package=req_name,

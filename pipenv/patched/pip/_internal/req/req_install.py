@@ -52,7 +52,7 @@ from pipenv.patched.pip._internal.utils.misc import (
     redact_auth_from_requirement,
     redact_auth_from_url,
 )
-from pipenv.patched.pip._internal.utils.packaging import safe_extra
+from pipenv.patched.pip._internal.utils.packaging import get_requirement
 from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
@@ -222,8 +222,9 @@ class InstallRequirement:
         return s
 
     def __repr__(self) -> str:
-        return "<{} object: {} editable={!r}>".format(
-            self.__class__.__name__, str(self), self.editable
+        return (
+            f"<{self.__class__.__name__} object: "
+            f"{str(self)} editable={self.editable!r}>"
         )
 
     def format_debug(self) -> str:
@@ -244,7 +245,7 @@ class InstallRequirement:
             return None
         return self.req.name
 
-    @functools.lru_cache()  # use cached_property in python 3.8+
+    @functools.cached_property
     def supports_pyproject_editable(self) -> bool:
         if not self.use_pep517:
             return False
@@ -283,12 +284,7 @@ class InstallRequirement:
             extras_requested = ("",)
         if self.markers is not None:
             return any(
-                self.markers.evaluate({"extra": extra})
-                # TODO: Remove these two variants when packaging is upgraded to
-                # support the marker comparison logic specified in PEP 685.
-                or self.markers.evaluate({"extra": safe_extra(extra)})
-                or self.markers.evaluate({"extra": canonicalize_name(extra)})
-                for extra in extras_requested
+                self.markers.evaluate({"extra": extra}) for extra in extras_requested
             )
         else:
             return True
@@ -400,7 +396,7 @@ class InstallRequirement:
         else:
             op = "==="
 
-        self.req = Requirement(
+        self.req = get_requirement(
             "".join(
                 [
                     self.metadata["Name"],
@@ -426,7 +422,7 @@ class InstallRequirement:
             metadata_name,
             self.name,
         )
-        self.req = Requirement(metadata_name)
+        self.req = get_requirement(metadata_name)
 
     def check_if_exists(self, use_user_site: bool) -> None:
         """Find an installed distribution that satisfies or conflicts
@@ -543,7 +539,7 @@ class InstallRequirement:
         if (
             self.editable
             and self.use_pep517
-            and not self.supports_pyproject_editable()
+            and not self.supports_pyproject_editable
             and not os.path.isfile(self.setup_py_path)
             and not os.path.isfile(self.setup_cfg_path)
         ):
@@ -569,7 +565,7 @@ class InstallRequirement:
             if (
                 self.editable
                 and self.permit_editable_wheels
-                and self.supports_pyproject_editable()
+                and self.supports_pyproject_editable
             ):
                 self.metadata_directory = generate_editable_metadata(
                     build_env=self.build_env,
@@ -830,6 +826,21 @@ class InstallRequirement:
         )
 
         if self.editable and not self.is_wheel:
+            deprecated(
+                reason=(
+                    f"Legacy editable install of {self} (setup.py develop) "
+                    "is deprecated."
+                ),
+                replacement=(
+                    "to add a pyproject.toml or enable --use-pep517, "
+                    "and use setuptools >= 64. "
+                    "If the resulting installation is not behaving as expected, "
+                    "try using --config-settings editable_mode=compat. "
+                    "Please consult the setuptools documentation for more information"
+                ),
+                gone_in="25.0",
+                issue=11457,
+            )
             if self.config_settings:
                 logger.warning(
                     "--config-settings ignored for legacy editable install of %s. "
@@ -915,7 +926,7 @@ def check_legacy_setup_py_options(
             reason="--build-option and --global-option are deprecated.",
             issue=11859,
             replacement="to use --config-settings",
-            gone_in="24.2",
+            gone_in="25.0",
         )
         logger.warning(
             "Implying --no-binary=:all: due to the presence of "

@@ -1,12 +1,14 @@
 import logging
-from typing import Iterable, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Iterable, Optional, Set, Tuple
 
 from pipenv.patched.pip._internal.build_env import BuildEnvironment
 from pipenv.patched.pip._internal.distributions.base import AbstractDistribution
 from pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import BaseDistribution
 from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
+
+if TYPE_CHECKING:
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +31,7 @@ class SourceDistribution(AbstractDistribution):
 
     def prepare_distribution_metadata(
         self,
-        finder: PackageFinder,
+        finder: "PackageFinder",
         build_isolation: bool,
         check_build_deps: bool,
     ) -> None:
@@ -66,7 +68,7 @@ class SourceDistribution(AbstractDistribution):
                 self._raise_missing_reqs(missing)
         self.req.prepare_metadata()
 
-    def _prepare_build_backend(self, finder: PackageFinder) -> None:
+    def _prepare_build_backend(self, finder: "PackageFinder") -> None:
         # Isolate in a BuildEnvironment and install the build-time
         # requirements.
         pyproject_requires = self.req.pyproject_requires
@@ -110,14 +112,14 @@ class SourceDistribution(AbstractDistribution):
             with backend.subprocess_runner(runner):
                 return backend.get_requires_for_build_editable()
 
-    def _install_build_reqs(self, finder: PackageFinder) -> None:
+    def _install_build_reqs(self, finder: "PackageFinder") -> None:
         # Install any extra build dependencies that the backend requests.
         # This must be done in a second pass, as the pyproject.toml
         # dependencies must be installed before we can call the backend.
         if (
             self.req.editable
             and self.req.permit_editable_wheels
-            and self.req.supports_pyproject_editable()
+            and self.req.supports_pyproject_editable
         ):
             build_reqs = self._get_build_requires_editable()
         else:

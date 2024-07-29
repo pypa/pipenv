@@ -551,9 +551,9 @@ def _cleanup_procs(project, procs):
             err = err.strip().splitlines() if err else []
             out = out.strip().splitlines() if out else []
             err_lines = [line for message in [out, err] for line in message]
-            deps = getattr(c, "deps", {}).copy()
+            getattr(c, "deps", {}).copy()
             # Return the subprocess' return code.
-            raise exceptions.InstallError(deps, extra=err_lines)
+            raise Exception(err_lines)
 
 
 def do_init(

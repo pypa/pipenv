@@ -174,17 +174,30 @@ class Entry:
 
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
-        from pipenv.patched.pip._vendor.packaging import markers as packaging_markers
         from pipenv.utils.markers import normalize_marker_str
 
-        marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
+        # Define our own set of marker keys
+        marker_keys = {
+            "os_name",
+            "sys_platform",
+            "platform_machine",
+            "platform_python_implementation",
+            "platform_release",
+            "platform_system",
+            "platform_version",
+            "python_version",
+            "python_full_version",
+            "implementation_name",
+            "implementation_version",
+            "extra",
+        }
+
         markers = set()
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
         markers = {normalize_marker_str(f"{k} {entry_dict.pop(k)}") for k in keys_in_dict}
         if "markers" in entry_dict:
             markers.add(normalize_marker_str(entry_dict["markers"]))
-        if None in markers:
-            markers.remove(None)
+        markers = {m for m in markers if m is not None}  # Remove None values
         if markers:
             entry_dict["markers"] = " and ".join(list(markers))
         else:
