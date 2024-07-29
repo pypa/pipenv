@@ -185,7 +185,7 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
 def cleanup_virtualenv(project, bare=True):
     """Removes the virtualenv directory from the system."""
     if not bare:
-        console.pritn("[red]Environment creation aborted.[/red]")
+        console.print("[red]Environment creation aborted.[/red]")
     try:
         # Delete the virtualenv.
         shutil.rmtree(project.virtualenv_location)
