@@ -1,0 +1,1 @@
+Increase default PIPENV_MAX_DEPTH to 10
