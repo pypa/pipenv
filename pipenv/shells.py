@@ -37,7 +37,10 @@ def _get_activate_script(cmd, venv):
     """
     # Suffix and source command for other shells.
     # Support for fish shell.
-    if cmd.endswith("/fish"):
+    if cmd.endswith("/sh", "/bash", "/zsh"):
+        suffix = ""
+        command = "."
+    elif cmd.endswith("/fish"):
         suffix = ".fish"
         command = "source"
     # Support for csh shell.
@@ -51,8 +54,7 @@ def _get_activate_script(cmd, venv):
         suffix = ".nu"
         command = "overlay use"
     else:
-        suffix = ""
-        command = "."
+        raise ValueError(f"unknown shell {cmd}")
     # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
     venv_location = re.sub(r"([ &$()\[\]])", r"\\\1", str(venv))
