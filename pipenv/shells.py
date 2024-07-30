@@ -37,17 +37,17 @@ def _get_activate_script(cmd, venv):
     """
     # Suffix and source command for other shells.
     # Support for fish shell.
-    if cmd.endswith("fish"):
+    if cmd.endswith("/fish"):
         suffix = ".fish"
         command = "source"
     # Support for csh shell.
-    elif cmd.endswith("csh"):
+    elif cmd.endswith("/csh"):
         suffix = ".csh"
         command = "source"
-    elif cmd.endswith("xonsh"):
+    elif cmd.endswith("/xonsh"):
         suffix = ".xsh"
         command = "source"
-    elif cmd.endswith("nu"):
+    elif cmd.endswith("/nu"):
         suffix = ".nu"
         command = "overlay use"
     else:
