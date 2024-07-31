@@ -35,15 +35,13 @@ def _get_activate_script(cmd, venv):
     This is POSIX-only at the moment since the compat (pexpect-based) shell
     does not work elsewhere anyway.
     """
-    # Suffix and source command for other shells.
-    # Support for fish shell.
+    # Suffix and source command for various shells.
     if cmd.endswith("/sh", "/bash", "/zsh"):
         suffix = ""
         command = "."
     elif cmd.endswith("/fish"):
         suffix = ".fish"
         command = "source"
-    # Support for csh shell.
     elif cmd.endswith("/csh"):
         suffix = ".csh"
         command = "source"
