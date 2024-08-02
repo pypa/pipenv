@@ -167,12 +167,8 @@ class PipfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
         message = "{} {}".format(
-            click.style("Aborting!", bold=True, fg="red"),
-            click.style(
-                "Please ensure that the file exists and is located in your"
-                " project root directory.",
-                bold=True,
-            ),
+            "[bold red]Aborting![/bold red]",
+            "[bold]Please ensure that the file exists and is located in your project root directory.[/bold]",
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
