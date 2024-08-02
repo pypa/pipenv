@@ -141,14 +141,14 @@ class PipenvUsageError(UsageError):
 
 
 class PipenvFileError(FileError):
-    formatted_message = "{} {{}} {{}}".format(click.style("ERROR:", fg="red", bold=True))
+    formatted_message = "{} {{}} {{}}".format("[bold red]ERROR:[/bold red]")
 
     def __init__(self, filename, message=None, **kwargs):
         extra = kwargs.pop("extra", [])
         if not message:
-            message = click.style("Please ensure that the file exists!", bold=True)
+            message = "[bold]Please ensure that the file exists![/bold]"
         message = self.formatted_message.format(
-            click.style(f"{filename} not found!", bold=True), message
+            f"[bold]{filename} not found![/bold]", message
         )
         FileError.__init__(self, filename=filename, hint=message, **kwargs)
         self.extra = extra
