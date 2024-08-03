@@ -344,7 +344,8 @@ def lock(ctx, state, **kwargs):
         clear=state.clear,
         pre=pre,
         pypi_mirror=state.pypi_mirror,
-        write=not state.quiet,
+        write=True,
+        quiet=state.quiet,
         categories=state.installstate.categories,
     )
 
