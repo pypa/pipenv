@@ -173,9 +173,9 @@ class LockfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile.lock", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
         message = "{} {} {}".format(
-            click.style("You need to run", bold=True),
-            click.style("$ pipenv lock", bold=True, fg="red"),
-            click.style("before you can continue.", bold=True),
+            "[bold]You need to run[/bold]",
+            "[bold red]$ pipenv lock[/bold red]",
+            "[bold]before you can continue.[/bold]"
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
