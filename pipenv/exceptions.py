@@ -183,7 +183,7 @@ class LockfileNotFound(PipenvFileError):
 class DeployException(PipenvUsageError):
     def __init__(self, message=None, **kwargs):
         if not message:
-            message = click.style("Aborting deploy", bold=True)
+            message = "[bold]Aborting deploy[/bold]"
         extra = kwargs.pop("extra", [])
         PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
