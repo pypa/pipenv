@@ -175,7 +175,7 @@ class LockfileNotFound(PipenvFileError):
         message = "{} {} {}".format(
             "[bold]You need to run[/bold]",
             "[bold red]$ pipenv lock[/bold red]",
-            "[bold]before you can continue.[/bold]"
+            "[bold]before you can continue.[/bold]",
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
@@ -202,12 +202,12 @@ class SystemUsageError(PipenvOptionsError):
         extra += [
             "{}: --system is intended to be used for Pipfile installation, "
             "not installation of specific packages. Aborting.".format(
-                click.style("Warning", bold=True, fg="red")
+                "[bold red]Warning[/bold /red]",
             ),
         ]
         if message is None:
             message = "{} --deploy flag".format(
-                click.style("See also: {}", fg="cyan"),
+                "[cyan]See also: {}[/cyan]",
             )
         super().__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
