@@ -256,18 +256,18 @@ class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [
             "{} {}".format(
-                click.style("Attempted to run command: ", fg="cyan"),
-                click.style(f"$ {command!r}", bold=True, fg="yellow"),
+                "[cyan]Attempting to run command: [/cyan]",
+                f"[bold yellow]$ {command!r}[/bold yellow]",
             )
         ]
         extra.extend(
-            [click.style(line.strip(), fg="cyan") for line in return_values.splitlines()]
+            [f"[cyan]{line.strip()}[/cyan]" for line in return_values.splitlines()]
         )
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
         message = "{!s} {!s}...".format(
-            click.style("Failed to uninstall package(s)", fg="reset"),
-            click.style(f"{package}!s", bold=True, fg="yellow"),
+            "Failed to uninstall package(s)",
+            f"[bold yellow]{package}!s[/bold yellow]",
         )
         self.exit_code = return_code
         PipenvException.__init__(self, message=message, extra=extra)
