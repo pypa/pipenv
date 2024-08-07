@@ -283,11 +283,11 @@ class InstallError(PipenvException):
         package_message = ""
         if package is not None:
             package_message = "Couldn't install package: {}\n".format(
-                click.style(f"{package!s}", bold=True)
+                f"[bold]{package!s}[/bold]"
             )
         message = "{} {}".format(
             f"{package_message}",
-            click.style("Package installation failed...", fg="yellow"),
+            "[yellow]Package installation failed...[/yellow]",
         )
         extra = kwargs.pop("extra", [])
         PipenvException.__init__(self, message=message, extra=extra, **kwargs)
