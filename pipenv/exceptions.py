@@ -5,6 +5,7 @@ from traceback import format_tb
 
 from pipenv.patched.pip._vendor.rich.console import Console
 from pipenv.patched.pip._vendor.rich.text import Text
+from pipenv.utils import err
 from pipenv.vendor import click
 from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
@@ -49,23 +50,21 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
                 line = f"  {line}"
             line = f"[{exception.__class__.__name__!s}]: {line}"
             formatted_lines.append(line)
-        # use new exception prettification rules to format exceptions according to
-        # UX rules
-        click.echo(prettify_exc("\n".join(formatted_lines)), err=True)
+        err.print("\n".join(formatted_lines))
         exception.show()
 
 
 sys.excepthook = handle_exception
 
 
-class PipenvException:
+class PipenvException(ClickException):
     message = "[bold][red]ERROR[/red][/bold]: {}"
 
     def __init__(self, message=None, **kwargs):
         if not message:
             message = "Pipenv encountered a problem and had to exit."
         extra = kwargs.pop("extra", [])
-        message = self.message.format(message)
+        self.message = self.message.format(message)
         self.extra = extra
 
     def show(self, file=None):
@@ -91,120 +90,81 @@ class PipenvCmdError(PipenvException):
         PipenvException.__init__(self, message)
 
     def show(self, file=None):
-        if file is None:
-            file = sys.stderr
-        click.echo(
-            "{} {}".format(
-                click.style("Error running command: ", fg="red"),
-                click.style(f"$ {self.cmd}", bold=True),
-            ),
-            err=True,
-            file=file,
-        )
+        console = Console(stderr=True, file=file, highlight=False)
+        console.print(f"[red]Error running command:[/red] [bold]$ {self.cmd}[/bold]")
         if self.out:
-            click.echo(
-                "{} {}".format("OUTPUT: ", self.out),
-                file=file,
-                err=True,
-            )
+            console.print(f"OUTPUT: {self.out}")
         if self.err:
-            click.echo(
-                "{} {}".format("STDERR: ", self.err),
-                file=file,
-                err=True,
-            )
+            console.print(f"STDERR: {self.err}")
 
 
 class JSONParseError(PipenvException):
     def __init__(self, contents="", error_text=""):
         self.error_text = error_text
+        self.contents = contents
         PipenvException.__init__(self, contents)
 
     def show(self, file=None):
-        if file is None:
-            file = sys.stderr
-        message = "{}\n{}".format(
-            click.style("Failed parsing JSON results:", bold=True),
-            print(self.message.strip(), file=file),
+        console = Console(stderr=True, file=file, highlight=False)
+        console.print(
+            f"[bold][red]Failed parsing JSON results:[/red][/bold]: {self.contents}"
         )
-        click.echo(message, err=True)
         if self.error_text:
-            click.echo(
-                "{} {}".format(
-                    click.style("ERROR TEXT:", bold=True),
-                    print(self.error_text, file=file),
-                ),
-                err=True,
-            )
+            console.print(f"[bold][red]ERROR TEXT:[/red][/bold]: {self.error_text}")
 
 
 class PipenvUsageError(UsageError):
     def __init__(self, message=None, ctx=None, **kwargs):
         formatted_message = "{0}: {1}"
-        msg_prefix = click.style("ERROR:", fg="red", bold=True)
+        msg_prefix = "[bold red]ERROR:[/bold red]"
         if not message:
             message = "Pipenv encountered a problem and had to exit."
-        message = formatted_message.format(msg_prefix, click.style(message, bold=True))
+        message = formatted_message.format(msg_prefix, f"[bold]{message}[/bold]")
         self.message = message
-        extra = kwargs.pop("extra", [])
         UsageError.__init__(self, message, ctx)
-        self.extra = extra
 
     def show(self, file=None):
-        if file is None:
-            file = sys.stderr
-        color = None
-        if self.ctx is not None:
-            color = self.ctx.color
-        if self.extra:
-            if isinstance(self.extra, str):
-                self.extra = [self.extra]
-            for extra in self.extra:
-                if color:
-                    extra = click.style(extra, fg=color)
-                click.echo(extra, file=file)
         hint = ""
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
             hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
         if self.ctx is not None:
-            click.echo(self.ctx.get_usage() + f"\n{hint}", file=file, color=color)
-        click.echo(self.message, file=file)
+            console = Console(
+                stderr=True, file=file, highlight=False, force_terminal=self.ctx.color
+            )
+            console.print(self.ctx.get_usage() + f"\n{hint}")
+        console = Console(stderr=True, file=file, highlight=False)
+        console.print(self.message)
 
 
 class PipenvFileError(FileError):
-    formatted_message = "{} {{}} {{}}".format(click.style("ERROR:", fg="red", bold=True))
+    formatted_message = "{} {{}} {{}}".format("[bold red]ERROR:[/bold red]")
 
     def __init__(self, filename, message=None, **kwargs):
         extra = kwargs.pop("extra", [])
         if not message:
-            message = click.style("Please ensure that the file exists!", bold=True)
+            message = "[bold]Please ensure that the file exists![/bold]"
         message = self.formatted_message.format(
-            click.style(f"{filename} not found!", bold=True), message
+            f"[bold]{filename} not found![/bold]", message
         )
         FileError.__init__(self, filename=filename, hint=message, **kwargs)
         self.extra = extra
 
     def show(self, file=None):
-        if file is None:
-            file = sys.stderr
+        console = Console(stderr=True, file=file, highlight=False)
         if self.extra:
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
-                click.echo(extra, file=file)
-        click.echo(self.message, file=file)
+                console.print(extra)
+        console.print(self.message)
 
 
 class PipfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
         message = "{} {}".format(
-            click.style("Aborting!", bold=True, fg="red"),
-            click.style(
-                "Please ensure that the file exists and is located in your"
-                " project root directory.",
-                bold=True,
-            ),
+            "[bold red]Aborting![/bold red]",
+            "[bold]Please ensure that the file exists and is located in your project root directory.[/bold]",
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
@@ -213,9 +173,9 @@ class LockfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile.lock", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
         message = "{} {} {}".format(
-            click.style("You need to run", bold=True),
-            click.style("$ pipenv lock", bold=True, fg="red"),
-            click.style("before you can continue.", bold=True),
+            "[bold]You need to run[/bold]",
+            "[bold red]$ pipenv lock[/bold red]",
+            "[bold]before you can continue.[/bold]",
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
@@ -223,7 +183,7 @@ class LockfileNotFound(PipenvFileError):
 class DeployException(PipenvUsageError):
     def __init__(self, message=None, **kwargs):
         if not message:
-            message = click.style("Aborting deploy", bold=True)
+            message = "[bold]Aborting deploy[/bold]"
         extra = kwargs.pop("extra", [])
         PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
@@ -242,12 +202,12 @@ class SystemUsageError(PipenvOptionsError):
         extra += [
             "{}: --system is intended to be used for Pipfile installation, "
             "not installation of specific packages. Aborting.".format(
-                click.style("Warning", bold=True, fg="red")
+                "[bold red]Warning[/bold /red]",
             ),
         ]
         if message is None:
             message = "{} --deploy flag".format(
-                click.style("See also: {}", fg="cyan"),
+                "[cyan]See also: {}[/cyan]",
             )
         super().__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
 
@@ -296,18 +256,18 @@ class UninstallError(PipenvException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [
             "{} {}".format(
-                click.style("Attempted to run command: ", fg="cyan"),
-                click.style(f"$ {command!r}", bold=True, fg="yellow"),
+                "[cyan]Attempting to run command: [/cyan]",
+                f"[bold yellow]$ {command!r}[/bold yellow]",
             )
         ]
         extra.extend(
-            [click.style(line.strip(), fg="cyan") for line in return_values.splitlines()]
+            [f"[cyan]{line.strip()}[/cyan]" for line in return_values.splitlines()]
         )
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
         message = "{!s} {!s}...".format(
-            click.style("Failed to uninstall package(s)", fg="reset"),
-            click.style(f"{package}!s", bold=True, fg="yellow"),
+            "Failed to uninstall package(s)",
+            f"[bold yellow]{package}!s[/bold yellow]",
         )
         self.exit_code = return_code
         PipenvException.__init__(self, message=message, extra=extra)
@@ -319,11 +279,11 @@ class InstallError(PipenvException):
         package_message = ""
         if package is not None:
             package_message = "Couldn't install package: {}\n".format(
-                click.style(f"{package!s}", bold=True)
+                f"[bold]{package!s}[/bold]"
             )
         message = "{} {}".format(
             f"{package_message}",
-            click.style("Package installation failed...", fg="yellow"),
+            "[yellow]Package installation failed...[/yellow]",
         )
         extra = kwargs.pop("extra", [])
         PipenvException.__init__(self, message=message, extra=extra, **kwargs)
