@@ -293,16 +293,6 @@ class InstallError(PipenvException):
         PipenvException.__init__(self, message=message, extra=extra, **kwargs)
 
 
-class CacheError(PipenvException):
-    def __init__(self, path, **kwargs):
-        message = "{} {}\n{}".format(
-            click.style("Corrupt cache file", fg="cyan"),
-            click.style(f"{path!s}", fg="reset", bg="reset"),
-            click.style('Consider trying "pipenv lock --clear" to clear the cache.'),
-        )
-        PipenvException.__init__(self, message=message)
-
-
 class DependencyConflict(PipenvException):
     def __init__(self, message):
         extra = [
