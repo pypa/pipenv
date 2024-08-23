@@ -201,7 +201,7 @@ def requirement_from_lockfile(
         line = []
         if k in package_info:
             path = package_info[k]
-            if is_editable_path(path):
+            if package_info.get("editable") and is_editable_path(path):
                 line.append("-e")
             line.append(f"{package_info[k]}")
             if os_markers:
