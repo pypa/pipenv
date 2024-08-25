@@ -90,8 +90,11 @@ def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
         c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
         c = p.pipenv("uninstall --all")
-        assert "tablib" not in p.pipfile["packages"]
-        assert "tablib" not in p.lockfile["default"]
+        assert c.returncode == 0
+        assert "tablib" in c.stdout
+        # Uninstall --all is not supposed to remove things from the pipfile
+        # Note that it didn't before, but that instead local filenames showed as hashes
+        assert "tablib" in p.pipfile["packages"]
 
 
 @pytest.mark.install
