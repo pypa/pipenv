@@ -1,0 +1,1 @@
+Fixed regression where all local file installations were incorrectly treated as editable. Ensure that local file installations are explicitly marked as editable in both Pipfile and Pipfile.lock entries if editable installation is desired.
