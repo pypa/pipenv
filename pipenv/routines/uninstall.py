@@ -15,6 +15,7 @@ from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click
+from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 
 
 def _uninstall_from_environment(project, package, system=False):
@@ -82,21 +83,28 @@ def do_uninstall(
     if all:
         click.secho(
             click.style(
-                "Un-installing all {}...".format(click.style("[packages]", fg="yellow")),
+                "Un-installing all packages...",
                 bold=True,
             )
         )
-        # Uninstall all dev-packages from environment
-        for package in project.get_pipfile_section("packages"):
-            _uninstall_from_environment(project, package, system=system)
-        # Remove the package from the Pipfile
-        if project.reset_category_in_pipfile(category="packages"):
-            click.echo("Removed [packages] from Pipfile.")
+        # Uninstall all packages from all groups
+        for category in project.get_package_categories():
+            if category in ["source", "requires"]:
+                continue
+            for package in project.get_pipfile_section(category):
+                _uninstall_from_environment(project, package, system=system)
 
-        # Finalize changes to lockfile
-        lockfile_content["default"] = {}
+        # Clear all categories in the lockfile
+        for category in list(lockfile_content.keys()):
+            if category != "_meta":
+                lockfile_content[category] = {}
+
         lockfile_content.update({"_meta": project.get_lockfile_meta()})
         project.write_lockfile(lockfile_content)
+
+        # Call do_purge to remove all packages from the environment
+        do_purge(project, bare=False, downloads=False, allow_global=system)
+        return
 
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
@@ -177,8 +185,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     # Remove comments from the output, if any.
     installed = {
-        pep423_name(pkg.project_name)
-        for pkg in project.environment.get_installed_packages()
+        normalized_name(pkg) for pkg in project.environment.get_installed_packages()
     }
     bad_pkgs = {pep423_name(pkg) for pkg in BAD_PACKAGES}
     # Remove setuptools, pip, etc from targets for removal

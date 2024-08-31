@@ -1,0 +1,1 @@
+Fix regression introduced with the "smarter uninstall" PR.  Uninstall ``--all`` should not clear the Pipfile entries.
