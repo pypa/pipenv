@@ -272,7 +272,7 @@ def ensure_python(project, python=None):
                 else:
                     # Tell the user we're installing Python.
                     console.print(
-                        "f[bold]Installing [green]CPython[/green][/bold] {version} with {installer.cmd}[/bold]"
+                        "f[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
                     )
                     console.print("(this may take a few minutes)[bold]...[/bold]")
                     with console.status(
