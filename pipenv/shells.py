@@ -36,19 +36,19 @@ def _get_activate_script(cmd, venv):
     does not work elsewhere anyway.
     """
     # Suffix and source command for various shells.
-    if cmd.endswith("/sh", "/bash", "/zsh"):
+    if cmd.endswith(("sh", "bash", "zsh")):
         suffix = ""
         command = "."
-    elif cmd.endswith("/fish"):
+    elif cmd.endswith("fish"):
         suffix = ".fish"
         command = "source"
-    elif cmd.endswith("/csh"):
+    elif cmd.endswith("csh"):
         suffix = ".csh"
         command = "source"
-    elif cmd.endswith("/xonsh"):
+    elif cmd.endswith("xonsh"):
         suffix = ".xsh"
         command = "source"
-    elif cmd.endswith("/nu"):
+    elif cmd.endswith("nu"):
         suffix = ".nu"
         command = "overlay use"
     else:
