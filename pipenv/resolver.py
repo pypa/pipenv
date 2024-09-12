@@ -3,11 +3,7 @@ import json
 import logging
 import os
 import sys
-
-try:
-    from functools import cached_property
-except ImportError:
-    cached_property = property
+from functools import cached_property
 
 
 def _ensure_modules():

@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 import warnings
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -30,13 +30,6 @@ from pipenv.project import Project
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
 from pipenv.vendor import click
-
-try:
-    # this is only in Python3.8 and later
-    from functools import cached_property
-except ImportError:
-    # eventually distlib will remove cached property when they drop Python3.7
-    from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 from .dependencies import (
     HackedPythonVersion,
