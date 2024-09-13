@@ -24,9 +24,9 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
-from pipenv.patched.pip._vendor import rich
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
+from pipenv.utils import console, err
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
 from pipenv.vendor import click
@@ -50,9 +50,6 @@ if sys.version_info < (3, 10):
     from pipenv.vendor import importlib_metadata
 else:
     import importlib.metadata as importlib_metadata
-
-console = rich.console.Console()
-err = rich.console.Console(stderr=True)
 
 
 def get_package_finder(
