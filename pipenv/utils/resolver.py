@@ -29,7 +29,6 @@ from pipenv.project import Project
 from pipenv.utils import console, err
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
-from pipenv.vendor import click
 
 from .dependencies import (
     HackedPythonVersion,
@@ -864,8 +863,8 @@ def venv_resolve_deps(
                         with open(target_file.name) as fh:
                             results = json.load(fh)
                     except (IndexError, json.JSONDecodeError):
-                        click.echo(c.stdout.strip(), err=True)
-                        click.echo(c.stderr.strip(), err=True)
+                        err.print(c.stdout.strip())
+                        err.print(c.stderr.strip())
                         if os.path.exists(target_file.name):
                             os.unlink(target_file.name)
                         raise RuntimeError("There was a problem with locking.")
@@ -875,13 +874,15 @@ def venv_resolve_deps(
                         environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
                     )
                     if not project.s.is_verbose() and c.stderr.strip():
-                        click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
+                        err.print(
+                            f"Warning: {c.stderr.strip()}", overflow="ignore", crop=False
+                        )
                 else:
                     st.console.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
                     )
-                    click.echo(f"Output: {c.stdout.strip()}", err=True)
-                    click.echo(f"Error: {c.stderr.strip()}", err=True)
+                    err.print(f"Output: {c.stdout.strip()}")
+                    err.print(f"Error: {c.stderr.strip()}")
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     return prepare_lockfile(
