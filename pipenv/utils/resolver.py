@@ -529,11 +529,10 @@ class Resolver:
                             if result.req:
                                 result.req.marker = marker
                         except TypeError as e:
-                            click.echo(
+                            err.print(
                                 f"Error generating python marker for {candidate}.  "
                                 f"Is the specifier {requires_python} incorrectly quoted or otherwise wrong?"
                                 f"Full error: {e}",
-                                err=True,
                             )
             new_tree.add(result)
 
