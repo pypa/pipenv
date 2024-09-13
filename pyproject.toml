@@ -71,8 +71,10 @@ exclude = ["tests*", "tests.*", "tasks*", "tasks.*"]
 "pipenv.patched.pip._vendor.distlib" = [
   "t32.exe",
   "t64.exe",
+  "t64-arm.exe",
   "w32.exe",
   "w64.exe",
+  "w64-arm.exe",
 ]
 "pipenv.vendor.ruamel" = ["yaml"]
 
