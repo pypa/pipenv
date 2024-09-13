@@ -703,15 +703,14 @@ def actually_resolve_deps(
 
 def resolve(cmd, st, project):
     from pipenv.cmdparse import Script
-    from pipenv.vendor.click import echo
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
-    err = ""
+    errors = ""
     for line in iter(c.stderr.readline, ""):
         if not line.rstrip():
             continue
-        err += line
+        errors += line
         if is_verbose:
             st.console.print(line.rstrip())
 
@@ -720,13 +719,13 @@ def resolve(cmd, st, project):
     out = c.stdout.read()
     if returncode != 0:
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-        echo(out.strip(), err=True)
+        err.print(out.strip())
         if not is_verbose:
-            echo(err, err=True)
+            err.print(err)
         raise RuntimeError("Failed to lock Pipfile.lock!")
     if is_verbose:
-        echo(out.strip(), err=True)
-    return subprocess.CompletedProcess(c.args, returncode, out, err)
+        err.print(out.strip())
+    return subprocess.CompletedProcess(c.args, returncode, out, errors)
 
 
 def venv_resolve_deps(
