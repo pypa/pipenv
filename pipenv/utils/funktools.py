@@ -1,6 +1,7 @@
 """
 A small collection of useful functional tools for working with iterables.
 """
+
 import errno
 import locale
 import os

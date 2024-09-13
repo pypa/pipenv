@@ -1,4 +1,5 @@
 """A collection for utilities for working with files and paths."""
+
 import atexit
 import io
 import os

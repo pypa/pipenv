@@ -85,7 +85,6 @@ def get_package_finder(
 
 
 class HashCacheMixin:
-
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
     Hashes are only cached when the URL appears to contain a hash in it and the
