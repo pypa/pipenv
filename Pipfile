@@ -28,7 +28,7 @@ pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
-pypiserver = {ref = "pipenv-313", git = "git+https://github.com/matteius/pypiserver.git"}
+pypiserver = {ref = "pipenv-313", git = "https://github.com/matteius/pypiserver.git"}
 
 [packages]
 pytz = "*"
