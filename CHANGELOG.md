@@ -1,3 +1,34 @@
+2024.0.2 (2024-09-13)
+=====================
+Pipenv 2024.0.2 (2024-09-13)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Initial support for python3.13  `#6240 <https://github.com/pypa/pipenv/issues/6240>`_
+
+Bug Fixes
+---------
+
+- Fix bump version in CI/CD pipeline  `#6177 <https://github.com/pypa/pipenv/issues/6177>`_
+- Swap old_version and new_version in pipenv update --outdated output.  `#6179 <https://github.com/pypa/pipenv/issues/6179>`_
+- Update shell detection to only check the end of the command used.  `#6197 <https://github.com/pypa/pipenv/issues/6197>`_
+- Fix loading dot env twice #6198  `#6202 <https://github.com/pypa/pipenv/issues/6202>`_
+- Solve issue with quiet lock not writing the lock file #6207.  `#6207 <https://github.com/pypa/pipenv/issues/6207>`_
+- Fix regression introduced with the "smarter uninstall" PR.  Uninstall ``--all`` should not clear the Pipfile entries.  `#6209 <https://github.com/pypa/pipenv/issues/6209>`_
+- Fixed regression where all local file installations were incorrectly treated as editable. Ensure that local file installations are explicitly marked as editable in both Pipfile and Pipfile.lock entries if editable installation is desired.  `#6222 <https://github.com/pypa/pipenv/issues/6222>`_
+- Corrected behavior of ``pipenv install --skip-lock`` after behavioral install refactor introduced regression.  No Pipfile.lock is generated with this fix and installation of vcs no longer fails with revision missing error.  `#6225 <https://github.com/pypa/pipenv/issues/6225>`_
+- Fix for Windows on ARM missing distlib binaries in pyproject.toml  `#6240 <https://github.com/pypa/pipenv/issues/6240>`_
+
+Vendored Libraries
+------------------
+
+- Clean up usage of click styling from exceptions, shell and virtualenv  `#6178 <https://github.com/pypa/pipenv/issues/6178>`_
+- Remove click.echo from pipenv/cli  `#6182 <https://github.com/pypa/pipenv/issues/6182>`_
+- Remove click.echo from exceptions.py  `#6216 <https://github.com/pypa/pipenv/issues/6216>`_
+- Update importlib-metadata to 8.4.0  `#6235 <https://github.com/pypa/pipenv/issues/6235>`_
 2024.0.1 (2024-06-11)
 =====================
 Pipenv 2024.0.1 (2024-06-11)

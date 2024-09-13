@@ -1,1 +1,0 @@
-Solve issue with quiet lock not writing the lock file #6207.

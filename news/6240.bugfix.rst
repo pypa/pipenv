@@ -1,1 +1,0 @@
-Fix for Windows on ARM missing distlib binaries in pyproject.toml

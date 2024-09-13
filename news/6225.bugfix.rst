@@ -1,1 +1,0 @@
-Corrected behavior of ``pipenv install --skip-lock`` after behavioral install refactor introduced regression.  No Pipfile.lock is generated with this fix and installation of vcs no longer fails with revision missing error.
