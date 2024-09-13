@@ -36,26 +36,34 @@ def _get_activate_script(cmd, venv):
     does not work elsewhere anyway.
     """
     # Suffix and source command for various shells.
-    if cmd.endswith("/sh", "/bash", "/zsh"):
-        suffix = ""
-        command = "."
-    elif cmd.endswith("/fish"):
+    command = "source"
+
+    if cmd.endswith("fish"):
         suffix = ".fish"
-        command = "source"
-    elif cmd.endswith("/csh"):
+    elif cmd.endswith("csh"):
         suffix = ".csh"
-        command = "source"
-    elif cmd.endswith("/xonsh"):
+    elif cmd.endswith("xonsh"):
         suffix = ".xsh"
-        command = "source"
-    elif cmd.endswith("/nu"):
+    elif cmd.endswith("nu"):
         suffix = ".nu"
         command = "overlay use"
+    elif cmd.endswith(("pwsh", "powershell")):
+        suffix = ".ps1"
+        command = "."
+    elif cmd.endswith(("sh", "bash", "zsh")):
+        suffix = ""
     else:
-        raise ValueError(f"unknown shell {cmd}")
+        sys.exit(f"unknown shell {cmd}")
+
     # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
     venv_location = re.sub(r"([ &$()\[\]])", r"\\\1", str(venv))
+
+    if suffix == "nu":
+        return f"overlay use {venv_location}"
+    elif suffix == ".ps1":
+        return f". {venv_location}\\Scripts\\Activate.{suffix}"
+
     # The leading space can make history cleaner in some shells.
     return f" {command} {venv_location}/bin/activate{suffix}"
 
