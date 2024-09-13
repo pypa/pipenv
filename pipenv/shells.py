@@ -40,8 +40,6 @@ def _get_activate_script(cmd, venv):
 
     if cmd.endswith("fish"):
         suffix = ".fish"
-    elif cmd.endswith(("sh", "bash", "zsh")):
-        suffix = ""
     elif cmd.endswith("csh"):
         suffix = ".csh"
     elif cmd.endswith("xonsh"):
@@ -52,6 +50,8 @@ def _get_activate_script(cmd, venv):
     elif cmd.endswith(("pwsh", "powershell")):
         suffix = ".ps1"
         command = "."
+    elif cmd.endswith(("sh", "bash", "zsh")):
+        suffix = ""
     else:
         sys.exit(f"unknown shell {cmd}")
 
