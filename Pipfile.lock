@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "17c465dcd0baa9a519628f90d5096cd14dbc29787b85f9d6176e86ad2993d23c"
+            "sha256": "aa5c4594d41779e656b682eebeff153cfb53c9e07e11e78736c0b85cb48a820c"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -730,13 +730,9 @@
             "version": "==2.17.2"
         },
         "pypiserver": {
-            "hashes": [
-                "sha256:3f15a94969265add2ef44a035117b8dd18d7525af871ed58ac2571276293579b",
-                "sha256:8c7ed96b2f76f2843e4a27002846bd7ebb7217e143cf60456ee6fa2a415c2d73"
-            ],
-            "index": "pypi",
+            "git": " pypiserver@ git+https://github.com/matteius/pypiserver.git@pipenv-313",
             "markers": "python_version >= '3.6'",
-            "version": "==2.1.1"
+            "ref": "02f1ef9383f6e91d51a0f011c34a5df4816897a0"
         },
         "pyproject-hooks": {
             "hashes": [
