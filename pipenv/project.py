@@ -15,6 +15,7 @@ from urllib import parse
 from urllib.parse import unquote, urljoin
 
 from pipenv.utils.constants import VCS_LIST
+from pipenv.utils.dependencies import extract_vcs_url
 
 try:
     import tomllib as toml
@@ -1198,7 +1199,9 @@ class Project:
                     vcs_parts = vcs_part.rsplit("@", 1)
                     if len(vcs_parts) > 1:
                         entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
-                    entry[vcs] = vcs_parts[0].strip()
+                    vcs_url = vcs_parts[0].strip()
+                    vcs_url = extract_vcs_url(vcs_url)
+                    entry[vcs] = vcs_url
 
                     # Check and extract subdirectory fragment
                     if package.link.subdirectory_fragment:
