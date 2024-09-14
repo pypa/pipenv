@@ -99,7 +99,7 @@ def test_install_git_tag(pipenv_instance_private_pypi):
         assert "git" in p.lockfile["default"]["six"]
         assert (
             p.lockfile["default"]["six"]["git"]
-            == "git+https://github.com/benjaminp/six.git"
+            == "https://github.com/benjaminp/six.git"
         )
         assert "ref" in p.lockfile["default"]["six"]
 

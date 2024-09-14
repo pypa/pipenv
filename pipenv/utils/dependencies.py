@@ -203,6 +203,12 @@ def extract_vcs_url(vcs_url):
     # Remove leading/trailing whitespace
     vcs_url = vcs_url.strip()
 
+    # Check if it's a file URI
+    parsed = urlparse(vcs_url)
+    if parsed.scheme == "file":
+        # For file URIs, we want to keep the entire URL intact
+        return vcs_url
+
     # Remove the package name and '@' if present at the start
     if "@" in vcs_url and not vcs_url.startswith(tuple(f"{vcs}+" for vcs in VCS_LIST)):
         vcs_url = vcs_url.split("@", 1)[1]
