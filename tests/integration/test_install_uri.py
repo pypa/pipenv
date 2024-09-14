@@ -23,7 +23,7 @@ def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
         assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
         assert "git" in p.pipfile["packages"]["six"]
         assert p.lockfile["default"]["six"] == {
-            "git": "git+https://${GIT_HOST}/benjaminp/six.git",
+            "git": "https://${GIT_HOST}/benjaminp/six.git",
             "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
             "ref": "15e31431af97e5e64b80af0a3f598d382bcdd49a",
         }

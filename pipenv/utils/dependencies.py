@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
@@ -200,11 +200,12 @@ def unearth_hashes_for_dep(project, dep):
 
 
 def extract_vcs_url(vcs_url):
-    # Remove the package name and '@' if present
-    if "@" in vcs_url:
-        vcs_url = vcs_url.split("@", 1)[1]
-
+    # Remove leading/trailing whitespace
     vcs_url = vcs_url.strip()
+
+    # Remove the package name and '@' if present at the start
+    if "@" in vcs_url and not vcs_url.startswith(tuple(f"{vcs}+" for vcs in VCS_LIST)):
+        vcs_url = vcs_url.split("@", 1)[1]
 
     # Remove the VCS prefix (e.g., 'git+')
     for prefix in VCS_LIST:
@@ -213,10 +214,22 @@ def extract_vcs_url(vcs_url):
             vcs_url = vcs_url[len(vcs_prefix) :]
             break
 
-    # Remove any branch or commit specification
-    vcs_url = vcs_url.split("@")[0]
+    # Parse the URL
+    parsed = urlparse(vcs_url)
 
-    return vcs_url
+    # Reconstruct the URL, preserving authentication details
+    clean_url = urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            "",  # params
+            "",  # query
+            "",  # fragment
+        )
+    )
+
+    return clean_url
 
 
 def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
