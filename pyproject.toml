@@ -30,6 +30,7 @@ dynamic = [
 ]
 dependencies = [
   "certifi",
+  "packaging>=22",
   "setuptools>=67",
   "virtualenv>=20.24.2",
 ]
