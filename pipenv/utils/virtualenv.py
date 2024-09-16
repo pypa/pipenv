@@ -205,7 +205,7 @@ def ensure_python(project, python=None):
         err.print(f"[red]{msg}[/red]")
         err.print("You can specify specific versions of Python with:")
         err.print(
-            f"[yellow]$ pipenv --python {os.sep.join('path', 'to', 'python')}[/yellow]"
+            f"[yellow]$ pipenv --python {os.sep.join(['path', 'to', 'python'])}[/yellow]"
         )
         sys.exit(1)
 
