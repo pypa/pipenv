@@ -1,0 +1,1 @@
+Fixed package sorting when installing a package with extras.
