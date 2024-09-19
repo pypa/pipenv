@@ -720,6 +720,7 @@ six = "*"
         c = p.pipenv("install requests[socks]")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
+        assert "extras" in p.pipfile["packages"]["requests"]
         assert list(p.pipfile["packages"].keys()) == [
             "atomicwrites",
             "requests",
