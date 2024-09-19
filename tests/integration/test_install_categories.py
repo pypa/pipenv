@@ -81,9 +81,10 @@ def test_multiple_category_install_from_requirements(pipenv_instance_private_pyp
 @pytest.mark.install
 @pytest.mark.local
 @pytest.mark.skipif(sys.version_info >= (3, 12), reason="test is not 3.12 compatible")
-def test_multiple_category_install_proceeds_in_order_specified(pipenv_instance_private_pypi):
-    """Ensure -e .[extras] installs.
-    """
+def test_multiple_category_install_proceeds_in_order_specified(
+    pipenv_instance_private_pypi,
+):
+    """Ensure -e .[extras] installs."""
     with pipenv_instance_private_pypi() as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
@@ -103,18 +104,22 @@ setup(
 )
             """.strip()
             fh.write(contents)
-        with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
-            fh.write("""
+        with open(os.path.join(p.path, "Pipfile"), "w") as fh:
+            fh.write(
+                """
 [packages]
 testpipenv = {path = ".", editable = true, skip_resolver = true}
 
 [prereq]
 six = "*"
-            """.strip())
+            """.strip()
+            )
         c = p.pipenv("lock -v")
         assert c.returncode == 0
         assert "testpipenv" in p.lockfile["default"]
         assert "testpipenv" not in p.lockfile["prereq"]
         assert "six" in p.lockfile["prereq"]
-        c = p.pipenv('sync --categories="prereq packages" --extra-pip-args="--no-build-isolation" -v')
+        c = p.pipenv(
+            'sync --categories="prereq packages" --extra-pip-args="--no-build-isolation" -v'
+        )
         assert c.returncode == 0

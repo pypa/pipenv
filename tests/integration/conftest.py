@@ -26,7 +26,9 @@ warnings.simplefilter("default", category=ResourceWarning)
 
 HAS_WARNED_GITHUB = False
 
-DEFAULT_PRIVATE_PYPI_SERVER = os.environ.get("PIPENV_PYPI_SERVER", "http://localhost:8080/simple")
+DEFAULT_PRIVATE_PYPI_SERVER = os.environ.get(
+    "PIPENV_PYPI_SERVER", "http://localhost:8080/simple"
+)
 
 
 def try_internet(url="http://httpbin.org/ip", timeout=1.5):
@@ -61,21 +63,25 @@ def check_github_ssh():
         # GitHub does not provide shell access.' if ssh keys are available and
         # registered with GitHub. Otherwise, the command will fail with
         # return_code=255 and say 'Permission denied (publickey).'
-        c = subprocess_run('ssh -o StrictHostKeyChecking=no -o CheckHostIP=no -T git@github.com', timeout=30, shell=True)
+        c = subprocess_run(
+            "ssh -o StrictHostKeyChecking=no -o CheckHostIP=no -T git@github.com",
+            timeout=30,
+            shell=True,
+        )
         res = c.returncode == 1
     except KeyboardInterrupt:
         warnings.warn(
-            "KeyboardInterrupt while checking GitHub ssh access", RuntimeWarning, stacklevel=1
+            "KeyboardInterrupt while checking GitHub ssh access",
+            RuntimeWarning,
+            stacklevel=1,
         )
     except Exception:
         pass
     global HAS_WARNED_GITHUB
     if not res and not HAS_WARNED_GITHUB:
+        warnings.warn("Cannot connect to GitHub via SSH", RuntimeWarning, stacklevel=1)
         warnings.warn(
-            'Cannot connect to GitHub via SSH', RuntimeWarning, stacklevel=1
-        )
-        warnings.warn(
-            'Will skip tests requiring SSH access to GitHub', RuntimeWarning, stacklevel=1
+            "Will skip tests requiring SSH access to GitHub", RuntimeWarning, stacklevel=1
         )
         HAS_WARNED_GITHUB = True
     return res
@@ -87,25 +93,28 @@ def check_for_mercurial():
 
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, 'pypi')
+PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, "pypi")
 WE_HAVE_HG = check_for_mercurial()
 
 
 def pytest_runtest_setup(item):
-    if item.get_closest_marker('needs_internet') is not None and not WE_HAVE_INTERNET:
-        pytest.skip('requires internet')
-    if item.get_closest_marker('needs_github_ssh') is not None and not WE_HAVE_GITHUB_SSH_KEYS:
-        pytest.skip('requires github ssh')
-    if item.get_closest_marker('needs_hg') is not None and not WE_HAVE_HG:
-        pytest.skip('requires mercurial')
-    if item.get_closest_marker('skip_py38') is not None and (
+    if item.get_closest_marker("needs_internet") is not None and not WE_HAVE_INTERNET:
+        pytest.skip("requires internet")
+    if (
+        item.get_closest_marker("needs_github_ssh") is not None
+        and not WE_HAVE_GITHUB_SSH_KEYS
+    ):
+        pytest.skip("requires github ssh")
+    if item.get_closest_marker("needs_hg") is not None and not WE_HAVE_HG:
+        pytest.skip("requires mercurial")
+    if item.get_closest_marker("skip_py38") is not None and (
         sys.version_info[:2] == (3, 8)
     ):
-        pytest.skip('test not applicable on python 3.8')
-    if item.get_closest_marker('skip_osx') is not None and sys.platform == 'darwin':
-        pytest.skip('test does not apply on OSX')
-    if item.get_closest_marker('skip_windows') is not None and (os.name == 'nt'):
-        pytest.skip('test does not run on windows')
+        pytest.skip("test not applicable on python 3.8")
+    if item.get_closest_marker("skip_osx") is not None and sys.platform == "darwin":
+        pytest.skip("test does not apply on OSX")
+    if item.get_closest_marker("skip_windows") is not None and (os.name == "nt"):
+        pytest.skip("test does not run on windows")
 
 
 WE_HAVE_INTERNET = check_internet()
@@ -138,7 +147,11 @@ class _Pipfile:
 
     def remove(self, package, dev=False):
         section = "packages" if not dev else "dev-packages"
-        if not dev and package not in self.document[section] and package in self.document["dev-packages"]:
+        if (
+            not dev
+            and package not in self.document[section]
+            and package in self.document["dev-packages"]
+        ):
             section = "dev-packages"
         del self.document[section][package]
         self.write()
@@ -171,6 +184,7 @@ class _Pipfile:
 
 class _PipenvInstance:
     """An instance of a Pipenv Project..."""
+
     def __init__(self, pipfile=True, capfd=None, index_url=None):
         self.index_url = index_url
         self.pypi = None
@@ -182,7 +196,7 @@ class _PipenvInstance:
         os.environ.pop("PIPENV_CUSTOM_VENV_NAME", None)
 
         self.original_dir = Path(__file__).parent.parent.parent
-        self._path = TemporaryDirectory(prefix='pipenv-', suffix="-tests")
+        self._path = TemporaryDirectory(prefix="pipenv-", suffix="-tests")
         path = Path(self._path.name)
         try:
             self.path = str(path.resolve())
@@ -192,14 +206,14 @@ class _PipenvInstance:
 
         # set file creation perms
         self.pipfile_path = None
-        p_path = os.sep.join([self.path, 'Pipfile'])
+        p_path = os.sep.join([self.path, "Pipfile"])
         self.pipfile_path = p_path
 
         if pipfile:
             with contextlib.suppress(FileNotFoundError):
                 os.remove(p_path)
 
-            with open(p_path, 'a'):
+            with open(p_path, "a"):
                 os.utime(p_path, None)
 
             self._pipfile = _Pipfile(Path(p_path), index=self.index_url)
@@ -210,7 +224,7 @@ class _PipenvInstance:
         return self
 
     def __exit__(self, *args):
-        warn_msg = 'Failed to remove resource: {!r}'
+        warn_msg = "Failed to remove resource: {!r}"
         if self.pipfile_path:
             with contextlib.suppress(OSError):
                 os.remove(self.pipfile_path)
@@ -249,7 +263,7 @@ class _PipenvInstance:
         if err:
             r.stderr_bytes = r.stderr_bytes + err
         if block:
-            print(f'$ pipenv {cmd}')
+            print(f"$ pipenv {cmd}")
             print(r.stdout)
             print(r.stderr, file=sys.stderr)
             if r.returncode != 0:
@@ -260,7 +274,7 @@ class _PipenvInstance:
 
     @property
     def pipfile(self):
-        p_path = os.sep.join([self.path, 'Pipfile'])
+        p_path = os.sep.join([self.path, "Pipfile"])
         with open(p_path) as f:
             return tomlkit.loads(f.read())
 
@@ -272,7 +286,7 @@ class _PipenvInstance:
 
     @property
     def lockfile_path(self):
-        return os.sep.join([self.path, 'Pipfile.lock'])
+        return os.sep.join([self.path, "Pipfile.lock"])
 
 
 if sys.version_info[:2] <= (3, 8):
@@ -287,6 +301,7 @@ if sys.version_info[:2] <= (3, 8):
             # Ignore removal failures where the file doesn't exist
             if exc.errno != errno.ENOENT:
                 raise
+
 else:
     _rmtree_func = _rmtree
 
@@ -300,9 +315,13 @@ def pipenv_instance_pypi(capfdbinary, monkeypatch):
         os.environ["CI"] = "1"
         os.environ["PIPENV_DONT_USE_PYENV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
-        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        warnings.filterwarnings(
+            "ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>"
+        )
         try:
-            yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url="https://pypi.org/simple")
+            yield functools.partial(
+                _PipenvInstance, capfd=capfdbinary, index_url="https://pypi.org/simple"
+            )
         finally:
             os.umask(original_umask)
 
@@ -316,9 +335,13 @@ def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
         os.environ["CI"] = "1"
         os.environ["PIPENV_DONT_USE_PYENV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
-        warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>")
+        warnings.filterwarnings(
+            "ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>"
+        )
         try:
-            yield functools.partial(_PipenvInstance, capfd=capfdbinary, index_url=DEFAULT_PRIVATE_PYPI_SERVER)
+            yield functools.partial(
+                _PipenvInstance, capfd=capfdbinary, index_url=DEFAULT_PRIVATE_PYPI_SERVER
+            )
         finally:
             os.umask(original_umask)
 

@@ -10,7 +10,7 @@ def test_install_uri_with_extras(pipenv_instance_pypi):
     server = DEFAULT_PRIVATE_PYPI_SERVER.replace("/simple", "")
     file_uri = f"{server}/packages/plette/plette-0.2.2-py2.py3-none-any.whl"
     with pipenv_instance_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
 url = "{p.index_url}"

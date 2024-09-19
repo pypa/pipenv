@@ -40,8 +40,7 @@ setup(
 @pytest.mark.install
 @pytest.mark.local
 def test_local_extras_install(pipenv_instance_pypi):
-    """Ensure -e .[extras] installs.
-    """
+    """Ensure -e .[extras] installs."""
     with pipenv_instance_pypi() as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
@@ -62,13 +61,15 @@ setup(
             """.strip()
             fh.write(contents)
         line = "-e .[dev]"
-        with open(os.path.join(p.path, 'Pipfile'), 'w') as fh:
-            fh.write("""
+        with open(os.path.join(p.path, "Pipfile"), "w") as fh:
+            fh.write(
+                """
 [packages]
 testpipenv = {path = ".", editable = true, extras = ["dev"]}
 
 [dev-packages]
-            """.strip())
+            """.strip()
+            )
         # project.write_toml({"packages": pipfile, "dev-packages": {}})
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -115,20 +116,22 @@ setup(
 
     @staticmethod
     def helper_dependency_links_install_test(pipenv_instance, deplink):
-        TestDirectDependencies.helper_dependency_links_install_make_setup(pipenv_instance, deplink)
+        TestDirectDependencies.helper_dependency_links_install_make_setup(
+            pipenv_instance, deplink
+        )
         c = pipenv_instance.pipenv("install -v -e .")
         assert c.returncode == 0
         assert "six" in pipenv_instance.lockfile["default"]
 
-    @pytest.mark.skip(reason="This test modifies os.environment which has side effects on other tests")
+    @pytest.mark.skip(
+        reason="This test modifies os.environment which has side effects on other tests"
+    )
     def test_https_dependency_links_install(self, pipenv_instance_pypi):
-        """Ensure dependency_links are parsed and installed (needed for private repo dependencies).
-        """
+        """Ensure dependency_links are parsed and installed (needed for private repo dependencies)."""
         with temp_environ(), pipenv_instance_pypi() as p:
-            os.environ["PIP_NO_BUILD_ISOLATION"] = '1'
+            os.environ["PIP_NO_BUILD_ISOLATION"] = "1"
             TestDirectDependencies.helper_dependency_links_install_test(
-                p,
-                'six@ git+https://github.com/benjaminp/six@1.11.0'
+                p, "six@ git+https://github.com/benjaminp/six@1.11.0"
             )
 
 
@@ -177,8 +180,8 @@ def test_local_package(pipenv_instance_private_pypi, testsroot):
         import tarfile
 
         with tarfile.open(copy_to, "r:gz") as tgz:
-            def is_within_directory(directory, target):
 
+            def is_within_directory(directory, target):
                 abs_directory = os.path.abspath(directory)
                 abs_target = os.path.abspath(target)
 
@@ -187,14 +190,12 @@ def test_local_package(pipenv_instance_private_pypi, testsroot):
                 return prefix == abs_directory
 
             def safe_extract(tar, path=".", members=None, *, numeric_owner=False):
-
                 for member in tar.getmembers():
                     member_path = os.path.join(path, member.name)
                     if not is_within_directory(path, member_path):
                         raise Exception("Attempted Path Traversal in Tar File")
 
                 tar.extractall(path, members, numeric_owner)
-
 
             safe_extract(tgz, path=p.path)
         c = p.pipenv(f"install -e {package}")
@@ -253,7 +254,9 @@ six = {{path = "./artifacts/{file_name}"}}
 @pytest.mark.run
 @pytest.mark.files
 @pytest.mark.install
-def test_multiple_editable_packages_should_not_race(pipenv_instance_private_pypi, testsroot):
+def test_multiple_editable_packages_should_not_race(
+    pipenv_instance_private_pypi, testsroot
+):
     """Test for a race condition that can occur when installing multiple 'editable' packages at
     once, and which causes some of them to not be importable.
 
@@ -280,12 +283,14 @@ name = "testindex"
             source_path = p._pipfile.get_fixture_path(f"git/{pkg_name}/")
             shutil.copytree(source_path, pkg_name)
 
-            pipfile_string += f'"{pkg_name}" = {{path = "./{pkg_name}", editable = true}}\n'
+            pipfile_string += (
+                f'"{pkg_name}" = {{path = "./{pkg_name}", editable = true}}\n'
+            )
 
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_path, "w") as f:
             f.write(pipfile_string.strip())
 
-        c = p.pipenv('install')
+        c = p.pipenv("install")
         assert c.returncode == 0
 
         c = p.pipenv('run python -c "import jinja2, six"')
@@ -293,11 +298,13 @@ name = "testindex"
 
 
 @pytest.mark.skipif(
-    os.name == 'nt' and sys.version_info[:2] == (3, 8),
-    reason="Seems to work on 3.8 but not via the CI"
+    os.name == "nt" and sys.version_info[:2] == (3, 8),
+    reason="Seems to work on 3.8 but not via the CI",
 )
 @pytest.mark.outdated
-def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_private_pypi):
+def test_outdated_should_compare_postreleases_without_failing(
+    pipenv_instance_private_pypi,
+):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install ibm-db-sa-py3==0.3.0")
         assert c.returncode == 0
@@ -310,21 +317,26 @@ def test_outdated_should_compare_postreleases_without_failing(pipenv_instance_pr
         assert "out-of-date" in c.stdout
 
 
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
+)
 def test_install_remote_wheel_file_with_extras(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("install fastapi[dev]@https://files.pythonhosted.org/packages/4e/1a/04887c641b67e6649bde845b9a631f73a7abfbe3afda83957e09b95d88eb/fastapi-0.95.2-py3-none-any.whl")
+        c = p.pipenv(
+            "install fastapi[dev]@https://files.pythonhosted.org/packages/4e/1a/04887c641b67e6649bde845b9a631f73a7abfbe3afda83957e09b95d88eb/fastapi-0.95.2-py3-none-any.whl"
+        )
         assert c.returncode == 0
         assert "ruff" in p.lockfile["default"]
         assert "pre-commit" in p.lockfile["default"]
         assert "uvicorn" in p.lockfile["default"]
+
 
 @pytest.mark.install
 @pytest.mark.skip_lock
 @pytest.mark.needs_internet
 def test_install_skip_lock(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
 url = "{}"
@@ -332,9 +344,11 @@ verify_ssl = true
 name = "pypi"
 [packages]
 six = {}
-            """.format(p.index_url, '{version = "*", index = "pypi"}').strip()
+            """.format(
+                p.index_url, '{version = "*", index = "pypi"}'
+            ).strip()
             f.write(contents)
-        c = p.pipenv('install --skip-lock')
+        c = p.pipenv("install --skip-lock")
         assert c.returncode == 0
         c = p.pipenv('run python -c "import six"')
         assert c.returncode == 0

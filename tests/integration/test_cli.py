@@ -20,45 +20,55 @@ def test_pipenv_where(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_venv(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('install dataclasses-json')
+        c = p.pipenv("install dataclasses-json")
         assert c.returncode == 0
-        c = p.pipenv('--venv')
+        c = p.pipenv("--venv")
         assert c.returncode == 0
         venv_path = c.stdout.strip()
         assert os.path.isdir(venv_path)
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(sys.version_info[:2] == (3, 8) and os.name == "nt", reason="Python 3.8 on Windows is not supported")
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 8) and os.name == "nt",
+    reason="Python 3.8 on Windows is not supported",
+)
 def test_pipenv_py(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('--python python')
+        c = p.pipenv("--python python")
         assert c.returncode == 0
-        c = p.pipenv('--py')
+        c = p.pipenv("--py")
         assert c.returncode == 0
         python = c.stdout.strip()
-        assert os.path.basename(python).startswith('python')
+        assert os.path.basename(python).startswith("python")
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(os.name == 'nt' and sys.version_info[:2] == (3, 8), reason='Test issue with windows 3.8 CIs')
+@pytest.mark.skipif(
+    os.name == "nt" and sys.version_info[:2] == (3, 8),
+    reason="Test issue with windows 3.8 CIs",
+)
 def test_pipenv_site_packages(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('--python python --site-packages')
+        c = p.pipenv("--python python --site-packages")
         assert c.returncode == 0
-        assert 'Making site-packages available' in c.stderr
+        assert "Making site-packages available" in c.stderr
 
         # no-global-site-packages.txt under stdlib dir should not exist.
-        c = p.pipenv('run python -c "import sysconfig; print(sysconfig.get_path(\'stdlib\'))"')
+        c = p.pipenv(
+            "run python -c \"import sysconfig; print(sysconfig.get_path('stdlib'))\""
+        )
         assert c.returncode == 0
         stdlib_path = c.stdout.strip()
-        assert not os.path.isfile(os.path.join(stdlib_path, 'no-global-site-packages.txt'))
+        assert not os.path.isfile(
+            os.path.join(stdlib_path, "no-global-site-packages.txt")
+        )
 
 
 @pytest.mark.cli
 def test_pipenv_support(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('--support')
+        c = p.pipenv("--support")
         assert c.returncode == 0
         assert c.stdout
 
@@ -66,14 +76,14 @@ def test_pipenv_support(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_rm(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('--python python')
+        c = p.pipenv("--python python")
         assert c.returncode == 0
-        c = p.pipenv('--venv')
+        c = p.pipenv("--venv")
         assert c.returncode == 0
         venv_path = c.stdout.strip()
         assert os.path.isdir(venv_path)
 
-        c = p.pipenv('--rm')
+        c = p.pipenv("--rm")
         assert c.returncode == 0
         assert c.stdout
         assert not os.path.isdir(venv_path)
@@ -82,7 +92,7 @@ def test_pipenv_rm(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_graph(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('install tablib')
+        c = p.pipenv("install tablib")
         assert c.returncode == 0
         graph = p.pipenv("graph")
         assert graph.returncode == 0
@@ -98,10 +108,12 @@ def test_pipenv_graph(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
     from pipenv.cli import cli
-    from pipenv.vendor.click.testing import CliRunner  # not thread safe but graph is a tricky test
+    from pipenv.vendor.click.testing import (
+        CliRunner,
+    )  # not thread safe but graph is a tricky test
 
     with pipenv_instance_private_pypi() as p:
-        c = p.pipenv('install tablib==0.13.0')
+        c = p.pipenv("install tablib==0.13.0")
         assert c.returncode == 0
         cli_runner = CliRunner(mix_stderr=False)
         c = cli_runner.invoke(cli, "graph --reverse")
@@ -109,54 +121,64 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
         output = c.stdout
 
         requests_dependency = [
-            ('backports.csv', 'backports.csv'),
-            ('odfpy', 'odfpy'),
-            ('openpyxl', 'openpyxl>=2.4.0'),
-            ('pyyaml', 'pyyaml'),
-            ('xlrd', 'xlrd'),
-            ('xlwt', 'xlwt'),
+            ("backports.csv", "backports.csv"),
+            ("odfpy", "odfpy"),
+            ("openpyxl", "openpyxl>=2.4.0"),
+            ("pyyaml", "pyyaml"),
+            ("xlrd", "xlrd"),
+            ("xlwt", "xlwt"),
         ]
 
         for dep_name, dep_constraint in requests_dependency:
-            pat = fr'{dep_name}==[\d.]+'
-            dep_match = re.search(pat,
-                                  output,
-                                  flags=re.MULTILINE | re.IGNORECASE)
-            assert dep_match is not None, f'{pat} not found in {output}'
+            pat = rf"{dep_name}==[\d.]+"
+            dep_match = re.search(pat, output, flags=re.MULTILINE | re.IGNORECASE)
+            assert dep_match is not None, f"{pat} not found in {output}"
 
             # openpyxl should be indented
-            if dep_name == 'openpyxl':
-                openpyxl_dep = re.search(r'^openpyxl',
-                                         output,
-                                         flags=re.MULTILINE | re.IGNORECASE)
-                assert openpyxl_dep is None, f'openpyxl should not appear at beginning of lines in {output}'
-                assert 'openpyxl==2.5.4 [requires: et_xmlfile]' in output
+            if dep_name == "openpyxl":
+                openpyxl_dep = re.search(
+                    r"^openpyxl", output, flags=re.MULTILINE | re.IGNORECASE
+                )
+                assert (
+                    openpyxl_dep is None
+                ), f"openpyxl should not appear at beginning of lines in {output}"
+                assert "openpyxl==2.5.4 [requires: et_xmlfile]" in output
             else:
-                dep_match = re.search(fr'^[ -]*{dep_name}==[\d.]+$',
-                                      output,
-                                      flags=re.MULTILINE | re.IGNORECASE)
-                assert dep_match is not None, f'{dep_name} not found at beginning of line in {output}'
+                dep_match = re.search(
+                    rf"^[ -]*{dep_name}==[\d.]+$",
+                    output,
+                    flags=re.MULTILINE | re.IGNORECASE,
+                )
+                assert (
+                    dep_match is not None
+                ), f"{dep_name} not found at beginning of line in {output}"
 
-            dep_requests_match = re.search(fr'└── tablib==0.13.0 \[requires: {dep_constraint}',
-                                           output,
-                                           flags=re.MULTILINE | re.IGNORECASE)
-            assert dep_requests_match is not None, f'constraint {dep_constraint} not found in {output}'
+            dep_requests_match = re.search(
+                rf"└── tablib==0.13.0 \[requires: {dep_constraint}",
+                output,
+                flags=re.MULTILINE | re.IGNORECASE,
+            )
+            assert (
+                dep_requests_match is not None
+            ), f"constraint {dep_constraint} not found in {output}"
             assert dep_requests_match.start() > dep_match.start()
 
 
-@pytest.mark.skip(reason="There is a disputed vulnerability about pip 24.0 messing up this test.")
+@pytest.mark.skip(
+    reason="There is a disputed vulnerability about pip 24.0 messing up this test."
+)
 @pytest.mark.cli
-@pytest.mark.needs_internet(reason='required by check')
+@pytest.mark.needs_internet(reason="required by check")
 def test_pipenv_check(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        c = p.pipenv('install pyyaml')
+        c = p.pipenv("install pyyaml")
         assert c.returncode == 0
-        c = p.pipenv('check --use-installed')
+        c = p.pipenv("check --use-installed")
         assert c.returncode != 0
-        assert 'pyyaml' in c.stdout
-        c = p.pipenv('uninstall pyyaml')
+        assert "pyyaml" in c.stdout
+        c = p.pipenv("uninstall pyyaml")
         assert c.returncode == 0
-        c = p.pipenv('install six')
+        c = p.pipenv("install six")
         assert c.returncode == 0
         c = p.pipenv("run python -m pip install --upgrade pip")
         assert c.returncode == 0
@@ -167,48 +189,51 @@ def test_pipenv_check(pipenv_instance_private_pypi):
         # the issue above is still not resolved.
         # added also 51499
         # https://github.com/pypa/wheel/issues/481
-        c = p.pipenv('check --use-installed --ignore 35015 -i 51457 -i 51499')
+        c = p.pipenv("check --use-installed --ignore 35015 -i 51457 -i 51499")
         assert c.returncode == 0
-        assert 'Ignoring' in c.stderr
+        assert "Ignoring" in c.stderr
 
 
 @pytest.mark.cli
-@pytest.mark.needs_internet(reason='required by check')
+@pytest.mark.needs_internet(reason="required by check")
 @pytest.mark.parametrize("category", ["CVE", "packages"])
 def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv(f'install wheel==0.37.1 --categories={category}')
+        c = p.pipenv(f"install wheel==0.37.1 --categories={category}")
         assert c.returncode == 0
-        c = p.pipenv(f'check --categories={category}')
+        c = p.pipenv(f"check --categories={category}")
         assert c.returncode != 0
-        assert 'wheel' in c.stdout
+        assert "wheel" in c.stdout
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(sys.version_info[:2] == (3, 8) and os.name == "nt", reason="This test is not working om Windows Python 3. 8")
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 8) and os.name == "nt",
+    reason="This test is not working om Windows Python 3. 8",
+)
 def test_pipenv_clean(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        with open('setup.py', 'w') as f:
+        with open("setup.py", "w") as f:
             f.write('from setuptools import setup; setup(name="empty")')
-        c = p.pipenv('install -e .')
+        c = p.pipenv("install -e .")
         assert c.returncode == 0
-        c = p.pipenv(f'run pip install -i {p.index_url} six')
+        c = p.pipenv(f"run pip install -i {p.index_url} six")
         assert c.returncode == 0
-        c = p.pipenv('clean')
+        c = p.pipenv("clean")
         assert c.returncode == 0
-        assert 'six' in c.stdout, f"{c.stdout} -- STDERR: {c.stderr}"
+        assert "six" in c.stdout, f"{c.stdout} -- STDERR: {c.stderr}"
 
 
 @pytest.mark.cli
 def test_venv_envs(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        assert p.pipenv('--envs').stdout
+        assert p.pipenv("--envs").stdout
 
 
 @pytest.mark.cli
 def test_bare_output(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        assert p.pipenv('').stdout
+        assert p.pipenv("").stdout
 
 
 @pytest.mark.cli
@@ -220,15 +245,15 @@ def test_scripts(pipenv_instance_pypi):
 pyver = "which python"
             """.strip()
             f.write(contents)
-        c = p.pipenv('scripts')
-        assert 'pyver' in c.stdout
-        assert 'which python' in c.stdout
+        c = p.pipenv("scripts")
+        assert "pyver" in c.stdout
+        assert "which python" in c.stdout
 
 
 @pytest.mark.cli
 def test_help(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        assert p.pipenv('--help').stdout
+        assert p.pipenv("--help").stdout
 
 
 @pytest.mark.cli
@@ -241,28 +266,27 @@ def test_man(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_install_parse_error(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-
         # Make sure unparsable packages don't wind up in the pipfile
         # Escape $ for shell input
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
 
 [dev-packages]
             """.strip()
             f.write(contents)
-        c = p.pipenv('install requests u/\\/p@r\\$34b13+pkg')
+        c = p.pipenv("install requests u/\\/p@r\\$34b13+pkg")
         assert c.returncode != 0
-        assert 'u/\\/p@r$34b13+pkg' not in p.pipfile['packages']
+        assert "u/\\/p@r$34b13+pkg" not in p.pipfile["packages"]
 
 
 @pytest.mark.skip(reason="This test clears the cache that other tests may be using.")
 @pytest.mark.cli
 def test_pipenv_clear(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('--clear')
+        c = p.pipenv("--clear")
         assert c.returncode == 0
-        assert 'Clearing caches' in c.stdout
+        assert "Clearing caches" in c.stdout
 
 
 @pytest.mark.outdated
@@ -274,46 +298,46 @@ def test_pipenv_outdated_prerelease(pipenv_instance_pypi):
 sqlalchemy = "<=1.2.3"
             """.strip()
             f.write(contents)
-        c = p.pipenv('update --pre --outdated')
+        c = p.pipenv("update --pre --outdated")
         assert c.returncode == 0
 
 
 @pytest.mark.cli
 def test_pipenv_verify_without_pipfile(pipenv_instance_pypi):
     with pipenv_instance_pypi(pipfile=False) as p:
-        c = p.pipenv('verify')
+        c = p.pipenv("verify")
         assert c.returncode == 1
-        assert 'No Pipfile present at project home.' in c.stderr
+        assert "No Pipfile present at project home." in c.stderr
 
 
 @pytest.mark.cli
 def test_pipenv_verify_without_pipfile_lock(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv('verify')
+        c = p.pipenv("verify")
         assert c.returncode == 1
-        assert 'Pipfile.lock is out-of-date.' in c.stderr
+        assert "Pipfile.lock is out-of-date." in c.stderr
 
 
 @pytest.mark.cli
 def test_pipenv_verify_locked_passing(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        p.pipenv('lock')
-        c = p.pipenv('verify')
+        p.pipenv("lock")
+        c = p.pipenv("verify")
         assert c.returncode == 0
-        assert 'Pipfile.lock is up-to-date.' in c.stdout
+        assert "Pipfile.lock is up-to-date." in c.stdout
 
 
 @pytest.mark.cli
 def test_pipenv_verify_locked_outdated_failing(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        p.pipenv('lock')
+        p.pipenv("lock")
 
         # modify the Pipfile
-        pf = Path(p.path).joinpath('Pipfile')
+        pf = Path(p.path).joinpath("Pipfile")
         pf_data = pf.read_text()
-        pf_new = re.sub(r'\[packages\]', '[packages]\nrequests = "*"', pf_data)
+        pf_new = re.sub(r"\[packages\]", '[packages]\nrequests = "*"', pf_data)
         pf.write_text(pf_new)
 
-        c = p.pipenv('verify')
+        c = p.pipenv("verify")
         assert c.returncode == 1
-        assert 'Pipfile.lock is out-of-date.' in c.stderr
+        assert "Pipfile.lock is out-of-date." in c.stderr
