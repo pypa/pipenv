@@ -15,6 +15,7 @@ from urllib import parse
 from urllib.parse import unquote, urljoin
 
 from pipenv.utils.constants import VCS_LIST
+from pipenv.vendor.tomlkit.items import SingleKey, Table
 
 try:
     import tomllib as toml
@@ -1107,12 +1108,23 @@ class Project:
                 return name
         return None
 
-    def _sort_category(self, category):
-        # toml tables won't maintain sorted dictionary order
-        # so construct the table in the order that we need
+    def _sort_category(self, category) -> Table:
+        # copy table or create table from dict-like object
         table = tomlkit.table()
-        for key, value in sorted(category.items()):
-            table.add(key, value)
+        if isinstance(category, Table):
+            table.update(category.value)
+        else:
+            table.update(category)
+
+        # sort the table internally
+        table._value._body.sort(key=lambda t: t[0] and t[0].key or "")
+        for index, (key, _) in enumerate(table._value._body):
+            assert isinstance(key, SingleKey)
+            indices = table._value._map[key]
+            if isinstance(indices, tuple):
+                table._value._map[key] = (index,) + indices[1:]
+            else:
+                table._value._map[key] = index
 
         return table
 
