@@ -44,7 +44,7 @@ def convert_toml_outline_tables(parsed, project):
             body = section._internal_container._body
         else:
             body = section._body
-        for key, value in body:
+        for index, (key, value) in enumerate(body):
             if not key:
                 continue
             if hasattr(value, "keys") and not isinstance(
@@ -52,7 +52,7 @@ def convert_toml_outline_tables(parsed, project):
             ):
                 table = tomlkit.inline_table()
                 table.update(value.value)
-                result[key.key] = table
+                result.value._body[index] = (key, table.value)
         return result
 
     def convert_toml_table(section):
