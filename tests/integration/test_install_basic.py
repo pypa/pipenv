@@ -699,3 +699,29 @@ colorama = "*"
             "colorama",
             "build",
         ]
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_category_sorted_with_directive_when_insalling_with_extras(
+    pipenv_instance_private_pypi,
+):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w+") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+atomicwrites = "*"
+six = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install requests[socks]")
+        assert c.returncode == 0
+        assert "requests" in p.pipfile["packages"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "atomicwrites",
+            "requests",
+            "six",
+        ]
