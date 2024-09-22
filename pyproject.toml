@@ -8,12 +8,12 @@ requires = [
 name = "pipenv"
 description = "Python Development Workflow for Humans."
 readme = "README.md"
-license = {file = "LICENSE"}
+license = { file = "LICENSE" }
 authors = [
-  {name = "Pipenv maintainer team", email = "distutils-sig@python.org"},
+  { name = "Pipenv maintainer team", email = "distutils-sig@python.org" },
 ]
 requires-python = ">=3.8"
-classifiers=[
+classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
@@ -34,41 +34,37 @@ dependencies = [
   "setuptools>=67",
   "virtualenv>=20.24.2",
 ]
-[project.optional-dependencies]
-dev = [
+optional-dependencies.dev = [
   "beautifulsoup4",
   "black==23.3",
-  "flake8<4.0,>=3.3",
+  "flake8<4,>=3.3",
   "invoke",
   "parver",
   "sphinx",
   "towncrier",
 ]
-tests = [
+optional-dependencies.tests = [
   "flaky",
   "mock",
   "pytest>=5",
   "pytest-timeout",
   "pytest-xdist",
 ]
-[project.urls]
-Documentation = "https://pipenv.pypa.io/en/latest/"
-Homepage = "https://github.com/pypa/pipenv"
-Source = "https://github.com/pypa/pipenv.git"
-[project.scripts]
-pipenv = "pipenv:cli"
-pipenv-resolver = "pipenv.resolver:main"
+urls.Documentation = "https://pipenv.pypa.io/en/latest/"
+urls.Homepage = "https://github.com/pypa/pipenv"
+urls.Source = "https://github.com/pypa/pipenv.git"
+scripts.pipenv = "pipenv:cli"
+scripts.pipenv-resolver = "pipenv.resolver:main"
 
 [tool.setuptools.packages.find]
-where = ["."]
-exclude = ["tests*", "tests.*", "tasks*", "tasks.*"]
-
+where = [ "." ]
+exclude = [ "tests*", "tests.*", "tasks*", "tasks.*" ]
 
 [tool.setuptools.package-data]
-"*" = ["LICENSE", "NOTICES"]
-"pipenv.patched.safety" = ["VERSION", "safety-policy-template.yml"]
-"pipenv.patched.pip._vendor.certifi" = ["*.pem"]
-"pipenv.patched.pip._vendor.requests" = ["*.pem"]
+"*" = [ "LICENSE", "NOTICES" ]
+"pipenv.patched.safety" = [ "VERSION", "safety-policy-template.yml" ]
+"pipenv.patched.pip._vendor.certifi" = [ "*.pem" ]
+"pipenv.patched.pip._vendor.requests" = [ "*.pem" ]
 "pipenv.patched.pip._vendor.distlib" = [
   "t32.exe",
   "t64.exe",
@@ -77,12 +73,10 @@ exclude = ["tests*", "tests.*", "tasks*", "tasks.*"]
   "w64.exe",
   "w64-arm.exe",
 ]
-"pipenv.vendor.ruamel" = ["yaml"]
-
+"pipenv.vendor.ruamel" = [ "yaml" ]
 
 [tool.setuptools.dynamic]
-version = {attr = "pipenv.__version__"}
-
+version = { attr = "pipenv.__version__" }
 
 ## TESTING AND DEVELOPER CONFIGURATION BELOW ##
 
@@ -113,6 +107,9 @@ exclude = '''
 '''
 
 [tool.ruff]
+target-version = "py37"
+
+line-length = 137
 exclude = [
   "pipenv/patched/*",
   "pipenv/vendor/*",
@@ -134,7 +131,7 @@ select = [
   "TID",
   "UP",
   "W",
-  "YTT"
+  "YTT",
 ]
 ignore = [
   "B904",
@@ -142,40 +139,29 @@ ignore = [
   "PLR5501",
   "PLW2901",
 ]
-line-length = 137
-target-version = "py37"
-
-
-[tool.ruff.mccabe]
-max-complexity = 44
-
-
-[tool.ruff.pylint]
-allow-magic-value-types = ["int", "str"]
-max-args = 20
-max-branches = 38
-max-returns = 9
-max-statements = 155
-
-
-[tool.ruff.per-file-ignores]
-"docs/conf.py" = ["E402", "E501"]
-"get-pipenv.py" = ["E402"]
-"pipenv/__init__.py" = ["E401"]
-"pipenv/cli/command.py" = ["TID252"]
-"pipenv/utils/internet.py" = ["PLW0603"]
-"pipenv/utils/resolver.py" = ["B018"]
-"tests/*" = ["E501", "F401", "I", "PLC1901", "S101"]
-"tests/integration/conftest.py" = ["B003", "PIE800", "PLW0603"]
-"tests/integration/test_pipenv.py" = ["E741"]
-"tests/integration/test_requirements.py" = ["E741"]
-"tests/unit/test_funktools.py" = ["B015"]
-"tests/unit/test_utils.py" = ["F811"]
+pylint.allow-magic-value-types = [ "int", "str" ]
+pylint.max-args = 20
+pylint.max-branches = 38
+pylint.max-returns = 9
+pylint.max-statements = 155
+mccabe.max-complexity = 44
+per-file-ignores."docs/conf.py" = [ "E402", "E501" ]
+per-file-ignores."get-pipenv.py" = [ "E402" ]
+per-file-ignores."pipenv/__init__.py" = [ "E401" ]
+per-file-ignores."pipenv/cli/command.py" = [ "TID252" ]
+per-file-ignores."pipenv/utils/internet.py" = [ "PLW0603" ]
+per-file-ignores."pipenv/utils/resolver.py" = [ "B018" ]
+per-file-ignores."tests/*" = [ "E501", "F401", "I", "PLC1901", "S101" ]
+per-file-ignores."tests/integration/conftest.py" = [ "B003", "PIE800", "PLW0603" ]
+per-file-ignores."tests/integration/test_pipenv.py" = [ "E741" ]
+per-file-ignores."tests/integration/test_requirements.py" = [ "E741" ]
+per-file-ignores."tests/unit/test_funktools.py" = [ "B015" ]
+per-file-ignores."tests/unit/test_utils.py" = [ "F811" ]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
 plugins = "xdist"
-testpaths = ["tests"]
+testpaths = [ "tests" ]
 # Add vendor and patched in addition to the default list of ignored dirs
 # Additionally, ignore tasks, news, test subdirectories and peeps directory
 norecursedirs = [
@@ -195,7 +181,7 @@ norecursedirs = [
   "tests/pypi",
   "peeps",
 ]
-filterwarnings = []
+filterwarnings = [  ]
 # These are not all the custom markers, but most of the ones with repeat uses
 # `pipenv run pytest --markers` will list all markers including these
 markers = [
@@ -228,13 +214,6 @@ markers = [
 [tool.coverage.run]
 parallel = true
 
-[tool.mypy]
-ignore_missing_imports = true
-follow_imports = "skip"
-html_report = "mypyhtml"
-python_version = "3.7"
-mypy_path = "typeshed/pyi:typeshed/imports"
-
 [tool.towncrier]
 package = "pipenv"
 filename = "CHANGELOG.md"
@@ -243,42 +222,49 @@ directory = "news/"
 title_format = "{version} ({project_date})"
 template = "news/towncrier_template.rst"
 
-  [[tool.towncrier.type]]
-  directory = "feature"
-  name = "Features & Improvements"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "feature"
+name = "Features & Improvements"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "behavior"
-  name = "Behavior Changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "behavior"
+name = "Behavior Changes"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "bugfix"
-  name = "Bug Fixes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "bugfix"
+name = "Bug Fixes"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "vendor"
-  name = "Vendored Libraries"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "vendor"
+name = "Vendored Libraries"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "doc"
-  name = "Improved Documentation"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "doc"
+name = "Improved Documentation"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "trivial"
-  name = "Trivial Changes"
-  showcontent = false
+[[tool.towncrier.type]]
+directory = "trivial"
+name = "Trivial Changes"
+showcontent = false
 
-  [[tool.towncrier.type]]
-  directory = "removal"
-  name = "Removals and Deprecations"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "removal"
+name = "Removals and Deprecations"
+showcontent = true
 
-  [[tool.towncrier.type]]
-  directory = "process"
-  name = "Relates to dev process changes"
-  showcontent = true
+[[tool.towncrier.type]]
+directory = "process"
+name = "Relates to dev process changes"
+showcontent = true
+
+[tool.mypy]
+ignore_missing_imports = true
+follow_imports = "skip"
+html_report = "mypyhtml"
+python_version = "3.7"
+mypy_path = "typeshed/pyi:typeshed/imports"
