@@ -22,6 +22,7 @@ classifiers = [
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -157,6 +158,16 @@ per-file-ignores."tests/integration/test_pipenv.py" = [ "E741" ]
 per-file-ignores."tests/integration/test_requirements.py" = [ "E741" ]
 per-file-ignores."tests/unit/test_funktools.py" = [ "B015" ]
 per-file-ignores."tests/unit/test_utils.py" = [ "F811" ]
+
+[tool.pyproject-fmt]
+# after how many column width split arrays/dicts into multiple lines, 1 will force always
+column_width = 120
+# how many spaces use for indentation
+indent = 2
+# if false will remove unnecessary trailing ``.0``'s from version specifiers
+keep_full_version = true
+# maximum Python version to use when generating version specifiers
+max_supported_python = "3.13"
 
 [tool.pytest.ini_options]
 addopts = "-ra"
