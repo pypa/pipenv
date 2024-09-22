@@ -21,7 +21,9 @@ def test_uninstall_requests(pipenv_instance_pypi):
 
 
 @pytest.mark.uninstall
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
+)
 def test_uninstall_django(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install Django")
@@ -45,10 +47,11 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
+)
 def test_mirror_uninstall(pipenv_instance_pypi):
     with temp_environ(), pipenv_instance_pypi() as p:
-
         mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
         assert "pypi.org" not in mirror_url
 
@@ -86,7 +89,9 @@ def test_mirror_uninstall(pipenv_instance_pypi):
 @pytest.mark.uninstall
 def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
     with pipenv_instance_private_pypi() as p:
-        file_uri = p._pipfile.get_fixture_path("tablib/tablib-0.12.1.tar.gz", fixtures="pypi").as_uri()
+        file_uri = p._pipfile.get_fixture_path(
+            "tablib/tablib-0.12.1.tar.gz", fixtures="pypi"
+        ).as_uri()
         c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
         c = p.pipenv("uninstall --all")
@@ -304,6 +309,7 @@ atomicwrites = {version = "*"}
             "parse",
             "zipp",
         ]
+
 
 @pytest.mark.install
 @pytest.mark.uninstall

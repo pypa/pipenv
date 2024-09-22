@@ -15,8 +15,14 @@ from pipenv.exceptions import PipenvUsageError
 DEP_PIP_PAIRS = [
     ({"django": ">1.10"}, {"django": "django>1.10"}),
     ({"Django": ">1.10"}, {"Django": "Django>1.10"}),
-    ({"requests": {"extras": ["socks"], "version": ">1.10"}}, {"requests": "requests[socks]>1.10"}),
-    ({"requests": {"extras": ["socks"], "version": "==1.10"}}, {"requests": "requests[socks]==1.10"}),
+    (
+        {"requests": {"extras": ["socks"], "version": ">1.10"}},
+        {"requests": "requests[socks]>1.10"},
+    ),
+    (
+        {"requests": {"extras": ["socks"], "version": "==1.10"}},
+        {"requests": "requests[socks]==1.10"},
+    ),
     (
         {
             "dataclasses-json": {
@@ -25,11 +31,20 @@ DEP_PIP_PAIRS = [
                 "editable": True,
             }
         },
-        {"dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"},
+        {
+            "dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
+        },
     ),
     (
-        {"dataclasses-json": {"git": "https://github.com/lidatong/dataclasses-json.git", "ref": "v0.5.7"}},
-        {"dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"},
+        {
+            "dataclasses-json": {
+                "git": "https://github.com/lidatong/dataclasses-json.git",
+                "ref": "v0.5.7",
+            }
+        },
+        {
+            "dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
+        },
     ),
     (
         # Extras in url
@@ -39,7 +54,9 @@ DEP_PIP_PAIRS = [
                 "extras": ["pipenv"],
             }
         },
-        {"dparse": "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip"},
+        {
+            "dparse": "dparse[pipenv] @ https://github.com/oz123/dparse/archive/refs/heads/master.zip"
+        },
     ),
     (
         {
@@ -50,13 +67,22 @@ DEP_PIP_PAIRS = [
                 "editable": False,
             }
         },
-        {"requests": "requests[security]@ git+https://github.com/requests/requests.git@main"},
+        {
+            "requests": "requests[security]@ git+https://github.com/requests/requests.git@main"
+        },
     ),
 ]
 
 
-def mock_unpack(link, source_dir, download_dir, only_download=False, session=None,
-                hashes=None, progress_bar="off"):
+def mock_unpack(
+    link,
+    source_dir,
+    download_dir,
+    only_download=False,
+    session=None,
+    hashes=None,
+    progress_bar="off",
+):
     return
 
 
@@ -95,7 +121,9 @@ def test_convert_deps_to_pip_extras_no_version():
                     "hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
                 }
             },
-            {"FooProject": "FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"},
+            {
+                "FooProject": "FooProject==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+            },
         ),
         (
             {
@@ -105,7 +133,9 @@ def test_convert_deps_to_pip_extras_no_version():
                     "hash": "sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
                 }
             },
-            {"FooProject": "FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"},
+            {
+                "FooProject": "FooProject[stuff]==1.2 --hash=sha256:2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824"
+            },
         ),
         (
             {
@@ -115,7 +145,9 @@ def test_convert_deps_to_pip_extras_no_version():
                     "extras": ["standard"],
                 }
             },
-            {"uvicorn": "git+https://github.com/encode/uvicorn.git@master#egg=uvicorn[standard]"},
+            {
+                "uvicorn": "git+https://github.com/encode/uvicorn.git@master#egg=uvicorn[standard]"
+            },
         ),
     ],
 )
@@ -146,23 +178,35 @@ def test_get_constraints_from_deps(deps, expected):
     assert dependencies.get_constraints_from_deps(deps) == expected
 
 
-@pytest.mark.parametrize("line,result", [
-    ("-i https://example.com/simple/", ("https://example.com/simple/", None, None, [])),
-    ("--extra-index-url=https://example.com/simple/", (None, "https://example.com/simple/", None, [])),
-    ("--trusted-host=example.com", (None, None, "example.com", [])),
-    ("# -i https://example.com/simple/", (None, None, None, [])),
-    ("requests # -i https://example.com/simple/", (None, None, None, ["requests"])),
-])
+@pytest.mark.parametrize(
+    "line,result",
+    [
+        (
+            "-i https://example.com/simple/",
+            ("https://example.com/simple/", None, None, []),
+        ),
+        (
+            "--extra-index-url=https://example.com/simple/",
+            (None, "https://example.com/simple/", None, []),
+        ),
+        ("--trusted-host=example.com", (None, None, "example.com", [])),
+        ("# -i https://example.com/simple/", (None, None, None, [])),
+        ("requests # -i https://example.com/simple/", (None, None, None, ["requests"])),
+    ],
+)
 @pytest.mark.utils
 def test_parse_indexes(line, result):
     assert indexes.parse_indexes(line) == result
 
 
-@pytest.mark.parametrize("line", [
-    "-i https://example.com/simple/ --extra-index-url=https://extra.com/simple/",
-    "--extra-index-url https://example.com/simple/ --trusted-host=example.com",
-    "requests -i https://example.com/simple/",
-])
+@pytest.mark.parametrize(
+    "line",
+    [
+        "-i https://example.com/simple/ --extra-index-url=https://extra.com/simple/",
+        "--extra-index-url https://example.com/simple/ --trusted-host=example.com",
+        "requests -i https://example.com/simple/",
+    ],
+)
 @pytest.mark.utils
 def test_parse_indexes_individual_lines(line):
     with pytest.raises(ValueError):
@@ -207,6 +251,7 @@ class TestUtils:
     @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
         from pipenv.utils.requirementslib import is_vcs
+
         assert is_vcs(entry) is expected
 
     @pytest.mark.utils
@@ -230,12 +275,13 @@ class TestUtils:
             ),
         ],
     )
-    def test_python_version_output_variants(
-        self, monkeypatch, version_output, version
-    ):
+    def test_python_version_output_variants(self, monkeypatch, version_output, version):
         def mock_version(path):
             return version_output.split()[1]
-        monkeypatch.setattr("pipenv.vendor.pythonfinder.utils.get_python_version", mock_version)
+
+        monkeypatch.setattr(
+            "pipenv.vendor.pythonfinder.utils.get_python_version", mock_version
+        )
         assert dependencies.python_version("some/path") == version
 
     @pytest.mark.utils
@@ -255,25 +301,28 @@ class TestUtils:
         os.remove(output)
 
     @pytest.mark.utils
-    @pytest.mark.parametrize('line, expected', [
-        ("python", True),
-        ("python3.7", True),
-        ("python2.7", True),
-        ("python2", True),
-        ("python3", True),
-        ("pypy3", True),
-        ("anaconda3-5.3.0", True),
-        ("which", False),
-        ("vim", False),
-        ("miniconda", True),
-        ("micropython", True),
-        ("ironpython", True),
-        ("jython3.5", True),
-        ("2", True),
-        ("2.7", True),
-        ("3.7", True),
-        ("3", True)
-    ])
+    @pytest.mark.parametrize(
+        "line, expected",
+        [
+            ("python", True),
+            ("python3.7", True),
+            ("python2.7", True),
+            ("python2", True),
+            ("python3", True),
+            ("pypy3", True),
+            ("anaconda3-5.3.0", True),
+            ("which", False),
+            ("vim", False),
+            ("miniconda", True),
+            ("micropython", True),
+            ("ironpython", True),
+            ("jython3.5", True),
+            ("2", True),
+            ("2.7", True),
+            ("3.7", True),
+            ("3", True),
+        ],
+    )
     def test_is_python_command(self, line, expected):
         assert shell.is_python_command(line) == expected
 
@@ -387,7 +436,10 @@ twine = "*"
             (
                 [
                     {"url": "https://pypi.org/simple"},
-                    {"url": "https://custom.example.com:12345/simple", "verify_ssl": False},
+                    {
+                        "url": "https://custom.example.com:12345/simple",
+                        "verify_ssl": False,
+                    },
                 ],
                 [
                     "-i",
@@ -444,10 +496,7 @@ twine = "*"
         ],
     )
     def test_prepare_pip_source_args(self, sources, expected_args):
-        assert (
-                indexes.prepare_pip_source_args(sources, pip_args=None)
-                == expected_args
-        )
+        assert indexes.prepare_pip_source_args(sources, pip_args=None) == expected_args
 
     @pytest.mark.utils
     def test_invalid_prepare_pip_source_args(self):
@@ -479,7 +528,7 @@ twine = "*"
             ("1", True),
             ("off", False),
             ("0", False),
-        )
+        ),
     )
     def test_env_to_bool(self, val, expected):
         actual = shell.env_to_bool(val)
