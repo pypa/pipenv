@@ -7,6 +7,7 @@ import os
 import site
 import sys
 import typing
+from collections import namedtuple
 from functools import cached_property
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
@@ -19,6 +20,7 @@ from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.patched.pip._vendor.typing_extensions import Iterable
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
@@ -72,8 +74,9 @@ class Environment:
             pipfile = project.parsed_pipfile
         self.pipfile = pipfile
         self.extra_dists = []
-        prefix = prefix if prefix else sys.prefix
-        self.prefix = Path(prefix)
+        if self.is_venv and prefix is not None and not Path(prefix).exists():
+            return
+        self.prefix = Path(prefix if prefix else sys.prefix)
         self._base_paths = {}
         if self.is_venv:
             self._base_paths = self.get_paths()
@@ -96,11 +99,14 @@ class Environment:
         return module
 
     @cached_property
-    def python_version(self) -> str:
-        with self.activated():
-            sysconfig = self.safe_import("sysconfig")
-            py_version = sysconfig.get_python_version()
-            return py_version
+    def python_version(self) -> str | None:
+        with self.activated() as e:
+            if e.ok:
+                sysconfig = self.safe_import("sysconfig")
+                py_version = sysconfig.get_python_version()
+                return py_version
+            else:
+                return None
 
     @property
     def python_info(self) -> dict[str, str]:
@@ -703,9 +709,10 @@ class Environment:
                 }
         return rdeps
 
-    def get_working_set(self):
+    def get_working_set(self) -> Iterable:
         """Retrieve the working set of installed packages for the environment."""
-
+        if not hasattr(self, "sys_path"):
+            return []
         return importlib_metadata.distributions(path=self.sys_path)
 
     def is_installed(self, pkgname):
@@ -761,6 +768,8 @@ class Environment:
                 code = compile(f.read(), activate_this, "exec")
                 exec(code, {"__file__": activate_this})
 
+    EnvironmentActivationResult = namedtuple("EnvironmentActivationResult", ["ok"])
+
     @contextlib.contextmanager
     def activated(self):
         """Helper context manager to activate the environment.
@@ -781,6 +790,16 @@ class Environment:
         to `os.environ["PATH"]` to ensure that calls to `~Environment.run()` use the
         environment's path preferentially.
         """
+
+        # Fail if the virtualenv is needed but cannot be found
+        if self.is_venv and (
+            hasattr(self, "prefix")
+            and not self.prefix.exists()
+            or not hasattr(self, "prefix")
+        ):
+            yield self.EnvironmentActivationResult(ok=False)
+            return
+
         original_path = sys.path
         original_prefix = sys.prefix
         prefix = self.prefix.as_posix()
@@ -806,7 +825,7 @@ class Environment:
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             try:
-                yield
+                yield self.EnvironmentActivationResult(ok=True)
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
