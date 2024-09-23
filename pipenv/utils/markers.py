@@ -9,7 +9,6 @@ from typing import Optional
 from pipenv.patched.pip._vendor.distlib import markers
 from pipenv.patched.pip._vendor.packaging.markers import InvalidMarker, Marker
 from pipenv.patched.pip._vendor.packaging.specifiers import (
-    LegacySpecifier,
     Specifier,
     SpecifierSet,
 )
@@ -138,7 +137,7 @@ def _format_pyspec(specifier):
 def _get_specs(specset):
     if specset is None:
         return
-    if is_instance(specset, Specifier) or is_instance(specset, LegacySpecifier):
+    if is_instance(specset, Specifier):
         new_specset = SpecifierSet()
         specs = set()
         specs.add(specset)
