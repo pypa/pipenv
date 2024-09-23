@@ -150,7 +150,7 @@ class Entry:
 
     @classmethod
     def parse_pyparsing_exprs(cls, expr_iterable):
-        from pipenv.patched.pip._vendor.pyparsing import Literal, MatchFirst
+        from pipenv.vendor.pyparsing import Literal, MatchFirst
 
         keys = []
         expr_list = []
