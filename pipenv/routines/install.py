@@ -48,7 +48,7 @@ def do_install(
     requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
-    warnings.filterwarnings("default", category=ResourceWarning)
+    warnings.filterwarnings("ignore", category=ResourceWarning)
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
@@ -630,15 +630,11 @@ def do_init(
                     packages=packages,
                     editable_packages=editable_packages,
                 )
-    # Write out the lockfile if it doesn't exist.
-    if not project.lockfile_exists:
+    # Write out the lockfile if it doesn't exist and skip_lock is False
+    if not project.lockfile_exists and not skip_lock:
         # Unless we're in a virtualenv not managed by pipenv, abort if we're
         # using the system's python.
-        if (
-            (system or allow_global)
-            and not (project.s.PIPENV_VIRTUALENV)
-            and skip_lock is False
-        ):
+        if (system or allow_global) and not project.s.PIPENV_VIRTUALENV:
             raise exceptions.PipenvOptionsError(
                 "--system",
                 "--system is intended to be used for Pipfile installation, "

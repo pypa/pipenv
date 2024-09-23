@@ -2,7 +2,7 @@ exclude: '^(pipenv/patched/|pipenv/vendor/|tests/|pipenv/pipenv.1)'
 
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v4.4.0
+  rev: v4.6.0
   hooks:
   - id: check-builtin-literals
   - id: check-added-large-files
@@ -18,13 +18,13 @@ repos:
     exclude: .patch
 
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.0.287
+  rev: v0.6.7
   hooks:
   - id: ruff
     args: [--fix, --exit-non-zero-on-fix]
 
 - repo: https://github.com/psf/black
-  rev: 23.7.0
+  rev: 24.8.0
   hooks:
   - id: black
 
@@ -53,11 +53,11 @@ repos:
     stages: [manual]
 
 - repo: https://github.com/tox-dev/pyproject-fmt
-  rev: "1.2.0"
+  rev: "2.2.4"
   hooks:
   - id: pyproject-fmt
 
 - repo: https://github.com/abravalheri/validate-pyproject
-  rev: v0.14
+  rev: v0.19
   hooks:
   - id: validate-pyproject

@@ -185,7 +185,7 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
 def cleanup_virtualenv(project, bare=True):
     """Removes the virtualenv directory from the system."""
     if not bare:
-        console.pritn("[red]Environment creation aborted.[/red]")
+        console.print("[red]Environment creation aborted.[/red]")
     try:
         # Delete the virtualenv.
         shutil.rmtree(project.virtualenv_location)
@@ -205,7 +205,7 @@ def ensure_python(project, python=None):
         err.print(f"[red]{msg}[/red]")
         err.print("You can specify specific versions of Python with:")
         err.print(
-            f"[yellow]$ pipenv --python {os.sep.join('path', 'to', 'python')}[/yellow]"
+            f"[yellow]$ pipenv --python {os.sep.join(['path', 'to', 'python'])}[/yellow]"
         )
         sys.exit(1)
 
@@ -272,7 +272,7 @@ def ensure_python(project, python=None):
                 else:
                     # Tell the user we're installing Python.
                     console.print(
-                        f"[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
+                        "f[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
                     )
                     console.print("(this may take a few minutes)[bold]...[/bold]")
                     with console.status(

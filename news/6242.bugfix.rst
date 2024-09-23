@@ -1,0 +1,1 @@
+Fix issue where installing a vcs dependency using pipenv CLI yielded the wrong Pipfile entry such that it could not lock.

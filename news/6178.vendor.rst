@@ -1,1 +1,0 @@
-Clean up usage of click styling from exceptions, shell and virtualenv

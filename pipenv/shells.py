@@ -35,27 +35,35 @@ def _get_activate_script(cmd, venv):
     This is POSIX-only at the moment since the compat (pexpect-based) shell
     does not work elsewhere anyway.
     """
-    # Suffix and source command for other shells.
-    # Support for fish shell.
-    if "fish" in cmd:
+    # Suffix and source command for various shells.
+    command = "source"
+
+    if cmd.endswith("fish"):
         suffix = ".fish"
-        command = "source"
-    # Support for csh shell.
-    elif "csh" in cmd:
+    elif cmd.endswith("csh"):
         suffix = ".csh"
-        command = "source"
-    elif "xonsh" in cmd:
+    elif cmd.endswith("xonsh"):
         suffix = ".xsh"
-        command = "source"
-    elif "nu" in cmd:
+    elif cmd.endswith("nu"):
         suffix = ".nu"
         command = "overlay use"
-    else:
-        suffix = ""
+    elif cmd.endswith(("pwsh", "powershell")):
+        suffix = ".ps1"
         command = "."
+    elif cmd.endswith(("sh", "bash", "zsh")):
+        suffix = ""
+    else:
+        sys.exit(f"unknown shell {cmd}")
+
     # Escape any special characters located within the virtualenv path to allow
     # for proper activation.
     venv_location = re.sub(r"([ &$()\[\]])", r"\\\1", str(venv))
+
+    if suffix == "nu":
+        return f"overlay use {venv_location}"
+    elif suffix == ".ps1":
+        return f". {venv_location}\\Scripts\\Activate.{suffix}"
+
     # The leading space can make history cleaner in some shells.
     return f" {command} {venv_location}/bin/activate{suffix}"
 

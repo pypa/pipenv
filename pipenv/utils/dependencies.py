@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Union
-from urllib.parse import urlparse, urlsplit, urlunsplit
+from urllib.parse import urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
@@ -199,6 +199,45 @@ def unearth_hashes_for_dep(project, dep):
     return []
 
 
+def extract_vcs_url(vcs_url):
+    # Remove leading/trailing whitespace
+    vcs_url = vcs_url.strip()
+
+    # Check if it's a file URI
+    parsed = urlparse(vcs_url)
+    if parsed.scheme == "file":
+        # For file URIs, we want to keep the entire URL intact
+        return vcs_url
+
+    # Remove the package name and '@' if present at the start
+    if "@" in vcs_url and not vcs_url.startswith(tuple(f"{vcs}+" for vcs in VCS_LIST)):
+        vcs_url = vcs_url.split("@", 1)[1]
+
+    # Remove the VCS prefix (e.g., 'git+')
+    for prefix in VCS_LIST:
+        vcs_prefix = f"{prefix}+"
+        if vcs_url.startswith(vcs_prefix):
+            vcs_url = vcs_url[len(vcs_prefix) :]
+            break
+
+    # Parse the URL
+    parsed = urlparse(vcs_url)
+
+    # Reconstruct the URL, preserving authentication details
+    clean_url = urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            "",  # params
+            "",  # query
+            "",  # fragment
+        )
+    )
+
+    return clean_url
+
+
 def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
@@ -237,15 +276,17 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     is_vcs_or_file = False
     for vcs_type in VCS_LIST:
         if vcs_type in dep:
-            if "[" in dep[vcs_type] and "]" in dep[vcs_type]:
-                extras_section = dep[vcs_type].split("[").pop().replace("]", "")
+            vcs_url = dep[vcs_type]
+            if "[" in vcs_url and "]" in vcs_url:
+                extras_section = vcs_url.split("[").pop().replace("]", "")
                 lockfile["extras"] = sorted(
                     [extra.strip() for extra in extras_section.split(",")]
                 )
-            if has_name_with_extras(dep[vcs_type]):
-                lockfile[vcs_type] = dep[vcs_type].split("@ ", 1)[1]
-            else:
-                lockfile[vcs_type] = dep[vcs_type]
+
+            # Extract the clean VCS URL
+            clean_vcs_url = extract_vcs_url(vcs_url)
+
+            lockfile[vcs_type] = clean_vcs_url
             lockfile["ref"] = dep.get("ref")
             if "subdirectory" in dep:
                 lockfile["subdirectory"] = dep["subdirectory"]
@@ -390,7 +431,7 @@ def dependency_as_pip_install_line(
     if not vcs:
         for k in ["file", "path"]:
             if k in dep:
-                if is_editable_path(dep[k]):
+                if dep.get("editable") and is_editable_path(dep[k]):
                     line.append("-e")
                 extras = ""
                 if "extras" in dep:

@@ -21,7 +21,9 @@ def test_uninstall_requests(pipenv_instance_pypi):
 
 
 @pytest.mark.uninstall
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
+)
 def test_uninstall_django(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install Django")
@@ -45,10 +47,11 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
+)
 def test_mirror_uninstall(pipenv_instance_pypi):
     with temp_environ(), pipenv_instance_pypi() as p:
-
         mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
         assert "pypi.org" not in mirror_url
 
@@ -86,12 +89,17 @@ def test_mirror_uninstall(pipenv_instance_pypi):
 @pytest.mark.uninstall
 def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
     with pipenv_instance_private_pypi() as p:
-        file_uri = p._pipfile.get_fixture_path("tablib/tablib-0.12.1.tar.gz", fixtures="pypi").as_uri()
+        file_uri = p._pipfile.get_fixture_path(
+            "tablib/tablib-0.12.1.tar.gz", fixtures="pypi"
+        ).as_uri()
         c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
         c = p.pipenv("uninstall --all")
-        assert "tablib" not in p.pipfile["packages"]
-        assert "tablib" not in p.lockfile["default"]
+        assert c.returncode == 0
+        assert "tablib" in c.stdout
+        # Uninstall --all is not supposed to remove things from the pipfile
+        # Note that it didn't before, but that instead local filenames showed as hashes
+        assert "tablib" in p.pipfile["packages"]
 
 
 @pytest.mark.install
@@ -302,6 +310,7 @@ atomicwrites = {version = "*"}
             "zipp",
         ]
 
+
 @pytest.mark.install
 @pytest.mark.uninstall
 def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
@@ -327,3 +336,23 @@ atomicwrites = "*"
             "colorama",
             "atomicwrites",
         ]
+
+
+@pytest.mark.uninstall
+def test_uninstall_without_venv(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+colorama = "*"
+atomicwrites = "*"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall --all")
+        assert c.returncode == 0
+        # uninstall --all shold not remove packages from Pipfile
+        assert list(p.pipfile["packages"].keys()) == ["colorama", "atomicwrites"]

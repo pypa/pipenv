@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 import warnings
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -24,19 +24,11 @@ from pipenv.patched.pip._internal.req.constructors import (
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
-from pipenv.patched.pip._vendor import rich
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
+from pipenv.utils import console, err
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
-from pipenv.vendor import click
-
-try:
-    # this is only in Python3.8 and later
-    from functools import cached_property
-except ImportError:
-    # eventually distlib will remove cached property when they drop Python3.7
-    from pipenv.patched.pip._vendor.distlib.util import cached_property
 
 from .dependencies import (
     HackedPythonVersion,
@@ -57,9 +49,6 @@ if sys.version_info < (3, 10):
     from pipenv.vendor import importlib_metadata
 else:
     import importlib.metadata as importlib_metadata
-
-console = rich.console.Console()
-err = rich.console.Console(stderr=True)
 
 
 def get_package_finder(
@@ -92,7 +81,6 @@ def get_package_finder(
 
 
 class HashCacheMixin:
-
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
     Hashes are only cached when the URL appears to contain a hash in it and the
@@ -539,11 +527,10 @@ class Resolver:
                             if result.req:
                                 result.req.marker = marker
                         except TypeError as e:
-                            click.echo(
+                            err.print(
                                 f"Error generating python marker for {candidate}.  "
                                 f"Is the specifier {requires_python} incorrectly quoted or otherwise wrong?"
                                 f"Full error: {e}",
-                                err=True,
                             )
             new_tree.add(result)
 
@@ -714,15 +701,14 @@ def actually_resolve_deps(
 
 def resolve(cmd, st, project):
     from pipenv.cmdparse import Script
-    from pipenv.vendor.click import echo
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
-    err = ""
+    errors = ""
     for line in iter(c.stderr.readline, ""):
         if not line.rstrip():
             continue
-        err += line
+        errors += line
         if is_verbose:
             st.console.print(line.rstrip())
 
@@ -731,13 +717,13 @@ def resolve(cmd, st, project):
     out = c.stdout.read()
     if returncode != 0:
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-        echo(out.strip(), err=True)
+        err.print(out.strip())
         if not is_verbose:
-            echo(err, err=True)
+            err.print(err)
         raise RuntimeError("Failed to lock Pipfile.lock!")
     if is_verbose:
-        echo(out.strip(), err=True)
-    return subprocess.CompletedProcess(c.args, returncode, out, err)
+        err.print(out.strip())
+    return subprocess.CompletedProcess(c.args, returncode, out, errors)
 
 
 def venv_resolve_deps(
@@ -876,8 +862,8 @@ def venv_resolve_deps(
                         with open(target_file.name) as fh:
                             results = json.load(fh)
                     except (IndexError, json.JSONDecodeError):
-                        click.echo(c.stdout.strip(), err=True)
-                        click.echo(c.stderr.strip(), err=True)
+                        err.print(c.stdout.strip())
+                        err.print(c.stderr.strip())
                         if os.path.exists(target_file.name):
                             os.unlink(target_file.name)
                         raise RuntimeError("There was a problem with locking.")
@@ -887,13 +873,15 @@ def venv_resolve_deps(
                         environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
                     )
                     if not project.s.is_verbose() and c.stderr.strip():
-                        click.echo(click.style(f"Warning: {c.stderr.strip()}"), err=True)
+                        err.print(
+                            f"Warning: {c.stderr.strip()}", overflow="ignore", crop=False
+                        )
                 else:
                     st.console.print(
                         environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
                     )
-                    click.echo(f"Output: {c.stdout.strip()}", err=True)
-                    click.echo(f"Error: {c.stderr.strip()}", err=True)
+                    err.print(f"Output: {c.stdout.strip()}")
+                    err.print(f"Error: {c.stderr.strip()}")
     if lockfile_section not in lockfile:
         lockfile[lockfile_section] = {}
     return prepare_lockfile(

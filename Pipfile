@@ -9,7 +9,6 @@ sphinx = "*"
 sphinx-click = "==4.*"
 sphinxcontrib-spelling = "==7.*"
 click = "==8.0.3"
-pypiserver = "==1.*"
 stdeb = {version="*", sys_platform = "== 'linux'"}
 zipp = {version = "==3.6.0", markers = "python_version < '3.10'"}
 pre-commit = "==2.*"
@@ -29,6 +28,7 @@ pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
+pypiserver = {ref = "pipenv-313", git = "https://github.com/matteius/pypiserver.git"}
 
 [packages]
 pytz = "*"

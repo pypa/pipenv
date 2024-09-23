@@ -90,9 +90,11 @@ def get_source_list(
 
     if pypi_mirror:
         sources = [
-            create_mirror_source(pypi_mirror, source["name"])
-            if is_pypi_url(source["url"])
-            else source
+            (
+                create_mirror_source(pypi_mirror, source["name"])
+                if is_pypi_url(source["url"])
+                else source
+            )
             for source in sources
         ]
     return sources

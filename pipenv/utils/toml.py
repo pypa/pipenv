@@ -1,8 +1,9 @@
 from typing import Union
 
 from pipenv.vendor.plette.models import Package, PackageCollection
-from pipenv.vendor.tomlkit.container import Container
+from pipenv.vendor.tomlkit.container import Container, OutOfOrderTableProxy
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
+from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 try:
     import tomllib as toml
@@ -33,26 +34,32 @@ def cleanup_toml(tml):
     return toml
 
 
-def convert_toml_outline_tables(parsed, project):
+def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
     """Converts all outline tables to inline tables."""
 
     def convert_tomlkit_table(section):
-        result = section.copy()
-        if isinstance(section, tomlkit.items.Table):
+        result: Table = tomlkit.table()
+        if isinstance(section, Table):
             body = section.value._body
-        elif isinstance(section, tomlkit.container.OutOfOrderTableProxy):
+        elif isinstance(section, OutOfOrderTableProxy):
             body = section._internal_container._body
         else:
-            body = section._body
+            assert not hasattr(section, "_body")
+            body = section
+
+        index: int = 0
         for key, value in body:
             if not key:
                 continue
-            if hasattr(value, "keys") and not isinstance(
-                value, tomlkit.items.InlineTable
-            ):
+            if hasattr(value, "keys") and not isinstance(value, InlineTable):
                 table = tomlkit.inline_table()
                 table.update(value.value)
-                result[key.key] = table
+                key.sep = " = "  # add separator because it did not exist before
+                result.append(key, table)
+            else:
+                result.append(key, value)
+            index += 1
+
         return result
 
     def convert_toml_table(section):
@@ -66,10 +73,10 @@ def convert_toml_outline_tables(parsed, project):
                 result[package] = table
         return result
 
-    is_tomlkit_parsed = isinstance(parsed, tomlkit.container.Container)
+    is_tomlkit_parsed = isinstance(parsed, Container)
     for section in project.get_package_categories():
         table_data = parsed.get(section, {})
-        if not table_data:
+        if table_data is None:
             continue
         if is_tomlkit_parsed:
             result = convert_tomlkit_table(table_data)

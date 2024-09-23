@@ -92,7 +92,7 @@ tablib = "*"
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_with_version_req_default_operator(pipenv_instance_private_pypi):
-    """Ensure that running `pipenv install` work when spec is package = "X.Y.Z". """
+    """Ensure that running `pipenv install` work when spec is package = "X.Y.Z"."""
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
@@ -163,7 +163,9 @@ dataclasses-json = "==0.5.7"
 @pytest.mark.install
 @pytest.mark.resolver
 @pytest.mark.backup_resolver
-@pytest.mark.skipif(sys.version_info >= (3, 12), reason="Package does not work with Python 3.12")
+@pytest.mark.skipif(
+    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
+)
 def test_backup_resolver(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
@@ -232,15 +234,10 @@ def test_bad_packages(pipenv_instance_private_pypi):
 @pytest.mark.install
 @pytest.mark.requirements
 def test_requirements_to_pipfile(pipenv_instance_private_pypi):
-
     with pipenv_instance_private_pypi(pipfile=False) as p:
-
         # Write a requirements file
         with open("requirements.txt", "w") as f:
-            f.write(
-                f"-i {p.index_url}\n"
-                "requests[socks]==2.19.1\n"
-            )
+            f.write(f"-i {p.index_url}\nrequests[socks]==2.19.1\n")
 
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -251,8 +248,8 @@ def test_requirements_to_pipfile(pipenv_instance_private_pypi):
         assert "requests" in p.pipfile["packages"]
         assert "extras" in p.pipfile["packages"]["requests"]
         assert not any(
-            source['url'] == 'https://private.pypi.org/simple'
-            for source in p.pipfile['source']
+            source["url"] == "https://private.pypi.org/simple"
+            for source in p.pipfile["source"]
         )
         # assert stuff in lockfile
         assert "requests" in p.lockfile["default"]
@@ -301,8 +298,7 @@ def test_clean_on_empty_venv(pipenv_instance_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_does_not_extrapolate_environ(pipenv_instance_private_pypi):
-    """Ensure environment variables are not expanded in lock file.
-    """
+    """Ensure environment variables are not expanded in lock file."""
     with temp_environ(), pipenv_instance_private_pypi() as p:
         os.environ["PYPI_URL"] = p.pypi
 
@@ -344,8 +340,7 @@ def test_editable_no_args(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.virtualenv
 def test_install_venv_project_directory(pipenv_instance_pypi):
-    """Test the project functionality during virtualenv creation.
-    """
+    """Test the project functionality during virtualenv creation."""
     with pipenv_instance_pypi() as p, temp_environ(), TemporaryDirectory(
         prefix="pipenv-", suffix="temp_workon_home"
     ) as workon_home:
@@ -392,7 +387,7 @@ def test_install_creates_pipfile(pipenv_instance_pypi):
         assert c.returncode == 0
         assert os.path.isfile(p.pipfile_path)
         python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
-        assert p.pipfile["requires"] == {'python_version': python_version}
+        assert p.pipfile["requires"] == {"python_version": python_version}
 
 
 @pytest.mark.basic
@@ -404,9 +399,10 @@ def test_create_pipfile_requires_python_full_version(pipenv_instance_private_pyp
         c = p.pipenv(f"--python {python_full_version}")
         assert c.returncode == 0
         assert p.pipfile["requires"] == {
-            'python_full_version': python_full_version,
-            'python_version': python_version
-            }
+            "python_full_version": python_full_version,
+            "python_version": python_version,
+        }
+
 
 @pytest.mark.basic
 @pytest.mark.install
@@ -415,8 +411,9 @@ def test_install_with_pipfile_including_exact_python_version(pipenv_instance_pyp
     valid_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
     with pipenv_instance_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
-            f.write(f"""
+        with open(p.pipfile_path, "w") as f:
+            f.write(
+                f"""
 [[source]]
 url = "https://test.pypi.org/simple"
 verify_ssl = true
@@ -427,7 +424,8 @@ pytz = "*"
 
 [requires]
 python_version = "{valid_version}"
-""")
+"""
+            )
 
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -436,6 +434,7 @@ python_version = "{valid_version}"
 
         c = p.pipenv("--rm")
         assert c.returncode == 0
+
 
 @pytest.mark.basic
 @pytest.mark.install
@@ -450,8 +449,9 @@ def test_install_with_pipfile_including_invalid_python_version(pipenv_instance_p
 
     with pipenv_instance_pypi() as p:
         for version in invalid_versions:
-            with open(p.pipfile_path, 'w') as f:
-                f.write(f"""
+            with open(p.pipfile_path, "w") as f:
+                f.write(
+                    f"""
 [[source]]
 url = "https://test.pypi.org/simple"
 verify_ssl = true
@@ -462,7 +462,8 @@ pytz = "*"
 
 [requires]
 python_version = "{version}"
-""")
+"""
+                )
             c = p.pipenv("install")
             assert c.returncode != 0
 
@@ -489,7 +490,7 @@ def test_install_package_with_dots(pipenv_instance_private_pypi):
 @pytest.mark.install
 def test_rewrite_outline_table(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
 url = "{}"
@@ -502,7 +503,9 @@ six = {}
 [packages.requests]
 version = "*"
 extras = ["socks"]
-            """.format(p.index_url, "{version = \"*\"}").strip()
+            """.format(
+                p.index_url, '{version = "*"}'
+            ).strip()
             f.write(contents)
         c = p.pipenv("install colorama")
         assert c.returncode == 0
@@ -518,7 +521,7 @@ extras = ["socks"]
 @pytest.mark.install
 def test_rewrite_outline_table_ooo(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        with open(p.pipfile_path, 'w') as f:
+        with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
 url = "{}"
@@ -535,7 +538,9 @@ allow_prereleases = false
 [packages.requests]
 version = "*"
 extras = ["socks"]
-            """.format(p.index_url, "{version = \"*\"}").strip()
+            """.format(
+                p.index_url, '{version = "*"}'
+            ).strip()
             f.write(contents)
         c = p.pipenv("install colorama")
         assert c.returncode == 0
@@ -553,7 +558,6 @@ def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
     # See https://github.com/pypa/pipenv/issues/4371
     # See https://github.com/pypa/pipenv/issues/2987
     with pipenv_instance_private_pypi() as p:
-
         c = p.pipenv("install requests==2.14.0")
         assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
@@ -578,21 +582,27 @@ def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
-    """Ensure that running `pipenv install` doesn't exclude packaging when its required. """
+    """Ensure that running `pipenv install` doesn't exclude packaging when its required."""
     with pipenv_instance_pypi() as p:
         c = p.pipenv("install dataclasses-json")
         assert c.returncode == 0
-        c = p.pipenv("""run python -c "from dataclasses_json import DataClassJsonMixin" """)
+        c = p.pipenv(
+            """run python -c "from dataclasses_json import DataClassJsonMixin" """
+        )
         assert c.returncode == 0
 
 
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skip(reason="pip 23.3 now vendors in truststore and so test assumptions invalid ")
+@pytest.mark.skip(
+    reason="pip 23.3 now vendors in truststore and so test assumptions invalid "
+)
 def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("""install -v dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """)
+        c = p.pipenv(
+            """install -v dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """
+        )
         assert c.returncode == 1
         assert "truststore feature" in c.stdout
 
@@ -601,7 +611,7 @@ def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_tarball_is_actually_installed(pipenv_instance_pypi):
-    """ Test case for Issue 5326"""
+    """Test case for Issue 5326"""
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
@@ -688,4 +698,31 @@ colorama = "*"
             "atomicwrites",
             "colorama",
             "build",
+        ]
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_category_sorted_with_directive_when_insalling_with_extras(
+    pipenv_instance_private_pypi,
+):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w+") as f:
+            contents = """
+[pipenv]
+sort_pipfile = true
+
+[packages]
+atomicwrites = "*"
+six = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install requests[socks]")
+        assert c.returncode == 0
+        assert "requests" in p.pipfile["packages"]
+        assert "extras" in p.pipfile["packages"]["requests"]
+        assert list(p.pipfile["packages"].keys()) == [
+            "atomicwrites",
+            "requests",
+            "six",
         ]
