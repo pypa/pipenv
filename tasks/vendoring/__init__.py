@@ -60,7 +60,6 @@ LIBRARY_RENAMES = {
     "requests": "pipenv.patched.pip._vendor.requests",
     # "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
-    "pyparsing": "pipenv.patched.pip._vendor.pyparsing",
     "ruamel.yaml": "pipenv.vendor.ruamel.yaml",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
@@ -77,11 +76,7 @@ GLOBAL_REPLACEMENT = [
         r"(?<!\.)import pep517\.wrappers",
         r"from pipenv.vendor.pep517 import wrappers",
     ),
-    (
-        r"from cached_property import cached_property",
-        r"from pipenv.patched.pip._vendor.pyparsing.core import cached_property",
-    ),
-    (r"from pyparsing import", r"from pipenv.patched.pip._vendor.pyparsing import"),
+    (r"from pyparsing import", r"from pipenv.vendor.pyparsing import"),
     (r"(?<!\.)pep517\.envbuild", r"envbuild"),
     (r"(?<!\.)pep517\.wrappers", r"wrappers"),
     (r" ruamel\.yaml", r" ruamel"),
