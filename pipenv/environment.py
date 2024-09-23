@@ -99,8 +99,8 @@ class Environment:
 
     @cached_property
     def python_version(self) -> str | None:
-        with self.activated() as e:
-            if e.ok:
+        with self.activated() as active:
+            if active:
                 sysconfig = self.safe_import("sysconfig")
                 py_version = sysconfig.get_python_version()
                 return py_version
