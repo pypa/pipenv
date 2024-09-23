@@ -5,6 +5,7 @@ from pipenv import exceptions
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.project import Project
 from pipenv.routines.lock import do_lock
+from pipenv.utils import console 
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
@@ -21,11 +22,11 @@ from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 
 def _uninstall_from_environment(project: Project, package, system=False):
     # Execute the uninstall command for the package
-    with project.environment.activated() as e:
-        if not e.ok:
+    with project.environment.activated() as is_active:
+        if not is_active:
             return False
 
-        click.secho(f"Uninstalling {package}...", fg="green", bold=True)
+        console.print(f"Uninstalling {package}...", style="bold green")
         cmd = [
             project_python(project, system=system),
             get_runnable_pip(),
