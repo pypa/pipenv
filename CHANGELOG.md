@@ -1,3 +1,17 @@
+2024.0.3 (2024-09-22)
+=====================
+Pipenv 2024.0.3 (2024-09-22)
+============================
+
+
+Bug Fixes
+---------
+
+- Disable ``ResourceWarning`` warning for temporary files that are cleaned on program exit.  `#6151 <https://github.com/pypa/pipenv/issues/6151>`_
+- Fixed package sorting when installing a package with extras.  `#6171 <https://github.com/pypa/pipenv/issues/6171>`_
+- Fixed ``pipenv uninstall --all`` failing when the virtual environment no longer exists.  `#6185 <https://github.com/pypa/pipenv/issues/6185>`_
+- Fix issue where installing a vcs dependency using pipenv CLI yielded the wrong Pipfile entry such that it could not lock.  `#6242 <https://github.com/pypa/pipenv/issues/6242>`_
+- Fix report that pipenv requires ``packaging>=22`` on some systems by setting it as a dependency.  `#6243 <https://github.com/pypa/pipenv/issues/6243>`_
 2024.0.2 (2024-09-13)
 =====================
 Pipenv 2024.0.2 (2024-09-13)

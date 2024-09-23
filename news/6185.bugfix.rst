@@ -1,1 +1,0 @@
-Fixed ``pipenv uninstall --all`` failing when the virtual environment no longer exists.

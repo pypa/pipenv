@@ -1,1 +1,0 @@
-Fix report that pipenv requires ``packaging>=22`` on some systems by setting it as a dependency.
