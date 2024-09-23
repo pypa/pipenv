@@ -36,28 +36,42 @@ index b3e293ea3..f27a88725 100644
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index fe61e8116..98a2cc97f 100644
+index ee7bc8622..d4b7b1c5b 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -3,7 +3,7 @@ import logging
+@@ -3,8 +3,8 @@ import logging
  import os
  import posixpath
  import urllib.parse
+-from dataclasses import dataclass
 -from typing import List
++from dataclasses import dataclass, field
 +from typing import Dict, List, Optional
 
  from pip._vendor.packaging.utils import canonicalize_name
 
-@@ -20,7 +20,7 @@ class SearchScope:
+@@ -15,17 +15,16 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
+ logger = logging.getLogger(__name__)
+
+
+-@dataclass(frozen=True)
++@dataclass
+ class SearchScope:
+     """
      Encapsulates the locations that pip is configured to search.
      """
-
+-
 -    __slots__ = ["find_links", "index_urls", "no_index"]
-+    __slots__ = ["find_links", "index_urls", "no_index", "index_lookup", "index_restricted"]
+-
+     find_links: List[str]
+     index_urls: List[str]
+     no_index: bool
++    index_lookup: Dict[str, str] = field(default_factory=dict)
++    index_restricted: bool = False
 
      @classmethod
      def create(
-@@ -28,6 +28,8 @@ class SearchScope:
+@@ -33,6 +32,8 @@ class SearchScope:
          find_links: List[str],
          index_urls: List[str],
          no_index: bool,
@@ -66,31 +80,16 @@ index fe61e8116..98a2cc97f 100644
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -62,6 +64,8 @@ class SearchScope:
+@@ -67,6 +68,8 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
-+            index_lookup=index_lookup,
++            index_lookup=index_lookup or {},
 +            index_restricted=index_restricted,
          )
 
-     def __init__(
-@@ -69,10 +73,14 @@ class SearchScope:
-         find_links: List[str],
-         index_urls: List[str],
-         no_index: bool,
-+        index_lookup: Optional[Dict[str, List[str]]] = None,
-+        index_restricted: bool = False,
-     ) -> None:
-         self.find_links = find_links
-         self.index_urls = index_urls
-         self.no_index = no_index
-+        self.index_lookup = index_lookup if index_lookup else {}
-+        self.index_restricted = index_restricted
-
      def get_formatted_locations(self) -> str:
-         lines = []
-@@ -129,4 +137,9 @@ class SearchScope:
+@@ -124,4 +127,9 @@ class SearchScope:
                  loc = loc + "/"
              return loc
 
@@ -98,6 +97,3 @@ index fe61e8116..98a2cc97f 100644
 +        index_urls = self.index_urls
 +        if project_name in self.index_lookup:
 +            index_urls = [self.index_lookup[project_name]]
-+        elif self.index_restricted and self.index_urls:
-+            index_urls = [self.index_urls[0]]
-+        return [mkurl_pypi_url(url) for url in index_urls]
