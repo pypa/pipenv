@@ -336,3 +336,23 @@ atomicwrites = "*"
             "colorama",
             "atomicwrites",
         ]
+
+
+@pytest.mark.uninstall
+def test_uninstall_without_venv(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+colorama = "*"
+atomicwrites = "*"
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        c = p.pipenv("uninstall --all")
+        assert c.returncode == 0
+        # uninstall --all shold not remove packages from Pipfile
+        assert list(p.pipfile["packages"].keys()) == ["colorama", "atomicwrites"]
