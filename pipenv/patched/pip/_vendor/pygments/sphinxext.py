@@ -147,6 +147,10 @@ class PygmentsDoc(Directive):
 
     def document_lexers(self):
         from pipenv.patched.pip._vendor.pygments.lexers._mapping import LEXERS
+        from pipenv.patched.pip._vendor import pygments
+        import inspect
+        import pathlib
+
         out = []
         modules = {}
         moduledocstrings = {}
@@ -160,6 +164,24 @@ class PygmentsDoc(Directive):
             docstring = cls.__doc__
             if isinstance(docstring, bytes):
                 docstring = docstring.decode('utf8')
+
+            example_file = getattr(cls, '_example', None)
+            if example_file:
+                p = pathlib.Path(inspect.getabsfile(pygments)).parent.parent /\
+                    'tests' / 'examplefiles' / example_file
+                content = p.read_text(encoding='utf-8')
+                if not content:
+                    raise Exception(
+                        f"Empty example file '{example_file}' for lexer "
+                        f"{classname}")
+
+                if data[2]:
+                    lexer_name = data[2][0]
+                    docstring += '\n\n    .. admonition:: Example\n'
+                    docstring += f'\n      .. code-block:: {lexer_name}\n\n'
+                    for line in content.splitlines():
+                        docstring += f'          {line}\n'
+
             modules.setdefault(module, []).append((
                 classname,
                 ', '.join(data[2]) or 'None',

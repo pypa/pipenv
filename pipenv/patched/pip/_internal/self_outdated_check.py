@@ -9,6 +9,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional
 
+from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.rich.console import Group
 from pipenv.patched.pip._vendor.rich.markup import escape
@@ -17,7 +18,6 @@ from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.patched.pip._internal.index.collector import LinkCollector
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import get_default_environment
-from pipenv.patched.pip._internal.metadata.base import DistributionVersion
 from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
@@ -191,7 +191,7 @@ def _self_version_check_logic(
     *,
     state: SelfCheckState,
     current_time: datetime.datetime,
-    local_version: DistributionVersion,
+    local_version: Version,
     get_remote_version: Callable[[], Optional[str]],
 ) -> Optional[UpgradePrompt]:
     remote_version_str = state.get(current_time)

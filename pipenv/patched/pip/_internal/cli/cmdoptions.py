@@ -226,9 +226,9 @@ progress_bar: Callable[..., Option] = partial(
     "--progress-bar",
     dest="progress_bar",
     type="choice",
-    choices=["on", "off"],
+    choices=["on", "off", "raw"],
     default="on",
-    help="Specify whether the progress bar should be used [on, off] (default: on)",
+    help="Specify whether the progress bar should be used [on, off, raw] (default: on)",
 )
 
 log: Callable[..., Option] = partial(
@@ -903,7 +903,7 @@ root_user_action: Callable[..., Option] = partial(
     dest="root_user_action",
     default="warn",
     choices=["warn", "ignore"],
-    help="Action if pip is run as a root user. By default, a warning message is shown.",
+    help="Action if pip is run as a root user [warn, ignore] (default: warn)",
 )
 
 

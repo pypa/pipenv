@@ -150,7 +150,7 @@ class _DistributionFinder:
 def _emit_egg_deprecation(location: Optional[str]) -> None:
     deprecated(
         reason=f"Loading egg at {location} is deprecated.",
-        replacement="to use pip for package installation.",
+        replacement="to use pip for package installation",
         gone_in="24.3",
         issue=12330,
     )

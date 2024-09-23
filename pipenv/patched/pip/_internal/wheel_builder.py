@@ -70,7 +70,7 @@ def _should_build(
 
     if req.editable:
         # we only build PEP 660 editable requirements
-        return req.supports_pyproject_editable()
+        return req.supports_pyproject_editable
 
     return True
 

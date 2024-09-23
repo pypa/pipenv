@@ -12,8 +12,8 @@ from typing import List
 import pipenv.vendor.click as click
 from pipenv.vendor.click import BadParameter
 from pipenv.vendor.dparse import parse, filetypes
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.vendor.packaging.utils import canonicalize_name
+from pipenv.vendor.packaging.version import parse as parse_version
 from pipenv.vendor.ruamel.yaml import YAML
 from pipenv.vendor.ruamel.yaml.error import MarkedYAMLError
 

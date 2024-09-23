@@ -501,7 +501,7 @@ def retry(func: WrappedFn) -> WrappedFn:
 
 @t.overload
 def retry(
-    sleep: t.Callable[[t.Union[int, float]], None] = sleep,
+    sleep: t.Callable[[t.Union[int, float]], t.Optional[t.Awaitable[None]]] = sleep,
     stop: "StopBaseT" = stop_never,
     wait: "WaitBaseT" = wait_none(),
     retry: "RetryBaseT" = retry_if_exception_type(),

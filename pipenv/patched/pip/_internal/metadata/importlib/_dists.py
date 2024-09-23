@@ -16,13 +16,13 @@ from typing import (
 
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
 from pipenv.patched.pip._internal.exceptions import InvalidWheel, UnsupportedWheel
 from pipenv.patched.pip._internal.metadata.base import (
     BaseDistribution,
     BaseEntryPoint,
-    DistributionVersion,
     InfoPath,
     Wheel,
 )
@@ -133,8 +133,6 @@ class Distribution(BaseDistribution):
                 dist = WheelDistribution.from_zipfile(zf, name, wheel.location)
         except zipfile.BadZipFile as e:
             raise InvalidWheel(wheel.location, name) from e
-        except UnsupportedWheel as e:
-            raise UnsupportedWheel(f"{name} has an invalid wheel, {e}")
         return cls(dist, dist.info_location, pathlib.PurePosixPath(wheel.location))
 
     @property
@@ -173,8 +171,12 @@ class Distribution(BaseDistribution):
         return canonicalize_name(name)
 
     @property
-    def version(self) -> DistributionVersion:
+    def version(self) -> Version:
         return parse_version(self._dist.version)
+
+    @property
+    def raw_version(self) -> str:
+        return self._dist.version
 
     def is_file(self, path: InfoPath) -> bool:
         return self._dist.read_text(str(path)) is not None
@@ -206,19 +208,18 @@ class Distribution(BaseDistribution):
         # until upstream can improve the protocol. (python/cpython#94952)
         return cast(email.message.Message, self._dist.metadata)
 
-    def iter_provided_extras(self) -> Iterable[str]:
-        return self.metadata.get_all("Provides-Extra", [])
-
-    def is_extra_provided(self, extra: str) -> bool:
-        return any(
-            canonicalize_name(provided_extra) == canonicalize_name(extra)
-            for provided_extra in self.metadata.get_all("Provides-Extra", [])
-        )
+    def iter_provided_extras(self) -> Iterable[NormalizedName]:
+        return [
+            canonicalize_name(extra)
+            for extra in self.metadata.get_all("Provides-Extra", [])
+        ]
 
     def iter_dependencies(self, extras: Collection[str] = ()) -> Iterable[Requirement]:
         contexts: Sequence[Dict[str, str]] = [{"extra": e} for e in extras]
         for req_string in self.metadata.get_all("Requires-Dist", []):
-            req = Requirement(req_string)
+            # strip() because email.message.Message.get_all() may return a leading \n
+            # in case a long header was wrapped.
+            req = Requirement(req_string.strip())
             if not req.marker:
                 yield req
             elif not extras and req.marker.evaluate({"extra": ""}):

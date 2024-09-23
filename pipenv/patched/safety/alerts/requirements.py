@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
-from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.vendor.packaging.version import parse as parse_version
+from pipenv.vendor.packaging.specifiers import SpecifierSet
 import pipenv.patched.pip._vendor.requests as requests
 
 from datetime import datetime

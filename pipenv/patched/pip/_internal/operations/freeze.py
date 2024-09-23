@@ -4,7 +4,7 @@ import os
 from typing import Container, Dict, Generator, Iterable, List, NamedTuple, Optional, Set
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion
 
 from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
@@ -145,10 +145,13 @@ def freeze(
 
 
 def _format_as_name_version(dist: BaseDistribution) -> str:
-    dist_version = dist.version
-    if isinstance(dist_version, Version):
+    try:
+        dist_version = dist.version
+    except InvalidVersion:
+        # legacy version
+        return f"{dist.raw_name}==={dist.raw_version}"
+    else:
         return f"{dist.raw_name}=={dist_version}"
-    return f"{dist.raw_name}==={dist_version}"
 
 
 def _get_editable_info(dist: BaseDistribution) -> _EditableInfo:
