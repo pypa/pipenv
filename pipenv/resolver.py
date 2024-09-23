@@ -170,21 +170,46 @@ class Entry:
 
     @classmethod
     def get_markers_from_dict(cls, entry_dict):
-        from pipenv.patched.pip._vendor.packaging import markers as packaging_markers
+        from pipenv.patched.pip._vendor.packaging._parser import (
+            parse_marker as packaging_parse_marker,
+        )
         from pipenv.utils.markers import normalize_marker_str
 
-        marker_keys = cls.parse_pyparsing_exprs(packaging_markers.VARIABLE)
         markers = set()
+
+        # If no markers are present, skip marker parsing
+        if not any(
+            k in entry_dict
+            for k in ["sys_platform", "python_version", "os_name", "platform_machine"]
+        ):
+            return None, entry_dict
+
+        # Otherwise, proceed to parse markers from entry_dict
+        marker_expression = packaging_parse_marker(entry_dict.get("markers", ""))
+
+        # Parse the marker expressions using the new packaging marker parser
+        marker_keys = cls.parse_pyparsing_exprs(marker_expression)
+
+        # Identify relevant marker keys present in entry_dict
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
+
+        # Normalize and add the markers from entry_dict
         markers = {normalize_marker_str(f"{k} {entry_dict.pop(k)}") for k in keys_in_dict}
+
+        # Handle "markers" field if it exists in the dictionary
         if "markers" in entry_dict:
             markers.add(normalize_marker_str(entry_dict["markers"]))
+
+        # Remove None from the set if present
         if None in markers:
             markers.remove(None)
+
+        # If there are any markers left, join them with "and"
         if markers:
             entry_dict["markers"] = " and ".join(list(markers))
         else:
             markers = None
+
         return markers, entry_dict
 
     @property
