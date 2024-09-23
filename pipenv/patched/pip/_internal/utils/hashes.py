@@ -33,7 +33,7 @@ class Hashes:
         if hashes is not None:
             for alg, keys in hashes.items():
                 # Make sure values are always sorted (to ease equality checks)
-                allowed[alg] = sorted(keys)
+                allowed[alg] = [k.lower() for k in sorted(keys)]
         self._allowed = allowed
 
     def __and__(self, other: "Hashes") -> "Hashes":

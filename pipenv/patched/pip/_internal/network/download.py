@@ -7,7 +7,7 @@ import mimetypes
 import os
 from typing import Iterable, Optional, Tuple
 
-from pipenv.patched.pip._vendor.requests.models import CONTENT_CHUNK_SIZE, Response
+from pipenv.patched.pip._vendor.requests.models import Response
 
 from pipenv.patched.pip._internal.cli.progress_bars import get_download_progress_renderer
 from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
@@ -56,12 +56,12 @@ def _prepare_download(
         show_progress = False
     elif not total_length:
         show_progress = True
-    elif total_length > (40 * 1000):
+    elif total_length > (512 * 1024):
         show_progress = True
     else:
         show_progress = False
 
-    chunks = response_chunks(resp, CONTENT_CHUNK_SIZE)
+    chunks = response_chunks(resp)
 
     if not show_progress:
         return chunks

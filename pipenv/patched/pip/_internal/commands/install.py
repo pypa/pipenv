@@ -7,6 +7,7 @@ import site
 from optparse import SUPPRESS_HELP, Values
 from typing import List, Optional
 
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.rich import print_json
 
 from pipenv.patched.pip._internal.cache import WheelCache
@@ -370,6 +371,7 @@ class InstallCommand(RequirementCommand):
                 force_reinstall=options.force_reinstall,
                 upgrade_strategy=upgrade_strategy,
                 use_pep517=options.use_pep517,
+                py_version_info=options.python_version,
             )
 
             self.trace_basic_info(finder)
@@ -472,17 +474,21 @@ class InstallCommand(RequirementCommand):
             )
             env = get_environment(lib_locations)
 
+            # Display a summary of installed packages, with extra care to
+            # display a package name as it was requested by the user.
             installed.sort(key=operator.attrgetter("name"))
-            items = []
-            for result in installed:
-                item = result.name
-                try:
-                    installed_dist = env.get_distribution(item)
-                    if installed_dist is not None:
-                        item = f"{item}-{installed_dist.version}"
-                except Exception:
-                    pass
-                items.append(item)
+            summary = []
+            installed_versions = {}
+            for distribution in env.iter_all_distributions():
+                installed_versions[distribution.canonical_name] = distribution.version
+            for package in installed:
+                display_name = package.name
+                version = installed_versions.get(canonicalize_name(display_name), None)
+                if version:
+                    text = f"{display_name}-{version}"
+                else:
+                    text = display_name
+                summary.append(text)
 
             if conflicts is not None:
                 self._warn_about_conflicts(
@@ -490,7 +496,7 @@ class InstallCommand(RequirementCommand):
                     resolver_variant=self.determine_resolver_variant(options),
                 )
 
-            installed_desc = " ".join(items)
+            installed_desc = " ".join(summary)
             if installed_desc:
                 write_output(
                     "Successfully installed %s",

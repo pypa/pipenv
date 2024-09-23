@@ -456,24 +456,23 @@ class CandidateEvaluator:
         # Using None infers from the specifier instead.
         allow_prereleases = self._allow_all_prereleases or None
         specifier = self._specifier
-        versions = {
-            str(v)
-            for v in specifier.filter(
-                # We turn the version object into a str here because otherwise
-                # when we're debundled but setuptools isn't, Python will see
-                # packaging.version.Version and
-                # pkg_resources._vendor.packaging.version.Version as different
-                # types. This way we'll use a str as a common data interchange
-                # format. If we stop using the pkg_resources provided specifier
-                # and start using our own, we can drop the cast to str().
-                (str(c.version) for c in candidates),
+
+        # We turn the version object into a str here because otherwise
+        # when we're debundled but setuptools isn't, Python will see
+        # packaging.version.Version and
+        # pkg_resources._vendor.packaging.version.Version as different
+        # types. This way we'll use a str as a common data interchange
+        # format. If we stop using the pkg_resources provided specifier
+        # and start using our own, we can drop the cast to str().
+        candidates_and_versions = [(c, str(c.version)) for c in candidates]
+        versions = set(
+            specifier.filter(
+                (v for _, v in candidates_and_versions),
                 prereleases=allow_prereleases,
             )
-        }
+        )
 
-        # Again, converting version to str to deal with debundling.
-        applicable_candidates = [c for c in candidates if str(c.version) in versions]
-
+        applicable_candidates = [c for c, v in candidates_and_versions if v in versions]
         filtered_applicable_candidates = filter_unallowed_hashes(
             candidates=applicable_candidates,
             hashes=self._hashes,

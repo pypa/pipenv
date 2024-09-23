@@ -4,7 +4,7 @@
 
     Basic style object.
 
-    :copyright: Copyright 2006-2023 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2024 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -76,7 +76,7 @@ class StyleMeta(type):
                 return ''
             elif text.startswith('var') or text.startswith('calc'):
                 return text
-            assert False, "wrong color format %r" % text
+            assert False, f"wrong color format {text!r}"
 
         _styles = obj._styles = {}
 

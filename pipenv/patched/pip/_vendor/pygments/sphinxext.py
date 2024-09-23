@@ -5,7 +5,7 @@
     Sphinx extension to generate automatic documentation of lexers,
     formatters and filters.
 
-    :copyright: Copyright 2006-2023 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2024 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -30,6 +30,8 @@ LEXERDOC = '''
     :Short names: %s
     :Filenames:   %s
     :MIME types:  %s
+
+    %s
 
     %s
 
@@ -119,11 +121,11 @@ class PygmentsDoc(Directive):
         def write_row(*columns):
             """Format a table row"""
             out = []
-            for l, c in zip(column_lengths, columns):
-                if c:
-                    out.append(c.ljust(l))
+            for length, col in zip(column_lengths, columns):
+                if col:
+                    out.append(col.ljust(length))
                 else:
-                    out.append(' '*l)
+                    out.append(' '*length)
 
             return ' '.join(out)
 
@@ -160,7 +162,7 @@ class PygmentsDoc(Directive):
             self.filenames.add(mod.__file__)
             cls = getattr(mod, classname)
             if not cls.__doc__:
-                print("Warning: %s does not have a docstring." % classname)
+                print(f"Warning: {classname} does not have a docstring.")
             docstring = cls.__doc__
             if isinstance(docstring, bytes):
                 docstring = docstring.decode('utf8')
@@ -182,12 +184,18 @@ class PygmentsDoc(Directive):
                     for line in content.splitlines():
                         docstring += f'          {line}\n'
 
+            if cls.version_added:
+                version_line = f'.. versionadded:: {cls.version_added}'
+            else:
+                version_line = ''
+
             modules.setdefault(module, []).append((
                 classname,
                 ', '.join(data[2]) or 'None',
                 ', '.join(data[3]).replace('*', '\\*').replace('_', '\\') or 'None',
                 ', '.join(data[4]) or 'None',
-                docstring))
+                docstring,
+                version_line))
             if module not in moduledocstrings:
                 moddoc = mod.__doc__
                 if isinstance(moddoc, bytes):
@@ -196,7 +204,7 @@ class PygmentsDoc(Directive):
 
         for module, lexers in sorted(modules.items(), key=lambda x: x[0]):
             if moduledocstrings[module] is None:
-                raise Exception("Missing docstring for %s" % (module,))
+                raise Exception(f"Missing docstring for {module}")
             heading = moduledocstrings[module].splitlines()[4].strip().rstrip('.')
             out.append(MODULEDOC % (module, heading, '-'*len(heading)))
             for data in lexers:

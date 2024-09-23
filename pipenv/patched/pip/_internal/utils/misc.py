@@ -1,7 +1,6 @@
 import errno
 import getpass
 import hashlib
-import io
 import logging
 import os
 import posixpath
@@ -36,12 +35,12 @@ from typing import (
 
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller
-from pipenv.patched.pip._vendor.tenacity import retry, stop_after_delay, wait_fixed
 
 from pipenv.patched.pip import __version__
 from pipenv.patched.pip._internal.exceptions import CommandError, ExternallyManagedEnvironment
 from pipenv.patched.pip._internal.locations import get_major_minor_version
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.retry import retry
 from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 __all__ = [
@@ -69,6 +68,8 @@ VersionInfo = Tuple[int, int, int]
 NetlocTuple = Tuple[str, Tuple[Optional[str], Optional[str]]]
 OnExc = Callable[[FunctionType, Path, BaseException], Any]
 OnErr = Callable[[FunctionType, Path, ExcInfo], Any]
+
+FILE_CHUNK_SIZE = 1024 * 1024
 
 
 def get_pip_version() -> str:
@@ -120,12 +121,9 @@ def get_prog() -> str:
 
 
 # Retry every half second for up to 3 seconds
-# Tenacity raises RetryError by default, explicitly raise the original exception
-@retry(reraise=True, stop=stop_after_delay(3), wait=wait_fixed(0.5))
+@retry(stop_after_delay=3, wait=0.5)
 def rmtree(
-    dir: str,
-    ignore_errors: bool = False,
-    onexc: Optional[OnExc] = None,
+    dir: str, ignore_errors: bool = False, onexc: Optional[OnExc] = None
 ) -> None:
     if ignore_errors:
         onexc = _onerror_ignore
@@ -149,7 +147,7 @@ def _onerror_ignore(*_args: Any) -> None:
 
 
 def _onerror_reraise(*_args: Any) -> None:
-    raise
+    raise  # noqa: PLE0704 - Bare exception used to reraise existing exception
 
 
 def rmtree_errorhandler(
@@ -314,7 +312,7 @@ def is_installable_dir(path: str) -> bool:
 
 
 def read_chunks(
-    file: BinaryIO, size: int = io.DEFAULT_BUFFER_SIZE
+    file: BinaryIO, size: int = FILE_CHUNK_SIZE
 ) -> Generator[bytes, None, None]:
     """Yield pieces of data from a file-like object until EOF."""
     while True:
@@ -644,8 +642,7 @@ def pairwise(iterable: Iterable[Any]) -> Iterator[Tuple[Any, Any]]:
 
 
 def partition(
-    pred: Callable[[T], bool],
-    iterable: Iterable[T],
+    pred: Callable[[T], bool], iterable: Iterable[T]
 ) -> Tuple[Iterable[T], Iterable[T]]:
     """
     Use a predicate to partition entries into false entries and true entries,

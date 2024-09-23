@@ -271,6 +271,10 @@ class MultiDomainBasicAuth(AuthBase):
         try:
             return self.keyring_provider.get_auth_info(url, username)
         except Exception as exc:
+            # Log the full exception (with stacktrace) at debug, so it'll only
+            # show up when running in verbose mode.
+            logger.debug("Keyring is skipped due to an exception", exc_info=True)
+            # Always log a shortened version of the exception.
             logger.warning(
                 "Keyring is skipped due to an exception: %s",
                 str(exc),
