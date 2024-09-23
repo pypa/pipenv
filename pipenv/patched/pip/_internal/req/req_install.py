@@ -52,7 +52,6 @@ from pipenv.patched.pip._internal.utils.misc import (
     redact_auth_from_requirement,
     redact_auth_from_url,
 )
-from pipenv.patched.pip._internal.utils.packaging import safe_extra
 from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
@@ -222,8 +221,9 @@ class InstallRequirement:
         return s
 
     def __repr__(self) -> str:
-        return "<{} object: {} editable={!r}>".format(
-            self.__class__.__name__, str(self), self.editable
+        return (
+            f"<{self.__class__.__name__} object: "
+            f"{str(self)} editable={self.editable!r}>"
         )
 
     def format_debug(self) -> str:
@@ -244,7 +244,7 @@ class InstallRequirement:
             return None
         return self.req.name
 
-    @functools.lru_cache()  # use cached_property in python 3.8+
+    @functools.cached_property
     def supports_pyproject_editable(self) -> bool:
         if not self.use_pep517:
             return False
@@ -283,12 +283,7 @@ class InstallRequirement:
             extras_requested = ("",)
         if self.markers is not None:
             return any(
-                self.markers.evaluate({"extra": extra})
-                # TODO: Remove these two variants when packaging is upgraded to
-                # support the marker comparison logic specified in PEP 685.
-                or self.markers.evaluate({"extra": safe_extra(extra)})
-                or self.markers.evaluate({"extra": canonicalize_name(extra)})
-                for extra in extras_requested
+                self.markers.evaluate({"extra": extra}) for extra in extras_requested
             )
         else:
             return True
@@ -543,7 +538,7 @@ class InstallRequirement:
         if (
             self.editable
             and self.use_pep517
-            and not self.supports_pyproject_editable()
+            and not self.supports_pyproject_editable
             and not os.path.isfile(self.setup_py_path)
             and not os.path.isfile(self.setup_cfg_path)
         ):
@@ -569,7 +564,7 @@ class InstallRequirement:
             if (
                 self.editable
                 and self.permit_editable_wheels
-                and self.supports_pyproject_editable()
+                and self.supports_pyproject_editable
             ):
                 self.metadata_directory = generate_editable_metadata(
                     build_env=self.build_env,

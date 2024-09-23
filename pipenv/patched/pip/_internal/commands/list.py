@@ -4,21 +4,20 @@ from optparse import Values
 from typing import TYPE_CHECKING, Generator, List, Optional, Sequence, Tuple, cast
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import Version
 
 from pipenv.patched.pip._internal.cli import cmdoptions
-from pipenv.patched.pip._internal.cli.req_command import IndexGroupCommand
+from pipenv.patched.pip._internal.cli.index_command import IndexGroupCommand
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pip._internal.index.collector import LinkCollector
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
 from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
-from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
 from pipenv.patched.pip._internal.utils.misc import tabulate, write_output
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._internal.metadata.base import DistributionVersion
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.network.session import PipSession
 
     class _DistWithLatestInfo(BaseDistribution):
         """Give the distribution object a couple of extra fields.
@@ -27,7 +26,7 @@ if TYPE_CHECKING:
         makes the rest of the code much cleaner.
         """
 
-        latest_version: DistributionVersion
+        latest_version: Version
         latest_filetype: str
 
     _ProcessedDists = Sequence[_DistWithLatestInfo]
@@ -135,12 +134,20 @@ class ListCommand(IndexGroupCommand):
         self.parser.insert_option_group(0, index_opts)
         self.parser.insert_option_group(0, self.cmd_opts)
 
+    def handle_pip_version_check(self, options: Values) -> None:
+        if options.outdated or options.uptodate:
+            super().handle_pip_version_check(options)
+
     def _build_package_finder(
-        self, options: Values, session: PipSession
-    ) -> PackageFinder:
+        self, options: Values, session: "PipSession"
+    ) -> "PackageFinder":
         """
         Create a package finder appropriate to this list command.
         """
+        # Lazy import the heavy index modules as most list invocations won't need 'em.
+        from pipenv.patched.pip._internal.index.collector import LinkCollector
+        from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+
         link_collector = LinkCollector.create(session, options=options)
 
         # Pass allow_yanked=False to ignore yanked versions.
@@ -329,7 +336,7 @@ def format_for_columns(
     for proj in pkgs:
         # if we're working on the 'outdated' list, separate out the
         # latest_version and type
-        row = [proj.raw_name, str(proj.version)]
+        row = [proj.raw_name, proj.raw_version]
 
         if running_outdated:
             row.append(str(proj.latest_version))

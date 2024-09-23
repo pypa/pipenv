@@ -22,6 +22,7 @@ from pipenv.patched.pip._vendor.pygments.util import ClassNotFound, guess_decode
 COMPAT = {
     'Python3Lexer': 'PythonLexer',
     'Python3TracebackLexer': 'PythonTracebackLexer',
+    'LeanLexer': 'Lean3Lexer',
 }
 
 __all__ = ['get_lexer_by_name', 'get_lexer_for_filename', 'find_lexer_class',

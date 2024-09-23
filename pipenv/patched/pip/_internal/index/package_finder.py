@@ -5,12 +5,13 @@ import functools
 import itertools
 import logging
 import re
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, FrozenSet, Iterable, List, Optional, Set, Tuple, Union
 
 from pipenv.patched.pip._vendor.packaging import specifiers
 from pipenv.patched.pip._vendor.packaging.tags import Tag
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import _BaseVersion
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, _BaseVersion
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
 from pipenv.patched.pip._internal.exceptions import (
@@ -106,7 +107,6 @@ class LinkType(enum.Enum):
 
 
 class LinkEvaluator:
-
     """
     Responsible for evaluating links for a particular project.
     """
@@ -327,23 +327,15 @@ def filter_unallowed_hashes(
     return filtered
 
 
+@dataclass
 class CandidatePreferences:
-
     """
     Encapsulates some of the preferences for filtering and sorting
     InstallationCandidate objects.
     """
 
-    def __init__(
-        self,
-        prefer_binary: bool = False,
-        allow_all_prereleases: bool = False,
-    ) -> None:
-        """
-        :param allow_all_prereleases: Whether to allow all pre-releases.
-        """
-        self.allow_all_prereleases = allow_all_prereleases
-        self.prefer_binary = prefer_binary
+    prefer_binary: bool = False
+    allow_all_prereleases: bool = False
 
 
 class BestCandidateResult:
@@ -387,7 +379,6 @@ class BestCandidateResult:
 
 
 class CandidateEvaluator:
-
     """
     Responsible for filtering and sorting candidates for installation based
     on what tags are valid.
@@ -774,11 +765,14 @@ class PackageFinder:
             self._log_skipped_link(link, result, detail)
             return None
 
-        return InstallationCandidate(
-            name=link_evaluator.project_name,
-            link=link,
-            version=detail,
-        )
+        try:
+            return InstallationCandidate(
+                name=link_evaluator.project_name,
+                link=link,
+                version=detail,
+            )
+        except InvalidVersion:
+            return None
 
     def evaluate_links(
         self, link_evaluator: LinkEvaluator, links: Iterable[Link]

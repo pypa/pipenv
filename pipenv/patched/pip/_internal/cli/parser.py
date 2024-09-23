@@ -6,7 +6,7 @@ import shutil
 import sys
 import textwrap
 from contextlib import suppress
-from typing import Any, Dict, Generator, List, Tuple
+from typing import Any, Dict, Generator, List, Optional, Tuple
 
 from pipenv.patched.pip._internal.cli.status_codes import UNKNOWN_ERROR
 from pipenv.patched.pip._internal.configuration import Configuration, ConfigurationError
@@ -67,7 +67,7 @@ class PrettyHelpFormatter(optparse.IndentedHelpFormatter):
         msg = "\nUsage: {}\n".format(self.indent_lines(textwrap.dedent(usage), "  "))
         return msg
 
-    def format_description(self, description: str) -> str:
+    def format_description(self, description: Optional[str]) -> str:
         # leave full control over description to us
         if description:
             if hasattr(self.parser, "main"):
@@ -85,7 +85,7 @@ class PrettyHelpFormatter(optparse.IndentedHelpFormatter):
         else:
             return ""
 
-    def format_epilog(self, epilog: str) -> str:
+    def format_epilog(self, epilog: Optional[str]) -> str:
         # leave full control over epilog to us
         if epilog:
             return epilog

@@ -28,7 +28,6 @@ from pipenv.patched.pip._internal.exceptions import (
     InstallationError,
     NetworkConnectionError,
     PreviousBuildDirError,
-    UninstallationError,
 )
 from pipenv.patched.pip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.pip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
@@ -192,7 +191,6 @@ class Command(CommandContextMixIn):
                     return PREVIOUS_BUILD_DIR_ERROR
                 except (
                     InstallationError,
-                    UninstallationError,
                     BadCommand,
                     NetworkConnectionError,
                 ) as exc:

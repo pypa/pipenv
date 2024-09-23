@@ -19,6 +19,7 @@ from pipenv.patched.pip import __file__ as pip_location
 from pipenv.patched.pip._internal.cli.spinners import open_spinner
 from pipenv.patched.pip._internal.locations import get_platlib, get_purelib, get_scheme
 from pipenv.patched.pip._internal.metadata import get_default_environment, get_environment
+from pipenv.patched.pip._internal.utils.logging import VERBOSE
 from pipenv.patched.pip._internal.utils.subprocess import call_subprocess
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 
@@ -242,6 +243,8 @@ class BuildEnvironment:
             "--no-warn-script-location",
         ]
         if logger.getEffectiveLevel() <= logging.DEBUG:
+            args.append("-vv")
+        elif logger.getEffectiveLevel() <= VERBOSE:
             args.append("-v")
         for format_control in ("no_binary", "only_binary"):
             formats = getattr(finder.format_control, format_control)

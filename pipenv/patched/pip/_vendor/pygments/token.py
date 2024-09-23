@@ -209,5 +209,6 @@ STANDARD_TYPES = {
     Generic.Prompt:                'gp',
     Generic.Strong:                'gs',
     Generic.Subheading:            'gu',
+    Generic.EmphStrong:            'ges',
     Generic.Traceback:             'gt',
 }

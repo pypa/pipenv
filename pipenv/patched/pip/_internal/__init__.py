@@ -7,7 +7,7 @@ from pipenv.patched.pip._internal.utils import _log
 _log.init_logging()
 
 
-def main(args: (Optional[List[str]]) = None) -> int:
+def main(args: Optional[List[str]] = None) -> int:
     """This is preserved for old console scripts that may still be referencing
     it.
 

@@ -469,11 +469,11 @@ def main_inner(parser, argns):
         outfile = UnclosingTextIOWrapper(outfile, encoding=fmter.encoding)
         fmter.encoding = None
         try:
-            import pipenv.patched.pip._vendor.colorama.initialise as colorama_initialise
+            import colorama.initialise
         except ImportError:
             pass
         else:
-            outfile = colorama_initialise.wrap_stream(
+            outfile = colorama.initialise.wrap_stream(
                 outfile, convert=None, strip=None, autoreset=False, wrap=True)
 
     # When using the LaTeX formatter and the option `escapeinside` is

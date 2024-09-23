@@ -2,7 +2,6 @@ This package contains a modified version of ca-bundle.crt:
 
 ca-bundle.crt -- Bundle of CA Root Certificates
 
-Certificate data from Mozilla as of: Thu Nov  3 19:04:19 2011#
 This is a bundle of X.509 certificates of public Certificate Authorities
 (CA). These were automatically extracted from Mozilla's root certificates
 file (certdata.txt).  This file can be found in the mozilla source tree:

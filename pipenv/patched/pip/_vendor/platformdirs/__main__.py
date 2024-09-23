@@ -1,4 +1,5 @@
 """Main entry point."""
+
 from __future__ import annotations
 
 from pipenv.patched.pip._vendor.platformdirs import PlatformDirs, __version__
@@ -18,11 +19,12 @@ PROPS = (
     "site_data_dir",
     "site_config_dir",
     "site_cache_dir",
+    "site_runtime_dir",
 )
 
 
 def main() -> None:
-    """Run main entry point."""
+    """Run the main entry point."""
     app_name = "MyApp"
     app_author = "MyCompany"
 
