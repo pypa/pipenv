@@ -5,7 +5,7 @@ from pipenv import exceptions
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.project import Project
 from pipenv.routines.lock import do_lock
-from pipenv.utils import console 
+from pipenv.utils import console
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
