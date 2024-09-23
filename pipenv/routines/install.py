@@ -48,7 +48,7 @@ def do_install(
     requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
-    warnings.filterwarnings("default", category=ResourceWarning)
+    warnings.filterwarnings("ignore", category=ResourceWarning)
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
