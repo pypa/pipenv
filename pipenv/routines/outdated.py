@@ -52,9 +52,9 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         if norm_name in updated_packages:
             version = packages[package]
             if isinstance(version, Mapping):
-                version = parse_version(version.get("version"))
+                version = parse_version(version.get("version", "").replace("==", ""))
             else:
-                version = parse_version(version)
+                version = parse_version(version.replace("==", ""))
             if updated_packages[norm_name] != version:
                 outdated.append(
                     package_info(package, str(version), str(updated_packages[norm_name]))
