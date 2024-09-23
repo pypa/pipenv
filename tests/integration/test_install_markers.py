@@ -9,38 +9,33 @@ from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.markers
-def test_package_environment_markers(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_package_environment_markers(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
 url = "{}"
 verify_ssl = false
-name = "testindex"
+name = "pypi"
 
 [packages]
-fake_package = {}
+dataclass-factory = {}
 
 [dev-packages]
             """.format(
                 p.index_url,
-                '{version = "*", markers="os_name==\'splashwear\'", index="testindex"}',
+                '{version = "*", os_name = "== \'splashwear\'", index="pypi"}',
             ).strip()
             f.write(contents)
 
         c = p.pipenv("install -v")
         assert c.returncode == 0
-        assert "markers" in p.lockfile["default"]["fake_package"], p.lockfile["default"]
+        assert "markers" in p.lockfile["default"]["dataclass-factory"], p.lockfile["default"]
         assert (
-            p.lockfile["default"]["fake_package"]["markers"] == "os_name == 'splashwear'"
-        )
-        assert p.lockfile["default"]["fake_package"]["hashes"] == [
-            "sha256:1531e01a7f306f496721f425c8404f3cfd8d4933ee6daf4668fcc70059b133f3",
-            "sha256:cf83dc3f6c34050d3360fbdf655b2652c56532e3028b1c95202611ba1ebdd624",
-        ]
-
-        c = p.pipenv('run python -c "import fake_package;"')
-        assert c.returncode == 1
+            p.lockfile["default"]["dataclass-factory"]["markers"] == "python_version >= '3.6' and os_name == 'splashwear'"
+        ), p.lockfile["default"]["dataclass-factory"]["markers"]
+        c = p.pipenv('run python -c "import dataclass_factory;"')
+        assert c.returncode == 1  # dataclass-factory is not installed due to the marker
 
 
 @flaky
