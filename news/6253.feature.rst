@@ -1,0 +1,1 @@
+Upgrade from ``pip==24.0`` to ``pip==24.1.2``.
