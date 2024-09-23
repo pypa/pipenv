@@ -767,8 +767,6 @@ class Environment:
                 code = compile(f.read(), activate_this, "exec")
                 exec(code, {"__file__": activate_this})
 
-    EnvironmentActivationResult = namedtuple("EnvironmentActivationResult", ["ok"])
-
     @contextlib.contextmanager
     def activated(self):
         """Helper context manager to activate the environment.
