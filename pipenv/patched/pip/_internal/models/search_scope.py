@@ -15,19 +15,16 @@ from pipenv.patched.pip._internal.utils.misc import normalize_path, redact_auth_
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=False)
 class SearchScope:
     """
     Encapsulates the locations that pip is configured to search.
     """
-
-    __slots__ = ["find_links", "index_urls", "no_index", "index_lookup", "index_restricted"]
-
     find_links: List[str]
     index_urls: List[str]
     no_index: bool
-    index_lookup: Optional[Dict[str, str]]
-    index_restricted: Optional[bool]
+    index_lookup: Optional[Dict[str, str]] = None
+    index_restricted: Optional[bool] = None
 
     @classmethod
     def create(
