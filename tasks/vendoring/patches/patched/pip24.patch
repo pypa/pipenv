@@ -126,13 +126,13 @@ index 1f479713a..a97401be4 100644
 
      def isolated_editable_sanity_check(self) -> None:
 diff --git a/pipenv/patched/pip/_vendor/requests/packages.py b/pipenv/patched/pip/_vendor/requests/packages.py
-index 9582fa730..720410ab5 100644
+index 200c38287..c92ef2d0d 100644
 --- a/pipenv/patched/pip/_vendor/requests/packages.py
 +++ b/pipenv/patched/pip/_vendor/requests/packages.py
-@@ -4,13 +4,13 @@ import sys
+@@ -6,14 +6,14 @@ from .compat import chardet
  # I don't like it either. Just look the other way. :)
 
- for package in ('urllib3', 'idna', 'chardet'):
+ for package in ("urllib3", "idna"):
 -    vendored_package = "pip._vendor." + package
 +    vendored_package = "pipenv.patched.pip._vendor." + package
      locals()[package] = __import__(vendored_package)
@@ -145,4 +145,5 @@ index 9582fa730..720410ab5 100644
 +            unprefixed_mod = mod[len("pipenv.patched.pip._vendor."):]
 +            sys.modules['pipenv.patched.pip._vendor.requests.packages.' + unprefixed_mod] = sys.modules[mod]
 
- # Kinda cool, though, right?
+ if chardet is not None:
+     target = chardet.__name__
