@@ -41,7 +41,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         for package in lockfile.get(category, []):
             try:
                 updated_packages[package] = parse_version(
-                    lockfile[category][package]["version"]
+                    lockfile[category][package]["version"].replace("==", "")
                 )
             except KeyError:  # noqa: PERF203
                 pass
