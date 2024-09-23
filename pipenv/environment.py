@@ -7,7 +7,6 @@ import os
 import site
 import sys
 import typing
-from collections import namedtuple
 from functools import cached_property
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
@@ -797,7 +796,7 @@ class Environment:
             and not self.prefix.exists()
             or not hasattr(self, "prefix")
         ):
-            yield self.EnvironmentActivationResult(ok=False)
+            yield False
             return
 
         original_path = sys.path
@@ -825,7 +824,8 @@ class Environment:
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             try:
-                yield self.EnvironmentActivationResult(ok=True)
+                yield True
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
+
