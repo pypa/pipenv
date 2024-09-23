@@ -826,4 +826,3 @@ class Environment:
             finally:
                 sys.path = original_path
                 sys.prefix = original_prefix
-
