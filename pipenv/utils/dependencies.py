@@ -283,10 +283,7 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
                     [extra.strip() for extra in extras_section.split(",")]
                 )
 
-            # Extract the clean VCS URL
-            clean_vcs_url = extract_vcs_url(vcs_url)
-
-            lockfile[vcs_type] = clean_vcs_url
+            lockfile[vcs_type] = vcs_url
             lockfile["ref"] = dep.get("ref")
             if "subdirectory" in dep:
                 lockfile["subdirectory"] = dep["subdirectory"]
