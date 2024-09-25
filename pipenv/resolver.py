@@ -149,23 +149,15 @@ class Entry:
         return entry_dict
 
     @classmethod
-    def parse_pyparsing_exprs(cls, expr_iterable):
-        from pipenv.vendor.pyparsing import Literal, MatchFirst
-
+    def parse_expressions(cls, expr_iterable):
         keys = []
         expr_list = []
         expr = expr_iterable.copy()
-        if isinstance(expr, Literal) or (expr.__class__.__name__ == Literal.__name__):
-            keys.append(expr.match)
-        elif isinstance(expr, MatchFirst) or (
-            expr.__class__.__name__ == MatchFirst.__name__
-        ):
-            expr_list = expr.exprs
-        elif isinstance(expr, list):
+        if isinstance(expr, list):
             expr_list = expr
         if expr_list:
             for part in expr_list:
-                keys.extend(cls.parse_pyparsing_exprs(part))
+                keys.extend(cls.parse_expressions(part))
         return keys
 
     @classmethod
@@ -188,7 +180,7 @@ class Entry:
         marker_expression = packaging_parse_marker(entry_dict.get("markers", ""))
 
         # Parse the marker expressions using the new packaging marker parser
-        marker_keys = cls.parse_pyparsing_exprs(marker_expression)
+        marker_keys = cls.parse_expressions(marker_expression)
 
         # Identify relevant marker keys present in entry_dict
         keys_in_dict = [k for k in marker_keys if k in entry_dict]
