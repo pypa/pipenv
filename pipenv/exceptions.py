@@ -12,9 +12,13 @@ from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
 def unstyle(text: str) -> str:
     """Remove all styles from the given text."""
-    styled_text = Text.from_markup(text)
-    stripped_text = styled_text.strip_styles()
-    return stripped_text.to_plain_text()
+    try:
+        styled_text = Text.from_markup(text)
+        stripped_text = styled_text.strip_styles()
+        return stripped_text.plain
+    except AttributeError:
+        # Fallback if the expected methods are not available
+        return str(text)
 
 
 KnownException = namedtuple(
