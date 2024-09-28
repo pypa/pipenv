@@ -40,6 +40,6 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
             assert "${GIT_PASSWORD}" in lockfile_content['default']['dataclass-factory']['git']
 
         # Verify that the package is installed and usable
-        c = p.pipenv("run python -c 'import dataclass-factory; print(dataclass-factory.__version__)'")
+        c = p.pipenv("run python -c 'import dataclass_factory; print(dataclass_factory.__version__)'")
         assert c.returncode == 0, f"Version check failed with error: {c.stderr}"
         assert "2.16" in c.stdout
