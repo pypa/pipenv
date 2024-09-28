@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 
@@ -20,9 +22,9 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
         if use_credentials:
             os.environ['GIT_USERNAME'] = 'git'  # Use 'git' as a dummy username
             os.environ['GIT_PASSWORD'] = ''  # Empty password for public repos
-            url = f"git+https://${{GIT_USERNAME}}:${{GIT_PASSWORD}}@${{GIT_REPO}}@2.16"
+            url = "git+https://${{GIT_USERNAME}}:${{GIT_PASSWORD}}@${{GIT_REPO}}@2.16"
         else:
-            url = f"git+https://${{GIT_REPO}}@2.16"
+            url = "git+https://${{GIT_REPO}}@2.16"
 
         c = p.pipenv(f"install {url}")
         assert not c.returncode
