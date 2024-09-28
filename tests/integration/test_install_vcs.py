@@ -12,10 +12,6 @@ def test_install_github_vcs(pipenv_instance_pypi):
         assert "dataclass-factory" in p.pipfile["packages"]
 
 
-import os
-import pytest
-
-
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.parametrize("use_credentials", [True, False])
