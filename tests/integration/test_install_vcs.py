@@ -34,16 +34,16 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
         c = p.pipenv(f"install '{url}'")
         assert c.returncode == 0, f"Install failed with error: {c.stderr}"
 
-        assert "adaptix" in p.pipfile["packages"]
+        assert "dataclass-factory" in p.pipfile["packages"]
 
         # Check if the URL in the lockfile still contains the environment variables
         lockfile_content = p.lockfile
-        assert "${GIT_REPO}" in lockfile_content['default']['adaptix']['git']
+        assert "${GIT_REPO}" in lockfile_content['default']['dataclass-factory']['git']
         if use_credentials:
-            assert "${GIT_USERNAME}" in lockfile_content['default']['adaptix']['git']
-            assert "${GIT_PASSWORD}" in lockfile_content['default']['adaptix']['git']
+            assert "${GIT_USERNAME}" in lockfile_content['default']['dataclass-factory']['git']
+            assert "${GIT_PASSWORD}" in lockfile_content['default']['dataclass-factory']['git']
 
         # Verify that the package is installed and usable
-        c = p.pipenv("run python -c 'import adaptix; print(adaptix.__version__)'")
+        c = p.pipenv("run python -c 'import dataclass-factory; print(dataclass-factory.__version__)'")
         assert c.returncode == 0, f"Version check failed with error: {c.stderr}"
         assert "2.16" in c.stdout
