@@ -112,9 +112,11 @@ target-version = "py37"
 
 line-length = 137
 exclude = [
+  "get-pipenv.py",
   "pipenv/patched/*",
   "pipenv/vendor/*",
 ]
+
 select = [
   "ASYNC",
   "B",
