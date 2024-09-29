@@ -37,7 +37,7 @@ dependencies = [
 ]
 optional-dependencies.dev = [
   "beautifulsoup4",
-  "black==23.3",
+  "black==24.3.0",
   "flake8<4,>=3.3",
   "invoke",
   "parver",
