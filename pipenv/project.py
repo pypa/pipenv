@@ -11,6 +11,7 @@ import sys
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib import parse
 from urllib.parse import unquote, urljoin
 
@@ -81,17 +82,24 @@ except ImportError:
 if sys.version_info < (3, 10):
     from pipenv.vendor import importlib_metadata
 else:
-    import importlib.metadata as importlib_metadata
+    pass
 
 if is_type_checking():
-    from typing import Dict, List, Union
+    from typing import Union
 
-    TSource = Dict[str, Union[str, bool]]
-    TPackageEntry = Dict[str, Union[bool, str, List[str]]]
-    TPackage = Dict[str, TPackageEntry]
-    TScripts = Dict[str, str]
-    TPipenv = Dict[str, bool]
-    TPipfile = Dict[str, Union[TPackage, TScripts, TPipenv, List[TSource]]]
+    TSource = dict[str, Union[str, bool]]
+    TPackageEntry = dict[str, Union[bool, str, list[str]]]
+    TPackage = dict[str, TPackageEntry]
+    TScripts = dict[str, str]
+    TPipenv = dict[str, bool]
+    TPipfile = dict[str, Union[TPackage, TScripts, TPipenv, list[TSource]]]
+
+
+if TYPE_CHECKING:
+    import importlib.metadata as importlib_metadata
+
+    from pipenv._types import Pipenv, Pipfile
+    from pipenv.patched.pip._internal.network.session import PipSession
 
 
 DEFAULT_NEWLINES = "\n"
@@ -128,7 +136,7 @@ class _LockFileEncoder(json.JSONEncoder):
         return content
 
 
-def preferred_newlines(f):
+def preferred_newlines(f) -> str:
     if isinstance(f.newlines, str):
         return f.newlines
     return DEFAULT_NEWLINES
@@ -136,7 +144,7 @@ def preferred_newlines(f):
 
 # (path, file contents) => TOMLFile
 # keeps track of pipfiles that we've seen so we do not need to re-parse 'em
-_pipfile_cache = {}
+_pipfile_cache: dict[tuple[str, str], Pipfile] = {}
 
 
 class SourceNotFound(KeyError):
@@ -256,7 +264,7 @@ class Project:
         return session
 
     @classmethod
-    def prepend_hash_types(cls, checksums, hash_type):
+    def prepend_hash_types(cls, checksums: set[str], hash_type: str) -> list[str]:
         cleaned_checksums = set()
         for checksum in checksums:
             if not checksum:
@@ -272,7 +280,7 @@ class Project:
 
         return hash_cache.get_hash(link)
 
-    def get_hashes_from_pypi(self, ireq, source):
+    def get_hashes_from_pypi(self, ireq, source) -> list[str] | None:
         pkg_url = f"https://pypi.org/pypi/{ireq.name}/json"
         session = self.get_requests_session_for_source(source)
         if not session:
@@ -368,8 +376,8 @@ class Project:
             return None
 
     @staticmethod
-    def get_file_hash(session, link):
-        h = hashlib.new(FAVORITE_HASH)
+    def get_file_hash(session: PipSession, link: Link) -> str | None:
+        h: hashlib._Hash = hashlib.new(FAVORITE_HASH)
         err.print(f"Downloading file {link.filename} to obtain hash...")
         with open_file(link.url, session) as fp:
             if fp is None:
@@ -669,7 +677,7 @@ class Project:
         return self._requirements_location
 
     @property
-    def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
+    def parsed_pipfile(self) -> Pipfile:
         """Parse Pipfile into a TOMLFile and cache it
 
         (call clear_pipfile_cache() afterwards if mutating)"""
@@ -695,9 +703,7 @@ class Project:
         """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
         _pipfile_cache.clear()
 
-    def _parse_pipfile(
-        self, contents: str
-    ) -> tomlkit.toml_document.TOMLDocument | TPipfile:
+    def _parse_pipfile(self, contents: str) -> Pipfile:
         try:
             return tomlkit.parse(contents)
         except Exception:
@@ -727,7 +733,7 @@ class Project:
         return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
-    def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
+    def settings(self) -> Pipenv:
         """A dictionary of the settings added to the Pipfile."""
         return self.parsed_pipfile.get("pipenv", {})
 

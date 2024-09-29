@@ -1,10 +1,18 @@
+from __future__ import annotations
+
 import json
 import os
 import platform
 import sys
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import Final
+
+    from pipenv.patched.pip._vendor.pyparsing import version_info
 
 
-def format_full_version(info):
+def format_full_version(info: version_info) -> str:
     version = f"{info.major}.{info.minor}.{info.micro}"
     kind = info.releaselevel
     if kind != "final":
@@ -22,7 +30,7 @@ if hasattr(sys, "implementation"):
     implementation_name = sys.implementation.name
 else:
     implementation_name = "cpython"
-lookup = {
+lookup: Final = {
     "os_name": os.name,
     "sys_platform": sys.platform,
     "platform_machine": platform.machine(),

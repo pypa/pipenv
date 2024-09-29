@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import contextlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import typing
 import warnings
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Callable, NamedTuple
+
+from typing_extensions import TypedDict
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -21,11 +26,13 @@ from pipenv.patched.pip._internal.operations.build.build_tracker import (
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
 )
-from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pip._internal.req.req_file import (
+    ParsedRequirement,
+    parse_requirements,
+)
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.project import Project
 from pipenv.utils import console, err
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
@@ -51,16 +58,32 @@ else:
     import importlib.metadata as importlib_metadata
 
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
+    from optparse import Values
+
+    from pipenv._types import PackageDeclaration, ResultDepElement, ValuesOpts
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.models.link import Link
+    from pipenv.patched.pip._internal.network.session import PipSession
+    from pipenv.patched.pip._internal.resolution.base import BaseResolver
+    from pipenv.patched.pip._vendor.packaging.markers import Marker
+    from pipenv.patched.pip._vendor.rich.status import Status
+    from pipenv.project import Project
+
+
 def get_package_finder(
-    install_cmd=None,
-    options=None,
-    session=None,
-    platform=None,
-    python_versions=None,
-    abi=None,
-    implementation=None,
-    ignore_requires_python=None,
-):
+    install_cmd: InstallCommand,
+    options: Values | None = None,
+    session: PipSession | None = None,
+    platform: str | None = None,
+    python_versions: list[tuple[int, ...]] | None = None,
+    abi: str | None = None,
+    implementation: str | None = None,
+    ignore_requires_python: bool | None = None,
+) -> PackageFinder:
     """Reduced Shim for compatibility to generate package finders."""
     py_version_info = None
     if python_versions:
@@ -80,7 +103,7 @@ def get_package_finder(
     )
 
 
-class HashCacheMixin:
+class HashCacheMixin(NamedTuple):
     """Caches hashes of PyPI artifacts so we do not need to re-download them.
 
     Hashes are only cached when the URL appears to contain a hash in it and the
@@ -88,54 +111,72 @@ class HashCacheMixin:
     avoid issues where the location on the server changes.
     """
 
-    def __init__(self, project, session):
-        self.project = project
-        self.session = session
+    project: Project
+    session: PipSession
 
-    def get_hash(self, link):
-        hash_value = self.project.get_file_hash(self.session, link).encode()
+    def get_hash(self, link: Link) -> str:
+        file_hash = self.project.get_file_hash(self.session, link)
+        if file_hash is None:
+            raise SystemExit(1)
+        hash_value = file_hash.encode()
         return hash_value.decode("utf8")
+
+
+class SourceDict(TypedDict):
+    name: str
+    url: str
+    verify_ssl: bool
 
 
 class Resolver:
     def __init__(
         self,
-        constraints,
-        req_dir,
-        project,
-        sources,
-        index_lookup=None,
-        markers_lookup=None,
-        skipped=None,
-        clear=False,
-        pre=False,
-        category=None,
-        original_deps=None,
-        install_reqs=None,
-        pipfile_entries=None,
-    ):
-        self.initial_constraints = constraints
-        self.req_dir = req_dir
-        self.project = project
-        self.sources = sources
-        self.resolved_tree = set()
-        self.hashes = {}
-        self.clear = clear
-        self.pre = pre
-        self.category = category
-        self.results = None
-        self.markers_lookup = markers_lookup if markers_lookup is not None else {}
-        self.index_lookup = index_lookup if index_lookup is not None else {}
+        constraints: set[str],
+        req_dir: str,
+        project: Project,
+        sources: list[SourceDict],
+        index_lookup: dict[str, str] | None = None,
+        markers_lookup: dict[str, str] | None = None,
+        skipped: dict[str, str] | None = None,
+        clear: bool = False,
+        pre: bool = False,
+        category: str | None = None,
+        original_deps: dict[str, str] | None = None,
+        install_reqs: dict[str, InstallRequirement] | None = None,
+        pipfile_entries: dict[str, str] | None = None,
+    ) -> None:
+        self.initial_constraints: set[str] = constraints
+        self.req_dir: str = req_dir
+        self.project: Project = project
+        self.sources: list[SourceDict] = sources
+        self.resolved_tree: set[InstallRequirement] = set()
+        self.hashes: dict[InstallRequirement, list[str]] = {}
+        self.clear: bool = clear
+        self.pre: bool = pre
+        self.category: str | None = category
+        self.results: set[InstallRequirement] | None = None
+        self.markers_lookup: dict[str, str] = (
+            markers_lookup if markers_lookup is not None else {}
+        )
+        self.index_lookup: dict[str, str] = (
+            index_lookup if index_lookup is not None else {}
+        )
         self.skipped = skipped if skipped is not None else {}
-        self.markers = {}
-        self.requires_python_markers = {}
-        self.original_deps = original_deps if original_deps is not None else {}
-        self.install_reqs = install_reqs if install_reqs is not None else {}
-        self.pipfile_entries = pipfile_entries if pipfile_entries is not None else {}
-        self._retry_attempts = 0
-        self._hash_cache = None
+        self.markers: dict[str, Marker] = {}
+        self.requires_python_markers: dict[str, str] = {}  # TODO: Unsure
+        self.original_deps: dict[str, str] = (
+            original_deps if original_deps is not None else {}
+        )
+        self.install_reqs: dict[str, InstallRequirement] = (
+            install_reqs if install_reqs is not None else {}
+        )
+        self.pipfile_entries: dict[str, str] = (
+            pipfile_entries if pipfile_entries is not None else {}
+        )
+        self._retry_attempts: int = 0
+        self._hash_cache: HashCacheMixin | None = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return (
             f"<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, "
             f"sources={self.sources})>"
@@ -143,11 +184,11 @@ class Resolver:
 
     @staticmethod
     @lru_cache
-    def _get_pip_command():
+    def _get_pip_command() -> InstallCommand:
         return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
     @property
-    def hash_cache(self):
+    def hash_cache(self) -> HashCacheMixin:
         if not self._hash_cache:
             self._hash_cache = HashCacheMixin(self.project, self.session)
         return self._hash_cache
@@ -167,30 +208,30 @@ class Resolver:
     @classmethod
     def create(
         cls,
-        deps: Dict[str, str],
+        deps: dict[str, str],
         project: Project,
-        index_lookup: Dict[str, str] = None,
-        markers_lookup: Dict[str, str] = None,
-        sources: List[str] = None,
-        req_dir: str = None,
+        index_lookup: dict[str, str] | None = None,
+        markers_lookup: dict[str, str] | None = None,
+        sources: list[str] | None = None,
+        req_dir: str | None = None,
         clear: bool = False,
         pre: bool = False,
-        category: str = None,
-    ) -> "Resolver":
+        category: str | None = None,
+    ) -> Resolver:
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
         if index_lookup is None:
             index_lookup = {}
         if markers_lookup is None:
             markers_lookup = {}
-        original_deps = {}
-        install_reqs = {}
-        pipfile_entries = {}
-        skipped = {}
+        original_deps: dict[str, str] = {}
+        install_reqs: dict[str, InstallRequirement] = {}
+        pipfile_entries: dict[str, str] = {}
+        skipped: dict[str, str] = {}
         if sources is None:
             sources = project.sources
-        packages = project.get_pipfile_section(category)
-        constraints = set()
+        packages: PackageDeclaration = project.get_pipfile_section(category)
+        constraints: set[str] = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups
             if not dep:
                 continue
@@ -246,11 +287,13 @@ class Resolver:
         return resolver
 
     @property
-    def pip_command(self):
+    def pip_command(self) -> InstallCommand:
         return self._get_pip_command()
 
-    def prepare_pip_args(self, use_pep517=None, build_isolation=True):
-        pip_args = []
+    def prepare_pip_args(
+        self, use_pep517: bool | None = None, build_isolation: bool = True
+    ) -> list[str]:
+        pip_args: list[str] = []
         if self.sources:
             pip_args = prepare_pip_source_args(self.sources, pip_args)
         if use_pep517 is False:
@@ -267,14 +310,14 @@ class Resolver:
         return pip_args
 
     @property  # cached_property breaks authenticated private indexes
-    def pip_args(self):
+    def pip_args(self) -> list[str]:
         use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
         build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
         return self.prepare_pip_args(
             use_pep517=use_pep517, build_isolation=build_isolation
         )
 
-    def prepare_constraint_file(self):
+    def prepare_constraint_file(self) -> str:
         constraint_filename = prepare_constraint_file(
             self.initial_constraints,
             directory=self.req_dir,
@@ -284,11 +327,11 @@ class Resolver:
         return constraint_filename
 
     @property
-    def constraint_file(self):
+    def constraint_file(self) -> str:
         return self.prepare_constraint_file()
 
     @cached_property
-    def default_constraint_file(self):
+    def default_constraint_file(self) -> str:
         default_constraints = get_constraints_from_deps(self.project.packages)
         default_constraint_filename = prepare_constraint_file(
             default_constraints,
@@ -299,8 +342,9 @@ class Resolver:
         return default_constraint_filename
 
     @property  # cached_property breaks authenticated private indexes
-    def pip_options(self):
+    def pip_options(self) -> ValuesOpts:
         pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
+        pip_options = typing.cast("ValuesOpts", pip_options)
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.no_python_version_warning = True
         pip_options.no_input = self.project.settings.get("disable_pip_input", True)
@@ -312,22 +356,22 @@ class Resolver:
         return pip_options
 
     @property
-    def session(self):
+    def session(self) -> PipSession:
         return self.pip_command._build_session(self.pip_options)
 
-    def prepare_index_lookup(self):
-        index_mapping = {}
+    def prepare_index_lookup(self) -> dict[str, str]:
+        index_mapping: dict[str, str] = {}
         for source in self.sources:
-            if source.get("name"):
+            if source.get("name"):  # TODO: what type is source?
                 index_mapping[source["name"]] = source["url"]
-        alt_index_lookup = {}
+        alt_index_lookup: dict[str, str] = {}
         for req_name, index in self.index_lookup.items():
             if index_mapping.get(index):
                 alt_index_lookup[req_name] = index_mapping[index]
         return alt_index_lookup
 
     @cached_property
-    def package_finder(self):
+    def package_finder(self) -> PackageFinder:
         finder = get_package_finder(
             install_cmd=self.pip_command,
             options=self.pip_options,
@@ -335,7 +379,7 @@ class Resolver:
         )
         return finder
 
-    def finder(self, ignore_compatibility=False):
+    def finder(self, ignore_compatibility: bool = False) -> PackageFinder:
         finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
@@ -345,7 +389,7 @@ class Resolver:
         return finder
 
     @cached_property
-    def parsed_constraints(self):
+    def parsed_constraints(self) -> Generator[ParsedRequirement, None, None]:
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
         return parse_requirements(
@@ -356,7 +400,7 @@ class Resolver:
         )
 
     @cached_property
-    def parsed_default_constraints(self):
+    def parsed_default_constraints(self) -> set[ParsedRequirement]:
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
         parsed_default_constraints = parse_requirements(
@@ -369,7 +413,7 @@ class Resolver:
         return set(parsed_default_constraints)
 
     @cached_property
-    def default_constraints(self):
+    def default_constraints(self) -> set[InstallRequirement]:
         possible_default_constraints = [
             install_req_from_parsed_requirement(
                 c,
@@ -381,7 +425,7 @@ class Resolver:
         return set(possible_default_constraints)
 
     @property
-    def possible_constraints(self):
+    def possible_constraints(self) -> list[InstallRequirement]:
         possible_constraints_list = [
             install_req_from_parsed_requirement(
                 c,
@@ -394,7 +438,7 @@ class Resolver:
         return possible_constraints_list
 
     @property
-    def constraints(self):
+    def constraints(self) -> set[InstallRequirement]:
         possible_constraints_list = self.possible_constraints
         constraints_list = set()
         for c in possible_constraints_list:
@@ -405,7 +449,7 @@ class Resolver:
         return set(constraints_list)
 
     @contextlib.contextmanager
-    def get_resolver(self, clear=False):
+    def get_resolver(self, clear: bool = False) -> Generator[BaseResolver, None, None]:
         from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
         with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory(
@@ -436,7 +480,7 @@ class Resolver:
             )
             yield resolver
 
-    def resolve(self):
+    def resolve(self) -> set[InstallRequirement]:
         constraints = self.constraints
         with temp_environ(), self.get_resolver() as resolver:
             try:
@@ -448,7 +492,7 @@ class Resolver:
                 self.resolved_tree.update(self.results)
         return self.resolved_tree
 
-    def _get_pipfile_markers(self, pipfile_entry):
+    def _get_pipfile_markers(self, pipfile_entry: dict[str, str]) -> str:
         sys_platform = pipfile_entry.get("sys_platform")
         platform_machine = pipfile_entry.get("platform_machine")
         markers = pipfile_entry.get("markers")
@@ -466,7 +510,12 @@ class Resolver:
 
         return " and ".join(combined_markers).strip()
 
-    def _fold_markers(self, dependency_tree, install_req, checked_dependencies=None):
+    def _fold_markers(
+        self,
+        dependency_tree: dict[str, str],
+        install_req: InstallRequirement,
+        checked_dependencies: set[str] | None = None,
+    ) -> str | None:
         if checked_dependencies is None:
             checked_dependencies = set()
 
@@ -495,7 +544,7 @@ class Resolver:
                 self.markers_lookup[install_req.name] = markers
             return markers
 
-    def resolve_constraints(self):
+    def resolve_constraints(self) -> None:
         from .markers import marker_from_specifier
 
         # Build mapping of where package originates from
@@ -507,7 +556,7 @@ class Resolver:
                 comes_from[result.name] = "Pipfile"
 
         # Build up the results tree with markers
-        new_tree = set()
+        new_tree: set[InstallRequirement] = set()
         for result in self.resolved_tree:
             if result.markers:
                 self.markers[result.name] = result.markers
@@ -540,7 +589,7 @@ class Resolver:
 
         self.resolved_tree = new_tree
 
-    def collect_hashes(self, ireq):
+    def collect_hashes(self, ireq: InstallRequirement) -> list[str] | set[str]:
         link = ireq.link  # Handle VCS and file links first
         if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
             return set()
@@ -585,15 +634,15 @@ class Resolver:
         return set()
 
     @cached_property
-    def resolve_hashes(self):
+    def resolve_hashes(self) -> dict[InstallRequirement, list[str]]:
         if self.results is not None:
             for ireq in self.results:
                 self.hashes[ireq] = self.collect_hashes(ireq)
         return self.hashes
 
     def clean_skipped_result(
-        self, req_name: str, ireq: InstallRequirement, pipfile_entry
-    ):
+        self, req_name: str, ireq: InstallRequirement, pipfile_entry: dict[str, str] | str
+    ) -> tuple[str, dict[str, str]]:
         ref = None
         if ireq.link and ireq.link.is_vcs:
             ref = ireq.link.egg_fragment
@@ -613,9 +662,9 @@ class Resolver:
             entry["hashes"] = sorted(set(collected_hashes))
         return req_name, entry
 
-    def clean_results(self):
+    def clean_results(self) -> list[dict[str, list[str]]]:
         reqs = [(ireq,) for ireq in self.resolved_tree]
-        results = {}
+        results: dict[str, dict[str, list[str]]] = {}
         for (ireq,) in reqs:
             if normalize_name(ireq.name) in self.skipped:
                 continue
@@ -645,11 +694,17 @@ class Resolver:
                 results[name].update(entry)
             else:
                 results[name] = entry
-        results = list(results.values())
-        return results
+        _results = list(results.values())
+        return _results
 
 
-def _show_warning(message, category, filename, lineno, line):
+def _show_warning(
+    message: Warning | str,
+    category: type[Warning],
+    filename: str,
+    lineno: int,
+    line: str | None,
+) -> None:
     warnings.showwarning(
         message=message,
         category=category,
@@ -662,16 +717,16 @@ def _show_warning(message, category, filename, lineno, line):
 
 
 def actually_resolve_deps(
-    deps,
-    index_lookup,
-    markers_lookup,
-    project,
-    sources,
-    clear,
-    pre,
-    category,
-    req_dir,
-):
+    deps: dict[str, str],
+    index_lookup: dict[str, str],
+    markers_lookup: dict[str, str],
+    project: Project,
+    sources: list[SourceDict],
+    clear: bool,
+    pre: bool,
+    category: str,
+    req_dir: str,
+) -> tuple[list[dict[str, list[str]]], dict[InstallRequirement, list[str]], Resolver]:
     with warnings.catch_warnings(record=True) as warning_list:
         resolver = Resolver.create(
             deps,
@@ -687,7 +742,7 @@ def actually_resolve_deps(
         resolver.resolve()
         hashes = resolver.resolve_hashes
         resolver.resolve_constraints()
-        results = resolver.clean_results()
+        results: list[dict[str, list[str]]] = resolver.clean_results()
     for warning in warning_list:
         _show_warning(
             warning.message,
@@ -699,10 +754,12 @@ def actually_resolve_deps(
     return (results, hashes, resolver)
 
 
-def resolve(cmd, st, project):
+def resolve(
+    cmd: list[str], st: Status, project: Project
+) -> subprocess.CompletedProcess[str]:
     from pipenv.cmdparse import Script
 
-    c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
+    c: subprocess.Popen[str] = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())  # type: ignore
     is_verbose = project.s.is_verbose()
     errors = ""
     for line in iter(c.stderr.readline, ""):
@@ -727,18 +784,18 @@ def resolve(cmd, st, project):
 
 
 def venv_resolve_deps(
-    deps,
-    which,
-    project,
-    category,
-    pre=False,
-    clear=False,
-    allow_global=False,
-    pypi_mirror=None,
-    pipfile=None,
-    lockfile=None,
+    deps: dict[str, str],
+    which: Callable[[str], str],
+    project: Project,
+    category: str,
+    pre: bool | None = False,
+    clear: bool = False,
+    allow_global: bool = False,
+    pypi_mirror: str | None = None,
+    pipfile: dict[str, str | dict[str, bool | list[str]]] | None = None,
+    lockfile: dict[str, Any] | None = None,  # TODO: Create Pipfile.lock schema
     old_lock_data=None,
-    extra_pip_args=None,
+    extra_pip_args: list[str] | None = None,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -890,22 +947,22 @@ def venv_resolve_deps(
 
 
 def resolve_deps(
-    deps,
-    which,
-    project,
-    sources=None,
-    python=False,
-    clear=False,
-    pre=False,
-    category=None,
-    allow_global=False,
-    req_dir=None,
-):
+    deps: list[InstallRequirement],
+    which: Callable[[str], str],
+    project: Project,
+    sources: list[SourceDict] | None = None,
+    python: bool = False,
+    clear: bool = False,
+    pre: bool = False,
+    category: str | None = None,
+    allow_global: bool = False,
+    req_dir: str | None = None,
+) -> tuple[list[ResultDepElement], Resolver | None]:
     """Given a list of dependencies, return a resolved list of dependencies,
     and their hashes, using the warehouse API / pip.
     """
-    index_lookup = {}
-    markers_lookup = {}
+    index_lookup: dict[str, str] = {}
+    markers_lookup: dict[str, str] = {}
     if not os.environ.get("PIP_SRC"):
         os.environ["PIP_SRC"] = project.virtualenv_src_location
     results = []
@@ -960,7 +1017,7 @@ def resolve_deps(
 
 
 @lru_cache
-def get_pipenv_sitedir() -> Optional[str]:
+def get_pipenv_sitedir() -> str | None:
     for dist in importlib_metadata.distributions():
         if dist.metadata["Name"].lower() == "pipenv":
             return str(dist.locate_file(""))

@@ -1,20 +1,28 @@
+from __future__ import annotations
+
 import re
 import sys
+from typing import TYPE_CHECKING
 
 from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
 from pipenv.utils.requirements import requirements_from_lockfile
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from typing import NoReturn
+
+    from pipenv.project import Project
+
 
 def generate_requirements(
-    project,
-    dev=False,
-    dev_only=False,
-    include_hashes=False,
-    include_markers=True,
-    categories="",
-    from_pipfile=False,
-):
+    project: Project,
+    dev: bool = False,
+    dev_only: bool = False,
+    include_hashes: bool = False,
+    include_markers: bool = True,
+    categories: str = "",
+    from_pipfile: bool = False,
+) -> NoReturn:  # noqa: F821
     lockfile = project.load_lockfile(expand_env_vars=False)
     pipfile_root_package_names = project.pipfile_package_names["combined"]
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import glob
 import os
 import pathlib
@@ -110,9 +112,9 @@ class Setting:
 
         #: Location for Pipenv to store it's package cache.
         #: Default is to use appdir's user cache directory.
-        self.PIPENV_CACHE_DIR = get_from_env(
+        self.PIPENV_CACHE_DIR: str = get_from_env(
             "CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv")
-        )
+        )  # type: ignore
 
         # Tells Pipenv which Python to default to, when none is provided.
         self.PIPENV_DEFAULT_PYTHON_VERSION = get_from_env(

@@ -1,5 +1,7 @@
 """A collection for utilities for working with files and paths."""
 
+from __future__ import annotations
+
 import atexit
 import io
 import os
@@ -8,7 +10,7 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
@@ -16,6 +18,9 @@ from urllib.parse import quote, urlparse
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
+
+if TYPE_CHECKING:
+    from pipenv.patched.pip._internal.models.link import Link
 
 
 def is_file_url(url: Any) -> bool:
@@ -88,7 +93,7 @@ def normalize_drive(path):
     return path
 
 
-def path_to_url(path):
+def path_to_url(path: str) -> str:
     """Convert the supplied local path to a file uri.
 
     :param str path: A string pointing to or representing a local path
@@ -116,7 +121,7 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
+def open_file(link: Link | str, session: PipSession | None = None, stream: bool = False):
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with

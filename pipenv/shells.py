@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import contextlib
 import os
@@ -7,9 +9,13 @@ import subprocess
 import sys
 from pathlib import Path
 from shutil import get_terminal_size
+from typing import TYPE_CHECKING, NoReturn
 
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor import shellingham
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 ShellDetectionFailure = shellingham.ShellDetectionFailure
 
@@ -81,11 +87,11 @@ class Shell:
         self.cmd = cmd
         self.args = []
 
-    def __repr__(self):
-        return "{type(self).__name__}(cmd={self.cmd!r})"
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}(cmd={self.cmd!r})"
 
     @contextlib.contextmanager
-    def inject_path(self, venv):
+    def inject_path(self, venv) -> Generator[None, None, None]:
         with temp_environ():
             os.environ["PATH"] = "{}{}{}".format(
                 os.pathsep.join(str(p.parent) for p in _iter_python(venv)),
@@ -94,7 +100,7 @@ class Shell:
             )
             yield
 
-    def fork(self, venv, cwd, args):
+    def fork(self, venv, cwd, args) -> None:
         # FIXME: This isn't necessarily the correct prompt. We should read the
         # actual prompt by peeking into the activation script.
         name = os.path.basename(venv)
@@ -107,7 +113,7 @@ class Shell:
             os.chdir(cwd)
             _handover(self.cmd, self.args + list(args))
 
-    def fork_compat(self, venv, cwd, args):
+    def fork_compat(self, venv, cwd, args) -> NoReturn:
         from .vendor import pexpect
 
         # Grab current terminal dimensions to replace the hardcoded default
@@ -137,7 +143,7 @@ class Shell:
 POSSIBLE_ENV_PYTHON = [Path("bin", "python"), Path("Scripts", "python.exe")]
 
 
-def _iter_python(venv):
+def _iter_python(venv) -> Generator[Path, None, None]:
     for path in POSSIBLE_ENV_PYTHON:
         full_path = Path(venv, path)
         if full_path.is_file():
@@ -145,13 +151,13 @@ def _iter_python(venv):
 
 
 class Bash(Shell):
-    def _format_path(self, python):
+    def _format_path(self, python: Path) -> str:
         return python.parent.as_posix()
 
     # The usual PATH injection technique does not work with Bash.
     # https://github.com/berdario/pew/issues/58#issuecomment-102182346
     @contextlib.contextmanager
-    def inject_path(self, venv):
+    def inject_path(self, venv) -> Generator[None, None, None]:
         from tempfile import NamedTemporaryFile
 
         bashrc_path = Path.home().joinpath(".bashrc")
@@ -170,7 +176,7 @@ class Bash(Shell):
 
 
 class MsysBash(Bash):
-    def _format_path(self, python):
+    def _format_path(self, python: Path) -> str:
         s = super()._format_path(python)
         if not python.drive:
             return s
@@ -179,14 +185,14 @@ class MsysBash(Bash):
 
 
 class CmderEmulatedShell(Shell):
-    def fork(self, venv, cwd, args):
+    def fork(self, venv, cwd, args) -> None:
         if cwd:
             os.environ["CMDER_START"] = cwd
         super().fork(venv, cwd, args)
 
 
 class CmderCommandPrompt(CmderEmulatedShell):
-    def fork(self, venv, cwd, args):
+    def fork(self, venv, cwd, args) -> None:
         rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\init.bat")
         if os.path.exists(rc):
             self.args.extend(["/k", rc])
@@ -194,7 +200,7 @@ class CmderCommandPrompt(CmderEmulatedShell):
 
 
 class CmderPowershell(Shell):
-    def fork(self, venv, cwd, args):
+    def fork(self, venv, cwd, args) -> None:
         rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\profile.ps1")
         if os.path.exists(rc):
             self.args.extend(
