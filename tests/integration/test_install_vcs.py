@@ -25,8 +25,10 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
             url = "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_REPO}@2.16"
         else:
             url = "git+https://${GIT_REPO}@2.16"
-
-        c = p.pipenv(f"install {url} -v")
+        if os.name == 'nt':
+            c = p.pipenv(f"install {url} -v")
+        else:
+            c = p.pipenv(f"install '{url}' -v")
         assert c.returncode == 0, f"Install failed with error: {c.stderr}"
 
         assert "dataclass-factory" in p.pipfile["packages"]
