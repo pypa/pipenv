@@ -1,1 +1,0 @@
-Fixes regression in lock file generation that caused environment variable references (e.g., ${GIT_PASSWORD}) in VCS URLs to be stripped out. This restores the ability to use credential placeholders in version control system URLs.

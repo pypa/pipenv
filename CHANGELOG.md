@@ -1,3 +1,18 @@
+2024.1.0 (2024-09-29)
+=====================
+Pipenv 2024.1.0 (2024-09-29)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Upgrade from ``pip==24.0`` to ``pip==24.1.2``.  `#6253 <https://github.com/pypa/pipenv/issues/6253>`_
+
+Bug Fixes
+---------
+
+- Fixes regression in lock file generation that caused environment variable references (e.g., ${GIT_PASSWORD}) in VCS URLs to be stripped out. This restores the ability to use credential placeholders in version control system URLs.  `#6256 <https://github.com/pypa/pipenv/issues/6256>`_
 2024.0.3 (2024-09-22)
 =====================
 Pipenv 2024.0.3 (2024-09-22)
