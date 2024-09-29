@@ -14,7 +14,7 @@ from pipenv.utils.shell import temp_environ
 @pytest.mark.install
 def test_basic_install(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
-        c = p.pipenv("install six")
+        c = p.pipenv("install six -v")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
