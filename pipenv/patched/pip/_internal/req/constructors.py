@@ -81,7 +81,7 @@ def _set_requirement_extras(req: Requirement, new_extras: Set[str]) -> Requireme
         pre is not None and post is not None
     ), f"regex group selection for requirement {req} failed, this should never happen"
     extras: str = "[%s]" % ",".join(sorted(new_extras)) if new_extras else ""
-    return Requirement(f"{pre}{extras}{post}")
+    return get_requirement(f"{pre}{extras}{post}")
 
 
 def parse_editable(editable_req: str) -> Tuple[Optional[str], str, Set[str]]:
@@ -163,7 +163,7 @@ def check_first_requirement_in_file(filename: str) -> None:
             # If there is a line continuation, drop it, and append the next line.
             if line.endswith("\\"):
                 line = line[:-2].strip() + next(lines, "")
-            Requirement(line)
+            get_requirement(line)
             return
 
 
@@ -205,7 +205,7 @@ def parse_req_from_editable(editable_req: str) -> RequirementParts:
 
     if name is not None:
         try:
-            req: Optional[Requirement] = Requirement(name)
+            req: Optional[Requirement] = get_requirement(name)
         except InvalidRequirement as exc:
             raise InstallationError(f"Invalid requirement: {name!r}: {exc}")
     else:

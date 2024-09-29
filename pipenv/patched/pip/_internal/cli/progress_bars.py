@@ -49,7 +49,7 @@ def _rich_progress_bar(
             TimeRemainingColumn(),
         )
 
-    progress = Progress(*columns, refresh_per_second=30)
+    progress = Progress(*columns, refresh_per_second=5)
     task_id = progress.add_task(" " * (get_indentation() + 2), total=total)
     with progress:
         for chunk in iterable:

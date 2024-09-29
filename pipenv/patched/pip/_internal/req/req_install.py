@@ -52,6 +52,7 @@ from pipenv.patched.pip._internal.utils.misc import (
     redact_auth_from_requirement,
     redact_auth_from_url,
 )
+from pipenv.patched.pip._internal.utils.packaging import get_requirement
 from pipenv.patched.pip._internal.utils.subprocess import runner_with_spinner_message
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
@@ -395,7 +396,7 @@ class InstallRequirement:
         else:
             op = "==="
 
-        self.req = Requirement(
+        self.req = get_requirement(
             "".join(
                 [
                     self.metadata["Name"],
@@ -421,7 +422,7 @@ class InstallRequirement:
             metadata_name,
             self.name,
         )
-        self.req = Requirement(metadata_name)
+        self.req = get_requirement(metadata_name)
 
     def check_if_exists(self, use_user_site: bool) -> None:
         """Find an installed distribution that satisfies or conflicts
@@ -825,6 +826,21 @@ class InstallRequirement:
         )
 
         if self.editable and not self.is_wheel:
+            deprecated(
+                reason=(
+                    f"Legacy editable install of {self} (setup.py develop) "
+                    "is deprecated."
+                ),
+                replacement=(
+                    "to add a pyproject.toml or enable --use-pep517, "
+                    "and use setuptools >= 64. "
+                    "If the resulting installation is not behaving as expected, "
+                    "try using --config-settings editable_mode=compat. "
+                    "Please consult the setuptools documentation for more information"
+                ),
+                gone_in="25.0",
+                issue=11457,
+            )
             if self.config_settings:
                 logger.warning(
                     "--config-settings ignored for legacy editable install of %s. "
@@ -910,7 +926,7 @@ def check_legacy_setup_py_options(
             reason="--build-option and --global-option are deprecated.",
             issue=11859,
             replacement="to use --config-settings",
-            gone_in="24.2",
+            gone_in="25.0",
         )
         logger.warning(
             "Implying --no-binary=:all: due to the presence of "

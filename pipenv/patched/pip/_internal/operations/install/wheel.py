@@ -358,12 +358,6 @@ class ZipBackedFile:
         return self._zip_file.getinfo(self.src_record_path)
 
     def save(self) -> None:
-        # directory creation is lazy and after file filtering
-        # to ensure we don't install empty dirs; empty dirs can't be
-        # uninstalled.
-        parent_dir = os.path.dirname(self.dest_path)
-        ensure_dir(parent_dir)
-
         # When we open the output file below, any existing file is truncated
         # before we start writing the new contents. This is fine in most
         # cases, but can cause a segfault if pip has loaded a shared
@@ -377,9 +371,13 @@ class ZipBackedFile:
 
         zipinfo = self._getinfo()
 
-        with self._zip_file.open(zipinfo) as f:
-            with open(self.dest_path, "wb") as dest:
-                shutil.copyfileobj(f, dest)
+        # optimization: the file is created by open(),
+        # skip the decompression when there is 0 bytes to decompress.
+        with open(self.dest_path, "wb") as dest:
+            if zipinfo.file_size > 0:
+                with self._zip_file.open(zipinfo) as f:
+                    blocksize = min(zipinfo.file_size, 1024 * 1024)
+                    shutil.copyfileobj(f, dest, blocksize)
 
         if zip_item_is_executable(zipinfo):
             set_extracted_file_to_default_mode_plus_executable(self.dest_path)
@@ -421,7 +419,7 @@ class PipScriptMaker(ScriptMaker):
         return super().make(specification, options)
 
 
-def _install_wheel(
+def _install_wheel(  # noqa: C901, PLR0915 function is too long
     name: str,
     wheel_zip: ZipFile,
     wheel_path: str,
@@ -580,7 +578,15 @@ def _install_wheel(
     script_scheme_files = map(ScriptFile, script_scheme_files)
     files = chain(files, script_scheme_files)
 
+    existing_parents = set()
     for file in files:
+        # directory creation is lazy and after file filtering
+        # to ensure we don't install empty dirs; empty dirs can't be
+        # uninstalled.
+        parent_dir = os.path.dirname(file.dest_path)
+        if parent_dir not in existing_parents:
+            ensure_dir(parent_dir)
+            existing_parents.add(parent_dir)
         file.save()
         record_installed(file.src_record_path, file.dest_path, file.changed)
 
