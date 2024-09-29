@@ -56,16 +56,3 @@ jobs:
         password: ${{ secrets.PYPI_TOKEN }}
         # repository_url: https://test.pypi.org/legacy/
         packages-dir: dist/
-
-    # git push https://${{ github.actor }}:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:master
-    # we need to use a deploy key for this to get around branch protection as the default token fails
-    - name: Pre-bump
-      run: |
-        git config --local user.name 'github-actions[bot]'
-        git config --local user.email 'github-actions[bot]@users.noreply.github.com'
-        python -m pipenv run inv release.bump-version --dev --patch
-
-    - name: Push changes
-      uses: ad-m/github-push-action@master
-      with:
-        github_token: ${{ secrets.REPO_TOKEN }}
