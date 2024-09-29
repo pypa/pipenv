@@ -26,8 +26,7 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
         else:
             url = "git+https://${GIT_REPO}@2.16"
 
-        # Use single quotes to prevent shell expansion
-        c = p.pipenv(f"install '{url}'")
+        c = p.pipenv(f"install {url} -v")
         assert c.returncode == 0, f"Install failed with error: {c.stderr}"
 
         assert "dataclass-factory" in p.pipfile["packages"]
@@ -40,5 +39,5 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
             assert "${GIT_PASSWORD}" in lockfile_content['default']['dataclass-factory']['git']
 
         # Verify that the package is installed and usable
-        c = p.pipenv("run python -c 'import dataclass_factory'")
+        c = p.pipenv("run python -c \"import dataclass_factory\"")
         assert c.returncode == 0, f"Failed to import library: {c.stderr}"
