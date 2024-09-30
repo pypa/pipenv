@@ -81,7 +81,7 @@ def determine_pip_install_arguments():
     if include_wheel(pre):
         args.append("wheel")
 
-    args = args.append("pipenv")
+    args.append("pipenv")
     return ["install", "--upgrade", "--force-reinstall"] + args
 
 
