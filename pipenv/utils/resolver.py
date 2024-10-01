@@ -584,7 +584,6 @@ class Resolver:
             return {self.project.get_hash_from_link(self.hash_cache, link)}
         return set()
 
-    @cached_property
     def resolve_hashes(self):
         if self.results is not None:
             for ireq in self.results:
