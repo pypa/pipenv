@@ -231,8 +231,8 @@ def ensure_python(project, python=None):
     if not path_to_python and python is not None:
         # We need to install Python.
         err.print(
-            "[bold][red]Warning:[/red][/bold]"
-            f"Python [cyan]{python}[/cyan]"
+            "[bold][red]Warning:[/red][/bold] "
+            f"Python [cyan]{python}[/cyan] "
             "was not found on your system..."
         )
         # check for python installers
@@ -261,8 +261,8 @@ def ensure_python(project, python=None):
                 except InstallerError as e:
                     abort(f"Something went wrong while installing Python:\n{e.err}")
                 s = (
-                    "Would you like us to install",
-                    f"[green]CPython {version}[/green]",
+                    "Would you like us to install ",
+                    f"[green]CPython {version}[/green] ",
                     f"with {installer}?",
                 )
 
@@ -272,7 +272,7 @@ def ensure_python(project, python=None):
                 else:
                     # Tell the user we're installing Python.
                     console.print(
-                        "f[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
+                        f"[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
                     )
                     console.print("(this may take a few minutes)[bold]...[/bold]")
                     with console.status(
