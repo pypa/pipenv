@@ -1,6 +1,7 @@
 import abc
 import collections
 import collections.abc
+import contextlib
 import functools
 import inspect
 import operator
@@ -116,6 +117,7 @@ __all__ = [
     'MutableMapping',
     'MutableSequence',
     'MutableSet',
+    'NoDefault',
     'Optional',
     'Pattern',
     'Reversible',
@@ -134,6 +136,7 @@ __all__ = [
 # for backward compatibility
 PEP_560 = True
 GenericMeta = type
+_PEP_696_IMPLEMENTED = sys.version_info >= (3, 13, 0, "beta")
 
 # The functions below are modified copies of typing internal helpers.
 # They are needed by _ProtocolMeta and they provide support for PEP 646.
@@ -406,15 +409,94 @@ Coroutine = typing.Coroutine
 AsyncIterable = typing.AsyncIterable
 AsyncIterator = typing.AsyncIterator
 Deque = typing.Deque
-ContextManager = typing.ContextManager
-AsyncContextManager = typing.AsyncContextManager
 DefaultDict = typing.DefaultDict
 OrderedDict = typing.OrderedDict
 Counter = typing.Counter
 ChainMap = typing.ChainMap
-AsyncGenerator = typing.AsyncGenerator
 Text = typing.Text
 TYPE_CHECKING = typing.TYPE_CHECKING
+
+
+if sys.version_info >= (3, 13, 0, "beta"):
+    from typing import AsyncContextManager, AsyncGenerator, ContextManager, Generator
+else:
+    def _is_dunder(attr):
+        return attr.startswith('__') and attr.endswith('__')
+
+    # Python <3.9 doesn't have typing._SpecialGenericAlias
+    _special_generic_alias_base = getattr(
+        typing, "_SpecialGenericAlias", typing._GenericAlias
+    )
+
+    class _SpecialGenericAlias(_special_generic_alias_base, _root=True):
+        def __init__(self, origin, nparams, *, inst=True, name=None, defaults=()):
+            if _special_generic_alias_base is typing._GenericAlias:
+                # Python <3.9
+                self.__origin__ = origin
+                self._nparams = nparams
+                super().__init__(origin, nparams, special=True, inst=inst, name=name)
+            else:
+                # Python >= 3.9
+                super().__init__(origin, nparams, inst=inst, name=name)
+            self._defaults = defaults
+
+        def __setattr__(self, attr, val):
+            allowed_attrs = {'_name', '_inst', '_nparams', '_defaults'}
+            if _special_generic_alias_base is typing._GenericAlias:
+                # Python <3.9
+                allowed_attrs.add("__origin__")
+            if _is_dunder(attr) or attr in allowed_attrs:
+                object.__setattr__(self, attr, val)
+            else:
+                setattr(self.__origin__, attr, val)
+
+        @typing._tp_cache
+        def __getitem__(self, params):
+            if not isinstance(params, tuple):
+                params = (params,)
+            msg = "Parameters to generic types must be types."
+            params = tuple(typing._type_check(p, msg) for p in params)
+            if (
+                self._defaults
+                and len(params) < self._nparams
+                and len(params) + len(self._defaults) >= self._nparams
+            ):
+                params = (*params, *self._defaults[len(params) - self._nparams:])
+            actual_len = len(params)
+
+            if actual_len != self._nparams:
+                if self._defaults:
+                    expected = f"at least {self._nparams - len(self._defaults)}"
+                else:
+                    expected = str(self._nparams)
+                if not self._nparams:
+                    raise TypeError(f"{self} is not a generic class")
+                raise TypeError(
+                    f"Too {'many' if actual_len > self._nparams else 'few'}"
+                    f" arguments for {self};"
+                    f" actual {actual_len}, expected {expected}"
+                )
+            return self.copy_with(params)
+
+    _NoneType = type(None)
+    Generator = _SpecialGenericAlias(
+        collections.abc.Generator, 3, defaults=(_NoneType, _NoneType)
+    )
+    AsyncGenerator = _SpecialGenericAlias(
+        collections.abc.AsyncGenerator, 2, defaults=(_NoneType,)
+    )
+    ContextManager = _SpecialGenericAlias(
+        contextlib.AbstractContextManager,
+        2,
+        name="ContextManager",
+        defaults=(typing.Optional[bool],)
+    )
+    AsyncContextManager = _SpecialGenericAlias(
+        contextlib.AbstractAsyncContextManager,
+        2,
+        name="AsyncContextManager",
+        defaults=(typing.Optional[bool],)
+    )
 
 
 _PROTO_ALLOWLIST = {
@@ -427,22 +509,10 @@ _PROTO_ALLOWLIST = {
 }
 
 
-_EXCLUDED_ATTRS = {
-    "__abstractmethods__", "__annotations__", "__weakref__", "_is_protocol",
-    "_is_runtime_protocol", "__dict__", "__slots__", "__parameters__",
-    "__orig_bases__", "__module__", "_MutableMapping__marker", "__doc__",
-    "__subclasshook__", "__orig_class__", "__init__", "__new__",
-    "__protocol_attrs__", "__non_callable_proto_members__",
-    "__match_args__",
+_EXCLUDED_ATTRS = frozenset(typing.EXCLUDED_ATTRIBUTES) | {
+    "__match_args__", "__protocol_attrs__", "__non_callable_proto_members__",
+    "__final__",
 }
-
-if sys.version_info >= (3, 9):
-    _EXCLUDED_ATTRS.add("__class_getitem__")
-
-if sys.version_info >= (3, 12):
-    _EXCLUDED_ATTRS.add("__type_params__")
-
-_EXCLUDED_ATTRS = frozenset(_EXCLUDED_ATTRS)
 
 
 def _get_protocol_attrs(cls):
@@ -669,13 +739,18 @@ else:
         not their type signatures!
         """
         if not issubclass(cls, typing.Generic) or not getattr(cls, '_is_protocol', False):
-            raise TypeError('@runtime_checkable can be only applied to protocol classes,'
-                            ' got %r' % cls)
+            raise TypeError(f'@runtime_checkable can be only applied to protocol classes,'
+                            f' got {cls!r}')
         cls._is_runtime_protocol = True
 
-        # Only execute the following block if it's a typing_extensions.Protocol class.
-        # typing.Protocol classes don't need it.
-        if isinstance(cls, _ProtocolMeta):
+        # typing.Protocol classes on <=3.11 break if we execute this block,
+        # because typing.Protocol classes on <=3.11 don't have a
+        # `__protocol_attrs__` attribute, and this block relies on the
+        # `__protocol_attrs__` attribute. Meanwhile, typing.Protocol classes on 3.12.2+
+        # break if we *don't* execute this block, because *they* assume that all
+        # protocol classes have a `__non_callable_proto_members__` attribute
+        # (which this block sets)
+        if isinstance(cls, _ProtocolMeta) or sys.version_info >= (3, 12, 2):
             # PEP 544 prohibits using issubclass()
             # with protocols that have non-method members.
             # See gh-113320 for why we compute this attribute here,
@@ -867,7 +942,13 @@ else:
                 tp_dict.__orig_bases__ = bases
 
             annotations = {}
-            own_annotations = ns.get('__annotations__', {})
+            if "__annotations__" in ns:
+                own_annotations = ns["__annotations__"]
+            elif "__annotate__" in ns:
+                # TODO: Use inspect.VALUE here, and make the annotations lazily evaluated
+                own_annotations = ns["__annotate__"](1)
+            else:
+                own_annotations = {}
             msg = "TypedDict('Name', {f0: t0, f1: t1, ...}); each t must be a type"
             if _TAKES_MODULE:
                 own_annotations = {
@@ -1190,7 +1271,7 @@ else:
 
         def __reduce__(self):
             return operator.getitem, (
-                Annotated, (self.__origin__,) + self.__metadata__
+                Annotated, (self.__origin__, *self.__metadata__)
             )
 
         def __eq__(self, other):
@@ -1316,7 +1397,7 @@ else:
             get_args(Callable[[], T][int]) == ([], int)
         """
         if isinstance(tp, _AnnotatedAlias):
-            return (tp.__origin__,) + tp.__metadata__
+            return (tp.__origin__, *tp.__metadata__)
         if isinstance(tp, (typing._GenericAlias, _typing_GenericAlias)):
             if getattr(tp, "_special", False):
                 return ()
@@ -1362,17 +1443,37 @@ else:
     )
 
 
+if hasattr(typing, "NoDefault"):
+    NoDefault = typing.NoDefault
+else:
+    class NoDefaultTypeMeta(type):
+        def __setattr__(cls, attr, value):
+            # TypeError is consistent with the behavior of NoneType
+            raise TypeError(
+                f"cannot set {attr!r} attribute of immutable type {cls.__name__!r}"
+            )
+
+    class NoDefaultType(metaclass=NoDefaultTypeMeta):
+        """The type of the NoDefault singleton."""
+
+        __slots__ = ()
+
+        def __new__(cls):
+            return globals().get("NoDefault") or object.__new__(cls)
+
+        def __repr__(self):
+            return "typing_extensions.NoDefault"
+
+        def __reduce__(self):
+            return "NoDefault"
+
+    NoDefault = NoDefaultType()
+    del NoDefaultType, NoDefaultTypeMeta
+
+
 def _set_default(type_param, default):
-    if isinstance(default, (tuple, list)):
-        type_param.__default__ = tuple((typing._type_check(d, "Default must be a type")
-                                        for d in default))
-    elif default != _marker:
-        if isinstance(type_param, ParamSpec) and default is ...:  # ... not valid <3.11
-            type_param.__default__ = default
-        else:
-            type_param.__default__ = typing._type_check(default, "Default must be a type")
-    else:
-        type_param.__default__ = None
+    type_param.has_default = lambda: default is not NoDefault
+    type_param.__default__ = default
 
 
 def _set_module(typevarlike):
@@ -1395,32 +1496,46 @@ class _TypeVarLikeMeta(type):
         return isinstance(__instance, cls._backported_typevarlike)
 
 
-# Add default and infer_variance parameters from PEP 696 and 695
-class TypeVar(metaclass=_TypeVarLikeMeta):
-    """Type variable."""
+if _PEP_696_IMPLEMENTED:
+    from typing import TypeVar
+else:
+    # Add default and infer_variance parameters from PEP 696 and 695
+    class TypeVar(metaclass=_TypeVarLikeMeta):
+        """Type variable."""
 
-    _backported_typevarlike = typing.TypeVar
+        _backported_typevarlike = typing.TypeVar
 
-    def __new__(cls, name, *constraints, bound=None,
-                covariant=False, contravariant=False,
-                default=_marker, infer_variance=False):
-        if hasattr(typing, "TypeAliasType"):
-            # PEP 695 implemented (3.12+), can pass infer_variance to typing.TypeVar
-            typevar = typing.TypeVar(name, *constraints, bound=bound,
-                                     covariant=covariant, contravariant=contravariant,
-                                     infer_variance=infer_variance)
-        else:
-            typevar = typing.TypeVar(name, *constraints, bound=bound,
-                                     covariant=covariant, contravariant=contravariant)
-            if infer_variance and (covariant or contravariant):
-                raise ValueError("Variance cannot be specified with infer_variance.")
-            typevar.__infer_variance__ = infer_variance
-        _set_default(typevar, default)
-        _set_module(typevar)
-        return typevar
+        def __new__(cls, name, *constraints, bound=None,
+                    covariant=False, contravariant=False,
+                    default=NoDefault, infer_variance=False):
+            if hasattr(typing, "TypeAliasType"):
+                # PEP 695 implemented (3.12+), can pass infer_variance to typing.TypeVar
+                typevar = typing.TypeVar(name, *constraints, bound=bound,
+                                         covariant=covariant, contravariant=contravariant,
+                                         infer_variance=infer_variance)
+            else:
+                typevar = typing.TypeVar(name, *constraints, bound=bound,
+                                         covariant=covariant, contravariant=contravariant)
+                if infer_variance and (covariant or contravariant):
+                    raise ValueError("Variance cannot be specified with infer_variance.")
+                typevar.__infer_variance__ = infer_variance
 
-    def __init_subclass__(cls) -> None:
-        raise TypeError(f"type '{__name__}.TypeVar' is not an acceptable base type")
+            _set_default(typevar, default)
+            _set_module(typevar)
+
+            def _tvar_prepare_subst(alias, args):
+                if (
+                    typevar.has_default()
+                    and alias.__parameters__.index(typevar) == len(args)
+                ):
+                    args += (typevar.__default__,)
+                return args
+
+            typevar.__typing_prepare_subst__ = _tvar_prepare_subst
+            return typevar
+
+        def __init_subclass__(cls) -> None:
+            raise TypeError(f"type '{__name__}.TypeVar' is not an acceptable base type")
 
 
 # Python 3.10+ has PEP 612
@@ -1485,8 +1600,12 @@ else:
                 return NotImplemented
             return self.__origin__ == other.__origin__
 
+
+if _PEP_696_IMPLEMENTED:
+    from typing import ParamSpec
+
 # 3.10+
-if hasattr(typing, 'ParamSpec'):
+elif hasattr(typing, 'ParamSpec'):
 
     # Add default parameter - PEP 696
     class ParamSpec(metaclass=_TypeVarLikeMeta):
@@ -1496,7 +1615,7 @@ if hasattr(typing, 'ParamSpec'):
 
         def __new__(cls, name, *, bound=None,
                     covariant=False, contravariant=False,
-                    infer_variance=False, default=_marker):
+                    infer_variance=False, default=NoDefault):
             if hasattr(typing, "TypeAliasType"):
                 # PEP 695 implemented, can pass infer_variance to typing.TypeVar
                 paramspec = typing.ParamSpec(name, bound=bound,
@@ -1511,6 +1630,24 @@ if hasattr(typing, 'ParamSpec'):
 
             _set_default(paramspec, default)
             _set_module(paramspec)
+
+            def _paramspec_prepare_subst(alias, args):
+                params = alias.__parameters__
+                i = params.index(paramspec)
+                if i == len(args) and paramspec.has_default():
+                    args = [*args, paramspec.__default__]
+                if i >= len(args):
+                    raise TypeError(f"Too few arguments for {alias}")
+                # Special case where Z[[int, str, bool]] == Z[int, str, bool] in PEP 612.
+                if len(params) == 1 and not typing._is_param_expr(args[0]):
+                    assert i == 0
+                    args = (args,)
+                # Convert lists to tuples to help other libraries cache the results.
+                elif isinstance(args[i], list):
+                    args = (*args[:i], tuple(args[i]), *args[i + 1:])
+                return args
+
+            paramspec.__typing_prepare_subst__ = _paramspec_prepare_subst
             return paramspec
 
         def __init_subclass__(cls) -> None:
@@ -1579,8 +1716,8 @@ else:
             return ParamSpecKwargs(self)
 
         def __init__(self, name, *, bound=None, covariant=False, contravariant=False,
-                     infer_variance=False, default=_marker):
-            super().__init__([self])
+                     infer_variance=False, default=NoDefault):
+            list.__init__(self, [self])
             self.__name__ = name
             self.__covariant__ = bool(covariant)
             self.__contravariant__ = bool(contravariant)
@@ -1674,7 +1811,7 @@ def _concatenate_getitem(self, parameters):
 # 3.10+
 if hasattr(typing, 'Concatenate'):
     Concatenate = typing.Concatenate
-    _ConcatenateGenericAlias = typing._ConcatenateGenericAlias  # noqa: F811
+    _ConcatenateGenericAlias = typing._ConcatenateGenericAlias
 # 3.9
 elif sys.version_info[:2] >= (3, 9):
     @_ExtensionsSpecialForm
@@ -2209,6 +2346,17 @@ elif sys.version_info[:2] >= (3, 9):  # 3.9+
     class _UnpackAlias(typing._GenericAlias, _root=True):
         __class__ = typing.TypeVar
 
+        @property
+        def __typing_unpacked_tuple_args__(self):
+            assert self.__origin__ is Unpack
+            assert len(self.__args__) == 1
+            arg, = self.__args__
+            if isinstance(arg, (typing._GenericAlias, _types.GenericAlias)):
+                if arg.__origin__ is not tuple:
+                    raise TypeError("Unpack[...] must be used with a tuple type")
+                return arg.__args__
+            return None
+
     @_UnpackSpecialForm
     def Unpack(self, parameters):
         item = typing._type_check(parameters, f'{self._name} accepts only a single type.')
@@ -2233,7 +2381,20 @@ else:  # 3.8
         return isinstance(obj, _UnpackAlias)
 
 
-if hasattr(typing, "TypeVarTuple"):  # 3.11+
+if _PEP_696_IMPLEMENTED:
+    from typing import TypeVarTuple
+
+elif hasattr(typing, "TypeVarTuple"):  # 3.11+
+
+    def _unpack_args(*args):
+        newargs = []
+        for arg in args:
+            subargs = getattr(arg, '__typing_unpacked_tuple_args__', None)
+            if subargs is not None and not (subargs and subargs[-1] is ...):
+                newargs.extend(subargs)
+            else:
+                newargs.append(arg)
+        return newargs
 
     # Add default parameter - PEP 696
     class TypeVarTuple(metaclass=_TypeVarLikeMeta):
@@ -2241,10 +2402,57 @@ if hasattr(typing, "TypeVarTuple"):  # 3.11+
 
         _backported_typevarlike = typing.TypeVarTuple
 
-        def __new__(cls, name, *, default=_marker):
+        def __new__(cls, name, *, default=NoDefault):
             tvt = typing.TypeVarTuple(name)
             _set_default(tvt, default)
             _set_module(tvt)
+
+            def _typevartuple_prepare_subst(alias, args):
+                params = alias.__parameters__
+                typevartuple_index = params.index(tvt)
+                for param in params[typevartuple_index + 1:]:
+                    if isinstance(param, TypeVarTuple):
+                        raise TypeError(
+                            f"More than one TypeVarTuple parameter in {alias}"
+                        )
+
+                alen = len(args)
+                plen = len(params)
+                left = typevartuple_index
+                right = plen - typevartuple_index - 1
+                var_tuple_index = None
+                fillarg = None
+                for k, arg in enumerate(args):
+                    if not isinstance(arg, type):
+                        subargs = getattr(arg, '__typing_unpacked_tuple_args__', None)
+                        if subargs and len(subargs) == 2 and subargs[-1] is ...:
+                            if var_tuple_index is not None:
+                                raise TypeError(
+                                    "More than one unpacked "
+                                    "arbitrary-length tuple argument"
+                                )
+                            var_tuple_index = k
+                            fillarg = subargs[0]
+                if var_tuple_index is not None:
+                    left = min(left, var_tuple_index)
+                    right = min(right, alen - var_tuple_index - 1)
+                elif left + right > alen:
+                    raise TypeError(f"Too few arguments for {alias};"
+                                    f" actual {alen}, expected at least {plen - 1}")
+                if left == alen - right and tvt.has_default():
+                    replacement = _unpack_args(tvt.__default__)
+                else:
+                    replacement = args[left: alen - right]
+
+                return (
+                    *args[:left],
+                    *([fillarg] * (typevartuple_index - left)),
+                    replacement,
+                    *([fillarg] * (plen - right - left - typevartuple_index - 1)),
+                    *args[alen - right:],
+                )
+
+            tvt.__typing_prepare_subst__ = _typevartuple_prepare_subst
             return tvt
 
         def __init_subclass__(self, *args, **kwds):
@@ -2301,7 +2509,7 @@ else:  # <=3.10
         def __iter__(self):
             yield self.__unpacked__
 
-        def __init__(self, name, *, default=_marker):
+        def __init__(self, name, *, default=NoDefault):
             self.__name__ = name
             _DefaultMixin.__init__(self, default)
 
@@ -2352,6 +2560,12 @@ else:  # <=3.10
         return obj
 
 
+if hasattr(typing, "_ASSERT_NEVER_REPR_MAX_LENGTH"):  # 3.11+
+    _ASSERT_NEVER_REPR_MAX_LENGTH = typing._ASSERT_NEVER_REPR_MAX_LENGTH
+else:  # <=3.10
+    _ASSERT_NEVER_REPR_MAX_LENGTH = 100
+
+
 if hasattr(typing, "assert_never"):  # 3.11+
     assert_never = typing.assert_never
 else:  # <=3.10
@@ -2375,7 +2589,10 @@ else:  # <=3.10
         At runtime, this throws an exception when called.
 
         """
-        raise AssertionError("Expected code to be unreachable")
+        value = repr(arg)
+        if len(value) > _ASSERT_NEVER_REPR_MAX_LENGTH:
+            value = value[:_ASSERT_NEVER_REPR_MAX_LENGTH] + '...'
+        raise AssertionError(f"Expected code to be unreachable, but got: {value}")
 
 
 if sys.version_info >= (3, 12):  # 3.12+
@@ -2677,11 +2894,14 @@ if not hasattr(typing, "TypeVarTuple"):
                 if alen < elen:
                     # since we validate TypeVarLike default in _collect_type_vars
                     # or _collect_parameters we can safely check parameters[alen]
-                    if getattr(parameters[alen], '__default__', None) is not None:
+                    if (
+                        getattr(parameters[alen], '__default__', NoDefault)
+                        is not NoDefault
+                    ):
                         return
 
-                    num_default_tv = sum(getattr(p, '__default__', None)
-                                         is not None for p in parameters)
+                    num_default_tv = sum(getattr(p, '__default__', NoDefault)
+                                         is not NoDefault for p in parameters)
 
                     elen -= num_default_tv
 
@@ -2711,11 +2931,14 @@ else:
                 if alen < elen:
                     # since we validate TypeVarLike default in _collect_type_vars
                     # or _collect_parameters we can safely check parameters[alen]
-                    if getattr(parameters[alen], '__default__', None) is not None:
+                    if (
+                        getattr(parameters[alen], '__default__', NoDefault)
+                        is not NoDefault
+                    ):
                         return
 
-                    num_default_tv = sum(getattr(p, '__default__', None)
-                                         is not None for p in parameters)
+                    num_default_tv = sum(getattr(p, '__default__', NoDefault)
+                                         is not NoDefault for p in parameters)
 
                     elen -= num_default_tv
 
@@ -2724,7 +2947,42 @@ else:
             raise TypeError(f"Too {'many' if alen > elen else 'few'} arguments"
                             f" for {cls}; actual {alen}, expected {expect_val}")
 
-typing._check_generic = _check_generic
+if not _PEP_696_IMPLEMENTED:
+    typing._check_generic = _check_generic
+
+
+def _has_generic_or_protocol_as_origin() -> bool:
+    try:
+        frame = sys._getframe(2)
+    # - Catch AttributeError: not all Python implementations have sys._getframe()
+    # - Catch ValueError: maybe we're called from an unexpected module
+    #   and the call stack isn't deep enough
+    except (AttributeError, ValueError):
+        return False  # err on the side of leniency
+    else:
+        # If we somehow get invoked from outside typing.py,
+        # also err on the side of leniency
+        if frame.f_globals.get("__name__") != "typing":
+            return False
+        origin = frame.f_locals.get("origin")
+        # Cannot use "in" because origin may be an object with a buggy __eq__ that
+        # throws an error.
+        return origin is typing.Generic or origin is Protocol or origin is typing.Protocol
+
+
+_TYPEVARTUPLE_TYPES = {TypeVarTuple, getattr(typing, "TypeVarTuple", None)}
+
+
+def _is_unpacked_typevartuple(x) -> bool:
+    if get_origin(x) is not Unpack:
+        return False
+    args = get_args(x)
+    return (
+        bool(args)
+        and len(args) == 1
+        and type(args[0]) in _TYPEVARTUPLE_TYPES
+    )
+
 
 # Python 3.11+ _collect_type_vars was renamed to _collect_parameters
 if hasattr(typing, '_collect_type_vars'):
@@ -2737,19 +2995,29 @@ if hasattr(typing, '_collect_type_vars'):
         if typevar_types is None:
             typevar_types = typing.TypeVar
         tvars = []
-        # required TypeVarLike cannot appear after TypeVarLike with default
+
+        # A required TypeVarLike cannot appear after a TypeVarLike with a default
+        # if it was a direct call to `Generic[]` or `Protocol[]`
+        enforce_default_ordering = _has_generic_or_protocol_as_origin()
         default_encountered = False
+
+        # Also, a TypeVarLike with a default cannot appear after a TypeVarTuple
+        type_var_tuple_encountered = False
+
         for t in types:
-            if (
-                isinstance(t, typevar_types) and
-                t not in tvars and
-                not _is_unpack(t)
-            ):
-                if getattr(t, '__default__', None) is not None:
-                    default_encountered = True
-                elif default_encountered:
-                    raise TypeError(f'Type parameter {t!r} without a default'
-                                    ' follows type parameter with a default')
+            if _is_unpacked_typevartuple(t):
+                type_var_tuple_encountered = True
+            elif isinstance(t, typevar_types) and t not in tvars:
+                if enforce_default_ordering:
+                    has_default = getattr(t, '__default__', NoDefault) is not NoDefault
+                    if has_default:
+                        if type_var_tuple_encountered:
+                            raise TypeError('Type parameter with a default'
+                                            ' follows TypeVarTuple')
+                        default_encountered = True
+                    elif default_encountered:
+                        raise TypeError(f'Type parameter {t!r} without a default'
+                                        ' follows type parameter with a default')
 
                 tvars.append(t)
             if _should_collect_from_parameters(t):
@@ -2767,8 +3035,15 @@ else:
             assert _collect_parameters((T, Callable[P, T])) == (T, P)
         """
         parameters = []
-        # required TypeVarLike cannot appear after TypeVarLike with default
+
+        # A required TypeVarLike cannot appear after a TypeVarLike with default
+        # if it was a direct call to `Generic[]` or `Protocol[]`
+        enforce_default_ordering = _has_generic_or_protocol_as_origin()
         default_encountered = False
+
+        # Also, a TypeVarLike with a default cannot appear after a TypeVarTuple
+        type_var_tuple_encountered = False
+
         for t in args:
             if isinstance(t, type):
                 # We don't want __parameters__ descriptor of a bare Python class.
@@ -2782,21 +3057,33 @@ else:
                             parameters.append(collected)
             elif hasattr(t, '__typing_subst__'):
                 if t not in parameters:
-                    if getattr(t, '__default__', None) is not None:
-                        default_encountered = True
-                    elif default_encountered:
-                        raise TypeError(f'Type parameter {t!r} without a default'
-                                        ' follows type parameter with a default')
+                    if enforce_default_ordering:
+                        has_default = (
+                            getattr(t, '__default__', NoDefault) is not NoDefault
+                        )
+
+                        if type_var_tuple_encountered and has_default:
+                            raise TypeError('Type parameter with a default'
+                                            ' follows TypeVarTuple')
+
+                        if has_default:
+                            default_encountered = True
+                        elif default_encountered:
+                            raise TypeError(f'Type parameter {t!r} without a default'
+                                            ' follows type parameter with a default')
 
                     parameters.append(t)
             else:
+                if _is_unpacked_typevartuple(t):
+                    type_var_tuple_encountered = True
                 for x in getattr(t, '__parameters__', ()):
                     if x not in parameters:
                         parameters.append(x)
 
         return tuple(parameters)
 
-    typing._collect_parameters = _collect_parameters
+    if not _PEP_696_IMPLEMENTED:
+        typing._collect_parameters = _collect_parameters
 
 # Backport typing.NamedTuple as it exists in Python 3.13.
 # In 3.11, the ability to define generic `NamedTuple`s was supported.
@@ -2830,7 +3117,13 @@ else:
                     raise TypeError(
                         'can only inherit from a NamedTuple type and Generic')
             bases = tuple(tuple if base is _NamedTuple else base for base in bases)
-            types = ns.get('__annotations__', {})
+            if "__annotations__" in ns:
+                types = ns["__annotations__"]
+            elif "__annotate__" in ns:
+                # TODO: Use inspect.VALUE here, and make the annotations lazily evaluated
+                types = ns["__annotate__"](1)
+            else:
+                types = {}
             default_names = []
             for field_name in types:
                 if field_name in ns:
@@ -2962,7 +3255,7 @@ else:
 if hasattr(collections.abc, "Buffer"):
     Buffer = collections.abc.Buffer
 else:
-    class Buffer(abc.ABC):
+    class Buffer(abc.ABC):  # noqa: B024
         """Base class for classes that implement the buffer protocol.
 
         The buffer protocol allows Python objects to expose a low-level
@@ -3289,6 +3582,23 @@ else:
             return self.documentation == other.documentation
 
 
+_CapsuleType = getattr(_types, "CapsuleType", None)
+
+if _CapsuleType is None:
+    try:
+        import _socket
+    except ImportError:
+        pass
+    else:
+        _CAPI = getattr(_socket, "CAPI", None)
+        if _CAPI is not None:
+            _CapsuleType = type(_CAPI)
+
+if _CapsuleType is not None:
+    CapsuleType = _CapsuleType
+    __all__.append("CapsuleType")
+
+
 # Aliases for items that have always been in typing.
 # Explicitly assign these (rather than using `from typing import *` at the top),
 # so that we get a CI error if one of these is deleted from typing.py
@@ -3302,7 +3612,6 @@ Container = typing.Container
 Dict = typing.Dict
 ForwardRef = typing.ForwardRef
 FrozenSet = typing.FrozenSet
-Generator = typing.Generator
 Generic = typing.Generic
 Hashable = typing.Hashable
 IO = typing.IO

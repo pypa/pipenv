@@ -996,6 +996,7 @@ no_python_version_warning: Callable[..., Option] = partial(
 
 # Features that are now always on. A warning is printed if they are used.
 ALWAYS_ENABLED_FEATURES = [
+    "truststore",  # always on since 24.2
     "no-binary-enable-wheel-cache",  # always on since 23.1
 ]
 
@@ -1008,7 +1009,6 @@ use_new_feature: Callable[..., Option] = partial(
     default=[],
     choices=[
         "fast-deps",
-        "truststore",
     ]
     + ALWAYS_ENABLED_FEATURES,
     help="Enable new functionality, that may be backward incompatible.",
@@ -1023,6 +1023,7 @@ use_deprecated_feature: Callable[..., Option] = partial(
     default=[],
     choices=[
         "legacy-resolver",
+        "legacy-certs",
     ],
     help=("Enable deprecated functionality, that will be removed in the future."),
 )

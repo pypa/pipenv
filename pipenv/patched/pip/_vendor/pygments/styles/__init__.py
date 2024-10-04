@@ -4,7 +4,7 @@
 
     Contains built-in styles.
 
-    :copyright: Copyright 2006-2023 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2024 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -44,13 +44,13 @@ def get_style_by_name(name):
     try:
         mod = __import__(mod, None, None, [cls])
     except ImportError:
-        raise ClassNotFound("Could not find style module %r" % mod +
+        raise ClassNotFound(f"Could not find style module {mod!r}" +
                             (builtin and ", though it should be builtin")
                             + ".")
     try:
         return getattr(mod, cls)
     except AttributeError:
-        raise ClassNotFound("Could not find style class %r in style module." % cls)
+        raise ClassNotFound(f"Could not find style class {cls!r} in style module.")
 
 
 def get_all_styles():

@@ -4,7 +4,7 @@
 
     Formatter for Pixmap output.
 
-    :copyright: Copyright 2006-2023 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-2024 by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 import os
@@ -90,7 +90,7 @@ class FontManager:
             self._create_nix()
 
     def _get_nix_font_path(self, name, style):
-        proc = subprocess.Popen(['fc-list', "%s:style=%s" % (name, style), 'file'],
+        proc = subprocess.Popen(['fc-list', f"{name}:style={style}", 'file'],
                                 stdout=subprocess.PIPE, stderr=None)
         stdout, _ = proc.communicate()
         if proc.returncode == 0:
@@ -110,8 +110,7 @@ class FontManager:
                 self.fonts['NORMAL'] = ImageFont.truetype(path, self.font_size)
                 break
         else:
-            raise FontNotFound('No usable fonts named: "%s"' %
-                               self.font_name)
+            raise FontNotFound(f'No usable fonts named: "{self.font_name}"')
         for style in ('ITALIC', 'BOLD', 'BOLDITALIC'):
             for stylename in STYLES[style]:
                 path = self._get_nix_font_path(self.font_name, stylename)
@@ -142,8 +141,7 @@ class FontManager:
                 self.fonts['NORMAL'] = ImageFont.truetype(path, self.font_size)
                 break
         else:
-            raise FontNotFound('No usable fonts named: "%s"' %
-                               self.font_name)
+            raise FontNotFound(f'No usable fonts named: "{self.font_name}"')
         for style in ('ITALIC', 'BOLD', 'BOLDITALIC'):
             for stylename in STYLES[style]:
                 path = self._get_mac_font_path(font_map, self.font_name, stylename)
@@ -160,15 +158,14 @@ class FontManager:
         for suffix in ('', ' (TrueType)'):
             for style in styles:
                 try:
-                    valname = '%s%s%s' % (basename, style and ' '+style, suffix)
+                    valname = '{}{}{}'.format(basename, style and ' '+style, suffix)
                     val, _ = _winreg.QueryValueEx(key, valname)
                     return val
                 except OSError:
                     continue
         else:
             if fail:
-                raise FontNotFound('Font %s (%s) not found in registry' %
-                                   (basename, styles[0]))
+                raise FontNotFound(f'Font {basename} ({styles[0]}) not found in registry')
             return None
 
     def _create_win(self):
@@ -633,7 +630,11 @@ class ImageFormatter(Formatter):
                                fill=self.hl_color)
         for pos, value, font, text_fg, text_bg in self.drawables:
             if text_bg:
-                text_size = draw.textsize(text=value, font=font)
+                # see deprecations https://pillow.readthedocs.io/en/stable/releasenotes/9.2.0.html#font-size-and-offset-methods
+                if hasattr(draw, 'textsize'):
+                    text_size = draw.textsize(text=value, font=font)
+                else:
+                    text_size = font.getbbox(value)[2:]
                 draw.rectangle([pos[0], pos[1], pos[0] + text_size[0], pos[1] + text_size[1]], fill=text_bg)
             draw.text(pos, value, font=font, fill=text_fg)
         im.save(outfile, self.image_format.upper())
