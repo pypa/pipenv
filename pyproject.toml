@@ -12,12 +12,11 @@ license = { file = "LICENSE" }
 authors = [
   { name = "Pipenv maintainer team", email = "distutils-sig@python.org" },
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.8",
   "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
@@ -108,7 +107,7 @@ exclude = '''
 '''
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py38"
 
 line-length = 137
 exclude = [
@@ -133,6 +132,8 @@ select = [
   "UP",
   "W",
   "YTT",
+  "TCH",
+  "UP",
 ]
 ignore = [
   "B904",
@@ -276,6 +277,17 @@ showcontent = true
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = "skip"
-html_report = "mypyhtml"
-python_version = "3.7"
+# html_report = "mypyhtml"
+python_version = "3.9"
 mypy_path = "typeshed/pyi:typeshed/imports"
+check_untyped_defs = true
+disallow_any_generics = true
+disallow_incomplete_defs = true
+disallow_untyped_defs = true
+no_implicit_optional = false
+warn_redundant_casts = true
+warn_unused_ignores = true
+
+[tool.pyright]
+reportAssignmentType = false
+reportAttributeAccessIssue = false

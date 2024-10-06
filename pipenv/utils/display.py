@@ -1,4 +1,4 @@
-def format_help(help):
+def format_help(help: str) -> str:
     """Formats the help string."""
     help = help.replace("Options:", "[bold]Options:[/bold]")
     help = help.replace("Usage: pipenv", "Usage: [bold]pipenv[/bold]")

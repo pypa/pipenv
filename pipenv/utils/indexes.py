@@ -1,21 +1,26 @@
 from __future__ import annotations
 
 import re
+import typing
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
+from pipenv._types.pipfile2 import TSource
 from pipenv.exceptions import PipenvUsageError
 from pipenv.patched.pip._vendor.urllib3.util import parse_url
-from pipenv.utils.constants import MYPY_RUNNING
 
 from .internet import create_mirror_source, is_pypi_url
 
-if MYPY_RUNNING:
+if TYPE_CHECKING:
     from typing import List, Optional, Union  # noqa
+    from pipenv._types.pipfile2 import TSource
 
-    from pipenv.project import Project, TSource  # noqa
+    from pipenv.project import Project
 
 
-def prepare_pip_source_args(sources, pip_args=None):
+def prepare_pip_source_args(
+    sources: list[TSource], pip_args: list[str] | None = None
+) -> list[str]:
     if pip_args is None:
         pip_args = []
     if sources:
@@ -56,8 +61,9 @@ def get_project_index(
     if isinstance(index, Mapping):
         return project.find_source(index.get("url"))
     try:
-        source = project.find_source(index)
+        source: TSource = project.find_source(index)
     except SourceNotFound:
+        index = typing.cast(str, index)
         index_url = parse_url(index)
         src_name = project.src_name_from_url(index)
         verify_ssl = index_url.host not in trusted_hosts
@@ -72,7 +78,7 @@ def get_source_list(
     trusted_hosts: list[str] | None = None,
     pypi_mirror: str | None = None,
 ) -> list[TSource]:
-    sources = project.sources[:]
+    sources: list[TSource] = project.sources[:]
     if index:
         sources.append(get_project_index(project, index))
     if extra_indexes:
@@ -84,9 +90,9 @@ def get_source_list(
             if not sources or extra_src["url"] != sources[0]["url"]:
                 sources.append(extra_src)
 
-        for source in project.sources:
-            if not sources or source["url"] != sources[0]["url"]:
-                sources.append(source)
+        for tsource in project.sources:
+            if not sources or tsource["url"] != sources[0]["url"]:
+                sources.append(tsource)
 
     if pypi_mirror:
         sources = [
@@ -100,7 +106,7 @@ def get_source_list(
     return sources
 
 
-def parse_indexes(line, strict=False):
+def parse_indexes(line: str, strict: bool = False) -> tuple[str, str, str, list[str]]:
     from argparse import ArgumentParser
 
     comment_re = re.compile(r"(?:^|\s+)#.*$")
@@ -110,9 +116,9 @@ def parse_indexes(line, strict=False):
     parser.add_argument("--extra-index-url", dest="extra_index")
     parser.add_argument("--trusted-host", dest="trusted_host")
     args, remainder = parser.parse_known_args(line.split())
-    index = args.index
-    extra_index = args.extra_index
-    trusted_host = args.trusted_host
+    index: str = args.index
+    extra_index: str = args.extra_index
+    trusted_host: str = args.trusted_host
     if (
         strict
         and sum(bool(arg) for arg in (index, extra_index, trusted_host, remainder)) > 1

@@ -1,15 +1,29 @@
+from __future__ import annotations
+
 import json as simplejson
 import os
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pipenv import exceptions
 from pipenv.utils.processes import run_command
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from typing import Any, NoReturn
 
-def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
+    from pipenv.project import Project
+
+
+def do_graph(
+    project: Project,
+    bare: bool = False,
+    json: bool = False,
+    json_tree: bool = False,
+    reverse: bool = False,
+) -> NoReturn:
     import json as jsonlib
 
     from pipenv.vendor import pipdeptree
@@ -101,7 +115,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             sys.exit(0)
         elif json_tree:
 
-            def traverse(obj):
+            def traverse(obj: Any) -> list[Any] | Any:
                 if isinstance(obj, list):
                     return [
                         traverse(package)

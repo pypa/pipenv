@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import TYPE_CHECKING
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.utils import err
@@ -10,20 +12,26 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 
+if TYPE_CHECKING:
+    from subprocess import Popen
+
+    from pipenv._types.pipfile2 import TSource
+    from pipenv.project import Project
+
 
 def pip_install_deps(
-    project,
-    deps,
-    sources,
-    allow_global=False,
-    ignore_hashes=False,
-    no_deps=False,
-    requirements_dir=None,
-    use_pep517=True,
-    extra_pip_args: Optional[List] = None,
-):
+    project: Project,
+    deps: list[str],
+    sources: list[TSource],
+    allow_global: bool = False,
+    ignore_hashes: bool = False,
+    no_deps: bool = False,
+    requirements_dir: str | None = None,
+    use_pep517: bool = True,
+    extra_pip_args: list[str] | None = None,
+) -> list[Popen[str]]:
     if not allow_global:
-        src_dir = os.getenv(
+        src_dir: str | None = os.getenv(
             "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
         )
     else:
@@ -61,7 +69,7 @@ def pip_install_deps(
             files.append(editable_requirements)
 
     for file in files:
-        pip_command = [
+        pip_command: list[str] = [
             project_python(project, system=allow_global),
             get_runnable_pip(),
             "install",
@@ -98,12 +106,14 @@ def pip_install_deps(
             if project.s.is_verbose():
                 err.print(f"Using source directory: {src_dir!r}")
             pip_config.update({"PIP_SRC": src_dir})
-        c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
-        c.env = pip_config
+        c: Popen[str] = subprocess_run(  # type: ignore
+            pip_command, block=False, capture_output=True, env=pip_config
+        )
+        c.env = pip_config  # type: ignore
         cmds.append(c)
         if project.s.is_verbose():
             while True:
-                line = c.stdout.readline()
+                line = c.stdout.readline()  # type: ignore
                 if not line:
                     break
                 if "Ignoring" in line:
@@ -114,7 +124,7 @@ def pip_install_deps(
 
 
 def get_pip_args(
-    project,
+    project: Project,
     pre: bool = False,
     verbose: bool = False,
     upgrade: bool = False,
@@ -122,9 +132,9 @@ def get_pip_args(
     no_build_isolation: bool = False,
     no_use_pep517: bool = False,
     no_deps: bool = False,
-    src_dir: Optional[str] = None,
-    extra_pip_args: Optional[List] = None,
-) -> List[str]:
+    src_dir: str | None = None,
+    extra_pip_args: list[str] | None = None,
+) -> list[str]:
     arg_map = {
         "pre": ["--pre"],
         "verbose": ["--verbose"],
@@ -138,13 +148,14 @@ def get_pip_args(
     arg_set = ["--no-input"] if project.settings.get("disable_pip_input", True) else []
     for key in arg_map:
         if key in locals() and locals().get(key):
-            arg_set.extend(arg_map.get(key))
+            arg_set.extend(arg_map.get(key))  # type: ignore[arg-type]
     arg_set += extra_pip_args or []
     return list(dict.fromkeys(arg_set))
 
 
-def get_trusted_hosts():
-    try:
-        return os.environ.get("PIP_TRUSTED_HOSTS", []).split(" ")
-    except AttributeError:
+def get_trusted_hosts() -> list[str]:
+    val = os.environ.get("PIP_TRUSTED_HOST")
+    if val:
+        return val.split(" ")
+    else:
         return []

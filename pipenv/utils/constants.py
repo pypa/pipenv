@@ -37,14 +37,3 @@ RELEVANT_PROJECT_FILES = (
 )
 
 INSTALLABLE_EXTENSIONS = (".whl", ".zip", ".tar", ".tar.gz", ".tgz")
-
-
-def is_type_checking():
-    try:
-        from typing import TYPE_CHECKING
-    except ImportError:
-        return False
-    return TYPE_CHECKING
-
-
-MYPY_RUNNING = is_type_checking()

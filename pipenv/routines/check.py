@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import json as simplejson
 import logging
@@ -5,6 +7,7 @@ import os
 import sys
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from pipenv import exceptions, pep508checker
 from pipenv.utils.processes import run_command
@@ -12,16 +15,19 @@ from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click, plette
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+
 
 def build_options(
-    audit_and_monitor=True,
-    exit_code=True,
-    output="screen",
-    save_json="",
-    policy_file="",
-    safety_project=None,
-    temp_requirements_name="",
-):
+    audit_and_monitor: bool = True,
+    exit_code: bool = True,
+    output: str = "screen",
+    save_json: str = "",
+    policy_file: str = "",
+    safety_project: str | None = None,
+    temp_requirements_name: str = "",
+) -> list[str]:
     options = [
         "--audit-and-monitor" if audit_and_monitor else "--disable-audit-and-monitor",
         "--exit-code" if exit_code else "--continue-on-error",
@@ -48,24 +54,24 @@ def build_options(
 
 
 def do_check(
-    project,
-    python=False,
-    system=False,
-    db=None,
-    ignore=None,
-    output="screen",
-    key=None,
-    quiet=False,
-    verbose=False,
-    exit_code=True,
-    policy_file="",
-    save_json="",
-    audit_and_monitor=True,
-    safety_project=None,
-    pypi_mirror=None,
-    use_installed=False,
-    categories="",
-):
+    project: Project,
+    python: str | None = None,
+    system: bool = False,
+    db: str | None = None,
+    ignore: list[str] | tuple[str, ...] | str | None = None,
+    output: str = "screen",
+    key: str | None = None,
+    quiet: bool = False,
+    verbose: bool = False,
+    exit_code: bool = True,
+    policy_file: str = "",
+    save_json: str = "",
+    audit_and_monitor: bool = True,
+    safety_project: str | None = None,
+    pypi_mirror: str | None = None,
+    use_installed: bool = False,
+    categories: str = "",
+) -> None:
     import json
 
     if not verbose:
@@ -119,8 +125,7 @@ def do_check(
             except AssertionError:
                 failed = True
                 click.echo(
-                    "Specifier {} does not match {} ({})."
-                    "".format(
+                    "Specifier {} does not match {} ({}).".format(
                         click.style(marker, fg="green"),
                         click.style(specifier, fg="cyan"),
                         click.style(results[marker], fg="yellow"),
@@ -232,7 +237,7 @@ def do_check(
             try:
                 cli(prog_name="pipenv")
             except SystemExit as exit_signal:
-                code = exit_signal.code
+                code = exit_signal.code  # type: ignore[assignment]
 
         report = out.getvalue()
         error = err.getvalue()

@@ -1,22 +1,29 @@
+from __future__ import annotations
+
 import contextlib
+from typing import TYPE_CHECKING
 
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from pipenv._types.pipfile2 import LockfileSchema, MutableMappingT
+    from pipenv.project import Project
+
 
 def do_lock(
-    project,
-    system=False,
-    clear=False,
-    pre=False,
-    write=True,
-    quiet=False,
-    pypi_mirror=None,
-    categories=None,
-    extra_pip_args=None,
-):
+    project: Project,
+    system: bool = False,
+    clear: bool = False,
+    pre: bool = False,
+    write: bool = True,
+    quiet: bool = False,
+    pypi_mirror: str | None = None,
+    categories: list[str] | None = None,
+    extra_pip_args: list[str] | None = None,
+) -> LockfileSchema:
     """Executes the freeze functionality."""
     if not pre:
         pre = project.settings.get("allow_prereleases")
@@ -104,7 +111,9 @@ def do_lock(
         return lockfile
 
 
-def overwrite_with_default(default, dev):
+def overwrite_with_default(
+    default: MutableMappingT, dev: MutableMappingT
+) -> MutableMappingT:
     for pkg in set(dev) & set(default):
         dev[pkg] = default[pkg]
     return dev

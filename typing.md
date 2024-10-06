@@ -1,0 +1,35 @@
+- [x]   1 pipenv/routines/clear.py
+- [x]   1 pipenv/routines/outdated.py
+- [x]   1 pipenv/routines/requirements.py
+- [x]   1 pipenv/routines/sync.py
+- [x]   1 pipenv/utils/constants.py
+- [x]   1 pipenv/utils/display.py
+- [x]   2 pipenv/routines/check.py
+- [x]   2 pipenv/routines/clean.py
+- [x]   2 pipenv/routines/graph.py
+- [ ]   2 pipenv/routines/lock.py
+- [ ]   2 pipenv/routines/update.py
+- [x]   2 pipenv/utils/environment.py
+- [x]   2 pipenv/utils/processes.py
+- [ ]   3 pipenv/routines/uninstall.py
+- [x]   3 pipenv/utils/pip.py
+- [x]   3 pipenv/utils/project.py
+- [ ]   4 pipenv/utils/indexes.py
+- [x]   5 pipenv/routines/shell.py
+- [ ]   6 pipenv/utils/toml.py
+- [ ]   7 pipenv/routines/install.py
+- [ ]   7 pipenv/utils/requirements.py
+- [ ]  11 pipenv/utils/fileutils.py
+- [ ]  12 pipenv/utils/internet.py
+- [ ]  12 pipenv/utils/virtualenv.py
+- [ ]  13 pipenv/utils/exceptions.py
+- [ ]  17 pipenv/cli/command.py
+- [ ]  17 pipenv/utils/funktools.py
+- [ ]  25 pipenv/utils/requirementslib.py
+- [ ]  29 pipenv/utils/locking.py
+- [ ]  29 pipenv/utils/shell.py
+- [ ]  30 pipenv/utils/pipfile.py
+- [ ]  38 pipenv/utils/markers.py
+- [ ]  40 pipenv/utils/resolver.py
+- [ ]  53 pipenv/utils/dependencies.py
+- [ ]  65 pipenv/cli/options.py

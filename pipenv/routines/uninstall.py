@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import shutil
 import sys
+from typing import TYPE_CHECKING
 
 from pipenv import exceptions
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
-from pipenv.project import Project
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console
 from pipenv.utils.dependencies import (
@@ -19,8 +21,14 @@ from pipenv.utils.shell import cmd_list_to_shell, project_python
 from pipenv.vendor import click
 from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 
+if TYPE_CHECKING:
+    from pipenv.project import Project
+    from pipenv.vendor.click.core import Context
 
-def _uninstall_from_environment(project: Project, package, system=False):
+
+def _uninstall_from_environment(
+    project: Project, package: str, system: bool = False
+) -> bool:
     # Execute the uninstall command for the package
     with project.environment.activated() as is_active:
         if not is_active:
@@ -44,18 +52,18 @@ def _uninstall_from_environment(project: Project, package, system=False):
 
 def do_uninstall(
     project: Project,
-    packages=None,
-    editable_packages=None,
-    python=False,
-    system=False,
-    lock=False,
-    all_dev=False,
-    all=False,
-    pre=False,
-    pypi_mirror=None,
-    ctx=None,
-    categories=None,
-):
+    packages: list[str] | None = None,
+    editable_packages: list[str] | None = None,
+    python: str | None = None,
+    system: bool = False,
+    lock: bool = False,
+    all_dev: bool = False,
+    all: bool = False,
+    pre: bool = False,
+    pypi_mirror: str | None = None,
+    ctx: Context | None = None,
+    categories: list[str] | None = None,
+) -> None:
     # Initialization similar to the upgrade function
     if not any([packages, editable_packages, all_dev, all]):
         raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
@@ -111,7 +119,7 @@ def do_uninstall(
         do_purge(project, bare=False, downloads=False, allow_global=system)
         return
 
-    package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
+    package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]  # type: ignore[arg-type, union-attr]
 
     # Determine packages and their dependencies for removal
     for category in categories:
@@ -179,14 +187,19 @@ def do_uninstall(
     sys.exit(int(failure))
 
 
-def do_purge(project, bare=False, downloads=False, allow_global=False):
+def do_purge(
+    project: Project,
+    bare: bool = False,
+    downloads: bool = False,
+    allow_global: bool = False,
+) -> None | set[str | None]:
     """Executes the purge functionality."""
 
     if downloads:
         if not bare:
             click.secho("Clearing out downloads directory...", bold=True)
         shutil.rmtree(project.download_location)
-        return
+        return None
 
     # Remove comments from the output, if any.
     installed = {

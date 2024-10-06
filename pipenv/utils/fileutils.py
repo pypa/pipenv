@@ -1,5 +1,7 @@
 """A collection for utilities for working with files and paths."""
 
+from __future__ import annotations
+
 import atexit
 import io
 import os
@@ -8,7 +10,7 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Generator
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote, urlparse
@@ -16,6 +18,9 @@ from urllib.parse import quote, urlparse
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
+
+if TYPE_CHECKING:
+    from pipenv.patched.pip._internal.models.link import Link
 
 
 def is_file_url(url: Any) -> bool:
@@ -53,7 +58,7 @@ def url_to_path(url: str) -> str:
 
 if os.name == "nt":
     # from click _winconsole.py
-    from ctypes import create_unicode_buffer, windll
+    from ctypes import create_unicode_buffer, windll  # type: ignore[attr-defined]
 
     def get_long_path(short_path: str) -> str:
         BUFFER_SIZE = 500
@@ -63,14 +68,14 @@ if os.name == "nt":
         return buffer.value
 
 
-def normalize_path(path: str) -> str:
+def normalize_path(path: str | None) -> str:
     """Return a case-normalized absolute variable-expanded path."""
     return os.path.expandvars(
         os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
     )
 
 
-def normalize_drive(path):
+def normalize_drive(path: str) -> str:
     """Normalize drive in path so they stay consistent.
 
     This currently only affects local drives on Windows, which can be
@@ -88,7 +93,7 @@ def normalize_drive(path):
     return path
 
 
-def path_to_url(path):
+def path_to_url(path: str) -> str:
     """Convert the supplied local path to a file uri.
 
     :param str path: A string pointing to or representing a local path
@@ -99,7 +104,7 @@ def path_to_url(path):
     """
 
     if not path:
-        return path  # type: ignore
+        return path
     normalized_path = Path(normalize_drive(os.path.abspath(path))).as_posix()
     if os.name == "nt" and normalized_path[1] == ":":
         drive, _, path = normalized_path.partition(":")
@@ -116,7 +121,9 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
+def open_file(
+    link: str | Link, session: PipSession | None = None, stream: bool = False
+) -> Generator[io.BufferedReader | None | io.BytesIO, Any, None]:
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
@@ -159,8 +166,7 @@ def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
 
 
 @contextmanager
-def temp_path():
-    # type: () -> Iterator[None]
+def temp_path() -> Generator[None, None, None]:
     """A context manager which allows the ability to set sys.path temporarily.
 
     >>> path_from_virtualenv = load_path("/path/to/venv/bin/python")

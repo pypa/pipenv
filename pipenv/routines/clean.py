@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import sys
+from typing import TYPE_CHECKING
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.routines.lock import do_lock
@@ -9,15 +12,20 @@ from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.shell import project_python
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from typing import NoReturn
+
+    from pipenv.project import Project
+
 
 def do_clean(
-    project,
-    python=None,
-    dry_run=False,
-    bare=False,
-    pypi_mirror=None,
-    system=False,
-):
+    project: Project,
+    python: str | None = None,
+    dry_run: bool = False,
+    bare: bool = False,
+    pypi_mirror: str | None = None,
+    system: bool = False,
+) -> NoReturn:
     # Ensure that virtualenv is available.
     from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
@@ -62,7 +70,7 @@ def do_clean(
     sys.exit(int(failure))
 
 
-def ensure_lockfile(project, pypi_mirror=None):
+def ensure_lockfile(project: Project, pypi_mirror: str | None = None) -> None:
     """Ensures that the lockfile is up-to-date."""
     # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
     if project.lockfile_exists:

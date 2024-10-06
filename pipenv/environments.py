@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import glob
 import os
 import pathlib
 import re
 import sys
+from typing import TypeVar, overload
 
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.utils.fileutils import normalize_drive
@@ -13,8 +16,15 @@ from pipenv.utils.shell import env_to_bool, is_env_truthy, isatty
 
 os.environ["PYTHONDONTWRITEBYTECODE"] = "1"
 
+T = TypeVar("T")
 
-def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
+
+def get_from_env(
+    arg: str,
+    prefix: str = "PIPENV",
+    check_for_negation: bool = True,
+    default: T | None = None,
+) -> T | bool | str | None:
     """
     Check the environment for a variable, returning its truthy or stringified value
 
@@ -50,7 +60,15 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
     return default
 
 
-def normalize_pipfile_path(p):
+@overload
+def normalize_pipfile_path(p: str) -> str: ...
+
+
+@overload
+def normalize_pipfile_path(p: None) -> None: ...
+
+
+def normalize_pipfile_path(p: str | None) -> str | None:
     if p is None:
         return None
     loc = pathlib.Path(p)
@@ -74,7 +92,7 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 SESSION_IS_INTERACTIVE = isatty(sys.stdout)
 
 # TF_BUILD indicates to Azure pipelines it is a build step
-PIPENV_IS_CI = get_from_env("CI", prefix="", check_for_negation=False) or is_env_truthy(
+PIPENV_IS_CI: bool = get_from_env("CI", prefix="", check_for_negation=False) or is_env_truthy(  # type: ignore[assignment]
     "TF_BUILD"
 )
 
@@ -110,7 +128,7 @@ class Setting:
 
         #: Location for Pipenv to store it's package cache.
         #: Default is to use appdir's user cache directory.
-        self.PIPENV_CACHE_DIR = get_from_env(
+        self.PIPENV_CACHE_DIR: str = get_from_env(  # type: ignore[assignment]
             "CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv")
         )
 
@@ -173,8 +191,8 @@ class Setting:
         and enables the user to use any user-built environments with Pipenv.
         """
 
-        self.PIPENV_INSTALL_TIMEOUT = int(
-            get_from_env("INSTALL_TIMEOUT", default=60 * 15)
+        self.PIPENV_INSTALL_TIMEOUT: int = int(
+            get_from_env("INSTALL_TIMEOUT", default=60 * 15)  # type: ignore[arg-type]
         )
         """Max number of seconds to wait for package installation.
 
@@ -182,14 +200,14 @@ class Setting:
         """
 
         # NOTE: +1 because of a temporary bug in Pipenv.
-        self.PIPENV_MAX_DEPTH = int(get_from_env("MAX_DEPTH", default=10)) + 1
+        self.PIPENV_MAX_DEPTH = int(get_from_env("MAX_DEPTH", default=10)) + 1  # type: ignore[arg-type]
         """Maximum number of directories to recursively search for a Pipfile.
 
         Default is 3. See also ``PIPENV_NO_INHERIT``.
         """
 
-        self.PIPENV_MAX_RETRIES = (
-            int(get_from_env("MAX_RETRIES", default=1)) if PIPENV_IS_CI else 0
+        self.PIPENV_MAX_RETRIES: int = (
+            int(get_from_env("MAX_RETRIES", default=1)) if PIPENV_IS_CI else 0  # type: ignore[arg-type]
         )
         """Specify how many retries Pipenv should attempt for network requests.
 
@@ -233,7 +251,7 @@ class Setting:
             $ python -m pipenv.patched.pip._vendor.rich.spinner
         """
 
-        pipenv_pipfile = get_from_env("PIPFILE", check_for_negation=False)
+        pipenv_pipfile: str | None = get_from_env("PIPFILE", check_for_negation=False)  # type: ignore[assignment]
         if pipenv_pipfile:
             if not os.path.isfile(pipenv_pipfile):
                 raise RuntimeError("Given PIPENV_PIPFILE is not found!")
@@ -282,7 +300,7 @@ class Setting:
         """
 
         self.PIPENV_TIMEOUT = int(
-            get_from_env("TIMEOUT", check_for_negation=False, default=120)
+            get_from_env("TIMEOUT", check_for_negation=False, default=120)  # type: ignore[arg-type]
         )
         """Max number of seconds Pipenv will wait for virtualenv creation to complete.
 
@@ -290,7 +308,7 @@ class Setting:
         """
 
         self.PIPENV_REQUESTS_TIMEOUT = int(
-            get_from_env("REQUESTS_TIMEOUT", check_for_negation=False, default=10)
+            get_from_env("REQUESTS_TIMEOUT", check_for_negation=False, default=10)  # type: ignore[arg-type]
         )
         """Timeout setting for requests.
 
@@ -396,7 +414,7 @@ class Setting:
         # Internal, consolidated verbosity representation as an integer. The default
         # level is 0, increased for wordiness and decreased for terseness.
         try:
-            self.PIPENV_VERBOSITY = int(get_from_env("VERBOSITY"))
+            self.PIPENV_VERBOSITY = int(get_from_env("VERBOSITY"))  # type: ignore[arg-type]
         except (ValueError, TypeError):
             if self.PIPENV_VERBOSE:
                 self.PIPENV_VERBOSITY = 1
@@ -407,10 +425,10 @@ class Setting:
         del self.PIPENV_QUIET
         del self.PIPENV_VERBOSE
 
-    def is_verbose(self, threshold=1):
+    def is_verbose(self, threshold: int = 1) -> bool:
         return threshold <= self.PIPENV_VERBOSITY
 
-    def is_quiet(self, threshold=-1):
+    def is_quiet(self, threshold: int = -1) -> bool:
         return threshold >= self.PIPENV_VERBOSITY
 
 
@@ -425,7 +443,7 @@ def is_using_venv() -> bool:
     return result
 
 
-def is_in_virtualenv():
+def is_in_virtualenv() -> bool:
     """
     Check virtualenv membership dynamically
 

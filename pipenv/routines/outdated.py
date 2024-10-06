@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import sys
 from collections import namedtuple
 from collections.abc import Mapping
+from typing import TYPE_CHECKING
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
@@ -13,14 +16,24 @@ from pipenv.utils.dependencies import (
 )
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from typing import NoReturn
 
-def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
+    from pipenv.project import Project
+
+
+def do_outdated(
+    project: Project,
+    pypi_mirror: str | None = None,
+    pre: bool = False,
+    clear: bool = False,
+) -> NoReturn:
     packages = {}
-    package_info = namedtuple("PackageInfo", ["name", "installed", "available"])
+    PackageInfo = namedtuple("PackageInfo", ["name", "installed", "available"])
 
     installed_packages = project.environment.get_installed_packages()
     outdated_packages = {
-        canonicalize_name(pkg.name): package_info(
+        canonicalize_name(pkg.name): PackageInfo(
             pkg.name, parse_version(pkg.version), pkg.latest_version
         )
         for pkg in project.environment.get_outdated_packages()
@@ -57,7 +70,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                 version = parse_version(version.replace("==", ""))
             if updated_packages[norm_name] != version:
                 outdated.append(
-                    package_info(package, str(version), str(updated_packages[norm_name]))
+                    PackageInfo(package, str(version), str(updated_packages[norm_name]))
                 )
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])

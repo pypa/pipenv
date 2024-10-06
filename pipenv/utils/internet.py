@@ -1,16 +1,26 @@
+from __future__ import annotations
+
 import os
 import re
+from functools import lru_cache
 from html.parser import HTMLParser
+from typing import TYPE_CHECKING
 from urllib.parse import urlparse
 
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
+if TYPE_CHECKING:
+    from pipenv._types.pipfile2 import TSource
+
 
 def get_requests_session(
-    max_retries=1, verify_ssl=True, cache_dir=USER_CACHE_DIR, source=None
-):
+    max_retries: int = 1,
+    verify_ssl: bool = True,
+    cache_dir: str = USER_CACHE_DIR,
+    source: str | None = None,
+) -> PipSession:
     """Load requests lazily."""
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     index_urls = [source] if source else None
@@ -24,23 +34,25 @@ def get_requests_session(
     return requests_session
 
 
-def is_valid_url(url):
+def is_valid_url(url: str | None) -> bool:
     """Checks if a given string is an url"""
     pieces = urlparse(url)
     return all([pieces.scheme, pieces.netloc])
 
 
-def is_pypi_url(url):
+def is_pypi_url(url: str) -> bool:
     return bool(re.match(r"^http[s]?:\/\/pypi(?:\.python)?\.org\/simple[\/]?$", url))
 
 
-def replace_pypi_sources(sources, pypi_replacement_source):
+def replace_pypi_sources(
+    sources: list[TSource], pypi_replacement_source: TSource
+) -> list[TSource]:
     return [pypi_replacement_source] + [
         source for source in sources if not is_pypi_url(source["url"])
     ]
 
 
-def create_mirror_source(url, name):
+def create_mirror_source(url: str, name: str) -> TSource:
     return {
         "url": url,
         "verify_ssl": url.startswith("https://"),
@@ -48,7 +60,7 @@ def create_mirror_source(url, name):
     }
 
 
-def download_file(url, filename, max_retries=1):
+def download_file(url: str, filename: str, max_retries: int = 1) -> None:
     """Downloads file from url to a path with filename"""
     r = get_requests_session(max_retries).get(url, stream=True)
     r.close()
@@ -59,7 +71,7 @@ def download_file(url, filename, max_retries=1):
         f.write(r.content)
 
 
-def get_host_and_port(url):
+def get_host_and_port(url: str) -> str:
     """Get the host, or the host:port pair if port is explicitly included, for the given URL.
 
     Examples:
@@ -79,11 +91,11 @@ def get_host_and_port(url):
     :param url: the URL string to parse
     :return: a string with the host:port pair if the URL includes port number explicitly; otherwise, returns host only
     """
-    url = urllib3_util.parse_url(url)
-    return f"{url.host}:{url.port}" if url.port else url.host
+    _url = urllib3_util.parse_url(url)
+    return f"{_url.host}:{_url.port}" if _url.port else _url.host
 
 
-def get_url_name(url):
+def get_url_name(url: str) -> str:
     if not isinstance(url, str):
         return
     return urllib3_util.parse_url(url).host
@@ -117,7 +129,8 @@ def is_url_equal(url: str, other_url: str) -> bool:
     return unparsed == unparsed_other
 
 
-def proper_case(package_name):
+@lru_cache(maxsize=None)
+def proper_case(package_name: str) -> str:
     """Properly case project name from pypi.org."""
     # Hit the simple API.
     r = get_requests_session().get(
@@ -129,17 +142,17 @@ def proper_case(package_name):
 
     regex = r"https://pypi\.org/pypi/(.*)/json$"
     match = re.search(regex, r.url)
-    good_name = match.group(1)
+    good_name = match.group(1)  # type: ignore
 
     return good_name
 
 
 class PackageIndexHTMLParser(HTMLParser):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.urls = []
+        self.urls: list[str | None] = []
 
-    def handle_starttag(self, tag, attrs):
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         # If tag is an anchor
         if tag == "a":
             # find href attribute

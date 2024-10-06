@@ -1,16 +1,30 @@
+from __future__ import annotations
+
 import os
 import subprocess
 import sys
 from os.path import expandvars
+from typing import TYPE_CHECKING
 
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, system_which
 from pipenv.vendor import click
 
+if TYPE_CHECKING:
+    from typing import Any, NoReturn
+
+    from pipenv.cmdparse import Script
+    from pipenv.project import Project
+
 
 def do_shell(
-    project, python=False, fancy=False, shell_args=None, pypi_mirror=None, quiet=False
-):
+    project: Project,
+    python: str | None = None,
+    fancy: bool = False,
+    shell_args: list[str] | None = None,
+    pypi_mirror: str | None = None,
+    quiet: bool = False,
+) -> None:
     # Ensure that virtualenv is available.
     ensure_project(
         project,
@@ -55,7 +69,13 @@ def do_shell(
         shell.fork(*fork_args)
 
 
-def do_run(project, command, args, python=False, pypi_mirror=None):
+def do_run(
+    project: Project,
+    command: str,
+    args: list[str],
+    python: str | None = None,
+    pypi_mirror: str | None = None,
+) -> None:
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
@@ -97,16 +117,18 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
     except ScriptEmptyError:
         click.echo("Can't run script {0!r}-it's empty?", err=True)
     run_args = [project, script]
-    run_kwargs = {"env": env}
+    run_kwargs: dict[str, Any] = {"env": env}
     if os.name == "nt":
         run_fn = do_run_nt
     else:
-        run_fn = do_run_posix
+        run_fn = do_run_posix  # type: ignore[assignment]
         run_kwargs.update({"command": command})
     run_fn(*run_args, **run_kwargs)
 
 
-def do_run_posix(project, script, command, env):
+def do_run_posix(
+    project: Project, script: Script, command: str, env: dict[str, str]
+) -> NoReturn:
     path = env.get("PATH")
     command_path = system_which(script.command, path=path)
     if not command_path:
@@ -140,13 +162,15 @@ def do_run_posix(project, script, command, env):
     )
 
 
-def do_run_nt(project, script, env):
+def do_run_nt(project: Project, script: Script, env: dict[str, str]) -> NoReturn:
     p = _launch_windows_subprocess(script, env)
     p.communicate()
     sys.exit(p.returncode)
 
 
-def _launch_windows_subprocess(script, env):
+def _launch_windows_subprocess(
+    script: Script, env: dict[str, str]
+) -> subprocess.Popen[bytes]:
     path = env.get("PATH", "")
     command = system_which(script.command, path=path)
 
@@ -155,16 +179,16 @@ def _launch_windows_subprocess(script, env):
 
     # Command not found, maybe this is a shell built-in?
     if not command:
-        return subprocess.Popen(script.cmdify(), shell=True, **options)
+        return subprocess.Popen(script.cmdify(), shell=True, **options)  # type: ignore[call-overload]
 
     # Try to use CreateProcess directly if possible. Specifically catch
     # Windows error 193 "Command is not a valid Win32 application" to handle
     # a "command" that is non-executable. See pypa/pipenv#2727.
     try:
-        return subprocess.Popen([command] + script.args, **options)
+        return subprocess.Popen([command] + script.args, **options)  # type: ignore[call-overload]
     except OSError as e:
-        if e.winerror != 193:
+        if e.winerror != 193:  # type: ignore
             raise
 
     # Try shell mode to use Windows's file association for file launch.
-    return subprocess.Popen(script.cmdify(), shell=True, **options)
+    return subprocess.Popen(script.cmdify(), shell=True, **options)  # type: ignore[call-overload]

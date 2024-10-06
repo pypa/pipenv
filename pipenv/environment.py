@@ -14,12 +14,9 @@ from urllib.parse import urlparse
 
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
-from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.typing_extensions import Iterable
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
@@ -38,8 +35,20 @@ if typing.TYPE_CHECKING:
     from types import ModuleType
     from typing import ContextManager, Generator
 
-    from pipenv.project import Project, TPipfile, TSource
-    from pipenv.vendor import tomlkit
+    from typing_extensions import Literal
+
+    from pipenv._types.pipfile2 import (
+        BasePaths,
+        DepNode,
+        DistPackageDictPlus,
+        PipfileSchema,
+        TSource,
+    )
+    from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+    from pipenv.patched.pip._vendor.typing_extensions import Iterable
+    from pipenv.project import Project
+    from pipenv.vendor.pipdeptree._models.package import DistPackage, ReqPackage
 
 BASE_WORKING_SET = importlib_metadata.distributions()
 
@@ -47,13 +56,13 @@ BASE_WORKING_SET = importlib_metadata.distributions()
 class Environment:
     def __init__(
         self,
+        project: Project,
         prefix: str | None = None,
         python: str | None = None,
         is_venv: bool = False,
         base_working_set: list[importlib_metadata.Distribution] = None,
-        pipfile: tomlkit.toml_document.TOMLDocument | TPipfile | None = None,
+        pipfile: PipfileSchema | None = None,
         sources: list[TSource] | None = None,
-        project: Project | None = None,
     ):
         super().__init__()
         self._modules = {"pipenv": pipenv}
@@ -72,11 +81,11 @@ class Environment:
         if project and not pipfile:
             pipfile = project.parsed_pipfile
         self.pipfile = pipfile
-        self.extra_dists = []
+        self.extra_dists: list[str] = []
         if self.is_venv and prefix is not None and not Path(prefix).exists():
             return
         self.prefix = Path(prefix if prefix else sys.prefix)
-        self._base_paths = {}
+        self._base_paths: BasePaths | None = {}  # type: ignore[assignment]
         if self.is_venv:
             self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
@@ -126,7 +135,9 @@ class Environment:
             return {"py_version_short": py_version_short, "abiflags": abiflags}
         return {}
 
-    def _replace_parent_version(self, path: str, replace_version: str) -> str:
+    def _replace_parent_version(
+        self, path: str | Path, replace_version: str
+    ) -> str | Path:
         if not os.path.exists(path):
             base, leaf = os.path.split(path)
             base, parent = os.path.split(base)
@@ -138,7 +149,7 @@ class Environment:
         return path
 
     @cached_property
-    def install_scheme(self):
+    def install_scheme(self) -> Literal["venv", "posix_prefix", "nt"]:
         if "venv" in get_scheme_names():
             return "venv"
         elif os.name == "nt":
@@ -147,7 +158,7 @@ class Environment:
             return "posix_prefix"
 
     @cached_property
-    def base_paths(self) -> dict[str, str]:
+    def base_paths(self) -> BasePaths:
         """
         Returns the context appropriate paths for the environment.
 
@@ -172,14 +183,14 @@ class Environment:
         """
 
         prefix = Path(self.prefix)
-        paths = {}
+        paths: BasePaths = {}  # type: ignore[typeddict-item]
         if self._base_paths:
             paths = self._base_paths.copy()
         else:
             try:
-                paths = self.get_paths()
+                paths = self.get_paths()  # type: ignore[assignment]
             except Exception:
-                paths = get_paths(
+                paths = get_paths(  # type: ignore[assignment]
                     self.install_scheme,
                     vars={
                         "base": prefix,
@@ -189,9 +200,9 @@ class Environment:
                 current_version = get_python_version()
                 try:
                     for k in list(paths.keys()):
-                        if not os.path.exists(paths[k]):
-                            paths[k] = self._replace_parent_version(
-                                paths[k], current_version
+                        if not os.path.exists(paths[k]):  # type: ignore[literal-required]
+                            paths[k] = self._replace_parent_version(  # type: ignore[literal-required]
+                                paths[k], current_version  # type: ignore[literal-required]
                             )
                 except OSError:
                     # Sometimes virtualenvs are made using virtualenv interpreters and there is no
@@ -325,7 +336,7 @@ class Environment:
         py_command = py_command % lines_as_str
         return py_command
 
-    def get_paths(self) -> dict[str, str] | None:
+    def get_paths(self) -> BasePaths | None:
         """
         Get the paths for the environment by running a subcommand
 
@@ -408,7 +419,7 @@ class Environment:
                 return paths
         return {}
 
-    def get_include_path(self) -> dict[str, str] | None:
+    def get_include_path(self) -> BasePaths | None:
         """Get the include path for the environment
 
         :return: The python include path for the environment
@@ -608,11 +619,17 @@ class Environment:
         ]
 
     @classmethod
-    def _get_requirements_for_package(cls, node, key_tree, parent=None, chain=None):
+    def _get_requirements_for_package(
+        cls,
+        node: DistPackage | ReqPackage,
+        key_tree: dict[str, list[ReqPackage]],
+        parent: DistPackage | ReqPackage | None = None,
+        chain: list[str] | None = None,
+    ) -> DistPackageDictPlus:
         if chain is None:
             chain = [node.project_name]
 
-        d = node.as_dict()
+        d: DistPackageDictPlus = node.as_dict()
         if parent:
             d["required_version"] = node.version_spec if node.version_spec else "Any"
         else:
@@ -630,7 +647,9 @@ class Environment:
 
         return d
 
-    def get_package_requirements(self, pkg=None):
+    def get_package_requirements(
+        self, pkg: importlib_metadata.Distribution | None = None
+    ) -> list[DistPackageDictPlus]:
         from itertools import chain
 
         from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
@@ -667,8 +686,8 @@ class Environment:
         return [self._get_requirements_for_package(p, key_tree) for p in nodes]
 
     @classmethod
-    def reverse_dependency(cls, node):
-        new_node = {
+    def reverse_dependency(cls, node: DepNode) -> Generator[DepNode, None, None]:
+        new_node: DepNode = {
             "package_name": node["package_name"],
             "installed_version": node["installed_version"],
             "required_version": node["required_version"],
@@ -708,13 +727,13 @@ class Environment:
                 }
         return rdeps
 
-    def get_working_set(self) -> Iterable:
+    def get_working_set(self) -> Iterable[importlib_metadata.Distribution]:
         """Retrieve the working set of installed packages for the environment."""
         if not hasattr(self, "sys_path"):
             return []
         return importlib_metadata.distributions(path=self.sys_path)
 
-    def is_installed(self, pkgname):
+    def is_installed(self, pkgname: str) -> bool:
         """Given a package name, returns whether it is installed in the environment
 
         :param str pkgname: The name of a package
@@ -724,13 +743,13 @@ class Environment:
 
         return any(d for d in self.get_distributions() if normalized_name(d) == pkgname)
 
-    def is_satisfied(self, req: InstallRequirement):
+    def is_satisfied(self, req: InstallRequirement) -> bool | Literal[""]:
         match = next(
             iter(
                 d
                 for d in self.get_distributions()
                 if req.name
-                and canonicalize_name(normalized_name(d)) == canonicalize_name(req.name)
+                and canonicalize_name(normalized_name(d)) == canonicalize_name(req.name)  # type: ignore
             ),
             None,
         )
@@ -757,7 +776,7 @@ class Environment:
             return True
         return False
 
-    def run_activate_this(self):
+    def run_activate_this(self) -> None:
         """Runs the environment's inline activation script"""
         if self.is_venv:
             activate_this = os.path.join(self.scripts_dir, "activate_this.py")
@@ -768,7 +787,7 @@ class Environment:
                 exec(code, {"__file__": activate_this})
 
     @contextlib.contextmanager
-    def activated(self):
+    def activated(self) -> Generator[bool, None, None]:
         """Helper context manager to activate the environment.
 
         This context manager will set the following variables for the duration

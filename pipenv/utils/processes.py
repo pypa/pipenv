@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import os
 import subprocess
+from typing import TYPE_CHECKING, Any, overload
 
 from pipenv.exceptions import PipenvCmdError
-from pipenv.utils.constants import MYPY_RUNNING
 from pipenv.vendor import click
 
-if MYPY_RUNNING:
-    from typing import Tuple  # noqa
+if TYPE_CHECKING:
+    from typing_extensions import Literal
 
 
-def run_command(cmd, *args, is_verbose=False, **kwargs):
+def run_command(
+    cmd: list[str], *args: Any, is_verbose: bool = False, **kwargs: Any
+) -> subprocess.CompletedProcess[str]:
     """
     Take an input command and run it, handling exceptions and error codes and returning
     its stdout and stderr.
@@ -45,16 +49,42 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     return c
 
 
+@overload
 def subprocess_run(
-    args,
+    args: list[str],
     *,
-    block=True,
-    text=True,
-    capture_output=True,
-    encoding="utf-8",
-    env=None,
-    **other_kwargs,
-):
+    block: Literal[True] = True,
+    text: bool = ...,
+    capture_output: bool = ...,
+    encoding: str = ...,
+    env: dict[str, str] | None = ...,
+    **other_kwargs: Any,
+) -> subprocess.CompletedProcess[str]: ...
+
+
+@overload
+def subprocess_run(
+    args: list[str],
+    *,
+    block: Literal[False] = False,
+    text: bool = ...,
+    capture_output: bool = ...,
+    encoding: str = ...,
+    env: dict[str, str] | None = ...,
+    **other_kwargs: Any,
+) -> subprocess.Popen[str]: ...
+
+
+def subprocess_run(
+    args: list[str],
+    *,
+    block: bool = True,
+    text: bool = True,
+    capture_output: bool = True,
+    encoding: str = "utf-8",
+    env: dict[str, str] | None = None,
+    **other_kwargs: Any,
+) -> subprocess.CompletedProcess[str] | subprocess.Popen[str]:
     """A backward compatible version of subprocess.run().
 
     It outputs text with default encoding, and store all outputs in the returned object instead of
