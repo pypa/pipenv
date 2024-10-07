@@ -962,6 +962,6 @@ def resolve_deps(
 @lru_cache
 def get_pipenv_sitedir() -> Optional[str]:
     for dist in importlib_metadata.distributions():
-        if dist.metadata["Name"].lower() == "pipenv":
+        if dist.metadata.get("Name","").lower() == "pipenv":
             return str(dist.locate_file(""))
     return None
