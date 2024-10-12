@@ -4,30 +4,28 @@ import sys
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+from pipenv.vendor.pipdeptree._warning import get_warning_printer
+
 if TYPE_CHECKING:
     from pipenv.vendor.pipdeptree._models.package import Package
 
-    from ._cli import Options
     from ._models import DistPackage, PackageDAG, ReqPackage
 
 
-def validate(args: Options, is_text_output: bool, tree: PackageDAG) -> int:  # noqa: FBT001
+def validate(tree: PackageDAG) -> None:
     # Before any reversing or filtering, show warnings to console, about possibly conflicting or cyclic deps if found
     # and warnings are enabled (i.e. only if output is to be printed to console)
-    if is_text_output and args.warn != "silence":
+    warning_printer = get_warning_printer()
+    if warning_printer.should_warn():
         conflicts = conflicting_deps(tree)
         if conflicts:
-            render_conflicts_text(conflicts)
-            print("-" * 72, file=sys.stderr)  # noqa: T201
+            warning_printer.print_multi_line(
+                "Possibly conflicting dependencies found", lambda: render_conflicts_text(conflicts)
+            )
 
         cycles = cyclic_deps(tree)
         if cycles:
-            render_cycles_text(cycles)
-            print("-" * 72, file=sys.stderr)  # noqa: T201
-
-        if args.warn == "fail" and (conflicts or cycles):
-            return 1
-    return 0
+            warning_printer.print_multi_line("Cyclic dependencies found", lambda: render_cycles_text(cycles))
 
 
 def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
@@ -50,16 +48,14 @@ def conflicting_deps(tree: PackageDAG) -> dict[DistPackage, list[ReqPackage]]:
 
 
 def render_conflicts_text(conflicts: dict[DistPackage, list[ReqPackage]]) -> None:
-    if conflicts:
-        print("Warning!!! Possibly conflicting dependencies found:", file=sys.stderr)  # noqa: T201
-        # Enforce alphabetical order when listing conflicts
-        pkgs = sorted(conflicts.keys())
-        for p in pkgs:
-            pkg = p.render_as_root(frozen=False)
-            print(f"* {pkg}", file=sys.stderr)  # noqa: T201
-            for req in conflicts[p]:
-                req_str = req.render_as_branch(frozen=False)
-                print(f" - {req_str}", file=sys.stderr)  # noqa: T201
+    # Enforce alphabetical order when listing conflicts
+    pkgs = sorted(conflicts.keys())
+    for p in pkgs:
+        pkg = p.render_as_root(frozen=False)
+        print(f"* {pkg}", file=sys.stderr)  # noqa: T201
+        for req in conflicts[p]:
+            req_str = req.render_as_branch(frozen=False)
+            print(f" - {req_str}", file=sys.stderr)  # noqa: T201
 
 
 def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
@@ -104,20 +100,18 @@ def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
 
 
 def render_cycles_text(cycles: list[list[Package]]) -> None:
-    if cycles:
-        print("Warning!! Cyclic dependencies found:", file=sys.stderr)  # noqa: T201
-        # List in alphabetical order the dependency that caused the cycle (i.e. the second-to-last Package element)
-        cycles = sorted(cycles, key=lambda c: c[len(c) - 2].key)
-        for cycle in cycles:
-            print("*", end=" ", file=sys.stderr)  # noqa: T201
+    # List in alphabetical order the dependency that caused the cycle (i.e. the second-to-last Package element)
+    cycles = sorted(cycles, key=lambda c: c[len(c) - 2].key)
+    for cycle in cycles:
+        print("*", end=" ", file=sys.stderr)  # noqa: T201
 
-            size = len(cycle) - 1
-            for idx, pkg in enumerate(cycle):
-                if idx == size:
-                    print(f"{pkg.project_name}", end="", file=sys.stderr)  # noqa: T201
-                else:
-                    print(f"{pkg.project_name} =>", end=" ", file=sys.stderr)  # noqa: T201
-            print(file=sys.stderr)  # noqa: T201
+        size = len(cycle) - 1
+        for idx, pkg in enumerate(cycle):
+            if idx == size:
+                print(f"{pkg.project_name}", end="", file=sys.stderr)  # noqa: T201
+            else:
+                print(f"{pkg.project_name} =>", end=" ", file=sys.stderr)  # noqa: T201
+        print(file=sys.stderr)  # noqa: T201
 
 
 __all__ = [

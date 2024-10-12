@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+import locale
 from json import JSONDecodeError
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from pipenv.patched.pip._internal.models.direct_url import (
     DirectUrl,  # noqa: PLC2701
@@ -13,6 +14,16 @@ from pipenv.patched.pip._vendor.packaging.version import Version  # noqa: PLC270
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
+
+
+def dist_to_frozen_repr(dist: Distribution) -> str:
+    """Return the frozen requirement repr of a `importlib.metadata.Distribution` object."""
+    from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701
+
+    adapter = PipBaseDistributionAdapter(dist)
+    fr = FrozenRequirement.from_dist(adapter)  # type: ignore[arg-type]
+
+    return str(fr).strip()
 
 
 class PipBaseDistributionAdapter:
@@ -33,7 +44,7 @@ class PipBaseDistributionAdapter:
         self._version = Version(dist.version)
 
     @property
-    def raw_name(self) -> str:
+    def raw_name(self) -> str | Any:
         return self._raw_name
 
     @property
@@ -70,6 +81,9 @@ class PipBaseDistributionAdapter:
         result = None
         egg_link_path = egg_link_path_from_sys_path(self.raw_name)
         if egg_link_path:
-            with Path(egg_link_path).open("r") as f:
+            with Path(egg_link_path).open("r", encoding=locale.getpreferredencoding(False)) as f:  # noqa: FBT003
                 result = f.readline().rstrip()
         return result
+
+
+__all__ = ["dist_to_frozen_repr"]

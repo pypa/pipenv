@@ -9,10 +9,10 @@ from typing import TYPE_CHECKING, Iterator
 from pipenv.vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.vendor.packaging.utils import canonicalize_name
 
+from pipenv.vendor.pipdeptree._freeze import dist_to_frozen_repr
+
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
-
-from pipenv.vendor.pipdeptree._adapter import PipBaseDistributionAdapter
 
 
 class InvalidRequirementError(ValueError):
@@ -75,12 +75,7 @@ class Package(ABC):
 
     @staticmethod
     def as_frozen_repr(dist: Distribution) -> str:
-        from pipenv.patched.pip._internal.operations.freeze import FrozenRequirement  # noqa: PLC0415, PLC2701 # pragma: no cover
-
-        adapter = PipBaseDistributionAdapter(dist)
-        fr = FrozenRequirement.from_dist(adapter)  # type: ignore[arg-type]
-
-        return str(fr).strip()
+        return dist_to_frozen_repr(dist)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}("{self.key}")>'
@@ -193,7 +188,7 @@ class ReqPackage(Package):
 
     def render_as_branch(self, *, frozen: bool) -> str:
         if not frozen:
-            req_ver = self.version_spec if self.version_spec else "Any"
+            req_ver = self.version_spec or "Any"
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
         return self.render_as_root(frozen=frozen)
 
@@ -226,17 +221,17 @@ class ReqPackage(Package):
                 return v
         return self.dist.version
 
-    @property
-    def is_missing(self) -> bool:
-        return self.installed_version == self.UNKNOWN_VERSION
-
     def is_conflicting(self) -> bool:
         """If installed version conflicts with required version."""
         # unknown installed version is also considered conflicting
-        if self.installed_version == self.UNKNOWN_VERSION:
+        if self.is_missing:
             return True
 
-        return self.installed_version not in self._obj.specifier
+        return not self._obj.specifier.contains(self.installed_version, prereleases=True)
+
+    @property
+    def is_missing(self) -> bool:
+        return self.installed_version == self.UNKNOWN_VERSION
 
     def as_dict(self) -> dict[str, str]:
         return {

@@ -6,7 +6,7 @@ importlib-metadata==8.4.0
   zipp==3.18.1
 packaging==24.0
 pexpect==4.9.0
-pipdeptree==2.18.1
+pipdeptree==2.23.4
 plette==2.1.0
 ptyprocess==0.7.0
 python-dotenv==1.0.1
