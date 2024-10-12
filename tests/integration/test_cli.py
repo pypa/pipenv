@@ -142,7 +142,7 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
                 assert (
                     openpyxl_dep is None
                 ), f"openpyxl should not appear at beginning of lines in {output}"
-                assert re.search("openpyxl==2.5.4\s*\[requires:\ et-xmlfile\]", output)
+                assert re.search("openpyxl==2.5.4\\s*\\[requires:\\ et-xmlfile\\]", output)
             else:
                 dep_match = re.search(
                     rf"^[ -]*{dep_name}==[\d.]+$",
