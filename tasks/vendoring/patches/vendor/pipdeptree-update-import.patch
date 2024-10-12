@@ -1,5 +1,5 @@
---- pipenv/vendor/pipdeptree/__main__.py	2024-10-12 19:43:30.971617798 +0200
-+++ pipenv/vendor/pipdeptree/__main__.py.1	2024-10-12 20:20:58.508248189 +0200
+--- a/pipenv/vendor/pipdeptree/__main__.py	2024-10-12 19:43:30.971617798 +0200
++++ b/pipenv/vendor/pipdeptree/__main__.py	2024-10-12 20:20:58.508248189 +0200
 @@ -2,9 +2,16 @@
 
  from __future__ import annotations
