@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from typing import Sequence
+
+pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# for finding pipdeptree itself
+sys.path.append(pardir)
+# for finding stuff in vendor and patched
+sys.path.append(os.path.dirname(os.path.dirname(pardir)))
 
 from pipenv.vendor.pipdeptree._cli import get_options
 from pipenv.vendor.pipdeptree._detect_env import detect_active_interpreter
