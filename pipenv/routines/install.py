@@ -116,6 +116,7 @@ def handle_new_packages(
                 packages=packages,
                 editable_packages=editable_packages,
                 pypi_mirror=pypi_mirror,
+                index_url=index,
                 extra_pip_args=extra_pip_args,
                 categories=categories,
             )
