@@ -22,9 +22,198 @@ from pipenv.utils.pip import (
 )
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
-from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
+from pipenv.utils.requirements import import_requirements
 from pipenv.utils.shell import temp_environ
-from pipenv.utils.virtualenv import cleanup_virtualenv, do_create_virtualenv
+
+
+def handle_new_packages(
+    project,
+    packages,
+    editable_packages,
+    index,
+    dev,
+    pre,
+    system,
+    requirements_directory,
+    pypi_mirror,
+    extra_pip_args,
+    categories,
+    skip_lock,
+):
+    new_packages = []
+    if packages or editable_packages:
+        from pipenv.routines.update import do_update
+
+        pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
+
+        for pkg_line in pkg_list:
+            console.print(f"Installing {pkg_line}...", style="bold green")
+            with temp_environ():
+                if not system:
+                    os.environ["PIP_USER"] = "0"
+                    if "PYTHONHOME" in os.environ:
+                        del os.environ["PYTHONHOME"]
+
+                try:
+                    pkg_requirement, _ = expansive_install_req_from_line(
+                        pkg_line, expand_env=True
+                    )
+                except ValueError as e:
+                    err.print(f"[red]WARNING[/red]: {e}")
+                    err.print(
+                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                            "Installation Failed"
+                        )
+                    )
+                    sys.exit(1)
+
+                try:
+                    if categories:
+                        for category in categories:
+                            added, cat, normalized_name = project.add_package_to_pipfile(
+                                pkg_requirement, pkg_line, dev, category
+                            )
+                            if added:
+                                new_packages.append((normalized_name, cat))
+                    else:
+                        added, cat, normalized_name = project.add_package_to_pipfile(
+                            pkg_requirement, pkg_line, dev
+                        )
+                        if added:
+                            new_packages.append((normalized_name, cat))
+                except ValueError:
+                    import traceback
+
+                    err.print(f"[bold][red]Error:[/red][/bold] {traceback.format_exc()}")
+                    err.print(
+                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                            "Failed adding package to Pipfile"
+                        )
+                    )
+
+                console.print(
+                    environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
+                )
+
+        # Update project settings with pre-release preference.
+        if pre:
+            project.update_settings({"allow_prereleases": pre})
+
+        # Use the update routine for new packages
+        do_update(
+            project,
+            dev=dev,
+            pre=pre,
+            packages=packages,
+            editable_packages=editable_packages,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+            categories=categories,
+            skip_lock=skip_lock,
+        )
+
+    return new_packages
+
+
+def handle_lockfile(
+    project,
+    ignore_pipfile,
+    skip_lock,
+    system,
+    allow_global,
+    deploy,
+    pre,
+    pypi_mirror,
+    categories,
+):
+    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
+        old_hash = project.get_lockfile_hash()
+        new_hash = project.calculate_pipfile_hash()
+        if new_hash != old_hash:
+            handle_outdated_lockfile(
+                project,
+                old_hash,
+                new_hash,
+                system,
+                allow_global,
+                deploy,
+                pre,
+                pypi_mirror,
+                categories,
+            )
+    elif not project.lockfile_exists and not skip_lock:
+        handle_missing_lockfile(
+            project, system, allow_global, pre, pypi_mirror, categories
+        )
+
+
+def handle_outdated_lockfile(
+    project,
+    old_hash,
+    new_hash,
+    system,
+    allow_global,
+    deploy,
+    pre,
+    pypi_mirror,
+    categories,
+):
+    from pipenv.routines.update import do_update
+
+    if deploy:
+        console.print(
+            f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
+            style="red",
+        )
+        raise exceptions.DeployException
+    if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
+        err.print(
+            f"Pipfile.lock ({old_hash}) out of date, but installation uses --system so"
+            f" re-building lockfile must happen in isolation."
+            f" Please rebuild lockfile in a virtualenv. Continuing anyway...",
+            style="yellow",
+        )
+    else:
+        if old_hash:
+            msg = (
+                "Pipfile.lock ({0}) out of date: run `pipenv lock` to update to ({1})..."
+            )
+        else:
+            msg = "Pipfile.lock is corrupt, replaced with ({1})..."
+        err.print(
+            msg.format(old_hash, new_hash),
+            style="bold yellow",
+        )
+        do_update(
+            project,
+            pre=pre,
+            system=system,
+            pypi_mirror=pypi_mirror,
+            categories=categories,
+        )
+
+
+def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror, categories):
+    if (system or allow_global) and not project.s.PIPENV_VIRTUALENV:
+        raise exceptions.PipenvOptionsError(
+            "--system",
+            "--system is intended to be used for Pipfile installation, "
+            "not installation of specific packages. Aborting.\n"
+            "See also: --deploy flag.",
+        )
+    else:
+        err.print(
+            "Pipfile.lock not found, creating...",
+            style="bold",
+        )
+        do_lock(
+            project,
+            system=system,
+            pre=pre,
+            write=True,
+            pypi_mirror=pypi_mirror,
+            categories=categories,
+        )
 
 
 def do_install(
@@ -52,21 +241,17 @@ def do_install(
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
-    skip_requirements = False
-    # Don't search for requirements.txt files if the user provides one
-    if requirementstxt or package_args or project.pipfile_exists:
-        skip_requirements = True
-    # Ensure that virtualenv is available and pipfile are available
-    ensure_project(
+
+    do_init(
         project,
-        python=python,
         system=system,
-        warn=True,
+        allow_global=system,
         deploy=deploy,
-        skip_requirements=skip_requirements,
         pypi_mirror=pypi_mirror,
-        site_packages=site_packages,
         categories=categories,
+        skip_lock=skip_lock,
+        site_packages=site_packages,
+        python=python,
     )
 
     do_install_validations(
@@ -83,140 +268,22 @@ def do_install(
         skip_lock=skip_lock,
     )
 
-    # Install all dependencies, if none was provided.
-    # This basically ensures that we have a pipfile and lockfile, then it locks and
-    # installs from the lockfile
-    new_packages = []
-    if not packages and not editable_packages:
-        if pre:
-            project.update_settings({"allow_prereleases": pre})
-        do_init(
-            project,
-            allow_global=system,
-            ignore_pipfile=ignore_pipfile,
-            system=system,
-            deploy=deploy,
-            pre=pre,
-            requirements_dir=requirements_directory,
-            pypi_mirror=pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            categories=categories,
-            skip_lock=skip_lock,
-        )
+    new_packages = handle_new_packages(
+        project,
+        packages,
+        editable_packages,
+        index,
+        dev,
+        pre,
+        system,
+        requirements_directory,
+        pypi_mirror,
+        extra_pip_args,
+        categories,
+        skip_lock,
+    )
 
-    # This is for if the user passed in dependencies; handle with the update routine
-    else:
-        pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
-        if not system and not project.virtualenv_exists:
-            do_init(
-                project,
-                system=system,
-                allow_global=system,
-                requirements_dir=requirements_directory,
-                deploy=deploy,
-                pypi_mirror=pypi_mirror,
-                extra_pip_args=extra_pip_args,
-                categories=categories,
-                skip_lock=skip_lock,
-                packages=packages,
-                editable_packages=editable_packages,
-            )
-
-        for pkg_line in pkg_list:
-            console.print(
-                f"Installing {pkg_line}...",
-                style="bold green",
-            )
-            # pip install:
-            with temp_environ(), console.status(
-                "Installing...", spinner=project.s.PIPENV_SPINNER
-            ) as st:
-                if not system:
-                    os.environ["PIP_USER"] = "0"
-                    if "PYTHONHOME" in os.environ:
-                        del os.environ["PYTHONHOME"]
-                st.console.print(f"Resolving {pkg_line}...", markup=False)
-                try:
-                    pkg_requirement, _ = expansive_install_req_from_line(
-                        pkg_line, expand_env=True
-                    )
-                except ValueError as e:
-                    err.print(f"[red]WARNING[/red]: {e}")
-                    err.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                            "Installation Failed"
-                        )
-                    )
-                    sys.exit(1)
-                st.update(f"Installing {pkg_requirement.name}...")
-                if categories:
-                    pipfile_sections = ""
-                    for c in categories:
-                        pipfile_sections += f"[{c}]"
-                elif dev:
-                    pipfile_sections = "[dev-packages]"
-                else:
-                    pipfile_sections = "[packages]"
-                # Add the package to the Pipfile.
-                if index:
-                    source = project.get_index_by_name(index)
-                    default_index = project.get_default_index()["name"]
-                    if not source:
-                        index_name = add_index_to_pipfile(project, index)
-                        if index_name != default_index:
-                            pkg_requirement.index = index_name
-                    elif source["name"] != default_index:
-                        pkg_requirement.index = source["name"]
-                try:
-                    if categories:
-                        for category in categories:
-                            added, cat, normalized_name = project.add_package_to_pipfile(
-                                pkg_requirement, pkg_line, dev, category
-                            )
-                            if added:
-                                new_packages.append((normalized_name, cat))
-                                st.console.print(
-                                    f"[bold]Added [green]{normalized_name}[/green][/bold] to Pipfile's "
-                                    f"[yellow]\\{pipfile_sections}[/yellow] ..."
-                                )
-                    else:
-                        added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, pkg_line, dev
-                        )
-                        if added:
-                            new_packages.append((normalized_name, cat))
-                            st.console.print(
-                                f"[bold]Added [green]{normalized_name}[/green][/bold] to Pipfile's "
-                                f"[yellow]\\{pipfile_sections}[/yellow] ..."
-                            )
-                except ValueError:
-                    import traceback
-
-                    err.print(f"[bold][red]Error:[/red][/bold] {traceback.format_exc()}")
-                    err.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                            "Failed adding package to Pipfile"
-                        )
-                    )
-                # ok has a nice v in front, should do something similar with rich
-                st.console.print(
-                    environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
-                )
-            # Update project settings with pre-release preference.
-            if pre:
-                project.update_settings({"allow_prereleases": pre})
     try:
-        do_init(
-            project,
-            system=system,
-            allow_global=system,
-            requirements_dir=requirements_directory,
-            deploy=deploy,
-            pypi_mirror=pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            categories=categories,
-            skip_lock=skip_lock,
-        )
         do_install_dependencies(
             project,
             dev=dev,
@@ -232,6 +299,7 @@ def do_install(
         for pkg_name, category in new_packages:
             project.remove_package_from_pipfile(pkg_name, category)
         raise e
+
     sys.exit(0)
 
 
@@ -563,99 +631,41 @@ def do_init(
     system=False,
     deploy=False,
     pre=False,
-    requirements_dir=None,
     pypi_mirror=None,
-    extra_pip_args=None,
     categories=None,
     skip_lock=False,
-    packages=None,
-    editable_packages=None,
+    site_packages=None,
+    python=None,
 ):
-    from pipenv.routines.update import do_update
+    ensure_project(
+        project,
+        python=python
+        or project.s.PIPENV_PYTHON
+        or project.s.PIPENV_DEFAULT_PYTHON_VERSION,
+        system=system,
+        warn=True,
+        deploy=deploy,
+        skip_requirements=False,
+        pypi_mirror=pypi_mirror,
+        site_packages=site_packages,
+        categories=categories,
+    )
 
-    python = None
-    if project.s.PIPENV_PYTHON is not None:
-        python = project.s.PIPENV_PYTHON
-    elif project.s.PIPENV_DEFAULT_PYTHON_VERSION is not None:
-        python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
-    if categories is None:
-        categories = []
-
-    if not system and not project.s.PIPENV_USE_SYSTEM and not project.virtualenv_exists:
-        try:
-            do_create_virtualenv(project, python=python, pypi_mirror=pypi_mirror)
-        except KeyboardInterrupt:
-            cleanup_virtualenv(project, bare=False)
-            sys.exit(1)
-    # Ensure the Pipfile exists.
     if not deploy:
         ensure_pipfile(project, system=system)
-    if not requirements_dir:
-        requirements_dir = fileutils.create_tracked_tempdir(
-            suffix="-requirements", prefix="pipenv-"
-        )
-    # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
-    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
-        old_hash = project.get_lockfile_hash()
-        new_hash = project.calculate_pipfile_hash()
-        if new_hash != old_hash:
-            if deploy:
-                console.print(
-                    f"Your Pipfile.lock ({old_hash[-6:]}) is out of date.  Expected: ({new_hash[-6:]}).",
-                    style="red",
-                )
-                raise exceptions.DeployException
-            if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
-                err.print(
-                    f"Pipfile.lock ({old_hash[-6:]}) out of date, but installation uses --system so"
-                    f" re-building lockfile must happen in isolation."
-                    f" Please rebuild lockfile in a virtualenv.  Continuing anyway...",
-                    style="yellow",
-                )
-            else:
-                if old_hash:
-                    msg = "Pipfile.lock ({0}) out of date: run `pipenv lock` to update to ({1})..."
-                else:
-                    msg = "Pipfile.lock is corrupt, replaced with ({1})..."
-                err.print(
-                    msg.format(old_hash[-6:], new_hash[-6:]),
-                    style="bold yellow",
-                )
-                do_update(
-                    project,
-                    pre=pre,
-                    system=system,
-                    pypi_mirror=pypi_mirror,
-                    categories=categories,
-                    packages=packages,
-                    editable_packages=editable_packages,
-                )
-    # Write out the lockfile if it doesn't exist and skip_lock is False
-    if not project.lockfile_exists and not skip_lock:
-        # Unless we're in a virtualenv not managed by pipenv, abort if we're
-        # using the system's python.
-        if (system or allow_global) and not project.s.PIPENV_VIRTUALENV:
-            raise exceptions.PipenvOptionsError(
-                "--system",
-                "--system is intended to be used for Pipfile installation, "
-                "not installation of specific packages. Aborting.\n"
-                "See also: --deploy flag.",
-            )
-        else:
-            err.print(
-                "Pipfile.lock not found, creating...",
-                style="bold",
-            )
-            do_lock(
-                project,
-                system=system,
-                pre=pre,
-                write=True,
-                pypi_mirror=pypi_mirror,
-                categories=categories,
-            )
 
-    # Hint the user what to do to activate the virtualenv.
+    handle_lockfile(
+        project,
+        ignore_pipfile,
+        skip_lock,
+        system,
+        allow_global,
+        deploy,
+        pre,
+        pypi_mirror,
+        categories,
+    )
+
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
         console.print(
             "To activate this project's virtualenv, run [yellow]pipenv shell[/yellow].\n"
