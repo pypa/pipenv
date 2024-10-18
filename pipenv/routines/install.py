@@ -100,17 +100,17 @@ def handle_new_packages(
             project.update_settings({"allow_prereleases": pre})
 
         # Use the update routine for new packages
-        do_update(
-            project,
-            dev=dev,
-            pre=pre,
-            packages=packages,
-            editable_packages=editable_packages,
-            pypi_mirror=pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            categories=categories,
-            skip_lock=skip_lock,
-        )
+        if not skip_lock:
+            do_update(
+                project,
+                dev=dev,
+                pre=pre,
+                packages=packages,
+                editable_packages=editable_packages,
+                pypi_mirror=pypi_mirror,
+                extra_pip_args=extra_pip_args,
+                categories=categories,
+            )
 
     return new_packages
 
