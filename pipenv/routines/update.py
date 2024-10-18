@@ -193,6 +193,8 @@ def upgrade(
         for package_name in upgrade_lock_data:
             correct_package_lock = full_lock_resolution.get(package_name)
             if correct_package_lock:
+                if category not in lockfile:
+                    lockfile[category] = {}
                 lockfile[category][package_name] = correct_package_lock
 
     lockfile.update({"_meta": project.get_lockfile_meta()})
