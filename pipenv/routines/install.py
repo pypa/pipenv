@@ -109,17 +109,22 @@ def handle_new_packages(
 
         # Use the update routine for new packages
         if not skip_lock:
-            do_update(
-                project,
-                dev=dev,
-                pre=pre,
-                packages=packages,
-                editable_packages=editable_packages,
-                pypi_mirror=pypi_mirror,
-                index_url=index,
-                extra_pip_args=extra_pip_args,
-                categories=categories,
-            )
+            try:
+                do_update(
+                    project,
+                    dev=dev,
+                    pre=pre,
+                    packages=packages,
+                    editable_packages=editable_packages,
+                    pypi_mirror=pypi_mirror,
+                    index_url=index,
+                    extra_pip_args=extra_pip_args,
+                    categories=categories,
+                )
+            except Exception:
+                for pkg_name, category in new_packages:
+                    project.remove_package_from_pipfile(pkg_name, category)
+                raise
 
     return new_packages
 
