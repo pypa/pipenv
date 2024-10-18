@@ -45,13 +45,11 @@ def do_sync(
     do_init(
         project,
         allow_global=system,
-        requirements_dir=requirements_dir,
         ignore_pipfile=True,  # Don't check if Pipfile and lock match.
         skip_lock=True,  # Don't re-lock
         pypi_mirror=pypi_mirror,
         deploy=deploy,
         system=system,
-        extra_pip_args=extra_pip_args,
         categories=categories,
     )
     do_install_dependencies(
