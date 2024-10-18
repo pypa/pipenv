@@ -22,7 +22,7 @@ from pipenv.utils.pip import (
 )
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
-from pipenv.utils.requirements import import_requirements
+from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 
 
@@ -37,6 +37,7 @@ def handle_new_packages(
     extra_pip_args,
     categories,
     skip_lock,
+    index=None,
 ):
     new_packages = []
     if packages or editable_packages:
@@ -56,6 +57,15 @@ def handle_new_packages(
                     pkg_requirement, _ = expansive_install_req_from_line(
                         pkg_line, expand_env=True
                     )
+                    if index:
+                        source = project.get_index_by_name(index)
+                        default_index = project.get_default_index()["name"]
+                        if not source:
+                            index_name = add_index_to_pipfile(project, index)
+                            if index_name != default_index:
+                                pkg_requirement.index = index_name
+                        elif source["name"] != default_index:
+                            pkg_requirement.index = source["name"]
                 except ValueError as e:
                     err.print(f"[red]WARNING[/red]: {e}")
                     err.print(
@@ -270,13 +280,14 @@ def do_install(
         project,
         packages,
         editable_packages,
-        dev,
-        pre,
-        system,
-        pypi_mirror,
-        extra_pip_args,
-        categories,
-        skip_lock,
+        dev=dev,
+        pre=pre,
+        system=system,
+        pypi_mirror=pypi_mirror,
+        extra_pip_args=extra_pip_args,
+        categories=categories,
+        skip_lock=skip_lock,
+        index=index,
     )
 
     try:
