@@ -466,7 +466,7 @@ pytz = "*"
 python_version = "{version}"
 """
                 )
-            c = p.pipenv("install")
+            c = p.pipenv("install --deploy")
             assert c.returncode != 0
 
 
