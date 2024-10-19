@@ -379,9 +379,7 @@ def test_system_and_deploy_work(pipenv_instance_private_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_creates_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        if os.path.isfile(p.pipfile_path):
-            os.unlink(p.pipfile_path)
+    with pipenv_instance_pypi(pipfile=False) as p:
         assert not os.path.isfile(p.pipfile_path)
         c = p.pipenv("install")
         assert c.returncode == 0

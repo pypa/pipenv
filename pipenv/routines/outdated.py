@@ -66,11 +66,10 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
             name_in_pipfile = project.get_package_name_in_pipfile(
                 package, category=category
             )
-            if name_in_pipfile:
+            pipfile_section = project.get_pipfile_section(category)
+            if name_in_pipfile and name_in_pipfile in pipfile_section:
                 required = ""
-                version = get_version(
-                    project.get_pipfile_section(category)[name_in_pipfile]
-                )
+                version = get_version(pipfile_section[name_in_pipfile])
                 rdeps = reverse_deps.get(canonicalize_name(package))
                 if isinstance(rdeps, Mapping) and "required" in rdeps:
                     required = " {rdeps['required']} required"
