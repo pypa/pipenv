@@ -665,9 +665,7 @@ def do_init(
 ):
     ensure_project(
         project,
-        python=python
-        or project.s.PIPENV_PYTHON
-        or project.s.PIPENV_DEFAULT_PYTHON_VERSION,
+        python=python,
         system=system,
         warn=True,
         deploy=deploy,

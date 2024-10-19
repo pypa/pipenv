@@ -381,15 +381,13 @@ def test_system_and_deploy_work(pipenv_instance_private_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_creates_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        if os.path.isfile(p.pipfile_path):
-            os.unlink(p.pipfile_path)
+    with pipenv_instance_pypi(pipfile=False) as p:
         assert not os.path.isfile(p.pipfile_path)
         c = p.pipenv("install")
         assert c.returncode == 0
         assert os.path.isfile(p.pipfile_path)
         python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
-        assert p.pipfile["requires"] == {"python_version": python_version, "python_full_version": f"{python_version}.{sys.version_info.micro}"}
+        assert p.pipfile["requires"] == {"python_version": python_version}
 
 
 @pytest.mark.basic
@@ -466,7 +464,7 @@ pytz = "*"
 python_version = "{version}"
 """
                 )
-            c = p.pipenv("install --deploy")
+            c = p.pipenv("install")
             assert c.returncode != 0
 
 
