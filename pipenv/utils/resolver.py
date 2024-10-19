@@ -5,7 +5,7 @@ import subprocess
 import sys
 import tempfile
 import warnings
-from functools import cached_property, lru_cache
+from functools import lru_cache
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -284,10 +284,6 @@ class Resolver:
         return constraint_filename
 
     @property
-    def constraint_file(self):
-        return self.prepare_constraint_file()
-
-    @cached_property
     def default_constraint_file(self):
         default_constraints = get_constraints_from_deps(self.project.packages)
         default_constraint_filename = prepare_constraint_file(
@@ -326,7 +322,7 @@ class Resolver:
                 alt_index_lookup[req_name] = index_mapping[index]
         return alt_index_lookup
 
-    @cached_property
+    @property
     def package_finder(self):
         finder = get_package_finder(
             install_cmd=self.pip_command,
@@ -344,18 +340,18 @@ class Resolver:
         finder._ignore_compatibility = ignore_compatibility
         return finder
 
-    @cached_property
+    @property
     def parsed_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
         return parse_requirements(
-            self.constraint_file,
+            self.prepare_constraint_file(),
             finder=self.finder(),
             session=self.session,
             options=pip_options,
         )
 
-    @cached_property
+    @property
     def parsed_default_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
@@ -368,7 +364,7 @@ class Resolver:
         )
         return set(parsed_default_constraints)
 
-    @cached_property
+    @property
     def default_constraints(self):
         possible_default_constraints = [
             install_req_from_parsed_requirement(
@@ -584,7 +580,7 @@ class Resolver:
             return {self.project.get_hash_from_link(self.hash_cache, link)}
         return set()
 
-    @cached_property
+    @property
     def resolve_hashes(self):
         if self.results is not None:
             for ireq in self.results:

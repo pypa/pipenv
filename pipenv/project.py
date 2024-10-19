@@ -1080,15 +1080,16 @@ class Project:
         return found
 
     def get_package_name_in_pipfile(self, package_name, category):
-        """Get the equivalent package name in pipfile"""
-        section = self.parsed_pipfile.get(category)
-        if section is None:
-            section = {}
-        package_name = pep423_name(package_name)
+        section = self.parsed_pipfile.get(category, {})
+        normalized_name = pep423_name(package_name)
         for name in section:
-            if pep423_name(name) == package_name:
+            if pep423_name(name) == normalized_name:
                 return name
-        return None
+        return package_name  # Return original name if not found
+
+    def get_pipfile_entry(self, package_name, category):
+        name = self.get_package_name_in_pipfile(package_name, category)
+        return self.parsed_pipfile.get(category, {}).get(name)
 
     def _sort_category(self, category) -> Table:
         # copy table or create table from dict-like object
@@ -1225,26 +1226,28 @@ class Project:
         newly_added = False
 
         # Read and append Pipfile.
-        p = self.parsed_pipfile
+        parsed_pipfile = self.parsed_pipfile
 
         # Set empty group if it doesn't exist yet.
-        if category not in p:
-            p[category] = {}
+        if category not in parsed_pipfile:
+            parsed_pipfile[category] = {}
 
-        if name and name != normalized_name:
-            self.remove_package_from_pipfile(name, category=category)
+        section = parsed_pipfile.get(category, {})
+        for entry_name in section.copy().keys():
+            if entry_name.lower() == normalized_name.lower():
+                del parsed_pipfile[category][entry_name]
 
         # Add the package to the group.
-        if normalized_name not in p[category]:
+        if normalized_name not in parsed_pipfile[category]:
             newly_added = True
 
-        p[category][normalized_name] = entry
+        parsed_pipfile[category][normalized_name] = entry
 
         if self.settings.get("sort_pipfile"):
-            p[category] = self._sort_category(p[category])
+            parsed_pipfile[category] = self._sort_category(parsed_pipfile[category])
 
         # Write Pipfile.
-        self.write_toml(p)
+        self.write_toml(parsed_pipfile)
         return newly_added, category, normalized_name
 
     def src_name_from_url(self, index_url):
