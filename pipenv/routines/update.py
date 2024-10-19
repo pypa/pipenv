@@ -117,9 +117,9 @@ def upgrade(
     lockfile = project.lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if dev:
+    if dev or "dev-packages" in categories:
         categories = ["develop"]
-    elif not categories:
+    elif not categories or "packages" in categories:
         categories = ["default"]
 
     index_name = None

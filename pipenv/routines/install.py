@@ -436,14 +436,14 @@ def do_install_dependencies(
         else:
             categories = ["packages"]
 
-    for category in categories:
+    for pipfile_category in categories:
         lockfile = None
         pipfile = None
         if skip_lock:
             ignore_hashes = True
             if not bare:
                 console.print("Installing dependencies from Pipfile...", style="bold")
-            pipfile = project.get_pipfile_section(category)
+            pipfile = project.get_pipfile_section(pipfile_category)
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
@@ -466,8 +466,13 @@ def do_install_dependencies(
                     )
                 )
         else:
+            lockfile_category = get_lockfile_section_using_pipfile_category(
+                pipfile_category
+            )
             deps_list = list(
-                lockfile.get_requirements(dev=dev, only=False, categories=[category])
+                lockfile.get_requirements(
+                    dev=dev, only=False, categories=[lockfile_category]
+                )
             )
         editable_or_vcs_deps = [
             (dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)
@@ -489,7 +494,9 @@ def do_install_dependencies(
         if skip_lock:
             lockfile_section = pipfile
         else:
-            lockfile_category = get_lockfile_section_using_pipfile_category(category)
+            lockfile_category = get_lockfile_section_using_pipfile_category(
+                pipfile_category
+            )
             lockfile_section = lockfile[lockfile_category]
         batch_install(
             project,
