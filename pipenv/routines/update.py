@@ -145,7 +145,7 @@ def upgrade(
                 install_req, package, dev=dev, category=pipfile_category
             )
             requested_packages[pipfile_category][normalized_name] = (
-                project.get_pipfile_entry(normalized_name, category=pipfile_category)
+                project.parsed_pipfile.get(pipfile_category, {})
             )
             requested_install_reqs[pipfile_category][normalized_name] = install_req
 
@@ -173,7 +173,10 @@ def upgrade(
             click.echo("Nothing to upgrade!")
             sys.exit(0)
 
-        for package_name, pipfile_entry in requested_packages[pipfile_category].items():
+        for package_name in requested_packages[pipfile_category].keys():
+            pipfile_entry = project.get_pipfile_entry(
+                package_name, category=pipfile_category
+            )
             if package_name not in packages:
                 packages.append(package_name, pipfile_entry)
             else:
