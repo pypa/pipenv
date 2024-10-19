@@ -134,11 +134,6 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-# (path, file contents) => TOMLFile
-# keeps track of pipfiles that we've seen so we do not need to re-parse 'em
-_pipfile_cache = {}
-
-
 class SourceNotFound(KeyError):
     pass
 
@@ -670,16 +665,9 @@ class Project:
 
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
-        """Parse Pipfile into a TOMLFile and cache it
-
-        (call clear_pipfile_cache() afterwards if mutating)"""
+        """Parse Pipfile into a TOMLFile"""
         contents = self.read_pipfile()
-        # use full contents to get around str/bytes 2/3 issues
-        cache_key = (self.pipfile_location, contents)
-        if cache_key not in _pipfile_cache:
-            parsed = self._parse_pipfile(contents)
-            _pipfile_cache[cache_key] = parsed
-        return _pipfile_cache[cache_key]
+        return self._parse_pipfile(contents)
 
     def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.
@@ -690,10 +678,6 @@ class Project:
             self._pipfile_newlines = preferred_newlines(f)
 
         return contents
-
-    def clear_pipfile_cache(self) -> None:
-        """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
-        _pipfile_cache.clear()
 
     def _parse_pipfile(
         self, contents: str
@@ -991,8 +975,6 @@ class Project:
         formatted_data = cleanup_toml(formatted_data)
         with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
-        # pipfile is mutated!
-        self.clear_pipfile_cache()
 
     def write_lockfile(self, content):
         """Write out the lockfile."""
@@ -1088,7 +1070,6 @@ class Project:
 
         sources = (self.sources, self.pipfile_sources())
         if refresh:
-            self.clear_pipfile_cache()
             sources = reversed(sources)
         found = next(
             iter(find_source(source, name=name, url=url) for source in sources), None
