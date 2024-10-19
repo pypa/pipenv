@@ -1132,6 +1132,11 @@ def install_req_from_pipfile(name, pipfile):
             version = ""
         req_str = f"{name}{extras_str}{version}"
 
+        # Handle markers before constructing InstallRequirement
+        markers = PipenvMarkers.from_pipfile(name, _pipfile)
+        if markers:
+            req_str = f"{req_str};{markers}"
+
     install_req, _ = expansive_install_req_from_line(
         req_str,
         comes_from=None,
