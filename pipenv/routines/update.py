@@ -145,14 +145,9 @@ def upgrade(
                 install_req, package, dev=dev, category=pipfile_category
             )
             requested_packages[pipfile_category][normalized_name] = (
-                project.parsed_pipfile.get(pipfile_category, {})
+                project.parsed_pipfile.get(pipfile_category, {}).get(normalized_name)
             )
             requested_install_reqs[pipfile_category][normalized_name] = install_req
-
-        if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(pipfile_category, {})
-        else:
-            packages = project.get_pipfile_section(pipfile_category)
 
         if not package_args:
             click.echo("Nothing to upgrade!")
@@ -173,17 +168,9 @@ def upgrade(
             click.echo("Nothing to upgrade!")
             sys.exit(0)
 
-        for package_name in requested_packages[pipfile_category].keys():
-            pipfile_entry = project.get_pipfile_entry(
-                package_name, category=pipfile_category
-            )
-            if package_name not in packages:
-                packages.append(package_name, pipfile_entry)
-            else:
-                packages[package_name] = pipfile_entry
-
+        complete_packages = project.parsed_pipfile.get(pipfile_category, {})
         full_lock_resolution = venv_resolve_deps(
-            packages,
+            complete_packages,
             which=project._which,
             project=project,
             lockfile={},
