@@ -140,13 +140,13 @@ def upgrade(
             install_req, _ = expansive_install_req_from_line(package, expand_env=True)
             if index_name:
                 install_req.index = index_name
-            name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
-                install_req, package, category=pipfile_category
+
+            _, _, normalized_name = project.add_package_to_pipfile(
+                install_req, package, dev=dev, category=pipfile_category
             )
-            project.add_pipfile_entry_to_pipfile(
-                name, normalized_name, pipfile_entry, category=pipfile_category
+            requested_packages[pipfile_category][normalized_name] = (
+                project.get_pipfile_entry(normalized_name, category=pipfile_category)
             )
-            requested_packages[pipfile_category][normalized_name] = pipfile_entry
             requested_install_reqs[pipfile_category][normalized_name] = install_req
 
         if project.pipfile_exists:
