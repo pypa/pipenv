@@ -221,6 +221,7 @@ class Resolver:
                 markers_lookup[package_name] = install_req.markers
             if is_constraint:
                 constraints.add(dep)
+        # raise Exception(constraints, original_deps, install_reqs, pipfile_entries)
         resolver = Resolver(
             set(),
             req_dir,

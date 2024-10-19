@@ -374,7 +374,7 @@ class Setting:
         self.PIPENV_TEST_INDEX = get_from_env("TEST_INDEX", check_for_negation=False)
 
         # Internal, for testing the resolver without using subprocess
-        self.PIPENV_RESOLVER_PARENT_PYTHON = get_from_env("RESOLVER_PARENT_PYTHON")
+        self.PIPENV_RESOLVER_PARENT_PYTHON = get_from_env("e")
 
         # Internal, tells Pipenv about the surrounding environment.
         self.PIPENV_USE_SYSTEM = False

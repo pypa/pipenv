@@ -141,12 +141,13 @@ def upgrade(
             if index_name:
                 install_req.index = index_name
 
-            _, _, normalized_name = project.add_package_to_pipfile(
-                install_req, package, dev=dev, category=pipfile_category
+            name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
+                install_req, package, category=pipfile_category
             )
-            requested_packages[pipfile_category][normalized_name] = (
-                project.parsed_pipfile.get(pipfile_category, {}).get(normalized_name)
+            project.add_pipfile_entry_to_pipfile(
+                name, normalized_name, pipfile_entry, category=pipfile_category
             )
+            requested_packages[pipfile_category][normalized_name] = pipfile_entry
             requested_install_reqs[pipfile_category][normalized_name] = install_req
 
         if not package_args:
@@ -154,21 +155,32 @@ def upgrade(
             sys.exit(0)
 
         # Resolve package to generate constraints of new package data
+        # raise Exception(requested_packages[pipfile_category])
+
         upgrade_lock_data = venv_resolve_deps(
             requested_packages[pipfile_category],
             which=project._which,
             project=project,
             lockfile={},
-            category="default",
+            category=pipfile_category,
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
         )
         if not upgrade_lock_data:
-            click.echo("Nothing to upgrade!")
+            click.echo("Nothing to upgrade II!")
             sys.exit(0)
 
         complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+        for package_name in requested_packages[pipfile_category].keys():
+            pipfile_entry = project.get_pipfile_entry(
+                package_name, category=pipfile_category
+            )
+            if package_name not in complete_packages:
+                complete_packages.append(package_name, pipfile_entry)
+            else:
+                complete_packages[package_name] = pipfile_entry
+
         full_lock_resolution = venv_resolve_deps(
             complete_packages,
             which=project._which,
