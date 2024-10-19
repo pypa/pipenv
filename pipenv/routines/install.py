@@ -131,6 +131,7 @@ def handle_new_packages(
 
 def handle_lockfile(
     project,
+    packages,
     ignore_pipfile,
     skip_lock,
     system,
@@ -146,14 +147,15 @@ def handle_lockfile(
         if new_hash != old_hash:
             handle_outdated_lockfile(
                 project,
-                old_hash,
-                new_hash,
-                system,
-                allow_global,
-                deploy,
-                pre,
-                pypi_mirror,
-                categories,
+                packages,
+                old_hash=old_hash,
+                new_hash=new_hash,
+                system=system,
+                allow_global=allow_global,
+                deploy=deploy,
+                pre=pre,
+                pypi_mirror=pypi_mirror,
+                categories=categories,
             )
     elif not project.lockfile_exists and not skip_lock:
         handle_missing_lockfile(
@@ -163,6 +165,7 @@ def handle_lockfile(
 
 def handle_outdated_lockfile(
     project,
+    packages,
     old_hash,
     new_hash,
     system,
@@ -200,6 +203,7 @@ def handle_outdated_lockfile(
         )
         do_update(
             project,
+            packages=packages,
             pre=pre,
             system=system,
             pypi_mirror=pypi_mirror,
@@ -258,6 +262,7 @@ def do_install(
 
     do_init(
         project,
+        package_args,
         system=system,
         allow_global=system,
         deploy=deploy,
@@ -646,6 +651,7 @@ def _cleanup_procs(project, procs):
 
 def do_init(
     project,
+    packages=None,
     allow_global=False,
     ignore_pipfile=False,
     system=False,
@@ -676,14 +682,15 @@ def do_init(
 
     handle_lockfile(
         project,
-        ignore_pipfile,
-        skip_lock,
-        system,
-        allow_global,
-        deploy,
-        pre,
-        pypi_mirror,
-        categories,
+        packages,
+        ignore_pipfile=ignore_pipfile,
+        skip_lock=skip_lock,
+        system=system,
+        allow_global=allow_global,
+        deploy=deploy,
+        pre=pre,
+        pypi_mirror=pypi_mirror,
+        categories=categories,
     )
 
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:

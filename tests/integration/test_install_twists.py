@@ -317,17 +317,16 @@ def test_outdated_should_compare_postreleases_without_failing(
         assert "out-of-date" in c.stdout
 
 
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
-)
+@pytest.mark.install
+@pytest.mark.needs_internet
 def test_install_remote_wheel_file_with_extras(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv(
-            "install fastapi[dev]@https://files.pythonhosted.org/packages/4e/1a/04887c641b67e6649bde845b9a631f73a7abfbe3afda83957e09b95d88eb/fastapi-0.95.2-py3-none-any.whl"
+            "install -v fastapi[standard]@https://files.pythonhosted.org/packages/c9/14/bbe7776356ef01f830f8085ca3ac2aea59c73727b6ffaa757abeb7d2900b/fastapi-0.115.2-py3-none-any.whl"
         )
         assert c.returncode == 0
-        assert "ruff" in p.lockfile["default"]
-        assert "pre-commit" in p.lockfile["default"]
+        assert "httpx" in p.lockfile["default"]
+        assert "jinja2" in p.lockfile["default"]
         assert "uvicorn" in p.lockfile["default"]
 
 
