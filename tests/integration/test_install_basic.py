@@ -139,8 +139,6 @@ def test_extras_install(pipenv_instance_private_pypi):
         assert "chardet" in p.lockfile["default"]
         assert "idna" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
-        for entry in p.lockfile["default"]:
-            print(entry)
         assert "pysocks" in p.lockfile["default"]
 
 

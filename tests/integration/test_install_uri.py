@@ -47,7 +47,6 @@ def test_urls_work(pipenv_instance_pypi):
         dep = list(p.pipfile["packages"].values())[0]
         assert "file" in dep, p.pipfile
 
-        print(p.lockfile["default"])
         dep = p.lockfile["default"]["dataclasses-json"]
         assert "file" in dep, p.lockfile
 
@@ -144,9 +143,6 @@ six = "*"
 @pytest.mark.index
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skipif(
-    sys.version_info >= (3, 14), reason="Package does not work with Python 3.12"
-)
 def test_install_specifying_index_url(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:

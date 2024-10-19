@@ -155,8 +155,6 @@ def upgrade(
             sys.exit(0)
 
         # Resolve package to generate constraints of new package data
-        # raise Exception(requested_packages[pipfile_category])
-
         upgrade_lock_data = venv_resolve_deps(
             requested_packages[pipfile_category],
             which=project._which,
@@ -168,7 +166,7 @@ def upgrade(
             pypi_mirror=pypi_mirror,
         )
         if not upgrade_lock_data:
-            click.echo("Nothing to upgrade II!")
+            click.echo("Nothing to upgrade!")
             sys.exit(0)
 
         complete_packages = project.parsed_pipfile.get(pipfile_category, {})
