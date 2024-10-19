@@ -47,7 +47,6 @@ def test_urls_work(pipenv_instance_pypi):
         dep = list(p.pipfile["packages"].values())[0]
         assert "file" in dep, p.pipfile
 
-        print(p.lockfile["default"])
         dep = p.lockfile["default"]["dataclasses-json"]
         assert "file" in dep, p.lockfile
 
