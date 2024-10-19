@@ -46,7 +46,7 @@ atomicwrites = "*"
         assert c.returncode == 0
         assert list(p.pipfile["packages"].keys()) == [
             "zipp",
-            "six",
             "colorama",
             "atomicwrites",
+            "six",
         ]
