@@ -139,7 +139,6 @@ class Entry:
     def clean_initial_dict(cls, entry_dict):
         from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 
-        entry_dict.get("version", "")
         version = entry_dict.get("version", "")
         if isinstance(version, Requirement):
             version = str(version.specifier)
@@ -290,9 +289,7 @@ class Entry:
 
     @property
     def entry(self):
-        if self._entry is None:
-            self._entry = self.make_requirement(self.name, self.entry_dict)
-        return self._entry
+        return self.make_requirement(self.name, self.entry_dict)
 
     @property
     def normalized_name(self):
