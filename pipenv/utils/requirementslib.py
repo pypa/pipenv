@@ -106,6 +106,7 @@ def is_vcs(pipfile_entry):
 
 def is_editable(pipfile_entry):
     # type: (PipfileType) -> bool
+    """Check if a Pipfile entry is editable."""
     if isinstance(pipfile_entry, Mapping):
         return pipfile_entry.get("editable", False) is True
     if isinstance(pipfile_entry, str):
@@ -115,6 +116,7 @@ def is_editable(pipfile_entry):
 
 def is_star(val):
     # type: (PipfileType) -> bool
+    """Check if a Pipfile entry has a version specified as '*'."""
     return (isinstance(val, str) and val == "*") or (
         isinstance(val, Mapping) and val.get("version", "") == "*"
     )
@@ -183,6 +185,7 @@ def is_installable_file(path):
 
 def get_setup_paths(base_path, subdirectory=None):
     # type: (S, Optional[S]) -> Dict[S, Optional[S]]
+    """Get paths to setup.py, setup.cfg, and pyproject.toml in the given directory."""
     if base_path is None:
         raise TypeError("must provide a path to derive setup paths from")
     setup_py = os.path.join(base_path, "setup.py")
@@ -208,25 +211,22 @@ def get_setup_paths(base_path, subdirectory=None):
 
 def prepare_pip_source_args(sources, pip_args=None):
     # type: (List[Dict[S, Union[S, bool]]], Optional[List[S]]) -> List[S]
+    """Prepare pip arguments for source indexes."""
     if pip_args is None:
         pip_args = []
     if sources:
         # Add the source to pip9.
-        pip_args.extend(["-i ", sources[0]["url"]])  # type: ignore
+        pip_args.extend(["-i", sources[0]["url"]])  # type: ignore
         # Trust the host if it's not verified.
-        if not sources[0].get("verify_ssl", True):
-            pip_args.extend(
-                ["--trusted-host", urlparse(sources[0]["url"]).hostname]
-            )  # type: ignore
+        hostname = urlparse(sources[0]["url"]).hostname
+        if not sources[0].get("verify_ssl", True) and hostname:
+            pip_args.extend(["--trusted-host", hostname])  # type: ignore
         # Add additional sources as extra indexes.
-        if len(sources) > 1:
-            for source in sources[1:]:
-                pip_args.extend(["--extra-index-url", source["url"]])  # type: ignore
-                # Trust the host if it's not verified.
-                if not source.get("verify_ssl", True):
-                    pip_args.extend(
-                        ["--trusted-host", urlparse(source["url"]).hostname]
-                    )  # type: ignore
+        for source in sources[1:]:
+            pip_args.extend(["--extra-index-url", source["url"]])  # type: ignore
+            hostname = urlparse(source["url"]).hostname
+            if not source.get("verify_ssl", True) and hostname:
+                pip_args.extend(["--trusted-host", hostname])  # type: ignore
     return pip_args
 
 
@@ -244,7 +244,7 @@ def get_package_finder(
     py_version_info = None
     if python_versions:
         py_version_info_python = max(python_versions)
-        py_version_info = tuple([int(part) for part in py_version_info_python])
+        py_version_info = tuple(int(part) for part in py_version_info_python)
     target_python = TargetPython(
         platforms=[platform] if platform else None,
         py_version_info=py_version_info,
@@ -360,7 +360,7 @@ def get_path(root, path, default=_UNSET):
                     seg = int(seg)
                     cur = cur[seg]
                 except (ValueError, KeyError, IndexError, TypeError):
-                    if not getattr(cur, "__iter__", None):
+                    if not hasattr(cur, "__iter__"):
                         exc = TypeError(f"{type(cur).__name__!r} object is not indexable")
                     raise PathAccessError(exc, seg, path)
     except PathAccessError:
@@ -429,7 +429,7 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
         except AttributeError:
             ret = new_parent.__class__(vals)  # frozensets
     else:
-        raise RuntimeError(f"unexpected iterable type: {type(new_parent)!r}")
+        raise RuntimeError(f"Unexpected iterable type: {type(new_parent)!r}")
     return ret
 
 
@@ -526,7 +526,7 @@ def remap(
         raise TypeError(f"exit expected callable, not: {exit!r}")
     reraise_visit = kwargs.pop("reraise_visit", True)
     if kwargs:
-        raise TypeError(f"unexpected keyword arguments: {kwargs.keys()!r}")
+        raise TypeError(f"Unexpected keyword arguments: {kwargs.keys()!r}")
 
     path, registry, stack = (), {}, [(None, root)]
     new_items_stack = []
@@ -583,7 +583,7 @@ def remap(
         try:
             new_items_stack[-1][1].append(visited_item)
         except IndexError:
-            raise TypeError(f"expected remappable root, not: {root!r}")
+            raise TypeError(f"Expected remappable root, not: {root!r}")
     return value
 
 
@@ -629,6 +629,7 @@ def merge_items(target_list, sourced=False):
 
 
 def get_pip_command() -> InstallCommand:
+    """Get pip's InstallCommand for configuration management and defaults."""
     # Use pip's parser for pip.conf management and defaults.
     # General options (find_links, index_url, extra_index_url, trusted_host,
     # and pre) are deferred to pip.
@@ -654,7 +655,7 @@ def unpack_url(
         would ordinarily raise HashUnsupported) are allowed.
     """
     # non-editable vcs urls
-    if link.scheme in [
+    if link.scheme in {
         "git+http",
         "git+https",
         "git+ssh",
@@ -671,7 +672,7 @@ def unpack_url(
         "bzr+sftp",
         "bzr+ftp",
         "bzr+lp",
-    ]:
+    }:
         unpack_vcs_link(link, location, verbosity=verbosity)
         return File(location, content_type=None)
 
@@ -704,6 +705,7 @@ def get_http_url(
     download_dir: Optional[str] = None,
     hashes: Optional[Hashes] = None,
 ) -> File:
+    """Download a file from an HTTP URL."""
     temp_dir = TempDirectory(kind="unpack", globally_managed=False)
     # If a download dir is specified, is the file already downloaded there?
     already_downloaded_path = None
