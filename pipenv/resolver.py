@@ -249,6 +249,8 @@ class Entry:
 
     @cached_property
     def get_cleaned_dict(self):
+        from pipenv.utils.constants import VCS_LIST
+
         self.validate_constraints()
         if self.entry.extras != self.lockfile_entry.extras:
             entry_extras = list(self.entry.extras)
@@ -267,6 +269,12 @@ class Entry:
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
         if self.resolver.index_lookup.get(self.name):
             self.entry_dict["index"] = self.resolver.index_lookup[self.name]
+
+        # Handle VCS entries
+        for key in VCS_LIST:
+            if key in self.pipfile_dict:
+                self.entry_dict[key] = self.entry_dict[key]
+                self.entry_dict["ref"] = self.lockfile_dict["ref"]
         return self.entry_dict
 
     @property
