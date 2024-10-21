@@ -1113,12 +1113,10 @@ def install_req_from_pipfile(name, pipfile):
         req_str = f"{vcs_url}@{_pipfile.get('ref', fallback_ref)}{extras_str}"
         if not req_str.startswith(f"{vcs}+"):
             req_str = f"{vcs}+{req_str}"
-        if f"{vcs}+file://" in req_str or _pipfile.get("editable", False):
-            req_str = (
-                f"-e {req_str}#egg={name}{extras_str}{subdirectory.replace('#', '&')}"
-            )
+        if _pipfile.get("editable", False):
+            req_str = f"-e {name}{extras_str} @ {req_str}{subdirectory}"
         else:
-            req_str = f"{name}{extras_str}@ {req_str}{subdirectory}"
+            req_str = f"{name}{extras_str} @ {req_str}{subdirectory}"
     elif "path" in _pipfile:
         req_str = file_path_from_pipfile(_pipfile["path"], _pipfile)
     elif "file" in _pipfile:
