@@ -101,9 +101,12 @@ class Environment:
     def python_version(self) -> str | None:
         with self.activated() as active:
             if active:
-                sysconfig = self.safe_import("sysconfig")
-                py_version = sysconfig.get_python_version()
-                return py_version
+                from pipenv.patched.pip._vendor.packaging.version import Version
+
+                # Extract version parts
+                version_str = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+                python_version = Version(version_str)  # Create PEP 440 compliant version
+                return str(python_version)  # Return the string representation
             else:
                 return None
 
