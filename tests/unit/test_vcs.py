@@ -3,11 +3,7 @@ import os
 import pytest
 
 from pipenv.exceptions import PipenvUsageError
-from pipenv.utils.dependencies import (
-    VCSURLProcessor,
-    install_req_from_pipfile,
-    normalize_vcs_url
-)
+from pipenv.utils.dependencies import VCSURLProcessor, install_req_from_pipfile, normalize_vcs_url
 
 
 def test_vcs_url_processor_basic_expansion():
