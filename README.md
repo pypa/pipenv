@@ -78,10 +78,6 @@ For most users, we recommend installing Pipenv using `pip`:
 
     pip install --user pipenv
 
-Or, if you\'re using Fedora:
-
-    sudo dnf install pipenv
-
 Or, if you\'re using FreeBSD:
 
     pkg install py39-pipenv
