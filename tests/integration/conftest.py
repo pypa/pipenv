@@ -24,8 +24,6 @@ log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 
 
-HAS_WARNED_GITHUB = False
-
 DEFAULT_PRIVATE_PYPI_SERVER = os.environ.get(
     "PIPENV_PYPI_SERVER", "http://localhost:8080/simple"
 )
@@ -75,15 +73,6 @@ def check_github_ssh():
             RuntimeWarning,
             stacklevel=1,
         )
-    except Exception:
-        pass
-    global HAS_WARNED_GITHUB
-    if not res and not HAS_WARNED_GITHUB:
-        warnings.warn("Cannot connect to GitHub via SSH", RuntimeWarning, stacklevel=1)
-        warnings.warn(
-            "Will skip tests requiring SSH access to GitHub", RuntimeWarning, stacklevel=1
-        )
-        HAS_WARNED_GITHUB = True
     return res
 
 
