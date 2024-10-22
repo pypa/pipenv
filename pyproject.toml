@@ -136,7 +136,16 @@ lint.select = [
   "W",
   "YTT",
 ]
-lint.ignore = [ "B904", "PIE790", "PLR5501", "PLW2901" ]
+lint.ignore = [
+  "B904",
+  "PIE790",
+  "PLR0912", # Too many branches
+  "PLR0913", # Too many arguments
+  "PLR2004", # Magic numbers
+  "PLR5501",
+  "PLW2901",
+  "TID252",  # Relative imports
+]
 lint.per-file-ignores = { "pipenv/cli/command.py" = [
   "F811",
 ], "pipenv/__init__.py" = [
