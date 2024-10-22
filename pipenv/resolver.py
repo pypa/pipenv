@@ -272,9 +272,10 @@ class Entry:
 
         # Handle VCS entries
         for key in VCS_LIST:
-            if key in self.pipfile_dict:
-                self.entry_dict[key] = self.entry_dict[key]
+            if key in self.lockfile_dict:
+                self.entry_dict[key] = self.lockfile_dict[key]
                 self.entry_dict["ref"] = self.lockfile_dict["ref"]
+                self.entry_dict.pop("version", None)
         return self.entry_dict
 
     @property
@@ -297,7 +298,7 @@ class Entry:
 
     @property
     def entry(self):
-        return self.make_requirement(self.name, self.entry_dict)
+        return self.make_requirement(self.name, self.lockfile_dict)
 
     @property
     def normalized_name(self):
@@ -562,9 +563,7 @@ def clean_results(results, resolver, project, category):
     lockfile = project.lockfile_content
     lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
-    new_results = [
-        r for r in results if r["name"] not in lockfile.get(lockfile_section, {})
-    ]
+    new_results = []
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()
