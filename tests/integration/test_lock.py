@@ -2,9 +2,8 @@ import os
 from pathlib import Path
 
 import pytest
-
-
 from flaky import flaky
+
 from pipenv.utils.shell import temp_environ
 
 

@@ -3,13 +3,8 @@ from unittest import mock
 
 import pytest
 
-from pipenv.utils import dependencies
-from pipenv.utils import indexes
-from pipenv.utils import internet
-from pipenv.utils import shell
-from pipenv.utils import toml
 from pipenv.exceptions import PipenvUsageError
-
+from pipenv.utils import dependencies, indexes, internet, shell, toml
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [

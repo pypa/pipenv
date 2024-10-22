@@ -1,6 +1,6 @@
 import pytest
 
-from pipenv.utils.funktools import dedup, unnest, _is_iterable
+from pipenv.utils.funktools import _is_iterable, dedup, unnest
 
 
 def test_unnest():

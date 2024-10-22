@@ -114,6 +114,9 @@ line-length = 137
 exclude = [
   "get-pipenv.py",
   "pipenv/patched/*",
+  "pipenv/tests/fixtures/*",
+  "pipenv/tests/pypi/*",
+  "pipenv/tests/test_artifacts/*",
   "pipenv/vendor/*",
 ]
 

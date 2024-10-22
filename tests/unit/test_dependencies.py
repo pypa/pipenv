@@ -1,5 +1,5 @@
-import pytest
 from pipenv.utils.dependencies import clean_resolved_dep
+
 
 def test_clean_resolved_dep_with_vcs_url():
     project = {}  # Mock project object, adjust as needed

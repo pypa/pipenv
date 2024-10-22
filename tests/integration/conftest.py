@@ -1,24 +1,24 @@
+import contextlib
 import errno
 import functools
 import json
 import logging
 import os
 import shutil
-from shutil import rmtree as _rmtree
+import subprocess
 import sys
 import warnings
 from pathlib import Path
+from shutil import rmtree as _rmtree
 from tempfile import TemporaryDirectory
-import subprocess
 
 import pytest
-from pipenv.patched.pip._vendor import requests
-from pipenv.vendor import tomlkit
 
-from pipenv.utils.processes import subprocess_run
+from pipenv.patched.pip._vendor import requests
 from pipenv.utils.funktools import handle_remove_readonly
+from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
-import contextlib
+from pipenv.vendor import tomlkit
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)

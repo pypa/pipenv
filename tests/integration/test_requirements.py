@@ -1,9 +1,10 @@
 import json
 import os
+
 import pytest
 
-from pipenv.utils.shell import temp_environ
 from pipenv.utils.requirements import requirements_from_lockfile
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.requirements
