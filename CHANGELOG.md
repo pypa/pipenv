@@ -1,3 +1,30 @@
+2024.2.0 (2024-10-22)
+=====================
+Pipenv 2024.2.0 (2024-10-22)
+============================
+
+
+Bug Fixes
+---------
+
+- Features & Bug Fixes
+  -------------------
+  - Refactored and simplified install routines, improving maintainability and reliability (#6276)
+    - Split install logic into smaller, focused functions.
+    - Eliminated Pipfile caching for now to prevent bugs and reduce complexity.
+    - Fixed edge cases with package category selection.
+    - Improved handling of VCS dependencies during updates, fixing when ref is a revision and not a branch.
+
+  - Enhanced VCS URL handling with better environment variable support (#6276)
+    - More reliable expansion of environment variables in Git URLs.
+    - Better handling of authentication components in VCS URLs.
+    - Improved error messaging for missing environment variables.
+    - Fixed issue where Git reference could be dropped during relock.  `#6276 <https://github.com/pypa/pipenv/issues/6276>`_
+
+Vendored Libraries
+------------------
+
+- Update pipdeptree to version 2.23.4  `#6275 <https://github.com/pypa/pipenv/issues/6275>`_
 2024.1.0 (2024-09-29)
 =====================
 Pipenv 2024.1.0 (2024-09-29)
