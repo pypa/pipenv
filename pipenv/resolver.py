@@ -554,14 +554,11 @@ class Entry:
 
 def clean_results(results, resolver, project, category):
     from pipenv.utils.dependencies import (
-        get_lockfile_section_using_pipfile_category,
         translate_markers,
     )
 
     if not project.lockfile_exists:
         return results
-    lockfile = project.lockfile_content
-    lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
     new_results = []
     for result in results:
