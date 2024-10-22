@@ -170,7 +170,6 @@ lint.per-file-ignores = { "pipenv/cli/command.py" = [
   "B015",
 ] }
 lint.mccabe.max-complexity = 44
-lint.pylint.allowed-redefined-builtins = [ "int", "str" ]
 lint.pylint.max-args = 9
 lint.pylint.max-branches = 20
 lint.pylint.max-returns = 38
