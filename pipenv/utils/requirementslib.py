@@ -33,7 +33,7 @@ VCS_LIST = ("git", "svn", "hg", "bzr")
 SCHEME_LIST = ("http://", "https://", "ftp://", "ftps://", "file://")
 
 
-VCS_SCHEMES = [
+VCS_SCHEMES = {
     "git",
     "git+http",
     "git+https",
@@ -57,7 +57,7 @@ VCS_SCHEMES = [
     "bzr+sftp",
     "bzr+ftp",
     "bzr+lp",
-]
+}
 
 
 def strip_ssh_from_git_uri(uri):
@@ -550,8 +550,7 @@ def remap(
             except TypeError:
                 # TODO: handle False?
                 raise TypeError(
-                    "enter should return a tuple of (new_parent,"
-                    f" items_iterator), not: {res!r}"
+                    f"enter should return a tuple of (new_parent, items_iterator), not: {res!r}"
                 )
             if new_items is not False:
                 # traverse unless False is explicitly passed
@@ -655,24 +654,7 @@ def unpack_url(
         would ordinarily raise HashUnsupported) are allowed.
     """
     # non-editable vcs urls
-    if link.scheme in {
-        "git+http",
-        "git+https",
-        "git+ssh",
-        "git+git",
-        "hg+http",
-        "hg+https",
-        "hg+ssh",
-        "svn+http",
-        "svn+https",
-        "svn+svn",
-        "bzr+http",
-        "bzr+https",
-        "bzr+ssh",
-        "bzr+sftp",
-        "bzr+ftp",
-        "bzr+lp",
-    }:
+    if link.scheme in VCS_SCHEMES:
         unpack_vcs_link(link, location, verbosity=verbosity)
         return File(location, content_type=None)
 
