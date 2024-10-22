@@ -274,7 +274,6 @@ class Entry:
         for key in VCS_LIST:
             if key in self.lockfile_dict:
                 self.entry_dict[key] = self.lockfile_dict[key]
-                self.entry_dict["ref"] = self.lockfile_dict["ref"]
                 self.entry_dict.pop("version", None)
         return self.entry_dict
 
