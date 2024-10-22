@@ -11,7 +11,7 @@ from pipenv.utils.processes import subprocess_run
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
-    from click.testing import (
+    from pipenv.vendor.click.testing import (
         CliRunner,
     )  # not thread safe but macos and linux will expand the env var otherwise
 
