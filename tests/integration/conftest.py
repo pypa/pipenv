@@ -1,30 +1,28 @@
+import contextlib
 import errno
 import functools
 import json
 import logging
 import os
 import shutil
-from shutil import rmtree as _rmtree
+import subprocess
 import sys
 import warnings
 from pathlib import Path
+from shutil import rmtree as _rmtree
 from tempfile import TemporaryDirectory
-import subprocess
 
 import pytest
-from pipenv.patched.pip._vendor import requests
-from pipenv.vendor import tomlkit
 
-from pipenv.utils.processes import subprocess_run
+from pipenv.patched.pip._vendor import requests
 from pipenv.utils.funktools import handle_remove_readonly
+from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
-import contextlib
+from pipenv.vendor import tomlkit
 
 log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 
-
-HAS_WARNED_GITHUB = False
 
 DEFAULT_PRIVATE_PYPI_SERVER = os.environ.get(
     "PIPENV_PYPI_SERVER", "http://localhost:8080/simple"
@@ -75,15 +73,6 @@ def check_github_ssh():
             RuntimeWarning,
             stacklevel=1,
         )
-    except Exception:
-        pass
-    global HAS_WARNED_GITHUB
-    if not res and not HAS_WARNED_GITHUB:
-        warnings.warn("Cannot connect to GitHub via SSH", RuntimeWarning, stacklevel=1)
-        warnings.warn(
-            "Will skip tests requiring SSH access to GitHub", RuntimeWarning, stacklevel=1
-        )
-        HAS_WARNED_GITHUB = True
     return res
 
 

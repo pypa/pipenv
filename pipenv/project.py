@@ -134,11 +134,6 @@ def preferred_newlines(f):
     return DEFAULT_NEWLINES
 
 
-# (path, file contents) => TOMLFile
-# keeps track of pipfiles that we've seen so we do not need to re-parse 'em
-_pipfile_cache = {}
-
-
 class SourceNotFound(KeyError):
     pass
 
@@ -670,16 +665,9 @@ class Project:
 
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
-        """Parse Pipfile into a TOMLFile and cache it
-
-        (call clear_pipfile_cache() afterwards if mutating)"""
+        """Parse Pipfile into a TOMLFile"""
         contents = self.read_pipfile()
-        # use full contents to get around str/bytes 2/3 issues
-        cache_key = (self.pipfile_location, contents)
-        if cache_key not in _pipfile_cache:
-            parsed = self._parse_pipfile(contents)
-            _pipfile_cache[cache_key] = parsed
-        return _pipfile_cache[cache_key]
+        return self._parse_pipfile(contents)
 
     def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.
@@ -690,10 +678,6 @@ class Project:
             self._pipfile_newlines = preferred_newlines(f)
 
         return contents
-
-    def clear_pipfile_cache(self) -> None:
-        """Clear pipfile cache (e.g., so we can mutate parsed pipfile)"""
-        _pipfile_cache.clear()
 
     def _parse_pipfile(
         self, contents: str
@@ -991,8 +975,6 @@ class Project:
         formatted_data = cleanup_toml(formatted_data)
         with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
-        # pipfile is mutated!
-        self.clear_pipfile_cache()
 
     def write_lockfile(self, content):
         """Write out the lockfile."""
@@ -1088,7 +1070,6 @@ class Project:
 
         sources = (self.sources, self.pipfile_sources())
         if refresh:
-            self.clear_pipfile_cache()
             sources = reversed(sources)
         found = next(
             iter(find_source(source, name=name, url=url) for source in sources), None
@@ -1099,15 +1080,16 @@ class Project:
         return found
 
     def get_package_name_in_pipfile(self, package_name, category):
-        """Get the equivalent package name in pipfile"""
-        section = self.parsed_pipfile.get(category)
-        if section is None:
-            section = {}
-        package_name = pep423_name(package_name)
+        section = self.parsed_pipfile.get(category, {})
+        normalized_name = pep423_name(package_name)
         for name in section:
-            if pep423_name(name) == package_name:
+            if pep423_name(name) == normalized_name:
                 return name
-        return None
+        return package_name  # Return original name if not found
+
+    def get_pipfile_entry(self, package_name, category):
+        name = self.get_package_name_in_pipfile(package_name, category)
+        return self.parsed_pipfile.get(category, {}).get(name)
 
     def _sort_category(self, category) -> Table:
         # copy table or create table from dict-like object
@@ -1244,26 +1226,28 @@ class Project:
         newly_added = False
 
         # Read and append Pipfile.
-        p = self.parsed_pipfile
+        parsed_pipfile = self.parsed_pipfile
 
         # Set empty group if it doesn't exist yet.
-        if category not in p:
-            p[category] = {}
+        if category not in parsed_pipfile:
+            parsed_pipfile[category] = {}
 
-        if name and name != normalized_name:
-            self.remove_package_from_pipfile(name, category=category)
+        section = parsed_pipfile.get(category, {})
+        for entry_name in section.copy().keys():
+            if entry_name.lower() == normalized_name.lower():
+                del parsed_pipfile[category][entry_name]
 
         # Add the package to the group.
-        if normalized_name not in p[category]:
+        if normalized_name not in parsed_pipfile[category]:
             newly_added = True
 
-        p[category][normalized_name] = entry
+        parsed_pipfile[category][normalized_name] = entry
 
         if self.settings.get("sort_pipfile"):
-            p[category] = self._sort_category(p[category])
+            parsed_pipfile[category] = self._sort_category(parsed_pipfile[category])
 
         # Write Pipfile.
-        self.write_toml(p)
+        self.write_toml(parsed_pipfile)
         return newly_added, category, normalized_name
 
     def src_name_from_url(self, index_url):

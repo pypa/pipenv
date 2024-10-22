@@ -3,7 +3,6 @@ import os
 import pytest
 from flaky import flaky
 
-
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
 

@@ -117,9 +117,9 @@ def upgrade(
     lockfile = project.lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if dev:
+    if dev or "dev-packages" in categories:
         categories = ["develop"]
-    elif not categories:
+    elif not categories or "packages" in categories:
         categories = ["default"]
 
     index_name = None
@@ -140,6 +140,7 @@ def upgrade(
             install_req, _ = expansive_install_req_from_line(package, expand_env=True)
             if index_name:
                 install_req.index = index_name
+
             name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
                 install_req, package, category=pipfile_category
             )
@@ -148,11 +149,6 @@ def upgrade(
             )
             requested_packages[pipfile_category][normalized_name] = pipfile_entry
             requested_install_reqs[pipfile_category][normalized_name] = install_req
-
-        if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(pipfile_category, {})
-        else:
-            packages = project.get_pipfile_section(pipfile_category)
 
         if not package_args:
             click.echo("Nothing to upgrade!")
@@ -164,7 +160,7 @@ def upgrade(
             which=project._which,
             project=project,
             lockfile={},
-            category="default",
+            category=pipfile_category,
             pre=pre,
             allow_global=system,
             pypi_mirror=pypi_mirror,
@@ -173,14 +169,18 @@ def upgrade(
             click.echo("Nothing to upgrade!")
             sys.exit(0)
 
-        for package_name, pipfile_entry in requested_packages[pipfile_category].items():
-            if package_name not in packages:
-                packages.append(package_name, pipfile_entry)
+        complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+        for package_name in requested_packages[pipfile_category].keys():
+            pipfile_entry = project.get_pipfile_entry(
+                package_name, category=pipfile_category
+            )
+            if package_name not in complete_packages:
+                complete_packages.append(package_name, pipfile_entry)
             else:
-                packages[package_name] = pipfile_entry
+                complete_packages[package_name] = pipfile_entry
 
         full_lock_resolution = venv_resolve_deps(
-            packages,
+            complete_packages,
             which=project._which,
             project=project,
             lockfile={},
@@ -193,6 +193,8 @@ def upgrade(
         for package_name in upgrade_lock_data:
             correct_package_lock = full_lock_resolution.get(package_name)
             if correct_package_lock:
+                if category not in lockfile:
+                    lockfile[category] = {}
                 lockfile[category][package_name] = correct_package_lock
 
     lockfile.update({"_meta": project.get_lockfile_meta()})

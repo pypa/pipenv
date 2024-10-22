@@ -139,7 +139,6 @@ class Entry:
     def clean_initial_dict(cls, entry_dict):
         from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 
-        entry_dict.get("version", "")
         version = entry_dict.get("version", "")
         if isinstance(version, Requirement):
             version = str(version.specifier)
@@ -250,6 +249,8 @@ class Entry:
 
     @cached_property
     def get_cleaned_dict(self):
+        from pipenv.utils.constants import VCS_LIST
+
         self.validate_constraints()
         if self.entry.extras != self.lockfile_entry.extras:
             entry_extras = list(self.entry.extras)
@@ -268,6 +269,12 @@ class Entry:
         _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
         if self.resolver.index_lookup.get(self.name):
             self.entry_dict["index"] = self.resolver.index_lookup[self.name]
+
+        # Handle VCS entries
+        for key in VCS_LIST:
+            if key in self.lockfile_dict:
+                self.entry_dict[key] = self.lockfile_dict[key]
+                self.entry_dict.pop("version", None)
         return self.entry_dict
 
     @property
@@ -290,9 +297,7 @@ class Entry:
 
     @property
     def entry(self):
-        if self._entry is None:
-            self._entry = self.make_requirement(self.name, self.entry_dict)
-        return self._entry
+        return self.make_requirement(self.name, self.lockfile_dict)
 
     @property
     def normalized_name(self):
@@ -548,18 +553,13 @@ class Entry:
 
 def clean_results(results, resolver, project, category):
     from pipenv.utils.dependencies import (
-        get_lockfile_section_using_pipfile_category,
         translate_markers,
     )
 
     if not project.lockfile_exists:
         return results
-    lockfile = project.lockfile_content
-    lockfile_section = get_lockfile_section_using_pipfile_category(category)
     reverse_deps = project.environment.reverse_dependencies()
-    new_results = [
-        r for r in results if r["name"] not in lockfile.get(lockfile_section, {})
-    ]
+    new_results = []
     for result in results:
         name = result.get("name")
         entry_dict = result.copy()

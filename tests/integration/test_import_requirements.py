@@ -5,9 +5,8 @@ from unittest import mock
 import pytest
 
 from pipenv.patched.pip._internal.operations.prepare import File
-
-from pipenv.utils.requirements import import_requirements
 from pipenv.project import Project
+from pipenv.utils.requirements import import_requirements
 
 
 @pytest.mark.cli
@@ -83,7 +82,9 @@ def test_auth_with_pw_are_variables_passed_to_pipfile(
         requirements_file.close()
         import_requirements(project, r=requirements_file.name)
         os.unlink(requirements_file.name)
-        assert p.pipfile["packages"]["myproject"] == {'git': 'https://${AUTH_USER}:${AUTH_PW}@github.com/user/myproject.git', 'ref': 'main'}
+        expected = {'git': 'https://${AUTH_USER}:${AUTH_PW}@github.com/user/myproject.git', 'ref': 'main'}
+        assert p.pipfile["packages"]["myproject"] == expected
+
 
 @pytest.mark.cli
 @pytest.mark.deploy

@@ -4,9 +4,9 @@ import sys
 import pytest
 
 from pipenv.project import Project
+from pipenv.utils.fileutils import normalize_path
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor.plette import Pipfile
-from pipenv.utils.fileutils import normalize_path
 
 
 @pytest.mark.project

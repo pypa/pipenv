@@ -1,5 +1,6 @@
-from collections import defaultdict
 import json
+from collections import defaultdict
+
 import pytest
 
 from pipenv.project import Project

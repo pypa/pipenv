@@ -115,9 +115,12 @@ exclude = [
   "get-pipenv.py",
   "pipenv/patched/*",
   "pipenv/vendor/*",
+  "tests/fixtures/*",
+  "tests/pypi/*",
+  "tests/test_artifacts/*",
 ]
 
-select = [
+lint.select = [
   "ASYNC",
   "B",
   "C4",
@@ -136,30 +139,53 @@ select = [
   "W",
   "YTT",
 ]
-ignore = [
+lint.ignore = [
   "B904",
   "PIE790",
+  "PLR0912", # Too many branches
+  "PLR0913", # Too many arguments
+  "PLR2004", # Magic numbers
   "PLR5501",
   "PLW2901",
+  "TID252",  # Relative imports
 ]
-pylint.allow-magic-value-types = [ "int", "str" ]
-pylint.max-args = 20
-pylint.max-branches = 38
-pylint.max-returns = 9
-pylint.max-statements = 155
-mccabe.max-complexity = 44
-per-file-ignores."docs/conf.py" = [ "E402", "E501" ]
-per-file-ignores."get-pipenv.py" = [ "E402" ]
-per-file-ignores."pipenv/__init__.py" = [ "E401" ]
-per-file-ignores."pipenv/cli/command.py" = [ "TID252" ]
-per-file-ignores."pipenv/utils/internet.py" = [ "PLW0603" ]
-per-file-ignores."pipenv/utils/resolver.py" = [ "B018" ]
-per-file-ignores."tests/*" = [ "E501", "F401", "I", "PLC1901", "S101" ]
-per-file-ignores."tests/integration/conftest.py" = [ "B003", "PIE800", "PLW0603" ]
-per-file-ignores."tests/integration/test_pipenv.py" = [ "E741" ]
-per-file-ignores."tests/integration/test_requirements.py" = [ "E741" ]
-per-file-ignores."tests/unit/test_funktools.py" = [ "B015" ]
-per-file-ignores."tests/unit/test_utils.py" = [ "F811" ]
+lint.per-file-ignores = { "pipenv/cli/command.py" = [
+  "F811",
+], "pipenv/__init__.py" = [
+  "E402",
+  "E501",
+], "pipenv/utils/shell.py" = [
+  "E402",
+], "pipenv/utils/internet.py" = [
+  "E401",
+], "pipenv/utils/dependencies.py" = [
+  "TID252",
+], "pipenv/vendor/requirementslib/models/requirements.py" = [
+  "PLW0603",
+], "pipenv/vendor/requirementslib/models/utils.py" = [
+  "B018",
+], "pipenv/project.py" = [
+  "E501",
+  "F401",
+  "I",
+  "PLC1901",
+  "S101",
+], "pipenv/cli/options.py" = [
+  "B003",
+  "PIE800",
+  "PLW0603",
+], "pipenv/utils/processes.py" = [
+  "E741",
+], "pipenv/vendor/vistir/misc.py" = [
+  "E741",
+], "pipenv/vendor/pythonfinder/models/python.py" = [
+  "B015",
+] }
+lint.mccabe.max-complexity = 44
+lint.pylint.max-args = 9
+lint.pylint.max-branches = 20
+lint.pylint.max-returns = 38
+lint.pylint.max-statements = 155
 
 [tool.pyproject-fmt]
 # after how many column width split arrays/dicts into multiple lines, 1 will force always

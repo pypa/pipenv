@@ -17,17 +17,17 @@
 #
 import os
 
+import pipenv.vendor.click
+
+# Hackery to get the CLI docs to generate
+from pipenv.vendor import click
+
 # Path hackery to get current version number.
 here = os.path.abspath(os.path.dirname(__file__))
 
 about = {}
 with open(os.path.join(here, "..", "pipenv", "__version__.py")) as f:
     exec(f.read(), about)
-
-# Hackery to get the CLI docs to generate
-import click
-
-import pipenv.vendor.click
 
 click.Command = pipenv.vendor.click.Command
 click.Group = pipenv.vendor.click.Group
@@ -80,7 +80,10 @@ master_doc = "index"
 
 # General information about the project.
 project = "pipenv"
-copyright = '2020. A project founded by Kenneth Reitz and maintained by <a href="https://www.pypa.io/en/latest/">Python Packaging Authority (PyPA).</a>'
+copyright = (
+    "2020. A project founded by Kenneth Reitz and maintained by "
+    '<a href="https://www.pypa.io/en/latest/">Python Packaging Authority (PyPA).</a>'
+)
 author = "Python Packaging Authority"
 
 # The version info for the project you're documenting, acts as replacement for

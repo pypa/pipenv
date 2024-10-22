@@ -1,10 +1,9 @@
 import os
-
 from unittest import mock
+
 import pytest
 
 from pipenv.utils import shell
-
 
 # This module is run only on Windows.
 pytestmark = pytest.mark.skipif(
