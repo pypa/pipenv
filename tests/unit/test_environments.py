@@ -1,6 +1,8 @@
 import itertools
-import pytest
 import os
+
+import pytest
+
 from pipenv import environments
 from pipenv.utils.shell import temp_environ
 

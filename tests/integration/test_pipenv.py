@@ -58,7 +58,7 @@ def test_update_locks(pipenv_instance_private_pypi):
         c = p.pipenv("run pip freeze")
         assert c.returncode == 0
         lines = c.stdout.splitlines()
-        assert "jdcal==1.4" in [l.strip() for l in lines]
+        assert "jdcal==1.4" in [line.strip() for line in lines]
 
 
 @pytest.mark.project

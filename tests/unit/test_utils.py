@@ -3,13 +3,8 @@ from unittest import mock
 
 import pytest
 
-from pipenv.utils import dependencies
-from pipenv.utils import indexes
-from pipenv.utils import internet
-from pipenv.utils import shell
-from pipenv.utils import toml
 from pipenv.exceptions import PipenvUsageError
-
+from pipenv.utils import dependencies, indexes, internet, shell, toml
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
@@ -156,7 +151,7 @@ def test_convert_deps_to_pip_one_way(deps, expected):
 
 
 @pytest.mark.utils
-def test_convert_deps_to_pip_one_way():
+def test_convert_deps_to_pip_one_way_uvicorn():
     deps = {"uvicorn": {}}
     expected = {"uvicorn": "uvicorn"}
     assert dependencies.convert_deps_to_pip(deps) == expected
@@ -270,7 +265,8 @@ class TestUtils:
             ("Python 3.6.2 :: Continuum Analytics, Inc.", "3.6.2"),
             ("Python 3.6.20 :: Continuum Analytics, Inc.", "3.6.20"),
             (
-                "Python 3.5.3 (3f6eaa010fce78cc7973bdc1dfdb95970f08fed2, Jan 13 2018, 18:14:01)\n[PyPy 5.10.1 with GCC 4.2.1 Compatible Apple LLVM 9.0.0 (clang-900.0.39.2)]",
+                "Python 3.5.3 (3f6eaa010fce78cc7973bdc1dfdb95970f08fed2, "
+                "Jan 13 2018, 18:14:01)\n[PyPy 5.10.1 with GCC 4.2.1 Compatible Apple LLVM 9.0.0 (clang-900.0.39.2)]",
                 "3.5.3",
             ),
         ],

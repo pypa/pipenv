@@ -1,9 +1,10 @@
-import pytest
 import sys
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
+import pytest
 
 from pipenv.utils.shell import temp_environ
+
+from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 
 @pytest.mark.uninstall

@@ -3,9 +3,9 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv.utils.virtualenv import warn_in_virtualenv
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.shell import temp_environ
+from pipenv.utils.virtualenv import warn_in_virtualenv
 
 
 @pytest.mark.core

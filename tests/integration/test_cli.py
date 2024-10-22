@@ -2,8 +2,8 @@ import os
 import re
 import sys
 from pathlib import Path
-import pytest
 
+import pytest
 
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import normalize_drive

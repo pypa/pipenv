@@ -1,9 +1,10 @@
 import json
 import os
+
 import pytest
 
-from pipenv.utils.shell import temp_environ
 from pipenv.utils.requirements import requirements_from_lockfile
+from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.requirements
@@ -66,8 +67,8 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(
             {dev_packages[0]}= "=={dev_packages[1]}"
             """.strip()
             f.write(contents)
-        l = p.pipenv("lock")
-        assert l.returncode == 0
+        result = p.pipenv("lock")
+        assert result.returncode == 0
         c = p.pipenv("requirements")
         assert c.returncode == 0
 
@@ -101,8 +102,8 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(
             {doc_packages[0]}= "=={doc_packages[1]}"
             """.strip()
             f.write(contents)
-        l = p.pipenv("lock")
-        assert l.returncode == 0
+        result = p.pipenv("lock")
+        assert result.returncode == 0
 
         c = p.pipenv("requirements --dev-only")
         assert c.returncode == 0

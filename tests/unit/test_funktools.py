@@ -1,6 +1,6 @@
 import pytest
 
-from pipenv.utils.funktools import dedup, unnest, _is_iterable
+from pipenv.utils.funktools import _is_iterable, dedup, unnest
 
 
 def test_unnest():
@@ -9,7 +9,7 @@ def test_unnest():
         (3456, 4398345, (234234)),
         (2396, (928379, 29384, (293759, 2347, (2098, 7987, 27599)))),
     )
-    list(unnest(nested_iterable)) == [
+    assert list(unnest(nested_iterable)) == [
         1234,
         3456,
         4398345,
