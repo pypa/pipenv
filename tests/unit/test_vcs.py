@@ -1,5 +1,7 @@
-import pytest
 import os
+
+import pytest
+
 from pipenv.exceptions import PipenvUsageError
 from pipenv.utils.dependencies import (
     VCSURLProcessor,
@@ -169,7 +171,7 @@ def test_git_ssh_shorthand_format():
 
     # First test direct VCSURLProcessor
     processed = VCSURLProcessor.process_vcs_url(url)
-    assert f"git@github.com:org/repo.git" == processed
+    assert "git@github.com:org/repo.git" == processed
 
     # Then test requirement string generation
     _, _, req_str = install_req_from_pipfile("package-name", pipfile)
@@ -215,7 +217,7 @@ def test_ssh_protocol_variations():
     test_cases = [
         "git+ssh://git@${HOST}/${REPO}.git",
         "ssh://git@${HOST}/${REPO}.git",
-        f"git@${{HOST}}:${{REPO}}.git"
+        "git@${{HOST}}:${{REPO}}.git"
     ]
 
     os.environ.update({

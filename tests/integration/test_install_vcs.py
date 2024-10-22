@@ -1,10 +1,6 @@
 import os
-from unittest.mock import patch, Mock, MagicMock
 
 import pytest
-
-from pipenv.patched.pip._internal.vcs.git import Git
-from pipenv.utils import requirementslib
 
 
 @pytest.mark.basic
