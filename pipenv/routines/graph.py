@@ -1,5 +1,4 @@
 import json as simplejson
-import os
 import sys
 from pathlib import Path
 
@@ -14,7 +13,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     from pipenv.vendor import pipdeptree
 
-    pipdeptree_path = os.path.dirname(pipdeptree.__file__.rstrip("cdo"))
+    pipdeptree_path = Path(pipdeptree.__file__).parent
     try:
         python_path = project.python()
     except AttributeError:
@@ -29,31 +28,8 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
     except RuntimeError:
         pass
-    else:
-        if os.name != "nt":  # bugfix #4388
-            python_path = Path(python_path).as_posix()
-            pipdeptree_path = Path(pipdeptree_path).as_posix()
 
-    if reverse and json:
-        click.echo(
-            "{}: {}".format(
-                click.style("Warning", fg="red", bold=True),
-                "Using both --reverse and --json together is not supported. "
-                "Please select one of the two options.",
-            ),
-            err=True,
-        )
-        sys.exit(1)
-    if reverse and json_tree:
-        click.echo(
-            "{}: {}".format(
-                click.style("Warning", fg="red", bold=True),
-                "Using both --reverse and --json-tree together is not supported. "
-                "Please select one of the two options.",
-            ),
-            err=True,
-        )
-        sys.exit(1)
+    # Only keep the json + json_tree incompatibility check
     if json and json_tree:
         click.echo(
             "{}: {}".format(
@@ -64,13 +40,18 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    flag = ""
+
+    # Build command arguments list
+    cmd_args = [python_path, pipdeptree_path, "-l"]
+
+    # Add flags as needed - multiple flags now supported
     if json:
-        flag = "--json"
+        cmd_args.append("--json")
     if json_tree:
-        flag = "--json-tree"
+        cmd_args.append("--json-tree")
     if reverse:
-        flag = "--reverse"
+        cmd_args.append("--reverse")
+
     if not project.virtualenv_exists:
         click.echo(
             "{}: No virtualenv has been created for this project yet! Consider "
@@ -83,10 +64,9 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             err=True,
         )
         sys.exit(1)
-    cmd_args = [python_path, pipdeptree_path, "-l"]
-    if flag:
-        cmd_args.append(flag)
+
     c = run_command(cmd_args, is_verbose=project.s.is_verbose())
+
     # Run dep-tree.
     if not bare:
         if json:
@@ -123,7 +103,6 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         else:
             for line in c.stdout.strip().split("\n"):
                 # Ignore bad packages as top level.
-                # TODO: This should probably be a "==" in + line.partition
                 if line.split("==")[0] in BAD_PACKAGES and not reverse:
                     continue
 
@@ -135,6 +114,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                     click.echo(click.style(line, bold=False))
     else:
         click.echo(c.stdout)
+
     if c.returncode != 0:
         click.echo(
             "{} {}".format(
