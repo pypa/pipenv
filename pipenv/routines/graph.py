@@ -3,9 +3,9 @@ import sys
 from pathlib import Path
 
 from pipenv import exceptions
+from pipenv.utils import console, err
 from pipenv.utils.processes import run_command
 from pipenv.utils.requirements import BAD_PACKAGES
-from pipenv.vendor import click
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
@@ -17,13 +17,11 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     try:
         python_path = project.python()
     except AttributeError:
-        click.echo(
-            "{}: {}".format(
-                click.style("Warning", fg="red", bold=True),
-                "Unable to display currently-installed dependency graph information here. "
-                "Please run within a Pipenv project.",
-            ),
-            err=True,
+        err.echo(
+            "Warning: Unable to display currently-installed dependency graph information here. "
+            "Please run within a Pipenv project.",
+            fg="red",
+            bold=True,
         )
         sys.exit(1)
     except RuntimeError:
@@ -31,13 +29,11 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     # Only keep the json + json_tree incompatibility check
     if json and json_tree:
-        click.echo(
-            "{}: {}".format(
-                click.style("Warning", fg="red", bold=True),
-                "Using both --json and --json-tree together is not supported. "
-                "Please select one of the two options.",
-            ),
-            err=True,
+        err.echo(
+            "Warning: Using both --json and --json-tree together is not supported. "
+            "Please select one of the two options.",
+            fg="red",
+            bold=True,
         )
         sys.exit(1)
 
@@ -53,15 +49,12 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         cmd_args.append("--reverse")
 
     if not project.virtualenv_exists:
-        click.echo(
-            "{}: No virtualenv has been created for this project yet! Consider "
-            "running {} first to automatically generate one for you or see "
-            "{} for further instructions.".format(
-                click.style("Warning", fg="red", bold=True),
-                click.style("`pipenv install`", fg="green"),
-                click.style("`pipenv install --help`", fg="green"),
-            ),
-            err=True,
+        err.echo(
+            "Warning: No virtualenv has been created for this project yet! Consider "
+            "running `pipenv install` first to automatically generate one for you or see "
+            "`pipenv install --help` for further instructions.",
+            fg="red",
+            bold=True,
         )
         sys.exit(1)
 
@@ -77,7 +70,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data += [d for d in parsed if d["package"]["key"] not in BAD_PACKAGES]
-            click.echo(simplejson.dumps(data, indent=4))
+            console.print(simplejson.dumps(data, indent=4))
             sys.exit(0)
         elif json_tree:
 
@@ -98,7 +91,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data = traverse(parsed)
-                click.echo(simplejson.dumps(data, indent=4))
+                console.print(simplejson.dumps(data, indent=4))
                 sys.exit(0)
         else:
             for line in c.stdout.strip().split("\n"):
@@ -108,20 +101,18 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
                 # Bold top-level packages.
                 if not line.startswith(" "):
-                    click.echo(click.style(line, bold=True))
+                    console.print(line, bold=True)
                 # Echo the rest.
                 else:
-                    click.echo(click.style(line, bold=False))
+                    console.print(line)
     else:
-        click.echo(c.stdout)
+        console.print(c.stdout)
 
     if c.returncode != 0:
-        click.echo(
-            "{} {}".format(
-                click.style("ERROR: ", fg="red", bold=True),
-                click.style(f"{c.stderr}", fg="white"),
-            ),
-            err=True,
+        err.echo(
+            f"ERROR: {c.stderr}",
+            fg="red",
+            bold=True,
         )
     # Return its return code.
     sys.exit(c.returncode)
