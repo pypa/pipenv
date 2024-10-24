@@ -84,11 +84,10 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                     fg="yellow",
                     err=True,
                 )
-    if not outdated:
-        click.echo(click.style("All packages are up to date!", fg="green", bold=True))
-        sys.exit(0)
-    for package, old_version, new_version in outdated:
+    for package, old_version, new_version in set(outdated).union(set(skipped)):
         click.echo(
             f"Package {package!r} out-of-date: {old_version!r} installed, {new_version!r} available."
         )
+    if not outdated:
+        click.echo(click.style("All packages are up to date!", fg="green", bold=True))
     sys.exit(bool(outdated))
