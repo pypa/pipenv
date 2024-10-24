@@ -548,16 +548,7 @@ def check(
 def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     """Runs lock when no packages are specified, or upgrade, and then sync."""
     from pipenv.routines.update import do_update
-    from pipenv.utils.project import ensure_project
 
-    ensure_project(
-        state.project,
-        python=state.python,
-        pypi_mirror=state.pypi_mirror,
-        warn=(not state.quiet),
-        site_packages=state.site_packages,
-        clear=state.clear,
-    )
     do_update(
         state.project,
         python=state.python,

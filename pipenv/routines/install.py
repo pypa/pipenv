@@ -36,12 +36,13 @@ def handle_new_packages(
     pypi_mirror,
     extra_pip_args,
     categories,
-    skip_lock,
+    perform_upgrades=True,
     index=None,
 ):
+    from pipenv.routines.update import do_update
+
     new_packages = []
     if packages or editable_packages:
-        from pipenv.routines.update import do_update
 
         pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
 
@@ -107,26 +108,27 @@ def handle_new_packages(
         if pre:
             project.update_settings({"allow_prereleases": pre})
 
-        # Use the update routine for new packages
-        if not skip_lock:
-            try:
-                do_update(
-                    project,
-                    dev=dev,
-                    pre=pre,
-                    packages=packages,
-                    editable_packages=editable_packages,
-                    pypi_mirror=pypi_mirror,
-                    index_url=index,
-                    extra_pip_args=extra_pip_args,
-                    categories=categories,
-                )
-            except Exception:
-                for pkg_name, category in new_packages:
-                    project.remove_package_from_pipfile(pkg_name, category)
-                raise
+    # Use the update routine for new packages
+    if perform_upgrades:
+        try:
+            do_update(
+                project,
+                dev=dev,
+                pre=pre,
+                packages=packages,
+                editable_packages=editable_packages,
+                pypi_mirror=pypi_mirror,
+                index_url=index,
+                extra_pip_args=extra_pip_args,
+                categories=categories,
+            )
+            return new_packages, True
+        except Exception:
+            for pkg_name, category in new_packages:
+                project.remove_package_from_pipfile(pkg_name, category)
+            raise
 
-    return new_packages
+    return new_packages, False
 
 
 def handle_lockfile(
@@ -141,11 +143,12 @@ def handle_lockfile(
     pypi_mirror,
     categories,
 ):
+    """Handle the lockfile, updating if necessary.  Returns True if package updates were applied."""
     if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            handle_outdated_lockfile(
+            return handle_outdated_lockfile(
                 project,
                 packages,
                 old_hash=old_hash,
@@ -161,6 +164,7 @@ def handle_lockfile(
         handle_missing_lockfile(
             project, system, allow_global, pre, pypi_mirror, categories
         )
+        return False
 
 
 def handle_outdated_lockfile(
@@ -175,6 +179,7 @@ def handle_outdated_lockfile(
     pypi_mirror,
     categories,
 ):
+    """Handle an outdated lockfile returning True if package updates were applied."""
     from pipenv.routines.update import do_update
 
     if deploy:
@@ -209,6 +214,8 @@ def handle_outdated_lockfile(
             pypi_mirror=pypi_mirror,
             categories=categories,
         )
+        return True
+    return False
 
 
 def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror, categories):
@@ -260,17 +267,16 @@ def do_install(
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
 
-    do_init(
+    ensure_project(
         project,
-        package_args,
-        system=system,
-        allow_global=system,
-        deploy=deploy,
-        pypi_mirror=pypi_mirror,
-        categories=categories,
-        skip_lock=skip_lock,
-        site_packages=site_packages,
         python=python,
+        system=system,
+        warn=True,
+        deploy=deploy,
+        skip_requirements=False,
+        pypi_mirror=pypi_mirror,
+        site_packages=site_packages,
+        categories=categories,
     )
 
     do_install_validations(
@@ -287,7 +293,18 @@ def do_install(
         skip_lock=skip_lock,
     )
 
-    new_packages = handle_new_packages(
+    packages_installed = do_init(
+        project,
+        package_args,
+        system=system,
+        allow_global=system,
+        deploy=deploy,
+        pypi_mirror=pypi_mirror,
+        categories=categories,
+        skip_lock=skip_lock,
+    )
+
+    new_packages, _packages_installed = handle_new_packages(
         project,
         packages,
         editable_packages,
@@ -297,9 +314,11 @@ def do_install(
         pypi_mirror=pypi_mirror,
         extra_pip_args=extra_pip_args,
         categories=categories,
-        skip_lock=skip_lock,
+        perform_upgrades=not (packages_installed or skip_lock),
         index=index,
     )
+    if packages_installed or _packages_installed:
+        sys.exit(0)
 
     try:
         do_install_dependencies(
@@ -663,25 +682,14 @@ def do_init(
     pypi_mirror=None,
     categories=None,
     skip_lock=False,
-    site_packages=None,
-    python=None,
 ):
-    ensure_project(
-        project,
-        python=python,
-        system=system,
-        warn=True,
-        deploy=deploy,
-        skip_requirements=False,
-        pypi_mirror=pypi_mirror,
-        site_packages=site_packages,
-        categories=categories,
-    )
-
+    """Initialize the project, ensuring that the Pipfile and Pipfile.lock are in place.
+    Returns True if packages were updated + installed.
+    """
     if not deploy:
         ensure_pipfile(project, system=system)
 
-    handle_lockfile(
+    packages_updated = handle_lockfile(
         project,
         packages,
         ignore_pipfile=ignore_pipfile,
@@ -693,9 +701,12 @@ def do_init(
         pypi_mirror=pypi_mirror,
         categories=categories,
     )
+    err.print(packages_updated)
 
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
         console.print(
             "To activate this project's virtualenv, run [yellow]pipenv shell[/yellow].\n"
             "Alternatively, run a command inside the virtualenv with [yellow]pipenv run[/yellow]."
         )
+
+    return packages_updated

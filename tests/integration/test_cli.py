@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import json
 from pathlib import Path
 
 import pytest
@@ -108,60 +109,53 @@ def test_pipenv_graph(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
     from pipenv.cli import cli
-    from pipenv.vendor.click.testing import (
-        CliRunner,
-    )  # not thread safe but graph is a tricky test
+    from pipenv.vendor.click.testing import CliRunner
 
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install tablib==0.13.0")
         assert c.returncode == 0
+
         cli_runner = CliRunner(mix_stderr=False)
-        c = cli_runner.invoke(cli, "graph --reverse")
+        c = cli_runner.invoke(cli, "graph --reverse --json-tree")
         assert c.exit_code == 0
+
         output = c.stdout
+        try:
+            json_output = json.loads(output)
+        except json.JSONDecodeError:
+            pytest.fail(f"Failed to parse JSON from output:\n{output}")
 
-        requests_dependency = [
-            ("backports.csv", "backports.csv"),
-            ("odfpy", "odfpy"),
-            ("openpyxl", "openpyxl>=2.4.0"),
-            ("pyyaml", "pyyaml"),
-            ("xlrd", "xlrd"),
-            ("xlwt", "xlwt"),
-        ]
+        # Define the expected dependencies and their structure
+        expected_dependencies = {
+            "backports.csv": ["tablib"],
+            "et_xmlfile": ["openpyxl"],
+            "jdcal": ["openpyxl"],
+            "odfpy": ["tablib"],
+            "PyYAML": ["tablib"],
+            "xlrd": ["tablib"],
+            "xlwt": ["tablib"],
+        }
 
-        for dep_name, dep_constraint in requests_dependency:
-            pat = rf"{dep_name}==[\d.]+"
-            dep_match = re.search(pat, output, flags=re.MULTILINE | re.IGNORECASE)
-            assert dep_match is not None, f"{pat} not found in {output}"
+        # Helper function to find a dependency in the JSON tree
+        def find_dependency(package_name, tree):
+            for dep in tree:
+                if dep["package_name"] == package_name:
+                    return dep
+                if dep["dependencies"]:
+                    found = find_dependency(package_name, dep["dependencies"])
+                    if found:
+                        return found
+            return None
 
-            # openpyxl should be indented
-            if dep_name == "openpyxl":
-                openpyxl_dep = re.search(
-                    r"^openpyxl", output, flags=re.MULTILINE | re.IGNORECASE
-                )
-                assert (
-                    openpyxl_dep is None
-                ), f"openpyxl should not appear at beginning of lines in {output}"
-                assert re.search(r"openpyxl==2\.5\.4\s*\[requires:\s*et[-_]xmlfile\]", output, flags=re.MULTILINE | re.IGNORECASE)
-            else:
-                dep_match = re.search(
-                    rf"^[ -]*{dep_name}==[\d.]+$",
-                    output,
-                    flags=re.MULTILINE | re.IGNORECASE,
-                )
-                assert (
-                    dep_match is not None
-                ), f"{dep_name} not found at beginning of line in {output}"
+        # Check each expected dependency in the JSON output
+        for dep_name, sub_deps in expected_dependencies.items():
+            dep = find_dependency(dep_name, json_output)
+            assert dep is not None, f"{dep_name} not found in JSON output:\n{json_output}"
 
-            dep_requests_match = re.search(
-                rf"└── tablib==0.13.0 \[requires: {dep_constraint}",
-                output,
-                flags=re.MULTILINE | re.IGNORECASE,
-            )
-            assert (
-                dep_requests_match is not None
-            ), f"constraint {dep_constraint} not found in {output}"
-            assert dep_requests_match.start() > dep_match.start()
+            # Check for sub-dependencies if any
+            for sub_dep in sub_deps:
+                sub_dep_found = find_dependency(sub_dep, dep.get("dependencies", []))
+                assert sub_dep_found is not None, f"{sub_dep} not found under {dep_name} in JSON output:\n{json_output}"
 
 
 @pytest.mark.skip(

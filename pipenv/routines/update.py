@@ -8,7 +8,6 @@ from typing import Dict, Set, Tuple
 from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import Version
-from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
 from pipenv.utils import err
@@ -17,6 +16,7 @@ from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.utils.processes import run_command
+from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import pipdeptree
@@ -47,20 +47,17 @@ def do_update(
     editable = [p for p in (editable_packages or []) if p]
     if not outdated:
         outdated = bool(dry_run)
-    if not packages:
-        if not quiet:
-            err.print(
-                "[bold]Running[/bold] [yellow]$ pipenv lock[/yellow] [bold]then[/bold] [yellow]$ pipenv sync[/yellow][bold].[/bold]"
-            )
-        do_lock(
-            project,
-            clear=clear,
-            pre=pre,
-            pypi_mirror=pypi_mirror,
-            write=not outdated,
-            extra_pip_args=extra_pip_args,
-        )
-    else:
+
+    ensure_project(
+        project,
+        python=python,
+        pypi_mirror=pypi_mirror,
+        warn=(not quiet),
+        site_packages=site_packages,
+        clear=clear,
+    )
+
+    if not outdated:
         # Pre-sync packages for pipdeptree resolution to avoid conflicts
         do_sync(
             project,
@@ -85,15 +82,6 @@ def do_update(
             lock_only=lock_only,
             extra_pip_args=extra_pip_args,
         )
-
-    if outdated:
-        do_outdated(
-            project,
-            clear=clear,
-            pre=pre,
-            pypi_mirror=pypi_mirror,
-        )
-    else:
         # Finally sync packages after upgrade
         do_sync(
             project,
@@ -104,6 +92,13 @@ def do_update(
             clear=clear,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
+        )
+    else:
+        do_outdated(
+            project,
+            clear=clear,
+            pre=pre,
+            pypi_mirror=pypi_mirror,
         )
 
 
@@ -201,7 +196,7 @@ def upgrade(
     try:
         reverse_deps = get_reverse_dependencies(project)
     except Exception as e:
-        err.echo(
+        err.print(
             f"[red bold]Warning[/red bold]: Unable to analyze dependencies: {str(e)}"
         )
         reverse_deps = {}
@@ -258,35 +253,32 @@ def upgrade(
 
             # Consider reverse packages in reverse_deps
             if normalized_name in reverse_deps:
-                for dependent, req_version in reverse_deps[normalized_name]:
+                for dependency, req_version in reverse_deps[normalized_name]:
                     if req_version == "Any":
-                        package_args.append(dependent)
+                        package_args.append(dependency)
                         pipfile_entry = project.get_pipfile_entry(
-                            dependent, category=pipfile_category
+                            dependency, category=pipfile_category
                         )
-                        requested_packages[pipfile_category][dependent] = (
+                        requested_packages[pipfile_category][dependency] = (
                             pipfile_entry if pipfile_entry else "*"
                         )
                         continue
 
                     try:  # Otherwise we have a specific version requirement
                         specifier_set = SpecifierSet(req_version)
-                        package_args.append(f"{dependent}=={specifier_set}")
+                        package_args.append(f"{dependency}=={specifier_set}")
                         pipfile_entry = project.get_pipfile_entry(
-                            dependent, category=pipfile_category
+                            dependency, category=pipfile_category
                         )
-                        requested_packages[pipfile_category][dependent] = (
+                        requested_packages[pipfile_category][dependency] = (
                             pipfile_entry if pipfile_entry else "*"
                         )
 
-                    except Exception:
-                        # If we can't parse the version requirement, ignore it
-                        pass
-            else:
-                err.print(
-                    f"[bold][yellow]Warning:[/yellow][/bold] "
-                    f"No reverse dependencies found for [bold]{normalized_name}[/bold]"
-                )
+                    except Exception as e:
+                        err.print(
+                            f"[bold][yellow]Warning:[/yellow][/bold] "
+                            f"Unable to parse version specifier for {dependency}: {str(e)}"
+                        )
 
         if not package_args:
             err.print("Nothing to upgrade!")
