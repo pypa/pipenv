@@ -18,10 +18,8 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         python_path = project.python()
     except AttributeError:
         err.echo(
-            "Warning: Unable to display currently-installed dependency graph information here. "
-            "Please run within a Pipenv project.",
-            fg="red",
-            bold=True,
+            "[bold][red]Warning: Unable to display currently-installed dependency graph information here. "
+            "Please run within a Pipenv project.[/red][/bold]",
         )
         sys.exit(1)
     except RuntimeError:
@@ -30,10 +28,8 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     # Only keep the json + json_tree incompatibility check
     if json and json_tree:
         err.echo(
-            "Warning: Using both --json and --json-tree together is not supported. "
-            "Please select one of the two options.",
-            fg="red",
-            bold=True,
+            "[bold][red]Warning: Using both --json and --json-tree together is not supported. "
+            "Please select one of the two options.[/red][/bold]",
         )
         sys.exit(1)
 
@@ -50,11 +46,9 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     if not project.virtualenv_exists:
         err.echo(
-            "Warning: No virtualenv has been created for this project yet! Consider "
+            "[bold][red]Warning: No virtualenv has been created for this project yet! Consider "
             "running `pipenv install` first to automatically generate one for you or see "
-            "`pipenv install --help` for further instructions.",
-            fg="red",
-            bold=True,
+            "`pipenv install --help` for further instructions.[/red][/bold]",
         )
         sys.exit(1)
 
@@ -101,7 +95,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
                 # Bold top-level packages.
                 if not line.startswith(" "):
-                    console.print(line, bold=True)
+                    console.print(f"[bold]{line}[/bold]")
                 # Echo the rest.
                 else:
                     console.print(line)
@@ -110,9 +104,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     if c.returncode != 0:
         err.echo(
-            f"ERROR: {c.stderr}",
-            fg="red",
-            bold=True,
+            f"[bold][red]ERROR: {c.stderr}[red][/bold]",
         )
     # Return its return code.
     sys.exit(c.returncode)
