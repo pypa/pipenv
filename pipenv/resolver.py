@@ -142,7 +142,6 @@ class Entry:
         """Initialize derived attributes after dataclass initialization."""
         self.lockfile_section = self._get_lockfile_section()
         self.pipfile = self._get_pipfile_content()
-        self.lockfile = self._get_lockfile_content()
         self.requirement = self._build_requirement()
 
     def _build_requirement(self) -> PackageRequirement:
@@ -226,17 +225,6 @@ class Entry:
         from pipenv.utils.toml import tomlkit_value_to_python
 
         return tomlkit_value_to_python(self.project.parsed_pipfile.get(self.category, {}))
-
-    def _get_lockfile_content(self) -> Dict[str, Any]:
-        """Get lockfile content for the current package."""
-        if (
-            self.category != "packages"
-            and self.name in self.project.lockfile_content.get("default", {})
-        ):
-            return self.project.lockfile_content["default"][self.name]
-        return self.project.lockfile_content.get(self.lockfile_section, {}).get(
-            self.name, {}
-        )
 
     @cached_property
     def get_cleaned_dict(self) -> Dict[str, Any]:
