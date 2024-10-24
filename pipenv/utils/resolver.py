@@ -5,9 +5,9 @@ import subprocess
 import sys
 import tempfile
 import warnings
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -27,6 +27,7 @@ from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
 from pipenv.utils import console, err
+from pipenv.utils.dependencies import determine_vcs_revision_hash, normalize_vcs_url
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
 
@@ -38,7 +39,6 @@ from .dependencies import (
     get_lockfile_section_using_pipfile_category,
     is_pinned_requirement,
     prepare_constraint_file,
-    translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import is_pypi_url
@@ -308,7 +308,7 @@ class Resolver:
         )
         return pip_options
 
-    @property
+    @cached_property
     def session(self):
         return self.pip_command._build_session(self.pip_options)
 
@@ -589,36 +589,57 @@ class Resolver:
         return self.hashes
 
     def clean_skipped_result(
-        self, req_name: str, ireq: InstallRequirement, pipfile_entry
-    ):
-        ref = None
-        if ireq.link and ireq.link.is_vcs:
-            ref = ireq.link.egg_fragment
-
-        if isinstance(pipfile_entry, dict):
-            entry = pipfile_entry.copy()
-        else:
-            entry = {}
+        self,
+        req_name: str,
+        ireq: InstallRequirement,
+        pipfile_entry: Union[str, Dict[str, Any]],
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Clean up skipped requirements with better VCS handling."""
+        # Start with pipfile entry if it's a dict, otherwise create new dict
+        entry = pipfile_entry.copy() if isinstance(pipfile_entry, dict) else {}
         entry["name"] = req_name
+
+        # Handle VCS references
+        if ireq.link and ireq.link.is_vcs:
+            vcs = ireq.link.scheme.split("+", 1)[0]
+
+            # Try to get reference from multiple sources
+            ref = determine_vcs_revision_hash(ireq, vcs, ireq.link)
+
+            if ref:
+                entry["ref"] = ref
+            elif ireq.link.hash:
+                entry["ref"] = ireq.link.hash
+
+            # Ensure VCS URL is present
+            if vcs not in entry:
+                vcs_url, _ = normalize_vcs_url(ireq.link.url)
+                entry[vcs] = vcs_url
+
+        # Remove version if editable
         if entry.get("editable", False) and entry.get("version"):
             del entry["version"]
-        ref = ref if ref is not None else entry.get("ref")
-        if ref:
-            entry["ref"] = ref
+
+        # Add hashes
         collected_hashes = self.collect_hashes(ireq)
         if collected_hashes:
             entry["hashes"] = sorted(set(collected_hashes))
+
         return req_name, entry
 
-    def clean_results(self):
-        reqs = [(ireq,) for ireq in self.resolved_tree]
+    def clean_results(self) -> List[Dict[str, Any]]:
+        """Clean all results including both resolved and skipped packages."""
         results = {}
-        for (ireq,) in reqs:
+
+        # Handle resolved packages
+        for ireq in self.resolved_tree:
             if normalize_name(ireq.name) in self.skipped:
                 continue
+
             collected_hashes = self.hashes.get(ireq, set())
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
+
             name, entry = format_requirement_for_lockfile(
                 ireq,
                 self.markers_lookup,
@@ -627,23 +648,25 @@ class Resolver:
                 self.pipfile_entries,
                 collected_hashes,
             )
-            entry = translate_markers(entry)
+
             if name in results:
                 results[name].update(entry)
             else:
                 results[name] = entry
+
+        # Handle skipped packages
         for req_name in self.skipped:
             install_req = self.install_reqs[req_name]
-            name, entry = self.clean_skipped_result(
-                req_name, install_req, self.pipfile_entries[req_name]
-            )
-            entry = translate_markers(entry)
+            pipfile_entry = self.pipfile_entries.get(req_name, {})
+
+            name, entry = self.clean_skipped_result(req_name, install_req, pipfile_entry)
+
             if name in results:
                 results[name].update(entry)
             else:
                 results[name] = entry
-        results = list(results.values())
-        return results
+
+        return list(results.values())
 
 
 def _show_warning(message, category, filename, lineno, line):

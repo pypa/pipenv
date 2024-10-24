@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from json import JSONDecodeError
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.utils.dependencies import (
@@ -43,69 +43,88 @@ def merge_markers(entry, markers):
 
 def format_requirement_for_lockfile(
     req: InstallRequirement,
-    markers_lookup,
-    index_lookup,
-    original_deps,
-    pipfile_entries,
-    hashes=None,
-):
-    if req.specifier:
-        version = str(req.specifier)
-    else:
-        version = None
+    markers_lookup: Dict[str, str],
+    index_lookup: Dict[str, str],
+    original_deps: Dict[str, Any],
+    pipfile_entries: Dict[str, Any],
+    hashes: Optional[Set[str]] = None,
+) -> Tuple[str, Dict[str, Any]]:
+    """Format a requirement for the lockfile with improved VCS handling."""
     name = normalize_name(req.name)
-    index = index_lookup.get(name)
-    markers = req.markers
-    req.index = index
-    pipfile_entry = pipfile_entries[name] if name in pipfile_entries else {}
-    entry = {}
+    entry: Dict[str, Any] = {"name": name}
+    pipfile_entry = pipfile_entries.get(name, {})
+
+    # Handle VCS requirements
     if req.link and req.link.is_vcs:
         vcs = req.link.scheme.split("+", 1)[0]
-        entry["ref"] = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
 
+        # Get VCS URL from original deps or normalize the link URL
         if name in original_deps:
             entry[vcs] = original_deps[name]
         else:
             vcs_url, _ = normalize_vcs_url(req.link.url)
             entry[vcs] = vcs_url
-        if pipfile_entry.get("subdirectory"):
+
+        # Handle reference information - try multiple sources
+        ref = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
+        if ref:
+            entry["ref"] = ref
+
+        # Handle subdirectory information
+        if isinstance(pipfile_entry, dict) and pipfile_entry.get("subdirectory"):
             entry["subdirectory"] = pipfile_entry["subdirectory"]
         elif req.link.subdirectory_fragment:
             entry["subdirectory"] = req.link.subdirectory_fragment
-    if req.req:
-        entry["version"] = str(req.specifier)
-    elif version:
-        entry["version"] = version
-    elif req.link and req.link.is_file:
-        entry["file"] = req.link.url
-    if hashes:
-        entry["hashes"] = sorted(set(hashes))
-    entry["name"] = name
-    if index:
-        entry.update({"index": index})
+
+    # Handle non-VCS requirements
+    else:
+        if req.req and req.req.specifier:
+            entry["version"] = str(req.req.specifier)
+        elif req.specifier:
+            entry["version"] = str(req.specifier)
+        elif req.link and req.link.is_file:
+            entry["file"] = req.link.url
+
+    # Add index information
+    if name in index_lookup:
+        entry["index"] = index_lookup[name]
+
+    # Handle markers
+    markers = req.markers
     if markers:
-        entry.update({"markers": str(markers)})
+        entry["markers"] = str(markers)
     if name in markers_lookup:
         merge_markers(entry, markers_lookup[name])
-    if isinstance(pipfile_entry, dict) and "markers" in pipfile_entry:
-        merge_markers(entry, pipfile_entry["markers"])
-    if isinstance(pipfile_entry, dict) and "os_name" in pipfile_entry:
-        merge_markers(entry, f"os_name {pipfile_entry['os_name']}")
-    entry = translate_markers(entry)
+    if isinstance(pipfile_entry, dict):
+        if "markers" in pipfile_entry:
+            merge_markers(entry, pipfile_entry["markers"])
+        if "os_name" in pipfile_entry:
+            merge_markers(entry, f"os_name {pipfile_entry['os_name']}")
+
+    # Handle extras
     if req.extras:
         entry["extras"] = sorted(req.extras)
-    if isinstance(pipfile_entry, dict) and pipfile_entry.get("file"):
-        entry["file"] = pipfile_entry["file"]
-        if pipfile_entry.get("editable"):
-            entry["editable"] = pipfile_entry.get("editable")
-        entry.pop("version", None)
-        entry.pop("index", None)
-    elif isinstance(pipfile_entry, dict) and pipfile_entry.get("path"):
-        entry["path"] = pipfile_entry["path"]
-        if pipfile_entry.get("editable"):
-            entry["editable"] = pipfile_entry.get("editable")
-        entry.pop("version", None)
-        entry.pop("index", None)
+
+    # Handle hashes
+    if hashes:
+        entry["hashes"] = sorted(set(hashes))
+
+    # Handle file/path entries from Pipfile
+    if isinstance(pipfile_entry, dict):
+        if pipfile_entry.get("file"):
+            entry["file"] = pipfile_entry["file"]
+            if pipfile_entry.get("editable"):
+                entry["editable"] = pipfile_entry["editable"]
+            entry.pop("version", None)
+            entry.pop("index", None)
+        elif pipfile_entry.get("path"):
+            entry["path"] = pipfile_entry["path"]
+            if pipfile_entry.get("editable"):
+                entry["editable"] = pipfile_entry["editable"]
+            entry.pop("version", None)
+            entry.pop("index", None)
+
+    entry = translate_markers(entry)
     return name, entry
 
 
@@ -113,7 +132,7 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
     # initialize default values
     is_top_level = False
 
-    # if the dependency has a name, find corresponding entry in pipfile
+    # # if the dependency has a name, find corresponding entry in pipfile
     if isinstance(dep, dict) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
         for pipfile_key, pipfile_entry in pipfile_section.items():
