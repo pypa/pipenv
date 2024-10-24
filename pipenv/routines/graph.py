@@ -17,7 +17,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     try:
         python_path = project.python()
     except AttributeError:
-        err.echo(
+        err.print(
             "[bold][red]Warning: Unable to display currently-installed dependency graph information here. "
             "Please run within a Pipenv project.[/red][/bold]",
         )
@@ -27,7 +27,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     # Only keep the json + json_tree incompatibility check
     if json and json_tree:
-        err.echo(
+        err.print(
             "[bold][red]Warning: Using both --json and --json-tree together is not supported. "
             "Please select one of the two options.[/red][/bold]",
         )
@@ -103,7 +103,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         console.print(c.stdout)
 
     if c.returncode != 0:
-        err.echo(
+        err.print(
             f"[bold][red]ERROR: {c.stderr}[red][/bold]",
         )
     # Return its return code.
