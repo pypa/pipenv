@@ -452,8 +452,11 @@ def do_install_dependencies(
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
+                lockfile_category = get_lockfile_section_using_pipfile_category(
+                    pipfile_category
+                )
                 console.print(
-                    f"Installing dependencies from Pipfile.lock "
+                    f"Installing dependencies from Pipfile.lock [{lockfile_category}]"
                     f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
                     style="bold",
                 )
