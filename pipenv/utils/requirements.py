@@ -193,7 +193,7 @@ def requirement_from_lockfile(
                 pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}{extras}"
                 pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
-                pip_line = f"{package_name}{extras}@ {include_vcs}{vcs_url}{ref_str}"
+                pip_line = f"{package_name}{extras} @ {include_vcs}{vcs_url}{ref_str}"
                 pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
             return pip_line
     # Handling file-sourced packages

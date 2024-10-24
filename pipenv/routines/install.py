@@ -701,7 +701,6 @@ def do_init(
         pypi_mirror=pypi_mirror,
         categories=categories,
     )
-    err.print(packages_updated)
 
     if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
         console.print(

@@ -3,7 +3,10 @@ import json
 import logging
 import os
 import sys
+from dataclasses import dataclass, field
 from functools import cached_property
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Set
 
 
 def _ensure_modules():
@@ -87,561 +90,339 @@ def handle_parsed_args(parsed):
     return parsed
 
 
-class Entry:
-    """A resolved entry from a resolver run"""
+@dataclass
+class PackageSource:
+    """Represents the source/origin of a package."""
 
-    def __init__(
-        self, name, entry_dict, project, resolver, reverse_deps=None, category=None
-    ):
-        super().__init__()
-        from pipenv.utils.dependencies import (
-            get_lockfile_section_using_pipfile_category,
+    index: Optional[str] = None
+    url: Optional[str] = None
+    vcs: Optional[str] = None
+    ref: Optional[str] = None
+    path: Optional[Path] = None
+
+    @property
+    def is_vcs(self) -> bool:
+        return bool(self.vcs)
+
+    @property
+    def is_local(self) -> bool:
+        return bool(self.path)
+
+
+@dataclass
+class PackageRequirement:
+    """Core package requirement information."""
+
+    name: str
+    version: Optional[str] = None
+    extras: Set[str] = field(default_factory=set)
+    markers: Optional[str] = None
+    hashes: Set[str] = field(default_factory=set)
+    source: PackageSource = field(default_factory=PackageSource)
+
+    def __post_init__(self):
+        if isinstance(self.extras, list):
+            self.extras = set(self.extras)
+        if isinstance(self.hashes, list):
+            self.hashes = set(self.hashes)
+
+
+@dataclass
+class Entry:
+    """Represents a resolved package entry with its dependencies and constraints."""
+
+    name: str
+    entry_dict: Dict[str, Any]
+    project: Any  # Could be more specific with a Project type
+    resolver: Any  # Could be more specific with a Resolver type
+    reverse_deps: Optional[Dict[str, Any]] = None
+    category: Optional[str] = None
+
+    def __post_init__(self):
+        """Initialize derived attributes after dataclass initialization."""
+        self.lockfile_section = self._get_lockfile_section()
+        self.pipfile = self._get_pipfile_content()
+        self.lockfile = self._get_lockfile_content()
+        self.requirement = self._build_requirement()
+
+    def _build_requirement(self) -> PackageRequirement:
+        """Construct a PackageRequirement from entry data."""
+        # Extract VCS information
+        vcs_info = self._extract_vcs_info()
+        source = PackageSource(
+            index=self.resolver.index_lookup.get(self.name), **vcs_info
         )
+
+        # Clean and normalize version
+        version = self._clean_version(self.entry_dict.get("version"))
+
+        # Build the core requirement
+        return PackageRequirement(
+            name=self.name,
+            version=version,
+            extras=set(self.entry_dict.get("extras", [])),
+            markers=self._clean_markers(),
+            hashes=set(self.entry_dict.get("hashes", [])),
+            source=source,
+        )
+
+    def _extract_vcs_info(self) -> Dict[str, Optional[str]]:
+        """Extract VCS information from entry dict and lockfile."""
+        vcs_info = {}
+        vcs_keys = {"git", "hg", "svn", "bzr"}
+
+        # Check both entry_dict and lockfile_dict for VCS info
+        for key in vcs_keys:
+            if key in self.entry_dict:
+                vcs_info["vcs"] = key
+                vcs_info["url"] = self.entry_dict[key]
+                vcs_info["ref"] = self.entry_dict.get("ref")
+                break
+
+        return vcs_info
+
+    @staticmethod
+    def _clean_version(version: Optional[str]) -> Optional[str]:
+        """Clean and normalize version strings."""
+        if not version:
+            return None
+        if version.strip().lower() in {"any", "<any>", "*"}:
+            return "*"
+        if not any(
+            version.startswith(op) for op in ("==", ">=", "<=", "~=", "!=", ">", "<")
+        ):
+            version = f"=={version}"
+        return version
+
+    def _clean_markers(self) -> Optional[str]:
+        """Clean and normalize marker strings."""
+        markers = []
+        marker_keys = {
+            "sys_platform",
+            "python_version",
+            "os_name",
+            "platform_machine",
+            "markers",
+        }
+
+        for key in marker_keys:
+            if key in self.entry_dict:
+                value = self.entry_dict.pop(key)
+                if value and key != "markers":
+                    markers.append(f"{key} {value}")
+                elif value:  # key == "markers"
+                    markers.append(value)
+
+        return " and ".join(markers) if markers else None
+
+    def _get_lockfile_section(self) -> str:
+        """Get the appropriate lockfile section based on category."""
+        from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
+
+        return get_lockfile_section_using_pipfile_category(self.category)
+
+    def _get_pipfile_content(self) -> Dict[str, Any]:
+        """Get and normalize pipfile content."""
         from pipenv.utils.toml import tomlkit_value_to_python
 
-        self.name = name
-        if isinstance(entry_dict, dict):
-            self.entry_dict = self.clean_initial_dict(entry_dict)
-        else:
-            self.entry_dict = entry_dict
-        self.project = project
-        self.category = category
-        self.lockfile_section = get_lockfile_section_using_pipfile_category(category)
-        self.pipfile = tomlkit_value_to_python(project.parsed_pipfile.get(category, {}))
-        self.lockfile = project.lockfile_content.get(self.lockfile_section, {})
-        self.pipfile_dict = self.pipfile.get(self.pipfile_name, {})
-        if self.category != "packages" and self.name in project.lockfile_content.get(
-            "default", {}
+        return tomlkit_value_to_python(self.project.parsed_pipfile.get(self.category, {}))
+
+    def _get_lockfile_content(self) -> Dict[str, Any]:
+        """Get lockfile content for the current package."""
+        if (
+            self.category != "packages"
+            and self.name in self.project.lockfile_content.get("default", {})
         ):
-            self.lockfile_dict = project.lockfile_content["default"][name]
-        else:
-            self.lockfile_dict = self.lockfile.get(name, entry_dict)
-        self.resolver = resolver
-        self.reverse_deps = reverse_deps
-        self._original_markers = None
-        self._markers = None
-        self._entry = None
-        self._lockfile_entry = None
-        self._pipfile_entry = None
-        self._parent_deps = []
-        self._flattened_parents = []
-        self._requires = None
-        self._deptree = None
-        self._parents_in_pipfile = []
-
-    @staticmethod
-    def make_requirement(name=None, entry=None):
-        from pipenv.utils.dependencies import from_pipfile
-
-        return from_pipfile(name, entry)
-
-    @classmethod
-    def clean_initial_dict(cls, entry_dict):
-        from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-
-        version = entry_dict.get("version", "")
-        if isinstance(version, Requirement):
-            version = str(version.specifier)
-        entry_dict["version"] = cls.clean_specifier(version)
-        if "name" in entry_dict:
-            del entry_dict["name"]
-        return entry_dict
-
-    @classmethod
-    def parse_expressions(cls, expr_iterable):
-        keys = []
-        expr_list = []
-        expr = expr_iterable.copy()
-        if isinstance(expr, list):
-            expr_list = expr
-        if expr_list:
-            for part in expr_list:
-                keys.extend(cls.parse_expressions(part))
-        return keys
-
-    @classmethod
-    def get_markers_from_dict(cls, entry_dict):
-        from pipenv.patched.pip._vendor.packaging._parser import (
-            parse_marker as packaging_parse_marker,
+            return self.project.lockfile_content["default"][self.name]
+        return self.project.lockfile_content.get(self.lockfile_section, {}).get(
+            self.name, {}
         )
-        from pipenv.utils.markers import normalize_marker_str
-
-        markers = set()
-
-        # If no markers are present, skip marker parsing
-        if not any(
-            k in entry_dict
-            for k in ["sys_platform", "python_version", "os_name", "platform_machine"]
-        ):
-            return None, entry_dict
-
-        # Otherwise, proceed to parse markers from entry_dict
-        marker_expression = packaging_parse_marker(entry_dict.get("markers", ""))
-
-        # Parse the marker expressions using the new packaging marker parser
-        marker_keys = cls.parse_expressions(marker_expression)
-
-        # Identify relevant marker keys present in entry_dict
-        keys_in_dict = [k for k in marker_keys if k in entry_dict]
-
-        # Normalize and add the markers from entry_dict
-        markers = {normalize_marker_str(f"{k} {entry_dict.pop(k)}") for k in keys_in_dict}
-
-        # Handle "markers" field if it exists in the dictionary
-        if "markers" in entry_dict:
-            markers.add(normalize_marker_str(entry_dict["markers"]))
-
-        # Remove None from the set if present
-        if None in markers:
-            markers.remove(None)
-
-        # If there are any markers left, join them with "and"
-        if markers:
-            entry_dict["markers"] = " and ".join(list(markers))
-        else:
-            markers = None
-
-        return markers, entry_dict
-
-    @property
-    def markers(self):
-        self._markers, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
-        return self._markers
-
-    @markers.setter
-    def markers(self, markers):
-        if not markers:
-            marker_str = self.marker_to_str(markers)
-            if marker_str:
-                self.entry.merge_markers(marker_str)
-                self._markers = self.marker_to_str(self._entry.markers)
-                entry_dict = self.entry_dict.copy()
-                entry_dict["markers"] = self.marker_to_str(self._entry.markers)
-                self.entry_dict = entry_dict
-
-    @property
-    def original_markers(self):
-        original_markers, lockfile_dict = self.get_markers_from_dict(self.lockfile_dict)
-        self.lockfile_dict = lockfile_dict
-        self._original_markers = self.marker_to_str(original_markers)
-        return self._original_markers
-
-    @staticmethod
-    def marker_to_str(marker):
-        from pipenv.utils.markers import normalize_marker_str
-
-        if not marker:
-            return None
-        from collections.abc import Mapping
-
-        marker_str = None
-        if isinstance(marker, Mapping):
-            marker_dict, _ = Entry.get_markers_from_dict(marker)
-            if marker_dict:
-                marker_str = f"{marker_dict.popitem()[1]}"
-        elif isinstance(marker, (list, set, tuple)):
-            marker_str = " and ".join([normalize_marker_str(m) for m in marker if m])
-        elif isinstance(marker, str):
-            marker_str = f"{normalize_marker_str(marker)}"
-        if isinstance(marker_str, str):
-            return marker_str
-        return None
 
     @cached_property
-    def get_cleaned_dict(self):
-        from pipenv.utils.constants import VCS_LIST
+    def get_cleaned_dict(self) -> Dict[str, Any]:
+        """Create a cleaned dictionary representation of the entry."""
+        cleaned = {
+            "name": self.name,
+            "version": self.requirement.version,
+            "extras": (
+                sorted(self.requirement.extras) if self.requirement.extras else None
+            ),
+            "markers": self.requirement.markers,
+            "hashes": (
+                sorted(self.requirement.hashes) if self.requirement.hashes else None
+            ),
+        }
 
-        self.validate_constraints()
-        if self.entry.extras != self.lockfile_entry.extras:
-            entry_extras = list(self.entry.extras)
-            if self.lockfile_entry.extras:
-                entry_extras.extend(list(self.lockfile_entry.extras))
-            self.entry_dict["extras"] = entry_extras
-        if self.original_markers and not self.markers:
-            original_markers = self.marker_to_str(self.original_markers)
-            self.markers = original_markers
-            self.entry_dict["markers"] = self.marker_to_str(original_markers)
-        entry_hashes = set(self.entry_dict.get("hashes", []))
-        self.entry_dict["hashes"] = sorted(entry_hashes)
-        self.entry_dict["name"] = self.name
-        if "version" in self.entry_dict:
-            self.entry_dict["version"] = self.strip_version(self.entry_dict["version"])
-        _, self.entry_dict = self.get_markers_from_dict(self.entry_dict)
-        if self.resolver.index_lookup.get(self.name):
-            self.entry_dict["index"] = self.resolver.index_lookup[self.name]
+        # Add index if present
+        if self.requirement.source.index:
+            cleaned["index"] = self.requirement.source.index
 
-        # Handle VCS entries
-        for key in VCS_LIST:
-            if key in self.lockfile_dict:
-                self.entry_dict[key] = self.lockfile_dict[key]
-                self.entry_dict.pop("version", None)
-        return self.entry_dict
+        # Add VCS information if present
+        if self.requirement.source.is_vcs:
+            cleaned[self.requirement.source.vcs] = self.requirement.source.url
+            if self.requirement.source.ref:
+                cleaned["ref"] = self.requirement.source.ref
+            cleaned.pop("version", None)  # Remove version for VCS entries
 
-    @property
-    def lockfile_entry(self):
-        if self._lockfile_entry is None:
-            self._lockfile_entry = self.make_requirement(self.name, self.lockfile_dict)
-        return self._lockfile_entry
+        # Clean up None values
+        return {k: v for k, v in cleaned.items() if v is not None}
 
-    @lockfile_entry.setter
-    def lockfile_entry(self, entry):
-        self._lockfile_entry = entry
-
-    @property
-    def pipfile_entry(self):
-        if self._pipfile_entry is None:
-            self._pipfile_entry = self.make_requirement(
-                self.pipfile_name, self.pipfile_dict
-            )
-        return self._pipfile_entry
-
-    @property
-    def entry(self):
-        return self.make_requirement(self.name, self.lockfile_dict)
-
-    @property
-    def normalized_name(self):
-        return self.entry.normalized_name
-
-    @property
-    def pipfile_name(self):
-        return self.project.get_package_name_in_pipfile(self.name, category=self.category)
-
-    @property
-    def is_in_pipfile(self):
-        return bool(self.pipfile_name)
-
-    @property
-    def pipfile_packages(self):
-        return self.project.pipfile_package_names[self.category]
-
-    def create_parent(self, name, specifier="*"):
-        parent = self.create(
-            name, specifier, self.project, self.resolver, self.reverse_deps, self.category
-        )
-        parent._deptree = self.deptree
-        return parent
-
-    @property
-    def deptree(self):
-        if not self._deptree:
-            self._deptree = self.project.environment.get_package_requirements()
-        return self._deptree
-
-    @classmethod
-    def create(
-        cls, name, entry_dict, project, resolver, reverse_deps=None, category=None
-    ):
-        return cls(name, entry_dict, project, resolver, reverse_deps, category)
-
-    @staticmethod
-    def clean_specifier(specifier):
-        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
-
-        if not any(specifier.startswith(k) for k in Specifier._operators):
-            if specifier.strip().lower() in ["any", "<any>", "*"]:
-                return "*"
-            specifier = f"=={specifier}"
-        elif specifier.startswith("==") and specifier.count("=") > 3:
-            specifier = f"=={specifier.lstrip('=')}"
-        return specifier
-
-    @staticmethod
-    def strip_version(specifier):
-        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
-
-        op = next(iter(k for k in Specifier._operators if specifier.startswith(k)), None)
-        if op:
-            specifier = specifier[len(op) :]
-        while op:
-            op = next(
-                iter(k for k in Specifier._operators if specifier.startswith(k)),
-                None,
-            )
-            if op:
-                specifier = specifier[len(op) :]
-        return specifier
-
-    @property
-    def parent_deps(self):
-        if not self._parent_deps:
-            self._parent_deps = self.get_parent_deps(unnest=False)
-        return self._parent_deps
-
-    @property
-    def flattened_parents(self):
-        if not self._flattened_parents:
-            self._flattened_parents = self.get_parent_deps(unnest=True)
-        return self._flattened_parents
-
-    @property
-    def parents_in_pipfile(self):
-        if not self._parents_in_pipfile:
-            self._parents_in_pipfile = [
-                p
-                for p in self.flattened_parents
-                if p.normalized_name in self.pipfile_packages
-            ]
-        return self._parents_in_pipfile
-
-    @property
-    def is_updated(self):
-        return self.entry.specifiers != self.lockfile_entry.specifiers
-
-    @property
-    def requirements(self):
-        if not self._requires:
-            self._requires = next(
-                iter(self.project.environment.get_package_requirements(self.name)), {}
-            )
-        return self._requires
-
-    @property
-    def updated_version(self):
-        version = str(self.entry.specifier)
-        return self.strip_version(version)
-
-    @property
-    def updated_specifier(self) -> str:
-        return str(self.entry.specifier)
-
-    @property
-    def original_specifier(self) -> str:
-        return self.lockfile_entry.specifiers
-
-    @property
-    def original_version(self):
-        if self.original_specifier:
-            return self.strip_version(self.original_specifier)
-        return None
-
-    def validate_specifiers(self):
-        if self.is_in_pipfile and not self.pipfile_entry.editable:
-            return self.pipfile_entry.requirement.specifier.contains(self.updated_version)
-        return True
-
-    def get_dependency(self, name):
-        if self.requirements:
-            return next(
-                iter(
-                    dep
-                    for dep in self.requirements.get("dependencies", [])
-                    if dep and dep.get("package_name", "") == name
-                ),
-                {},
-            )
-        return {}
-
-    def get_parent_deps(self, unnest=False):
-        from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
-
-        parents = []
-        for spec in self.reverse_deps.get(self.normalized_name, {}).get("parents", set()):
-            spec_match = next(iter(c for c in Specifier._operators if c in spec), None)
-            name = spec
-            parent = None
-            if spec_match is not None:
-                spec_index = spec.index(spec_match)
-                specifier = self.clean_specifier(
-                    spec[spec_index : len(spec_match)]
-                ).strip()
-                name_start = spec_index + len(spec_match)
-                name = spec[name_start:].strip()
-                parent = self.create_parent(name, specifier)
-            else:
-                name = spec
-                parent = self.create_parent(name)
-            if parent is not None:
-                parents.append(parent)
-            if not unnest or parent.pipfile_name is not None:
-                continue
-            if self.reverse_deps.get(parent.normalized_name, {}).get("parents", set()):
-                parents.extend(parent.flattened_parents)
-        return parents
-
-    def get_constraints(self):
-        """
-        Retrieve all of the relevant constraints, aggregated from the pipfile, resolver,
-        and parent dependencies and their respective conflict resolution where possible.
-
-        :return: A set of **InstallRequirement** instances representing constraints
-        :rtype: Set
-        """
-        return self.resolver.parsed_constraints
-
-    def get_pipfile_constraint(self):
-        """
-        Retrieve the version constraint from the pipfile if it is specified there,
-        otherwise check the constraints of the parent dependencies and their conflicts.
-
-        :return: An **InstallRequirement** instance representing a version constraint
-        """
-        if self.is_in_pipfile:
-            return self.pipfile_entry
-
-    def validate_constraints(self):
-        """
-        Retrieves the full set of available constraints and iterate over them, validating
-        that they exist and that they are not causing unresolvable conflicts.
-
-        :return: True if the constraints are satisfied by the resolution provided
-        :raises: :exc:`pipenv.exceptions.DependencyConflict` if the constraints dont exist
-        """
+    def validate_constraints(self) -> bool:
+        """Validate that all constraints are satisfied."""
         from pipenv.exceptions import DependencyConflict
         from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-        from pipenv.utils import err
 
-        constraints = self.get_constraints()
-        pinned_version = self.updated_version
+        constraints = self.resolver.parsed_constraints
+        version = self.requirement.version
+
+        if not version:
+            return True
+
+        # Remove any operator from version for comparison
+        clean_version = self._strip_version(version)
+
         for constraint in constraints:
             if not isinstance(constraint, Requirement):
                 continue
-            if pinned_version and not constraint.specifier.contains(
-                str(pinned_version), prereleases=True
-            ):
-                if self.project.s.is_verbose():
-                    err.print(f"Tried constraint: {constraint!r}")
+
+            if not constraint.name == self.name:
+                continue
+
+            if not constraint.specifier.contains(clean_version, prereleases=True):
                 msg = (
                     f"Cannot resolve conflicting version {self.name}{constraint.specifier} "
-                    f"while {self.name}{self.updated_specifier} is locked."
+                    f"while {self.name}=={clean_version} is locked."
                 )
                 raise DependencyConflict(msg)
         return True
 
-    def check_flattened_parents(self):
-        for parent in self.parents_in_pipfile:
-            if not parent.updated_specifier:
-                continue
-            if not parent.validate_specifiers():
-                from pipenv.exceptions import DependencyConflict
-
-                msg = (
-                    f"Cannot resolve conflicting versions: (Root: {self.name}) "
-                    f"{parent.pipfile_name}{parent.pipfile_entry.requirement.specifiers} (Pipfile) "
-                    f"Incompatible with {parent.name}{parent.updated_specifiers} (resolved)\n"
-                )
-                raise DependencyConflict(msg)
-
-    def __getattribute__(self, key):
-        result = None
-        old_version = ["was_", "had_", "old_"]
-        new_version = ["is_", "has_", "new_"]
-        if any(key.startswith(v) for v in new_version):
-            entry = Entry.__getattribute__(self, "entry")
-            try:
-                keystart = key.index("_") + 1
-                try:
-                    result = getattr(entry, key[keystart:])
-                except AttributeError:
-                    result = getattr(entry, key)
-            except AttributeError:
-                result = super().__getattribute__(key)
-            return result
-        if any(key.startswith(v) for v in old_version):
-            lockfile_entry = Entry.__getattribute__(self, "lockfile_entry")
-            try:
-                keystart = key.index("_") + 1
-                try:
-                    result = getattr(lockfile_entry, key[keystart:])
-                except AttributeError:
-                    result = getattr(lockfile_entry, key)
-            except AttributeError:
-                result = super().__getattribute__(key)
-            return result
-        return super().__getattribute__(key)
+    @staticmethod
+    def _strip_version(version: str) -> str:
+        """Remove version operators from a version string."""
+        operators = {"==", ">=", "<=", "~=", "!=", ">", "<"}
+        for op in operators:
+            if version.startswith(op):
+                return version[len(op) :].strip()
+        return version.strip()
 
 
-def clean_results(results, resolver, project, category):
-    from pipenv.utils.dependencies import (
-        translate_markers,
-    )
+def process_resolver_results(
+    results: List[Dict[str, Any]], resolver: Any, project: Any, category: Optional[str]
+) -> List[Dict[str, Any]]:
+    """
+    Process the results from the dependency resolver into cleaned lockfile entries.
 
-    if not project.lockfile_exists:
-        return results
+    Args:
+        results: Raw results from the resolver
+        resolver: The resolver instance that produced the results
+        project: The current project instance
+        category: The category of dependencies being processed
+
+    Returns:
+        List of processed entries ready for the lockfile
+    """
+    if not results:
+        return []
+
+    # Get reverse dependencies for the project
     reverse_deps = project.environment.reverse_dependencies()
-    new_results = []
+
+    processed_results = []
     for result in results:
-        name = result.get("name")
-        entry_dict = result.copy()
+        # Create Entry instance with our new dataclass
         entry = Entry(
-            name,
-            entry_dict,
-            project,
-            resolver,
+            name=result["name"],
+            entry_dict=result,
+            project=project,
+            resolver=resolver,
             reverse_deps=reverse_deps,
             category=category,
         )
-        entry_dict = translate_markers(entry.get_cleaned_dict)
-        new_results.append(entry_dict)
-    return new_results
+
+        # Get the cleaned dictionary representation
+        cleaned_entry = entry.get_cleaned_dict
+
+        # Validate the entry meets all constraints
+        entry.validate_constraints()
+
+        processed_results.append(cleaned_entry)
+
+    return processed_results
 
 
 def resolve_packages(
-    pre,
-    clear,
-    verbose,
-    system,
-    write,
-    requirements_dir,
-    packages,
-    category,
-    constraints=None,
-):
+    pre: bool,
+    clear: bool,
+    verbose: bool,
+    system: bool,
+    write: Optional[str],
+    requirements_dir: Optional[str],
+    packages: Dict[str, Any],
+    category: Optional[str],
+    constraints: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """
+    Resolve package dependencies and return processed results.
+
+    Args:
+        pre: Whether to include pre-release versions
+        clear: Whether to clear caches
+        verbose: Whether to output verbose logging
+        system: Whether to use system packages
+        write: Path to write results to
+        requirements_dir: Directory containing requirements files
+        packages: Package specifications to resolve
+        category: Category of dependencies being processed
+        constraints: Additional constraints to apply
+
+    Returns:
+        List of processed package entries
+    """
+    from pipenv.project import Project
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
     from pipenv.utils.resolver import resolve_deps
 
+    # Handle mirror configuration
     pypi_mirror_source = (
         create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"], "pypi_mirror")
         if "PIPENV_PYPI_MIRROR" in os.environ
         else None
     )
 
+    # Update packages with constraints if provided
     if constraints:
         packages.update(constraints)
 
-    def resolve(
-        packages, pre, project, sources, clear, system, category, requirements_dir=None
-    ):
-        return resolve_deps(
-            packages,
-            which,
-            project=project,
-            pre=pre,
-            category=category,
-            sources=sources,
-            clear=clear,
-            allow_global=system,
-            req_dir=requirements_dir,
-        )
-
-    from pipenv.project import Project
-
+    # Initialize project and configure sources
     project = Project()
     sources = (
         replace_pypi_sources(project.pipfile_sources(), pypi_mirror_source)
         if pypi_mirror_source
         else project.pipfile_sources()
     )
-    results, resolver = resolve(
+
+    # Resolve dependencies
+    results, resolver = resolve_deps(
         packages,
+        which,
+        project=project,
         pre=pre,
         category=category,
-        project=project,
         sources=sources,
         clear=clear,
-        system=system,
-        requirements_dir=requirements_dir,
+        allow_global=system,
+        req_dir=requirements_dir,
     )
-    results = clean_results(results, resolver, project, category)
+
+    # Process results
+    processed_results = process_resolver_results(results, resolver, project, category)
+
+    # Write results if requested
     if write:
         with open(write, "w") as fh:
-            if not results:
-                json.dump([], fh)
-            else:
-                json.dump(results, fh)
-    if results:
-        return results
-    return []
+            json.dump(processed_results, fh)
+
+    return processed_results
 
 
 def _main(

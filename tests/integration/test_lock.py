@@ -588,7 +588,7 @@ def test_lock_package_with_compatible_release_specifier(pipenv_instance_private_
 @pytest.mark.install
 def test_default_lock_overwrite_dev_lock(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("install 'click==6.7'")
+        c = p.pipenv("install click==6.7")
         assert c.returncode == 0
         c = p.pipenv("install -d flask")
         assert c.returncode == 0
