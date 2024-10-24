@@ -1,5 +1,5 @@
-import os
 import json
+import os
 
 import pytest
 
@@ -67,14 +67,14 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
 
         # Ensure initial state
         lockfile_path = os.path.join(p.path, "Pipfile.lock")
-        with open(lockfile_path, "r") as lockfile:
+        with open(lockfile_path) as lockfile:
             lock_data = json.load(lockfile)
         assert "google-api-core" in lock_data["default"]
         assert lock_data["default"]["google-api-core"]["version"] == "==2.18.0"
 
         # Step 2: Update Pipfile to allow any version of google-api-core
         pipfile_path = os.path.join(p.path, "Pipfile")
-        with open(pipfile_path, "r") as pipfile:
+        with open(pipfile_path) as pipfile:
             pipfile_content = pipfile.read()
 
         updated_pipfile_content = pipfile_content.replace("google-api-core = \"==2.18.0\"", "google-api-core = \"*\"")
@@ -87,7 +87,7 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
         assert c.exit_code == 0, f"Failed to update protobuf: {c.stderr}"
 
         # Step 4: Check the lockfile for incompatible dependencies
-        with open(lockfile_path, "r") as lockfile:
+        with open(lockfile_path) as lockfile:
             lock_data = json.load(lockfile)
 
         # Check if google-api-core is still at the old version
