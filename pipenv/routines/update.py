@@ -11,15 +11,15 @@ from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.routines.lock import do_lock
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
+from pipenv.utils import err
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.utils.processes import run_command
-from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
-from pipenv.vendor import click, pipdeptree
+from pipenv.vendor import pipdeptree
 
 
 def do_update(
@@ -42,28 +42,16 @@ def do_update(
     clear=False,
     lock_only=False,
 ):
-    ensure_project(
-        project,
-        python=python,
-        pypi_mirror=pypi_mirror,
-        warn=(not quiet),
-        site_packages=site_packages,
-        clear=clear,
-    )
+    """Update the virtualenv."""
     packages = [p for p in (packages or []) if p]
     editable = [p for p in (editable_packages or []) if p]
     if not outdated:
         outdated = bool(dry_run)
     if not packages:
-        click.echo(
-            "{} {} {} {}{}".format(
-                click.style("Running", bold=True),
-                click.style("$ pipenv lock", fg="yellow", bold=True),
-                click.style("then", bold=True),
-                click.style("$ pipenv sync", fg="yellow", bold=True),
-                click.style(".", bold=True),
+        if not quiet:
+            err.print(
+                "[bold]Running[/bold] [yellow]$ pipenv lock[/yellow] [bold]then[/bold] [yellow]$ pipenv sync[/yellow][bold].[/bold]"
             )
-        )
         do_lock(
             project,
             clear=clear,
@@ -73,6 +61,17 @@ def do_update(
             extra_pip_args=extra_pip_args,
         )
     else:
+        # Pre-sync packages for pipdeptree resolution to avoid conflicts
+        do_sync(
+            project,
+            dev=dev,
+            categories=categories,
+            python=python,
+            bare=bare,
+            clear=clear,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+        )
         upgrade(
             project,
             pre=pre,
@@ -95,6 +94,7 @@ def do_update(
             pypi_mirror=pypi_mirror,
         )
     else:
+        # Finally sync packages after upgrade
         do_sync(
             project,
             dev=dev,
@@ -201,11 +201,8 @@ def upgrade(
     try:
         reverse_deps = get_reverse_dependencies(project)
     except Exception as e:
-        click.echo(
-            "{}: Unable to analyze dependencies: {}".format(
-                click.style("Warning", fg="red", bold=True), str(e)
-            ),
-            err=True,
+        err.echo(
+            f"[red bold]Warning[/red bold]: Unable to analyze dependencies: {str(e)}"
         )
         reverse_deps = {}
 
@@ -226,18 +223,13 @@ def upgrade(
             conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
             if conflicts:
                 conflicts_found = True
-                click.echo(
-                    "{}: Updating {} to version {} would create conflicts with: {}".format(
-                        click.style("Error", fg="red", bold=True),
-                        click.style(name, bold=True),
-                        version,
-                        ", ".join(sorted(conflicts)),
-                    ),
-                    err=True,
+                err.print(
+                    f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
+                    f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
                 )
 
     if conflicts_found:
-        click.echo(
+        err.print(
             "\nTo resolve conflicts, try:\n"
             "1. Explicitly upgrade conflicting packages together\n"
             "2. Use compatible versions\n"
@@ -291,22 +283,17 @@ def upgrade(
                         # If we can't parse the version requirement, ignore it
                         pass
             else:
-                click.echo(
-                    "{}: No reverse dependencies found for {}".format(
-                        click.style("Warning", fg="yellow", bold=True),
-                        click.style(normalized_name, bold=True),
-                    ),
-                    err=True,
+                err.print(
+                    f"[bold][yellow]Warning:[/yellow][/bold] "
+                    f"No reverse dependencies found for [bold]{normalized_name}[/bold]"
                 )
 
         if not package_args:
-            click.echo("Nothing to upgrade!")
+            err.print("Nothing to upgrade!")
             sys.exit(0)
         else:
-            click.echo(
-                "{}: Upgrading {}...".format(
-                    click.style("Notice", fg="green", bold=True), ", ".join(package_args)
-                )
+            err.print(
+                f"[bold][green]Upgrading[/bold][/green] {', '.join(package_args)} in [{category}] dependencies."
             )
 
         # Resolve package to generate constraints of new package data
@@ -321,7 +308,7 @@ def upgrade(
             pypi_mirror=pypi_mirror,
         )
         if not upgrade_lock_data:
-            click.echo("Nothing to upgrade!")
+            err.print("Nothing to upgrade!")
             sys.exit(0)
 
         complete_packages = project.parsed_pipfile.get(pipfile_category, {})
@@ -348,14 +335,9 @@ def upgrade(
                     package_name, version, reverse_deps, lockfile
                 )
                 if conflicts:
-                    click.echo(
-                        "{}: Resolution introduced conflicts for {} {} with: {}".format(
-                            click.style("Error", fg="red", bold=True),
-                            click.style(package_name, bold=True),
-                            version,
-                            ", ".join(sorted(conflicts)),
-                        ),
-                        err=True,
+                    err.print(
+                        f"[red bold]Error[/red bold]: Resolution introduced conflicts for {package_name} {version} "
+                        f"with: {', '.join(sorted(conflicts))}"
                     )
                     sys.exit(1)
 
