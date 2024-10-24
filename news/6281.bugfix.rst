@@ -1,0 +1,26 @@
+# This patch series improves Pipenv's reverse dependency handling, JSON output support, and upgrade routines, ensuring more accurate dependency management and better error handling.
+
+## Key Changes
+
+* **Reverse Dependency Graph**:
+   * ``graph --reverse`` now supports JSON output, consistent with ``pipdeptree``.
+   * Enhanced JSON-tree format for reverse dependencies, improving compatibility with JSON-processing tools.
+
+* **Improved Upgrade Logic**:
+   * Pre-sync step added before conflict analysis to ensure accurate dependency resolution.
+   * Early conflict detection prevents incompatible upgrades, improving lock file integrity.
+   * Enhanced handling of reverse dependencies to avoid unintended conflicts during updates.
+
+* **Refactoring & Consistent Output**:
+   * Replaced ``click.echo`` calls with ``console`` and ``err`` utilities for consistent output and error handling.
+   * Streamlined upgrade logic to reduce installation phases and improve performance.
+
+## Bug Fixes
+
+* Fixed incompatibility when using both ``--json`` and ``--json-tree`` flags simultaneously.
+* Addressed #6281: Resolved transitive dependency conflicts (e.g., ``google-api-core`` vs. ``protobuf``).
+* Updated tests to cover new JSON outputs and compatibility checks.
+
+## Impact
+
+These changes improve accuracy and reliability in complex dependency trees, ensuring robust updates and clearer error reporting.
