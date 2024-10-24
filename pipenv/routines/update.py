@@ -341,6 +341,9 @@ def upgrade(
         for package_name, package_data in full_lock_resolution.items():
             if package_name in upgrade_lock_data:
                 version = package_data.get("version", "").replace("==", "")
+                if not version:
+                    # Either vcs or file package
+                    continue
                 conflicts = check_version_conflicts(
                     package_name, version, reverse_deps, lockfile
                 )
