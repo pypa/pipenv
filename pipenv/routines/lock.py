@@ -68,7 +68,7 @@ def do_lock(
             packages,
             which=project._which,
             project=project,
-            category=pipfile_category,
+            pipfile_category=pipfile_category,
             clear=clear,
             pre=pre,
             allow_global=system,

@@ -52,8 +52,7 @@ def format_requirement_for_lockfile(
     """Format a requirement for the lockfile with improved VCS handling."""
     name = normalize_name(req.name)
     entry: Dict[str, Any] = {"name": name}
-    pipfile_entry = pipfile_entries.get(name, {})
-
+    pipfile_entry = pipfile_entries.get(name, pipfile_entries.get(req.name, {}))
     # Handle VCS requirements
     if req.link and req.link.is_vcs:
         vcs = req.link.scheme.split("+", 1)[0]
@@ -65,16 +64,16 @@ def format_requirement_for_lockfile(
             vcs_url, _ = normalize_vcs_url(req.link.url)
             entry[vcs] = vcs_url
 
+        # Handle subdirectory information
+        if pipfile_entry.get("subdirectory"):
+            entry["subdirectory"] = pipfile_entry["subdirectory"]
+        elif req.link.subdirectory_fragment:
+            entry["subdirectory"] = req.link.subdirectory_fragment
+
         # Handle reference information - try multiple sources
         ref = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
         if ref:
             entry["ref"] = ref
-
-        # Handle subdirectory information
-        if isinstance(pipfile_entry, dict) and pipfile_entry.get("subdirectory"):
-            entry["subdirectory"] = pipfile_entry["subdirectory"]
-        elif req.link.subdirectory_fragment:
-            entry["subdirectory"] = req.link.subdirectory_fragment
 
     # Handle non-VCS requirements
     else:

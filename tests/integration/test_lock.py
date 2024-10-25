@@ -558,7 +558,7 @@ def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
                 "subdirectory": "parent_folder/pep508-package",
             },
         )
-        c = p.pipenv("lock")
+        c = p.pipenv("lock -v")
         assert c.returncode == 0
         assert "git" in p.lockfile["default"]["pep508-package"]
         assert "sibling-package" in p.lockfile["default"]

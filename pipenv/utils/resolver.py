@@ -109,7 +109,7 @@ class Resolver:
         skipped=None,
         clear=False,
         pre=False,
-        category=None,
+        lockfile_category=None,
         original_deps=None,
         install_reqs=None,
         pipfile_entries=None,
@@ -122,7 +122,7 @@ class Resolver:
         self.hashes = {}
         self.clear = clear
         self.pre = pre
-        self.category = category
+        self.category = lockfile_category
         self.results = None
         self.markers_lookup = markers_lookup if markers_lookup is not None else {}
         self.index_lookup = index_lookup if index_lookup is not None else {}
@@ -131,7 +131,7 @@ class Resolver:
         self.requires_python_markers = {}
         self.original_deps = original_deps if original_deps is not None else {}
         self.install_reqs = install_reqs if install_reqs is not None else {}
-        self.pipfile_entries = pipfile_entries if pipfile_entries is not None else {}
+        self.pipfile_entries = pipfile_entries
         self._retry_attempts = 0
         self._hash_cache = None
 
@@ -175,7 +175,7 @@ class Resolver:
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
-        category: str = None,
+        pipfile_category: str = None,
     ) -> "Resolver":
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -185,11 +185,11 @@ class Resolver:
             markers_lookup = {}
         original_deps = {}
         install_reqs = {}
-        pipfile_entries = {}
+        pipfile_entries = project.get_pipfile_section(pipfile_category)
         skipped = {}
         if sources is None:
             sources = project.sources
-        packages = project.get_pipfile_section(category)
+        packages = project.get_pipfile_section(pipfile_category)
         constraints = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups
             if not dep:
@@ -201,8 +201,7 @@ class Resolver:
             install_reqs[package_name] = install_req
             index, extra_index, trust_host, remainder = parse_indexes(dep)
             if package_name in packages:
-                pipfile_entry = packages[package_name]
-                pipfile_entries[package_name] = pipfile_entry
+                pipfile_entry = pipfile_entries.get(package_name)
                 if isinstance(pipfile_entry, dict):
                     if packages[package_name].get("index"):
                         index_lookup[canonical_package_name] = packages[package_name].get(
@@ -221,7 +220,7 @@ class Resolver:
                 markers_lookup[package_name] = install_req.markers
             if is_constraint:
                 constraints.add(dep)
-        # raise Exception(constraints, original_deps, install_reqs, pipfile_entries)
+        lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
         resolver = Resolver(
             set(),
             req_dir,
@@ -232,7 +231,7 @@ class Resolver:
             skipped=skipped,
             clear=clear,
             pre=pre,
-            category=category,
+            lockfile_category=lockfile_category,
             original_deps=original_deps,
             install_reqs=install_reqs,
             pipfile_entries=pipfile_entries,
@@ -689,7 +688,7 @@ def actually_resolve_deps(
     sources,
     clear,
     pre,
-    category,
+    pipfile_category,
     req_dir,
 ):
     with warnings.catch_warnings(record=True) as warning_list:
@@ -702,7 +701,7 @@ def actually_resolve_deps(
             req_dir,
             clear,
             pre,
-            category,
+            pipfile_category,
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes
@@ -750,7 +749,7 @@ def venv_resolve_deps(
     deps,
     which,
     project,
-    category,
+    pipfile_category,
     pre=False,
     clear=False,
     allow_global=False,
@@ -783,21 +782,21 @@ def venv_resolve_deps(
     :return: The lock data
     :rtype: dict
     """
-    lockfile_section = get_lockfile_section_using_pipfile_category(category)
+    lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
 
     if not deps:
         if not project.pipfile_exists:
             return {}
-        deps = project.parsed_pipfile.get(category, {})
+        deps = project.parsed_pipfile.get(pipfile_category, {})
     if not deps:
         return {}
 
     if not pipfile:
-        pipfile = getattr(project, category, {})
+        pipfile = getattr(project, pipfile_category, {})
     if lockfile is None:
-        lockfile = project.lockfile(categories=[category])
+        lockfile = project.lockfile(categories=[pipfile_category])
     if old_lock_data is None:
-        old_lock_data = lockfile.get(lockfile_section, {})
+        old_lock_data = lockfile.get(lockfile_category, {})
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     results = []
     with temp_environ():
@@ -813,7 +812,7 @@ def venv_resolve_deps(
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
         with console.status(
-            f"Locking {category}...", spinner=project.s.PIPENV_SPINNER
+            f"Locking {pipfile_category}...", spinner=project.s.PIPENV_SPINNER
         ) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
@@ -834,7 +833,7 @@ def venv_resolve_deps(
                         write=False,
                         requirements_dir=req_dir,
                         packages=deps,
-                        category=category,
+                        pipfile_category=pipfile_category,
                         constraints=deps,
                     )
                     if results:
@@ -857,9 +856,9 @@ def venv_resolve_deps(
                     cmd.append("--clear")
                 if allow_global:
                     cmd.append("--system")
-                if category:
+                if pipfile_category:
                     cmd.append("--category")
-                    cmd.append(category)
+                    cmd.append(pipfile_category)
                 if project.s.is_verbose():
                     cmd.append("--verbose")
                 target_file = tempfile.NamedTemporaryFile(
@@ -902,10 +901,10 @@ def venv_resolve_deps(
                     )
                     err.print(f"Output: {c.stdout.strip()}")
                     err.print(f"Error: {c.stderr.strip()}")
-    if lockfile_section not in lockfile:
-        lockfile[lockfile_section] = {}
+    if lockfile_category not in lockfile:
+        lockfile[lockfile_category] = {}
     return prepare_lockfile(
-        project, results, pipfile, lockfile[lockfile_section], old_lock_data
+        project, results, pipfile, lockfile[lockfile_category], old_lock_data
     )
 
 
@@ -917,7 +916,7 @@ def resolve_deps(
     python=False,
     clear=False,
     pre=False,
-    category=None,
+    pipfile_category=None,
     allow_global=False,
     req_dir=None,
 ):
@@ -945,7 +944,7 @@ def resolve_deps(
                 sources,
                 clear,
                 pre,
-                category,
+                pipfile_category,
                 req_dir=req_dir,
             )
         except RuntimeError:
@@ -971,7 +970,7 @@ def resolve_deps(
                     sources,
                     clear,
                     pre,
-                    category,
+                    pipfile_category,
                     req_dir=req_dir,
                 )
             except RuntimeError:
