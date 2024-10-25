@@ -242,6 +242,9 @@ class Entry:
                 sorted(self.requirement.hashes) if self.requirement.hashes else None
             ),
             "subdirectory": self.requirement.source.subdirectory,
+            "editable": self.entry_dict.get("editable", None),
+            "path": self.requirement.source.path,
+            "file": self.requirement.source.path,
         }
 
         # Add index if present
@@ -251,7 +254,9 @@ class Entry:
         # Add VCS information if present
         if self.requirement.source.is_vcs:
             cleaned[self.requirement.source.vcs] = self.requirement.source.url
-            if self.requirement.source.ref:
+            if self.entry_dict.get("ref"):
+                cleaned["ref"] = self.entry_dict["ref"]
+            elif self.requirement.source.ref:
                 cleaned["ref"] = self.requirement.source.ref
             cleaned.pop("version", None)  # Remove version for VCS entries
 
