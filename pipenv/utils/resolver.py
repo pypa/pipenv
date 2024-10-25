@@ -5,9 +5,9 @@ import subprocess
 import sys
 import tempfile
 import warnings
-from functools import lru_cache
+from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -27,6 +27,7 @@ from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.project import Project
 from pipenv.utils import console, err
+from pipenv.utils.dependencies import determine_vcs_revision_hash, normalize_vcs_url
 from pipenv.utils.fileutils import create_tracked_tempdir
 from pipenv.utils.requirements import normalize_name
 
@@ -38,7 +39,6 @@ from .dependencies import (
     get_lockfile_section_using_pipfile_category,
     is_pinned_requirement,
     prepare_constraint_file,
-    translate_markers,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import is_pypi_url
@@ -109,7 +109,7 @@ class Resolver:
         skipped=None,
         clear=False,
         pre=False,
-        category=None,
+        lockfile_category=None,
         original_deps=None,
         install_reqs=None,
         pipfile_entries=None,
@@ -122,7 +122,7 @@ class Resolver:
         self.hashes = {}
         self.clear = clear
         self.pre = pre
-        self.category = category
+        self.category = lockfile_category
         self.results = None
         self.markers_lookup = markers_lookup if markers_lookup is not None else {}
         self.index_lookup = index_lookup if index_lookup is not None else {}
@@ -131,7 +131,7 @@ class Resolver:
         self.requires_python_markers = {}
         self.original_deps = original_deps if original_deps is not None else {}
         self.install_reqs = install_reqs if install_reqs is not None else {}
-        self.pipfile_entries = pipfile_entries if pipfile_entries is not None else {}
+        self.pipfile_entries = pipfile_entries
         self._retry_attempts = 0
         self._hash_cache = None
 
@@ -175,7 +175,7 @@ class Resolver:
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
-        category: str = None,
+        pipfile_category: str = None,
     ) -> "Resolver":
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -185,11 +185,11 @@ class Resolver:
             markers_lookup = {}
         original_deps = {}
         install_reqs = {}
-        pipfile_entries = {}
+        pipfile_entries = project.get_pipfile_section(pipfile_category)
         skipped = {}
         if sources is None:
             sources = project.sources
-        packages = project.get_pipfile_section(category)
+        packages = project.get_pipfile_section(pipfile_category)
         constraints = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups
             if not dep:
@@ -201,8 +201,7 @@ class Resolver:
             install_reqs[package_name] = install_req
             index, extra_index, trust_host, remainder = parse_indexes(dep)
             if package_name in packages:
-                pipfile_entry = packages[package_name]
-                pipfile_entries[package_name] = pipfile_entry
+                pipfile_entry = pipfile_entries.get(package_name)
                 if isinstance(pipfile_entry, dict):
                     if packages[package_name].get("index"):
                         index_lookup[canonical_package_name] = packages[package_name].get(
@@ -221,7 +220,7 @@ class Resolver:
                 markers_lookup[package_name] = install_req.markers
             if is_constraint:
                 constraints.add(dep)
-        # raise Exception(constraints, original_deps, install_reqs, pipfile_entries)
+        lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
         resolver = Resolver(
             set(),
             req_dir,
@@ -232,7 +231,7 @@ class Resolver:
             skipped=skipped,
             clear=clear,
             pre=pre,
-            category=category,
+            lockfile_category=lockfile_category,
             original_deps=original_deps,
             install_reqs=install_reqs,
             pipfile_entries=pipfile_entries,
@@ -308,7 +307,7 @@ class Resolver:
         )
         return pip_options
 
-    @property
+    @cached_property
     def session(self):
         return self.pip_command._build_session(self.pip_options)
 
@@ -589,36 +588,57 @@ class Resolver:
         return self.hashes
 
     def clean_skipped_result(
-        self, req_name: str, ireq: InstallRequirement, pipfile_entry
-    ):
-        ref = None
-        if ireq.link and ireq.link.is_vcs:
-            ref = ireq.link.egg_fragment
-
-        if isinstance(pipfile_entry, dict):
-            entry = pipfile_entry.copy()
-        else:
-            entry = {}
+        self,
+        req_name: str,
+        ireq: InstallRequirement,
+        pipfile_entry: Union[str, Dict[str, Any]],
+    ) -> Tuple[str, Dict[str, Any]]:
+        """Clean up skipped requirements with better VCS handling."""
+        # Start with pipfile entry if it's a dict, otherwise create new dict
+        entry = pipfile_entry.copy() if isinstance(pipfile_entry, dict) else {}
         entry["name"] = req_name
+
+        # Handle VCS references
+        if ireq.link and ireq.link.is_vcs:
+            vcs = ireq.link.scheme.split("+", 1)[0]
+
+            # Try to get reference from multiple sources
+            ref = determine_vcs_revision_hash(ireq, vcs, ireq.link)
+
+            if ref:
+                entry["ref"] = ref
+            elif ireq.link.hash:
+                entry["ref"] = ireq.link.hash
+
+            # Ensure VCS URL is present
+            if vcs not in entry:
+                vcs_url, _ = normalize_vcs_url(ireq.link.url)
+                entry[vcs] = vcs_url
+
+        # Remove version if editable
         if entry.get("editable", False) and entry.get("version"):
             del entry["version"]
-        ref = ref if ref is not None else entry.get("ref")
-        if ref:
-            entry["ref"] = ref
+
+        # Add hashes
         collected_hashes = self.collect_hashes(ireq)
         if collected_hashes:
             entry["hashes"] = sorted(set(collected_hashes))
+
         return req_name, entry
 
-    def clean_results(self):
-        reqs = [(ireq,) for ireq in self.resolved_tree]
+    def clean_results(self) -> List[Dict[str, Any]]:
+        """Clean all results including both resolved and skipped packages."""
         results = {}
-        for (ireq,) in reqs:
+
+        # Handle resolved packages
+        for ireq in self.resolved_tree:
             if normalize_name(ireq.name) in self.skipped:
                 continue
+
             collected_hashes = self.hashes.get(ireq, set())
             if collected_hashes:
                 collected_hashes = sorted(collected_hashes)
+
             name, entry = format_requirement_for_lockfile(
                 ireq,
                 self.markers_lookup,
@@ -627,23 +647,25 @@ class Resolver:
                 self.pipfile_entries,
                 collected_hashes,
             )
-            entry = translate_markers(entry)
+
             if name in results:
                 results[name].update(entry)
             else:
                 results[name] = entry
+
+        # Handle skipped packages
         for req_name in self.skipped:
             install_req = self.install_reqs[req_name]
-            name, entry = self.clean_skipped_result(
-                req_name, install_req, self.pipfile_entries[req_name]
-            )
-            entry = translate_markers(entry)
+            pipfile_entry = self.pipfile_entries.get(req_name, {})
+
+            name, entry = self.clean_skipped_result(req_name, install_req, pipfile_entry)
+
             if name in results:
                 results[name].update(entry)
             else:
                 results[name] = entry
-        results = list(results.values())
-        return results
+
+        return list(results.values())
 
 
 def _show_warning(message, category, filename, lineno, line):
@@ -666,7 +688,7 @@ def actually_resolve_deps(
     sources,
     clear,
     pre,
-    category,
+    pipfile_category,
     req_dir,
 ):
     with warnings.catch_warnings(record=True) as warning_list:
@@ -679,7 +701,7 @@ def actually_resolve_deps(
             req_dir,
             clear,
             pre,
-            category,
+            pipfile_category,
         )
         resolver.resolve()
         hashes = resolver.resolve_hashes
@@ -727,7 +749,7 @@ def venv_resolve_deps(
     deps,
     which,
     project,
-    category,
+    pipfile_category,
     pre=False,
     clear=False,
     allow_global=False,
@@ -760,21 +782,21 @@ def venv_resolve_deps(
     :return: The lock data
     :rtype: dict
     """
-    lockfile_section = get_lockfile_section_using_pipfile_category(category)
+    lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
 
     if not deps:
         if not project.pipfile_exists:
             return {}
-        deps = project.parsed_pipfile.get(category, {})
+        deps = project.parsed_pipfile.get(pipfile_category, {})
     if not deps:
         return {}
 
     if not pipfile:
-        pipfile = getattr(project, category, {})
+        pipfile = getattr(project, pipfile_category, {})
     if lockfile is None:
-        lockfile = project.lockfile(categories=[category])
+        lockfile = project.lockfile(categories=[pipfile_category])
     if old_lock_data is None:
-        old_lock_data = lockfile.get(lockfile_section, {})
+        old_lock_data = lockfile.get(lockfile_category, {})
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     results = []
     with temp_environ():
@@ -790,7 +812,7 @@ def venv_resolve_deps(
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
         with console.status(
-            f"Locking {category}...", spinner=project.s.PIPENV_SPINNER
+            f"Locking {pipfile_category}...", spinner=project.s.PIPENV_SPINNER
         ) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
@@ -811,7 +833,7 @@ def venv_resolve_deps(
                         write=False,
                         requirements_dir=req_dir,
                         packages=deps,
-                        category=category,
+                        pipfile_category=pipfile_category,
                         constraints=deps,
                     )
                     if results:
@@ -834,9 +856,9 @@ def venv_resolve_deps(
                     cmd.append("--clear")
                 if allow_global:
                     cmd.append("--system")
-                if category:
+                if pipfile_category:
                     cmd.append("--category")
-                    cmd.append(category)
+                    cmd.append(pipfile_category)
                 if project.s.is_verbose():
                     cmd.append("--verbose")
                 target_file = tempfile.NamedTemporaryFile(
@@ -879,10 +901,10 @@ def venv_resolve_deps(
                     )
                     err.print(f"Output: {c.stdout.strip()}")
                     err.print(f"Error: {c.stderr.strip()}")
-    if lockfile_section not in lockfile:
-        lockfile[lockfile_section] = {}
+    if lockfile_category not in lockfile:
+        lockfile[lockfile_category] = {}
     return prepare_lockfile(
-        project, results, pipfile, lockfile[lockfile_section], old_lock_data
+        project, results, pipfile, lockfile[lockfile_category], old_lock_data
     )
 
 
@@ -894,7 +916,7 @@ def resolve_deps(
     python=False,
     clear=False,
     pre=False,
-    category=None,
+    pipfile_category=None,
     allow_global=False,
     req_dir=None,
 ):
@@ -922,7 +944,7 @@ def resolve_deps(
                 sources,
                 clear,
                 pre,
-                category,
+                pipfile_category,
                 req_dir=req_dir,
             )
         except RuntimeError:
@@ -948,7 +970,7 @@ def resolve_deps(
                     sources,
                     clear,
                     pre,
-                    category,
+                    pipfile_category,
                     req_dir=req_dir,
                 )
             except RuntimeError:

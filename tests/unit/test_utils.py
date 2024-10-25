@@ -27,7 +27,7 @@ DEP_PIP_PAIRS = [
             }
         },
         {
-            "dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
+            "dataclasses-json": "dataclasses-json @ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
         },
     ),
     (
@@ -38,7 +38,7 @@ DEP_PIP_PAIRS = [
             }
         },
         {
-            "dataclasses-json": "dataclasses-json@ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
+            "dataclasses-json": "dataclasses-json @ git+https://github.com/lidatong/dataclasses-json.git@v0.5.7"
         },
     ),
     (
@@ -63,7 +63,7 @@ DEP_PIP_PAIRS = [
             }
         },
         {
-            "requests": "requests[security]@ git+https://github.com/requests/requests.git@main"
+            "requests": "requests[security] @ git+https://github.com/requests/requests.git@main"
         },
     ),
 ]
@@ -141,7 +141,7 @@ def test_convert_deps_to_pip_extras_no_version():
                 }
             },
             {
-                "uvicorn": "uvicorn[standard]@ git+https://github.com/encode/uvicorn.git@master"
+                "uvicorn": "uvicorn[standard] @ git+https://github.com/encode/uvicorn.git@master"
             },
         ),
     ],

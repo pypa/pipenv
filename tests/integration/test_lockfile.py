@@ -40,7 +40,7 @@ def test_git_branch_contains_slashes(pipenv_instance_pypi, pypi_lockfile):
             deps, include_hashes=False, include_markers=True
         )
         assert pip_installable_lines == [
-            "google-api-python-client@ git+https://github.com/thehesiod/google-api-python-client.git@03803c21fc13a345e978f32775b2f2fa23c8e706"
+            "google-api-python-client @ git+https://github.com/thehesiod/google-api-python-client.git@03803c21fc13a345e978f32775b2f2fa23c8e706"
         ]
 
 
@@ -62,5 +62,5 @@ def test_git_branch_contains_subdirectory_fragment(pipenv_instance_pypi, pypi_lo
             deps, include_hashes=False, include_markers=True
         )
         assert pip_installable_lines == [
-            "pep508_package@ git+https://github.com/techalchemy/test-project.git@03803c21fc13a345e978f32775b2f2fa23c8e706#subdirectory=parent_folder/pep508-package"
+            "pep508_package @ git+https://github.com/techalchemy/test-project.git@03803c21fc13a345e978f32775b2f2fa23c8e706#subdirectory=parent_folder/pep508-package"
         ]

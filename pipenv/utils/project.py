@@ -1,6 +1,5 @@
 import os
 import sys
-from functools import lru_cache
 from typing import Optional
 
 from pipenv import exceptions
@@ -97,7 +96,6 @@ def ensure_project(
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
 
 
-@lru_cache
 def get_setuptools_version() -> Optional["STRING_TYPE"]:
     try:
         setuptools_dist = importlib_metadata.distribution("setuptools")
