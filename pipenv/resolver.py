@@ -99,6 +99,7 @@ class PackageSource:
     vcs: Optional[str] = None
     ref: Optional[str] = None
     path: Optional[Path] = None
+    subdirectory: Optional[str] = None
 
     @property
     def is_vcs(self) -> bool:
@@ -176,6 +177,7 @@ class Entry:
                 vcs_info["vcs"] = key
                 vcs_info["url"] = self.entry_dict[key]
                 vcs_info["ref"] = self.entry_dict.get("ref")
+                vcs_info["subdirectory"] = self.entry_dict.get("subdirectory")
                 break
 
         return vcs_info
@@ -239,6 +241,7 @@ class Entry:
             "hashes": (
                 sorted(self.requirement.hashes) if self.requirement.hashes else None
             ),
+            "subdirectory": self.requirement.source.subdirectory,
         }
 
         # Add index if present
@@ -346,7 +349,7 @@ def resolve_packages(
     write: Optional[str],
     requirements_dir: Optional[str],
     packages: Dict[str, Any],
-    category: Optional[str],
+    pipfile_category: Optional[str],
     constraints: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
@@ -360,7 +363,7 @@ def resolve_packages(
         write: Path to write results to
         requirements_dir: Directory containing requirements files
         packages: Package specifications to resolve
-        category: Category of dependencies being processed
+        pipfile_category: Category of dependencies being processed
         constraints: Additional constraints to apply
 
     Returns:
@@ -395,7 +398,7 @@ def resolve_packages(
         which,
         project=project,
         pre=pre,
-        category=category,
+        pipfile_category=pipfile_category,
         sources=sources,
         clear=clear,
         allow_global=system,
@@ -403,7 +406,9 @@ def resolve_packages(
     )
 
     # Process results
-    processed_results = process_resolver_results(results, resolver, project, category)
+    processed_results = process_resolver_results(
+        results, resolver, project, pipfile_category
+    )
 
     # Write results if requested
     if write:

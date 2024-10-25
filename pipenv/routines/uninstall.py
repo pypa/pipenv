@@ -141,7 +141,7 @@ def do_uninstall(
                 which=project._which,
                 project=project,
                 lockfile={},
-                category=pipfile_category,
+                pipfile_category=pipfile_category,
                 pre=pre,
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
