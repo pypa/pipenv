@@ -346,7 +346,7 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
             True,
             True,
             [
-                "pyjwt[crypto]@ git+https://github.com/jpadilla/pyjwt.git@7665aa625506a11bae50b56d3e04413a3dc6fdf8"
+                "pyjwt[crypto] @ git+https://github.com/jpadilla/pyjwt.git@7665aa625506a11bae50b56d3e04413a3dc6fdf8"
             ],
         ),
     ],
