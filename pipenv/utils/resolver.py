@@ -513,45 +513,55 @@ class Resolver:
     def resolve_constraints(self):
         from .markers import marker_from_specifier
 
-        # Build mapping of where package originates from
+        # Build mapping of package origins and Python requirements
         comes_from = {}
+        python_requirements = {}
+
         for result in self.resolved_tree:
+            # Track package origin
             if isinstance(result.comes_from, InstallRequirement):
                 comes_from[result.name] = result.comes_from
             else:
                 comes_from[result.name] = "Pipfile"
 
-        # Build up the results tree with markers
+            # Collect Python requirements from package metadata
+            candidate = (
+                self.finder()
+                .find_best_candidate(result.name, result.specifier)
+                .best_candidate
+            )
+            if candidate and candidate.link.requires_python:
+                try:
+                    marker = marker_from_specifier(candidate.link.requires_python)
+                    python_requirements[result.name] = marker
+                except TypeError:
+                    continue
+
+        # Build the results tree with markers
         new_tree = set()
         for result in self.resolved_tree:
-            if result.markers:
+            # Start with any Python requirement markers
+            if result.name in python_requirements:
+                marker = python_requirements[result.name]
+                self.markers[result.name] = marker
+                result.markers = marker
+                if result.req:
+                    result.req.marker = marker
+            elif result.markers:
                 self.markers[result.name] = result.markers
-            else:
-                candidate = (
-                    self.finder()
-                    .find_best_candidate(result.name, result.specifier)
-                    .best_candidate
-                )
-                if candidate:
-                    requires_python = candidate.link.requires_python
-                    if requires_python:
-                        try:
-                            marker = marker_from_specifier(requires_python)
-                            self.markers[result.name] = marker
-                            result.markers = marker
-                            if result.req:
-                                result.req.marker = marker
-                        except TypeError as e:
-                            err.print(
-                                f"Error generating python marker for {candidate}.  "
-                                f"Is the specifier {requires_python} incorrectly quoted or otherwise wrong?"
-                                f"Full error: {e}",
-                            )
+                if result.req:
+                    result.req.marker = result.markers
+
             new_tree.add(result)
 
-        # Fold markers
+        # Use existing fold_markers to properly combine all constraints
         for result in new_tree:
-            self._fold_markers(comes_from, result)
+            folded_markers = self._fold_markers(comes_from, result)
+            if folded_markers:
+                self.markers[result.name] = folded_markers
+                result.markers = folded_markers
+                if result.req:
+                    result.req.marker = folded_markers
 
         self.resolved_tree = new_tree
 
