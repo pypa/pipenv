@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 from dataclasses import dataclass, field
-from functools import cached_property
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set
 
@@ -228,7 +227,7 @@ class Entry:
 
         return tomlkit_value_to_python(self.project.parsed_pipfile.get(self.category, {}))
 
-    @cached_property
+    @property
     def get_cleaned_dict(self) -> Dict[str, Any]:
         """Create a cleaned dictionary representation of the entry."""
         cleaned = {

@@ -7,7 +7,7 @@ from typing import Dict, Set, Tuple
 
 from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
-from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
 from pipenv.utils import err
@@ -153,7 +153,10 @@ def check_version_conflicts(
     Returns set of conflicting packages.
     """
     conflicts = set()
-    new_version_obj = Version(new_version)
+    try:
+        new_version_obj = Version(new_version)
+    except InvalidVersion:
+        new_version_obj = SpecifierSet(new_version)
 
     for dependent, req_version in reverse_deps.get(package_name, set()):
         if req_version == "Any":
@@ -187,10 +190,20 @@ def upgrade(
     lockfile = project.lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if dev or "dev-packages" in categories:
-        categories = ["develop"]
-    elif not categories or "packages" in categories:
-        categories = ["default"]
+    if not categories:
+
+        if dev and not packages:
+            categories = ["default", "develop"]
+        elif dev and packages:
+            categories = ["develop"]
+        else:
+            categories = ["default"]
+    elif "dev-packages" in categories:
+        categories.remove("dev-packages")
+        categories.insert(0, "develop")
+    elif "packages" in categories:
+        categories.remove("packages")
+        categories.insert(0, "default")
 
     # Get current dependency graph
     try:
@@ -282,7 +295,7 @@ def upgrade(
 
         if not package_args:
             err.print("Nothing to upgrade!")
-            sys.exit(0)
+            return
         else:
             err.print(
                 f"[bold][green]Upgrading[/bold][/green] {', '.join(package_args)} in [{category}] dependencies."
@@ -301,7 +314,7 @@ def upgrade(
         )
         if not upgrade_lock_data:
             err.print("Nothing to upgrade!")
-            sys.exit(0)
+            return
 
         complete_packages = project.parsed_pipfile.get(pipfile_category, {})
 
@@ -323,15 +336,6 @@ def upgrade(
                 if not version:
                     # Either vcs or file package
                     continue
-                conflicts = check_version_conflicts(
-                    package_name, version, reverse_deps, lockfile
-                )
-                if conflicts:
-                    err.print(
-                        f"[red bold]Error[/red bold]: Resolution introduced conflicts for {package_name} {version} "
-                        f"with: {', '.join(sorted(conflicts))}"
-                    )
-                    sys.exit(1)
 
         # Update lockfile with verified resolution data
         for package_name in upgrade_lock_data:

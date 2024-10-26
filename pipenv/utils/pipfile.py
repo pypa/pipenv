@@ -64,7 +64,7 @@ def find_pipfile(max_depth=3):
 
 
 def ensure_pipfile(
-    project, validate=True, skip_requirements=False, system=False, categories=None
+    project, validate=True, skip_requirements=False, system=False, pipfile_categories=None
 ):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
@@ -96,7 +96,7 @@ def ensure_pipfile(
             ) as st:
                 # Import requirements.txt.
                 try:
-                    import_requirements(project, categories=categories)
+                    import_requirements(project, categories=pipfile_categories)
                 except Exception:
                     err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:

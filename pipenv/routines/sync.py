@@ -50,7 +50,6 @@ def do_sync(
         pypi_mirror=pypi_mirror,
         deploy=deploy,
         system=system,
-        categories=categories,
     )
     do_install_dependencies(
         project,
