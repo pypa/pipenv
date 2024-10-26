@@ -22,7 +22,6 @@ on:
       - "**/*.txt"
       - "examples/**"
       - "news/**"
-      - "peeps/**"
     branches:
       - main
   pull_request:
@@ -36,7 +35,6 @@ on:
       - "**/*.txt"
       - "examples/**"
       - "news/**"
-      - "peeps/**"
 permissions:
   contents: read # to fetch code (actions/checkout)
 jobs:
