@@ -255,7 +255,7 @@ requests = {version = "*", extras = ["socks"]}
         assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "pysocks" in p.lockfile["default"]
-        assert "markers" not in p.lockfile["default"]["pysocks"]
+        assert "markers" in p.lockfile["default"]["pysocks"]
 
         c = p.pipenv("lock")
         assert c.returncode == 0
