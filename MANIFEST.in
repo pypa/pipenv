@@ -23,7 +23,6 @@ recursive-include docs/_templates *.html
 recursive-include docs/_static *.js *.css *.png
 recursive-exclude tests/test_artifacts *.pyd *.so *.pyc *.egg-info PKG-INFO
 
-prune peeps
 prune .azure-pipelines
 prune .github
 prune pipenv/vendor/importlib_metadata/tests
