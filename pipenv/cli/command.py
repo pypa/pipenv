@@ -219,7 +219,7 @@ def install(state, **kwargs):
         editable_packages=state.installstate.editables,
         site_packages=state.site_packages,
         extra_pip_args=state.installstate.extra_pip_args,
-        categories=state.installstate.categories,
+        pipfile_categories=state.installstate.categories,
         skip_lock=state.installstate.skip_lock,
     )
 

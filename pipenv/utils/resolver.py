@@ -341,17 +341,6 @@ class Resolver:
         return finder
 
     @property
-    def parsed_constraints(self):
-        pip_options = self.pip_options
-        pip_options.extra_index_urls = []
-        return parse_requirements(
-            self.prepare_constraint_file(),
-            finder=self.finder(),
-            session=self.session,
-            options=pip_options,
-        )
-
-    @property
     def parsed_default_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
@@ -365,7 +354,33 @@ class Resolver:
         return set(parsed_default_constraints)
 
     @property
+    def parsed_constraints(self):
+        """Get parsed constraints including those from default packages if needed."""
+        pip_options = self.pip_options
+        pip_options.extra_index_urls = []
+        constraints = list(
+            parse_requirements(
+                self.prepare_constraint_file(),
+                finder=self.finder(),
+                session=self.session,
+                options=pip_options,
+            )
+        )
+
+        # Only add default constraints for dev packages if setting allows
+        if self.category != "default" and self.project.settings.get(
+            "use_default_constraints", True
+        ):
+            constraints.extend(self.parsed_default_constraints)
+
+        return constraints
+
+    @property
     def default_constraints(self):
+        """Get constraints from default section when installing dev packages."""
+        if not self.project.settings.get("use_default_constraints", True):
+            return set()
+
         possible_default_constraints = [
             install_req_from_parsed_requirement(
                 c,
@@ -391,14 +406,19 @@ class Resolver:
 
     @property
     def constraints(self):
+        """Get all applicable constraints."""
         possible_constraints_list = self.possible_constraints
         constraints_list = set()
         for c in possible_constraints_list:
             constraints_list.add(c)
-        # Only use default_constraints when installing dev-packages
-        if self.category != "packages":
+
+        # Only use default_constraints when installing dev-packages and setting allows
+        if self.category != "default" and self.project.settings.get(
+            "use_default_constraints", True
+        ):
             constraints_list |= self.default_constraints
-        return set(constraints_list)
+
+        return constraints_list
 
     @contextlib.contextmanager
     def get_resolver(self, clear=False):
@@ -433,10 +453,9 @@ class Resolver:
             yield resolver
 
     def resolve(self):
-        constraints = self.constraints
         with temp_environ(), self.get_resolver() as resolver:
             try:
-                results = resolver.resolve(constraints, check_supported_wheels=False)
+                results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
                 raise ResolutionFailure(message=str(e))
             else:

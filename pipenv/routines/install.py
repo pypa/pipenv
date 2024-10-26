@@ -35,7 +35,7 @@ def handle_new_packages(
     system,
     pypi_mirror,
     extra_pip_args,
-    categories,
+    pipfile_categories,
     perform_upgrades=True,
     index=None,
 ):
@@ -77,8 +77,8 @@ def handle_new_packages(
                     sys.exit(1)
 
                 try:
-                    if categories:
-                        for category in categories:
+                    if pipfile_categories:
+                        for category in pipfile_categories:
                             added, cat, normalized_name = project.add_package_to_pipfile(
                                 pkg_requirement, pkg_line, dev, category
                             )
@@ -120,7 +120,7 @@ def handle_new_packages(
                 pypi_mirror=pypi_mirror,
                 index_url=index,
                 extra_pip_args=extra_pip_args,
-                categories=categories,
+                categories=pipfile_categories,
             )
             return new_packages, True
         except Exception:
@@ -144,27 +144,34 @@ def handle_lockfile(
     categories,
 ):
     """Handle the lockfile, updating if necessary.  Returns True if package updates were applied."""
-    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
+    if (
+        (project.lockfile_exists and not ignore_pipfile)
+        and not skip_lock
+        and not packages
+    ):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            return handle_outdated_lockfile(
+            if deploy:
+                console.print(
+                    f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
+                    style="red",
+                )
+                raise exceptions.DeployException
+            handle_outdated_lockfile(
                 project,
                 packages,
                 old_hash=old_hash,
                 new_hash=new_hash,
                 system=system,
                 allow_global=allow_global,
-                deploy=deploy,
+                skip_lock=skip_lock,
                 pre=pre,
                 pypi_mirror=pypi_mirror,
                 categories=categories,
             )
     elif not project.lockfile_exists and not skip_lock:
-        handle_missing_lockfile(
-            project, system, allow_global, pre, pypi_mirror, categories
-        )
-        return False
+        handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror)
 
 
 def handle_outdated_lockfile(
@@ -174,20 +181,12 @@ def handle_outdated_lockfile(
     new_hash,
     system,
     allow_global,
-    deploy,
+    skip_lock,
     pre,
     pypi_mirror,
     categories,
 ):
     """Handle an outdated lockfile returning True if package updates were applied."""
-    from pipenv.routines.update import do_update
-
-    if deploy:
-        console.print(
-            f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
-            style="red",
-        )
-        raise exceptions.DeployException
     if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
         err.print(
             f"Pipfile.lock ({old_hash}) out of date, but installation uses --system so"
@@ -206,19 +205,18 @@ def handle_outdated_lockfile(
             msg.format(old_hash, new_hash),
             style="bold yellow",
         )
-        do_update(
-            project,
-            packages=packages,
-            pre=pre,
-            system=system,
-            pypi_mirror=pypi_mirror,
-            categories=categories,
-        )
-        return True
-    return False
+        if not skip_lock:
+            do_lock(
+                project,
+                system=system,
+                pre=pre,
+                write=True,
+                pypi_mirror=pypi_mirror,
+                categories=None,
+            )
 
 
-def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror, categories):
+def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror):
     if (system or allow_global) and not project.s.PIPENV_VIRTUALENV:
         raise exceptions.PipenvOptionsError(
             "--system",
@@ -237,7 +235,6 @@ def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror, cat
             pre=pre,
             write=True,
             pypi_mirror=pypi_mirror,
-            categories=categories,
         )
 
 
@@ -256,7 +253,7 @@ def do_install(
     deploy=False,
     site_packages=None,
     extra_pip_args=None,
-    categories=None,
+    pipfile_categories=None,
     skip_lock=False,
 ):
     requirements_directory = fileutils.create_tracked_tempdir(
@@ -266,6 +263,11 @@ def do_install(
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
+    new_packages = []
+    if dev and not pipfile_categories:
+        pipfile_categories = ["dev-packages"]
+    elif not pipfile_categories:
+        pipfile_categories = ["packages"]
 
     ensure_project(
         project,
@@ -276,7 +278,18 @@ def do_install(
         skip_requirements=False,
         pypi_mirror=pypi_mirror,
         site_packages=site_packages,
-        categories=categories,
+        pipfile_categories=pipfile_categories,
+    )
+
+    do_init(
+        project,
+        package_args,
+        system=system,
+        allow_global=system,
+        deploy=deploy,
+        pypi_mirror=pypi_mirror,
+        skip_lock=skip_lock,
+        categories=pipfile_categories,
     )
 
     do_install_validations(
@@ -289,38 +302,27 @@ def do_install(
         requirementstxt=requirementstxt,
         pre=pre,
         deploy=deploy,
-        categories=categories,
+        categories=pipfile_categories,
         skip_lock=skip_lock,
     )
-
-    packages_installed = do_init(
-        project,
-        package_args,
-        system=system,
-        allow_global=system,
-        deploy=deploy,
-        pypi_mirror=pypi_mirror,
-        categories=categories,
-        skip_lock=skip_lock,
-    )
-
-    new_packages, _packages_installed = handle_new_packages(
-        project,
-        packages,
-        editable_packages,
-        dev=dev,
-        pre=pre,
-        system=system,
-        pypi_mirror=pypi_mirror,
-        extra_pip_args=extra_pip_args,
-        categories=categories,
-        perform_upgrades=not (packages_installed or skip_lock),
-        index=index,
-    )
-    if packages_installed or _packages_installed:
-        sys.exit(0)
+    if not deploy:
+        new_packages, _ = handle_new_packages(
+            project,
+            packages,
+            editable_packages,
+            dev=dev,
+            pre=pre,
+            system=system,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+            pipfile_categories=pipfile_categories,
+            perform_upgrades=not skip_lock,
+            index=index,
+        )
 
     try:
+        if dev:  # Install both develop and default package categories from Pipfile.
+            pipfile_categories = ["default", "develop"]
         do_install_dependencies(
             project,
             dev=dev,
@@ -328,7 +330,7 @@ def do_install(
             requirements_dir=requirements_directory,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
-            categories=categories,
+            categories=pipfile_categories,
             skip_lock=skip_lock,
         )
     except Exception as e:
@@ -680,8 +682,8 @@ def do_init(
     deploy=False,
     pre=False,
     pypi_mirror=None,
-    categories=None,
     skip_lock=False,
+    categories=None,
 ):
     """Initialize the project, ensuring that the Pipfile and Pipfile.lock are in place.
     Returns True if packages were updated + installed.
@@ -689,7 +691,7 @@ def do_init(
     if not deploy:
         ensure_pipfile(project, system=system)
 
-    packages_updated = handle_lockfile(
+    handle_lockfile(
         project,
         packages,
         ignore_pipfile=ignore_pipfile,
@@ -707,5 +709,3 @@ def do_init(
             "To activate this project's virtualenv, run [yellow]pipenv shell[/yellow].\n"
             "Alternatively, run a command inside the virtualenv with [yellow]pipenv run[/yellow]."
         )
-
-    return packages_updated

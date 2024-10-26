@@ -10,6 +10,7 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
 
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import (
     clean_resolved_dep,
     determine_vcs_revision_hash,
@@ -54,36 +55,41 @@ def format_requirement_for_lockfile(
     entry: Dict[str, Any] = {"name": name}
     pipfile_entry = pipfile_entries.get(name, pipfile_entries.get(req.name, {}))
     # Handle VCS requirements
+    is_vcs_dep = next(iter([vcs for vcs in VCS_LIST if vcs in pipfile_entry]), None)
     if req.link and req.link.is_vcs:
-        vcs = req.link.scheme.split("+", 1)[0]
+        is_vcs_dep = True
+    if is_vcs_dep:
+        if req.link and req.link.is_vcs:
+            link = req.link
+        else:
+            link = req.cached_wheel_source_link
+        vcs = link.scheme.split("+", 1)[0]
 
         # Get VCS URL from original deps or normalize the link URL
         if name in original_deps:
             entry[vcs] = original_deps[name]
         else:
-            vcs_url, _ = normalize_vcs_url(req.link.url)
+            vcs_url, _ = normalize_vcs_url(link.url)
             entry[vcs] = vcs_url
 
         # Handle subdirectory information
         if pipfile_entry.get("subdirectory"):
             entry["subdirectory"] = pipfile_entry["subdirectory"]
-        elif req.link.subdirectory_fragment:
-            entry["subdirectory"] = req.link.subdirectory_fragment
+        elif link.subdirectory_fragment:
+            entry["subdirectory"] = link.subdirectory_fragment
 
         # Handle reference information - try multiple sources
         ref = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
         if ref:
             entry["ref"] = ref
-
     # Handle non-VCS requirements
     else:
         if req.req and req.req.specifier:
             entry["version"] = str(req.req.specifier)
         elif req.specifier:
             entry["version"] = str(req.specifier)
-        elif req.link and req.link.is_file:
+        if req.link and req.link.is_file:
             entry["file"] = req.link.url
-
     # Add index information
     if name in index_lookup:
         entry["index"] = index_lookup[name]
