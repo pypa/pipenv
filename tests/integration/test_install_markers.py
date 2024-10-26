@@ -1,4 +1,5 @@
 import os
+import sys
 
 import pytest
 from flaky import flaky
@@ -134,6 +135,9 @@ funcsigs = "*"
 @flaky
 @pytest.mark.markers
 @pytest.mark.complex
+@pytest.mark.skipif(
+    sys.version_info == (3, 8), reason="Test package that gets installed is different on 3.8"
+)
 def test_resolver_unique_markers(pipenv_instance_pypi):
     """Test that markers are properly cleaned and not duplicated when resolving
     dependencies. Use vcrpy as an example package that pulls in dependencies
