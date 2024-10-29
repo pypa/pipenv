@@ -1156,6 +1156,8 @@ def install_req_from_pipfile(name: str, pipfile: Dict[str, Any]) -> Tuple[Any, A
         vcs = next(iter([vcs for vcs in VCS_LIST if pipfile.startswith(f"{vcs}+")]), None)
         if vcs is not None:
             _pipfile[vcs] = pipfile
+        else:  # normal named requirement
+            _pipfile["version"] = pipfile
 
     extras = _pipfile.get("extras", [])
     extras_str = f"[{','.join(extras)}]" if extras else ""
@@ -1217,8 +1219,6 @@ def handle_non_vcs_requirement(
         return file_path_from_pipfile(_pipfile["file"], _pipfile)
     else:
         version = get_version(_pipfile)
-        if version and not is_star(version) and COMPARE_OP.match(version) is None:
-            version = f"=={version}"
         if is_star(version) or version == "==*":
             version = ""
 
