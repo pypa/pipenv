@@ -123,7 +123,7 @@ six = "==1.12.0"
         """
             f.write(contents)
 
-        c = p.pipenv("install --dev")
+        c = p.pipenv("install -v --dev")
         assert c.returncode == 0
 
         assert "tablib" in p.pipfile["packages"]
@@ -134,7 +134,7 @@ six = "==1.12.0"
         assert "six" in p.lockfile["develop"]
         assert c.returncode == 0
 
-        c = p.pipenv("uninstall --all-dev")
+        c = p.pipenv("uninstall -v --all-dev")
         assert c.returncode == 0
         assert p.pipfile["dev-packages"] == {}
         assert "jinja2" not in p.lockfile["develop"]

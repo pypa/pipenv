@@ -35,13 +35,14 @@ def handle_new_packages(
     system,
     pypi_mirror,
     extra_pip_args,
-    categories,
-    skip_lock,
+    pipfile_categories,
+    perform_upgrades=True,
     index=None,
 ):
+    from pipenv.routines.update import do_update
+
     new_packages = []
     if packages or editable_packages:
-        from pipenv.routines.update import do_update
 
         pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
 
@@ -76,8 +77,8 @@ def handle_new_packages(
                     sys.exit(1)
 
                 try:
-                    if categories:
-                        for category in categories:
+                    if pipfile_categories:
+                        for category in pipfile_categories:
                             added, cat, normalized_name = project.add_package_to_pipfile(
                                 pkg_requirement, pkg_line, dev, category
                             )
@@ -107,26 +108,27 @@ def handle_new_packages(
         if pre:
             project.update_settings({"allow_prereleases": pre})
 
-        # Use the update routine for new packages
-        if not skip_lock:
-            try:
-                do_update(
-                    project,
-                    dev=dev,
-                    pre=pre,
-                    packages=packages,
-                    editable_packages=editable_packages,
-                    pypi_mirror=pypi_mirror,
-                    index_url=index,
-                    extra_pip_args=extra_pip_args,
-                    categories=categories,
-                )
-            except Exception:
-                for pkg_name, category in new_packages:
-                    project.remove_package_from_pipfile(pkg_name, category)
-                raise
+    # Use the update routine for new packages
+    if perform_upgrades:
+        try:
+            do_update(
+                project,
+                dev=dev,
+                pre=pre,
+                packages=packages,
+                editable_packages=editable_packages,
+                pypi_mirror=pypi_mirror,
+                index_url=index,
+                extra_pip_args=extra_pip_args,
+                categories=pipfile_categories,
+            )
+            return new_packages, True
+        except Exception:
+            for pkg_name, category in new_packages:
+                project.remove_package_from_pipfile(pkg_name, category)
+            raise
 
-    return new_packages
+    return new_packages, False
 
 
 def handle_lockfile(
@@ -141,10 +143,21 @@ def handle_lockfile(
     pypi_mirror,
     categories,
 ):
-    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock:
+    """Handle the lockfile, updating if necessary.  Returns True if package updates were applied."""
+    if (
+        (project.lockfile_exists and not ignore_pipfile)
+        and not skip_lock
+        and not packages
+    ):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
+            if deploy:
+                console.print(
+                    f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
+                    style="red",
+                )
+                raise exceptions.DeployException
             handle_outdated_lockfile(
                 project,
                 packages,
@@ -152,15 +165,13 @@ def handle_lockfile(
                 new_hash=new_hash,
                 system=system,
                 allow_global=allow_global,
-                deploy=deploy,
+                skip_lock=skip_lock,
                 pre=pre,
                 pypi_mirror=pypi_mirror,
                 categories=categories,
             )
     elif not project.lockfile_exists and not skip_lock:
-        handle_missing_lockfile(
-            project, system, allow_global, pre, pypi_mirror, categories
-        )
+        handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror)
 
 
 def handle_outdated_lockfile(
@@ -170,19 +181,12 @@ def handle_outdated_lockfile(
     new_hash,
     system,
     allow_global,
-    deploy,
+    skip_lock,
     pre,
     pypi_mirror,
     categories,
 ):
-    from pipenv.routines.update import do_update
-
-    if deploy:
-        console.print(
-            f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
-            style="red",
-        )
-        raise exceptions.DeployException
+    """Handle an outdated lockfile returning True if package updates were applied."""
     if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
         err.print(
             f"Pipfile.lock ({old_hash}) out of date, but installation uses --system so"
@@ -201,17 +205,18 @@ def handle_outdated_lockfile(
             msg.format(old_hash, new_hash),
             style="bold yellow",
         )
-        do_update(
-            project,
-            packages=packages,
-            pre=pre,
-            system=system,
-            pypi_mirror=pypi_mirror,
-            categories=categories,
-        )
+        if not skip_lock:
+            do_lock(
+                project,
+                system=system,
+                pre=pre,
+                write=True,
+                pypi_mirror=pypi_mirror,
+                categories=None,
+            )
 
 
-def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror, categories):
+def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror):
     if (system or allow_global) and not project.s.PIPENV_VIRTUALENV:
         raise exceptions.PipenvOptionsError(
             "--system",
@@ -230,7 +235,6 @@ def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror, cat
             pre=pre,
             write=True,
             pypi_mirror=pypi_mirror,
-            categories=categories,
         )
 
 
@@ -249,7 +253,7 @@ def do_install(
     deploy=False,
     site_packages=None,
     extra_pip_args=None,
-    categories=None,
+    pipfile_categories=None,
     skip_lock=False,
 ):
     requirements_directory = fileutils.create_tracked_tempdir(
@@ -259,6 +263,23 @@ def do_install(
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
+    new_packages = []
+    if dev and not pipfile_categories:
+        pipfile_categories = ["dev-packages"]
+    elif not pipfile_categories:
+        pipfile_categories = ["packages"]
+
+    ensure_project(
+        project,
+        python=python,
+        system=system,
+        warn=True,
+        deploy=deploy,
+        skip_requirements=False,
+        pypi_mirror=pypi_mirror,
+        site_packages=site_packages,
+        pipfile_categories=pipfile_categories,
+    )
 
     do_init(
         project,
@@ -267,10 +288,8 @@ def do_install(
         allow_global=system,
         deploy=deploy,
         pypi_mirror=pypi_mirror,
-        categories=categories,
         skip_lock=skip_lock,
-        site_packages=site_packages,
-        python=python,
+        categories=pipfile_categories,
     )
 
     do_install_validations(
@@ -283,25 +302,27 @@ def do_install(
         requirementstxt=requirementstxt,
         pre=pre,
         deploy=deploy,
-        categories=categories,
+        categories=pipfile_categories,
         skip_lock=skip_lock,
     )
-
-    new_packages = handle_new_packages(
-        project,
-        packages,
-        editable_packages,
-        dev=dev,
-        pre=pre,
-        system=system,
-        pypi_mirror=pypi_mirror,
-        extra_pip_args=extra_pip_args,
-        categories=categories,
-        skip_lock=skip_lock,
-        index=index,
-    )
+    if not deploy:
+        new_packages, _ = handle_new_packages(
+            project,
+            packages,
+            editable_packages,
+            dev=dev,
+            pre=pre,
+            system=system,
+            pypi_mirror=pypi_mirror,
+            extra_pip_args=extra_pip_args,
+            pipfile_categories=pipfile_categories,
+            perform_upgrades=not skip_lock,
+            index=index,
+        )
 
     try:
+        if dev:  # Install both develop and default package categories from Pipfile.
+            pipfile_categories = ["default", "develop"]
         do_install_dependencies(
             project,
             dev=dev,
@@ -309,7 +330,7 @@ def do_install(
             requirements_dir=requirements_directory,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
-            categories=categories,
+            categories=pipfile_categories,
             skip_lock=skip_lock,
         )
     except Exception as e:
@@ -452,8 +473,11 @@ def do_install_dependencies(
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
+                lockfile_category = get_lockfile_section_using_pipfile_category(
+                    pipfile_category
+                )
                 console.print(
-                    f"Installing dependencies from Pipfile.lock "
+                    f"Installing dependencies from Pipfile.lock [{lockfile_category}]"
                     f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
                     style="bold",
                 )
@@ -657,23 +681,12 @@ def do_init(
     deploy=False,
     pre=False,
     pypi_mirror=None,
-    categories=None,
     skip_lock=False,
-    site_packages=None,
-    python=None,
+    categories=None,
 ):
-    ensure_project(
-        project,
-        python=python,
-        system=system,
-        warn=True,
-        deploy=deploy,
-        skip_requirements=False,
-        pypi_mirror=pypi_mirror,
-        site_packages=site_packages,
-        categories=categories,
-    )
-
+    """Initialize the project, ensuring that the Pipfile and Pipfile.lock are in place.
+    Returns True if packages were updated + installed.
+    """
     if not deploy:
         ensure_pipfile(project, system=system)
 

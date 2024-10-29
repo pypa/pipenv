@@ -191,7 +191,7 @@ six = {version = "*"}
             """.strip()
             f.write(contents)
 
-        c = p.pipenv("install")
+        c = p.pipenv("install -v")
         assert c.returncode == 0
 
         assert "six" in p.lockfile["default"]

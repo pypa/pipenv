@@ -1,4 +1,5 @@
 import os
+import sys
 
 import pytest
 from flaky import flaky
@@ -134,13 +135,18 @@ funcsigs = "*"
 @flaky
 @pytest.mark.markers
 @pytest.mark.complex
+@pytest.mark.skipif(
+    sys.version_info[:2] == (3, 8), reason="Test package that gets installed is different on 3.8"
+)
 def test_resolver_unique_markers(pipenv_instance_pypi):
-    """vcrpy has a dependency on `yarl` which comes with a marker
-    of 'python version in "3.4, 3.5, 3.6" - this marker duplicates itself:
+    """Test that markers are properly cleaned and not duplicated when resolving
+    dependencies. Use vcrpy as an example package that pulls in dependencies
+    with Python version markers.
 
-    'yarl; python version in "3.4, 3.5, 3.6"; python version in "3.4, 3.5, 3.6"'
+    This test verifies that even if a package ends up with duplicate markers like:
+    'yarl; python_version >= "3.9"; python_version >= "3.9"'
 
-    This verifies that we clean that successfully.
+    The resolver will clean and deduplicate them appropriately.
     """
     with pipenv_instance_pypi() as p:
         c = p.pipenv("install vcrpy==2.0.1")
@@ -148,12 +154,9 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
         assert "yarl" in p.lockfile["default"]
         yarl = p.lockfile["default"]["yarl"]
         assert "markers" in yarl
-        # Two possible marker sets are ok here
-        assert yarl["markers"] in [
-            "python_version in '3.4, 3.5, 3.6'",
-            "python_version >= '3.4'",
-            "python_version >= '3.5'",  # yarl 1.3.0 requires python 3.5.3
-        ]
+        # Check for a valid Python version marker
+        # yarl >=1.16.0 (Oct 2024) requires Python >=3.9
+        assert yarl["markers"] == "python_version >= '3.9'"
 
 
 @flaky

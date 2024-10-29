@@ -255,7 +255,7 @@ requests = {version = "*", extras = ["socks"]}
         assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
         assert "pysocks" in p.lockfile["default"]
-        assert "markers" not in p.lockfile["default"]["pysocks"]
+        assert "markers" in p.lockfile["default"]["pysocks"]
 
         c = p.pipenv("lock")
         assert c.returncode == 0
@@ -558,7 +558,7 @@ def test_lock_nested_vcs_direct_url(pipenv_instance_pypi):
                 "subdirectory": "parent_folder/pep508-package",
             },
         )
-        c = p.pipenv("lock")
+        c = p.pipenv("lock -v")
         assert c.returncode == 0
         assert "git" in p.lockfile["default"]["pep508-package"]
         assert "sibling-package" in p.lockfile["default"]
@@ -588,7 +588,7 @@ def test_lock_package_with_compatible_release_specifier(pipenv_instance_private_
 @pytest.mark.install
 def test_default_lock_overwrite_dev_lock(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("install 'click==6.7'")
+        c = p.pipenv("install click==6.7")
         assert c.returncode == 0
         c = p.pipenv("install -d flask")
         assert c.returncode == 0

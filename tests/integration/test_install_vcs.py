@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import pytest
 
@@ -43,3 +44,30 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
         # Verify that the package is installed and usable
         c = p.pipenv("run python -c \"import dataclass_factory\"")
         assert c.returncode == 0, f"Failed to import library: {c.stderr}"
+
+
+@pytest.mark.vcs
+@pytest.mark.urls
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_vcs_ref_by_commit_hash(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        c = p.pipenv("install -e git+https://github.com/benjaminp/six.git@5efb522b0647f7467248273ec1b893d06b984a59#egg=six")
+        assert c.returncode == 0
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
+        assert (
+            p.lockfile["default"]["six"]["ref"]
+            == "5efb522b0647f7467248273ec1b893d06b984a59"
+        )
+        pipfile = Path(p.pipfile_path)
+        new_content = pipfile.read_text().replace("5efb522b0647f7467248273ec1b893d06b984a59", "15e31431af97e5e64b80af0a3f598d382bcdd49a")
+        pipfile.write_text(new_content)
+        c = p.pipenv("lock")
+        assert c.returncode == 0
+        assert (
+            p.lockfile["default"]["six"]["ref"]
+            == "15e31431af97e5e64b80af0a3f598d382bcdd49a"
+        )
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]

@@ -193,7 +193,7 @@ def requirement_from_lockfile(
                 pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}{extras}"
                 pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
-                pip_line = f"{package_name}{extras}@ {include_vcs}{vcs_url}{ref_str}"
+                pip_line = f"{package_name}{extras} @ {include_vcs}{vcs_url}{ref_str}"
                 pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
             return pip_line
     # Handling file-sourced packages
@@ -212,7 +212,7 @@ def requirement_from_lockfile(
             return pip_line
 
     # Handling packages from standard pypi like indexes
-    version = package_info.get("version", "").replace("==", "")
+    version = package_info.get("version", "")
     hashes = (
         f" --hash={' --hash='.join(package_info['hashes'])}"
         if include_hashes and "hashes" in package_info
@@ -223,7 +223,7 @@ def requirement_from_lockfile(
         if "extras" in package_info
         else ""
     )
-    pip_line = f"{package_name}{extras}=={version}{os_markers}{markers}{hashes}"
+    pip_line = f"{package_name}{extras}{version}{os_markers}{markers}{hashes}"
     return pip_line
 
 

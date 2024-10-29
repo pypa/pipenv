@@ -1,6 +1,5 @@
 import os
 import sys
-from functools import lru_cache
 from typing import Optional
 
 from pipenv import exceptions
@@ -32,7 +31,7 @@ def ensure_project(
     skip_requirements=False,
     pypi_mirror=None,
     clear=False,
-    categories=None,
+    pipfile_categories=None,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
@@ -92,12 +91,11 @@ def ensure_project(
         validate=validate,
         skip_requirements=skip_requirements,
         system=system,
-        categories=categories,
+        pipfile_categories=pipfile_categories,
     )
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
 
 
-@lru_cache
 def get_setuptools_version() -> Optional["STRING_TYPE"]:
     try:
         setuptools_dist = importlib_metadata.distribution("setuptools")

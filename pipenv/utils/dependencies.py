@@ -87,22 +87,18 @@ def clean_pkg_version(version):
 
 def get_lockfile_section_using_pipfile_category(category):
     if category == "dev-packages":
-        lockfile_section = "develop"
+        return "develop"
     elif category == "packages":
-        lockfile_section = "default"
-    else:
-        lockfile_section = category
-    return lockfile_section
+        return "default"
+    return category
 
 
 def get_pipfile_category_using_lockfile_section(category):
     if category == "develop":
-        lockfile_section = "dev-packages"
+        return "dev-packages"
     elif category == "default":
-        lockfile_section = "packages"
-    else:
-        lockfile_section = category
-    return lockfile_section
+        return "packages"
+    return category
 
 
 class HackedPythonVersion:
@@ -485,7 +481,7 @@ def dependency_as_pip_install_line(
         else:
             if "#egg=" in vcs_url:
                 vcs_url = vcs_url.split("#egg=")[0]
-            git_req = f"{dep_name}{extras}@ {include_vcs}{vcs_url}{ref}"
+            git_req = f"{dep_name}{extras} @ {include_vcs}{vcs_url}{ref}"
             if "subdirectory" in dep:
                 git_req += f"#subdirectory={dep['subdirectory']}"
 
@@ -780,7 +776,7 @@ def determine_package_name(package: InstallRequirement):
     elif "#egg=" in str(package):
         req_name = str(package).split("#egg=")[1]
         req_name = req_name.split("[")[0]
-    elif "@ " in str(package):
+    elif " @ " in str(package):
         req_name = str(package).split("@ ")[0]
         req_name = req_name.split("[")[0]
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
