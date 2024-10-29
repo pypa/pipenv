@@ -351,3 +351,35 @@ six = {}
         assert c.returncode == 0
         c = p.pipenv('run python -c "import six"')
         assert c.returncode == 0
+
+
+@pytest.mark.install
+@pytest.mark.skip_lock
+def test_skip_lock_installs_correct_version(pipenv_instance_pypi):
+    """Ensure --skip-lock installs the exact version specified in Pipfile."""
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+gunicorn = "==20.0.2"
+            """.strip()
+            f.write(contents)
+
+        # Install with --skip-lock
+        c = p.pipenv("install --skip-lock")
+        assert c.returncode == 0
+
+        # Verify installed version matches Pipfile specification
+        c = p.pipenv("run pip freeze")
+        assert c.returncode == 0
+
+        # Find gunicorn in pip freeze output
+        packages = [line.strip() for line in c.stdout.split("\n")]
+        gunicorn_line = next(line for line in packages if line.startswith("gunicorn"))
+
+        assert gunicorn_line == "gunicorn==20.0.2"
