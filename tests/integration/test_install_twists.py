@@ -351,3 +351,72 @@ six = {}
         assert c.returncode == 0
         c = p.pipenv('run python -c "import six"')
         assert c.returncode == 0
+
+
+@pytest.mark.install
+@pytest.mark.skip_lock
+def test_skip_lock_installs_correct_version(pipenv_instance_pypi):
+    """Ensure --skip-lock installs the exact version specified in Pipfile."""
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+gunicorn = "==20.0.2"
+            """.strip()
+            f.write(contents)
+
+        # Install with --skip-lock
+        c = p.pipenv("install --skip-lock")
+        assert c.returncode == 0
+
+        # Verify installed version matches Pipfile specification
+        c = p.pipenv("run pip freeze")
+        assert c.returncode == 0
+
+        # Find gunicorn in pip freeze output
+        packages = [line.strip() for line in c.stdout.split("\n")]
+        gunicorn_line = next(line for line in packages if line.startswith("gunicorn"))
+
+        assert gunicorn_line == "gunicorn==20.0.2"
+
+
+@pytest.mark.install
+@pytest.mark.skip_lock
+def test_skip_lock_respects_markers(pipenv_instance_pypi):
+    """Ensure --skip-lock correctly handles packages with markers."""
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+# Use python version markers since they're platform-independent
+simplejson = {version = "==3.17.2", markers = "python_version < '4'"}
+urllib3 = {version = "==1.26.6", markers = "python_version < '2'"}
+            """.strip()
+            f.write(contents)
+
+        # Install with --skip-lock
+        c = p.pipenv("install --skip-lock")
+        assert c.returncode == 0
+
+        # Verify installed versions match markers
+        c = p.pipenv("run pip freeze")
+        assert c.returncode == 0
+        packages = [line.strip() for line in c.stdout.split("\n")]
+
+        # simplejson should be installed (python_version < '4' is always True for Python 3.x)
+        simplejson_line = next((line for line in packages if line.startswith("simplejson")), None)
+        assert simplejson_line == "simplejson==3.17.2"
+
+        # urllib3 should not be installed (python_version < '2' is always False for Python 3.x)
+        urllib3_line = next((line for line in packages if line.startswith("urllib3")), None)
+        assert urllib3_line is None
