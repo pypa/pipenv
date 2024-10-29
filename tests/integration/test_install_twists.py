@@ -398,8 +398,9 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-colorama = {version = "==0.4.6", markers = "sys_platform == 'win32'"}
-gunicorn = {version = "==20.0.2", markers = "sys_platform == 'linux'"}
+# Use python version markers since they're platform-independent
+simplejson = {version = "==3.17.2", markers = "python_version < '4'"}
+urllib3 = {version = "==1.26.6", markers = "python_version < '2'"}
             """.strip()
             f.write(contents)
 
@@ -407,21 +408,15 @@ gunicorn = {version = "==20.0.2", markers = "sys_platform == 'linux'"}
         c = p.pipenv("install --skip-lock")
         assert c.returncode == 0
 
-        # Verify installed versions match platform requirements
+        # Verify installed versions match markers
         c = p.pipenv("run pip freeze")
         assert c.returncode == 0
         packages = [line.strip() for line in c.stdout.split("\n")]
 
-        import sys
-        if sys.platform == "win32":
-            # Should have colorama but not gunicorn on Windows
-            colorama_line = next((line for line in packages if line.startswith("colorama")), None)
-            gunicorn_line = next((line for line in packages if line.startswith("gunicorn")), None)
-            assert colorama_line == "colorama==0.4.6"
-            assert gunicorn_line is None
-        else:
-            # Should have gunicorn but not colorama on Linux
-            colorama_line = next((line for line in packages if line.startswith("colorama")), None)
-            gunicorn_line = next((line for line in packages if line.startswith("gunicorn")), None)
-            assert colorama_line is None
-            assert gunicorn_line == "gunicorn==20.0.2"
+        # simplejson should be installed (python_version < '4' is always True for Python 3.x)
+        simplejson_line = next((line for line in packages if line.startswith("simplejson")), None)
+        assert simplejson_line == "simplejson==3.17.2"
+
+        # urllib3 should not be installed (python_version < '2' is always False for Python 3.x)
+        urllib3_line = next((line for line in packages if line.startswith("urllib3")), None)
+        assert urllib3_line is None
