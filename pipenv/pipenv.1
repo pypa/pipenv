@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Oct 22, 2024" "2024.2.0" "pipenv"
+.TH "PIPENV" "1" "Oct 29, 2024" "2024.3.0" "pipenv"
 .sp
 \fBNOTE:\fP
 .INDENT 0.0
@@ -42,55 +42,49 @@ from your command line. You can check this by simply running
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ python \-\-version
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
 You should get some output like \fB3.12.1\fP\&. If you do not have Python, please
-install the latest 3.x version from \fI\%python.org\fP
+install the latest 3.x version from \X'tty: link https://python.org'\fI\%python.org\fP\X'tty: link'
 .sp
-Additionally, make sure you have \fI\%pip\fP available, assuming you install via pip, our preferred method of installation.
+Additionally, make sure you have \X'tty: link https://pypi.org/project/pip/'\fI\%pip\fP\X'tty: link' available, assuming you install via pip, our preferred method of installation.
 Check this by running
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ pip \-\-version
 pip 24.0
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
-If you installed Python from source, with an installer from \fI\%python.org\fP or via \fI\%Homebrew\fP, you likely already have pip.
-If you’re on Linux and installed using your OS package manager, you may have to \fI\%install pip\fP manually.
+If you installed Python from source, with an installer from \X'tty: link https://python.org'\fI\%python.org\fP\X'tty: link' or via \X'tty: link https://brew.sh/'\fI\%Homebrew\fP\X'tty: link', you likely already have pip.
+If you’re on Linux and installed using your OS package manager, you may have to \X'tty: link https://pip.pypa.io/en/stable/installing/'\fI\%install pip\fP\X'tty: link' manually.
 .SH INSTALLING PIPENV
 .SS Preferred Installation of Pipenv
 .sp
-It is recommended that users on most platforms install pipenv from \fI\%pypi.org\fP using
+It is recommended that users on most platforms install pipenv from \X'tty: link https://pypi.org'\fI\%pypi.org\fP\X'tty: link' using
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ pip install pipenv \-\-user
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
 \fBNOTE:\fP
 .INDENT 0.0
 .INDENT 3.5
-pip \fI\%user installations\fP allow for installation into your home directory to prevent breaking any system\-wide packages.
+pip \X'tty: link https://pip.pypa.io/en/stable/user_guide/#user-installs'\fI\%user installations\fP\X'tty: link' allow for installation into your home directory to prevent breaking any system\-wide packages.
 Due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow such as virtualenv, pipenv, tox, and similar software.
 .UNINDENT
 .UNINDENT
@@ -98,12 +92,12 @@ Due to interaction between dependencies, you should limit tools installed in thi
 If \fBpipenv\fP isn’t available in your shell after installation,
 you’ll need to add the user site\-packages binary directory to your \fBPATH\fP\&.
 .sp
-On Linux and macOS you can find the \fI\%user base\fP binary directory by running
+On Linux and macOS you can find the \X'tty: link https://docs.python.org/3/library/site.html#site.USER_BASE'\fI\%user base\fP\X'tty: link' binary directory by running
 \fBpython \-m site \-\-user\-base\fP and appending \fBbin\fP to the end. For example,
 this will typically print \fB~/.local\fP (with \fB~\fP expanded to the
 absolute path to your home directory), so you’ll need to add
 \fB~/.local/bin\fP to your \fBPATH\fP\&. You can set your \fBPATH\fP permanently by
-\fI\%modifying ~/.profile\fP\&.
+\X'tty: link https://stackoverflow.com/a/14638025'\fI\%modifying ~/.profile\fP\X'tty: link'\&.
 .sp
 On Windows you can find the user base binary directory by running
 \fBpython \-m site \-\-user\-site\fP and replacing \fBsite\-packages\fP with
@@ -111,7 +105,7 @@ On Windows you can find the user base binary directory by running
 \fBC:\eUsers\eUsername\eAppData\eRoaming\ePython37\esite\-packages\fP, so you would
 need to set your \fBPATH\fP to include
 \fBC:\eUsers\eUsername\eAppData\eRoaming\ePython37\eScripts\fP\&. You can set your
-user \fBPATH\fP permanently in the \fI\%Control Panel\fP\&.
+user \fBPATH\fP permanently in the \X'tty: link https://learn.microsoft.com/en-us/windows/win32/shell/user-environment-variables'\fI\%Control Panel\fP\X'tty: link'\&.
 .sp
 You may need to log out for the \fBPATH\fP changes to take effect.
 .sp
@@ -119,30 +113,26 @@ To upgrade pipenv at any time:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ pip install \-\-user \-\-upgrade pipenv
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SS Homebrew Installation of Pipenv
 .INDENT 0.0
 .IP \(bu 2
-\fI\%Homebrew\fP is a popular open\-source package management system for macOS (or Linux).
+\X'tty: link https://brew.sh/'\fI\%Homebrew\fP\X'tty: link' is a popular open\-source package management system for macOS (or Linux).
 .UNINDENT
 .sp
 Once you have installed Homebrew simply run
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ brew install pipenv
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -150,12 +140,10 @@ To upgrade pipenv at any time:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ brew upgrade pipenv
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -173,13 +161,11 @@ tutorial) and run
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ cd myproject
 $ pipenv install <package>
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -202,8 +188,7 @@ For example when installing the \fBrequests\fP library, you should get output si
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ pipenv install requests
 Creating a virtualenv for this project...
 Pipfile: /home/matteius/pipenv\-triage/test_install2/Pipfile
@@ -232,8 +217,7 @@ To activate this project\(aqs virtualenv, run pipenv shell.
 Alternatively, run a command inside the virtualenv with pipenv run.
 Installing dependencies from Pipfile.lock (18b4fb)...
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .SH USING INSTALLED PACKAGES
@@ -242,15 +226,13 @@ Now that \fBrequests\fP is installed you can create a simple \fBmain.py\fP file 
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 import requests
 
 response = requests.get(\(aqhttps://httpbin.org/ip\(aq)
 print(\(aqYour IP is {0}\(aq.format(response.json()[\(aqorigin\(aq]))
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -258,12 +240,10 @@ Then you can run this script using \fBpipenv run\fP
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 $ pipenv run python main.py
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp
@@ -271,12 +251,10 @@ You should get output similar to this:
 .INDENT 0.0
 .INDENT 3.5
 .sp
-.nf
-.ft C
+.EX
 Your IP is 8.8.8.8
 
-.ft P
-.fi
+.EE
 .UNINDENT
 .UNINDENT
 .sp

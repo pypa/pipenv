@@ -1,3 +1,31 @@
+2024.2.0 (2024-10-29)
+=====================
+Pipenv 2024.2.0 (2024-10-29)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix dependency resolution edge cases and versioning constraints handling:
+  * Allow JSON format options for ``--reverse`` dependency graph output matching pipdeptree
+  * Improve installation and upgrade routines to better handle dependencies
+  * Add ability to specify json output as pipdeptree does
+  * Add more consistent handling of VCS dependencies and references
+  * Fix synchronization of development and default dependencies during updates
+  * Ensure proper propagation of version constraints during updates
+  * Fix handling of ``~=`` and other version specifiers during updates
+
+  Key Changes:
+  * Improved reverse dependency analysis to catch conflicts earlier in resolution
+  * Better handling of VCS package lock data, preserving refs and subdirectories
+  * Fixed issue where VCS references could be lost in lock file when installed via commit hash
+  * Better handling of pipfile categories during installation and updates
+  * Corrected logic for development dependency resolution and constraint propagation
+  * Improved validation and preservation of version specifiers during updates
+
+  This improves stability when working with complex dependency trees and version constraints.  `#6281 <https://github.com/pypa/pipenv/issues/6281>`_
+- Fixes issue with --skip-lock not providing pip the proper package specifier when version was a string (issue did not impact dict with version key).  `#6288 <https://github.com/pypa/pipenv/issues/6288>`_
 2024.2.0 (2024-10-22)
 =====================
 Pipenv 2024.2.0 (2024-10-22)

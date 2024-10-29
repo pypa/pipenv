@@ -1,1 +1,0 @@
-Fixes issue with --skip-lock not providing pip the proper package specifier when version was a string (issue did not impact dict with version key).
