@@ -383,3 +383,45 @@ gunicorn = "==20.0.2"
         gunicorn_line = next(line for line in packages if line.startswith("gunicorn"))
 
         assert gunicorn_line == "gunicorn==20.0.2"
+
+
+@pytest.mark.install
+@pytest.mark.skip_lock
+def test_skip_lock_respects_markers(pipenv_instance_pypi):
+    """Ensure --skip-lock correctly handles packages with markers."""
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+colorama = {version = "==0.4.6", markers = "sys_platform == 'win32'"}
+gunicorn = {version = "==20.0.2", markers = "sys_platform == 'linux'"}
+            """.strip()
+            f.write(contents)
+
+        # Install with --skip-lock
+        c = p.pipenv("install --skip-lock")
+        assert c.returncode == 0
+
+        # Verify installed versions match platform requirements
+        c = p.pipenv("run pip freeze")
+        assert c.returncode == 0
+        packages = [line.strip() for line in c.stdout.split("\n")]
+
+        import sys
+        if sys.platform == "win32":
+            # Should have colorama but not gunicorn on Windows
+            colorama_line = next((line for line in packages if line.startswith("colorama")), None)
+            gunicorn_line = next((line for line in packages if line.startswith("gunicorn")), None)
+            assert colorama_line == "colorama==0.4.6"
+            assert gunicorn_line is None
+        else:
+            # Should have gunicorn but not colorama on Linux
+            colorama_line = next((line for line in packages if line.startswith("colorama")), None)
+            gunicorn_line = next((line for line in packages if line.startswith("gunicorn")), None)
+            assert colorama_line is None
+            assert gunicorn_line == "gunicorn==20.0.2"
