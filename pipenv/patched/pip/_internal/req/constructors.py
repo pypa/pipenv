@@ -80,7 +80,7 @@ def _set_requirement_extras(req: Requirement, new_extras: Set[str]) -> Requireme
     assert (
         pre is not None and post is not None
     ), f"regex group selection for requirement {req} failed, this should never happen"
-    extras: str = "[%s]" % ",".join(sorted(new_extras)) if new_extras else ""
+    extras: str = "[{}]".format(",".join(sorted(new_extras)) if new_extras else "")
     return get_requirement(f"{pre}{extras}{post}")
 
 

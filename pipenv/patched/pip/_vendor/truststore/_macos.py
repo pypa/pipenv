@@ -25,6 +25,8 @@ if _mac_version_info < (10, 8):
         f"Only OS X 10.8 and newer are supported, not {_mac_version_info[0]}.{_mac_version_info[1]}"
     )
 
+_is_macos_version_10_14_or_later = _mac_version_info >= (10, 14)
+
 
 def _load_cdll(name: str, macos10_16_path: str) -> CDLL:
     """Loads a CDLL by name, falling back to known path on 10.16+"""
@@ -115,6 +117,12 @@ try:
     ]
     Security.SecTrustGetTrustResult.restype = OSStatus
 
+    Security.SecTrustEvaluate.argtypes = [
+        SecTrustRef,
+        POINTER(SecTrustResultType),
+    ]
+    Security.SecTrustEvaluate.restype = OSStatus
+
     Security.SecTrustRef = SecTrustRef  # type: ignore[attr-defined]
     Security.SecTrustResultType = SecTrustResultType  # type: ignore[attr-defined]
     Security.OSStatus = OSStatus  # type: ignore[attr-defined]
@@ -197,8 +205,19 @@ try:
     CoreFoundation.CFStringRef = CFStringRef  # type: ignore[attr-defined]
     CoreFoundation.CFErrorRef = CFErrorRef  # type: ignore[attr-defined]
 
-except AttributeError:
-    raise ImportError("Error initializing ctypes") from None
+except AttributeError as e:
+    raise ImportError(f"Error initializing ctypes: {e}") from None
+
+# SecTrustEvaluateWithError is macOS 10.14+
+if _is_macos_version_10_14_or_later:
+    try:
+        Security.SecTrustEvaluateWithError.argtypes = [
+            SecTrustRef,
+            POINTER(CFErrorRef),
+        ]
+        Security.SecTrustEvaluateWithError.restype = c_bool
+    except AttributeError as e:
+        raise ImportError(f"Error initializing ctypes: {e}") from None
 
 
 def _handle_osstatus(result: OSStatus, _: typing.Any, args: typing.Any) -> typing.Any:
@@ -258,6 +277,7 @@ Security.SecTrustCreateWithCertificates.errcheck = _handle_osstatus  # type: ign
 Security.SecTrustSetAnchorCertificates.errcheck = _handle_osstatus  # type: ignore[assignment]
 Security.SecTrustSetAnchorCertificatesOnly.errcheck = _handle_osstatus  # type: ignore[assignment]
 Security.SecTrustGetTrustResult.errcheck = _handle_osstatus  # type: ignore[assignment]
+Security.SecTrustEvaluate.errcheck = _handle_osstatus  # type: ignore[assignment]
 
 
 class CFConst:
@@ -365,9 +385,10 @@ def _verify_peercerts_impl(
     certs = None
     policies = None
     trust = None
-    cf_error = None
     try:
-        if server_hostname is not None:
+        # Only set a hostname on the policy if we're verifying the hostname
+        # on the leaf certificate.
+        if server_hostname is not None and ssl_context.check_hostname:
             cf_str_hostname = None
             try:
                 cf_str_hostname = _bytes_to_cf_string(server_hostname.encode("ascii"))
@@ -431,69 +452,120 @@ def _verify_peercerts_impl(
         # We always want system certificates.
         Security.SecTrustSetAnchorCertificatesOnly(trust, False)
 
-        cf_error = CoreFoundation.CFErrorRef()
-        sec_trust_eval_result = Security.SecTrustEvaluateWithError(
-            trust, ctypes.byref(cf_error)
-        )
-        # sec_trust_eval_result is a bool (0 or 1)
-        # where 1 means that the certs are trusted.
-        if sec_trust_eval_result == 1:
-            is_trusted = True
-        elif sec_trust_eval_result == 0:
-            is_trusted = False
+        # macOS 10.13 and earlier don't support SecTrustEvaluateWithError()
+        # so we use SecTrustEvaluate() which means we need to construct error
+        # messages ourselves.
+        if _is_macos_version_10_14_or_later:
+            _verify_peercerts_impl_macos_10_14(ssl_context, trust)
         else:
-            raise ssl.SSLError(
-                f"Unknown result from Security.SecTrustEvaluateWithError: {sec_trust_eval_result!r}"
-            )
-
-        cf_error_code = 0
-        if not is_trusted:
-            cf_error_code = CoreFoundation.CFErrorGetCode(cf_error)
-
-            # If the error is a known failure that we're
-            # explicitly okay with from SSLContext configuration
-            # we can set is_trusted accordingly.
-            if ssl_context.verify_mode != ssl.CERT_REQUIRED and (
-                cf_error_code == CFConst.errSecNotTrusted
-                or cf_error_code == CFConst.errSecCertificateExpired
-            ):
-                is_trusted = True
-            elif (
-                not ssl_context.check_hostname
-                and cf_error_code == CFConst.errSecHostNameMismatch
-            ):
-                is_trusted = True
-
-        # If we're still not trusted then we start to
-        # construct and raise the SSLCertVerificationError.
-        if not is_trusted:
-            cf_error_string_ref = None
-            try:
-                cf_error_string_ref = CoreFoundation.CFErrorCopyDescription(cf_error)
-
-                # Can this ever return 'None' if there's a CFError?
-                cf_error_message = (
-                    _cf_string_ref_to_str(cf_error_string_ref)
-                    or "Certificate verification failed"
-                )
-
-                # TODO: Not sure if we need the SecTrustResultType for anything?
-                # We only care whether or not it's a success or failure for now.
-                sec_trust_result_type = Security.SecTrustResultType()
-                Security.SecTrustGetTrustResult(
-                    trust, ctypes.byref(sec_trust_result_type)
-                )
-
-                err = ssl.SSLCertVerificationError(cf_error_message)
-                err.verify_message = cf_error_message
-                err.verify_code = cf_error_code
-                raise err
-            finally:
-                if cf_error_string_ref:
-                    CoreFoundation.CFRelease(cf_error_string_ref)
-
+            _verify_peercerts_impl_macos_10_13(ssl_context, trust)
     finally:
         if policies:
             CoreFoundation.CFRelease(policies)
         if trust:
             CoreFoundation.CFRelease(trust)
+
+
+def _verify_peercerts_impl_macos_10_13(
+    ssl_context: ssl.SSLContext, sec_trust_ref: typing.Any
+) -> None:
+    """Verify using 'SecTrustEvaluate' API for macOS 10.13 and earlier.
+    macOS 10.14 added the 'SecTrustEvaluateWithError' API.
+    """
+    sec_trust_result_type = Security.SecTrustResultType()
+    Security.SecTrustEvaluate(sec_trust_ref, ctypes.byref(sec_trust_result_type))
+
+    try:
+        sec_trust_result_type_as_int = int(sec_trust_result_type.value)
+    except (ValueError, TypeError):
+        sec_trust_result_type_as_int = -1
+
+    # Apple doesn't document these values in their own API docs.
+    # See: https://github.com/xybp888/iOS-SDKs/blob/master/iPhoneOS13.0.sdk/System/Library/Frameworks/Security.framework/Headers/SecTrust.h#L84
+    if (
+        ssl_context.verify_mode == ssl.CERT_REQUIRED
+        and sec_trust_result_type_as_int not in (1, 4)
+    ):
+        # Note that we're not able to ignore only hostname errors
+        # for macOS 10.13 and earlier, so check_hostname=False will
+        # still return an error.
+        sec_trust_result_type_to_message = {
+            0: "Invalid trust result type",
+            # 1: "Trust evaluation succeeded",
+            2: "User confirmation required",
+            3: "User specified that certificate is not trusted",
+            # 4: "Trust result is unspecified",
+            5: "Recoverable trust failure occurred",
+            6: "Fatal trust failure occurred",
+            7: "Other error occurred, certificate may be revoked",
+        }
+        error_message = sec_trust_result_type_to_message.get(
+            sec_trust_result_type_as_int,
+            f"Unknown trust result: {sec_trust_result_type_as_int}",
+        )
+
+        err = ssl.SSLCertVerificationError(error_message)
+        err.verify_message = error_message
+        err.verify_code = sec_trust_result_type_as_int
+        raise err
+
+
+def _verify_peercerts_impl_macos_10_14(
+    ssl_context: ssl.SSLContext, sec_trust_ref: typing.Any
+) -> None:
+    """Verify using 'SecTrustEvaluateWithError' API for macOS 10.14+."""
+    cf_error = CoreFoundation.CFErrorRef()
+    sec_trust_eval_result = Security.SecTrustEvaluateWithError(
+        sec_trust_ref, ctypes.byref(cf_error)
+    )
+    # sec_trust_eval_result is a bool (0 or 1)
+    # where 1 means that the certs are trusted.
+    if sec_trust_eval_result == 1:
+        is_trusted = True
+    elif sec_trust_eval_result == 0:
+        is_trusted = False
+    else:
+        raise ssl.SSLError(
+            f"Unknown result from Security.SecTrustEvaluateWithError: {sec_trust_eval_result!r}"
+        )
+
+    cf_error_code = 0
+    if not is_trusted:
+        cf_error_code = CoreFoundation.CFErrorGetCode(cf_error)
+
+        # If the error is a known failure that we're
+        # explicitly okay with from SSLContext configuration
+        # we can set is_trusted accordingly.
+        if ssl_context.verify_mode != ssl.CERT_REQUIRED and (
+            cf_error_code == CFConst.errSecNotTrusted
+            or cf_error_code == CFConst.errSecCertificateExpired
+        ):
+            is_trusted = True
+
+    # If we're still not trusted then we start to
+    # construct and raise the SSLCertVerificationError.
+    if not is_trusted:
+        cf_error_string_ref = None
+        try:
+            cf_error_string_ref = CoreFoundation.CFErrorCopyDescription(cf_error)
+
+            # Can this ever return 'None' if there's a CFError?
+            cf_error_message = (
+                _cf_string_ref_to_str(cf_error_string_ref)
+                or "Certificate verification failed"
+            )
+
+            # TODO: Not sure if we need the SecTrustResultType for anything?
+            # We only care whether or not it's a success or failure for now.
+            sec_trust_result_type = Security.SecTrustResultType()
+            Security.SecTrustGetTrustResult(
+                sec_trust_ref, ctypes.byref(sec_trust_result_type)
+            )
+
+            err = ssl.SSLCertVerificationError(cf_error_message)
+            err.verify_message = cf_error_message
+            err.verify_code = cf_error_code
+            raise err
+        finally:
+            if cf_error_string_ref:
+                CoreFoundation.CFRelease(cf_error_string_ref)

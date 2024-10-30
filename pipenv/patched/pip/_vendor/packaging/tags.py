@@ -25,7 +25,7 @@ from . import _manylinux, _musllinux
 logger = logging.getLogger(__name__)
 
 PythonVersion = Sequence[int]
-MacVersion = Tuple[int, int]
+AppleVersion = Tuple[int, int]
 
 INTERPRETER_SHORT_NAMES: dict[str, str] = {
     "python": "py",  # Generic.
@@ -363,7 +363,7 @@ def _mac_arch(arch: str, is_32bit: bool = _32_BIT_INTERPRETER) -> str:
     return "i386"
 
 
-def _mac_binary_formats(version: MacVersion, cpu_arch: str) -> list[str]:
+def _mac_binary_formats(version: AppleVersion, cpu_arch: str) -> list[str]:
     formats = [cpu_arch]
     if cpu_arch == "x86_64":
         if version < (10, 4):
@@ -396,7 +396,7 @@ def _mac_binary_formats(version: MacVersion, cpu_arch: str) -> list[str]:
 
 
 def mac_platforms(
-    version: MacVersion | None = None, arch: str | None = None
+    version: AppleVersion | None = None, arch: str | None = None
 ) -> Iterator[str]:
     """
     Yields the platform tags for a macOS system.
@@ -408,7 +408,7 @@ def mac_platforms(
     """
     version_str, _, cpu_arch = platform.mac_ver()
     if version is None:
-        version = cast("MacVersion", tuple(map(int, version_str.split(".")[:2])))
+        version = cast("AppleVersion", tuple(map(int, version_str.split(".")[:2])))
         if version == (10, 16):
             # When built against an older macOS SDK, Python will report macOS 10.16
             # instead of the real version.
@@ -424,7 +424,7 @@ def mac_platforms(
                 stdout=subprocess.PIPE,
                 text=True,
             ).stdout
-            version = cast("MacVersion", tuple(map(int, version_str.split(".")[:2])))
+            version = cast("AppleVersion", tuple(map(int, version_str.split(".")[:2])))
     else:
         version = version
     if arch is None:
@@ -483,6 +483,63 @@ def mac_platforms(
                 )
 
 
+def ios_platforms(
+    version: AppleVersion | None = None, multiarch: str | None = None
+) -> Iterator[str]:
+    """
+    Yields the platform tags for an iOS system.
+
+    :param version: A two-item tuple specifying the iOS version to generate
+        platform tags for. Defaults to the current iOS version.
+    :param multiarch: The CPU architecture+ABI to generate platform tags for -
+        (the value used by `sys.implementation._multiarch` e.g.,
+        `arm64_iphoneos` or `x84_64_iphonesimulator`). Defaults to the current
+        multiarch value.
+    """
+    if version is None:
+        # if iOS is the current platform, ios_ver *must* be defined. However,
+        # it won't exist for CPython versions before 3.13, which causes a mypy
+        # error.
+        _, release, _, _ = platform.ios_ver()  # type: ignore[attr-defined]
+        version = cast("AppleVersion", tuple(map(int, release.split(".")[:2])))
+
+    if multiarch is None:
+        multiarch = sys.implementation._multiarch
+    multiarch = multiarch.replace("-", "_")
+
+    ios_platform_template = "ios_{major}_{minor}_{multiarch}"
+
+    # Consider any iOS major.minor version from the version requested, down to
+    # 12.0. 12.0 is the first iOS version that is known to have enough features
+    # to support CPython. Consider every possible minor release up to X.9. There
+    # highest the minor has ever gone is 8 (14.8 and 15.8) but having some extra
+    # candidates that won't ever match doesn't really hurt, and it saves us from
+    # having to keep an explicit list of known iOS versions in the code. Return
+    # the results descending order of version number.
+
+    # If the requested major version is less than 12, there won't be any matches.
+    if version[0] < 12:
+        return
+
+    # Consider the actual X.Y version that was requested.
+    yield ios_platform_template.format(
+        major=version[0], minor=version[1], multiarch=multiarch
+    )
+
+    # Consider every minor version from X.0 to the minor version prior to the
+    # version requested by the platform.
+    for minor in range(version[1] - 1, -1, -1):
+        yield ios_platform_template.format(
+            major=version[0], minor=minor, multiarch=multiarch
+        )
+
+    for major in range(version[0] - 1, 11, -1):
+        for minor in range(9, -1, -1):
+            yield ios_platform_template.format(
+                major=major, minor=minor, multiarch=multiarch
+            )
+
+
 def _linux_platforms(is_32bit: bool = _32_BIT_INTERPRETER) -> Iterator[str]:
     linux = _normalize_string(sysconfig.get_platform())
     if not linux.startswith("linux_"):
@@ -512,6 +569,8 @@ def platform_tags() -> Iterator[str]:
     """
     if platform.system() == "Darwin":
         return mac_platforms()
+    elif platform.system() == "iOS":
+        return ios_platforms()
     elif platform.system() == "Linux":
         return _linux_platforms()
     else:

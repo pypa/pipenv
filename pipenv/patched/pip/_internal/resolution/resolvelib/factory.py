@@ -23,13 +23,14 @@ from typing import (
 from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import Version
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
 
 from pipenv.patched.pip._internal.cache import CacheEntry, WheelCache
 from pipenv.patched.pip._internal.exceptions import (
     DistributionNotFound,
     InstallationError,
+    InvalidInstalledPackage,
     MetadataInconsistent,
     MetadataInvalid,
     UnsupportedPythonVersion,
@@ -283,10 +284,15 @@ class Factory:
                 installed_dist = self._installed_dists[name]
             except KeyError:
                 return None
-            # Don't use the installed distribution if its version does not fit
-            # the current dependency graph.
-            if not specifier.contains(installed_dist.version, prereleases=True):
-                return None
+
+            try:
+                # Don't use the installed distribution if its version
+                # does not fit the current dependency graph.
+                if not specifier.contains(installed_dist.version, prereleases=True):
+                    return None
+            except InvalidVersion as e:
+                raise InvalidInstalledPackage(dist=installed_dist, invalid_exc=e)
+
             candidate = self._make_candidate_from_dist(
                 dist=installed_dist,
                 extras=extras,

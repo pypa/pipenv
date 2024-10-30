@@ -21,7 +21,7 @@ from distutils.cmd import Command as DistutilsCommand
 from distutils.command.install import SCHEME_KEYS
 from distutils.command.install import install as distutils_install_command
 from distutils.sysconfig import get_python_lib
-from typing import Dict, List, Optional, Union, cast
+from typing import Dict, List, Optional, Union
 
 from pipenv.patched.pip._internal.models.scheme import Scheme
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
@@ -64,7 +64,7 @@ def distutils_scheme(
     obj: Optional[DistutilsCommand] = None
     obj = d.get_command_obj("install", create=True)
     assert obj is not None
-    i = cast(distutils_install_command, obj)
+    i: distutils_install_command = obj
     # NOTE: setting user or home has the side-effect of creating the home dir
     # or user base for installations during finalize_options()
     # ideally, we'd prefer a scheme class that has no side-effects.
@@ -78,7 +78,7 @@ def distutils_scheme(
     i.root = root or i.root
     i.finalize_options()
 
-    scheme = {}
+    scheme: Dict[str, str] = {}
     for key in SCHEME_KEYS:
         scheme[key] = getattr(i, "install_" + key)
 

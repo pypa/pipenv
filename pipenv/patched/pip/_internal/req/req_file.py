@@ -329,10 +329,15 @@ class RequirementsFileParser:
         self, filename: str, constraint: bool
     ) -> Generator[ParsedLine, None, None]:
         """Parse a given file, yielding parsed lines."""
-        yield from self._parse_and_recurse(filename, constraint)
+        yield from self._parse_and_recurse(
+            filename, constraint, [{os.path.abspath(filename): None}]
+        )
 
     def _parse_and_recurse(
-        self, filename: str, constraint: bool
+        self,
+        filename: str,
+        constraint: bool,
+        parsed_files_stack: List[Dict[str, Optional[str]]],
     ) -> Generator[ParsedLine, None, None]:
         for line in self._parse_file(filename, constraint):
             if not line.is_requirement and (
@@ -353,12 +358,30 @@ class RequirementsFileParser:
                 # original file and nested file are paths
                 elif not SCHEME_RE.search(req_path):
                     # do a join so relative paths work
-                    req_path = os.path.join(
-                        os.path.dirname(filename),
-                        req_path,
+                    # and then abspath so that we can identify recursive references
+                    req_path = os.path.abspath(
+                        os.path.join(
+                            os.path.dirname(filename),
+                            req_path,
+                        )
                     )
-
-                yield from self._parse_and_recurse(req_path, nested_constraint)
+                parsed_files = parsed_files_stack[0]
+                if req_path in parsed_files:
+                    initial_file = parsed_files[req_path]
+                    tail = (
+                        f" and again in {initial_file}"
+                        if initial_file is not None
+                        else ""
+                    )
+                    raise RequirementsFileParseError(
+                        f"{req_path} recursively references itself in {filename}{tail}"
+                    )
+                # Keeping a track where was each file first included in
+                new_parsed_files = parsed_files.copy()
+                new_parsed_files[req_path] = filename
+                yield from self._parse_and_recurse(
+                    req_path, nested_constraint, [new_parsed_files, *parsed_files_stack]
+                )
             else:
                 yield line
 

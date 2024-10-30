@@ -169,6 +169,9 @@ class SSLContext(_truststore_SSLContext_super_class):  # type: ignore[misc]
     def cert_store_stats(self) -> dict[str, int]:
         raise NotImplementedError()
 
+    def set_default_verify_paths(self) -> None:
+        self._ctx.set_default_verify_paths()
+
     @typing.overload
     def get_ca_certs(
         self, binary_form: typing.Literal[False] = ...

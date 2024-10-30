@@ -10,6 +10,7 @@ from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._internal.exceptions import (
     HashError,
     InstallationSubprocessError,
+    InvalidInstalledPackage,
     MetadataInconsistent,
     MetadataInvalid,
 )
@@ -402,8 +403,12 @@ class AlreadyInstalledCandidate(Candidate):
     def iter_dependencies(self, with_requires: bool) -> Iterable[Optional[Requirement]]:
         if not with_requires:
             return
-        for r in self.dist.iter_dependencies():
-            yield from self._factory.make_requirements_from_spec(str(r), self._ireq)
+
+        try:
+            for r in self.dist.iter_dependencies():
+                yield from self._factory.make_requirements_from_spec(str(r), self._ireq)
+        except InvalidRequirement as exc:
+            raise InvalidInstalledPackage(dist=self.dist, invalid_exc=exc) from None
 
     def get_install_requirement(self) -> Optional[InstallRequirement]:
         return None

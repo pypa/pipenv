@@ -25,7 +25,7 @@ def _rich_progress_bar(
     iterable: Iterable[bytes],
     *,
     bar_type: str,
-    size: int,
+    size: Optional[int],
 ) -> Generator[bytes, None, None]:
     assert bar_type == "on", "This should only be used in the default mode."
 
