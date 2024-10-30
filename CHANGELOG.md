@@ -1,8 +1,5 @@
-2024.2.0 (2024-10-29)
+2024.3.0 (2024-10-29)
 =====================
-Pipenv 2024.2.0 (2024-10-29)
-============================
-
 
 Bug Fixes
 ---------
@@ -26,11 +23,9 @@ Bug Fixes
 
   This improves stability when working with complex dependency trees and version constraints.  `#6281 <https://github.com/pypa/pipenv/issues/6281>`_
 - Fixes issue with --skip-lock not providing pip the proper package specifier when version was a string (issue did not impact dict with version key).  `#6288 <https://github.com/pypa/pipenv/issues/6288>`_
+
 2024.2.0 (2024-10-22)
 =====================
-Pipenv 2024.2.0 (2024-10-22)
-============================
-
 
 Bug Fixes
 ---------
@@ -53,11 +48,9 @@ Vendored Libraries
 ------------------
 
 - Update pipdeptree to version 2.23.4  `#6275 <https://github.com/pypa/pipenv/issues/6275>`_
+
 2024.1.0 (2024-09-29)
 =====================
-Pipenv 2024.1.0 (2024-09-29)
-============================
-
 
 Features & Improvements
 -----------------------
@@ -68,11 +61,9 @@ Bug Fixes
 ---------
 
 - Fixes regression in lock file generation that caused environment variable references (e.g., ${GIT_PASSWORD}) in VCS URLs to be stripped out. This restores the ability to use credential placeholders in version control system URLs.  `#6256 <https://github.com/pypa/pipenv/issues/6256>`_
+
 2024.0.3 (2024-09-22)
 =====================
-Pipenv 2024.0.3 (2024-09-22)
-============================
-
 
 Bug Fixes
 ---------
@@ -82,11 +73,9 @@ Bug Fixes
 - Fixed ``pipenv uninstall --all`` failing when the virtual environment no longer exists.  `#6185 <https://github.com/pypa/pipenv/issues/6185>`_
 - Fix issue where installing a vcs dependency using pipenv CLI yielded the wrong Pipfile entry such that it could not lock.  `#6242 <https://github.com/pypa/pipenv/issues/6242>`_
 - Fix report that pipenv requires ``packaging>=22`` on some systems by setting it as a dependency.  `#6243 <https://github.com/pypa/pipenv/issues/6243>`_
+
 2024.0.2 (2024-09-13)
 =====================
-Pipenv 2024.0.2 (2024-09-13)
-============================
-
 
 Features & Improvements
 -----------------------
@@ -113,19 +102,15 @@ Vendored Libraries
 - Remove click.echo from pipenv/cli  `#6182 <https://github.com/pypa/pipenv/issues/6182>`_
 - Remove click.echo from exceptions.py  `#6216 <https://github.com/pypa/pipenv/issues/6216>`_
 - Update importlib-metadata to 8.4.0  `#6235 <https://github.com/pypa/pipenv/issues/6235>`_
+
 2024.0.1 (2024-06-11)
 =====================
-Pipenv 2024.0.1 (2024-06-11)
-============================
-
 
 No significant changes.
 
 
 2024.0.0 (2024-06-06)
 =====================
-Pipenv 2024.0.0 (2024-06-06)
-============================
 
 Features & Improvements
 -----------------------
@@ -169,9 +154,6 @@ Vendored Libraries
 
 2023.12.1 (2024-02-04)
 ======================
-Pipenv 2023.12.1 (2024-02-04)
-=============================
-
 
 Bug Fixes
 ---------
@@ -221,9 +203,6 @@ Bug Fixes
 
 2023.11.14 (2023-11-14)
 =======================
-Pipenv 2023.11.14 (2023-11-14)
-==============================
-
 
 Behavior Changes
 ----------------
@@ -240,9 +219,6 @@ Bug Fixes
 
 2023.10.24 (2023-10-24)
 =======================
-Pipenv 2023.10.24 (2023-10-24)
-==============================
-
 
 Features & Improvements
 -----------------------
@@ -335,8 +311,6 @@ Bug Fixes
 
 
 # 2023.9.1 (2023-09-01)
-
-# Pipenv 2023.9.1 (2023-09-01)
 
 ## Features & Improvements
 
