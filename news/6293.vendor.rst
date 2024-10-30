@@ -1,0 +1,8 @@
+Vendoring
+---------
+* Update vendored dependencies:
+  - importlib-metadata from 8.4.0 to 8.5.0
+  - packaging from 24.0 to 24.1
+  - tomli from 2.0.1 to 2.0.2
+  - tomlkit from 0.12.4 to 0.13.2
+  - zipp from 3.18.1 to 3.20.2
