@@ -196,7 +196,7 @@ class _PipenvInstance:
         # set file creation perms
         self.pipfile_path = None
         p_path = os.sep.join([self.path, "Pipfile"])
-        self.pipfile_path = p_path
+        self.pipfile_path = Path(p_path)
 
         if pipfile:
             with contextlib.suppress(FileNotFoundError):
@@ -275,7 +275,7 @@ class _PipenvInstance:
 
     @property
     def lockfile_path(self):
-        return os.sep.join([self.path, "Pipfile.lock"])
+        return Path(os.sep.join([self.path, "Pipfile.lock"]))
 
 
 if sys.version_info[:2] <= (3, 8):

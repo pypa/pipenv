@@ -87,6 +87,64 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         assert "six" in p.lockfile["default"]
 
 
+@pytest.mark.extras
+@pytest.mark.install
+@pytest.mark.local
+def test_local_extras_install_alternate(pipenv_instance_pypi):
+    """Ensure local package with extras installs correctly using pyproject.toml."""
+    with pipenv_instance_pypi() as p:
+        # Create pyproject.toml
+        pyproject_toml = os.path.join(p.path, "pyproject.toml")
+        with open(pyproject_toml, "w") as fh:
+            contents = """
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "testpipenv"
+version = "0.1"
+description = "Pipenv Test Package"
+authors = [{name = "Pipenv Test", email = "test@pipenv.package"}]
+requires-python = ">=3.8"
+
+[project.optional-dependencies]
+dev = ["six"]
+            """.strip()
+            fh.write(contents)
+
+        # Create basic package structure
+        pkg_dir = os.path.join(p.path, "testpipenv")
+        os.makedirs(pkg_dir)
+        with open(os.path.join(pkg_dir, "__init__.py"), "w") as fh:
+            fh.write("")
+
+        # Test with both Pipfile syntax and direct install
+        for install_method in ["pipfile", "direct"]:
+            if install_method == "pipfile":
+                with open(os.path.join(p.path, "Pipfile"), "w") as fh:
+                    fh.write("""
+[packages]
+testpipenv = {path = ".", editable = true, extras = ["dev"]}
+
+[dev-packages]
+                    """.strip())
+                c = p.pipenv("install")
+            else:
+                p.lockfile_path.unlink()
+                c = p.pipenv("install -e .[dev]")
+
+            assert c.returncode == 0
+            assert "testpipenv" in p.lockfile["default"]
+            assert p.lockfile["default"]["testpipenv"]["extras"] == ["dev"]
+            assert "six" in p.lockfile["default"]
+
+            if install_method == "pipfile":
+                assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
+
+            c = p.pipenv("uninstall --all")
+            assert c.returncode == 0
+
 @pytest.mark.local
 @pytest.mark.install
 @pytest.mark.needs_internet
@@ -420,3 +478,52 @@ urllib3 = {version = "==1.26.6", markers = "python_version < '2'"}
         # urllib3 should not be installed (python_version < '2' is always False for Python 3.x)
         urllib3_line = next((line for line in packages if line.startswith("urllib3")), None)
         assert urllib3_line is None
+
+
+@pytest.mark.install
+def test_no_duplicate_source_on_install(pipenv_instance_private_pypi):
+    """Ensure that running pipenv install with an index URL doesn't create duplicate [[source]] sections."""
+    with pipenv_instance_private_pypi() as p:
+        # Create initial Pipfile with a source
+        with open(p.pipfile_path, "w") as f:
+            contents = f"""
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+            """.strip()
+            f.write(contents)
+
+        # Install a package with a custom index
+        c = p.pipenv(f"install six --index {p.index_url}")
+        assert c.returncode == 0
+
+        # Read the Pipfile content
+        with open(p.pipfile_path) as f:
+            pipfile_content = f.read()
+
+        # Count occurrences of [[source]] in the Pipfile
+        source_count = pipfile_content.count("[[source]]")
+
+        # Assertions
+        assert source_count == 2, "Expected exactly two [[source]] sections"
+        assert "six" in p.pipfile["packages"]
+        assert p.pipfile["packages"]["six"].get("index") is not None
+
+        # Install another package with the same custom index
+        c = p.pipenv(f"install requests --index {p.index_url}")
+        assert c.returncode == 0
+
+        # Read the updated Pipfile content
+        with open(p.pipfile_path) as f:
+            updated_pipfile_content = f.read()
+
+        # Count occurrences of [[source]] in the updated Pipfile
+        updated_source_count = updated_pipfile_content.count("[[source]]")
+
+        # Verify no additional source sections were added
+        assert updated_source_count == source_count, "No new [[source]] sections should be added"
+        assert "requests" in p.pipfile["packages"]
+        assert p.pipfile["packages"]["requests"].get("index") is not None

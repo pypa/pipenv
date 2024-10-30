@@ -765,11 +765,6 @@ class Project:
             lock_section = lockfile.get(category)
             if lock_section is None:
                 lockfile[category] = lock_section = {}
-            for key in list(lock_section.keys()):
-                norm_key = pep423_name(key)
-                specifier = lock_section[key]
-                del lock_section[key]
-                lockfile[category][norm_key] = specifier
 
         return lockfile
 
@@ -1013,6 +1008,11 @@ class Project:
             if source.get("name") == index_name:
                 return source
 
+    def get_index_by_url(self, index_url):
+        for source in self.pipfile_sources():
+            if source.get("url") == index_url:
+                return source
+
     @property
     def sources(self):
         if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
@@ -1145,7 +1145,9 @@ class Project:
                 del parsed[category][pkg_name]
         self.write_toml(parsed)
 
-    def generate_package_pipfile_entry(self, package, pip_line, category=None):
+    def generate_package_pipfile_entry(
+        self, package, pip_line, category=None, index_name=None
+    ):
         """Generate a package entry from pip install line
         given the installreq package and the pip line that generated it.
         """
@@ -1203,7 +1205,10 @@ class Project:
                     break
         else:
             entry["version"] = specifier
-        if hasattr(package, "index"):
+
+        if index_name:
+            entry["index"] = index_name
+        elif hasattr(package, "index"):
             entry["index"] = package.index
 
         if len(entry) == 1 and "version" in entry:
