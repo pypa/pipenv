@@ -306,7 +306,7 @@ def do_install(
         categories=pipfile_categories,
         skip_lock=skip_lock,
     )
-    if not deploy:
+    if not (deploy or system):
         new_packages, _ = handle_new_packages(
             project,
             packages,
