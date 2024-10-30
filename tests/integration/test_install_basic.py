@@ -388,7 +388,7 @@ def test_system_works(pipenv_instance_pypi):
         assert c.returncode == 0
         c = subprocess_run(["virtualenv", ".venv"])
         assert c.returncode == 0
-        c = p.pipenv("install --system --deploy")
+        c = p.pipenv("install --system")
         assert c.returncode == 0
 
 
