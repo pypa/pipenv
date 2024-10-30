@@ -2,20 +2,16 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
+from __future__ import annotations
+
 import operator
 import os
 import platform
 import sys
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, TypedDict, cast
 
-from ._parser import (
-    MarkerAtom,
-    MarkerList,
-    Op,
-    Value,
-    Variable,
-    parse_marker as _parse_marker,
-)
+from ._parser import MarkerAtom, MarkerList, Op, Value, Variable
+from ._parser import parse_marker as _parse_marker
 from ._tokenizer import ParserSyntaxError
 from .specifiers import InvalidSpecifier, Specifier
 from .utils import canonicalize_name
@@ -50,6 +46,78 @@ class UndefinedEnvironmentName(ValueError):
     """
 
 
+class Environment(TypedDict):
+    implementation_name: str
+    """The implementation's identifier, e.g. ``'cpython'``."""
+
+    implementation_version: str
+    """
+    The implementation's version, e.g. ``'3.13.0a2'`` for CPython 3.13.0a2, or
+    ``'7.3.13'`` for PyPy3.10 v7.3.13.
+    """
+
+    os_name: str
+    """
+    The value of :py:data:`os.name`. The name of the operating system dependent module
+    imported, e.g. ``'posix'``.
+    """
+
+    platform_machine: str
+    """
+    Returns the machine type, e.g. ``'i386'``.
+
+    An empty string if the value cannot be determined.
+    """
+
+    platform_release: str
+    """
+    The system's release, e.g. ``'2.2.0'`` or ``'NT'``.
+
+    An empty string if the value cannot be determined.
+    """
+
+    platform_system: str
+    """
+    The system/OS name, e.g. ``'Linux'``, ``'Windows'`` or ``'Java'``.
+
+    An empty string if the value cannot be determined.
+    """
+
+    platform_version: str
+    """
+    The system's release version, e.g. ``'#3 on degas'``.
+
+    An empty string if the value cannot be determined.
+    """
+
+    python_full_version: str
+    """
+    The Python version as string ``'major.minor.patchlevel'``.
+
+    Note that unlike the Python :py:data:`sys.version`, this value will always include
+    the patchlevel (it defaults to 0).
+    """
+
+    platform_python_implementation: str
+    """
+    A string identifying the Python implementation, e.g. ``'CPython'``.
+    """
+
+    python_version: str
+    """The Python version as string ``'major.minor'``."""
+
+    sys_platform: str
+    """
+    This string contains a platform identifier that can be used to append
+    platform-specific components to :py:data:`sys.path`, for instance.
+
+    For Unix systems, except on Linux and AIX, this is the lowercased OS name as
+    returned by ``uname -s`` with the first part of the version as returned by
+    ``uname -r`` appended, e.g. ``'sunos5'`` or ``'freebsd8'``, at the time when Python
+    was built.
+    """
+
+
 def _normalize_extra_values(results: Any) -> Any:
     """
     Normalize extra values.
@@ -67,9 +135,8 @@ def _normalize_extra_values(results: Any) -> Any:
 
 
 def _format_marker(
-    marker: Union[List[str], MarkerAtom, str], first: Optional[bool] = True
+    marker: list[str] | MarkerAtom | str, first: bool | None = True
 ) -> str:
-
     assert isinstance(marker, (list, tuple, str))
 
     # Sometimes we have a structure like [[...]] which is a single item list
@@ -95,7 +162,7 @@ def _format_marker(
         return marker
 
 
-_operators: Dict[str, Operator] = {
+_operators: dict[str, Operator] = {
     "in": lambda lhs, rhs: lhs in rhs,
     "not in": lambda lhs, rhs: lhs not in rhs,
     "<": operator.lt,
@@ -115,14 +182,14 @@ def _eval_op(lhs: str, op: Op, rhs: str) -> bool:
     else:
         return spec.contains(lhs, prereleases=True)
 
-    oper: Optional[Operator] = _operators.get(op.serialize())
+    oper: Operator | None = _operators.get(op.serialize())
     if oper is None:
         raise UndefinedComparison(f"Undefined {op!r} on {lhs!r} and {rhs!r}.")
 
     return oper(lhs, rhs)
 
 
-def _normalize(*values: str, key: str) -> Tuple[str, ...]:
+def _normalize(*values: str, key: str) -> tuple[str, ...]:
     # PEP 685 – Comparison of extra names for optional distribution dependencies
     # https://peps.python.org/pep-0685/
     # > When comparing extra names, tools MUST normalize the names being
@@ -134,8 +201,8 @@ def _normalize(*values: str, key: str) -> Tuple[str, ...]:
     return values
 
 
-def _evaluate_markers(markers: MarkerList, environment: Dict[str, str]) -> bool:
-    groups: List[List[bool]] = [[]]
+def _evaluate_markers(markers: MarkerList, environment: dict[str, str]) -> bool:
+    groups: list[list[bool]] = [[]]
 
     for marker in markers:
         assert isinstance(marker, (list, tuple, str))
@@ -164,7 +231,7 @@ def _evaluate_markers(markers: MarkerList, environment: Dict[str, str]) -> bool:
     return any(all(item) for item in groups)
 
 
-def format_full_version(info: "sys._version_info") -> str:
+def format_full_version(info: sys._version_info) -> str:
     version = "{0.major}.{0.minor}.{0.micro}".format(info)
     kind = info.releaselevel
     if kind != "final":
@@ -172,7 +239,7 @@ def format_full_version(info: "sys._version_info") -> str:
     return version
 
 
-def default_environment() -> Dict[str, str]:
+def default_environment() -> Environment:
     iver = format_full_version(sys.implementation.version)
     implementation_name = sys.implementation.name
     return {
@@ -231,7 +298,7 @@ class Marker:
 
         return str(self) == str(other)
 
-    def evaluate(self, environment: Optional[Dict[str, str]] = None) -> bool:
+    def evaluate(self, environment: dict[str, str] | None = None) -> bool:
         """Evaluate a marker.
 
         Return the boolean from evaluating the given marker against the
@@ -240,8 +307,14 @@ class Marker:
 
         The environment is determined from the current Python process.
         """
-        current_environment = default_environment()
+        current_environment = cast("dict[str, str]", default_environment())
         current_environment["extra"] = ""
+        # Work around platform.python_version() returning something that is not PEP 440
+        # compliant for non-tagged Python builds. We preserve default_environment()'s
+        # behavior of returning platform.python_version() verbatim, and leave it to the
+        # caller to provide a syntactically valid version if they want to override it.
+        if current_environment["python_full_version"].endswith("+"):
+            current_environment["python_full_version"] += "local"
         if environment is not None:
             current_environment.update(environment)
             # The API used to allow setting extra to None. We need to handle this

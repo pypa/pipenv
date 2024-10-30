@@ -2,6 +2,8 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
+from __future__ import annotations
+
 import logging
 import platform
 import re
@@ -11,15 +13,10 @@ import sys
 import sysconfig
 from importlib.machinery import EXTENSION_SUFFIXES
 from typing import (
-    Dict,
-    FrozenSet,
     Iterable,
     Iterator,
-    List,
-    Optional,
     Sequence,
     Tuple,
-    Union,
     cast,
 )
 
@@ -30,7 +27,7 @@ logger = logging.getLogger(__name__)
 PythonVersion = Sequence[int]
 MacVersion = Tuple[int, int]
 
-INTERPRETER_SHORT_NAMES: Dict[str, str] = {
+INTERPRETER_SHORT_NAMES: dict[str, str] = {
     "python": "py",  # Generic.
     "cpython": "cp",
     "pypy": "pp",
@@ -96,7 +93,7 @@ class Tag:
         return f"<{self} @ {id(self)}>"
 
 
-def parse_tag(tag: str) -> FrozenSet[Tag]:
+def parse_tag(tag: str) -> frozenset[Tag]:
     """
     Parses the provided tag (e.g. `py3-none-any`) into a frozenset of Tag instances.
 
@@ -112,8 +109,8 @@ def parse_tag(tag: str) -> FrozenSet[Tag]:
     return frozenset(tags)
 
 
-def _get_config_var(name: str, warn: bool = False) -> Union[int, str, None]:
-    value: Union[int, str, None] = sysconfig.get_config_var(name)
+def _get_config_var(name: str, warn: bool = False) -> int | str | None:
+    value: int | str | None = sysconfig.get_config_var(name)
     if value is None and warn:
         logger.debug(
             "Config variable '%s' is unset, Python ABI tag may be incorrect", name
@@ -125,7 +122,7 @@ def _normalize_string(string: str) -> str:
     return string.replace(".", "_").replace("-", "_").replace(" ", "_")
 
 
-def _is_threaded_cpython(abis: List[str]) -> bool:
+def _is_threaded_cpython(abis: list[str]) -> bool:
     """
     Determine if the ABI corresponds to a threaded (`--disable-gil`) build.
 
@@ -151,7 +148,7 @@ def _abi3_applies(python_version: PythonVersion, threading: bool) -> bool:
     return len(python_version) > 1 and tuple(python_version) >= (3, 2) and not threading
 
 
-def _cpython_abis(py_version: PythonVersion, warn: bool = False) -> List[str]:
+def _cpython_abis(py_version: PythonVersion, warn: bool = False) -> list[str]:
     py_version = tuple(py_version)  # To allow for version comparison.
     abis = []
     version = _version_nodot(py_version[:2])
@@ -185,9 +182,9 @@ def _cpython_abis(py_version: PythonVersion, warn: bool = False) -> List[str]:
 
 
 def cpython_tags(
-    python_version: Optional[PythonVersion] = None,
-    abis: Optional[Iterable[str]] = None,
-    platforms: Optional[Iterable[str]] = None,
+    python_version: PythonVersion | None = None,
+    abis: Iterable[str] | None = None,
+    platforms: Iterable[str] | None = None,
     *,
     warn: bool = False,
 ) -> Iterator[Tag]:
@@ -244,7 +241,7 @@ def cpython_tags(
                 yield Tag(interpreter, "abi3", platform_)
 
 
-def _generic_abi() -> List[str]:
+def _generic_abi() -> list[str]:
     """
     Return the ABI tag based on EXT_SUFFIX.
     """
@@ -286,9 +283,9 @@ def _generic_abi() -> List[str]:
 
 
 def generic_tags(
-    interpreter: Optional[str] = None,
-    abis: Optional[Iterable[str]] = None,
-    platforms: Optional[Iterable[str]] = None,
+    interpreter: str | None = None,
+    abis: Iterable[str] | None = None,
+    platforms: Iterable[str] | None = None,
     *,
     warn: bool = False,
 ) -> Iterator[Tag]:
@@ -332,9 +329,9 @@ def _py_interpreter_range(py_version: PythonVersion) -> Iterator[str]:
 
 
 def compatible_tags(
-    python_version: Optional[PythonVersion] = None,
-    interpreter: Optional[str] = None,
-    platforms: Optional[Iterable[str]] = None,
+    python_version: PythonVersion | None = None,
+    interpreter: str | None = None,
+    platforms: Iterable[str] | None = None,
 ) -> Iterator[Tag]:
     """
     Yields the sequence of tags that are compatible with a specific version of Python.
@@ -366,7 +363,7 @@ def _mac_arch(arch: str, is_32bit: bool = _32_BIT_INTERPRETER) -> str:
     return "i386"
 
 
-def _mac_binary_formats(version: MacVersion, cpu_arch: str) -> List[str]:
+def _mac_binary_formats(version: MacVersion, cpu_arch: str) -> list[str]:
     formats = [cpu_arch]
     if cpu_arch == "x86_64":
         if version < (10, 4):
@@ -399,7 +396,7 @@ def _mac_binary_formats(version: MacVersion, cpu_arch: str) -> List[str]:
 
 
 def mac_platforms(
-    version: Optional[MacVersion] = None, arch: Optional[str] = None
+    version: MacVersion | None = None, arch: str | None = None
 ) -> Iterator[str]:
     """
     Yields the platform tags for a macOS system.

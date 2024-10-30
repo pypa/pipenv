@@ -8,10 +8,12 @@
     from pipenv.vendor.packaging.version import Version
 """
 
+from __future__ import annotations
+
 import abc
 import itertools
 import re
-from typing import Callable, Iterable, Iterator, List, Optional, Tuple, TypeVar, Union
+from typing import Callable, Iterable, Iterator, TypeVar, Union
 
 from .utils import canonicalize_version
 from .version import Version
@@ -64,7 +66,7 @@ class BaseSpecifier(metaclass=abc.ABCMeta):
 
     @property
     @abc.abstractmethod
-    def prereleases(self) -> Optional[bool]:
+    def prereleases(self) -> bool | None:
         """Whether or not pre-releases as a whole are allowed.
 
         This can be set to either ``True`` or ``False`` to explicitly enable or disable
@@ -79,14 +81,14 @@ class BaseSpecifier(metaclass=abc.ABCMeta):
         """
 
     @abc.abstractmethod
-    def contains(self, item: str, prereleases: Optional[bool] = None) -> bool:
+    def contains(self, item: str, prereleases: bool | None = None) -> bool:
         """
         Determines if the given item is contained within this specifier.
         """
 
     @abc.abstractmethod
     def filter(
-        self, iterable: Iterable[UnparsedVersionVar], prereleases: Optional[bool] = None
+        self, iterable: Iterable[UnparsedVersionVar], prereleases: bool | None = None
     ) -> Iterator[UnparsedVersionVar]:
         """
         Takes an iterable of items and filters them so that only items which
@@ -217,7 +219,7 @@ class Specifier(BaseSpecifier):
         "===": "arbitrary",
     }
 
-    def __init__(self, spec: str = "", prereleases: Optional[bool] = None) -> None:
+    def __init__(self, spec: str = "", prereleases: bool | None = None) -> None:
         """Initialize a Specifier instance.
 
         :param spec:
@@ -234,7 +236,7 @@ class Specifier(BaseSpecifier):
         if not match:
             raise InvalidSpecifier(f"Invalid specifier: '{spec}'")
 
-        self._spec: Tuple[str, str] = (
+        self._spec: tuple[str, str] = (
             match.group("operator").strip(),
             match.group("version").strip(),
         )
@@ -318,7 +320,7 @@ class Specifier(BaseSpecifier):
         return "{}{}".format(*self._spec)
 
     @property
-    def _canonical_spec(self) -> Tuple[str, str]:
+    def _canonical_spec(self) -> tuple[str, str]:
         canonical_version = canonicalize_version(
             self._spec[1],
             strip_trailing_zero=(self._spec[0] != "~="),
@@ -364,7 +366,6 @@ class Specifier(BaseSpecifier):
         return operator_callable
 
     def _compare_compatible(self, prospective: Version, spec: str) -> bool:
-
         # Compatible releases have an equivalent combination of >= and ==. That
         # is that ~=2.2 is equivalent to >=2.2,==2.*. This allows us to
         # implement this in terms of the other specifiers instead of
@@ -385,7 +386,6 @@ class Specifier(BaseSpecifier):
         )
 
     def _compare_equal(self, prospective: Version, spec: str) -> bool:
-
         # We need special logic to handle prefix matching
         if spec.endswith(".*"):
             # In the case of prefix matching we want to ignore local segment.
@@ -429,21 +429,18 @@ class Specifier(BaseSpecifier):
         return not self._compare_equal(prospective, spec)
 
     def _compare_less_than_equal(self, prospective: Version, spec: str) -> bool:
-
         # NB: Local version identifiers are NOT permitted in the version
         # specifier, so local version labels can be universally removed from
         # the prospective version.
         return Version(prospective.public) <= Version(spec)
 
     def _compare_greater_than_equal(self, prospective: Version, spec: str) -> bool:
-
         # NB: Local version identifiers are NOT permitted in the version
         # specifier, so local version labels can be universally removed from
         # the prospective version.
         return Version(prospective.public) >= Version(spec)
 
     def _compare_less_than(self, prospective: Version, spec_str: str) -> bool:
-
         # Convert our spec to a Version instance, since we'll want to work with
         # it as a version.
         spec = Version(spec_str)
@@ -468,7 +465,6 @@ class Specifier(BaseSpecifier):
         return True
 
     def _compare_greater_than(self, prospective: Version, spec_str: str) -> bool:
-
         # Convert our spec to a Version instance, since we'll want to work with
         # it as a version.
         spec = Version(spec_str)
@@ -501,7 +497,7 @@ class Specifier(BaseSpecifier):
     def _compare_arbitrary(self, prospective: Version, spec: str) -> bool:
         return str(prospective).lower() == str(spec).lower()
 
-    def __contains__(self, item: Union[str, Version]) -> bool:
+    def __contains__(self, item: str | Version) -> bool:
         """Return whether or not the item is contained in this specifier.
 
         :param item: The item to check for.
@@ -522,9 +518,7 @@ class Specifier(BaseSpecifier):
         """
         return self.contains(item)
 
-    def contains(
-        self, item: UnparsedVersion, prereleases: Optional[bool] = None
-    ) -> bool:
+    def contains(self, item: UnparsedVersion, prereleases: bool | None = None) -> bool:
         """Return whether or not the item is contained in this specifier.
 
         :param item:
@@ -569,7 +563,7 @@ class Specifier(BaseSpecifier):
         return operator_callable(normalized_item, self.version)
 
     def filter(
-        self, iterable: Iterable[UnparsedVersionVar], prereleases: Optional[bool] = None
+        self, iterable: Iterable[UnparsedVersionVar], prereleases: bool | None = None
     ) -> Iterator[UnparsedVersionVar]:
         """Filter items in the given iterable, that match the specifier.
 
@@ -633,7 +627,7 @@ class Specifier(BaseSpecifier):
 _prefix_regex = re.compile(r"^([0-9]+)((?:a|b|c|rc)[0-9]+)$")
 
 
-def _version_split(version: str) -> List[str]:
+def _version_split(version: str) -> list[str]:
     """Split version into components.
 
     The split components are intended for version comparison. The logic does
@@ -641,7 +635,7 @@ def _version_split(version: str) -> List[str]:
     components back with :func:`_version_join` may not produce the original
     version string.
     """
-    result: List[str] = []
+    result: list[str] = []
 
     epoch, _, rest = version.rpartition("!")
     result.append(epoch or "0")
@@ -655,7 +649,7 @@ def _version_split(version: str) -> List[str]:
     return result
 
 
-def _version_join(components: List[str]) -> str:
+def _version_join(components: list[str]) -> str:
     """Join split version components into a version string.
 
     This function assumes the input came from :func:`_version_split`, where the
@@ -672,7 +666,7 @@ def _is_not_suffix(segment: str) -> bool:
     )
 
 
-def _pad_version(left: List[str], right: List[str]) -> Tuple[List[str], List[str]]:
+def _pad_version(left: list[str], right: list[str]) -> tuple[list[str], list[str]]:
     left_split, right_split = [], []
 
     # Get the release segment of our versions
@@ -700,9 +694,7 @@ class SpecifierSet(BaseSpecifier):
     specifiers (``>=3.0,!=3.1``), or no specifier at all.
     """
 
-    def __init__(
-        self, specifiers: str = "", prereleases: Optional[bool] = None
-    ) -> None:
+    def __init__(self, specifiers: str = "", prereleases: bool | None = None) -> None:
         """Initialize a SpecifierSet instance.
 
         :param specifiers:
@@ -730,7 +722,7 @@ class SpecifierSet(BaseSpecifier):
         self._prereleases = prereleases
 
     @property
-    def prereleases(self) -> Optional[bool]:
+    def prereleases(self) -> bool | None:
         # If we have been given an explicit prerelease modifier, then we'll
         # pass that through here.
         if self._prereleases is not None:
@@ -787,7 +779,7 @@ class SpecifierSet(BaseSpecifier):
     def __hash__(self) -> int:
         return hash(self._specs)
 
-    def __and__(self, other: Union["SpecifierSet", str]) -> "SpecifierSet":
+    def __and__(self, other: SpecifierSet | str) -> SpecifierSet:
         """Return a SpecifierSet which is a combination of the two sets.
 
         :param other: The other object to combine with.
@@ -883,8 +875,8 @@ class SpecifierSet(BaseSpecifier):
     def contains(
         self,
         item: UnparsedVersion,
-        prereleases: Optional[bool] = None,
-        installed: Optional[bool] = None,
+        prereleases: bool | None = None,
+        installed: bool | None = None,
     ) -> bool:
         """Return whether or not the item is contained in this SpecifierSet.
 
@@ -938,7 +930,7 @@ class SpecifierSet(BaseSpecifier):
         return all(s.contains(item, prereleases=prereleases) for s in self._specs)
 
     def filter(
-        self, iterable: Iterable[UnparsedVersionVar], prereleases: Optional[bool] = None
+        self, iterable: Iterable[UnparsedVersionVar], prereleases: bool | None = None
     ) -> Iterator[UnparsedVersionVar]:
         """Filter items in the given iterable, that match the specifiers in this set.
 
@@ -995,8 +987,8 @@ class SpecifierSet(BaseSpecifier):
         # which will filter out any pre-releases, unless there are no final
         # releases.
         else:
-            filtered: List[UnparsedVersionVar] = []
-            found_prereleases: List[UnparsedVersionVar] = []
+            filtered: list[UnparsedVersionVar] = []
+            found_prereleases: list[UnparsedVersionVar] = []
 
             for item in iterable:
                 parsed_version = _coerce_version(item)
