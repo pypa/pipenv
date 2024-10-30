@@ -2,7 +2,7 @@ click==8.0.3
 imagesize==1.4.1
 Jinja2==3.1.4
 MarkupSafe==2.1.2
-myst-parser==4.0.0
+myst-parser[linkify]==4.0.0
 -e .
 pytz==2022.7.1
 requests>=2.32.0
