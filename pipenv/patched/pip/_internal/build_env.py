@@ -242,6 +242,10 @@ class BuildEnvironment:
             prefix.path,
             "--no-warn-script-location",
             "--disable-pip-version-check",
+            # The prefix specified two lines above, thus
+            # target from config file or env var should be ignored
+            "--target",
+            "",
         ]
         if logger.getEffectiveLevel() <= logging.DEBUG:
             args.append("-vv")

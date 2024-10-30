@@ -6,7 +6,6 @@ from typing import Callable, Dict, Iterable, List, Optional, Tuple
 
 from pipenv.patched.pip._vendor.packaging.utils import (
     InvalidSdistFilename,
-    InvalidVersion,
     InvalidWheelFilename,
     canonicalize_name,
     parse_sdist_filename,
@@ -68,10 +67,10 @@ class _FlatDirectoryToUrls:
             # otherwise not worth considering as a package
             try:
                 project_filename = parse_wheel_filename(entry.name)[0]
-            except (InvalidWheelFilename, InvalidVersion):
+            except InvalidWheelFilename:
                 try:
                     project_filename = parse_sdist_filename(entry.name)[0]
-                except (InvalidSdistFilename, InvalidVersion):
+                except InvalidSdistFilename:
                     continue
 
             self._project_name_to_urls[project_filename].append(url)

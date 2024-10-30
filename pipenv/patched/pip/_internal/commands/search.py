@@ -89,7 +89,7 @@ def transform_hits(hits: List[Dict[str, str]]) -> List["TransformedHit"]:
     packages with the list of versions stored inline. This converts the
     list from pypi into one we can use.
     """
-    packages: Dict[str, "TransformedHit"] = OrderedDict()
+    packages: Dict[str, TransformedHit] = OrderedDict()
     for hit in hits:
         name = hit["name"]
         summary = hit["summary"]

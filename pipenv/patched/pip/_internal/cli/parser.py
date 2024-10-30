@@ -6,7 +6,7 @@ import shutil
 import sys
 import textwrap
 from contextlib import suppress
-from typing import Any, Dict, Generator, List, Optional, Tuple
+from typing import Any, Dict, Generator, List, NoReturn, Optional, Tuple
 
 from pipenv.patched.pip._internal.cli.status_codes import UNKNOWN_ERROR
 from pipenv.patched.pip._internal.configuration import Configuration, ConfigurationError
@@ -289,6 +289,6 @@ class ConfigOptionParser(CustomOptionParser):
                 defaults[option.dest] = option.check_value(opt_str, default)
         return optparse.Values(defaults)
 
-    def error(self, msg: str) -> None:
+    def error(self, msg: str) -> NoReturn:
         self.print_usage(sys.stderr)
         self.exit(UNKNOWN_ERROR, f"{msg}\n")

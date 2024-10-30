@@ -23,8 +23,7 @@ from .version import LegacyVersion as LV
 
 __all__ = ['interpret']
 
-_VERSION_PATTERN = re.compile(
-    r'((\d+(\.\d+)*\w*)|\'(\d+(\.\d+)*\w*)\'|\"(\d+(\.\d+)*\w*)\")')
+_VERSION_PATTERN = re.compile(r'((\d+(\.\d+)*\w*)|\'(\d+(\.\d+)*\w*)\'|\"(\d+(\.\d+)*\w*)\")')
 _VERSION_MARKERS = {'python_version', 'python_full_version'}
 
 
@@ -82,13 +81,12 @@ class Evaluator(object):
             elhs = expr['lhs']
             erhs = expr['rhs']
             if _is_literal(expr['lhs']) and _is_literal(expr['rhs']):
-                raise SyntaxError('invalid comparison: %s %s %s' %
-                                  (elhs, op, erhs))
+                raise SyntaxError('invalid comparison: %s %s %s' % (elhs, op, erhs))
 
             lhs = self.evaluate(elhs, context)
             rhs = self.evaluate(erhs, context)
-            if ((_is_version_marker(elhs) or _is_version_marker(erhs))
-                    and op in ('<', '<=', '>', '>=', '===', '==', '!=', '~=')):
+            if ((_is_version_marker(elhs) or _is_version_marker(erhs)) and
+                    op in ('<', '<=', '>', '>=', '===', '==', '!=', '~=')):
                 lhs = LV(lhs)
                 rhs = LV(rhs)
             elif _is_version_marker(elhs) and op in ('in', 'not in'):
@@ -111,8 +109,7 @@ def default_context():
         return version
 
     if hasattr(sys, 'implementation'):
-        implementation_version = format_full_version(
-            sys.implementation.version)
+        implementation_version = format_full_version(sys.implementation.version)
         implementation_name = sys.implementation.name
     else:
         implementation_version = '0'
@@ -156,11 +153,9 @@ def interpret(marker, execution_context=None):
     try:
         expr, rest = parse_marker(marker)
     except Exception as e:
-        raise SyntaxError('Unable to interpret marker syntax: %s: %s' %
-                          (marker, e))
+        raise SyntaxError('Unable to interpret marker syntax: %s: %s' % (marker, e))
     if rest and rest[0] != '#':
-        raise SyntaxError('unexpected trailing data in marker: %s: %s' %
-                          (marker, rest))
+        raise SyntaxError('unexpected trailing data in marker: %s: %s' % (marker, rest))
     context = dict(DEFAULT_CONTEXT)
     if execution_context:
         context.update(execution_context)

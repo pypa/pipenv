@@ -15,6 +15,8 @@ import sys
 from itertools import chain, groupby, repeat
 from typing import TYPE_CHECKING, Dict, Iterator, List, Literal, Optional, Union
 
+from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion
 from pipenv.patched.pip._vendor.rich.console import Console, ConsoleOptions, RenderResult
 from pipenv.patched.pip._vendor.rich.markup import escape
 from pipenv.patched.pip._vendor.rich.text import Text
@@ -429,7 +431,7 @@ class HashErrors(InstallationError):
     """Multiple HashError instances rolled into one for reporting"""
 
     def __init__(self) -> None:
-        self.errors: List["HashError"] = []
+        self.errors: List[HashError] = []
 
     def append(self, error: "HashError") -> None:
         self.errors.append(error)
@@ -774,4 +776,34 @@ class LegacyDistutilsInstall(DiagnosticPipError):
                 "uninstall."
             ),
             hint_stmt=None,
+        )
+
+
+class InvalidInstalledPackage(DiagnosticPipError):
+    reference = "invalid-installed-package"
+
+    def __init__(
+        self,
+        *,
+        dist: "BaseDistribution",
+        invalid_exc: Union[InvalidRequirement, InvalidVersion],
+    ) -> None:
+        installed_location = dist.installed_location
+
+        if isinstance(invalid_exc, InvalidRequirement):
+            invalid_type = "requirement"
+        else:
+            invalid_type = "version"
+
+        super().__init__(
+            message=Text(
+                f"Cannot process installed package {dist} "
+                + (f"in {installed_location!r} " if installed_location else "")
+                + f"because it has an invalid {invalid_type}:\n{invalid_exc.args[0]}"
+            ),
+            context=(
+                "Starting with pip 24.1, packages with invalid "
+                f"{invalid_type}s can not be processed."
+            ),
+            hint_stmt="To proceed this package must be uninstalled.",
         )

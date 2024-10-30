@@ -25,9 +25,8 @@ from . import __version__, DistlibException
 from .compat import sysconfig, ZipFile, fsdecode, text_type, filter
 from .database import InstalledDistribution
 from .metadata import Metadata, WHEEL_METADATA_FILENAME, LEGACY_METADATA_FILENAME
-from .util import (FileOperator, convert_path, CSVReader, CSVWriter, Cache,
-                   cached_property, get_cache_base, read_exports, tempdir,
-                   get_platform)
+from .util import (FileOperator, convert_path, CSVReader, CSVWriter, Cache, cached_property, get_cache_base,
+                   read_exports, tempdir, get_platform)
 from .version import NormalizedVersion, UnsupportedVersionError
 
 logger = logging.getLogger(__name__)
@@ -88,8 +87,7 @@ FILENAME_RE = re.compile(
 \.whl$
 ''', re.IGNORECASE | re.VERBOSE)
 
-NAME_VERSION_RE = re.compile(
-    r'''
+NAME_VERSION_RE = re.compile(r'''
 (?P<nm>[^-]+)
 -(?P<vn>\d+[^-]*)
 (-(?P<bn>\d+[^-]*))?$
@@ -235,8 +233,7 @@ class Wheel(object):
         arch = '.'.join(self.arch)
         # replace - with _ as a local version separator
         version = self.version.replace('-', '_')
-        return '%s-%s%s-%s-%s-%s.whl' % (self.name, version, buildver, pyver,
-                                         abi, arch)
+        return '%s-%s%s-%s-%s-%s.whl' % (self.name, version, buildver, pyver, abi, arch)
 
     @property
     def exists(self):
@@ -334,8 +331,7 @@ class Wheel(object):
         try:
             hasher = getattr(hashlib, hash_kind)
         except AttributeError:
-            raise DistlibException('Unsupported hash algorithm: %r' %
-                                   hash_kind)
+            raise DistlibException('Unsupported hash algorithm: %r' % hash_kind)
         result = hasher(data).digest()
         result = base64.urlsafe_b64encode(result).rstrip(b'=').decode('ascii')
         return hash_kind, result
@@ -513,7 +509,7 @@ class Wheel(object):
         installed, and the headers, scripts, data and dist-info metadata are
         not written. If kwarg ``bytecode_hashed_invalidation`` is True, written
         bytecode will try to use file-hash based invalidation (PEP-552) on
-        supported interpreter versions (CPython 2.7+).
+        supported interpreter versions (CPython 3.7+).
 
         The return value is a :class:`InstalledDistribution` instance unless
         ``options.lib_only`` is True, in which case the return value is ``None``.
@@ -522,8 +518,7 @@ class Wheel(object):
         dry_run = maker.dry_run
         warner = kwargs.get('warner')
         lib_only = kwargs.get('lib_only', False)
-        bc_hashed_invalidation = kwargs.get('bytecode_hashed_invalidation',
-                                            False)
+        bc_hashed_invalidation = kwargs.get('bytecode_hashed_invalidation', False)
 
         pathname = os.path.join(self.dirname, self.filename)
         name_ver = '%s-%s' % (self.name, self.version)
@@ -602,8 +597,7 @@ class Wheel(object):
                     if lib_only and u_arcname.startswith((info_pfx, data_pfx)):
                         logger.debug('lib_only: skipping %s', u_arcname)
                         continue
-                    is_script = (u_arcname.startswith(script_pfx)
-                                 and not u_arcname.endswith('.exe'))
+                    is_script = (u_arcname.startswith(script_pfx) and not u_arcname.endswith('.exe'))
 
                     if u_arcname.startswith(data_pfx):
                         _, where, rp = u_arcname.split('/', 2)
@@ -622,8 +616,7 @@ class Wheel(object):
                         # So ... manually preserve permission bits as given in zinfo
                         if os.name == 'posix':
                             # just set the normal permission bits
-                            os.chmod(outfile,
-                                     (zinfo.external_attr >> 16) & 0x1FF)
+                            os.chmod(outfile, (zinfo.external_attr >> 16) & 0x1FF)
                         outfiles.append(outfile)
                         # Double check the digest of the written file
                         if not dry_run and row[1]:
@@ -636,15 +629,12 @@ class Wheel(object):
                                                            '%s' % outfile)
                         if bc and outfile.endswith('.py'):
                             try:
-                                pyc = fileop.byte_compile(
-                                    outfile,
-                                    hashed_invalidation=bc_hashed_invalidation)
+                                pyc = fileop.byte_compile(outfile, hashed_invalidation=bc_hashed_invalidation)
                                 outfiles.append(pyc)
                             except Exception:
                                 # Don't give up if byte-compilation fails,
                                 # but log it and perhaps warn the user
-                                logger.warning('Byte-compilation failed',
-                                               exc_info=True)
+                                logger.warning('Byte-compilation failed', exc_info=True)
                     else:
                         fn = os.path.basename(convert_path(arcname))
                         workname = os.path.join(workdir, fn)
@@ -732,8 +722,7 @@ class Wheel(object):
                         outfiles.append(p)
 
                     # Write RECORD
-                    dist.write_installed_files(outfiles, paths['prefix'],
-                                               dry_run)
+                    dist.write_installed_files(outfiles, paths['prefix'], dry_run)
                 return dist
             except Exception:  # pragma: no cover
                 logger.exception('installation failed.')
@@ -746,8 +735,7 @@ class Wheel(object):
         global cache
         if cache is None:
             # Use native string to avoid issues on 2.x: see Python #20140.
-            base = os.path.join(get_cache_base(), str('dylib-cache'),
-                                '%s.%s' % sys.version_info[:2])
+            base = os.path.join(get_cache_base(), str('dylib-cache'), '%s.%s' % sys.version_info[:2])
             cache = Cache(base)
         return cache
 
@@ -764,7 +752,7 @@ class Wheel(object):
                     wf = wrapper(bf)
                     extensions = json.load(wf)
                     cache = self._get_dylib_cache()
-                    prefix = cache.prefix_to_dir(pathname)
+                    prefix = cache.prefix_to_dir(self.filename, use_abspath=False)
                     cache_base = os.path.join(cache.base, prefix)
                     if not os.path.isdir(cache_base):
                         os.makedirs(cache_base)
@@ -774,8 +762,7 @@ class Wheel(object):
                             extract = True
                         else:
                             file_time = os.stat(dest).st_mtime
-                            file_time = datetime.datetime.fromtimestamp(
-                                file_time)
+                            file_time = datetime.datetime.fromtimestamp(file_time)
                             info = zf.getinfo(relpath)
                             wheel_time = datetime.datetime(*info.date_time)
                             extract = wheel_time > file_time
@@ -924,12 +911,10 @@ class Wheel(object):
                 else:
                     parts = [int(s) for s in version[i + 1:].split('.')]
                     parts[-1] += 1
-                    updated = '%s+%s' % (version[:i], '.'.join(
-                        str(i) for i in parts))
+                    updated = '%s+%s' % (version[:i], '.'.join(str(i) for i in parts))
             except UnsupportedVersionError:
-                logger.debug(
-                    'Cannot update non-compliant (PEP-440) '
-                    'version %r', version)
+                logger.debug('Cannot update non-compliant (PEP-440) '
+                             'version %r', version)
             if updated:
                 md = Metadata(path=path)
                 md.version = updated
@@ -971,14 +956,11 @@ class Wheel(object):
                     update_version(current_version, path)
                 # Decide where the new wheel goes.
                 if dest_dir is None:
-                    fd, newpath = tempfile.mkstemp(suffix='.whl',
-                                                   prefix='wheel-update-',
-                                                   dir=workdir)
+                    fd, newpath = tempfile.mkstemp(suffix='.whl', prefix='wheel-update-', dir=workdir)
                     os.close(fd)
                 else:
                     if not os.path.isdir(dest_dir):
-                        raise DistlibException('Not a directory: %r' %
-                                               dest_dir)
+                        raise DistlibException('Not a directory: %r' % dest_dir)
                     newpath = os.path.join(dest_dir, self.filename)
                 archive_paths = list(path_map.items())
                 distinfo = os.path.join(workdir, info_dir)
@@ -1005,11 +987,20 @@ def compatible_tags():
     """
     Return (pyver, abi, arch) tuples compatible with this Python.
     """
-    versions = [VER_SUFFIX]
-    major = VER_SUFFIX[0]
-    for minor in range(sys.version_info[1] - 1, -1, -1):
-        versions.append(''.join([major, str(minor)]))
+    class _Version:
+        def __init__(self, major, minor):
+            self.major = major
+            self.major_minor = (major, minor)
+            self.string = ''.join((str(major), str(minor)))
 
+        def __str__(self):
+            return self.string
+
+
+    versions = [
+        _Version(sys.version_info.major, minor_version)
+        for minor_version in range(sys.version_info.minor, -1, -1)
+    ]
     abis = []
     for suffix in _get_suffixes():
         if suffix.startswith('.abi'):
@@ -1045,35 +1036,45 @@ def compatible_tags():
                 minor -= 1
 
     # Most specific - our Python version, ABI and arch
-    for abi in abis:
-        for arch in arches:
-            result.append((''.join((IMP_PREFIX, versions[0])), abi, arch))
-            # manylinux
-            if abi != 'none' and sys.platform.startswith('linux'):
-                arch = arch.replace('linux_', '')
-                parts = _get_glibc_version()
-                if len(parts) == 2:
-                    if parts >= (2, 5):
-                        result.append((''.join((IMP_PREFIX, versions[0])), abi,
-                                       'manylinux1_%s' % arch))
-                    if parts >= (2, 12):
-                        result.append((''.join((IMP_PREFIX, versions[0])), abi,
-                                       'manylinux2010_%s' % arch))
-                    if parts >= (2, 17):
-                        result.append((''.join((IMP_PREFIX, versions[0])), abi,
-                                       'manylinux2014_%s' % arch))
-                    result.append(
-                        (''.join((IMP_PREFIX, versions[0])), abi,
-                         'manylinux_%s_%s_%s' % (parts[0], parts[1], arch)))
+    for i, version_object in enumerate(versions):
+        version = str(version_object)
+        add_abis = []
+
+        if i == 0:
+            add_abis = abis
+
+        if IMP_PREFIX == 'cp' and version_object.major_minor >= (3, 2):
+            limited_api_abi = 'abi' + str(version_object.major)
+            if limited_api_abi not in add_abis:
+                add_abis.append(limited_api_abi)
+
+        for abi in add_abis:
+            for arch in arches:
+                result.append((''.join((IMP_PREFIX, version)), abi, arch))
+                # manylinux
+                if abi != 'none' and sys.platform.startswith('linux'):
+                    arch = arch.replace('linux_', '')
+                    parts = _get_glibc_version()
+                    if len(parts) == 2:
+                        if parts >= (2, 5):
+                            result.append((''.join((IMP_PREFIX, version)), abi, 'manylinux1_%s' % arch))
+                        if parts >= (2, 12):
+                            result.append((''.join((IMP_PREFIX, version)), abi, 'manylinux2010_%s' % arch))
+                        if parts >= (2, 17):
+                            result.append((''.join((IMP_PREFIX, version)), abi, 'manylinux2014_%s' % arch))
+                        result.append((''.join(
+                            (IMP_PREFIX, version)), abi, 'manylinux_%s_%s_%s' % (parts[0], parts[1], arch)))
 
     # where no ABI / arch dependency, but IMP_PREFIX dependency
-    for i, version in enumerate(versions):
+    for i, version_object in enumerate(versions):
+        version = str(version_object)
         result.append((''.join((IMP_PREFIX, version)), 'none', 'any'))
         if i == 0:
             result.append((''.join((IMP_PREFIX, version[0])), 'none', 'any'))
 
     # no IMP_PREFIX, ABI or arch dependency
-    for i, version in enumerate(versions):
+    for i, version_object in enumerate(versions):
+        version = str(version_object)
         result.append((''.join(('py', version)), 'none', 'any'))
         if i == 0:
             result.append((''.join(('py', version[0])), 'none', 'any'))

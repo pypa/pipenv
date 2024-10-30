@@ -54,7 +54,7 @@ class SessionCommandMixin(CommandContextMixIn):
 
     def __init__(self) -> None:
         super().__init__()
-        self._session: Optional["PipSession"] = None
+        self._session: Optional[PipSession] = None
 
     @classmethod
     def _get_index_urls(cls, options: Values) -> Optional[List[str]]:

@@ -176,7 +176,7 @@ class ListCommand(IndexGroupCommand):
         if options.excludes:
             skip.update(canonicalize_name(n) for n in options.excludes)
 
-        packages: "_ProcessedDists" = [
+        packages: _ProcessedDists = [
             cast("_DistWithLatestInfo", d)
             for d in get_environment(options.path).iter_installed_distributions(
                 local_only=options.local,
