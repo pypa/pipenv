@@ -158,18 +158,19 @@ def handle_lockfile(
                     style="red",
                 )
                 raise exceptions.DeployException
-            handle_outdated_lockfile(
-                project,
-                packages,
-                old_hash=old_hash,
-                new_hash=new_hash,
-                system=system,
-                allow_global=allow_global,
-                skip_lock=skip_lock,
-                pre=pre,
-                pypi_mirror=pypi_mirror,
-                categories=categories,
-            )
+            elif not system:
+                handle_outdated_lockfile(
+                    project,
+                    packages,
+                    old_hash=old_hash,
+                    new_hash=new_hash,
+                    system=system,
+                    allow_global=allow_global,
+                    skip_lock=skip_lock,
+                    pre=pre,
+                    pypi_mirror=pypi_mirror,
+                    categories=categories,
+                )
     elif not project.lockfile_exists and not skip_lock:
         handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror)
 
@@ -305,7 +306,7 @@ def do_install(
         categories=pipfile_categories,
         skip_lock=skip_lock,
     )
-    if not deploy:
+    if not (deploy or system):
         new_packages, _ = handle_new_packages(
             project,
             packages,

@@ -376,6 +376,22 @@ def test_system_and_deploy_work(pipenv_instance_private_pypi):
         assert c.returncode == 0
 
 
+
+@pytest.mark.cli
+@pytest.mark.deploy
+@pytest.mark.system
+def test_system_works(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        c = p.pipenv("install urllib3")
+        assert c.returncode == 0
+        c = p.pipenv("--rm")
+        assert c.returncode == 0
+        c = subprocess_run(["virtualenv", ".venv"])
+        assert c.returncode == 0
+        c = p.pipenv("install --system")
+        assert c.returncode == 0
+
+
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_creates_pipfile(pipenv_instance_pypi):
