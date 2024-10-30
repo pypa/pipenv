@@ -1,10 +1,8 @@
 alabaster==0.7.13
 Babel==2.12.1
-certifi==2023.7.22
 chardet==3.0.4
 click==8.0.3
 docutils==0.17.1
-idna==3.4
 imagesize==1.4.1
 Jinja2==3.1.4
 MarkupSafe==2.1.2
@@ -12,12 +10,12 @@ myst-parser[linkify]==0.18.1
 -e .
 Pygments==2.15.0
 pytz==2022.7.1
-requests==2.32.0
+requests>=2.32.0
 snowballstemmer==2.2.0
-Sphinx==4.5.0
-sphinx-click==4.4.0
-sphinxcontrib-spelling==7.7.0
-sphinxcontrib-websupport==1.2.4
-urllib3==1.26.18
+Sphinx==8.1.3
+sphinx-click==6.0.0
+sphinxcontrib-spelling==8.0.0
+sphinxcontrib-websupport==2.0.0
+urllib3>=1.26.18
 virtualenv>=20.20.0
 virtualenv-clone==0.5.7
