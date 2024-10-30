@@ -481,7 +481,7 @@ class Parser:
                             raw,
                         )
                     except ValueError:
-                        raise self.parse_error(InvalidDateTimeError)
+                        raise self.parse_error(InvalidDateTimeError) from None
 
                 if m.group(1):
                     try:
@@ -513,7 +513,7 @@ class Parser:
                             raw + time_part,
                         )
                     except ValueError:
-                        raise self.parse_error(InvalidDateError)
+                        raise self.parse_error(InvalidDateError) from None
 
                 if m.group(5):
                     try:
@@ -529,7 +529,7 @@ class Parser:
                             raw,
                         )
                     except ValueError:
-                        raise self.parse_error(InvalidTimeError)
+                        raise self.parse_error(InvalidTimeError) from None
 
             item = self._parse_number(raw, trivia)
             if item is not None:
@@ -981,9 +981,9 @@ class Parser:
                         is_aot and i == len(name_parts) - 2,
                         is_super_table=i < len(name_parts) - 2,
                         name=_name.key,
-                        display_name=full_key.as_string()
-                        if i == len(name_parts) - 2
-                        else None,
+                        display_name=(
+                            full_key.as_string() if i == len(name_parts) - 2 else None
+                        ),
                     ),
                 )
 

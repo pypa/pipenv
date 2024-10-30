@@ -8,10 +8,12 @@ Based on: https://gist.github.com/lyssdod/f51579ae8d93c8657a5564aefc2ffbca
 ELF header: https://refspecs.linuxfoundation.org/elf/gabi4+/ch4.eheader.html
 """
 
+from __future__ import annotations
+
 import enum
 import os
 import struct
-from typing import IO, Optional, Tuple
+from typing import IO
 
 
 class ELFInvalid(ValueError):
@@ -87,11 +89,11 @@ class ELFFile:
         except struct.error as e:
             raise ELFInvalid("unable to parse machine and section information") from e
 
-    def _read(self, fmt: str) -> Tuple[int, ...]:
+    def _read(self, fmt: str) -> tuple[int, ...]:
         return struct.unpack(fmt, self._f.read(struct.calcsize(fmt)))
 
     @property
-    def interpreter(self) -> Optional[str]:
+    def interpreter(self) -> str | None:
         """
         The path recorded in the ``PT_INTERP`` section header.
         """

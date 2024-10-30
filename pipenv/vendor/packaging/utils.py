@@ -2,8 +2,10 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
+from __future__ import annotations
+
 import re
-from typing import FrozenSet, NewType, Tuple, Union, cast
+from typing import NewType, Tuple, Union, cast
 
 from .tags import Tag, parse_tag
 from .version import InvalidVersion, Version
@@ -53,7 +55,7 @@ def is_normalized_name(name: str) -> bool:
 
 
 def canonicalize_version(
-    version: Union[Version, str], *, strip_trailing_zero: bool = True
+    version: Version | str, *, strip_trailing_zero: bool = True
 ) -> str:
     """
     This is very similar to Version.__str__, but has one subtle difference
@@ -102,7 +104,7 @@ def canonicalize_version(
 
 def parse_wheel_filename(
     filename: str,
-) -> Tuple[NormalizedName, Version, BuildTag, FrozenSet[Tag]]:
+) -> tuple[NormalizedName, Version, BuildTag, frozenset[Tag]]:
     if not filename.endswith(".whl"):
         raise InvalidWheelFilename(
             f"Invalid wheel filename (extension must be '.whl'): {filename}"
@@ -143,7 +145,7 @@ def parse_wheel_filename(
     return (name, version, build, tags)
 
 
-def parse_sdist_filename(filename: str) -> Tuple[NormalizedName, Version]:
+def parse_sdist_filename(filename: str) -> tuple[NormalizedName, Version]:
     if filename.endswith(".tar.gz"):
         file_stem = filename[: -len(".tar.gz")]
     elif filename.endswith(".zip"):

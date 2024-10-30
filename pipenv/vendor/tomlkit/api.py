@@ -75,6 +75,11 @@ def dump(data: Mapping, fp: IO[str], *, sort_keys: bool = False) -> None:
 
     :param data: a dict-like object to dump
     :param sort_keys: if true, sort the keys in alphabetic order
+
+    :Example:
+
+    >>> with open("output.toml", "w") as fp:
+    ...     tomlkit.dump(data, fp)
     """
     fp.write(dumps(data, sort_keys=sort_keys))
 
@@ -160,7 +165,7 @@ def datetime(raw: str) -> DateTime:
     return item(value)
 
 
-def array(raw: str = None) -> Array:
+def array(raw: str = "[]") -> Array:
     """Create an array item for its string representation.
 
     :Example:
@@ -172,9 +177,6 @@ def array(raw: str = None) -> Array:
     >>> a
     [1, 2, 3]
     """
-    if raw is None:
-        raw = "[]"
-
     return value(raw)
 
 

@@ -1,6 +1,6 @@
+import email.message
 import re
 import textwrap
-import email.message
 
 from ._text import FoldedCase
 

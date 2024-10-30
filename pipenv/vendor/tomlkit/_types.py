@@ -19,10 +19,10 @@ if TYPE_CHECKING:  # pragma: no cover
     # Importing from builtins is preferred over simple assignment, see issues:
     # https://github.com/python/mypy/issues/8715
     # https://github.com/python/mypy/issues/10068
-    from builtins import dict as _CustomDict  # noqa: N812
-    from builtins import float as _CustomFloat  # noqa: N812
-    from builtins import int as _CustomInt  # noqa: N812
-    from builtins import list as _CustomList  # noqa: N812
+    from builtins import dict as _CustomDict
+    from builtins import float as _CustomFloat
+    from builtins import int as _CustomInt
+    from builtins import list as _CustomList
     from typing import Callable
     from typing import Concatenate
     from typing import ParamSpec
@@ -31,8 +31,7 @@ if TYPE_CHECKING:  # pragma: no cover
     P = ParamSpec("P")
 
     class WrapperType(Protocol):
-        def _new(self: WT, value: Any) -> WT:
-            ...
+        def _new(self: WT, value: Any) -> WT: ...
 
 else:
     from collections.abc import MutableMapping

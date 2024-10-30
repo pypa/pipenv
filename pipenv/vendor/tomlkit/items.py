@@ -33,6 +33,7 @@ from pipenv.vendor.tomlkit._types import _CustomList
 from pipenv.vendor.tomlkit._types import wrap_method
 from pipenv.vendor.tomlkit._utils import CONTROL_CHARS
 from pipenv.vendor.tomlkit._utils import escape_string
+from pipenv.vendor.tomlkit.exceptions import ConvertError
 from pipenv.vendor.tomlkit.exceptions import InvalidStringError
 
 
@@ -46,75 +47,58 @@ CUSTOM_ENCODERS: list[Encoder] = []
 AT = TypeVar("AT", bound="AbstractTable")
 
 
-class _ConvertError(TypeError, ValueError):
-    """An internal error raised when item() fails to convert a value.
-    It should be a TypeError, but due to historical reasons
-    it needs to subclass ValueError as well.
-    """
+@overload
+def item(value: bool, _parent: Item | None = ..., _sort_keys: bool = ...) -> Bool: ...
 
 
 @overload
-def item(value: bool, _parent: Item | None = ..., _sort_keys: bool = ...) -> Bool:
-    ...
+def item(value: int, _parent: Item | None = ..., _sort_keys: bool = ...) -> Integer: ...
 
 
 @overload
-def item(value: int, _parent: Item | None = ..., _sort_keys: bool = ...) -> Integer:
-    ...
+def item(value: float, _parent: Item | None = ..., _sort_keys: bool = ...) -> Float: ...
 
 
 @overload
-def item(value: float, _parent: Item | None = ..., _sort_keys: bool = ...) -> Float:
-    ...
-
-
-@overload
-def item(value: str, _parent: Item | None = ..., _sort_keys: bool = ...) -> String:
-    ...
+def item(value: str, _parent: Item | None = ..., _sort_keys: bool = ...) -> String: ...
 
 
 @overload
 def item(
     value: datetime, _parent: Item | None = ..., _sort_keys: bool = ...
-) -> DateTime:
-    ...
+) -> DateTime: ...
 
 
 @overload
-def item(value: date, _parent: Item | None = ..., _sort_keys: bool = ...) -> Date:
-    ...
+def item(value: date, _parent: Item | None = ..., _sort_keys: bool = ...) -> Date: ...
 
 
 @overload
-def item(value: time, _parent: Item | None = ..., _sort_keys: bool = ...) -> Time:
-    ...
+def item(value: time, _parent: Item | None = ..., _sort_keys: bool = ...) -> Time: ...
 
 
 @overload
 def item(
     value: Sequence[dict], _parent: Item | None = ..., _sort_keys: bool = ...
-) -> AoT:
-    ...
+) -> AoT: ...
 
 
 @overload
-def item(value: Sequence, _parent: Item | None = ..., _sort_keys: bool = ...) -> Array:
-    ...
+def item(
+    value: Sequence, _parent: Item | None = ..., _sort_keys: bool = ...
+) -> Array: ...
 
 
 @overload
-def item(value: dict, _parent: Array = ..., _sort_keys: bool = ...) -> InlineTable:
-    ...
+def item(value: dict, _parent: Array = ..., _sort_keys: bool = ...) -> InlineTable: ...
 
 
 @overload
-def item(value: dict, _parent: Item | None = ..., _sort_keys: bool = ...) -> Table:
-    ...
+def item(value: dict, _parent: Item | None = ..., _sort_keys: bool = ...) -> Table: ...
 
 
 @overload
-def item(value: ItemT, _parent: Item | None = ..., _sort_keys: bool = ...) -> ItemT:
-    ...
+def item(value: ItemT, _parent: Item | None = ..., _sort_keys: bool = ...) -> ItemT: ...
 
 
 def item(value: Any, _parent: Item | None = None, _sort_keys: bool = False) -> Item:
@@ -216,16 +200,16 @@ def item(value: Any, _parent: Item | None = None, _sort_keys: bool = False) -> I
         for encoder in CUSTOM_ENCODERS:
             try:
                 rv = encoder(value)
-            except TypeError:
+            except ConvertError:
                 pass
             else:
                 if not isinstance(rv, Item):
-                    raise _ConvertError(
-                        f"Custom encoder returned {type(rv)}, not a subclass of Item"
+                    raise ConvertError(
+                        f"Custom encoder is expected to return an instance of Item, got {type(rv)}"
                     )
                 return rv
 
-    raise _ConvertError(f"Invalid type {type(value)}")
+    raise ConvertError(f"Unable to convert an object of {type(value)} to a TOML item")
 
 
 class StringType(Enum):
@@ -566,7 +550,7 @@ class Whitespace(Item):
         return self._s
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} {repr(self._s)}>"
+        return f"<{self.__class__.__name__} {self._s!r}>"
 
     def _getstate(self, protocol=3):
         return self._s, self._fixed
@@ -629,9 +613,8 @@ class Integer(Item, _CustomInt):
 
     def _new(self, result):
         raw = str(result)
-        if self._sign:
-            sign = "+" if result >= 0 else "-"
-            raw = sign + raw
+        if self._sign and result >= 0:
+            raw = f"+{raw}"
 
         return Integer(result, self._trivia, raw)
 
@@ -724,9 +707,8 @@ class Float(Item, _CustomFloat):
     def _new(self, result):
         raw = str(result)
 
-        if self._sign:
-            sign = "+" if result >= 0 else "-"
-            raw = sign + raw
+        if self._sign and result >= 0:
+            raw = f"+{raw}"
 
         return Float(result, self._trivia, raw)
 
@@ -970,9 +952,14 @@ class Date(Item, date):
         return date.__new__(cls, year, month, day)
 
     def __init__(
-        self, year: int, month: int, day: int, trivia: Trivia, raw: str
+        self,
+        year: int,
+        month: int,
+        day: int,
+        trivia: Trivia | None = None,
+        raw: str = "",
     ) -> None:
-        super().__init__(trivia)
+        super().__init__(trivia or Trivia())
 
         self._raw = raw
 
@@ -1045,10 +1032,10 @@ class Time(Item, time):
         second: int,
         microsecond: int,
         tzinfo: tzinfo | None,
-        trivia: Trivia,
-        raw: str,
+        trivia: Trivia | None = None,
+        raw: str = "",
     ) -> None:
-        super().__init__(trivia)
+        super().__init__(trivia or Trivia())
 
         self._raw = raw
 
@@ -1457,23 +1444,19 @@ class AbstractTable(Item, _CustomDict):
         return self._value
 
     @overload
-    def append(self: AT, key: None, value: Comment | Whitespace) -> AT:
-        ...
+    def append(self: AT, key: None, value: Comment | Whitespace) -> AT: ...
 
     @overload
-    def append(self: AT, key: Key | str, value: Any) -> AT:
-        ...
+    def append(self: AT, key: Key | str, value: Any) -> AT: ...
 
     def append(self, key, value):
         raise NotImplementedError
 
     @overload
-    def add(self: AT, key: Comment | Whitespace) -> AT:
-        ...
+    def add(self: AT, key: Comment | Whitespace) -> AT: ...
 
     @overload
-    def add(self: AT, key: Key | str, value: Any = ...) -> AT:
-        ...
+    def add(self: AT, key: Key | str, value: Any = ...) -> AT: ...
 
     def add(self, key, value=None):
         if value is None:
@@ -1638,11 +1621,23 @@ class Table(AbstractTable):
         If true, it won't appear in the TOML representation."""
         if self._is_super_table is not None:
             return self._is_super_table
-        # If the table has only one child and that child is a table, then it is a super table.
-        if len(self) != 1:
+        if not self:
             return False
-        only_child = next(iter(self.values()))
-        return isinstance(only_child, (Table, AoT))
+        # If the table has children and all children are tables, then it is a super table.
+        for k, child in self.items():
+            if not isinstance(k, Key):
+                k = SingleKey(k)
+            index = self.value._map[k]
+            if isinstance(index, tuple):
+                return False
+            real_key = self.value.body[index][0]
+            if (
+                not isinstance(child, (Table, AoT))
+                or real_key is None
+                or real_key.is_dotted()
+            ):
+                return False
+        return True
 
     def as_string(self) -> str:
         return self._value.as_string()
@@ -1874,12 +1869,10 @@ class AoT(Item, _CustomList):
         return len(self._body)
 
     @overload
-    def __getitem__(self, key: slice) -> list[Table]:
-        ...
+    def __getitem__(self, key: slice) -> list[Table]: ...
 
     @overload
-    def __getitem__(self, key: int) -> Table:
-        ...
+    def __getitem__(self, key: int) -> Table: ...
 
     def __getitem__(self, key):
         return self._body[key]

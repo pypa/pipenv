@@ -115,7 +115,7 @@ class UnexpectedCharError(ParseError):
     """
 
     def __init__(self, line: int, col: int, char: str) -> None:
-        message = f"Unexpected character: {repr(char)}"
+        message = f"Unexpected character: {char!r}"
 
         super().__init__(line, col, message=message)
 
@@ -148,7 +148,7 @@ class InvalidCharInStringError(ParseError):
     """
 
     def __init__(self, line: int, col: int, char: str) -> None:
-        message = f"Invalid character {repr(char)} in string"
+        message = f"Invalid character {char!r} in string"
 
         super().__init__(line, col, message=message)
 
@@ -225,3 +225,10 @@ class InvalidStringError(ValueError, TOMLKitError):
             f"Invalid string: {delimiter}{repr_}{delimiter}. "
             f"The character sequences {invalid_sequences} are invalid."
         )
+
+
+class ConvertError(TypeError, ValueError, TOMLKitError):
+    """Raised when item() fails to convert a value.
+    It should be a TypeError, but due to historical reasons
+    it needs to subclass ValueError as well.
+    """

@@ -7,7 +7,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 import string
 from types import MappingProxyType
-from typing import Any, BinaryIO, NamedTuple
+from typing import IO, Any, NamedTuple
 
 from ._re import (
     RE_DATETIME,
@@ -54,7 +54,7 @@ class TOMLDecodeError(ValueError):
     """An error raised if a document is not valid TOML."""
 
 
-def load(__fp: BinaryIO, *, parse_float: ParseFloat = float) -> dict[str, Any]:
+def load(__fp: IO[bytes], *, parse_float: ParseFloat = float) -> dict[str, Any]:
     """Parse TOML from a binary file object."""
     b = __fp.read()
     try:
@@ -71,7 +71,12 @@ def loads(__s: str, *, parse_float: ParseFloat = float) -> dict[str, Any]:  # no
 
     # The spec allows converting "\r\n" to "\n", even in string
     # literals. Let's do so to simplify parsing.
-    src = __s.replace("\r\n", "\n")
+    try:
+        src = __s.replace("\r\n", "\n")
+    except (AttributeError, TypeError):
+        raise TypeError(
+            f"Expected str object, not '{type(__s).__qualname__}'"
+        ) from None
     pos = 0
     out = Output(NestedDict(), Flags())
     header: Key = ()
@@ -679,7 +684,7 @@ def make_safe_parse_float(parse_float: ParseFloat) -> ParseFloat:
     instead of returning illegal types.
     """
     # The default `float` callable never returns illegal types. Optimize it.
-    if parse_float is float:  # type: ignore[comparison-overlap]
+    if parse_float is float:
         return float
 
     def safe_parse_float(float_str: str) -> Any:

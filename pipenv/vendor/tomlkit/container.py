@@ -155,7 +155,7 @@ class Container(_CustomDict):
             return
         if key not in self._map or not isinstance(self._map[key], tuple):
             return
-        OutOfOrderTableProxy(self, self._map[key])
+        OutOfOrderTableProxy.validate(self, self._map[key])
 
     def append(
         self, key: Key | str | None, item: Item, validate: bool = True
@@ -251,9 +251,11 @@ class Container(_CustomDict):
                         for k, v in item.value.body:
                             current.append(k, v)
                         self._body[
-                            current_idx[-1]
-                            if isinstance(current_idx, tuple)
-                            else current_idx
+                            (
+                                current_idx[-1]
+                                if isinstance(current_idx, tuple)
+                                else current_idx
+                            )
                         ] = (current_body_element[0], current)
 
                         return self
@@ -310,7 +312,7 @@ class Container(_CustomDict):
             if key is not None and not isinstance(current, Table):
                 raise KeyAlreadyPresent(key)
 
-            self._map[key] = current_idx + (len(self._body),)
+            self._map[key] = (*current_idx, len(self._body))
         elif key is not None:
             self._map[key] = len(self._body)
 
@@ -320,8 +322,6 @@ class Container(_CustomDict):
 
         if key is not None:
             dict.__setitem__(self, key.key, item.value)
-
-        return self
 
     def _remove_at(self, idx: int) -> None:
         key = self._body[idx][0]
@@ -445,7 +445,7 @@ class Container(_CustomDict):
             current_idx = self._map[key]
             if not isinstance(current_idx, tuple):
                 current_idx = (current_idx,)
-            self._map[key] = current_idx + (idx,)
+            self._map[key] = (*current_idx, idx)
         else:
             self._map[key] = idx
         self._body.insert(idx, (key, item))
@@ -786,7 +786,21 @@ class Container(_CustomDict):
 
 
 class OutOfOrderTableProxy(_CustomDict):
-    def __init__(self, container: Container, indices: tuple[int]) -> None:
+    @staticmethod
+    def validate(container: Container, indices: tuple[int, ...]) -> None:
+        """Validate out of order tables in the given container"""
+        # Append all items to a temp container to see if there is any error
+        temp_container = Container(True)
+        for i in indices:
+            _, item = container._body[i]
+
+            if isinstance(item, Table):
+                for k, v in item.value.body:
+                    temp_container.append(k, v, validate=False)
+
+        temp_container._validate_out_of_order_table()
+
+    def __init__(self, container: Container, indices: tuple[int, ...]) -> None:
         self._container = container
         self._internal_container = Container(True)
         self._tables = []
@@ -799,8 +813,8 @@ class OutOfOrderTableProxy(_CustomDict):
                 self._tables.append(item)
                 table_idx = len(self._tables) - 1
                 for k, v in item.value.body:
-                    self._internal_container.append(k, v, validate=False)
-                    self._tables_map[k] = table_idx
+                    self._internal_container._raw_append(k, v)
+                    self._tables_map.setdefault(k, []).append(table_idx)
                     if k is not None:
                         dict.__setitem__(self, k.key, v)
 
@@ -821,8 +835,12 @@ class OutOfOrderTableProxy(_CustomDict):
 
     def __setitem__(self, key: Key | str, item: Any) -> None:
         if key in self._tables_map:
-            table = self._tables[self._tables_map[key]]
-            table[key] = item
+            # Overwrite the first table and remove others
+            indices = self._tables_map[key]
+            while len(indices) > 1:
+                table = self._tables[indices.pop()]
+                self._remove_table(table)
+            self._tables[indices[0]][key] = item
         elif self._tables:
             table = self._tables[0]
             table[key] = item
@@ -842,15 +860,16 @@ class OutOfOrderTableProxy(_CustomDict):
                 break
 
     def __delitem__(self, key: Key | str) -> None:
-        if key in self._tables_map:
-            table = self._tables[self._tables_map[key]]
+        if key not in self._tables_map:
+            raise NonExistentKey(key)
+
+        for i in reversed(self._tables_map[key]):
+            table = self._tables[i]
             del table[key]
             if not table and len(self._tables) > 1:
                 self._remove_table(table)
-            del self._tables_map[key]
-        else:
-            raise NonExistentKey(key)
 
+        del self._tables_map[key]
         del self._internal_container[key]
         if key is not None:
             dict.__delitem__(self, key)

@@ -1,50 +1,31 @@
+from __future__ import annotations
+
 import email.feedparser
 import email.header
 import email.message
 import email.parser
 import email.policy
-import sys
 import typing
 from typing import (
     Any,
     Callable,
-    Dict,
     Generic,
-    List,
-    Optional,
-    Tuple,
-    Type,
-    Union,
+    Literal,
+    TypedDict,
     cast,
 )
 
-from . import requirements, specifiers, utils, version as version_module
+from . import requirements, specifiers, utils
+from . import version as version_module
 
 T = typing.TypeVar("T")
-if sys.version_info[:2] >= (3, 8):  # pragma: no cover
-    from typing import Literal, TypedDict
-else:  # pragma: no cover
-    if typing.TYPE_CHECKING:
-        from pipenv.patched.pip._vendor.typing_extensions import Literal, TypedDict
-    else:
-        try:
-            from pipenv.patched.pip._vendor.typing_extensions import Literal, TypedDict
-        except ImportError:
-
-            class Literal:
-                def __init_subclass__(*_args, **_kwargs):
-                    pass
-
-            class TypedDict:
-                def __init_subclass__(*_args, **_kwargs):
-                    pass
 
 
 try:
     ExceptionGroup
 except NameError:  # pragma: no cover
 
-    class ExceptionGroup(Exception):  # noqa: N818
+    class ExceptionGroup(Exception):
         """A minimal implementation of :external:exc:`ExceptionGroup` from Python 3.11.
 
         If :external:exc:`ExceptionGroup` is already defined by Python itself,
@@ -52,9 +33,9 @@ except NameError:  # pragma: no cover
         """
 
         message: str
-        exceptions: List[Exception]
+        exceptions: list[Exception]
 
-        def __init__(self, message: str, exceptions: List[Exception]) -> None:
+        def __init__(self, message: str, exceptions: list[Exception]) -> None:
             self.message = message
             self.exceptions = exceptions
 
@@ -100,32 +81,32 @@ class RawMetadata(TypedDict, total=False):
     metadata_version: str
     name: str
     version: str
-    platforms: List[str]
+    platforms: list[str]
     summary: str
     description: str
-    keywords: List[str]
+    keywords: list[str]
     home_page: str
     author: str
     author_email: str
     license: str
 
     # Metadata 1.1 - PEP 314
-    supported_platforms: List[str]
+    supported_platforms: list[str]
     download_url: str
-    classifiers: List[str]
-    requires: List[str]
-    provides: List[str]
-    obsoletes: List[str]
+    classifiers: list[str]
+    requires: list[str]
+    provides: list[str]
+    obsoletes: list[str]
 
     # Metadata 1.2 - PEP 345
     maintainer: str
     maintainer_email: str
-    requires_dist: List[str]
-    provides_dist: List[str]
-    obsoletes_dist: List[str]
+    requires_dist: list[str]
+    provides_dist: list[str]
+    obsoletes_dist: list[str]
     requires_python: str
-    requires_external: List[str]
-    project_urls: Dict[str, str]
+    requires_external: list[str]
+    project_urls: dict[str, str]
 
     # Metadata 2.0
     # PEP 426 attempted to completely revamp the metadata format
@@ -138,10 +119,10 @@ class RawMetadata(TypedDict, total=False):
 
     # Metadata 2.1 - PEP 566
     description_content_type: str
-    provides_extra: List[str]
+    provides_extra: list[str]
 
     # Metadata 2.2 - PEP 643
-    dynamic: List[str]
+    dynamic: list[str]
 
     # Metadata 2.3 - PEP 685
     # No new fields were added in PEP 685, just some edge case were
@@ -185,12 +166,12 @@ _DICT_FIELDS = {
 }
 
 
-def _parse_keywords(data: str) -> List[str]:
+def _parse_keywords(data: str) -> list[str]:
     """Split a string of comma-separate keyboards into a list of keywords."""
     return [k.strip() for k in data.split(",")]
 
 
-def _parse_project_urls(data: List[str]) -> Dict[str, str]:
+def _parse_project_urls(data: list[str]) -> dict[str, str]:
     """Parse a list of label/URL string pairings separated by a comma."""
     urls = {}
     for pair in data:
@@ -230,7 +211,7 @@ def _parse_project_urls(data: List[str]) -> Dict[str, str]:
     return urls
 
 
-def _get_payload(msg: email.message.Message, source: Union[bytes, str]) -> str:
+def _get_payload(msg: email.message.Message, source: bytes | str) -> str:
     """Get the body of the message."""
     # If our source is a str, then our caller has managed encodings for us,
     # and we don't need to deal with it.
@@ -292,7 +273,7 @@ _EMAIL_TO_RAW_MAPPING = {
 _RAW_TO_EMAIL_MAPPING = {raw: email for email, raw in _EMAIL_TO_RAW_MAPPING.items()}
 
 
-def parse_email(data: Union[bytes, str]) -> Tuple[RawMetadata, Dict[str, List[str]]]:
+def parse_email(data: bytes | str) -> tuple[RawMetadata, dict[str, list[str]]]:
     """Parse a distribution's metadata stored as email headers (e.g. from ``METADATA``).
 
     This function returns a two-item tuple of dicts. The first dict is of
@@ -308,8 +289,8 @@ def parse_email(data: Union[bytes, str]) -> Tuple[RawMetadata, Dict[str, List[st
     included in this dict.
 
     """
-    raw: Dict[str, Union[str, List[str], Dict[str, str]]] = {}
-    unparsed: Dict[str, List[str]] = {}
+    raw: dict[str, str | list[str] | dict[str, str]] = {}
+    unparsed: dict[str, list[str]] = {}
 
     if isinstance(data, str):
         parsed = email.parser.Parser(policy=email.policy.compat32).parsestr(data)
@@ -357,7 +338,7 @@ def parse_email(data: Union[bytes, str]) -> Tuple[RawMetadata, Dict[str, List[st
                 # The Header object stores it's data as chunks, and each chunk
                 # can be independently encoded, so we'll need to check each
                 # of them.
-                chunks: List[Tuple[bytes, Optional[str]]] = []
+                chunks: list[tuple[bytes, str | None]] = []
                 for bin, encoding in email.header.decode_header(h):
                     try:
                         bin.decode("utf8", "strict")
@@ -499,11 +480,11 @@ class _Validator(Generic[T]):
     ) -> None:
         self.added = added
 
-    def __set_name__(self, _owner: "Metadata", name: str) -> None:
+    def __set_name__(self, _owner: Metadata, name: str) -> None:
         self.name = name
         self.raw_name = _RAW_TO_EMAIL_MAPPING[name]
 
-    def __get__(self, instance: "Metadata", _owner: Type["Metadata"]) -> T:
+    def __get__(self, instance: Metadata, _owner: type[Metadata]) -> T:
         # With Python 3.8, the caching can be replaced with functools.cached_property().
         # No need to check the cache as attribute lookup will resolve into the
         # instance's __dict__ before __get__ is called.
@@ -531,7 +512,7 @@ class _Validator(Generic[T]):
         return cast(T, value)
 
     def _invalid_metadata(
-        self, msg: str, cause: Optional[Exception] = None
+        self, msg: str, cause: Exception | None = None
     ) -> InvalidMetadata:
         exc = InvalidMetadata(
             self.raw_name, msg.format_map({"field": repr(self.raw_name)})
@@ -606,7 +587,7 @@ class _Validator(Generic[T]):
             )
         return value
 
-    def _process_dynamic(self, value: List[str]) -> List[str]:
+    def _process_dynamic(self, value: list[str]) -> list[str]:
         for dynamic_field in map(str.lower, value):
             if dynamic_field in {"name", "version", "metadata-version"}:
                 raise self._invalid_metadata(
@@ -618,8 +599,8 @@ class _Validator(Generic[T]):
 
     def _process_provides_extra(
         self,
-        value: List[str],
-    ) -> List[utils.NormalizedName]:
+        value: list[str],
+    ) -> list[utils.NormalizedName]:
         normalized_names = []
         try:
             for name in value:
@@ -641,8 +622,8 @@ class _Validator(Generic[T]):
 
     def _process_requires_dist(
         self,
-        value: List[str],
-    ) -> List[requirements.Requirement]:
+        value: list[str],
+    ) -> list[requirements.Requirement]:
         reqs = []
         try:
             for req in value:
@@ -665,7 +646,7 @@ class Metadata:
     _raw: RawMetadata
 
     @classmethod
-    def from_raw(cls, data: RawMetadata, *, validate: bool = True) -> "Metadata":
+    def from_raw(cls, data: RawMetadata, *, validate: bool = True) -> Metadata:
         """Create an instance from :class:`RawMetadata`.
 
         If *validate* is true, all metadata will be validated. All exceptions
@@ -675,7 +656,7 @@ class Metadata:
         ins._raw = data.copy()  # Mutations occur due to caching enriched values.
 
         if validate:
-            exceptions: List[Exception] = []
+            exceptions: list[Exception] = []
             try:
                 metadata_version = ins.metadata_version
                 metadata_age = _VALID_METADATA_VERSIONS.index(metadata_version)
@@ -722,9 +703,7 @@ class Metadata:
         return ins
 
     @classmethod
-    def from_email(
-        cls, data: Union[bytes, str], *, validate: bool = True
-    ) -> "Metadata":
+    def from_email(cls, data: bytes | str, *, validate: bool = True) -> Metadata:
         """Parse metadata from email headers.
 
         If *validate* is true, the metadata will be validated. All exceptions
@@ -760,66 +739,66 @@ class Metadata:
     *validate* parameter)"""
     version: _Validator[version_module.Version] = _Validator()
     """:external:ref:`core-metadata-version` (required)"""
-    dynamic: _Validator[Optional[List[str]]] = _Validator(
+    dynamic: _Validator[list[str] | None] = _Validator(
         added="2.2",
     )
     """:external:ref:`core-metadata-dynamic`
     (validated against core metadata field names and lowercased)"""
-    platforms: _Validator[Optional[List[str]]] = _Validator()
+    platforms: _Validator[list[str] | None] = _Validator()
     """:external:ref:`core-metadata-platform`"""
-    supported_platforms: _Validator[Optional[List[str]]] = _Validator(added="1.1")
+    supported_platforms: _Validator[list[str] | None] = _Validator(added="1.1")
     """:external:ref:`core-metadata-supported-platform`"""
-    summary: _Validator[Optional[str]] = _Validator()
+    summary: _Validator[str | None] = _Validator()
     """:external:ref:`core-metadata-summary` (validated to contain no newlines)"""
-    description: _Validator[Optional[str]] = _Validator()  # TODO 2.1: can be in body
+    description: _Validator[str | None] = _Validator()  # TODO 2.1: can be in body
     """:external:ref:`core-metadata-description`"""
-    description_content_type: _Validator[Optional[str]] = _Validator(added="2.1")
+    description_content_type: _Validator[str | None] = _Validator(added="2.1")
     """:external:ref:`core-metadata-description-content-type` (validated)"""
-    keywords: _Validator[Optional[List[str]]] = _Validator()
+    keywords: _Validator[list[str] | None] = _Validator()
     """:external:ref:`core-metadata-keywords`"""
-    home_page: _Validator[Optional[str]] = _Validator()
+    home_page: _Validator[str | None] = _Validator()
     """:external:ref:`core-metadata-home-page`"""
-    download_url: _Validator[Optional[str]] = _Validator(added="1.1")
+    download_url: _Validator[str | None] = _Validator(added="1.1")
     """:external:ref:`core-metadata-download-url`"""
-    author: _Validator[Optional[str]] = _Validator()
+    author: _Validator[str | None] = _Validator()
     """:external:ref:`core-metadata-author`"""
-    author_email: _Validator[Optional[str]] = _Validator()
+    author_email: _Validator[str | None] = _Validator()
     """:external:ref:`core-metadata-author-email`"""
-    maintainer: _Validator[Optional[str]] = _Validator(added="1.2")
+    maintainer: _Validator[str | None] = _Validator(added="1.2")
     """:external:ref:`core-metadata-maintainer`"""
-    maintainer_email: _Validator[Optional[str]] = _Validator(added="1.2")
+    maintainer_email: _Validator[str | None] = _Validator(added="1.2")
     """:external:ref:`core-metadata-maintainer-email`"""
-    license: _Validator[Optional[str]] = _Validator()
+    license: _Validator[str | None] = _Validator()
     """:external:ref:`core-metadata-license`"""
-    classifiers: _Validator[Optional[List[str]]] = _Validator(added="1.1")
+    classifiers: _Validator[list[str] | None] = _Validator(added="1.1")
     """:external:ref:`core-metadata-classifier`"""
-    requires_dist: _Validator[Optional[List[requirements.Requirement]]] = _Validator(
+    requires_dist: _Validator[list[requirements.Requirement] | None] = _Validator(
         added="1.2"
     )
     """:external:ref:`core-metadata-requires-dist`"""
-    requires_python: _Validator[Optional[specifiers.SpecifierSet]] = _Validator(
+    requires_python: _Validator[specifiers.SpecifierSet | None] = _Validator(
         added="1.2"
     )
     """:external:ref:`core-metadata-requires-python`"""
     # Because `Requires-External` allows for non-PEP 440 version specifiers, we
     # don't do any processing on the values.
-    requires_external: _Validator[Optional[List[str]]] = _Validator(added="1.2")
+    requires_external: _Validator[list[str] | None] = _Validator(added="1.2")
     """:external:ref:`core-metadata-requires-external`"""
-    project_urls: _Validator[Optional[Dict[str, str]]] = _Validator(added="1.2")
+    project_urls: _Validator[dict[str, str] | None] = _Validator(added="1.2")
     """:external:ref:`core-metadata-project-url`"""
     # PEP 685 lets us raise an error if an extra doesn't pass `Name` validation
     # regardless of metadata version.
-    provides_extra: _Validator[Optional[List[utils.NormalizedName]]] = _Validator(
+    provides_extra: _Validator[list[utils.NormalizedName] | None] = _Validator(
         added="2.1",
     )
     """:external:ref:`core-metadata-provides-extra`"""
-    provides_dist: _Validator[Optional[List[str]]] = _Validator(added="1.2")
+    provides_dist: _Validator[list[str] | None] = _Validator(added="1.2")
     """:external:ref:`core-metadata-provides-dist`"""
-    obsoletes_dist: _Validator[Optional[List[str]]] = _Validator(added="1.2")
+    obsoletes_dist: _Validator[list[str] | None] = _Validator(added="1.2")
     """:external:ref:`core-metadata-obsoletes-dist`"""
-    requires: _Validator[Optional[List[str]]] = _Validator(added="1.1")
+    requires: _Validator[list[str] | None] = _Validator(added="1.1")
     """``Requires`` (deprecated)"""
-    provides: _Validator[Optional[List[str]]] = _Validator(added="1.1")
+    provides: _Validator[list[str] | None] = _Validator(added="1.1")
     """``Provides`` (deprecated)"""
-    obsoletes: _Validator[Optional[List[str]]] = _Validator(added="1.1")
+    obsoletes: _Validator[list[str] | None] = _Validator(added="1.1")
     """``Obsoletes`` (deprecated)"""

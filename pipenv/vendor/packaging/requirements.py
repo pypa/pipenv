@@ -1,8 +1,9 @@
 # This file is dual licensed under the terms of the Apache License, Version
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
+from __future__ import annotations
 
-from typing import Any, Iterator, Optional, Set
+from typing import Any, Iterator
 
 from ._parser import parse_requirement as _parse_requirement
 from ._tokenizer import ParserSyntaxError
@@ -37,10 +38,10 @@ class Requirement:
             raise InvalidRequirement(str(e)) from e
 
         self.name: str = parsed.name
-        self.url: Optional[str] = parsed.url or None
-        self.extras: Set[str] = set(parsed.extras or [])
+        self.url: str | None = parsed.url or None
+        self.extras: set[str] = set(parsed.extras or [])
         self.specifier: SpecifierSet = SpecifierSet(parsed.specifier)
-        self.marker: Optional[Marker] = None
+        self.marker: Marker | None = None
         if parsed.marker is not None:
             self.marker = Marker.__new__(Marker)
             self.marker._markers = _normalize_extra_values(parsed.marker)
