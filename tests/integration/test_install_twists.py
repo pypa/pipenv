@@ -486,7 +486,7 @@ def test_no_duplicate_source_on_install(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         # Create initial Pipfile with a source
         with open(p.pipfile_path, "w") as f:
-            contents = f"""
+            contents = """
 [[source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
