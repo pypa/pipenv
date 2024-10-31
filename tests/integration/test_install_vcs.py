@@ -71,3 +71,52 @@ def test_install_vcs_ref_by_commit_hash(pipenv_instance_private_pypi):
         )
         assert "six" in p.pipfile["packages"]
         assert "six" in p.lockfile["default"]
+
+
+@pytest.mark.vcs
+@pytest.mark.dev
+@pytest.mark.install
+def test_vcs_dev_package_install(pipenv_instance_pypi):
+    """Ensure VCS packages can be properly installed into dev-packages via --dev flag with existing Pipfile."""
+    with pipenv_instance_pypi() as p:
+        # Create a Pipfile with some existing packages
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+six = "*"
+
+[dev-packages]
+pytest-xdist = {git = "https://github.com/pytest-dev/pytest-xdist.git", ref = "v3.6.1"}
+            """.strip()
+            f.write(contents)
+
+        # Install a VCS package with --dev flag
+        c = p.pipenv("install --dev -v")
+        assert c.returncode == 0
+
+        # Verify package appears in dev-packages in Pipfile
+        assert "pytest-xdist" in p.pipfile["dev-packages"]
+        assert p.pipfile["dev-packages"]["pytest-xdist"]["git"] == "https://github.com/pytest-dev/pytest-xdist.git"
+        assert p.pipfile["dev-packages"]["pytest-xdist"]["ref"] == "v3.6.1"
+
+        # Verify package appears in develop section of lockfile
+        assert "pytest-xdist" in p.lockfile["develop"]
+        assert p.lockfile["develop"]["pytest-xdist"]["git"] == "git+https://github.com/pytest-dev/pytest-xdist.git"
+        assert p.lockfile["develop"]["pytest-xdist"]["ref"] == "4dd2978031eaf7017c84a1cc77667379a2b11c64"
+
+        # Verify the package is importable
+        c = p.pipenv('run python -c "import xdist"')
+        assert c.returncode == 0
+
+        # Test that dependencies were also installed correctly
+        c = p.pipenv('run python -c "import execnet"')  # pytest-xdist depends on execnet
+        assert c.returncode == 0
+
+        # Verify no duplicate entries in default packages
+        assert "pytest-xdist" not in p.pipfile.get("packages", {})
+        assert "pytest-xdist" not in p.lockfile.get("default", {})
