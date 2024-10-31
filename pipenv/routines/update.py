@@ -392,14 +392,6 @@ def upgrade(
                 pypi_mirror=pypi_mirror,
             )
 
-            # Verify no conflicts were introduced during resolution
-            for package_name, package_data in full_lock_resolution.items():
-                if package_name in upgrade_lock_data:
-                    version = package_data.get("version", "").replace("==", "")
-                    if not version:
-                        # Either vcs or file package
-                        continue
-
             # Update lockfile with verified resolution data
             for package_name in upgrade_lock_data:
                 correct_package_lock = full_lock_resolution.get(package_name)
