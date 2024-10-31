@@ -380,21 +380,18 @@ def upgrade(
 
         complete_packages = project.parsed_pipfile.get(pipfile_category, {})
 
-        full_lock_resolution = venv_resolve_deps(
-            complete_packages,
-            which=project._which,
-            project=project,
-            lockfile={},
-            pipfile_category=pipfile_category,
-            pre=pre,
-            allow_global=system,
-            pypi_mirror=pypi_mirror,
-        )
+        if upgrade_lock_data is not None:  # Upgrade a subset of packages
+            full_lock_resolution = venv_resolve_deps(
+                complete_packages,
+                which=project._which,
+                project=project,
+                lockfile={},
+                pipfile_category=pipfile_category,
+                pre=pre,
+                allow_global=system,
+                pypi_mirror=pypi_mirror,
+            )
 
-        if upgrade_lock_data is None:
-            for package_name, package_data in full_lock_resolution.items():
-                lockfile[category][package_name] = package_data
-        else:  # Upgrade a subset of packages
             # Verify no conflicts were introduced during resolution
             for package_name, package_data in full_lock_resolution.items():
                 if package_name in upgrade_lock_data:
