@@ -1,4 +1,4 @@
-2024.3.0 (2024-10-30)
+2024.3.1 (2024-10-30)
 =====================
 
 Bug Fixes
@@ -8,6 +8,7 @@ Bug Fixes
 - Fix regression of ``2024.3.0`` when using the ``--system`` flag without ``--deploy`` flag.  `#6295 <https://github.com/pypa/pipenv/issues/6295>`_
 - - **Bugfix:** Fixed Regression with the ``pipenv update`` routine to allow for package upgrades without requiring an existing lockfile. This change improves the flexibility of the update process by determining which packages require updating and handling cases where the lockfile is absent or partially defined.
   - **Tests Added:** Comprehensive integration tests for the updated functionality, covering scenarios like updating packages without a lockfile, detecting modified entries, handling VCS changes, and verifying the correct application of extras during installation.  `#6299 <https://github.com/pypa/pipenv/issues/6299>`_
+
 2024.3.0 (2024-10-29)
 =====================
 
