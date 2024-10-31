@@ -1,0 +1,1 @@
+Fix regression where ``--skip-lock --dev`` was incorrectly searching Lockfile categories ("default", "develop") instead of Pipfile categories ("packages", "dev-packages"), causing packages to not be found.
