@@ -34,7 +34,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
 
     # Build command arguments list
-    cmd_args = [python_path, pipdeptree_path, "-l"]
+    cmd_args = [python_path, str(pipdeptree_path), "-l"]
 
     # Add flags as needed - multiple flags now supported
     if json:

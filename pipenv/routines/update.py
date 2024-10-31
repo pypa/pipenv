@@ -11,8 +11,10 @@ from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
 from pipenv.utils import err
+from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
+    get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.utils.processes import run_command
@@ -59,16 +61,17 @@ def do_update(
 
     if not outdated:
         # Pre-sync packages for pipdeptree resolution to avoid conflicts
-        do_sync(
-            project,
-            dev=dev,
-            categories=categories,
-            python=python,
-            bare=bare,
-            clear=clear,
-            pypi_mirror=pypi_mirror,
-            extra_pip_args=extra_pip_args,
-        )
+        if project.lockfile_exists:
+            do_sync(
+                project,
+                dev=dev,
+                categories=categories,
+                python=python,
+                bare=bare,
+                clear=clear,
+                pypi_mirror=pypi_mirror,
+                extra_pip_args=extra_pip_args,
+            )
         upgrade(
             project,
             pre=pre,
@@ -106,12 +109,11 @@ def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
     pipdeptree_path = Path(pipdeptree.__file__).parent
     python_path = project.python()
-    cmd_args = [python_path, pipdeptree_path, "-l", "--reverse", "--json-tree"]
+    cmd_args = [python_path, str(pipdeptree_path), "-l", "--reverse", "--json-tree"]
 
     c = run_command(cmd_args, is_verbose=project.s.is_verbose())
     if c.returncode != 0:
         raise PipenvCmdError(c.err, c.out, c.returncode)
-
     try:
         dep_tree = json.loads(c.stdout.strip())
     except json.JSONDecodeError:
@@ -137,7 +139,12 @@ def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
 
     # Start processing the tree from the root nodes
     for node in dep_tree:
-        process_tree_node(node)
+        try:
+            process_tree_node(node)
+        except Exception as e:  # noqa: PERF203
+            err.print(
+                f"[red bold]Warning[/red bold]: Unable to analyze dependencies: {str(e)}"
+            )
 
     return reverse_deps
 
@@ -166,11 +173,74 @@ def check_version_conflicts(
             specifier_set = SpecifierSet(req_version)
             if not specifier_set.contains(new_version_obj):
                 conflicts.add(dependent)
-        except Exception:
+        except Exception:  # noqa: PERF203
             # If we can't parse the version requirement, assume it's a conflict
             conflicts.add(dependent)
 
     return conflicts
+
+
+def get_modified_pipfile_entries(project, pipfile_categories):
+    """
+    Detect Pipfile entries that have been modified since the last lock.
+    Returns a dict mapping categories to sets of InstallRequirement objects.
+    """
+    modified = defaultdict(dict)
+    lockfile = project.lockfile()
+
+    for pipfile_category in pipfile_categories:
+        lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
+        pipfile_packages = project.parsed_pipfile.get(pipfile_category, {})
+        locked_packages = lockfile.get(lockfile_category, {})
+
+        for package_name, pipfile_entry in pipfile_packages.items():
+            if package_name not in locked_packages:
+                # New package
+                modified[lockfile_category][package_name] = pipfile_entry
+                continue
+
+            locked_entry = locked_packages[package_name]
+            is_modified = False
+
+            # For string entries, compare directly
+            if isinstance(pipfile_entry, str):
+                if pipfile_entry != locked_entry.get("version", ""):
+                    is_modified = True
+
+            # For dict entries, need to compare relevant fields
+            elif isinstance(pipfile_entry, dict):
+                if "version" in pipfile_entry:
+                    if pipfile_entry["version"] != locked_entry.get("version", ""):
+                        is_modified = True
+
+                # Compare VCS fields
+                for key in VCS_LIST:
+                    if key in pipfile_entry:
+                        if (
+                            key not in locked_entry
+                            or pipfile_entry[key] != locked_entry[key]
+                        ):
+                            is_modified = True
+
+                # Compare ref for VCS packages
+                if "ref" in pipfile_entry:
+                    if (
+                        "ref" not in locked_entry
+                        or pipfile_entry["ref"] != locked_entry["ref"]
+                    ):
+                        is_modified = True
+
+                # Compare extras
+                if "extras" in pipfile_entry:
+                    pipfile_extras = set(pipfile_entry["extras"])
+                    locked_extras = set(locked_entry.get("extras", []))
+                    if pipfile_extras != locked_extras:
+                        is_modified = True
+
+            if is_modified:
+                modified[lockfile_category][package_name] = pipfile_entry
+
+    return modified
 
 
 def upgrade(
@@ -206,17 +276,14 @@ def upgrade(
         categories.insert(0, "default")
 
     # Get current dependency graph
-    try:
-        reverse_deps = get_reverse_dependencies(project)
-    except Exception as e:
-        err.print(
-            f"[red bold]Warning[/red bold]: Unable to analyze dependencies: {str(e)}"
-        )
-        reverse_deps = {}
+    reverse_deps = get_reverse_dependencies(project)
 
     index_name = None
     if index_url:
-        index_name = add_index_to_pipfile(project, index_url)
+        if project.get_index_by_url(index_url):
+            index_name = project.get_index_by_url(index_url)["name"]
+        else:
+            index_name = add_index_to_pipfile(project, index_url)
 
     if extra_pip_args:
         os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
@@ -245,76 +312,71 @@ def upgrade(
         )
         sys.exit(1)
 
-    requested_install_reqs = defaultdict(dict)
+    # Create clean package_args first
+    has_package_args = False
+    if package_args:
+        has_package_args = True
+
     requested_packages = defaultdict(dict)
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
+        # Get modified entries if no explicit packages specified
+        if not package_args and project.lockfile_exists:
+            modified_entries = get_modified_pipfile_entries(project, [pipfile_category])
+            for name, entry in modified_entries[category].items():
+                requested_packages[pipfile_category][name] = entry
+
+        # Process each package arg
         for package in package_args[:]:
             install_req, _ = expansive_install_req_from_line(package, expand_env=True)
-            if index_name:
-                install_req.index = index_name
 
             name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
-                install_req, package, category=pipfile_category
+                install_req, package, category=pipfile_category, index_name=index_name
             )
-            project.add_pipfile_entry_to_pipfile(
-                name, normalized_name, pipfile_entry, category=pipfile_category
-            )
+
+            # Only add to Pipfile if explicitly requested
+            if has_package_args:
+                project.add_pipfile_entry_to_pipfile(
+                    name, normalized_name, pipfile_entry, category=pipfile_category
+                )
+
             requested_packages[pipfile_category][normalized_name] = pipfile_entry
-            requested_install_reqs[pipfile_category][normalized_name] = install_req
 
-            # Consider reverse packages in reverse_deps
+            # Handle reverse dependencies
             if normalized_name in reverse_deps:
-                for dependency, req_version in reverse_deps[normalized_name]:
-                    if req_version == "Any":
-                        package_args.append(dependency)
-                        pipfile_entry = project.get_pipfile_entry(
-                            dependency, category=pipfile_category
-                        )
-                        requested_packages[pipfile_category][dependency] = (
-                            pipfile_entry if pipfile_entry else "*"
-                        )
+                for dependency, _ in reverse_deps[normalized_name]:
+                    pipfile_entry = project.get_pipfile_entry(
+                        dependency, category=pipfile_category
+                    )
+                    if not pipfile_entry:
+                        requested_packages[pipfile_category][dependency] = {
+                            normalized_name: "*"
+                        }
                         continue
+                    requested_packages[pipfile_category][dependency] = pipfile_entry
 
-                    try:  # Otherwise we have a specific version requirement
-                        specifier_set = SpecifierSet(req_version)
-                        package_args.append(f"{dependency}=={specifier_set}")
-                        pipfile_entry = project.get_pipfile_entry(
-                            dependency, category=pipfile_category
-                        )
-                        requested_packages[pipfile_category][dependency] = (
-                            pipfile_entry if pipfile_entry else "*"
-                        )
-
-                    except Exception as e:
-                        err.print(
-                            f"[bold][yellow]Warning:[/yellow][/bold] "
-                            f"Unable to parse version specifier for {dependency}: {str(e)}"
-                        )
-
-        if not package_args:
-            err.print("Nothing to upgrade!")
-            return
-        else:
+        # When packages are not provided we simply perform full resolution
+        upgrade_lock_data = None
+        if requested_packages[pipfile_category]:
             err.print(
                 f"[bold][green]Upgrading[/bold][/green] {', '.join(package_args)} in [{category}] dependencies."
             )
 
-        # Resolve package to generate constraints of new package data
-        upgrade_lock_data = venv_resolve_deps(
-            requested_packages[pipfile_category],
-            which=project._which,
-            project=project,
-            lockfile={},
-            pipfile_category=pipfile_category,
-            pre=pre,
-            allow_global=system,
-            pypi_mirror=pypi_mirror,
-        )
-        if not upgrade_lock_data:
-            err.print("Nothing to upgrade!")
-            return
+            # Resolve package to generate constraints of new package data
+            upgrade_lock_data = venv_resolve_deps(
+                requested_packages[pipfile_category],
+                which=project._which,
+                project=project,
+                lockfile={},
+                pipfile_category=pipfile_category,
+                pre=pre,
+                allow_global=system,
+                pypi_mirror=pypi_mirror,
+            )
+            if not upgrade_lock_data:
+                err.print("Nothing to upgrade!")
+                return
 
         complete_packages = project.parsed_pipfile.get(pipfile_category, {})
 
@@ -329,21 +391,29 @@ def upgrade(
             pypi_mirror=pypi_mirror,
         )
 
-        # Verify no conflicts were introduced during resolution
-        for package_name, package_data in full_lock_resolution.items():
-            if package_name in upgrade_lock_data:
-                version = package_data.get("version", "").replace("==", "")
-                if not version:
-                    # Either vcs or file package
-                    continue
+        if upgrade_lock_data is None:
+            for package_name, package_data in full_lock_resolution.items():
+                lockfile[category][package_name] = package_data
+        else:  # Upgrade a subset of packages
+            # Verify no conflicts were introduced during resolution
+            for package_name, package_data in full_lock_resolution.items():
+                if package_name in upgrade_lock_data:
+                    version = package_data.get("version", "").replace("==", "")
+                    if not version:
+                        # Either vcs or file package
+                        continue
 
-        # Update lockfile with verified resolution data
-        for package_name in upgrade_lock_data:
-            correct_package_lock = full_lock_resolution.get(package_name)
-            if correct_package_lock:
-                if category not in lockfile:
-                    lockfile[category] = {}
-                lockfile[category][package_name] = correct_package_lock
+            # Update lockfile with verified resolution data
+            for package_name in upgrade_lock_data:
+                correct_package_lock = full_lock_resolution.get(package_name)
+                if correct_package_lock:
+                    if category not in lockfile:
+                        lockfile[category] = {}
+                    lockfile[category][package_name] = correct_package_lock
+
+        # reset package args in case of multiple categories being processed
+        if has_package_args is False:
+            package_args = []
 
     lockfile.update({"_meta": project.get_lockfile_meta()})
     project.write_lockfile(lockfile)

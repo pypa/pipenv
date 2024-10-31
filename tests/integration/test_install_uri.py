@@ -270,7 +270,7 @@ def test_vcs_can_use_markers(pipenv_instance_pypi):
             },
         )
         assert "six" in p.pipfile["packages"]
-        c = p.pipenv("install")
+        c = p.pipenv("install -v")
         assert c.returncode == 0
         assert "six" in p.lockfile["default"]
         assert "git" in p.lockfile["default"]["six"]
