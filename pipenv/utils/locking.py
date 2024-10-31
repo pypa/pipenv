@@ -66,11 +66,8 @@ def format_requirement_for_lockfile(
         vcs = link.scheme.split("+", 1)[0]
 
         # Get VCS URL from original deps or normalize the link URL
-        if name in original_deps:
-            entry[vcs] = original_deps[name]
-        else:
-            vcs_url, _ = normalize_vcs_url(link.url)
-            entry[vcs] = vcs_url
+        vcs_url, _ = normalize_vcs_url(link.url)
+        entry[vcs] = vcs_url
 
         # Handle subdirectory information
         if pipfile_entry.get("subdirectory"):
@@ -137,7 +134,7 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
     # initialize default values
     is_top_level = False
 
-    # # if the dependency has a name, find corresponding entry in pipfile
+    # if the dependency has a name, find corresponding entry in pipfile
     if isinstance(dep, dict) and dep.get("name"):
         dep_name = pep423_name(dep["name"])
         for pipfile_key, pipfile_entry in pipfile_section.items():
@@ -183,7 +180,6 @@ def prepare_lockfile(project, results, pipfile, lockfile_section, old_lock_data=
                 # If the current entry is a dict, merge the new details
                 lockfile_section[dep_name].update(lockfile_entry[dep_name])
                 lockfile_section[dep_name] = translate_markers(lockfile_section[dep_name])
-
     return lockfile_section
 
 

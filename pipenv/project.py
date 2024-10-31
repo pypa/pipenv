@@ -764,7 +764,7 @@ class Project:
         for category in categories:
             lock_section = lockfile.get(category)
             if lock_section is None:
-                lockfile[category] = lock_section = {}
+                lockfile[category] = {}
 
         return lockfile
 
