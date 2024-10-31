@@ -4,8 +4,8 @@ import sys
 
 import pytest
 
-from pipenv.vendor.packaging import version
 from pipenv.utils.shell import temp_environ
+from pipenv.vendor.packaging import version
 
 
 @pytest.mark.extras
@@ -569,5 +569,5 @@ pytest = "*"
                 break
         else:
             # This will execute if we don't find aws-cdk-lib in the output
-            assert False, "aws-cdk-lib not found in pip freeze output"
+            raise AssertionError("aws-cdk-lib not found in pip freeze output")
 
