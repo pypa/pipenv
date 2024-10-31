@@ -133,7 +133,7 @@ Features & Improvements
 Behavior Changes
 ----------------
 
-- ``pipenv==3000.0.0`` denotes the first major release of our semver strategy.
+- ``pipenv==2024.0.0`` denotes the first major release of our semver strategy.
   As much requested, the ``install`` no longer does a complete lock operation.  Instead ``install`` follows the same code path as pipenv update (which is upgrade + sync).
   This is what most new users expect the behavior to be; it is a behavioral change, a necessary one to make the tool more usable.
   Remember that complete lock resolution can be invoked with ``pipenv lock`` just as before.  `#6098 <https://github.com/pypa/pipenv/issues/6098>`_

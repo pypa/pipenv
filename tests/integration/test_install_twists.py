@@ -5,6 +5,7 @@ import sys
 import pytest
 
 from pipenv.utils.shell import temp_environ
+from pipenv.vendor.packaging import version
 
 
 @pytest.mark.extras
@@ -527,3 +528,46 @@ name = "pypi"
         assert updated_source_count == source_count, "No new [[source]] sections should be added"
         assert "requests" in p.pipfile["packages"]
         assert p.pipfile["packages"]["requests"].get("index") is not None
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_install_dev_with_skip_lock(pipenv_instance_pypi):
+    """Test aws-cdk-lib installation and version verification."""
+    with pipenv_instance_pypi() as p:
+        # Create the Pipfile with specified contents
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+aws-cdk-lib = "==2.164.1"
+
+[dev-packages]
+pytest = "*"
+            """.strip()
+            f.write(contents)
+
+        # Install dependencies with --skip-lock
+        c = p.pipenv("install --dev --skip-lock")
+        assert c.returncode == 0
+
+        # Check pip freeze output
+        c = p.pipenv("run pip freeze")
+        assert c.returncode == 0
+        freeze_output = c.stdout.strip()
+
+        # Find aws-cdk-lib in pip freeze output and verify version
+        for line in freeze_output.split('\n'):
+            if line.startswith('aws-cdk-lib=='):
+                installed_version = line.split('==')[1]
+                assert version.parse(installed_version) == version.parse("2.164.1"), \
+                    f"aws-cdk-lib version {installed_version} is to be expected 2.164.1"
+                break
+        else:
+            # This will execute if we don't find aws-cdk-lib in the output
+            raise AssertionError("aws-cdk-lib not found in pip freeze output")
+
