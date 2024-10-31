@@ -323,7 +323,7 @@ def do_install(
 
     try:
         if dev:  # Install both develop and default package categories from Pipfile.
-            pipfile_categories = ["default", "develop"]
+            pipfile_categories = ["packages", "dev-packages"]
         do_install_dependencies(
             project,
             dev=dev,
