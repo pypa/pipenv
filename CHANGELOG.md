@@ -1,3 +1,28 @@
+2024.2.0 (2024-11-05)
+=====================
+Pipenv 2024.2.0 (2024-11-05)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix regression where ``--skip-lock --dev`` was incorrectly searching Lockfile categories ("default", "develop") instead of Pipfile categories ("packages", "dev-packages"), causing packages to not be found.  `#6304 <https://github.com/pypa/pipenv/issues/6304>`_
+- Fix issue where pipenv install would unintentionally upgrade packages that had wildcard (*) specifiers in the Pipfile, even when locked versions existed and no upgrade was requested.  `#6306 <https://github.com/pypa/pipenv/issues/6306>`_
+- Fix issue where modules could not be found  `#6307 <https://github.com/pypa/pipenv/issues/6307>`_
+
+Vendored Libraries
+------------------
+
+- Vendor in ``pip==24.3.1``.  `#6292 <https://github.com/pypa/pipenv/issues/6292>`_
+- Vendoring
+  ---------
+  * Update vendored dependencies:
+    - importlib-metadata from 8.4.0 to 8.5.0
+    - packaging from 24.0 to 24.1
+    - tomli from 2.0.1 to 2.0.2
+    - tomlkit from 0.12.4 to 0.13.2
+    - zipp from 3.18.1 to 3.20.2  `#6293 <https://github.com/pypa/pipenv/issues/6293>`_
 2024.3.1 (2024-10-30)
 =====================
 
