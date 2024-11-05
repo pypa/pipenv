@@ -799,10 +799,11 @@ sh = "*"
         c = p.pipenv("graph --json")
         assert c.returncode == 0
 
+        import json
         graph_data = json.loads(c.stdout)
-        for package in graph_data:
-            if package["package"] == "sh":
-                assert package["version"] == "1.14.1"
+        for entry in graph_data:
+            if entry["package"]["package_name"] == "sh":
+                assert entry["package"]["installed_version"] == "1.14.1"
                 break
         else:
             pytest.fail("sh package not found in graph output")
