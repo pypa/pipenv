@@ -799,7 +799,6 @@ sh = "*"
         c = p.pipenv("graph --json")
         assert c.returncode == 0
 
-        import json
         graph_data = json.loads(c.stdout)
         for entry in graph_data:
             if entry["package"]["package_name"] == "sh":
