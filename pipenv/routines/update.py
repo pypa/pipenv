@@ -280,10 +280,7 @@ def upgrade(
 
     index_name = None
     if index_url:
-        if project.get_index_by_url(index_url):
-            index_name = project.get_index_by_url(index_url)["name"]
-        else:
-            index_name = add_index_to_pipfile(project, index_url)
+        index_name = add_index_to_pipfile(project, index_url)
 
     if extra_pip_args:
         os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)

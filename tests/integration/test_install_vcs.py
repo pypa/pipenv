@@ -106,7 +106,7 @@ pytest-xdist = {git = "https://github.com/pytest-dev/pytest-xdist.git", ref = "v
 
         # Verify package appears in develop section of lockfile
         assert "pytest-xdist" in p.lockfile["develop"]
-        assert p.lockfile["develop"]["pytest-xdist"]["git"] == "git+https://github.com/pytest-dev/pytest-xdist.git"
+        assert p.lockfile["develop"]["pytest-xdist"]["git"] == "https://github.com/pytest-dev/pytest-xdist.git"
         assert p.lockfile["develop"]["pytest-xdist"]["ref"] == "4dd2978031eaf7017c84a1cc77667379a2b11c64"
 
         # Verify the package is importable
