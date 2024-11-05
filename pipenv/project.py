@@ -1273,26 +1273,45 @@ class Project:
         return name
 
     def add_index_to_pipfile(self, index, verify_ssl=True):
-        """Adds a given index to the Pipfile."""
+        """
+        Adds a given index to the Pipfile if it doesn't already exist.
+        Returns the source name regardless of whether it was newly added or already existed.
+        """
         # Read and append Pipfile.
         p = self.parsed_pipfile
         source = None
+
+        # Try to find existing source by URL or name
         try:
             source = self.get_source(url=index)
         except SourceNotFound:
             with contextlib.suppress(SourceNotFound):
                 source = self.get_source(name=index)
 
+        # If we found an existing source with a name, return it
         if source is not None and source.get("name"):
             return source["name"]
-        source = {"url": index, "verify_ssl": verify_ssl}
-        source["name"] = self.src_name_from_url(index)
-        # Add the package to the group.
+
+        # Check if the URL already exists in any source
+        if "source" in p:
+            for existing_source in p["source"]:
+                if existing_source.get("url") == index:
+                    return existing_source.get("name")
+
+        # If we reach here, the source doesn't exist, so create and add it
+        source = {
+            "url": index,
+            "verify_ssl": verify_ssl,
+            "name": self.src_name_from_url(index),
+        }
+
+        # Add the source to the group
         if "source" not in p:
             p["source"] = [tomlkit.item(source)]
         else:
             p["source"].append(tomlkit.item(source))
-        # Write Pipfile.
+
+        # Write Pipfile
         self.write_toml(p)
         return source["name"]
 

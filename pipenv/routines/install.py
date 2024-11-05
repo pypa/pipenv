@@ -109,7 +109,7 @@ def handle_new_packages(
             project.update_settings({"allow_prereleases": pre})
 
     # Use the update routine for new packages
-    if perform_upgrades:
+    if perform_upgrades and (packages or editable_packages):
         try:
             do_update(
                 project,
