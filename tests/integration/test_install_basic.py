@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import sys
@@ -740,3 +741,68 @@ six = "*"
             "requests",
             "six",
         ]
+
+
+@pytest.mark.basic
+@pytest.mark.install
+def test_install_respects_lockfile_versions(pipenv_instance_pypi):
+    """Ensure that `pipenv install` respects versions from existing lockfile."""
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+sh = "*"
+            """.strip()
+            f.write(contents)
+
+        with open(p.lockfile_path, "w") as f:
+            contents = """
+{
+    "_meta": {
+        "hash": {
+            "sha256": "f9adf532d46f4787b6afe331abe415d5698ef7523cd6225605328b61f361d427"
+        },
+        "pipfile-spec": 6,
+        "requires": {},
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "sh": {
+            "hashes": [
+                "sha256:39aa9af22f6558a0c5d132881cf43e34828ca03e4ae11114852ca6a55c7c1d8e",
+                "sha256:75e86a836f47de095d4531718fe8489e6f7446c75ddfa5596f632727b919ffae"
+            ],
+            "index": "pypi",
+            "version": "==1.14.1"
+        }
+    },
+    "develop": {}
+}
+            """.strip()
+            f.write(contents)
+
+        c = p.pipenv("install")
+        assert c.returncode == 0
+
+        # Verify that the locked version is installed, not the latest
+        c = p.pipenv("graph --json")
+        assert c.returncode == 0
+
+        graph_data = json.loads(c.stdout)
+        for package in graph_data:
+            if package["package"] == "sh":
+                assert package["version"] == "1.14.1"
+                break
+        else:
+            pytest.fail("sh package not found in graph output")

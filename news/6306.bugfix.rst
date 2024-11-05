@@ -1,0 +1,1 @@
+Fix issue where pipenv install would unintentionally upgrade packages that had wildcard (*) specifiers in the Pipfile, even when locked versions existed and no upgrade was requested.
