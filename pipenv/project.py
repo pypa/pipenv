@@ -217,39 +217,6 @@ class Project:
             with contextlib.suppress(TypeError, AttributeError):
                 os.chdir(self.project_directory)
 
-    def _get_lock_file(self):
-        return Path(self.project_directory) / ".pipfile.lock"
-
-    def _acquire_lock(self, file_obj):
-        """Platform agnostic file locking"""
-        if sys.platform == "win32":
-            import msvcrt
-
-            while True:
-                try:
-                    msvcrt.locking(file_obj.fileno(), msvcrt.LK_NBLCK, 1)
-                    break
-                except OSError:
-                    time.sleep(0.1)
-        else:
-            import fcntl
-
-            fcntl.flock(file_obj.fileno(), fcntl.LOCK_EX)
-
-    def _release_lock(self, file_obj):
-        """Platform agnostic file unlocking"""
-        if sys.platform == "win32":
-            import msvcrt
-
-            try:
-                msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
-            except OSError:
-                pass
-        else:
-            import fcntl
-
-            fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
-
     def path_to(self, p: str) -> str:
         """Returns the absolute path to a given relative path."""
         if os.path.isabs(p):
@@ -700,41 +667,64 @@ class Project:
             self._requirements_location = loc
         return self._requirements_location
 
+    def _acquire_file_lock(self, file_obj):
+        """Acquire lock on an existing file object"""
+        if sys.platform == "win32":
+            import msvcrt
+
+            # Try to lock for a maximum of 10 seconds
+            start_time = time.time()
+            while (time.time() - start_time) < 10:
+                try:
+                    msvcrt.locking(file_obj.fileno(), msvcrt.LK_NBLCK, 1)
+                    return True
+                except OSError:  # noqa: PERF203
+                    time.sleep(0.1)
+            return False
+        else:
+            import fcntl
+
+            try:
+                # Use non-blocking to prevent deadlocks
+                fcntl.flock(file_obj.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return True
+            except OSError:
+                return False
+
+    def _release_file_lock(self, file_obj):
+        """Release lock on an existing file object"""
+        if sys.platform == "win32":
+            import msvcrt
+
+            try:
+                msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        else:
+            import fcntl
+
+            try:
+                fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
-        """Parse Pipfile into a TOMLFile with direct file locking."""
-        stat_info = os.stat(self.pipfile_location)
-        current_mtime = stat_info.st_mtime_ns
-
-        if self._parsed_pipfile is not None:
-            if self._parsed_pipfile_mtime == current_mtime:
-                return self._parsed_pipfile
-
-        # Create lockfile and get lock
-        lock_file = self._get_lock_file()
-        lock_file.touch(exist_ok=True)
-
-        # Use binary mode for Windows compatibility
-        with open(lock_file, "r+b" if sys.platform == "win32" else "r+") as lock:
-            self._acquire_lock(lock)
-            try:
-                # Re-check mtime after acquiring lock
-                new_stat = os.stat(self.pipfile_location)
-                if (
-                    self._parsed_pipfile is not None
-                    and new_stat.st_mtime_ns == current_mtime
-                ):
-                    return self._parsed_pipfile
-
+        """Parse Pipfile into a TOMLFile with file locking"""
+        # Only lock the actual file we're reading
+        with open(self.pipfile_location, "r+" if sys.platform == "win32" else "r") as f:
+            # Try to get lock, but don't wait forever
+            if not self._acquire_file_lock(f):
+                # If we can't get the lock, just read without lock
                 contents = self.read_pipfile()
                 self._parsed_pipfile = self._parse_pipfile(contents)
-                self._parsed_pipfile_mtime = new_stat.st_mtime_ns
+                return self._parsed_pipfile
+
+            try:
+                contents = f.read()
+                self._parsed_pipfile = self._parse_pipfile(contents)
             finally:
-                self._release_lock(lock)
-                try:
-                    lock_file.unlink()
-                except (OSError, PermissionError):
-                    pass
+                self._release_file_lock(f)
 
         return self._parsed_pipfile
 
@@ -963,51 +953,47 @@ class Project:
         }
 
     def write_toml(self, data, path=None):
-        """Writes the given data structure out as TOML with direct file locking."""
+        """Writes the given data structure out as TOML with file locking"""
         if path is None:
             path = self.pipfile_location
 
-        # Create lockfile and get lock
-        lock_file = self._get_lock_file()
-        lock_file.touch(exist_ok=True)
+        data = convert_toml_outline_tables(data, self)
+        try:
+            formatted_data = tomlkit.dumps(data).rstrip()
+        except Exception:
+            document = tomlkit.document()
+            for category in self.get_package_categories():
+                document[category] = tomlkit.table()
+                for package in data.get(category, {}):
+                    if hasattr(data[category][package], "keys"):
+                        table = tomlkit.inline_table()
+                        table.update(data[category][package])
+                        document[category][package] = table
+                    else:
+                        document[category][package] = tomlkit.string(
+                            data[category][package]
+                        )
+            formatted_data = tomlkit.dumps(document).rstrip()
 
-        # Use binary mode for Windows compatibility
-        with open(lock_file, "r+b" if sys.platform == "win32" else "r+") as lock:
-            self._acquire_lock(lock)
+        if Path(path).absolute() == Path(self.pipfile_location).absolute():
+            newlines = self._pipfile_newlines
+        else:
+            newlines = DEFAULT_NEWLINES
+
+        file_data = cleanup_toml(formatted_data)
+
+        with open(path, "r+" if os.path.exists(path) else "w+", newline=newlines) as f:
+            if not self._acquire_file_lock(f):
+                # If we can't get the lock, write anyway - better than hanging
+                f.write(file_data)
+                return
+
             try:
-                data = convert_toml_outline_tables(data, self)
-                try:
-                    formatted_data = tomlkit.dumps(data).rstrip()
-                except Exception:
-                    document = tomlkit.document()
-                    for category in self.get_package_categories():
-                        document[category] = tomlkit.table()
-                        # Convert things to inline tables — fancy :)
-                        for package in data.get(category, {}):
-                            if hasattr(data[category][package], "keys"):
-                                table = tomlkit.inline_table()
-                                table.update(data[category][package])
-                                document[category][package] = table
-                            else:
-                                document[category][package] = tomlkit.string(
-                                    data[category][package]
-                                )
-                    formatted_data = tomlkit.dumps(document).rstrip()
-
-                if Path(path).absolute() == Path(self.pipfile_location).absolute():
-                    newlines = self._pipfile_newlines
-                else:
-                    newlines = DEFAULT_NEWLINES
-
-                file_data = cleanup_toml(formatted_data)
-                with open(path, "w", newline=newlines) as f:
-                    f.write(file_data)
+                f.seek(0)
+                f.truncate()
+                f.write(file_data)
             finally:
-                self._release_lock(lock)
-                try:
-                    lock_file.unlink()
-                except (OSError, PermissionError):
-                    pass
+                self._release_file_lock(f)
 
     def write_lockfile(self, content):
         """Write out the lockfile."""
