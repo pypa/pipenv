@@ -8,6 +8,7 @@ import operator
 import os
 import re
 import sys
+import time
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
@@ -215,6 +216,39 @@ class Project:
         if ("run" not in sys.argv) and chdir:
             with contextlib.suppress(TypeError, AttributeError):
                 os.chdir(self.project_directory)
+
+    def _get_lock_file(self):
+        return Path(self.project_directory) / ".pipfile.lock"
+
+    def _acquire_lock(self, file_obj):
+        """Platform agnostic file locking"""
+        if sys.platform == "win32":
+            import msvcrt
+
+            while True:
+                try:
+                    msvcrt.locking(file_obj.fileno(), msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    time.sleep(0.1)
+        else:
+            import fcntl
+
+            fcntl.flock(file_obj.fileno(), fcntl.LOCK_EX)
+
+    def _release_lock(self, file_obj):
+        """Platform agnostic file unlocking"""
+        if sys.platform == "win32":
+            import msvcrt
+
+            try:
+                msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        else:
+            import fcntl
+
+            fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
 
     def path_to(self, p: str) -> str:
         """Returns the absolute path to a given relative path."""
@@ -668,20 +702,40 @@ class Project:
 
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
-        """Parse Pipfile into a TOMLFile"""
+        """Parse Pipfile into a TOMLFile with direct file locking."""
         stat_info = os.stat(self.pipfile_location)
-        current_atime = stat_info.st_atime_ns
         current_mtime = stat_info.st_mtime_ns
+
         if self._parsed_pipfile is not None:
-            if (
-                self._parsed_pipfile_atime == current_atime
-                and self._parsed_pipfile_mtime == current_mtime
-            ):
+            if self._parsed_pipfile_mtime == current_mtime:
                 return self._parsed_pipfile
-        contents = self.read_pipfile()
-        self._parsed_pipfile = self._parse_pipfile(contents)
-        self._parsed_pipfile_atime = current_atime
-        self._parsed_pipfile_mtime = current_mtime
+
+        # Create lockfile and get lock
+        lock_file = self._get_lock_file()
+        lock_file.touch(exist_ok=True)
+
+        # Use binary mode for Windows compatibility
+        with open(lock_file, "r+b" if sys.platform == "win32" else "r+") as lock:
+            self._acquire_lock(lock)
+            try:
+                # Re-check mtime after acquiring lock
+                new_stat = os.stat(self.pipfile_location)
+                if (
+                    self._parsed_pipfile is not None
+                    and new_stat.st_mtime_ns == current_mtime
+                ):
+                    return self._parsed_pipfile
+
+                contents = self.read_pipfile()
+                self._parsed_pipfile = self._parse_pipfile(contents)
+                self._parsed_pipfile_mtime = new_stat.st_mtime_ns
+            finally:
+                self._release_lock(lock)
+                try:
+                    lock_file.unlink()
+                except (OSError, PermissionError):
+                    pass
+
         return self._parsed_pipfile
 
     def read_pipfile(self) -> str:
@@ -909,35 +963,51 @@ class Project:
         }
 
     def write_toml(self, data, path=None):
-        """Writes the given data structure out as TOML."""
+        """Writes the given data structure out as TOML with direct file locking."""
         if path is None:
             path = self.pipfile_location
-        data = convert_toml_outline_tables(data, self)
-        try:
-            formatted_data = tomlkit.dumps(data).rstrip()
-        except Exception:
-            document = tomlkit.document()
-            for category in self.get_package_categories():
-                document[category] = tomlkit.table()
-                # Convert things to inline tables — fancy :)
-                for package in data.get(category, {}):
-                    if hasattr(data[category][package], "keys"):
-                        table = tomlkit.inline_table()
-                        table.update(data[category][package])
-                        document[category][package] = table
-                    else:
-                        document[category][package] = tomlkit.string(
-                            data[category][package]
-                        )
-            formatted_data = tomlkit.dumps(document).rstrip()
 
-        if Path(path).absolute() == Path(self.pipfile_location).absolute():
-            newlines = self._pipfile_newlines
-        else:
-            newlines = DEFAULT_NEWLINES
-        file_data = cleanup_toml(formatted_data)
-        with open(path, "w", newline=newlines) as f:
-            f.write(file_data)
+        # Create lockfile and get lock
+        lock_file = self._get_lock_file()
+        lock_file.touch(exist_ok=True)
+
+        # Use binary mode for Windows compatibility
+        with open(lock_file, "r+b" if sys.platform == "win32" else "r+") as lock:
+            self._acquire_lock(lock)
+            try:
+                data = convert_toml_outline_tables(data, self)
+                try:
+                    formatted_data = tomlkit.dumps(data).rstrip()
+                except Exception:
+                    document = tomlkit.document()
+                    for category in self.get_package_categories():
+                        document[category] = tomlkit.table()
+                        # Convert things to inline tables — fancy :)
+                        for package in data.get(category, {}):
+                            if hasattr(data[category][package], "keys"):
+                                table = tomlkit.inline_table()
+                                table.update(data[category][package])
+                                document[category][package] = table
+                            else:
+                                document[category][package] = tomlkit.string(
+                                    data[category][package]
+                                )
+                    formatted_data = tomlkit.dumps(document).rstrip()
+
+                if Path(path).absolute() == Path(self.pipfile_location).absolute():
+                    newlines = self._pipfile_newlines
+                else:
+                    newlines = DEFAULT_NEWLINES
+
+                file_data = cleanup_toml(formatted_data)
+                with open(path, "w", newline=newlines) as f:
+                    f.write(file_data)
+            finally:
+                self._release_lock(lock)
+                try:
+                    lock_file.unlink()
+                except (OSError, PermissionError):
+                    pass
 
     def write_lockfile(self, content):
         """Write out the lockfile."""
