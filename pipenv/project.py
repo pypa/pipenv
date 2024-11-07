@@ -716,12 +716,14 @@ class Project:
             # Try to get lock, but don't wait forever
             if not self._acquire_file_lock(f):
                 # If we can't get the lock, just read without lock
-                contents = self.read_pipfile()
+                contents = f.read()
+                self._pipfile_newlines = preferred_newlines(f)
                 self._parsed_pipfile = self._parse_pipfile(contents)
                 return self._parsed_pipfile
 
             try:
                 contents = f.read()
+                self._pipfile_newlines = preferred_newlines(f)
                 self._parsed_pipfile = self._parse_pipfile(contents)
             finally:
                 self._release_file_lock(f)
