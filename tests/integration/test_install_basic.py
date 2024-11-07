@@ -402,7 +402,8 @@ def test_install_creates_pipfile(pipenv_instance_pypi):
         assert c.returncode == 0
         assert os.path.isfile(p.pipfile_path)
         python_version = str(sys.version_info.major) + "." + str(sys.version_info.minor)
-        assert p.pipfile["requires"] == {"python_version": python_version}
+        python_full_version = str(sys.version_info.major) + "." + str(sys.version_info.minor) + "." + str(sys.version_info.micro)
+        assert p.pipfile["requires"] == {"python_version": python_version, "python_full_version": python_full_version}
 
 
 @pytest.mark.basic

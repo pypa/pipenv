@@ -149,6 +149,9 @@ class Project:
         self._download_location = None
         self._proper_names_db_path = None
         self._pipfile_location = None
+        self._parsed_pipfile = None
+        self._parsed_pipfile_atime = None
+        self._parsed_pipfile_mtime = None
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
@@ -666,8 +669,19 @@ class Project:
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
         """Parse Pipfile into a TOMLFile"""
+        current_atime = os.path.getatime(self.pipfile_location)
+        current_mtime = os.path.getmtime(self.pipfile_location)
+        if self._parsed_pipfile is not None:
+            if (
+                self._parsed_pipfile_atime == current_atime
+                and self._parsed_pipfile_mtime == current_mtime
+            ):
+                return self._parsed_pipfile
         contents = self.read_pipfile()
-        return self._parse_pipfile(contents)
+        self._parsed_pipfile = self._parse_pipfile(contents)
+        self._parsed_pipfile_atime = current_atime
+        self._parsed_pipfile_mtime = current_mtime
+        return self._parsed_pipfile
 
     def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.
@@ -688,27 +702,6 @@ class Project:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
             return toml.loads(contents)
-
-    def _read_pyproject(self) -> None:
-        pyproject = self.path_to("pyproject.toml")
-        if os.path.exists(pyproject):
-            self._pyproject = toml.load(pyproject)
-            build_system = self._pyproject.get("build-system", None)
-            if not os.path.exists(self.path_to("setup.py")):
-                if not build_system or not build_system.get("requires"):
-                    build_system = {
-                        "requires": ["setuptools>=40.8.0", "wheel"],
-                        "build-backend": get_default_pyproject_backend(),
-                    }
-                self._build_system = build_system
-
-    @property
-    def build_requires(self) -> list[str]:
-        return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
-
-    @property
-    def build_backend(self) -> str:
-        return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
     def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
@@ -795,25 +788,6 @@ class Project:
         }
         return packages
 
-    def _get_vcs_packages(self, dev=False):
-        from pipenv.utils.requirementslib import is_vcs
-
-        section = "dev-packages" if dev else "packages"
-        packages = {
-            k: v
-            for k, v in self.parsed_pipfile.get(section, {}).items()
-            if is_vcs(v) or is_vcs(k)
-        }
-        return packages or {}
-
-    @property
-    def all_packages(self):
-        """Returns a list of all packages."""
-        packages = {}
-        for category in self.get_package_categories():
-            packages.update(self.parsed_pipfile.get(category, {}))
-        return packages
-
     @property
     def packages(self):
         """Returns a list of packages."""
@@ -838,12 +812,15 @@ class Project:
             verify_ssl = index.startswith("https")
             sources.append({"url": index, "verify_ssl": verify_ssl, "name": source_name})
 
-        data = {
-            "source": sources,
-            # Default packages.
-            "packages": {},
-            "dev-packages": {},
-        }
+        if self.pipfile_exists:
+            data = self.parsed_pipfile
+        else:
+            data = {
+                "source": sources,
+                # Default packages.
+                "packages": {},
+                "dev-packages": {},
+            }
         # Default requires.
         required_python = python
         if not python:
@@ -854,7 +831,7 @@ class Project:
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
-        if python and version and len(version.split(".")) > 2:
+        if required_python and version and len(version.split(".")) > 2:
             data["requires"].update({"python_full_version": version})
         self.write_toml(data)
 
@@ -957,9 +934,9 @@ class Project:
             newlines = self._pipfile_newlines
         else:
             newlines = DEFAULT_NEWLINES
-        formatted_data = cleanup_toml(formatted_data)
+        file_data = cleanup_toml(formatted_data)
         with open(path, "w", newline=newlines) as f:
-            f.write(formatted_data)
+            f.write(file_data)
 
     def write_lockfile(self, content):
         """Write out the lockfile."""
@@ -1307,10 +1284,6 @@ class Project:
         # Write Pipfile
         self.write_toml(p)
         return source["name"]
-
-    def recase_pipfile(self):
-        if self.ensure_proper_casing():
-            self.write_toml(self.parsed_pipfile)
 
     def load_lockfile(self, expand_env_vars=True):
         lockfile_modified = False

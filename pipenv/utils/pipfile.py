@@ -68,7 +68,6 @@ def ensure_pipfile(
 ):
     """Creates a Pipfile for the project, if it doesn't exist."""
 
-    # Assert Pipfile exists.
     python = (
         project._which("python")
         if not (project.s.USING_DEFAULT_PYTHON or system)
