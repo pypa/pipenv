@@ -1414,7 +1414,7 @@ class Project:
             else:
                 location = os.environ.get("VIRTUAL_ENV", None)
         if not (location and os.path.exists(location)) and not allow_global:
-            raise RuntimeError("location not created nor specified")
+            return None
 
         version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))
         is_python = command in ("python", os.path.basename(sys.executable), version_str)
