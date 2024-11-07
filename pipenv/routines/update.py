@@ -112,8 +112,9 @@ def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     # Get installed packages for the specified interpreter
     pkgs = get_installed_distributions(interpreter=python_interpreter)
 
-    # Create a package dependency tree (DAG) and reverse it
-    dep_tree = PackageDAG.from_pkgs(pkgs).reverse()
+    # Create a package dependency tree (DAG)
+    dep_tree = PackageDAG.from_pkgs(pkgs)
+    dep_tree.reverse()
 
     # Initialize reverse dependency map
     reverse_deps = defaultdict(set)
