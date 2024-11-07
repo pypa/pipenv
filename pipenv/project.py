@@ -8,6 +8,7 @@ import operator
 import os
 import re
 import sys
+import time
 import urllib.parse
 from json.decoder import JSONDecodeError
 from pathlib import Path
@@ -149,6 +150,9 @@ class Project:
         self._download_location = None
         self._proper_names_db_path = None
         self._pipfile_location = None
+        self._parsed_pipfile = None
+        self._parsed_pipfile_atime = None
+        self._parsed_pipfile_mtime = None
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
@@ -663,11 +667,68 @@ class Project:
             self._requirements_location = loc
         return self._requirements_location
 
+    def _acquire_file_lock(self, file_obj):
+        """Acquire lock on an existing file object"""
+        if sys.platform == "win32":
+            import msvcrt
+
+            # Try to lock for a maximum of 10 seconds
+            start_time = time.time()
+            while (time.time() - start_time) < 10:
+                try:
+                    msvcrt.locking(file_obj.fileno(), msvcrt.LK_NBLCK, 1)
+                    return True
+                except OSError:  # noqa: PERF203
+                    time.sleep(0.1)
+            return False
+        else:
+            import fcntl
+
+            try:
+                # Use non-blocking to prevent deadlocks
+                fcntl.flock(file_obj.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+                return True
+            except OSError:
+                return False
+
+    def _release_file_lock(self, file_obj):
+        """Release lock on an existing file object"""
+        if sys.platform == "win32":
+            import msvcrt
+
+            try:
+                msvcrt.locking(file_obj.fileno(), msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        else:
+            import fcntl
+
+            try:
+                fcntl.flock(file_obj.fileno(), fcntl.LOCK_UN)
+            except OSError:
+                pass
+
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
-        """Parse Pipfile into a TOMLFile"""
-        contents = self.read_pipfile()
-        return self._parse_pipfile(contents)
+        """Parse Pipfile into a TOMLFile with file locking"""
+        # Only lock the actual file we're reading
+        with open(self.pipfile_location, "r+" if sys.platform == "win32" else "r") as f:
+            # Try to get lock, but don't wait forever
+            if not self._acquire_file_lock(f):
+                # If we can't get the lock, just read without lock
+                contents = f.read()
+                self._pipfile_newlines = preferred_newlines(f)
+                self._parsed_pipfile = self._parse_pipfile(contents)
+                return self._parsed_pipfile
+
+            try:
+                contents = f.read()
+                self._pipfile_newlines = preferred_newlines(f)
+                self._parsed_pipfile = self._parse_pipfile(contents)
+            finally:
+                self._release_file_lock(f)
+
+        return self._parsed_pipfile
 
     def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.
@@ -688,27 +749,6 @@ class Project:
             # We lose comments here, but it's for the best.)
             # Fallback to toml parser, for large files.
             return toml.loads(contents)
-
-    def _read_pyproject(self) -> None:
-        pyproject = self.path_to("pyproject.toml")
-        if os.path.exists(pyproject):
-            self._pyproject = toml.load(pyproject)
-            build_system = self._pyproject.get("build-system", None)
-            if not os.path.exists(self.path_to("setup.py")):
-                if not build_system or not build_system.get("requires"):
-                    build_system = {
-                        "requires": ["setuptools>=40.8.0", "wheel"],
-                        "build-backend": get_default_pyproject_backend(),
-                    }
-                self._build_system = build_system
-
-    @property
-    def build_requires(self) -> list[str]:
-        return self._build_system.get("requires", ["setuptools>=40.8.0", "wheel"])
-
-    @property
-    def build_backend(self) -> str:
-        return self._build_system.get("build-backend", get_default_pyproject_backend())
 
     @property
     def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
@@ -795,25 +835,6 @@ class Project:
         }
         return packages
 
-    def _get_vcs_packages(self, dev=False):
-        from pipenv.utils.requirementslib import is_vcs
-
-        section = "dev-packages" if dev else "packages"
-        packages = {
-            k: v
-            for k, v in self.parsed_pipfile.get(section, {}).items()
-            if is_vcs(v) or is_vcs(k)
-        }
-        return packages or {}
-
-    @property
-    def all_packages(self):
-        """Returns a list of all packages."""
-        packages = {}
-        for category in self.get_package_categories():
-            packages.update(self.parsed_pipfile.get(category, {}))
-        return packages
-
     @property
     def packages(self):
         """Returns a list of packages."""
@@ -823,16 +844,6 @@ class Project:
     def dev_packages(self):
         """Returns a list of dev-packages."""
         return self.get_pipfile_section("dev-packages")
-
-    @property
-    def pipfile_is_empty(self):
-        if not self.pipfile_exists:
-            return True
-
-        if not self.read_pipfile():
-            return True
-
-        return False
 
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
@@ -848,12 +859,15 @@ class Project:
             verify_ssl = index.startswith("https")
             sources.append({"url": index, "verify_ssl": verify_ssl, "name": source_name})
 
-        data = {
-            "source": sources,
-            # Default packages.
-            "packages": {},
-            "dev-packages": {},
-        }
+        if self.pipfile_exists:
+            data = self.parsed_pipfile
+        else:
+            data = {
+                "source": sources,
+                # Default packages.
+                "packages": {},
+                "dev-packages": {},
+            }
         # Default requires.
         required_python = python
         if not python:
@@ -864,7 +878,7 @@ class Project:
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
-        if python and version and len(version.split(".")) > 2:
+        if required_python and version and len(version.split(".")) > 2:
             data["requires"].update({"python_full_version": version})
         self.write_toml(data)
 
@@ -941,9 +955,10 @@ class Project:
         }
 
     def write_toml(self, data, path=None):
-        """Writes the given data structure out as TOML."""
+        """Writes the given data structure out as TOML with file locking"""
         if path is None:
             path = self.pipfile_location
+
         data = convert_toml_outline_tables(data, self)
         try:
             formatted_data = tomlkit.dumps(data).rstrip()
@@ -951,7 +966,6 @@ class Project:
             document = tomlkit.document()
             for category in self.get_package_categories():
                 document[category] = tomlkit.table()
-                # Convert things to inline tables — fancy :)
                 for package in data.get(category, {}):
                     if hasattr(data[category][package], "keys"):
                         table = tomlkit.inline_table()
@@ -967,9 +981,21 @@ class Project:
             newlines = self._pipfile_newlines
         else:
             newlines = DEFAULT_NEWLINES
-        formatted_data = cleanup_toml(formatted_data)
-        with open(path, "w", newline=newlines) as f:
-            f.write(formatted_data)
+
+        file_data = cleanup_toml(formatted_data)
+
+        with open(path, "r+" if os.path.exists(path) else "w+", newline=newlines) as f:
+            if not self._acquire_file_lock(f):
+                # If we can't get the lock, write anyway - better than hanging
+                f.write(file_data)
+                return
+
+            try:
+                f.seek(0)
+                f.truncate()
+                f.write(file_data)
+            finally:
+                self._release_file_lock(f)
 
     def write_lockfile(self, content):
         """Write out the lockfile."""
@@ -983,7 +1009,7 @@ class Project:
                 f.write("\n")
 
     def pipfile_sources(self, expand_vars=True):
-        if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
+        if not self.pipfile_exists or "source" not in self.parsed_pipfile:
             sources = [self.default_source]
             if os.environ.get("PIPENV_PYPI_MIRROR"):
                 sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
@@ -1163,6 +1189,7 @@ class Project:
         vcs_specifier = determine_vcs_specifier(package)
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = normalize_name(req_name)
+        markers = pip_line.split(";")[-1].strip() if ";" in pip_line else ""
 
         extras = package.extras
         specifier = "*"
@@ -1173,6 +1200,8 @@ class Project:
         entry = {}
         if extras:
             entry["extras"] = list(extras)
+        if markers:
+            entry["markers"] = str(markers)
         if path_specifier:
             entry["file"] = unquote(str(path_specifier))
             if pip_line.startswith("-e"):
@@ -1315,10 +1344,6 @@ class Project:
         self.write_toml(p)
         return source["name"]
 
-    def recase_pipfile(self):
-        if self.ensure_proper_casing():
-            self.write_toml(self.parsed_pipfile)
-
     def load_lockfile(self, expand_env_vars=True):
         lockfile_modified = False
         with open(self.lockfile_location, encoding="utf-8") as lock:
@@ -1448,7 +1473,7 @@ class Project:
             else:
                 location = os.environ.get("VIRTUAL_ENV", None)
         if not (location and os.path.exists(location)) and not allow_global:
-            raise RuntimeError("location not created nor specified")
+            return None
 
         version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))
         is_python = command in ("python", os.path.basename(sys.executable), version_str)
