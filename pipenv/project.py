@@ -669,8 +669,9 @@ class Project:
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
         """Parse Pipfile into a TOMLFile"""
-        current_atime = os.path.getatime(self.pipfile_location)
-        current_mtime = os.path.getmtime(self.pipfile_location)
+        stat_info = os.stat(self.pipfile_location)
+        current_atime = stat_info.st_atime_ns
+        current_mtime = stat_info.st_mtime_ns
         if self._parsed_pipfile is not None:
             if (
                 self._parsed_pipfile_atime == current_atime
