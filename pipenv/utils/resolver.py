@@ -1,4 +1,3 @@
-import contextlib
 import json
 import os
 import subprocess
@@ -420,48 +419,47 @@ class Resolver:
 
         return constraints_list
 
-    @contextlib.contextmanager
-    def get_resolver(self, clear=False):
+    def resolve(self):
         from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
         with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory(
             globally_managed=True
-        ) as directory:
-            pip_options = self.pip_options
-            finder = self.finder()
-            wheel_cache = WheelCache(pip_options.cache_dir)
-            preparer = self.pip_command.make_requirement_preparer(
-                temp_build_dir=directory,
-                options=pip_options,
-                build_tracker=build_tracker,
-                session=self.session,
-                finder=finder,
-                use_user_site=False,
-            )
-            resolver = self.pip_command.make_resolver(
-                preparer=preparer,
-                finder=finder,
-                options=pip_options,
-                wheel_cache=wheel_cache,
-                use_user_site=False,
-                ignore_installed=True,
-                ignore_requires_python=pip_options.ignore_requires_python,
-                force_reinstall=pip_options.force_reinstall,
-                upgrade_strategy="to-satisfy-only",
-                use_pep517=pip_options.use_pep517,
-            )
-            yield resolver
-
-    def resolve(self):
-        with temp_environ(), self.get_resolver() as resolver:
+        ) as temp_dir:
             try:
+                finder = self.finder()
+                wheel_cache = WheelCache(self.pip_options.cache_dir)
+
+                preparer = self.pip_command.make_requirement_preparer(
+                    temp_build_dir=temp_dir,
+                    options=self.pip_options,
+                    build_tracker=build_tracker,
+                    session=self.session,
+                    finder=finder,
+                    use_user_site=False,
+                )
+
+                resolver = self.pip_command.make_resolver(
+                    preparer=preparer,
+                    finder=finder,
+                    options=self.pip_options,
+                    wheel_cache=wheel_cache,
+                    use_user_site=False,
+                    ignore_installed=True,
+                    ignore_requires_python=self.pip_options.ignore_requires_python,
+                    force_reinstall=self.pip_options.force_reinstall,
+                    upgrade_strategy="to-satisfy-only",
+                    use_pep517=self.pip_options.use_pep517,
+                )
+
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
-            except InstallationError as e:
-                raise ResolutionFailure(message=str(e))
-            else:
                 self.results = set(results.all_requirements)
                 self.resolved_tree.update(self.results)
-        return self.resolved_tree
+                return set(results.all_requirements)
+
+            except InstallationError as e:
+                raise ResolutionFailure(message=str(e))
+            finally:
+                build_tracker.cleanup()
 
     def _get_pipfile_markers(self, pipfile_entry):
         sys_platform = pipfile_entry.get("sys_platform")
@@ -720,34 +718,25 @@ def actually_resolve_deps(
     pipfile_category,
     req_dir,
 ):
-    with warnings.catch_warnings(record=True) as warning_list:
-        resolver = Resolver.create(
-            deps,
-            project,
-            index_lookup,
-            markers_lookup,
-            sources,
-            req_dir,
-            clear,
-            pre,
-            pipfile_category,
-        )
-        resolver.resolve()
-        hashes = resolver.resolve_hashes
-        resolver.resolve_constraints()
-        results = resolver.clean_results()
-    for warning in warning_list:
-        _show_warning(
-            warning.message,
-            warning.category,
-            warning.filename,
-            warning.lineno,
-            warning.line,
-        )
+    resolver = Resolver.create(
+        deps,
+        project,
+        index_lookup,
+        markers_lookup,
+        sources,
+        req_dir,
+        clear,
+        pre,
+        pipfile_category,
+    )
+    resolver.resolve()
+    hashes = resolver.resolve_hashes
+    resolver.resolve_constraints()
+    results = resolver.clean_results()
     return (results, hashes, resolver)
 
 
-def resolve(cmd, st, project):
+def resolve(cmd, project):
     from pipenv.cmdparse import Script
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
@@ -758,13 +747,13 @@ def resolve(cmd, st, project):
             continue
         errors += line
         if is_verbose:
-            st.console.print(line.rstrip())
+            console.print(line.rstrip())
 
     c.wait()
     returncode = c.poll()
     out = c.stdout.read()
     if returncode != 0:
-        st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+        console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         err.print(out.strip())
         if not is_verbose:
             err.print(err)
@@ -840,96 +829,88 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
-        with console.status(
-            f"Locking {pipfile_category}...", spinner=project.s.PIPENV_SPINNER
-        ) as st:
-            # This conversion is somewhat slow on local and file-type requirements since
-            # we now download those requirements / make temporary folders to perform
-            # dependency resolution on them, so we are including this step inside the
-            # spinner context manager for the UX improvement
-            st.console.print("Building requirements...")
-            deps = convert_deps_to_pip(
-                deps, project.pipfile_sources(), include_index=True
-            )
-            # Useful for debugging and hitting breakpoints in the resolver
-            if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
-                try:
-                    results = resolver.resolve_packages(
-                        pre,
-                        clear,
-                        project.s.is_verbose(),
-                        system=allow_global,
-                        write=False,
-                        requirements_dir=req_dir,
-                        packages=deps,
-                        pipfile_category=pipfile_category,
-                        constraints=deps,
-                    )
-                    if results:
-                        st.console.print(
-                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                        )
-                except Exception:
-                    st.console.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                    )
-                    raise  # maybe sys.exit(1) here?
-            else:  # Default/Production behavior is to use project python's resolver
-                cmd = [
-                    which("python", allow_global=allow_global),
-                    Path(resolver.__file__.rstrip("co")).as_posix(),
-                ]
-                if pre:
-                    cmd.append("--pre")
-                if clear:
-                    cmd.append("--clear")
-                if allow_global:
-                    cmd.append("--system")
-                if pipfile_category:
-                    cmd.append("--category")
-                    cmd.append(pipfile_category)
-                if project.s.is_verbose():
-                    cmd.append("--verbose")
-                target_file = tempfile.NamedTemporaryFile(
-                    prefix="resolver", suffix=".json", delete=False
-                )
-                target_file.close()
-                cmd.extend(["--write", make_posix(target_file.name)])
 
-                with tempfile.NamedTemporaryFile(
-                    mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
-                ) as constraints_file:
-                    for dep_name, pip_line in deps.items():
-                        constraints_file.write(f"{dep_name}, {pip_line}\n")
-                cmd.append("--constraints-file")
-                cmd.append(constraints_file.name)
-                st.console.print("Resolving dependencies...")
-                c = resolve(cmd, st, project=project)
-                if c.returncode == 0:
-                    try:
-                        with open(target_file.name) as fh:
-                            results = json.load(fh)
-                    except (IndexError, json.JSONDecodeError):
-                        err.print(c.stdout.strip())
-                        err.print(c.stderr.strip())
-                        if os.path.exists(target_file.name):
-                            os.unlink(target_file.name)
-                        raise RuntimeError("There was a problem with locking.")
+        # This conversion is somewhat slow on local and file-type requirements since
+        # we now download those requirements / make temporary folders to perform
+        # dependency resolution on them, so we are including this step inside the
+        # spinner context manager for the UX improvement
+        console.print("Building requirements...")
+        deps = convert_deps_to_pip(deps, project.pipfile_sources(), include_index=True)
+        # Useful for debugging and hitting breakpoints in the resolver
+        if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
+            try:
+                results = resolver.resolve_packages(
+                    pre,
+                    clear,
+                    project.s.is_verbose(),
+                    system=allow_global,
+                    write=False,
+                    requirements_dir=req_dir,
+                    packages=deps,
+                    pipfile_category=pipfile_category,
+                    constraints=deps,
+                )
+                if results:
+                    console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+            except Exception:
+                console.print(
+                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
+                )
+                raise  # maybe sys.exit(1) here?
+        else:  # Default/Production behavior is to use project python's resolver
+            cmd = [
+                which("python", allow_global=allow_global),
+                Path(resolver.__file__.rstrip("co")).as_posix(),
+            ]
+            if pre:
+                cmd.append("--pre")
+            if clear:
+                cmd.append("--clear")
+            if allow_global:
+                cmd.append("--system")
+            if pipfile_category:
+                cmd.append("--category")
+                cmd.append(pipfile_category)
+            if project.s.is_verbose():
+                cmd.append("--verbose")
+            target_file = tempfile.NamedTemporaryFile(
+                prefix="resolver", suffix=".json", delete=False
+            )
+            target_file.close()
+            cmd.extend(["--write", make_posix(target_file.name)])
+
+            with tempfile.NamedTemporaryFile(
+                mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
+            ) as constraints_file:
+                for dep_name, pip_line in deps.items():
+                    constraints_file.write(f"{dep_name}, {pip_line}\n")
+            cmd.append("--constraints-file")
+            cmd.append(constraints_file.name)
+            console.print("Resolving dependencies...")
+            c = resolve(cmd, project=project)
+            if c.returncode == 0:
+                try:
+                    with open(target_file.name) as fh:
+                        results = json.load(fh)
+                except (IndexError, json.JSONDecodeError):
+                    err.print(c.stdout.strip())
+                    err.print(c.stderr.strip())
                     if os.path.exists(target_file.name):
                         os.unlink(target_file.name)
-                    st.console.print(
-                        environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                    raise RuntimeError("There was a problem with locking.")
+                if os.path.exists(target_file.name):
+                    os.unlink(target_file.name)
+                console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
+                if not project.s.is_verbose() and c.stderr.strip():
+                    err.print(
+                        f"Warning: {c.stderr.strip()}", overflow="ignore", crop=False
                     )
-                    if not project.s.is_verbose() and c.stderr.strip():
-                        err.print(
-                            f"Warning: {c.stderr.strip()}", overflow="ignore", crop=False
-                        )
-                else:
-                    st.console.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                    )
-                    err.print(f"Output: {c.stdout.strip()}")
-                    err.print(f"Error: {c.stderr.strip()}")
+            else:
+                console.print(
+                    environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
+                )
+                err.print(f"Output: {c.stdout.strip()}")
+                err.print(f"Error: {c.stderr.strip()}")
     if lockfile_category not in lockfile:
         lockfile[lockfile_category] = {}
     return prepare_lockfile(

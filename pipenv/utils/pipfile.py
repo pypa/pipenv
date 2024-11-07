@@ -74,7 +74,7 @@ def ensure_pipfile(
         if not (project.s.USING_DEFAULT_PYTHON or system)
         else None
     )
-    if project.pipfile_is_empty:
+    if not project.pipfile_exists:
         # Show an error message and exit if system is passed and no pipfile exists
         if system and not project.s.PIPENV_VIRTUALENV:
             raise exceptions.PipenvOptionsError(
@@ -82,6 +82,9 @@ def ensure_pipfile(
                 "--system is intended to be used for pre-existing Pipfile "
                 "installation, not installation of specific packages. Aborting.",
             )
+        err.print("Creating a Pipfile for this project...", style="bold")
+        # Create the pipfile if it doesn't exist.
+        project.create_pipfile(python=python)
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
             requirements_dir_path = os.path.dirname(project.requirements_location)
@@ -89,8 +92,6 @@ def ensure_pipfile(
                 f"[bold]requirements.txt[/bold] found in [bold yellow]{requirements_dir_path}"
                 "[/bold yellow] instead of [bold]Pipfile[/bold]! Converting..."
             )
-            # Create a Pipfile...
-            project.create_pipfile(python=python)
             with console.status(
                 "Importing requirements...", spinner=project.s.PIPENV_SPINNER
             ) as st:
@@ -110,10 +111,6 @@ def ensure_pipfile(
                 'We recommend updating your [bold]Pipfile[/bold] to specify the [bold]"*"'
                 "[/bold] version, instead."
             )
-        else:
-            err.print("Creating a Pipfile for this project...", style="bold")
-            # Create the pipfile if it doesn't exist.
-            project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
     if validate and project.virtualenv_exists and not project.s.PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.

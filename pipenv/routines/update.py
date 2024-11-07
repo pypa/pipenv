@@ -2,10 +2,8 @@ import json
 import os
 import sys
 from collections import defaultdict
-from pathlib import Path
 from typing import Dict, Set, Tuple
 
-from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.routines.outdated import do_outdated
@@ -17,11 +15,11 @@ from pipenv.utils.dependencies import (
     get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
 )
-from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
-from pipenv.vendor import pipdeptree
+from pipenv.vendor.pipdeptree._discovery import get_installed_distributions
+from pipenv.vendor.pipdeptree._models import PackageDAG
 
 
 def do_update(
@@ -106,44 +104,25 @@ def do_update(
 
 
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
-    """Get reverse dependencies using pipdeptree."""
-    pipdeptree_path = Path(pipdeptree.__file__).parent
-    python_path = project.python()
-    cmd_args = [python_path, str(pipdeptree_path), "-l", "--reverse", "--json-tree"]
+    """Get reverse dependencies without running pipdeptree as a subprocess."""
 
-    c = run_command(cmd_args, is_verbose=project.s.is_verbose())
-    if c.returncode != 0:
-        raise PipenvCmdError(c.err, c.out, c.returncode)
-    try:
-        dep_tree = json.loads(c.stdout.strip())
-    except json.JSONDecodeError:
-        raise JSONParseError(c.stdout, c.stderr)
+    # Use the project's specified Python interpreter
+    python_interpreter = project.python()
 
-    # Build reverse dependency map: package -> set of (dependent_package, required_version)
+    # Get installed packages for the specified interpreter
+    pkgs = get_installed_distributions(interpreter=python_interpreter)
+
+    # Create a package dependency tree (DAG) and reverse it
+    dep_tree = PackageDAG.from_pkgs(pkgs).reverse()
+
+    # Initialize reverse dependency map
     reverse_deps = defaultdict(set)
 
-    def process_tree_node(n, parents=None):
-        if parents is None:
-            parents = []
-
-        package_name = n["package_name"]
-        required_version = n.get("required_version", "Any")
-
-        # Add the current node to its parents' reverse dependencies
-        for parent in parents:
-            reverse_deps[parent].add((package_name, required_version))
-
-        # Process dependencies recursively, keeping track of parent path
-        for dep in n.get("dependencies", []):
-            process_tree_node(dep, parents + [package_name])
-
-    # Start processing the tree from the root nodes
-    for node in dep_tree:
-        try:
-            process_tree_node(node)
-        except Exception as e:  # noqa: PERF203
-            err.print(
-                f"[red bold]Warning[/red bold]: Unable to analyze dependencies: {str(e)}"
+    # Populate the reverse dependency map
+    for package, dependents in dep_tree.items():
+        for dep in dependents:
+            reverse_deps[dep.project_name].add(
+                (package.project_name, getattr(package, "installed_version", "Any"))
             )
 
     return reverse_deps
@@ -290,8 +269,13 @@ def upgrade(
     # Early conflict detection
     conflicts_found = False
     for package in package_args:
-        if "==" in package:
-            name, version = package.split("==")
+        package_parts = [package]
+        if ";" in package:
+            package_parts = package.split(";")
+            # Not using markers here for now
+            # markers = ";".join(package_parts[1:]) if len(package_parts) > 1 else None
+        if "==" in package_parts[0]:
+            name, version = package_parts[0].split("==")
             conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
             if conflicts:
                 conflicts_found = True

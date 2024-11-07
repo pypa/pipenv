@@ -824,16 +824,6 @@ class Project:
         """Returns a list of dev-packages."""
         return self.get_pipfile_section("dev-packages")
 
-    @property
-    def pipfile_is_empty(self):
-        if not self.pipfile_exists:
-            return True
-
-        if not self.read_pipfile():
-            return True
-
-        return False
-
     def create_pipfile(self, python=None):
         """Creates the Pipfile, filled with juicy defaults."""
         # Inherit the pip's index configuration of install command.
@@ -983,7 +973,7 @@ class Project:
                 f.write("\n")
 
     def pipfile_sources(self, expand_vars=True):
-        if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
+        if not self.pipfile_exists or "source" not in self.parsed_pipfile:
             sources = [self.default_source]
             if os.environ.get("PIPENV_PYPI_MIRROR"):
                 sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
@@ -1163,6 +1153,7 @@ class Project:
         vcs_specifier = determine_vcs_specifier(package)
         name = self.get_package_name_in_pipfile(req_name, category=category)
         normalized_name = normalize_name(req_name)
+        markers = pip_line.split(";")[-1].strip() if ";" in pip_line else ""
 
         extras = package.extras
         specifier = "*"
@@ -1173,6 +1164,8 @@ class Project:
         entry = {}
         if extras:
             entry["extras"] = list(extras)
+        if markers:
+            entry["markers"] = str(markers)
         if path_specifier:
             entry["file"] = unquote(str(path_specifier))
             if pip_line.startswith("-e"):
