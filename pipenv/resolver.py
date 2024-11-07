@@ -135,7 +135,6 @@ class Entry:
     entry_dict: Dict[str, Any]
     project: Any  # Could be more specific with a Project type
     resolver: Any  # Could be more specific with a Resolver type
-    reverse_deps: Optional[Dict[str, Any]] = None
     category: Optional[str] = None
 
     def __post_init__(self):
@@ -319,9 +318,6 @@ def process_resolver_results(
     if not results:
         return []
 
-    # Get reverse dependencies for the project
-    reverse_deps = project.environment.reverse_dependencies()
-
     processed_results = []
     for result in results:
         # Create Entry instance with our new dataclass
@@ -330,7 +326,6 @@ def process_resolver_results(
             entry_dict=result,
             project=project,
             resolver=resolver,
-            reverse_deps=reverse_deps,
             category=category,
         )
 
