@@ -32,7 +32,7 @@ from ..utils import (
     resolve_path,
 )
 from .mixins import PathEntry
-from .python import PythonFinder
+from .python import PythonFinder, PythonVersion
 
 
 def exists_and_is_accessible(path):
@@ -201,13 +201,22 @@ class SystemPath:
         # Handle virtual environment and system paths
         self._handle_virtualenv_and_system_paths()
 
+        # Setup Windows launcher finder
+        self._setup_windows_launcher()
+
+        # Setup ASDF finder
+        self._setup_asdf()
+
+        # Setup pyenv finder
+        self._setup_pyenv()
+
         return self
 
     def _get_last_instance(self, path) -> int:
         reversed_paths = reversed(self.path_order)
         paths = [resolve_path(p) for p in reversed_paths]
         normalized_target = resolve_path(path)
-        last_instance = next(iter(p for p in paths if normalized_target in p), None)
+        last_instance = next(iter(p for p in paths if normalized_target == p), None)
         if last_instance is None:
             raise ValueError(f"No instance found on path for target: {path!s}")
         path_index = self.path_order.index(last_instance)
@@ -250,6 +259,25 @@ class SystemPath:
                 new_order.append(normalized)
         new_order = [str(p) for p in reversed(new_order)]
         self.path_order = new_order
+        return self
+
+    def _setup_windows_launcher(self) -> SystemPath:
+        if os.name == "nt":
+            windows_finder = PythonFinder.create(
+                root=Path("."),  # Use appropriate root directory for Windows launcher
+                sort_function=None,  # Provide a sorting function if needed
+                version_glob_path="python*",  # Adjust the glob pattern if necessary
+                ignore_unsupported=True,
+            )
+            for launcher_entry in windows_finder.find_python_versions_from_windows_launcher():
+                version = PythonVersion.from_windows_launcher(launcher_entry)
+                path_entry = PathEntry.create(
+                    path=launcher_entry.install_path,
+                    is_root=True,
+                    only_python=True,
+                )
+                windows_finder._versions[version.version_tuple] = path_entry
+            self._register_finder("windows", windows_finder)
         return self
 
     def _setup_asdf(self) -> SystemPath:
