@@ -1,0 +1,10 @@
+Significantly improved performance through various optimizations:
+
+* Added caching of parsed Pipfile content with a file lock and proper invalidation
+* Optimized dependency resolution by reducing unnecessary subprocess calls
+* Improved handling of reverse dependencies in the update process
+* Added file locking mechanism to prevent concurrent Pipfile modifications
+* Reduced redundant file operations and system calls
+* Added developer utilities for profiling performance bottlenecks
+
+Fixes bug with passing markers in CLI install command not getting propogated to Pipfile
