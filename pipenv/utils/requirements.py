@@ -99,8 +99,6 @@ def import_requirements(project, r=None, dev=False, categories=None):
                     project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
                 package_string = str(package.req)
-                if package.markers:
-                    package_string += f" ; {package.markers}"
                 if categories:
                     for category in categories:
                         project.add_package_to_pipfile(
