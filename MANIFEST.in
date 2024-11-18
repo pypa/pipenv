@@ -27,3 +27,5 @@ prune .azure-pipelines
 prune .github
 prune pipenv/vendor/importlib_metadata/tests
 prune pipenv/vendor/importlib_resources/tests
+
+exclude examples/*
