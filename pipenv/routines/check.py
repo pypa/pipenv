@@ -9,10 +9,11 @@ from pathlib import Path
 
 from pipenv import pep508checker
 from pipenv.patched.safety.cli import cli
+from pipenv.utils import console, err
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import project_python
-from pipenv.vendor import click, plette
+from pipenv.vendor import plette
 
 
 def build_safety_options(
@@ -58,9 +59,8 @@ def run_pep508_check(project, system, python):
         try:
             return json.loads(c.stdout.strip())
         except json.JSONDecodeError:
-            click.echo(
+            err.print(
                 f"Failed parsing pep508 results:\n{c.stdout.strip()}\n{c.stderr.strip()}",
-                err=True,
             )
             sys.exit(1)
     return {}
@@ -75,21 +75,16 @@ def check_pep508_requirements(project, results, quiet):
         if marker in results:
             if results[marker] != specifier:
                 failed = True
-                click.echo(
-                    "Specifier {} does not match {} ({})."
-                    "".format(
-                        click.style(marker, fg="green"),
-                        click.style(specifier, fg="cyan"),
-                        click.style(results[marker], fg="yellow"),
-                    ),
-                    err=True,
+                err.print(
+                    f"Specifier [green]{marker}[/green]does not match "
+                    f"[cyan]{specifier}[/cyan] [yellow]({marker}[/yello])."
                 )
 
     if failed:
-        click.secho("Failed!", fg="red", err=True)
+        err.print("[red]Failed![/red]")
         sys.exit(1)
     elif not quiet and not project.s.is_quiet():
-        click.secho("Passed!", fg="green")
+        console.print("Passed!", fg="green")
 
 
 def get_requirements(project, use_installed, categories):
@@ -143,37 +138,32 @@ def parse_safety_output(output, quiet):
         meta = json_report.get("report_meta", {})
         vulnerabilities_found = meta.get("vulnerabilities_found", 0)
         db_type = "commercial" if meta.get("api_key", False) else "free"
-
+        style = "red" if vulnerabilities_found else "green"
         if quiet:
-            click.secho(
-                f"{vulnerabilities_found} vulnerabilities found.",
-                fg="red" if vulnerabilities_found else "green",
+            console.print(
+                f"[{style}]{vulnerabilities_found} vulnerabilities found[/{style}]."
             )
         else:
-            fg = "red" if vulnerabilities_found else "green"
             message = f"Scan complete using Safety's {db_type} vulnerability database."
-            click.echo()
-            click.secho(f"{vulnerabilities_found} vulnerabilities found.", fg=fg)
-            click.echo()
-
+            console.print(
+                f"[{style}]{vulnerabilities_found} vulnerabilities found[/{style}]."
+            )
             for vuln in json_report.get("vulnerabilities", []):
-                click.echo(
-                    "{}: {} {} open to vulnerability {} ({}). More info: {}".format(
-                        click.style(vuln["vulnerability_id"], bold=True, fg="red"),
-                        click.style(vuln["package_name"], fg="green"),
-                        click.style(vuln["analyzed_version"], fg="yellow", bold=True),
-                        click.style(vuln["vulnerability_id"], bold=True),
-                        click.style(vuln["vulnerable_spec"], fg="yellow", bold=False),
-                        click.style(vuln["more_info_url"], bold=True),
-                    )
+                console.print(
+                    f"\n[red]{vuln['vulnerability_id']}[/red]: "
+                    f"[green]{vuln['package_name']}[/green] "
+                    f"[yellow]{vuln['analyzed_version']}[/yellow] "
+                    f"open to vulnerability [red]{vuln['vulnerability_id']}[/red] "
+                    f"([yellow]{vuln['vulnerable_spec']}[/yellow]). "
+                    f"More info: {vuln['more_info_url']}"
+                    f"{vuln['advisory']}"
+                    f"\n"
                 )
-                click.echo(f"{vuln['advisory']}")
-                click.echo()
 
-            click.secho(message, fg="white", bold=True)
+            console.print(f"[bold][white]{message}[/white][/bold]")
 
     except json.JSONDecodeError:
-        click.echo("Failed to parse Safety output.")
+        err.print("Failed to parse Safety output.")
 
 
 def do_check(
@@ -208,7 +198,7 @@ def do_check(
         )
 
     if not quiet and not project.s.is_quiet():
-        click.secho("Checking PEP 508 requirements...", bold=True)
+        console.print("[bold]Checking PEP 508 requirements...[/bold]")
 
     results = run_pep508_check(project, system, python)
     check_pep508_requirements(project, results, quiet)
@@ -218,25 +208,23 @@ def do_check(
 
     if not quiet and not project.s.is_quiet():
         if use_installed:
-            click.secho(
-                "Checking installed packages for vulnerabilities...",
-                bold=True,
+            console.print(
+                "[bold]Checking installed packages for vulnerabilities...[/bold]",
             )
         else:
-            click.secho(
-                "Checking Pipfile.lock packages for vulnerabilities...",
-                bold=True,
+            console.print(
+                "[bold]Checking Pipfile.lock packages for vulnerabilities...",
+                "[/bold]",
             )
 
     if ignore:
         ignore = [ignore] if not isinstance(ignore, (tuple, list)) else ignore
         if not quiet and not project.s.is_quiet():
-            click.echo(
-                "Notice: Ignoring Vulnerabilit{} {}".format(
-                    "ies" if len(ignore) > 1 else "y",
-                    click.style(", ".join(ignore), fg="yellow"),
-                ),
-                err=True,
+            suffix = "ies" if len(ignore) > 1 else "y"
+            err.print(
+                "[yellow]"
+                f"Notice: Ignoring Vulnerabilit{suffix} {', '.join(ignore)}"
+                "[/yellow]"
             )
 
     requirements = get_requirements(project, use_installed, categories)
@@ -259,7 +247,7 @@ def do_check(
 
     if db:
         if not quiet and not project.s.is_quiet():
-            click.echo(f"Using {db} database")
+            console.print(f"Using {db} database")
         cmd.append(f"--db={db}")
     elif key or project.s.PIPENV_PYUP_API_KEY:
         cmd.append(f"--key={key or project.s.PIPENV_PYUP_API_KEY}")
