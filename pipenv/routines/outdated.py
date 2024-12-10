@@ -2,6 +2,8 @@ import sys
 from collections import namedtuple
 from collections.abc import Mapping
 
+from pipevn.utils import console, err
+
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.routines.lock import do_lock
@@ -11,7 +13,6 @@ from pipenv.utils.dependencies import (
     get_version,
     pep423_name,
 )
-from pipenv.vendor import click
 
 
 def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
@@ -77,17 +78,15 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                     pipfile_version_text = f" ({version} set in Pipfile)"
                 else:
                     pipfile_version_text = " (Unpinned in Pipfile)"
-                click.secho(
-                    f"Skipped Update of Package {package!s}:"
+                err.print(
+                    f"[yellow]Skipped Update of Package {package!s}:"
                     f" {old_version!s} installed,{required!s}{pipfile_version_text!s}, "
-                    f"{new_version!s} available.",
-                    fg="yellow",
-                    err=True,
+                    f"{new_version!s} available.[/yellow]"
                 )
     for package, old_version, new_version in set(outdated).union(set(skipped)):
-        click.echo(
+        console.print(
             f"Package {package!r} out-of-date: {old_version!r} installed, {new_version!r} available."
         )
     if not outdated:
-        click.echo(click.style("All packages are up to date!", fg="green", bold=True))
+        console.print("[bold green]All packages are up to date![/bold green]")
     sys.exit(bool(outdated))
