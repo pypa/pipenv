@@ -15,8 +15,8 @@ pre-commit = "==2.*"
 atomicwrites = {version = "*", sys_platform = "== 'win32'"}
 pytest-cov = "==4.*"
 typing-extensions = "==4.*"
-waitress = {version = "*", sys_platform = "== 'win32'"}
-gunicorn = {version = "*", sys_platform = "== 'linux'"}
+waitress = {version = "3.*", sys_platform = "== 'win32'"}
+gunicorn = {version = "23.0.*", sys_platform = "== 'linux'"}
 parse = "*"
 importlib-metadata = "*"
 colorama= {version = "*", sys_platform = "== 'win32'"}
@@ -29,6 +29,7 @@ build = "*"
 twine = "*"
 semver = "*"
 pypiserver = "2.3.2"
+
 [packages]
 pytz = "*"
 pipenv = {file = "."}
