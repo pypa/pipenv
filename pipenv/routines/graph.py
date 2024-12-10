@@ -45,7 +45,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         cmd_args.append("--reverse")
 
     if not project.virtualenv_exists:
-        err.echo(
+        err.print(
             "[bold][red]Warning: No virtualenv has been created for this project yet! Consider "
             "running `pipenv install` first to automatically generate one for you or see "
             "`pipenv install --help` for further instructions.[/red][/bold]",
