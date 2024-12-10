@@ -28,10 +28,10 @@ pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
-pypiserver = {ref = "pipenv-313", git = "https://github.com/matteius/pypiserver.git"}
-
+pypiserver = "2.3.2"
 [packages]
 pytz = "*"
+pipenv = {file = "."}
 
 [scripts]
 tests = "bash ./run-tests.sh"
