@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "7c7b6c6770bcb48ecf03314ab3aec8d4099f2f7ce7d992f5773fd6e446ec1853"
+            "sha256": "7610859e50c1dad5a3cc8327ac4fc03b1c076892285522ce03f50595b38bc953"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -43,7 +43,6 @@
             "hashes": [
                 "sha256:81b2c9071a49367a7f770170e5eec8cb66567cfbbc8c73d20ce5ca4a8d71cf11"
             ],
-            "markers": "sys_platform == 'win32'",
             "version": "==1.4.1"
         },
         "attrs": {
@@ -67,7 +66,6 @@
                 "sha256:1bd32405dacc920b42b83ba01644747ed77456a65760e285fbc47633ceddaf8b",
                 "sha256:99045d7d3f08f91f0d656bc9b7efbae189426cd913d830294a15eefa0ea4df16"
             ],
-            "markers": "python_full_version >= '3.6.0'",
             "version": "==4.13.3"
         },
         "black": {
@@ -95,7 +93,6 @@
                 "sha256:e19cb1c6365fd6dc38a6eae2dcb691d7d83935c10215aef8e6c38edee3f77abd",
                 "sha256:e2af80566f43c85f5797365077fb64a393861a3730bd110971ab7a0c94e873e7"
             ],
-            "markers": "python_version >= '3.8'",
             "version": "==24.3.0"
         },
         "build": {
@@ -469,7 +466,6 @@
                 "sha256:07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b",
                 "sha256:bf8fd333346d844f616e8d47905ef3a3384edae6b4e9beb0c5101e25e3110907"
             ],
-            "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'",
             "version": "==3.9.2"
         },
         "flaky": {
@@ -477,7 +473,6 @@
                 "sha256:194ccf4f0d3a22b2de7130f4b62e45e977ac1b5ccad74d4d48f3005dcc38815e",
                 "sha256:47204a81ec905f3d5acfbd61daeabcada8f9d4031616d9bcb0618461729699f5"
             ],
-            "markers": "python_version >= '3.5'",
             "version": "==3.8.1"
         },
         "gunicorn": {
@@ -599,7 +594,6 @@
                 "sha256:68cda27e162e9215c17d786649d1da0021a451bdc436ef9e0fa0ba5234b9b048",
                 "sha256:6bcbc417b0ac14323382aef5c5192c0075bf8a9d6b41820a2b66371eac6b6d79"
             ],
-            "markers": "python_version >= '3.7'",
             "version": "==2.0.3"
         },
         "markdown-it-py": {
@@ -705,7 +699,6 @@
                 "sha256:4e460e818629b4b173f32d08bf30d3af8123afbb8e04bb5707a1fd4799e503f0",
                 "sha256:7ba87f72ca0e915175596069dbbcc7c75af7b5e9b9bc107ad6349ede0819982f"
             ],
-            "markers": "python_version >= '3.6'",
             "version": "==5.2.0"
         },
         "more-itertools": {
@@ -794,7 +787,6 @@
                 "sha256:2281b187276c8e8e3c15634f62287b2fb6fe0efe3010f739a6bd1e45fa2bf2b2",
                 "sha256:b9fde1e6bb9ce9f07e08e9c4bea8d8825c5e78e18a0052d02e02bf9517eb4777"
             ],
-            "markers": "python_version >= '3.8'",
             "version": "==0.5"
         },
         "pathspec": {
@@ -928,7 +920,6 @@
                 "sha256:12397729125c6ecbdaca01035b9e5239d4db97352320af155b3f5de1ba5165d9",
                 "sha256:68188cb703edfc6a18fad98dc25a3c61e9f24d644b0b70f33af545219fc7813e"
             ],
-            "markers": "python_version >= '3.7'",
             "version": "==2.3.1"
         },
         "pytest-xdist": {
@@ -936,7 +927,6 @@
                 "sha256:9ed4adfb68a016610848639bb7e02c9352d5d9f03d04809919e2dafc3be4cca7",
                 "sha256:ead156a4db231eec769737f57668ef58a2084a34b2e55c4a8fa20d861107300d"
             ],
-            "markers": "python_version >= '3.8'",
             "version": "==3.6.1"
         },
         "pyyaml": {
@@ -1164,7 +1154,6 @@
             "hashes": [
                 "sha256:08c22c9c03b28a140fe3ec5064b53a5288279f22e596ca06b0be698d50c93cf2"
             ],
-            "markers": "sys_platform == 'linux'",
             "version": "==0.10.0"
         },
         "tomli": {
@@ -1211,7 +1200,6 @@
                 "sha256:013423ee7eed102b2f393c287d22d95f66f1a3ea10a4baa82d298001a7f18af3",
                 "sha256:9343209592b839209cdf28c339ba45792fbfe9775b5f9c177462fd693e127d8d"
             ],
-            "markers": "python_version >= '3.8'",
             "version": "==24.8.0"
         },
         "twine": {
