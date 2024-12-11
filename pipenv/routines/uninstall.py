@@ -16,7 +16,6 @@ from pipenv.utils.processes import run_command, subprocess_run
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import cmd_list_to_shell, project_python
-from pipenv.vendor import click
 from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 
 
@@ -35,9 +34,9 @@ def _uninstall_from_environment(project: Project, package, system=False):
             "-y",
         ]
         c = run_command(cmd, is_verbose=project.s.is_verbose())
-        click.secho(c.stdout, fg="cyan")
+        console.print("[cyan]c.stdout[/cyan]")
         if c.returncode != 0:
-            click.echo(f"Error occurred while uninstalling package {package}.")
+            console.print(f"Error occurred while uninstalling package {package}.")
             return False
     return True
 
@@ -66,32 +65,20 @@ def do_uninstall(
     lockfile_content = project.lockfile_content
 
     if all_dev:
-        click.secho(
-            click.style(
-                "Un-installing all {}...".format(
-                    click.style("[dev-packages]", fg="yellow")
-                ),
-                bold=True,
-            )
-        )
+        console.print("[bold]Un-installing all [yellow][dev-packages][yellow]...[/bold]")
         # Uninstall all dev-packages from environment
         for package in project.get_pipfile_section("dev-packages"):
             _uninstall_from_environment(project, package, system=system)
         # Remove the package from the Pipfile
         if project.reset_category_in_pipfile(category="dev-packages"):
-            click.echo("Removed [dev-packages] from Pipfile.")
+            console.print("Removed [dev-packages] from Pipfile.")
         # Finalize changes to lockfile
         lockfile_content["develop"] = {}
         lockfile_content.update({"_meta": project.get_lockfile_meta()})
         project.write_lockfile(lockfile_content)
 
     if all:
-        click.secho(
-            click.style(
-                "Un-installing all packages...",
-                bold=True,
-            )
-        )
+        console.print("[bold]Un-installing all packages...[/bold]")
         # Uninstall all packages from all groups
         for category in project.get_package_categories():
             if category in ["source", "requires"]:
@@ -130,7 +117,7 @@ def do_uninstall(
             if project.remove_package_from_pipfile(
                 normalized_name, category=pipfile_category
             ):
-                click.echo(f"Removed {normalized_name} from Pipfile.")
+                console.print(f"Removed {normalized_name} from Pipfile.")
 
             # Rebuild the dependencies for resolution from the updated Pipfile
             updated_packages = project.get_pipfile_section(pipfile_category)
@@ -184,7 +171,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     if downloads:
         if not bare:
-            click.secho("Clearing out downloads directory...", bold=True)
+            console.print("[bold]Clearing out downloads directory...[/bold]")
         shutil.rmtree(project.download_location)
         return
 
@@ -199,12 +186,12 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
     # Skip purging if there is no packages which needs to be removed
     if not to_remove:
         if not bare:
-            click.echo("Found 0 installed package, skip purging.")
-            click.secho("Environment now purged and fresh!", fg="green")
+            console.print("Found 0 installed package, skip purging.")
+            console.print("[green]Environment now purged and fresh![/green]")
         return installed
 
     if not bare:
-        click.echo(f"Found {len(to_remove)} installed package(s), purging...")
+        console.print(f"Found {len(to_remove)} installed package(s), purging...")
 
     command = [
         project_python(project, system=allow_global),
@@ -213,13 +200,13 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         "-y",
     ] + list(to_remove)
     if project.s.is_verbose():
-        click.echo(f"$ {cmd_list_to_shell(command)}")
+        console.print(f"$ {cmd_list_to_shell(command)}")
     c = subprocess_run(command)
     if c.returncode != 0:
         raise exceptions.UninstallError(
             installed, cmd_list_to_shell(command), c.stdout + c.stderr, c.returncode
         )
     if not bare:
-        click.secho(c.stdout, fg="cyan")
-        click.secho("Environment now purged and fresh!", fg="green")
+        console.print(f"[cyan]{c.stdout}[/cyan]")
+        console.print("[green]Environment now purged and fresh![/green]")
     return installed
