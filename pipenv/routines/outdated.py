@@ -2,11 +2,10 @@ import sys
 from collections import namedtuple
 from collections.abc import Mapping
 
-from pipevn.utils import console, err
-
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.routines.lock import do_lock
+from pipenv.utils import console, err
 from pipenv.utils.dependencies import (
     as_pipfile,
     expansive_install_req_from_line,
