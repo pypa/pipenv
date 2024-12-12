@@ -84,22 +84,19 @@ class PipenvException(ClickException):
         console.print(f"{self.message}")
 
 
-class PipenvCmdError(PipenvException):
-    def __init__(self, cmd, out="", err="", exit_code=1):
+class PipenvCmdError(OSError):
+    def __init__(self, cmd, stdout, stderr, return_code):
         self.cmd = cmd
-        self.out = out
-        self.err = err
-        self.exit_code = exit_code
-        message = f"Error running command: {cmd}"
-        PipenvException.__init__(self, message)
+        self.stdout = stdout
+        self.stderr = stderr
+        self.return_code = return_code
 
-    def show(self, file=None):
-        console = Console(stderr=True, file=file, highlight=False)
-        console.print(f"[red]Error running command:[/red] [bold]$ {self.cmd}[/bold]")
-        if self.out:
-            console.print(f"OUTPUT: {self.out}")
-        if self.err:
-            console.print(f"STDERR: {self.err}")
+    def __str__(self):
+        return (
+            f"Command {self.cmd!r} failed with return code {self.return_code}.\n"
+            f"Output: {self.stdout}\n"
+            f"Error: {self.stderr}"
+        )
 
 
 class JSONParseError(PipenvException):

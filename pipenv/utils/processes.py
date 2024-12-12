@@ -38,7 +38,8 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     if is_verbose:
         err.print(f"[cyan]Command output: {c.stdout}[/cyan]")
     if c.returncode and catch_exceptions:
-        raise PipenvCmdError(cmd.cmdify(), c.stdout, c.stderr, c.returncode)
+        raise PipenvCmdError(c.returncode, f"Command failed: {cmd.cmdify()}")
+
     return c
 
 
