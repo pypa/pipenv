@@ -113,7 +113,7 @@ def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
 
     c = run_command(cmd_args, is_verbose=project.s.is_verbose())
     if c.returncode != 0:
-        raise PipenvCmdError(c.err, c.out, c.returncode)
+        raise PipenvCmdError(c.cmdify(), c.err, c.out, c.returncode)
     try:
         dep_tree = json.loads(c.stdout.strip())
     except json.JSONDecodeError:

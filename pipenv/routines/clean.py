@@ -7,7 +7,6 @@ from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.shell import project_python
-from pipenv.vendor import click
 
 
 def do_clean(
@@ -30,7 +29,7 @@ def do_clean(
     for bad_package in BAD_PACKAGES:
         if canonicalize_name(bad_package) in installed_package_names:
             if project.s.is_verbose():
-                click.echo(f"Ignoring {bad_package}.", err=True)
+                err.print(f"Ignoring {bad_package}.", err=True)
             installed_package_names.remove(canonicalize_name(bad_package))
     # Intelligently detect if --dev should be used or not.
     locked_packages = {
@@ -42,7 +41,7 @@ def do_clean(
     failure = False
     for apparent_bad_package in installed_package_names:
         if dry_run and not bare:
-            click.echo(apparent_bad_package)
+            console.print(apparent_bad_package)
         else:
             if not bare:
                 console.print(

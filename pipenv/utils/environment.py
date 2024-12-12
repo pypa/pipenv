@@ -1,7 +1,8 @@
 import os
 
 from pipenv import environments
-from pipenv.vendor import click, dotenv
+from pipenv.utils import err
+from pipenv.vendor import dotenv
 
 
 def load_dot_env(project, as_dict=False, quiet=False):
@@ -14,41 +15,28 @@ def load_dot_env(project, as_dict=False, quiet=False):
         )
 
         if not os.path.isfile(dotenv_file) and project.s.PIPENV_DOTENV_LOCATION:
-            click.echo(
-                "{}: file {}={} does not exist!!\n{}".format(
-                    click.style("Warning", fg="red", bold=True),
-                    click.style("PIPENV_DOTENV_LOCATION", bold=True),
-                    click.style(project.s.PIPENV_DOTENV_LOCATION, bold=True),
-                    click.style(
-                        "Not loading environment variables.", fg="red", bold=True
-                    ),
-                ),
-                err=True,
+            err.print(
+                f"[bold][red]WARNING[/red]:"
+                f"file PIPENV_DOTENV_LOCATION={project.s.PIPENV_DOTENV_LOCATION}"
+                "does not exist!"
+                "[red]Not loading environment variables.[/red][/bold]"
             )
         if as_dict:
             return dotenv.dotenv_values(dotenv_file)
         elif os.path.isfile(dotenv_file):
             if not quiet:
-                click.secho(
-                    "Loading .env environment variables...",
-                    bold=True,
-                    err=True,
-                )
-            dotenv.load_dotenv(dotenv_file, override=True)
+                err.print("[bold]Loading .env environment variables...[/bold]")
 
+            dotenv.load_dotenv(dotenv_file, override=True)
             project.s = environments.Setting()
 
 
 def ensure_environment():
     # Skip this on Windows...
     if os.name != "nt" and "LANG" not in os.environ:
-        click.echo(
-            "{}: the environment variable {} is not set!"
-            "\nWe recommend setting this in {} (or equivalent) for "
-            "proper expected behavior.".format(
-                click.style("Warning", fg="red", bold=True),
-                click.style("LANG", bold=True),
-                click.style("~/.profile", fg="green"),
-            ),
-            err=True,
+        err.print(
+            "[red]Warning[/red]: the environment variable [bold]LANG[/bold]"
+            "is not set!\nWe recommend setting this in"
+            "[green]~/.profile[/green] (or equivalent) for "
+            "proper expected behavior."
         )
