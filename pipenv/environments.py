@@ -79,15 +79,6 @@ PIPENV_IS_CI = get_from_env("CI", prefix="", check_for_negation=False) or is_env
 )
 
 
-NO_COLOR = False
-if os.getenv("NO_COLOR") or os.getenv("PIPENV_COLORBLIND"):
-    NO_COLOR = True
-    from pipenv.utils.shell import style_no_color
-    from pipenv.vendor import click
-
-    click.original_style = click.style
-    click.style = style_no_color
-
 PIPENV_HIDE_EMOJIS = (
     os.environ.get("PIPENV_HIDE_EMOJIS") is None
     and (os.name == "nt" or PIPENV_IS_CI)
