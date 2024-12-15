@@ -62,7 +62,7 @@ def _get_activate_script(cmd, venv):
     if suffix == "nu":
         return f"overlay use {venv_location}"
     elif suffix == ".ps1":
-        return f". {venv_location}\\Scripts\\Activate.{suffix}"
+        return f". {venv_location}\\Scripts\\Activate{suffix}"
 
     # The leading space can make history cleaner in some shells.
     return f" {command} {venv_location}/bin/activate{suffix}"
