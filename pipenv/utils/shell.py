@@ -67,14 +67,17 @@ def looks_like_dir(path):
     return any(sep in path for sep in seps)
 
 
+@lru_cache(maxsize=100)
 def load_path(python):
     import json
     from pathlib import Path
 
     python = Path(python).as_posix()
+
     c = subprocess_run([python, "-c", "import json, sys; print(json.dumps(sys.path))"])
     if c.returncode == 0:
-        return json.loads(c.stdout.strip())
+        paths = json.loads(c.stdout.strip())
+        return paths
     else:
         return []
 

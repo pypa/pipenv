@@ -44,6 +44,14 @@ def ensure_project(
         raise exceptions.PipfileNotFound
     # Skip virtualenv creation when --system was used.
     if not system_or_exists:
+        # Ensure the Pipfile exists.
+        ensure_pipfile(
+            project,
+            validate=validate,
+            skip_requirements=skip_requirements,
+            system=system,
+            pipfile_categories=pipfile_categories,
+        )
         ensure_virtualenv(
             project,
             python=python,

@@ -78,7 +78,7 @@ class Environment:
         self.prefix = Path(prefix if prefix else sys.prefix)
         self._base_paths = {}
         if self.is_venv:
-            self._base_paths = self.get_paths()
+            self._base_paths = self.get_paths
         self.sys_paths = get_paths()
 
     def safe_import(self, name: str) -> ModuleType:
@@ -180,7 +180,7 @@ class Environment:
             paths = self._base_paths.copy()
         else:
             try:
-                paths = self.get_paths()
+                paths = self.get_paths
             except Exception:
                 paths = get_paths(
                     self.install_scheme,
@@ -257,12 +257,6 @@ class Environment:
 
     @cached_property
     def sys_path(self) -> list[str]:
-        """
-        The system path inside the environment
-
-        :return: The :data:`sys.path` from the environment
-        :rtype: list
-        """
         import json
 
         current_executable = Path(sys.executable).as_posix()
@@ -328,6 +322,7 @@ class Environment:
         py_command = py_command % lines_as_str
         return py_command
 
+    @cached_property
     def get_paths(self) -> dict[str, str] | None:
         """
         Get the paths for the environment by running a subcommand
