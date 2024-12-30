@@ -5,11 +5,11 @@ from typing import Optional
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.typing_extensions import TYPE_CHECKING
+from pipenv.utils import err
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv
-from pipenv.vendor import click
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._vendor.typing_extensions import STRING_TYPE
@@ -57,32 +57,18 @@ def ensure_project(
                 if path_to_python and project.required_python_version not in (
                     python_version(path_to_python) or ""
                 ):
-                    click.echo(
-                        "{}: Your Pipfile requires {} {}, "
-                        "but you are using {} ({}).".format(
-                            click.style("Warning", fg="red", bold=True),
-                            click.style("python_version", bold=True),
-                            click.style(project.required_python_version, fg="cyan"),
-                            click.style(
-                                python_version(path_to_python) or "unknown", fg="cyan"
-                            ),
-                            click.style(shorten_path(path_to_python), fg="green"),
-                        ),
-                        err=True,
+                    err.print(
+                        f"[red][bold]Warning[/bold][/red]: Your Pipfile requires"
+                        f"[bold]{python_version}[/bold] [cyan]{python.required_python_version}[/cyan],"
+                        f"but you are using [cyan]{python_version(path_to_python)}[/cyan]"
+                        f"from [green]{shorten_path(path_to_python)}[/green]."
                     )
-                    click.echo(
-                        "  {} and rebuilding the virtual environment "
-                        "may resolve the issue.".format(
-                            click.style("$ pipenv --rm", fg="green")
-                        ),
-                        err=True,
+                    err.print(
+                        "[green]$ pipenv --rm[/green] and rebuilding the virtual environment "
+                        "may resolve the issue."
                     )
                     if not deploy:
-                        click.echo(
-                            "  {} will surely fail."
-                            "".format(click.style("$ pipenv check", fg="yellow")),
-                            err=True,
-                        )
+                        err.print("[yellow]$ pipenv check[/yellow] will surely fail.")
                     else:
                         raise exceptions.DeployException
     # Ensure the Pipfile exists.
