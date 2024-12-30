@@ -8,7 +8,7 @@ requires = [
 name = "pipenv"
 description = "Python Development Workflow for Humans."
 readme = "README.md"
-license = { file = "LICENSE" }
+license = {text = "MIT License (MIT)"}
 authors = [
   { name = "Pipenv maintainer team", email = "distutils-sig@python.org" },
 ]
