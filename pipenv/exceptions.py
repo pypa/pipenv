@@ -4,6 +4,7 @@ from collections import namedtuple
 from traceback import format_tb
 
 from pipenv.patched.pip._vendor.rich.console import Console
+from pipenv.patched.pip._vendor.rich.panel import Panel
 from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.utils import err
 from pipenv.vendor import click
@@ -59,6 +60,21 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 
 
 sys.excepthook = handle_exception
+
+
+class RichException(Exception):
+    def __init__(self, message):
+        self.message = message
+
+    def show(self):
+        panel = Panel(
+            self.message,
+            title="Error",
+            expand=False,
+            border_style="red",
+            style="bold red",
+        )
+        err.print(panel)
 
 
 class PipenvException(ClickException):
@@ -290,18 +306,13 @@ class InstallError(PipenvException):
         PipenvException.__init__(self, message=message, extra=extra, **kwargs)
 
 
-class DependencyConflict(PipenvException):
-    def __init__(self, message):
-        extra = [
-            "{} {}".format(
-                click.style("The operation failed...", bold=True, fg="red"),
-                click.style(
-                    "A dependency conflict was detected and could not be resolved.",
-                    fg="red",
-                ),
-            )
-        ]
-        PipenvException.__init__(self, message, extra=extra)
+class DependencyConflict(RichException):
+    def __init__(self, msg):
+        banner = (
+            "[red bold]The operation failed...[/bold][/red]\n"
+            "A dependency conflict for was detected and could not be resolved."
+        )
+        super().__init__(f"{banner}\n{msg}")
 
 
 class ResolutionFailure(PipenvException):
