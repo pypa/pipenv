@@ -47,9 +47,9 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                 pass
     outdated = []
     skipped = []
-    for package in packages:
+    for package in packages.keys():  # noqa: PLC0206
         norm_name = pep423_name(package)
-        if norm_name in updated_packages:
+        if norm_name in updated_packages.keys():
             version = packages[package]
             if isinstance(version, Mapping):
                 version = parse_version(version.get("version", "").replace("==", ""))
@@ -60,7 +60,9 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                     package_info(package, str(version), str(updated_packages[norm_name]))
                 )
             elif canonicalize_name(package) in outdated_packages:
-                skipped.append(outdated_packages[canonicalize_name(package)])
+                skipped.append(
+                    outdated_packages[canonicalize_name(package)]  # noqa: PLC0206
+                )
     for package, old_version, new_version in skipped:
         for category in project.get_package_categories():
             name_in_pipfile = project.get_package_name_in_pipfile(
