@@ -733,7 +733,7 @@ class Project:
     def update_settings(self, d: dict[str, str | bool]) -> None:
         settings = self.settings
         changed = False
-        for new in d:
+        for new in d.keys():  # noqa: PLC0206
             if new not in settings:
                 settings[new] = d[new]
                 changed = True
