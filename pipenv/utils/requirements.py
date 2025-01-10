@@ -99,8 +99,6 @@ def import_requirements(project, r=None, dev=False, categories=None):
                     project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
                 package_string = str(package.req)
-                if package.markers:
-                    package_string += f" ; {package.markers}"
                 if categories:
                     for category in categories:
                         project.add_package_to_pipfile(
@@ -112,7 +110,6 @@ def import_requirements(project, r=None, dev=False, categories=None):
     trusted_hosts = sorted(set(trusted_hosts))
     for index in indexes:
         add_index_to_pipfile(project, index, trusted_hosts)
-    project.recase_pipfile()
 
 
 def add_index_to_pipfile(project, index, trusted_hosts=None):
