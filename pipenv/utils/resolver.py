@@ -457,7 +457,7 @@ class Resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
-                raise ResolutionFailure(message=str(e))
+                raise ResolutionFailure(message=e)
             else:
                 self.results = set(results.all_requirements)
                 self.resolved_tree.update(self.results)
@@ -765,7 +765,7 @@ def resolve(cmd, st, project):
     out = c.stdout.read()
     if returncode != 0:
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-        err.print(out.strip())
+        # err.print(out.strip())
         if not is_verbose:
             err.print(errors)
         raise RuntimeError("Failed to lock Pipfile.lock!")

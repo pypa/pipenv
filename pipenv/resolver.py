@@ -447,7 +447,6 @@ def main(argv=None):
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
     if not parsed.verbose:
-        print(parsed.verbose)
         logging.getLogger("pipenv").setLevel(logging.WARN)
     _main(
         parsed.pre,
