@@ -4,10 +4,10 @@ from collections import namedtuple
 from traceback import format_tb
 
 from pipenv.patched.pip._vendor.rich.console import Console
+from pipenv.patched.pip._vendor.rich.panel import Panel
 from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.utils import err
-from pipenv.vendor import click
-from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
+from pipenv.vendor.click.exceptions import ClickException, FileError
 
 
 def unstyle(text: str) -> str:
@@ -61,52 +61,40 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 sys.excepthook = handle_exception
 
 
-class PipenvException(ClickException):
-    message = "[bold][red]ERROR[/red][/bold]: {}"
+class RichException(Exception):
+    def __init__(self, message):
+        self.message = message
 
-    def __init__(self, message=None, **kwargs):
-        if not message:
-            message = "Pipenv encountered a problem and had to exit."
-        extra = kwargs.pop("extra", [])
-        self.message = self.message.format(message)
-        self.extra = extra
-
-    def show(self, file=None):
-        if file is None:
-            file = sys.stderr
-        console = Console(file=file)
-        if self.extra:
-            if isinstance(self.extra, str):
-                self.extra = [self.extra]
-            for extra in self.extra:
-                extra = f"[pipenv.exceptions.{self.__class__.__name__}]: {extra}"
-                console.print(extra)
-        console.print(f"{self.message}")
+    def show(self):
+        panel = Panel(
+            self.message,
+            title="Error",
+            expand=False,
+            border_style="red",
+            style="bold red",
+        )
+        err.print(panel)
 
 
-class PipenvCmdError(PipenvException):
-    def __init__(self, cmd, out="", err="", exit_code=1):
+class PipenvCmdError(OSError):
+    def __init__(self, cmd, stdout, stderr, return_code):
         self.cmd = cmd
-        self.out = out
-        self.err = err
-        self.exit_code = exit_code
-        message = f"Error running command: {cmd}"
-        PipenvException.__init__(self, message)
+        self.stdout = stdout
+        self.stderr = stderr
+        self.return_code = return_code
 
-    def show(self, file=None):
-        console = Console(stderr=True, file=file, highlight=False)
-        console.print(f"[red]Error running command:[/red] [bold]$ {self.cmd}[/bold]")
-        if self.out:
-            console.print(f"OUTPUT: {self.out}")
-        if self.err:
-            console.print(f"STDERR: {self.err}")
+    def __str__(self):
+        return (
+            f"Command {self.cmd!r} failed with return code {self.return_code}.\n"
+            f"Output: {self.stdout}\n"
+            f"Error: {self.stderr}"
+        )
 
 
-class JSONParseError(PipenvException):
+class JSONParseError(RichException):
     def __init__(self, contents="", error_text=""):
         self.error_text = error_text
         self.contents = contents
-        PipenvException.__init__(self, contents)
 
     def show(self, file=None):
         console = Console(stderr=True, file=file, highlight=False)
@@ -117,7 +105,7 @@ class JSONParseError(PipenvException):
             console.print(f"[bold][red]ERROR TEXT:[/red][/bold]: {self.error_text}")
 
 
-class PipenvUsageError(UsageError):
+class PipenvUsageError(RichException):
     def __init__(self, message=None, ctx=None, **kwargs):
         formatted_message = "{0}: {1}"
         msg_prefix = "[bold red]ERROR:[/bold red]"
@@ -125,22 +113,20 @@ class PipenvUsageError(UsageError):
             message = "Pipenv encountered a problem and had to exit."
         message = formatted_message.format(msg_prefix, f"[bold]{message}[/bold]")
         self.message = message
-        UsageError.__init__(self, message, ctx)
 
     def show(self, file=None):
         hint = ""
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
             hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
-        if self.ctx is not None:
-            console = Console(
-                stderr=True, file=file, highlight=False, force_terminal=self.ctx.color
-            )
-            console.print(self.ctx.get_usage() + f"\n{hint}")
+        console = Console(
+            stderr=True, file=file, highlight=False, force_terminal=self.ctx.color
+        )
+        console.print(self.ctx.get_usage() + f"\n{hint}")
         console = Console(stderr=True, file=file, highlight=False)
         console.print(self.message)
 
 
-class PipenvFileError(FileError):
+class PipenvFileError(RichException):
     formatted_message = "{} {{}} {{}}".format("[bold red]ERROR:[/bold red]")
 
     def __init__(self, filename, message=None, **kwargs):
@@ -163,20 +149,18 @@ class PipenvFileError(FileError):
         console.print(self.message)
 
 
-class PipfileNotFound(PipenvFileError):
+class PipfileNotFound(RichException):
     def __init__(self, filename="Pipfile", extra=None, **kwargs):
-        extra = kwargs.pop("extra", [])
-        message = "{} {}".format(
+        message = (
             "[bold red]Aborting![/bold red]",
-            "[bold]Please ensure that the file exists and is located in your project root directory.[/bold]",
+            f"[bold]Please ensure that the {filename} exists and is located in your project root directory.[/bold]",
         )
-        super().__init__(filename, message=message, extra=extra, **kwargs)
+        super().__init__(message=message, extra=extra, **kwargs)
 
 
-class LockfileNotFound(PipenvFileError):
+class LockfileNotFound(RichException):
     def __init__(self, filename="Pipfile.lock", extra=None, **kwargs):
-        extra = kwargs.pop("extra", [])
-        message = "{} {} {}".format(
+        message = (
             "[bold]You need to run[/bold]",
             "[bold red]$ pipenv lock[/bold red]",
             "[bold]before you can continue.[/bold]",
@@ -184,51 +168,38 @@ class LockfileNotFound(PipenvFileError):
         super().__init__(filename, message=message, extra=extra, **kwargs)
 
 
-class DeployException(PipenvUsageError):
+class DeployException(RichException):
     def __init__(self, message=None, **kwargs):
         if not message:
             message = "[bold]Aborting deploy[/bold]"
-        extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=message, extra=extra, **kwargs)
 
 
-class PipenvOptionsError(PipenvUsageError):
-    def __init__(self, option_name, message=None, ctx=None, **kwargs):
-        extra = kwargs.pop("extra", [])
-        PipenvUsageError.__init__(self, message=message, ctx=ctx, **kwargs)
-        self.extra = extra
-        self.option_name = option_name
+class PipenvOptionsError(RichException):
+    pass
 
 
 class SystemUsageError(PipenvOptionsError):
-    def __init__(self, option_name="system", message=None, ctx=None, **kwargs):
-        extra = kwargs.pop("extra", [])
-        extra += [
-            "{}: --system is intended to be used for Pipfile installation, "
-            "not installation of specific packages. Aborting.".format(
-                "[bold red]Warning[/bold /red]",
-            ),
-        ]
-        if message is None:
-            message = "{} --deploy flag".format(
-                "[cyan]See also: {}[/cyan]",
-            )
-        super().__init__(option_name, message=message, ctx=ctx, extra=extra, **kwargs)
+    def __init__(self, option_name="system", message=None):
+        message = (
+            "[bold red]Warning[/bold /red]: --system is intended"
+            "to be used for Pipfile installation, "
+            "not installation of specific packages. Aborting."
+        )
+        super().__init__(self, message)
 
 
-class SetupException(PipenvException):
-    def __init__(self, message=None, **kwargs):
-        PipenvException.__init__(self, message, **kwargs)
+class SetupException(RichException):
+    pass
 
 
-class VirtualenvException(PipenvException):
+class VirtualenvException(RichException):
     def __init__(self, message=None, **kwargs):
         if not message:
             message = (
                 "There was an unexpected error while activating your virtualenv. "
                 "Continuing anyway..."
             )
-        PipenvException.__init__(self, message, **kwargs)
+        super().__init__(self, message, **kwargs)
 
 
 class VirtualenvActivationException(VirtualenvException):
@@ -239,7 +210,7 @@ class VirtualenvActivationException(VirtualenvException):
                 "not activated. Continuing anyway..."
             )
         self.message = message
-        VirtualenvException.__init__(self, message, **kwargs)
+        super().__init__(self, message, **kwargs)
 
 
 class VirtualenvCreationException(VirtualenvException):
@@ -256,88 +227,77 @@ class VirtualenvCreationException(VirtualenvException):
         VirtualenvException.__init__(self, message, extra=extra)
 
 
-class UninstallError(PipenvException):
+class UninstallError(RichException):
     def __init__(self, package, command, return_values, return_code, **kwargs):
         extra = [
-            "{} {}".format(
-                "[cyan]Attempting to run command: [/cyan]",
-                f"[bold yellow]$ {command!r}[/bold yellow]",
-            )
+            "[cyan]Attempting to run command: [/cyan]",
+            f"[bold yellow]$ {command!r}[/bold yellow]",
         ]
+
         extra.extend(
             [f"[cyan]{line.strip()}[/cyan]" for line in return_values.splitlines()]
         )
+
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
-        message = "{!s} {!s}...".format(
+        message = (
             "Failed to uninstall package(s)",
             f"[bold yellow]{package}!s[/bold yellow]",
         )
-        self.exit_code = return_code
-        PipenvException.__init__(self, message=message, extra=extra)
-        self.extra = extra
+
+        message = message + extra
 
 
-class InstallError(PipenvException):
+class InstallError(RichException):
     def __init__(self, package, **kwargs):
         package_message = ""
         if package is not None:
             package_message = "Couldn't install package: {}\n".format(
                 f"[bold]{package!s}[/bold]"
             )
-        message = "{} {}".format(
+        message = (
             f"{package_message}",
             "[yellow]Package installation failed...[/yellow]",
         )
-        extra = kwargs.pop("extra", [])
-        PipenvException.__init__(self, message=message, extra=extra, **kwargs)
+        super().__init__(self, message=message)
 
 
-class DependencyConflict(PipenvException):
-    def __init__(self, message):
-        extra = [
-            "{} {}".format(
-                click.style("The operation failed...", bold=True, fg="red"),
-                click.style(
-                    "A dependency conflict was detected and could not be resolved.",
-                    fg="red",
-                ),
-            )
-        ]
-        PipenvException.__init__(self, message, extra=extra)
+class DependencyConflict(RichException):
+    def __init__(self, msg):
+        banner = (
+            "[red bold]The operation failed...[/bold][/red]\n"
+            "A dependency conflict for was detected and could not be resolved."
+        )
+        super().__init__(f"{banner}\n{msg}")
 
 
-class ResolutionFailure(PipenvException):
+class ResolutionFailure(RichException):
     def __init__(self, message, no_version_found=False):
+        cmd = "[yellow]$ pipenv run pip install <requirement_name>[/yellow]"
+        graph = "[yellow]$ pipenv graph[/yellow]"
+        hint = "[yellow]$ pipenv lock --pre[/yellow]"
+
         extra = (
-            "{}: Your dependencies could not be resolved. You likely have a "
+            f"[red bold]Warning[/red bold]: Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n  "
-            "You can use {} to bypass this mechanism, then run "
-            "{} to inspect the versions actually installed in the virtualenv.\n  "
-            "Hint: try {} if it is a pre-release dependency."
-            "".format(
-                click.style("Warning", fg="red", bold=True),
-                click.style("$ pipenv run pip install <requirement_name>", fg="yellow"),
-                click.style("$ pipenv graph", fg="yellow"),
-                click.style("$ pipenv lock --pre", fg="yellow"),
-            ),
+            f"You can use {cmd} to bypass this mechanism, then run "
+            f"{graph} to inspect the versions actually installed in the virtualenv.\n  "
+            f"Hint: try {hint} if it is a pre-release dependency."
         )
         if "no version found at all" in message:
             no_version_found = True
-        message = click.style(f"{message}", fg="yellow")
+        message = f"[yellow]{message}[/yellow]"
         if no_version_found:
-            message = "{}\n{}".format(
-                message,
-                click.style(
-                    "Please check your version specifier and version number. "
-                    "See PEP440 for more information.",
-                    fg="cyan",
-                ),
+            message += (
+                "\n[cyan]Please check your version specifier and version number. "
+                "See PEP440 for more information.[/cyan]"
             )
-        PipenvException.__init__(self, message, extra=extra)
+
+            message += extra
+        super().__init__(self, message)
 
 
-class RequirementError(PipenvException):
+class RequirementError(RichException):
     def __init__(self, req=None):
         from pipenv.utils.constants import VCS_LIST
 
@@ -370,14 +330,8 @@ class RequirementError(PipenvException):
                     req_value = "\n".join([f"    {k}: {v}" for k, v in values])
                 else:
                     req_value = getattr(req.line_instance, "line", None)
-        message = click.style(
-            f"Failed creating requirement instance {req_value}",
-            bold=False,
-            fg="reset",
-            bg="reset",
-        )
-        extra = [str(req)]
-        PipenvException.__init__(self, message, extra=extra)
+        message = f"Failed creating requirement instance {req_value} {[str(req)]}"
+        super().__init__(self, message)
 
 
 def prettify_exc(error):

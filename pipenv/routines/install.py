@@ -664,7 +664,7 @@ def _cleanup_procs(project, procs):
         # The Installation failed...
         if failed:
             # The Installation failed...
-            # We echo both c.stdout and c.stderr because pip returns error details on out.
+            # We write both c.stdout and c.stderr because pip returns error details on out.
             err = err.strip().splitlines() if err else []
             out = out.strip().splitlines() if out else []
             err_lines = [line for message in [out, err] for line in message]

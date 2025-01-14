@@ -3,9 +3,9 @@ import subprocess
 import sys
 from os.path import expandvars
 
+from pipenv.utils import err
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, system_which
-from pipenv.vendor import click
 
 
 def do_shell(
@@ -27,7 +27,7 @@ def do_shell(
 
     shell = choose_shell(project)
     if not quiet:
-        click.echo("Launching subshell in virtual environment...", err=True)
+        err.print("Launching subshell in virtual environment...")
 
     fork_args = (
         project.virtualenv_location,
@@ -47,10 +47,9 @@ def do_shell(
     try:
         shell.fork_compat(*fork_args)
     except (AttributeError, ImportError):
-        click.echo(
+        err.print(
             "Compatibility mode not supported. "
             "Trying to continue as well-configured shell...",
-            err=True,
         )
         shell.fork(*fork_args)
 
@@ -93,9 +92,9 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
         script = project.build_script(command, args)
         cmd_string = cmd_list_to_shell([script.command] + script.args)
         if project.s.is_verbose():
-            click.echo(click.style(f"$ {cmd_string}"), err=True)
+            err.print(f"$ {cmd_string}")
     except ScriptEmptyError:
-        click.echo("Can't run script {0!r}-it's empty?", err=True)
+        err.print("Can't run script {0!r}-it's empty?")
     run_args = [project, script]
     run_kwargs = {"env": env}
     if os.name == "nt":
@@ -111,26 +110,14 @@ def do_run_posix(project, script, command, env):
     command_path = system_which(script.command, path=path)
     if not command_path:
         if project.has_script(command):
-            click.echo(
-                "{}: the command {} (from {}) could not be found within {}."
-                "".format(
-                    click.style("Error", fg="red", bold=True),
-                    click.style(script.command, fg="yellow"),
-                    click.style(command, bold=True),
-                    click.style("PATH", bold=True),
-                ),
-                err=True,
+            err.print(
+                f"[bold red]Error[/red bold]: the command [yellow]{script.command}[/yellow]"
+                f"(from [bold]{command}[/bold]) could not be found within [bold]PATH[/bold]."
             )
         else:
-            click.echo(
-                "{}: the command {} could not be found within {} or Pipfile's {}."
-                "".format(
-                    click.style("Error", fg="red", bold=True),
-                    click.style(command, fg="yellow"),
-                    click.style("PATH", bold=True),
-                    click.style("[scripts]", bold=True),
-                ),
-                err=True,
+            err.print(
+                f"[bold red]Error[/red bold]: the command [yellow]{command}[/yellow] could "
+                f"not be found within [bold]PATH[/bold] or Pipfile's [bold][scripts][/bold]."
             )
         sys.exit(1)
     os.execve(

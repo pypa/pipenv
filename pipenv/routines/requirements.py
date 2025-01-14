@@ -1,9 +1,9 @@
 import re
 import sys
 
+from pipenv.utils import console
 from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
 from pipenv.utils.requirements import requirements_from_lockfile
-from pipenv.vendor import click
 
 
 def generate_requirements(
@@ -20,7 +20,7 @@ def generate_requirements(
 
     for i, package_index in enumerate(lockfile["_meta"]["sources"]):
         prefix = "-i" if i == 0 else "--extra-index-url"
-        click.echo(" ".join([prefix, package_index["url"]]))
+        console.print(" ".join([prefix, package_index["url"]]))
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []
@@ -59,6 +59,6 @@ def generate_requirements(
     )
 
     for line in pip_installable_lines:
-        click.echo(line)
+        console.print(line)
 
     sys.exit(0)
