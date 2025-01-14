@@ -7,7 +7,6 @@ from pipenv.patched.pip._vendor.rich.console import Console
 from pipenv.patched.pip._vendor.rich.panel import Panel
 from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.utils import err
-from pipenv.vendor import click
 from pipenv.vendor.click.exceptions import ClickException, FileError
 
 
@@ -75,29 +74,6 @@ class RichException(Exception):
             style="bold red",
         )
         err.print(panel)
-
-
-class PipenvException(ClickException):
-    message = "[bold][red]ERROR[/red][/bold]: {}"
-
-    def __init__(self, message=None, **kwargs):
-        if not message:
-            message = "Pipenv encountered a problem and had to exit."
-        extra = kwargs.pop("extra", [])
-        self.message = self.message.format(message)
-        self.extra = extra
-
-    def show(self, file=None):
-        if file is None:
-            file = sys.stderr
-        console = Console(file=file)
-        if self.extra:
-            if isinstance(self.extra, str):
-                self.extra = [self.extra]
-            for extra in self.extra:
-                extra = f"[pipenv.exceptions.{self.__class__.__name__}]: {extra}"
-                console.print(extra)
-        console.print(f"{self.message}")
 
 
 class PipenvCmdError(OSError):
@@ -297,35 +273,31 @@ class DependencyConflict(RichException):
 
 class ResolutionFailure(RichException):
     def __init__(self, message, no_version_found=False):
+        cmd = "[yellow]$ pipenv run pip install <requirement_name>[/yellow]"
+        graph = "[yellow]$ pipenv graph[/yellow]"
+        hint = "[yellow]$ pipenv lock --pre[/yellow]"
+
         extra = (
-            "{}: Your dependencies could not be resolved. You likely have a "
+            f"[red bold]Warning[/red bold]: Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n  "
-            "You can use {} to bypass this mechanism, then run "
-            "{} to inspect the versions actually installed in the virtualenv.\n  "
-            "Hint: try {} if it is a pre-release dependency."
-            "".format(
-                click.style("Warning", fg="red", bold=True),
-                click.style("$ pipenv run pip install <requirement_name>", fg="yellow"),
-                click.style("$ pipenv graph", fg="yellow"),
-                click.style("$ pipenv lock --pre", fg="yellow"),
-            ),
+            f"You can use {cmd} to bypass this mechanism, then run "
+            f"{graph} to inspect the versions actually installed in the virtualenv.\n  "
+            f"Hint: try {hint} if it is a pre-release dependency."
         )
         if "no version found at all" in message:
             no_version_found = True
-        message = click.style(f"{message}", fg="yellow")
+        message = f"[yellow]{message}[/yellow]"
         if no_version_found:
-            message = "{}\n{}".format(
-                message,
-                click.style(
-                    "Please check your version specifier and version number. "
-                    "See PEP440 for more information.",
-                    fg="cyan",
-                ),
+            message += (
+                "\n[cyan]Please check your version specifier and version number. "
+                "See PEP440 for more information.[/cyan]"
             )
-        PipenvException.__init__(self, message, extra=extra)
+
+            message += extra
+        super().__init__(self, message)
 
 
-class RequirementError(PipenvException):
+class RequirementError(RichException):
     def __init__(self, req=None):
         from pipenv.utils.constants import VCS_LIST
 
@@ -358,14 +330,8 @@ class RequirementError(PipenvException):
                     req_value = "\n".join([f"    {k}: {v}" for k, v in values])
                 else:
                     req_value = getattr(req.line_instance, "line", None)
-        message = click.style(
-            f"Failed creating requirement instance {req_value}",
-            bold=False,
-            fg="reset",
-            bg="reset",
-        )
-        extra = [str(req)]
-        PipenvException.__init__(self, message, extra=extra)
+        message = f"Failed creating requirement instance {req_value} {[str(req)]}"
+        super().__init__(self, message)
 
 
 def prettify_exc(error):
