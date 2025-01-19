@@ -79,7 +79,6 @@ class PipenvException(ClickException):
             if isinstance(self.extra, str):
                 self.extra = [self.extra]
             for extra in self.extra:
-                extra = f"[pipenv.exceptions.{self.__class__.__name__}]: {extra}"
                 console.print(extra)
         console.print(f"{self.message}")
 
@@ -310,29 +309,16 @@ class DependencyConflict(PipenvException):
 class ResolutionFailure(PipenvException):
     def __init__(self, message, no_version_found=False):
         extra = (
-            "{}: Your dependencies could not be resolved. You likely have a "
-            "mismatch in your sub-dependencies.\n  "
-            "You can use {} to bypass this mechanism, then run "
-            "{} to inspect the versions actually installed in the virtualenv.\n  "
-            "Hint: try {} if it is a pre-release dependency."
-            "".format(
-                click.style("Warning", fg="red", bold=True),
-                click.style("$ pipenv run pip install <requirement_name>", fg="yellow"),
-                click.style("$ pipenv graph", fg="yellow"),
-                click.style("$ pipenv lock --pre", fg="yellow"),
-            ),
+            "Your dependencies could not be resolved. You likely have a "
+            "mismatch in your sub-dependencies.\n"
+            "You can use [yellow]$ pipenv run pip install <requirement_name>[/yellow] to bypass this mechanism, then run "
+            "[yellow]$ pipenv graph[/yellow] to inspect the versions actually installed in the virtualenv.\n"
+            "Hint: try [yellow]$ pipenv lock --pre[/yellow] if it is a pre-release dependency."
         )
-        if "no version found at all" in message:
-            no_version_found = True
-        message = click.style(f"{message}", fg="yellow")
-        if no_version_found:
-            message = "{}\n{}".format(
-                message,
-                click.style(
-                    "Please check your version specifier and version number. "
-                    "See PEP440 for more information.",
-                    fg="cyan",
-                ),
+        if "no version found at all" in str(message):
+            message += (
+                "[cyan]Please check your version specifier and version number. "
+                "See PEP440 for more information.[/cyan]"
             )
         PipenvException.__init__(self, message, extra=extra)
 

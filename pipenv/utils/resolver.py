@@ -765,10 +765,9 @@ def resolve(cmd, st, project):
     out = c.stdout.read()
     if returncode != 0:
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-        # err.print(out.strip())
         if not is_verbose:
             err.print(errors)
-        raise RuntimeError("Failed to lock Pipfile.lock!")
+        raise ResolutionFailure("Failed to lock Pipfile.lock!")
     if is_verbose:
         err.print(out.strip())
     return subprocess.CompletedProcess(c.args, returncode, out, errors)
