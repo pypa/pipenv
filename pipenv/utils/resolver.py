@@ -904,7 +904,10 @@ def venv_resolve_deps(
                 cmd.append("--constraints-file")
                 cmd.append(constraints_file.name)
                 st.console.print("Resolving dependencies...")
-                c = resolve(cmd, st, project=project)
+                try:
+                    c = resolve(cmd, st, project=project)
+                except InstallationError:
+                    sys.exit(1)
                 if c.returncode == 0:
                     try:
                         with open(target_file.name) as fh:
