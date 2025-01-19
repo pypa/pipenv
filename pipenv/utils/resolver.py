@@ -765,10 +765,9 @@ def resolve(cmd, st, project):
     out = c.stdout.read()
     if returncode != 0:
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-        # err.print(out.strip())
         if not is_verbose:
             err.print(errors)
-        raise RuntimeError("Failed to lock Pipfile.lock!")
+        raise ResolutionFailure("Failed to lock Pipfile.lock!")
     if is_verbose:
         err.print(out.strip())
     return subprocess.CompletedProcess(c.args, returncode, out, errors)
@@ -904,10 +903,7 @@ def venv_resolve_deps(
                 cmd.append("--constraints-file")
                 cmd.append(constraints_file.name)
                 st.console.print("Resolving dependencies...")
-                try:
-                    c = resolve(cmd, st, project=project)
-                except InstallationError:
-                    sys.exit(1)
+                c = resolve(cmd, st, project=project)
                 if c.returncode == 0:
                     try:
                         with open(target_file.name) as fh:
