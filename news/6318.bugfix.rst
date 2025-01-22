@@ -1,1 +1,0 @@
-Running "pipenv shell" on MacOS in Powershell (pwsh) references incorrect Activate.ps1

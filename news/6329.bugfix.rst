@@ -1,1 +1,0 @@
-Fix license declaration for PyPI

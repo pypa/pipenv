@@ -1,3 +1,21 @@
+2024.4.0 (2025-01-22)
+=====================
+Pipenv 2024.4.0 (2025-01-22)
+============================
+
+
+Bug Fixes
+---------
+
+- Running "pipenv shell" on MacOS in Powershell (pwsh) references incorrect Activate.ps1  `#6318 <https://github.com/pypa/pipenv/issues/6318>`_
+- Fix repr(Shell)  `#6321 <https://github.com/pypa/pipenv/issues/6321>`_
+- Fix incorrect path for 'pipenv shell'  `#6327 <https://github.com/pypa/pipenv/issues/6327>`_
+- Fix license declaration for PyPI  `#6329 <https://github.com/pypa/pipenv/issues/6329>`_
+
+Vendored Libraries
+------------------
+
+- Remove click.echo from exceptions.py  `#6216 <https://github.com/pypa/pipenv/issues/6216>`_
 2024.2.0 (2024-11-05)
 =====================
 Pipenv 2024.2.0 (2024-11-05)
