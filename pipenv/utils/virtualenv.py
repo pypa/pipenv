@@ -252,58 +252,57 @@ def ensure_python(project, python=None):
 
         if not installer:
             abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
-        else:
-            if environments.SESSION_IS_INTERACTIVE or project.s.PIPENV_YES:
-                try:
-                    version = installer.find_version_to_install(python)
-                except ValueError:
-                    abort()
-                except InstallerError as e:
-                    abort(f"Something went wrong while installing Python:\n{e.err}")
-                s = (
-                    "Would you like us to install ",
-                    f"[green]CPython {version}[/green] ",
-                    f"with {installer}?",
-                )
+        elif environments.SESSION_IS_INTERACTIVE or project.s.PIPENV_YES:
+            try:
+                version = installer.find_version_to_install(python)
+            except ValueError:
+                abort()
+            except InstallerError as e:
+                abort(f"Something went wrong while installing Python:\n{e.err}")
+            s = (
+                "Would you like us to install ",
+                f"[green]CPython {version}[/green] ",
+                f"with {installer}?",
+            )
 
-                # Prompt the user to continue...
-                if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
-                    abort()
-                else:
-                    # Tell the user we're installing Python.
-                    console.print(
-                        f"[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
-                    )
-                    console.print("(this may take a few minutes)[bold]...[/bold]")
-                    with console.status(
-                        "Installing python...", spinner=project.s.PIPENV_SPINNER
-                    ):
-                        try:
-                            c = installer.install(version)
-                        except InstallerError as e:
-                            err.print(
-                                environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
-                            )
-                            err.print("Something went wrong...")
-                            err.print(f"[cyan]{e.err}[/cyan]")
-                        else:
-                            console.print(
-                                environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                            )
-                            # Print the results, in a beautiful blue...
-                            err.print(f"[cyan]{c.stdout}[/cyan]")
-                    # Find the newly installed Python, hopefully.
-                    version = str(version)
-                    path_to_python = find_a_system_python(version)
+            # Prompt the user to continue...
+            if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
+                abort()
+            else:
+                # Tell the user we're installing Python.
+                console.print(
+                    f"[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
+                )
+                console.print("(this may take a few minutes)[bold]...[/bold]")
+                with console.status(
+                    "Installing python...", spinner=project.s.PIPENV_SPINNER
+                ):
                     try:
-                        assert python_version(path_to_python) == version
-                    except AssertionError:
+                        c = installer.install(version)
+                    except InstallerError as e:
                         err.print(
-                            "[bold][red]Warning:[/red][/bold]"
-                            " The Python you just installed is not available "
-                            "on your [bold]PATH[/bold], apparently."
+                            environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                         )
-                        sys.exit(1)
+                        err.print("Something went wrong...")
+                        err.print(f"[cyan]{e.err}[/cyan]")
+                    else:
+                        console.print(
+                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                        )
+                        # Print the results, in a beautiful blue...
+                        err.print(f"[cyan]{c.stdout}[/cyan]")
+                # Find the newly installed Python, hopefully.
+                version = str(version)
+                path_to_python = find_a_system_python(version)
+                try:
+                    assert python_version(path_to_python) == version
+                except AssertionError:
+                    err.print(
+                        "[bold][red]Warning:[/red][/bold]"
+                        " The Python you just installed is not available "
+                        "on your [bold]PATH[/bold], apparently."
+                    )
+                    sys.exit(1)
     return path_to_python
 
 
