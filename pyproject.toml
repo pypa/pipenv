@@ -177,7 +177,7 @@ lint.per-file-ignores = { "pipenv/cli/command.py" = [
 ], "pipenv/vendor/pythonfinder/models/python.py" = [
   "B015",
 ] }
-lint.mccabe.max-complexity = 44
+lint.mccabe = 44
 lint.pylint.allow-magic-value-types = [ "int", "str" ]
 lint.pylint.max-args = 18
 lint.pylint.max-branches = 34
