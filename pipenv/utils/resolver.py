@@ -592,17 +592,15 @@ class Resolver:
                 if hashes:
                     return hashes
 
-        applicable_candidates = (
-            self.finder(ignore_compatibility=True)
-            .find_best_candidate(ireq.name, ireq.specifier)
-            .iter_applicable()
-        )
-        applicable_candidates = list(applicable_candidates)
-        if applicable_candidates:
+        # Updated section to use applicable_candidates directly
+        best_candidate_result = self.finder(
+            ignore_compatibility=True
+        ).find_best_candidate(ireq.name, ireq.specifier)
+        if best_candidate_result.applicable_candidates:
             return sorted(
                 {
                     self.project.get_hash_from_link(self.hash_cache, candidate.link)
-                    for candidate in applicable_candidates
+                    for candidate in best_candidate_result.applicable_candidates
                 }
             )
         if link:
