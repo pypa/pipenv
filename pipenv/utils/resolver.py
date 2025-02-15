@@ -351,7 +351,7 @@ class Resolver:
             session=self.session,
             options=pip_options,
         )
-        return set(parsed_default_constraints)
+        return list(parsed_default_constraints)
 
     @property
     def parsed_constraints(self):
