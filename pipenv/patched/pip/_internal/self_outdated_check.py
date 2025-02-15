@@ -26,7 +26,11 @@ from pipenv.patched.pip._internal.utils.entrypoints import (
     get_best_invocation_for_this_python,
 )
 from pipenv.patched.pip._internal.utils.filesystem import adjacent_tmp_file, check_path_owner, replace
-from pipenv.patched.pip._internal.utils.misc import ensure_dir
+from pipenv.patched.pip._internal.utils.misc import (
+    ExternallyManagedEnvironment,
+    check_externally_managed,
+    ensure_dir,
+)
 
 _WEEK = datetime.timedelta(days=7)
 
@@ -230,6 +234,10 @@ def pip_self_version_check(session: PipSession, options: optparse.Values) -> Non
     """
     installed_dist = get_default_environment().get_distribution("pip")
     if not installed_dist:
+        return
+    try:
+        check_externally_managed()
+    except ExternallyManagedEnvironment:
         return
 
     upgrade_prompt = _self_version_check_logic(

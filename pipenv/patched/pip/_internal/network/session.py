@@ -339,6 +339,7 @@ class PipSession(requests.Session):
         # Namespace the attribute with "pip_" just in case to prevent
         # possible conflicts with the base class.
         self.pip_trusted_origins: List[Tuple[str, Optional[int]]] = []
+        self.pip_proxy = None
 
         # Attach our User Agent to the request
         self.headers["User-Agent"] = user_agent()

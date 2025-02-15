@@ -8,6 +8,7 @@ from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
 from pipenv.patched.pip._internal.exceptions import CommandError, PipError
 from pipenv.patched.pip._internal.utils import filesystem
 from pipenv.patched.pip._internal.utils.logging import getLogger
+from pipenv.patched.pip._internal.utils.misc import format_size
 
 logger = getLogger(__name__)
 
@@ -180,10 +181,12 @@ class CacheCommand(Command):
         if not files:
             logger.warning(no_matching_msg)
 
+        bytes_removed = 0
         for filename in files:
+            bytes_removed += os.stat(filename).st_size
             os.unlink(filename)
             logger.verbose("Removed %s", filename)
-        logger.info("Files removed: %s", len(files))
+        logger.info("Files removed: %s (%s)", len(files), format_size(bytes_removed))
 
     def purge_cache(self, options: Values, args: List[Any]) -> None:
         if args:

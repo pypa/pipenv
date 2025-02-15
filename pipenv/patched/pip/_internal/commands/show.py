@@ -66,6 +66,7 @@ class _PackageInfo(NamedTuple):
     author: str
     author_email: str
     license: str
+    license_expression: str
     entry_points: List[str]
     files: Optional[List[str]]
 
@@ -161,6 +162,7 @@ def search_packages_info(query: List[str]) -> Generator[_PackageInfo, None, None
             author=metadata.get("Author", ""),
             author_email=metadata.get("Author-email", ""),
             license=metadata.get("License", ""),
+            license_expression=metadata.get("License-Expression", ""),
             entry_points=entry_points,
             files=files,
         )
@@ -180,13 +182,18 @@ def print_results(
         if i > 0:
             write_output("---")
 
+        metadata_version_tuple = tuple(map(int, dist.metadata_version.split(".")))
+
         write_output("Name: %s", dist.name)
         write_output("Version: %s", dist.version)
         write_output("Summary: %s", dist.summary)
         write_output("Home-page: %s", dist.homepage)
         write_output("Author: %s", dist.author)
         write_output("Author-email: %s", dist.author_email)
-        write_output("License: %s", dist.license)
+        if metadata_version_tuple >= (2, 4) and dist.license_expression:
+            write_output("License-Expression: %s", dist.license_expression)
+        else:
+            write_output("License: %s", dist.license)
         write_output("Location: %s", dist.location)
         if dist.editable_project_location is not None:
             write_output(

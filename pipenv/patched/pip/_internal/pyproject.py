@@ -73,7 +73,7 @@ def load_pyproject_toml(
         build_system = None
 
     # The following cases must use PEP 517
-    # We check for use_pep517 being non-None and falsey because that means
+    # We check for use_pep517 being non-None and falsy because that means
     # the user explicitly requested --no-use-pep517.  The value 0 as
     # opposed to False can occur when the value is provided via an
     # environment variable or config file option (due to the quirk of
