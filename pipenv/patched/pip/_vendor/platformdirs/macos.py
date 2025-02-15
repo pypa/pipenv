@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import os.path
 import sys
+from typing import TYPE_CHECKING
 
 from .api import PlatformDirsABC
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 class MacOS(PlatformDirsABC):
@@ -43,6 +47,11 @@ class MacOS(PlatformDirsABC):
         return path_list[0]
 
     @property
+    def site_data_path(self) -> Path:
+        """:return: data path shared by users. Only return the first item, even if ``multipath`` is set to ``True``"""
+        return self._first_item_as_path_if_multipath(self.site_data_dir)
+
+    @property
     def user_config_dir(self) -> str:
         """:return: config directory tied to the user, same as `user_data_dir`"""
         return self.user_data_dir
@@ -73,6 +82,11 @@ class MacOS(PlatformDirsABC):
         if self.multipath:
             return os.pathsep.join(path_list)
         return path_list[0]
+
+    @property
+    def site_cache_path(self) -> Path:
+        """:return: cache path shared by users. Only return the first item, even if ``multipath`` is set to ``True``"""
+        return self._first_item_as_path_if_multipath(self.site_cache_dir)
 
     @property
     def user_state_dir(self) -> str:

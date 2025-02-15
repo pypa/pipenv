@@ -77,7 +77,7 @@ class CacheControlAdapter(HTTPAdapter):
 
         return resp
 
-    def build_response(
+    def build_response(  # type: ignore[override]
         self,
         request: PreparedRequest,
         response: HTTPResponse,
@@ -143,7 +143,7 @@ class CacheControlAdapter(HTTPAdapter):
                         _update_chunk_length, response
                     )
 
-        resp: Response = super().build_response(request, response)  # type: ignore[no-untyped-call]
+        resp: Response = super().build_response(request, response)
 
         # See if we should invalidate the cache.
         if request.method in self.invalidating_methods and resp.ok:

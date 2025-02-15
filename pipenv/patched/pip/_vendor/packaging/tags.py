@@ -47,7 +47,7 @@ class Tag:
     is also supported.
     """
 
-    __slots__ = ["_interpreter", "_abi", "_platform", "_hash"]
+    __slots__ = ["_abi", "_hash", "_interpreter", "_platform"]
 
     def __init__(self, interpreter: str, abi: str, platform: str) -> None:
         self._interpreter = interpreter.lower()
@@ -235,9 +235,8 @@ def cpython_tags(
     if use_abi3:
         for minor_version in range(python_version[1] - 1, 1, -1):
             for platform_ in platforms:
-                interpreter = "cp{version}".format(
-                    version=_version_nodot((python_version[0], minor_version))
-                )
+                version = _version_nodot((python_version[0], minor_version))
+                interpreter = f"cp{version}"
                 yield Tag(interpreter, "abi3", platform_)
 
 
@@ -435,24 +434,22 @@ def mac_platforms(
     if (10, 0) <= version and version < (11, 0):
         # Prior to Mac OS 11, each yearly release of Mac OS bumped the
         # "minor" version number.  The major version was always 10.
+        major_version = 10
         for minor_version in range(version[1], -1, -1):
-            compat_version = 10, minor_version
+            compat_version = major_version, minor_version
             binary_formats = _mac_binary_formats(compat_version, arch)
             for binary_format in binary_formats:
-                yield "macosx_{major}_{minor}_{binary_format}".format(
-                    major=10, minor=minor_version, binary_format=binary_format
-                )
+                yield f"macosx_{major_version}_{minor_version}_{binary_format}"
 
     if version >= (11, 0):
         # Starting with Mac OS 11, each yearly release bumps the major version
         # number.   The minor versions are now the midyear updates.
+        minor_version = 0
         for major_version in range(version[0], 10, -1):
-            compat_version = major_version, 0
+            compat_version = major_version, minor_version
             binary_formats = _mac_binary_formats(compat_version, arch)
             for binary_format in binary_formats:
-                yield "macosx_{major}_{minor}_{binary_format}".format(
-                    major=major_version, minor=0, binary_format=binary_format
-                )
+                yield f"macosx_{major_version}_{minor_version}_{binary_format}"
 
     if version >= (11, 0):
         # Mac OS 11 on x86_64 is compatible with binaries from previous releases.
@@ -462,25 +459,18 @@ def mac_platforms(
         # However, the "universal2" binary format can have a
         # macOS version earlier than 11.0 when the x86_64 part of the binary supports
         # that version of macOS.
+        major_version = 10
         if arch == "x86_64":
             for minor_version in range(16, 3, -1):
-                compat_version = 10, minor_version
+                compat_version = major_version, minor_version
                 binary_formats = _mac_binary_formats(compat_version, arch)
                 for binary_format in binary_formats:
-                    yield "macosx_{major}_{minor}_{binary_format}".format(
-                        major=compat_version[0],
-                        minor=compat_version[1],
-                        binary_format=binary_format,
-                    )
+                    yield f"macosx_{major_version}_{minor_version}_{binary_format}"
         else:
             for minor_version in range(16, 3, -1):
-                compat_version = 10, minor_version
+                compat_version = major_version, minor_version
                 binary_format = "universal2"
-                yield "macosx_{major}_{minor}_{binary_format}".format(
-                    major=compat_version[0],
-                    minor=compat_version[1],
-                    binary_format=binary_format,
-                )
+                yield f"macosx_{major_version}_{minor_version}_{binary_format}"
 
 
 def ios_platforms(
@@ -500,7 +490,7 @@ def ios_platforms(
         # if iOS is the current platform, ios_ver *must* be defined. However,
         # it won't exist for CPython versions before 3.13, which causes a mypy
         # error.
-        _, release, _, _ = platform.ios_ver()  # type: ignore[attr-defined]
+        _, release, _, _ = platform.ios_ver()  # type: ignore[attr-defined, unused-ignore]
         version = cast("AppleVersion", tuple(map(int, release.split(".")[:2])))
 
     if multiarch is None:
