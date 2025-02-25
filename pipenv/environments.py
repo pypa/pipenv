@@ -108,7 +108,7 @@ class Setting:
         self.USING_DEFAULT_PYTHON = True
         """Use the default Python"""
 
-        #: Location for Pipenv to store it's package cache.
+        #: Location for Pipenv to store its package cache.
         #: Default is to use appdir's user cache directory.
         self.PIPENV_CACHE_DIR = get_from_env(
             "CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv")
