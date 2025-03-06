@@ -104,17 +104,23 @@ jobs:
           git submodule update --init --recursive
           python -m pip install -e . --upgrade
           pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
-          python -m pip install pypiserver==2.3.2
       - name: Run pypiserver Windows
         run: |
           cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
         if: ${{matrix.os  == 'Windows' }}
       - name: Run pypiserver ${{ matrix.os }}
         run: |
-          pipenv run pypi-server --version
-          pypi-server --version
-          pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
-          pipenv run pypi-server run -v --host=0.0.0.0 --port=8081 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          if [[ "${{ matrix.python-version }}" == 3.9* ]] || [[ "${{ matrix.python-version }}" == 3.10* ]] || [[ "${{ matrix.python-version }}" == 3.11* ]] ; then
+            # For Python 3.9 and 3.10, run without pipenv
+            echo "Running pypi-server without pipenv"
+            python -m pip install pypiserver==2.3.2
+            pypi-server --version
+            pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          else
+            # For Python 3.12, and 3.13, run with pipenv
+            pipenv run pypi-server --version
+            pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          fi
         if: contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')
       - name: Run tests
         env:
