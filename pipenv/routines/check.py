@@ -84,7 +84,7 @@ def check_pep508_requirements(project, results, quiet):
         err.print("[red]Failed![/red]")
         sys.exit(1)
     elif not quiet and not project.s.is_quiet():
-        console.print("Passed!", fg="green")
+        console.print("[green]Passed![/green]")
 
 
 def get_requirements(project, use_installed, categories):
@@ -213,8 +213,7 @@ def do_check(
             )
         else:
             console.print(
-                "[bold]Checking Pipfile.lock packages for vulnerabilities...",
-                "[/bold]",
+                "[bold]Checking Pipfile.lock packages for vulnerabilities...[/bold]",
             )
 
     if ignore:
