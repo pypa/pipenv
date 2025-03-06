@@ -109,15 +109,13 @@ jobs:
         run: |
           cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
         if: ${{matrix.os  == 'Windows' }}
-      - name: Run pypiserver Mac
+      - name: Run pypiserver ${{ matrix.os }}
         run: |
-          pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
-        if: ${{matrix.os  == 'MacOS' }}
-      - name: Run pypiserver Ubuntu
-        run: |
+          pipenv run pypi-server --version
           pypi-server --version
           pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
-        if: ${{matrix.os  == 'Ubuntu' }}
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8081 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+        if: contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
