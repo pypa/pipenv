@@ -107,16 +107,16 @@ jobs:
           python -m pip install pypiserver==2.3.2
       - name: Run pypiserver Windows
         run: |
-         cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+          cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
         if: ${{matrix.os  == 'Windows' }}
       - name: Run pypiserver Mac
         run: |
-          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
         if: ${{matrix.os  == 'MacOS' }}
       - name: Run pypiserver Ubuntu
         run: |
-          pipenv run pypi-server --version
-          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          pypi-server --version
+          pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
         if: ${{matrix.os  == 'Ubuntu' }}
       - name: Run tests
         env:
