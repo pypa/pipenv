@@ -2,8 +2,8 @@ import os
 import subprocess
 
 from pipenv.exceptions import PipenvCmdError
+from pipenv.utils import console, err
 from pipenv.utils.constants import MYPY_RUNNING
-from pipenv.vendor import click
 
 if MYPY_RUNNING:
     from typing import Tuple  # noqa
@@ -33,13 +33,10 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     kwargs["env"]["PYTHONIOENCODING"] = "UTF-8"
     command = [cmd.command, *cmd.args]
     if is_verbose:
-        click.echo(f"Running command: $ {cmd.cmdify()}")
+        console.print(f"Running command: $ {cmd.cmdify()}")
     c = subprocess_run(command, *args, **kwargs)
     if is_verbose:
-        click.echo(
-            "Command output: {}".format(click.style(c.stdout, fg="cyan")),
-            err=True,
-        )
+        err.print(f"[cyan]Command output: {c.stdout}[/cyan]")
     if c.returncode and catch_exceptions:
         raise PipenvCmdError(cmd.cmdify(), c.stdout, c.stderr, c.returncode)
     return c

@@ -77,4 +77,4 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
         project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
         load_dot_env(project)
         output, err = capsys.readouterr()
-        assert "Warning" in err
+        assert "WARNING" in err.upper()
