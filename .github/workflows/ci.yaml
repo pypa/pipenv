@@ -103,19 +103,29 @@ jobs:
           git submodule sync
           git submodule update --init --recursive
           python -m pip install -e . --upgrade
-          pipenv install --deploy --dev --python=${{ steps.python-path.outputs.path }}
-      - name: Run pypiserver Windows
+          pipenv install --deploy --dev --python=${{ matrix.python-version }}
+      - name: Run pypiserver without pipenv (Python 3.9-3.11)
         run: |
-         cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
-        if: ${{matrix.os  == 'Windows' }}
-      - name: Run pypiserver Mac
+          python -m pip install gunicorn pypiserver==2.3.2
+          python -m pypiserver --version
+          python -m pypiserver run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+        if: (contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')) && (startsWith(matrix.python-version, '3.9') || startsWith(matrix.python-version, '3.10') || startsWith(matrix.python-version, '3.11'))
+      - name: Run pypiserver with pipenv (Python 3.12+)
         run: |
+          pipenv run pypi-server --version
           pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
-        if: ${{matrix.os  == 'MacOS' }}
-      - name: Run pypiserver Ubuntu
+        if: (contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS')) && (startsWith(matrix.python-version, '3.12') || startsWith(matrix.python-version, '3.13'))
+      - name: Run pypiserver without pipenv on Windows (Python 3.9-3.11)
         run: |
-          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
-        if: ${{matrix.os  == 'Ubuntu' }}
+          python -m pip install waitress pypiserver==2.3.2
+          python -m pypiserver --version
+          cmd /c start pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+        if: contains(matrix.os, 'Windows') && (startsWith(matrix.python-version, '3.9') || startsWith(matrix.python-version, '3.10') || startsWith(matrix.python-version, '3.11'))
+      - name: Run pypiserver with pipenv on Windows (Python 3.12+)
+        run: |
+          pipenv run pypi-server --version
+          cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+        if: contains(matrix.os, 'Windows') && (startsWith(matrix.python-version, '3.12') || startsWith(matrix.python-version, '3.13'))
       - name: Run tests
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: ${{ matrix.python-version }}
