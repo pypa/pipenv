@@ -16,14 +16,12 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     pipdeptree_path = Path(pipdeptree.__file__).parent
     try:
         python_path = project.python()
-    except AttributeError:
+    except (AttributeError, RuntimeError):
         err.print(
             "[bold][red]Warning: Unable to display currently-installed dependency graph information here. "
             "Please run within a Pipenv project.[/red][/bold]",
         )
         sys.exit(1)
-    except RuntimeError:
-        pass
 
     # Only keep the json + json_tree incompatibility check
     if json and json_tree:
