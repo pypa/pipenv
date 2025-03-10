@@ -59,7 +59,7 @@ def ensure_project(
                 ):
                     err.print(
                         f"[red][bold]Warning[/bold][/red]: Your Pipfile requires"
-                        f"[bold]{python_version}[/bold] [cyan]{python.required_python_version}[/cyan],"
+                        f"[bold]{python_version}[/bold] [cyan]{project.required_python_version}[/cyan],"
                         f"but you are using [cyan]{python_version(path_to_python)}[/cyan]"
                         f"from [green]{shorten_path(path_to_python)}[/green]."
                     )
