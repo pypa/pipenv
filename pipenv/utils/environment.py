@@ -35,8 +35,8 @@ def ensure_environment():
     # Skip this on Windows...
     if os.name != "nt" and "LANG" not in os.environ:
         err.print(
-            "[red]Warning[/red]: the environment variable [bold]LANG[/bold]"
-            "is not set!\nWe recommend setting this in"
+            "[red]Warning[/red]: the environment variable [bold]LANG[/bold] "
+            "is not set!\nWe recommend setting this in "
             "[green]~/.profile[/green] (or equivalent) for "
             "proper expected behavior."
         )
