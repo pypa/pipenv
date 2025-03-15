@@ -23,6 +23,8 @@ METADATA_FIELDS = [
     ("Maintainer", False),
     ("Maintainer-email", False),
     ("License", False),
+    ("License-Expression", False),
+    ("License-File", True),
     ("Classifier", True),
     ("Requires-Dist", True),
     ("Requires-Python", False),

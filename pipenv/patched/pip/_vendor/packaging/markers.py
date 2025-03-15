@@ -18,9 +18,9 @@ from .utils import canonicalize_name
 
 __all__ = [
     "InvalidMarker",
+    "Marker",
     "UndefinedComparison",
     "UndefinedEnvironmentName",
-    "Marker",
     "default_environment",
 ]
 
@@ -232,7 +232,7 @@ def _evaluate_markers(markers: MarkerList, environment: dict[str, str]) -> bool:
 
 
 def format_full_version(info: sys._version_info) -> str:
-    version = "{0.major}.{0.minor}.{0.micro}".format(info)
+    version = f"{info.major}.{info.minor}.{info.micro}"
     kind = info.releaselevel
     if kind != "final":
         version += kind[0] + str(info.serial)
@@ -309,12 +309,6 @@ class Marker:
         """
         current_environment = cast("dict[str, str]", default_environment())
         current_environment["extra"] = ""
-        # Work around platform.python_version() returning something that is not PEP 440
-        # compliant for non-tagged Python builds. We preserve default_environment()'s
-        # behavior of returning platform.python_version() verbatim, and leave it to the
-        # caller to provide a syntactically valid version if they want to override it.
-        if current_environment["python_full_version"].endswith("+"):
-            current_environment["python_full_version"] += "local"
         if environment is not None:
             current_environment.update(environment)
             # The API used to allow setting extra to None. We need to handle this
@@ -322,4 +316,16 @@ class Marker:
             if current_environment["extra"] is None:
                 current_environment["extra"] = ""
 
-        return _evaluate_markers(self._markers, current_environment)
+        return _evaluate_markers(
+            self._markers, _repair_python_full_version(current_environment)
+        )
+
+
+def _repair_python_full_version(env: dict[str, str]) -> dict[str, str]:
+    """
+    Work around platform.python_version() returning something that is not PEP 440
+    compliant for non-tagged Python builds.
+    """
+    if env["python_full_version"].endswith("+"):
+        env["python_full_version"] += "local"
+    return env

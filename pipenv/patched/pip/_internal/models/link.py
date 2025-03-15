@@ -170,12 +170,23 @@ def _ensure_quoted_url(url: str) -> str:
     and without double-quoting other characters.
     """
     # Split the URL into parts according to the general structure
-    # `scheme://netloc/path;parameters?query#fragment`.
-    result = urllib.parse.urlparse(url)
+    # `scheme://netloc/path?query#fragment`.
+    result = urllib.parse.urlsplit(url)
     # If the netloc is empty, then the URL refers to a local filesystem path.
     is_local_path = not result.netloc
     path = _clean_url_path(result.path, is_local_path=is_local_path)
-    return urllib.parse.urlunparse(result._replace(path=path))
+    return urllib.parse.urlunsplit(result._replace(path=path))
+
+
+def _absolute_link_url(base_url: str, url: str) -> str:
+    """
+    A faster implementation of urllib.parse.urljoin with a shortcut
+    for absolute http/https URLs.
+    """
+    if url.startswith(("https://", "http://")):
+        return url
+    else:
+        return urllib.parse.urljoin(base_url, url)
 
 
 @functools.total_ordering
@@ -185,6 +196,7 @@ class Link:
     __slots__ = [
         "_parsed_url",
         "_url",
+        "_path",
         "_hashes",
         "comes_from",
         "requires_python",
@@ -241,6 +253,8 @@ class Link:
         # Store the url as a private attribute to prevent accidentally
         # trying to set a new value.
         self._url = url
+        # The .path property is hot, so calculate its value ahead of time.
+        self._path = urllib.parse.unquote(self._parsed_url.path)
 
         link_hash = LinkHash.find_hash_url_fragment(url)
         hashes_from_link = {} if link_hash is None else link_hash.as_dict()
@@ -270,7 +284,7 @@ class Link:
         if file_url is None:
             return None
 
-        url = _ensure_quoted_url(urllib.parse.urljoin(page_url, file_url))
+        url = _ensure_quoted_url(_absolute_link_url(page_url, file_url))
         pyrequire = file_data.get("requires-python")
         yanked_reason = file_data.get("yanked")
         hashes = file_data.get("hashes", {})
@@ -322,7 +336,7 @@ class Link:
         if not href:
             return None
 
-        url = _ensure_quoted_url(urllib.parse.urljoin(base_url, href))
+        url = _ensure_quoted_url(_absolute_link_url(base_url, href))
         pyrequire = anchor_attribs.get("data-requires-python")
         yanked_reason = anchor_attribs.get("data-yanked")
 
@@ -421,7 +435,7 @@ class Link:
 
     @property
     def path(self) -> str:
-        return urllib.parse.unquote(self._parsed_url.path)
+        return self._path
 
     def splitext(self) -> Tuple[str, str]:
         return splitext(posixpath.basename(self.path.rstrip("/")))
@@ -452,10 +466,10 @@ class Link:
         project_name = match.group(1)
         if not self._project_name_re.match(project_name):
             deprecated(
-                reason=f"{self} contains an egg fragment with a non-PEP 508 name",
+                reason=f"{self} contains an egg fragment with a non-PEP 508 name.",
                 replacement="to use the req @ url syntax, and remove the egg fragment",
-                gone_in="25.0",
-                issue=11617,
+                gone_in="25.1",
+                issue=13157,
             )
 
         return project_name

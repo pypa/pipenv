@@ -5,6 +5,7 @@
 """
 The httplib2 algorithms ported for use with requests.
 """
+
 from __future__ import annotations
 
 import calendar

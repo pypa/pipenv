@@ -2,12 +2,16 @@
 Requirements file parsing
 """
 
+import codecs
+import locale
 import logging
 import optparse
 import os
 import re
 import shlex
+import sys
 import urllib.parse
+from dataclasses import dataclass
 from optparse import Values
 from typing import (
     TYPE_CHECKING,
@@ -25,7 +29,6 @@ from typing import (
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.exceptions import InstallationError, RequirementsFileParseError
 from pipenv.patched.pip._internal.models.search_scope import SearchScope
-from pipenv.patched.pip._internal.utils.encoding import auto_decode
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
@@ -81,52 +84,66 @@ SUPPORTED_OPTIONS_EDITABLE_REQ_DEST = [
     str(o().dest) for o in SUPPORTED_OPTIONS_EDITABLE_REQ
 ]
 
+# order of BOMS is important: codecs.BOM_UTF16_LE is a prefix of codecs.BOM_UTF32_LE
+# so data.startswith(BOM_UTF16_LE) would be true for UTF32_LE data
+BOMS: List[Tuple[bytes, str]] = [
+    (codecs.BOM_UTF8, "utf-8"),
+    (codecs.BOM_UTF32, "utf-32"),
+    (codecs.BOM_UTF32_BE, "utf-32-be"),
+    (codecs.BOM_UTF32_LE, "utf-32-le"),
+    (codecs.BOM_UTF16, "utf-16"),
+    (codecs.BOM_UTF16_BE, "utf-16-be"),
+    (codecs.BOM_UTF16_LE, "utf-16-le"),
+]
+
+PEP263_ENCODING_RE = re.compile(rb"coding[:=]\s*([-\w.]+)")
+DEFAULT_ENCODING = "utf-8"
+
 logger = logging.getLogger(__name__)
 
 
+@dataclass(frozen=True)
 class ParsedRequirement:
-    def __init__(
-        self,
-        requirement: str,
-        is_editable: bool,
-        comes_from: str,
-        constraint: bool,
-        options: Optional[Dict[str, Any]] = None,
-        line_source: Optional[str] = None,
-    ) -> None:
-        self.requirement = requirement
-        self.is_editable = is_editable
-        self.comes_from = comes_from
-        self.options = options
-        self.constraint = constraint
-        self.line_source = line_source
+    # TODO: replace this with slots=True when dropping Python 3.9 support.
+    __slots__ = (
+        "requirement",
+        "is_editable",
+        "comes_from",
+        "constraint",
+        "options",
+        "line_source",
+    )
+
+    requirement: str
+    is_editable: bool
+    comes_from: str
+    constraint: bool
+    options: Optional[Dict[str, Any]]
+    line_source: Optional[str]
 
 
+@dataclass(frozen=True)
 class ParsedLine:
-    def __init__(
-        self,
-        filename: str,
-        lineno: int,
-        args: str,
-        opts: Values,
-        constraint: bool,
-    ) -> None:
-        self.filename = filename
-        self.lineno = lineno
-        self.opts = opts
-        self.constraint = constraint
+    __slots__ = ("filename", "lineno", "args", "opts", "constraint")
 
-        if args:
-            self.is_requirement = True
-            self.is_editable = False
-            self.requirement = args
-        elif opts.editables:
-            self.is_requirement = True
-            self.is_editable = True
+    filename: str
+    lineno: int
+    args: str
+    opts: Values
+    constraint: bool
+
+    @property
+    def is_editable(self) -> bool:
+        return bool(self.opts.editables)
+
+    @property
+    def requirement(self) -> Optional[str]:
+        if self.args:
+            return self.args
+        elif self.is_editable:
             # We don't support multiple -e on one line
-            self.requirement = opts.editables[0]
-        else:
-            self.is_requirement = False
+            return self.opts.editables[0]
+        return None
 
 
 def parse_requirements(
@@ -179,7 +196,7 @@ def handle_requirement_line(
         line.lineno,
     )
 
-    assert line.is_requirement
+    assert line.requirement is not None
 
     # get the options that apply to requirements
     if line.is_editable:
@@ -301,7 +318,7 @@ def handle_line(
     affect the finder.
     """
 
-    if line.is_requirement:
+    if line.requirement is not None:
         parsed_req = handle_requirement_line(line, options)
         return parsed_req
     else:
@@ -340,7 +357,7 @@ class RequirementsFileParser:
         parsed_files_stack: List[Dict[str, Optional[str]]],
     ) -> Generator[ParsedLine, None, None]:
         for line in self._parse_file(filename, constraint):
-            if not line.is_requirement and (
+            if line.requirement is None and (
                 line.opts.requirements or line.opts.constraints
             ):
                 # parse a nested requirements file
@@ -568,7 +585,39 @@ def get_file_content(url: str, session: "PipSession") -> Tuple[str, str]:
     # Assume this is a bare path.
     try:
         with open(url, "rb") as f:
-            content = auto_decode(f.read())
+            raw_content = f.read()
     except OSError as exc:
         raise InstallationError(f"Could not open requirements file: {exc}")
+
+    content = _decode_req_file(raw_content, url)
+
     return url, content
+
+
+def _decode_req_file(data: bytes, url: str) -> str:
+    for bom, encoding in BOMS:
+        if data.startswith(bom):
+            return data[len(bom) :].decode(encoding)
+
+    for line in data.split(b"\n")[:2]:
+        if line[0:1] == b"#":
+            result = PEP263_ENCODING_RE.search(line)
+            if result is not None:
+                encoding = result.groups()[0].decode("ascii")
+                return data.decode(encoding)
+
+    try:
+        return data.decode(DEFAULT_ENCODING)
+    except UnicodeDecodeError:
+        locale_encoding = locale.getpreferredencoding(False) or sys.getdefaultencoding()
+        logging.warning(
+            "unable to decode data from %s with default encoding %s, "
+            "falling back to encoding from locale: %s. "
+            "If this is intentional you should specify the encoding with a "
+            "PEP-263 style comment, e.g. '# -*- coding: %s -*-'",
+            url,
+            DEFAULT_ENCODING,
+            locale_encoding,
+            locale_encoding,
+        )
+        return data.decode(locale_encoding)

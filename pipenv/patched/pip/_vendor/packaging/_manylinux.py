@@ -164,6 +164,7 @@ def _parse_glibc_version(version_str: str) -> tuple[int, int]:
             f"Expected glibc version with 2 components major.minor,"
             f" got: {version_str}",
             RuntimeWarning,
+            stacklevel=2,
         )
         return -1, -1
     return int(m.group("major")), int(m.group("minor"))
