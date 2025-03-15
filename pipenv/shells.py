@@ -73,7 +73,7 @@ def _handover(cmd, args):
     if os.name != "nt":
         os.execvp(cmd, args)
     else:
-        sys.exit(subprocess.call(args, shell=True, universal_newlines=True))
+        sys.exit(subprocess.call(args, universal_newlines=True))
 
 
 class Shell:
