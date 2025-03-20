@@ -213,3 +213,45 @@ def exists_and_is_accessible(path: Path) -> bool:
             return False
         else:
             raise
+
+
+def is_in_path(path: Union[str, Path], parent_path: Union[str, Path]) -> bool:
+    """
+    Check if a path is inside another path.
+    
+    Args:
+        path: The path to check.
+        parent_path: The potential parent path.
+        
+    Returns:
+        Whether the path is inside the parent path.
+    """
+    if not isinstance(path, Path):
+        path = Path(str(path))
+    if not isinstance(parent_path, Path):
+        parent_path = Path(str(parent_path))
+    
+    # Resolve both paths to absolute paths
+    path = path.absolute()
+    parent_path = parent_path.absolute()
+    
+    # Check if path is a subpath of parent_path
+    try:
+        # In Python 3.9+, we could use is_relative_to
+        # return path.is_relative_to(parent_path)
+        
+        # For compatibility with Python 3.8 and earlier
+        path_str = str(path)
+        parent_path_str = str(parent_path)
+        
+        # Check if paths are the same
+        if path_str == parent_path_str:
+            return True
+            
+        # Ensure parent_path ends with a separator to avoid partial matches
+        if not parent_path_str.endswith(os.sep):
+            parent_path_str += os.sep
+            
+        return path_str.startswith(parent_path_str)
+    except (ValueError, OSError):
+        return False
