@@ -744,6 +744,36 @@ class Environment:
                 )
             if req.link is None:
                 return True
+            elif req.editable and req.link.is_vcs:
+                # For editable VCS dependencies, check if the source directory exists
+                # This ensures we reinstall if the source checkout is missing
+
+                # Check for src directory in both possible locations
+                src_dir_cwd = os.path.join(os.getcwd(), "src")
+                src_dir_venv = (
+                    os.path.join(self.prefix, "src") if hasattr(self, "prefix") else None
+                )
+
+                # Use the src directory that exists, or default to the current working directory
+                src_dir = src_dir_cwd
+                if (
+                    not os.path.exists(src_dir_cwd)
+                    and src_dir_venv
+                    and os.path.exists(src_dir_venv)
+                ):
+                    src_dir = src_dir_venv
+
+                # If neither src directory exists, the requirement is not satisfied
+                if not os.path.exists(src_dir):
+                    return False
+
+                # If we have a specific package directory, check that too
+                if req.name:
+                    pkg_dir = os.path.join(src_dir, req.name)
+                    if not os.path.exists(pkg_dir):
+                        return False
+
+                return True
             elif req.editable and req.link.is_file:
                 requested_path = req.link.file_path
                 if os.path.exists(requested_path):
