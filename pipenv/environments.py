@@ -433,7 +433,7 @@ def is_in_virtualenv():
     :rtype: bool
     """
 
-    pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
+    pipenv_active = is_env_truthy(os.environ.get("PIPENV_ACTIVE", "0"))
     virtual_env = bool(os.environ.get("VIRTUAL_ENV"))
     ignore_virtualenvs = bool(get_from_env("IGNORE_VIRTUALENVS"))
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
