@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from .path_utils import (
+    PYTHON_IMPLEMENTATIONS,
     ensure_path,
     filter_pythons,
     is_executable,
@@ -18,6 +19,7 @@ from .version_utils import (
 )
 
 __all__ = [
+    "PYTHON_IMPLEMENTATIONS",
     "ensure_path",
     "filter_pythons",
     "get_python_version",
