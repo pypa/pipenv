@@ -386,6 +386,8 @@ def env_to_bool(val):
     :raises:
         ValueError: if val is not a valid boolean-like
     """
+    if val is None:
+        return False
     if isinstance(val, bool):
         return val
 
