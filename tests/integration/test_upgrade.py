@@ -2,6 +2,7 @@ import json
 import os
 
 import pytest
+from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
 
 
 @pytest.mark.upgrade
@@ -102,3 +103,53 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
         # Step 5: Run pipenv lock to check for dependency resolution errors
         c = cli_runner.invoke(cli, "lock")
         assert c.exit_code == 0, f"Failed to run pipenv lock: {c.stderr}"
+
+
+@pytest.mark.upgrade
+def test_upgrade_updates_package_in_all_categories(pipenv_instance_private_pypi):
+    """Test that upgrading a package updates it in all categories where it appears."""
+    with pipenv_instance_private_pypi() as p:
+        # Create a Pipfile with a package in multiple categories
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+six = "==1.11.0"
+
+[dev-packages]
+six = "==1.11.0"
+
+[custom-category]
+six = "==1.11.0"
+            """.strip()
+            f.write(contents)
+        
+        # Lock the dependencies
+        c = p.pipenv("lock")
+        assert c.returncode == 0, f"Failed to lock dependencies: {c.stderr}"
+        
+        # Verify initial state
+        lockfile_path = os.path.join(p.path, "Pipfile.lock")
+        with open(lockfile_path) as lockfile:
+            lock_data = json.load(lockfile)
+        
+        # Check initial versions in all categories
+        assert lock_data["default"]["six"]["version"] == "==1.11.0"
+        assert lock_data["develop"]["six"]["version"] == "==1.11.0"
+        
+        # Get the lockfile section for the custom category
+        custom_section = get_lockfile_section_using_pipfile_category("custom-category")
+        assert lock_data[custom_section]["six"]["version"] == "==1.11.0"
+        
+        # Upgrade the package
+        target_version = "1.16.0"
+        c = p.pipenv(f"upgrade six=={target_version}")
+        assert c.returncode == 0, f"Failed to upgrade six: {c.stderr}"
+        
+        # Verify the package was updated in all categories
+        with open(lockfile_path) as lockfile:
+            updated_lock_data = json.load(lockfile)
+        
+        # Check updated versions in all categories
+        assert updated_lock_data["default"]["six"]["version"] == f"=={target_version}"
+        assert updated_lock_data["develop"]["six"]["version"] == f"=={target_version}"
+        assert updated_lock_data[custom_section]["six"]["version"] == f"=={target_version}"

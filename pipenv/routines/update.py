@@ -261,7 +261,6 @@ def upgrade(
     if not pre:
         pre = project.settings.get("allow_prereleases")
     if not categories:
-
         if dev and not packages:
             categories = ["default", "develop"]
         elif dev and packages:
@@ -286,6 +285,30 @@ def upgrade(
         os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
 
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
+
+    # Check if we need to update packages in all categories
+    # This is needed when a package is specified in one category but also used in others
+    if packages:
+        # Get all available categories from the lockfile
+        all_lockfile_categories = [
+            cat for cat in lockfile.keys() if not cat.startswith("_")
+        ]
+
+        # Check if any of the packages to upgrade are also in other categories
+        for category in all_lockfile_categories:
+            if category in categories:
+                continue  # Skip categories already in the list
+
+            category_section = lockfile.get(category, {})
+            for package in packages:
+                package_name = package.split("==")[0] if "==" in package else package
+                if package_name in category_section:
+                    # If the package is also in this category, add it to categories
+                    categories.append(category)
+                    err.print(
+                        f"[bold][green]Package {package_name} found in {category} section, will update there too.[/bold][/green]"
+                    )
+                    break
 
     # Early conflict detection
     conflicts_found = False
