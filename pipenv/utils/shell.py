@@ -404,7 +404,10 @@ def env_to_bool(val):
 
 def is_env_truthy(name):
     """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
-    return env_to_bool(os.getenv(name, False))  # noqa: PLW1508
+    value = os.getenv(name)
+    if value is None:
+        return False
+    return env_to_bool(value)
 
 
 def project_python(project, system=False):
