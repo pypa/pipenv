@@ -133,7 +133,10 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
             # Ensure Python is available.
             python = ensure_python(project, python=python)
             if python is not None and not isinstance(python, str):
-                python = python.path.as_posix()
+                if hasattr(python, "path"):  # It's a PythonInfo object
+                    python = python.path.as_posix()
+                else:  # It's a Path object
+                    python = python.as_posix()
             # Create the virtualenv.
             # Abort if --system (or running in a virtualenv).
             if project.s.PIPENV_USE_SYSTEM:
@@ -160,7 +163,10 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
         # Ensure python is installed before deleting existing virtual env
         python = ensure_python(project, python=python)
         if python is not None and not isinstance(python, str):
-            python = python.path.as_posix()
+            if hasattr(python, "path"):  # It's a PythonInfo object
+                python = python.path.as_posix()
+            else:  # It's a Path object
+                python = python.as_posix()
 
         err.print("[red]Virtualenv already exists![/red]")
         # If VIRTUAL_ENV is set, there is a possibility that we are

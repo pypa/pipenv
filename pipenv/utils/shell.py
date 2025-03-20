@@ -276,7 +276,10 @@ def find_python(finder, line=None):
 
     if result:
         if not isinstance(result, str):
-            return result.path.as_posix()
+            if hasattr(result, "path"):  # It's a PythonInfo object
+                return result.path.as_posix()
+            else:  # It's a Path object
+                return result.as_posix()
         return result
     return
 
