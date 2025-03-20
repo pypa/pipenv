@@ -780,6 +780,34 @@ def determine_package_name(package: InstallRequirement):
         req_name = str(package).split("@ ")[0]
         req_name = req_name.split("[")[0]
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
+        # Check if this is a GitHub URL ending with .git but missing the git+ prefix
+        if (
+            package.link.url.startswith("https://github.com/")
+            or package.link.url.startswith("http://github.com/")
+        ) and package.link.url.endswith(".git"):
+            # This is a GitHub URL that should be treated as a VCS URL
+            # We'll modify the link to use the git+https:// scheme
+            original_url = package.link.url
+            if original_url.startswith("http://"):
+                vcs_url = "git+" + original_url
+            else:  # https://
+                vcs_url = "git+" + original_url
+
+            # Create a new link with the git+ prefix
+            from pipenv.patched.pip._internal.models.link import Link
+
+            package.link = Link(vcs_url)
+
+            # For GitHub repositories, we can extract the name from the URL
+            # Format: https://github.com/username/repo-name.git
+            parts = original_url.split("/")
+            if len(parts) >= 5:
+                repo_name = parts[-1]
+                if repo_name.endswith(".git"):
+                    repo_name = repo_name[:-4]  # Remove .git suffix
+                req_name = repo_name
+                return req_name
+
         try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
             with TemporaryDirectory() as td:
                 cmd = get_pip_command()
