@@ -230,10 +230,26 @@ def ensure_python(project, python=None):
 
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
+    # Try to find Python using system registry and default paths first
     path_to_python = find_a_system_python(python)
+
     if project.s.is_verbose():
         err.print(f"Using python: {python}")
         err.print(f"Path to python: {path_to_python}")
+
+    # If not found and we're on Windows, try using the py launcher
+    if (
+        not path_to_python
+        and os.name == "nt"
+        and python is not None
+        and python[0].isdigit()
+    ):
+        python_path = find_python_from_py_launcher(python)
+        if python_path:
+            if project.s.is_verbose():
+                err.print(f"Found Python using py launcher: {python_path}")
+            return python_path
+
     if not path_to_python and python is not None:
         # We need to install Python.
         err.print(
@@ -257,7 +273,12 @@ def ensure_python(project, python=None):
                 installer = Asdf(project)
 
         if not installer:
-            abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
+            if os.name == "nt":
+                abort(
+                    "Python was not found on your system and neither 'pyenv' nor 'asdf' could be found to install Python."
+                )
+            else:
+                abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
         else:
             if environments.SESSION_IS_INTERACTIVE or project.s.PIPENV_YES:
                 try:
@@ -313,6 +334,64 @@ def ensure_python(project, python=None):
     return path_to_python
 
 
+def find_python_from_py_launcher(version):
+    """Find a Python installation using the Windows py launcher.
+
+    This uses the py --list-paths command to find Python installations on Windows.
+
+    Args:
+        version: A version string like "3.9" or "3.9.0"
+
+    Returns:
+        The path to the Python executable, or None if not found
+    """
+    if os.name != "nt":
+        return None
+
+    # Normalize version to major.minor format
+    if version and version[0].isdigit():
+        version_parts = version.split(".")
+        if len(version_parts) >= 2:
+            version = f"{version_parts[0]}.{version_parts[1]}"
+        else:
+            version = version_parts[0]
+    else:
+        return None
+
+    try:
+        # Run py --list-paths to get all installed Python versions
+        c = subprocess_run(["py", "--list-paths"], shell=True)
+        if c.returncode != 0:
+            return None
+
+        # Parse the output to find the requested version
+        for line in c.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            # Format is: -V:3.9 * path\to\python.exe
+            # We need to extract the version and path
+            parts = line.split(None, 2)
+            if len(parts) < 3:
+                continue
+
+            # Extract version from -V:3.9
+            v_part = parts[0]
+            if not v_part.startswith("-V:"):
+                continue
+
+            v = v_part[3:]  # Remove -V: prefix
+            if v == version:
+                # Found the requested version, return the path
+                return parts[-1]
+    except Exception:
+        # If anything goes wrong, fall back to other methods
+        pass
+
+    return None
+
+
 def find_a_system_python(line):
     """Find a Python installation from a given line.
 
@@ -324,6 +403,8 @@ def find_a_system_python(line):
       in PATH, and use it directly.
     * Search for "python" and "pythonX.Y" executables in PATH to find a match.
     * Nothing fits, return None.
+
+    Note: The Windows py launcher is handled separately in ensure_python.
     """
 
     from pipenv.vendor.pythonfinder import Finder
@@ -334,6 +415,8 @@ def find_a_system_python(line):
     # Use the windows finder executable
     if (line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
+
+    # Try to find Python using the regular methods
     python_entry = find_python(finder, line)
     return python_entry
 
