@@ -265,7 +265,6 @@ def find_python(finder, line=None):
             patch=version_info.get("patch"),
             pre=version_info.get("is_prerelease"),
             dev=version_info.get("is_devrelease"),
-            sort_by_path=True,
         )
     else:
         result = finder.find_python_version(name=line)
