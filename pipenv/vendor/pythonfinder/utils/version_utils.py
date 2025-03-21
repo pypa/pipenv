@@ -6,7 +6,7 @@ import subprocess
 from builtins import TimeoutError
 from typing import TYPE_CHECKING, Any
 
-from packaging.version import InvalidVersion
+from pipenv.vendor.packaging.version import InvalidVersion
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -78,7 +78,7 @@ def parse_python_version(version_str: str) -> dict[str, Any]:
     Raises:
         InvalidPythonVersion: If the version string is not a valid Python version.
     """
-    from packaging.version import parse as parse_version
+    from pipenv.vendor.packaging.version import parse as parse_version
 
     is_debug = False
     if version_str.endswith("-debug"):

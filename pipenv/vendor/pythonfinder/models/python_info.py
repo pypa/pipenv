@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from packaging.version import Version
+    from pipenv.vendor.packaging.version import Version
 
 
 @dataclasses.dataclass
