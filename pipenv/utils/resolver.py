@@ -367,10 +367,8 @@ class Resolver:
             )
         )
 
-        # Only add default constraints for dev packages if setting allows
-        if self.category != "default" and self.project.settings.get(
-            "use_default_constraints", True
-        ):
+        # Always add default constraints for dev packages
+        if self.category != "default":
             constraints.extend(self.parsed_default_constraints)
 
         return constraints
@@ -412,10 +410,8 @@ class Resolver:
         for c in possible_constraints_list:
             constraints_list.add(c)
 
-        # Only use default_constraints when installing dev-packages and setting allows
-        if self.category != "default" and self.project.settings.get(
-            "use_default_constraints", True
-        ):
+        # Always use default_constraints when installing dev-packages
+        if self.category != "default":
             constraints_list |= self.default_constraints
 
         return constraints_list
@@ -852,6 +848,15 @@ def venv_resolve_deps(
             deps = convert_deps_to_pip(
                 deps, project.pipfile_sources(), include_index=True
             )
+
+            # For dev packages, add constraints from default packages
+            constraints = deps.copy()
+            if pipfile_category != "packages" and "default" in lockfile:
+                # Get the locked versions from default packages
+                for pkg_name, pkg_data in lockfile["default"].items():
+                    if isinstance(pkg_data, dict) and "version" in pkg_data:
+                        # Add as a constraint to ensure compatibility
+                        constraints[pkg_name] = pkg_data["version"]
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
@@ -900,8 +905,23 @@ def venv_resolve_deps(
                 with tempfile.NamedTemporaryFile(
                     mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
                 ) as constraints_file:
+                    # Write the current category dependencies
                     for dep_name, pip_line in deps.items():
                         constraints_file.write(f"{dep_name}, {pip_line}\n")
+
+                    # For dev packages, add explicit constraints from default packages
+                    if pipfile_category != "packages" and "default" in lockfile:
+                        for pkg_name, pkg_data in lockfile["default"].items():
+                            if isinstance(pkg_data, dict) and "version" in pkg_data:
+                                # Add as a constraint to ensure compatibility
+                                version = pkg_data["version"]
+                                constraints_file.write(
+                                    f"{pkg_name}, {pkg_name}{version}\n"
+                                )
+                                st.console.print(
+                                    f"Adding constraint: {pkg_name}{version}"
+                                )
+
                 cmd.append("--constraints-file")
                 cmd.append(constraints_file.name)
                 st.console.print("Resolving dependencies...")
