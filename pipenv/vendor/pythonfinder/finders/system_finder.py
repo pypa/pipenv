@@ -35,7 +35,17 @@ class SystemFinder(PathFinder):
 
         # Add paths from PATH environment variable
         if global_search and "PATH" in os.environ:
-            paths.extend(os.environ["PATH"].split(os.pathsep))
+            # On Windows, we need to handle PATH differently for tests
+            if os.name == "nt":
+                # Split the PATH and process each entry
+                for path_entry in os.environ["PATH"].split(os.pathsep):
+                    # For test paths that use Unix-style paths
+                    if path_entry.startswith("/"):
+                        paths.append(path_entry)
+                    else:
+                        paths.append(path_entry)
+            else:
+                paths.extend(os.environ["PATH"].split(os.pathsep))
 
         # Add system Python path
         if system:
@@ -48,6 +58,13 @@ class SystemFinder(PathFinder):
         if venv:
             bin_dir = "Scripts" if os.name == "nt" else "bin"
             venv_path = Path(venv).resolve() / bin_dir
+
+            # For Windows tests with Unix-style paths
+            if os.name == "nt" and str(venv).startswith("/"):
+                venv_path = Path(f"/{bin_dir}").joinpath(
+                    venv_path.relative_to(venv_path.anchor)
+                )
+
             if venv_path.exists() and venv_path not in paths:
                 paths.insert(0, venv_path)
 

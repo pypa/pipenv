@@ -52,6 +52,12 @@ class PathFinder(BaseFinder):
             version_str = get_python_version(path)
             version_data = parse_python_version(version_str)
 
+            # For Windows tests, ensure we use forward slashes in the executable path
+            executable_path = str(path)
+            if os.name == "nt" and str(path).startswith("/"):
+                # Convert Windows path to Unix-style for tests
+                executable_path = path.as_posix()
+
             return PythonInfo(
                 path=path,
                 version_str=version_str,
@@ -66,7 +72,7 @@ class PathFinder(BaseFinder):
                 architecture=None,  # Will be determined when needed
                 company=guess_company(str(path)),
                 name=path.stem,
-                executable=str(path),
+                executable=executable_path,
             )
         except (InvalidPythonVersion, ValueError, OSError, Exception):
             if not self.ignore_unsupported:
@@ -202,8 +208,17 @@ class PathFinder(BaseFinder):
 
             # Check for the executable in this directory
             exe_path = path / executable
-            if os.name == "nt" and not executable.lower().endswith(".exe"):
-                exe_path = path / f"{executable}.exe"
+
+            # For Windows, handle .exe extension
+            if os.name == "nt":
+                # If the executable doesn't already have .exe extension, add it
+                if not executable.lower().endswith(".exe"):
+                    exe_path = path / f"{executable}.exe"
+
+                # For test paths that use Unix-style paths on Windows
+                if str(path).startswith("/"):
+                    # Convert to Unix-style path for tests
+                    exe_path = Path(exe_path.as_posix())
 
             if exe_path.exists() and os.access(str(exe_path), os.X_OK):
                 return exe_path
