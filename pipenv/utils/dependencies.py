@@ -1261,17 +1261,16 @@ def get_constraints_from_deps(deps):
                 c = f"{canonicalize_name(dep_name)}{dep_version}"
             else:
                 c = canonicalize_name(dep_name)
-        else:
-            if not any(k in dep_version for k in ["path", "file", "uri"]):
-                if dep_version.get("skip_resolver") is True:
-                    continue
-                version = dep_version.get("version", None)
-                if version and not is_star(version):
-                    if COMPARE_OP.match(version) is None:
-                        version = f"=={dep_version}"
-                    c = f"{canonicalize_name(dep_name)}{version}"
-                else:
-                    c = canonicalize_name(dep_name)
+        elif not any(k in dep_version for k in ["path", "file", "uri"]):
+            if dep_version.get("skip_resolver") is True:
+                continue
+            version = dep_version.get("version", None)
+            if version and not is_star(version):
+                if COMPARE_OP.match(version) is None:
+                    version = f"=={dep_version}"
+                c = f"{canonicalize_name(dep_name)}{version}"
+            else:
+                c = canonicalize_name(dep_name)
         if c:
             constraints.add(c)
     return constraints
