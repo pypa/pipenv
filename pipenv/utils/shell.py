@@ -265,7 +265,6 @@ def find_python(finder, line=None):
             patch=version_info.get("patch"),
             pre=version_info.get("is_prerelease"),
             dev=version_info.get("is_devrelease"),
-            sort_by_path=True,
         )
     else:
         result = finder.find_python_version(name=line)
@@ -277,7 +276,10 @@ def find_python(finder, line=None):
 
     if result:
         if not isinstance(result, str):
-            return result.path.as_posix()
+            if hasattr(result, "path"):  # It's a PythonInfo object
+                return result.path.as_posix()
+            else:  # It's a Path object
+                return result.as_posix()
         return result
     return
 
@@ -384,6 +386,8 @@ def env_to_bool(val):
     :raises:
         ValueError: if val is not a valid boolean-like
     """
+    if val is None:
+        return False
     if isinstance(val, bool):
         return val
 
@@ -400,7 +404,10 @@ def env_to_bool(val):
 
 def is_env_truthy(name):
     """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
-    return env_to_bool(os.getenv(name, False))  # noqa: PLW1508
+    value = os.getenv(name)
+    if value is None:
+        return False
+    return env_to_bool(value)
 
 
 def project_python(project, system=False):

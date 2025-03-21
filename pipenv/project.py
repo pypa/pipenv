@@ -1432,7 +1432,10 @@ class Project:
             result = self._which(search)
         else:
             if as_path:
-                result = str(result.path)
+                if hasattr(result, "path"):
+                    result = str(result.path)
+                else:
+                    result = str(result)
         return result
 
     def python(self, system=False) -> str:

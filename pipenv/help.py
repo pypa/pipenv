@@ -32,7 +32,7 @@ def get_pipenv_diagnostics(project):
     finder = pythonfinder.Finder(system=False, global_search=True)
     python_paths = finder.find_all_python_versions()
     for python in python_paths:
-        print(f"  - `{python.py_version.version}`: `{python.path}`")
+        print(f"  - `{python.version_str}`: `{python.path}`")
 
     print("")
     print("PEP 508 Information:")
