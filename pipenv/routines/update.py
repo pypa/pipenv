@@ -243,6 +243,176 @@ def get_modified_pipfile_entries(project, pipfile_categories):
     return modified
 
 
+def _prepare_categories(categories, dev, packages):
+    """Prepare and normalize categories for upgrade."""
+    if not categories:
+        if dev and not packages:
+            return ["default", "develop"]
+        elif dev and packages:
+            return ["develop"]
+        else:
+            return ["default"]
+
+    result = categories.copy()
+    if "dev-packages" in result:
+        result.remove("dev-packages")
+        result.insert(0, "develop")
+    elif "packages" in result:
+        result.remove("packages")
+        result.insert(0, "default")
+
+    return result
+
+
+def _find_additional_categories(packages, lockfile, current_categories):
+    """Find additional categories where packages exist."""
+    if not packages:
+        return []
+
+    # Get all available categories from the lockfile
+    all_lockfile_categories = [cat for cat in lockfile.keys() if not cat.startswith("_")]
+
+    # Check if any of the packages to upgrade are also in other categories
+    additional_categories = []
+    for category in all_lockfile_categories:
+        if category in current_categories:
+            continue  # Skip categories already in the list
+
+        category_section = lockfile.get(category, {})
+        for package in packages:
+            package_name = package.split("==")[0] if "==" in package else package
+            if package_name in category_section:
+                # If the package is also in this category, add it to categories
+                additional_categories.append(category)
+                err.print(
+                    f"[bold][green]Package {package_name} found in {category} section, will update there too.[/bold][/green]"
+                )
+                break
+
+    return additional_categories
+
+
+def _detect_conflicts(package_args, reverse_deps, lockfile):
+    """Detect version conflicts in package arguments."""
+    conflicts_found = False
+    for package in package_args:
+        if "==" in package:
+            name, version = package.split("==")
+            conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
+            if conflicts:
+                conflicts_found = True
+                err.print(
+                    f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
+                    f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
+                )
+
+    return conflicts_found
+
+
+def _process_package_args(
+    project,
+    package_args,
+    pipfile_category,
+    index_name,
+    reverse_deps,
+    explicitly_requested,
+    category,
+    has_package_args,
+    requested_packages,
+):
+    """Process package arguments and update requested_packages."""
+    for package in package_args[:]:
+        install_req, _ = expansive_install_req_from_line(package, expand_env=True)
+
+        name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
+            install_req, package, category=pipfile_category, index_name=index_name
+        )
+
+        # Only add to Pipfile if this category was explicitly requested for this package
+        if has_package_args and (
+            normalized_name not in explicitly_requested
+            or category in explicitly_requested.get(normalized_name, [])
+        ):
+            project.add_pipfile_entry_to_pipfile(
+                name, normalized_name, pipfile_entry, category=pipfile_category
+            )
+
+        requested_packages[pipfile_category][normalized_name] = pipfile_entry
+
+        # Handle reverse dependencies
+        if normalized_name in reverse_deps:
+            for dependency, _ in reverse_deps[normalized_name]:
+                pipfile_entry = project.get_pipfile_entry(
+                    dependency, category=pipfile_category
+                )
+                if not pipfile_entry:
+                    requested_packages[pipfile_category][dependency] = {
+                        normalized_name: "*"
+                    }
+                    continue
+                requested_packages[pipfile_category][dependency] = pipfile_entry
+
+
+def _resolve_and_update_lockfile(
+    project,
+    requested_packages,
+    pipfile_category,
+    category,
+    package_args,
+    pre,
+    system,
+    pypi_mirror,
+    lockfile,
+):
+    """Resolve dependencies and update lockfile."""
+    if not requested_packages[pipfile_category]:
+        return None
+
+    err.print(
+        f"[bold][green]Upgrading[/bold][/green] {', '.join(package_args)} in [{category}] dependencies."
+    )
+
+    # Resolve package to generate constraints of new package data
+    upgrade_lock_data = venv_resolve_deps(
+        requested_packages[pipfile_category],
+        which=project._which,
+        project=project,
+        lockfile={},
+        pipfile_category=pipfile_category,
+        pre=pre,
+        allow_global=system,
+        pypi_mirror=pypi_mirror,
+    )
+
+    if not upgrade_lock_data:
+        err.print("Nothing to upgrade!")
+        return None
+
+    complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+
+    # Upgrade a subset of packages
+    full_lock_resolution = venv_resolve_deps(
+        complete_packages,
+        which=project._which,
+        project=project,
+        lockfile={},
+        pipfile_category=pipfile_category,
+        pre=pre,
+        allow_global=system,
+        pypi_mirror=pypi_mirror,
+    )
+
+    # Update lockfile with verified resolution data
+    for package_name in upgrade_lock_data:
+        correct_package_lock = full_lock_resolution.get(package_name)
+        if correct_package_lock:
+            if category not in lockfile:
+                lockfile[category] = {}
+            lockfile[category][package_name] = correct_package_lock
+
+    return upgrade_lock_data
+
+
 def upgrade(
     project,
     pre=False,
@@ -260,23 +430,14 @@ def upgrade(
     lockfile = project.lockfile()
     if not pre:
         pre = project.settings.get("allow_prereleases")
-    if not categories:
-        if dev and not packages:
-            categories = ["default", "develop"]
-        elif dev and packages:
-            categories = ["develop"]
-        else:
-            categories = ["default"]
-    elif "dev-packages" in categories:
-        categories.remove("dev-packages")
-        categories.insert(0, "develop")
-    elif "packages" in categories:
-        categories.remove("packages")
-        categories.insert(0, "default")
+
+    # Prepare categories
+    categories = _prepare_categories(categories, dev, packages)
 
     # Get current dependency graph
     reverse_deps = get_reverse_dependencies(project)
 
+    # Set up index and environment
     index_name = None
     if index_url:
         index_name = add_index_to_pipfile(project, index_url)
@@ -284,7 +445,10 @@ def upgrade(
     if extra_pip_args:
         os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
 
-    package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
+    # Prepare package arguments
+    package_args = list(packages or []) + [
+        f"-e {pkg}" for pkg in (editable_packages or [])
+    ]
 
     # Track which packages were explicitly requested for which categories
     explicitly_requested = {}
@@ -292,47 +456,12 @@ def upgrade(
         package_name = package.split("==")[0] if "==" in package else package
         explicitly_requested[package_name] = categories[:]  # Copy the original categories
 
-    # Check if we need to update packages in all categories
-    # This is needed when a package is specified in one category but also used in others
-    if packages:
-        # Get all available categories from the lockfile
-        all_lockfile_categories = [
-            cat for cat in lockfile.keys() if not cat.startswith("_")
-        ]
-
-        # Check if any of the packages to upgrade are also in other categories
-        additional_categories = []
-        for category in all_lockfile_categories:
-            if category in categories:
-                continue  # Skip categories already in the list
-
-            category_section = lockfile.get(category, {})
-            for package in packages:
-                package_name = package.split("==")[0] if "==" in package else package
-                if package_name in category_section:
-                    # If the package is also in this category, add it to categories
-                    additional_categories.append(category)
-                    err.print(
-                        f"[bold][green]Package {package_name} found in {category} section, will update there too.[/bold][/green]"
-                    )
-                    break
-
-        # Add all additional categories at once to avoid duplicates
-        categories.extend(additional_categories)
+    # Find additional categories where packages exist
+    additional_categories = _find_additional_categories(packages, lockfile, categories)
+    categories.extend(additional_categories)
 
     # Early conflict detection
-    conflicts_found = False
-    for package in package_args:
-        if "==" in package:
-            name, version = package.split("==")
-            conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
-            if conflicts:
-                conflicts_found = True
-                err.print(
-                    f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
-                    f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
-                )
-
+    conflicts_found = _detect_conflicts(package_args, reverse_deps, lockfile)
     if conflicts_found:
         err.print(
             "\nTo resolve conflicts, try:\n"
@@ -342,11 +471,10 @@ def upgrade(
         )
         sys.exit(1)
 
-    # Create clean package_args first
-    has_package_args = False
-    if package_args:
-        has_package_args = True
+    # Flag for tracking if we have package arguments
+    has_package_args = bool(package_args)
 
+    # Process each category
     requested_packages = defaultdict(dict)
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
@@ -357,86 +485,37 @@ def upgrade(
             for name, entry in modified_entries[category].items():
                 requested_packages[pipfile_category][name] = entry
 
-        # Process each package arg
-        for package in package_args[:]:
-            install_req, _ = expansive_install_req_from_line(package, expand_env=True)
-
-            name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
-                install_req, package, category=pipfile_category, index_name=index_name
+        # Process package arguments
+        if package_args:
+            _process_package_args(
+                project,
+                package_args,
+                pipfile_category,
+                index_name,
+                reverse_deps,
+                explicitly_requested,
+                category,
+                has_package_args,
+                requested_packages,
             )
 
-            # Only add to Pipfile if this category was explicitly requested for this package
-            # This prevents adding packages to categories where they're only implicit dependencies
-            if has_package_args and (
-                normalized_name not in explicitly_requested
-                or category in explicitly_requested.get(normalized_name, [])
-            ):
-                project.add_pipfile_entry_to_pipfile(
-                    name, normalized_name, pipfile_entry, category=pipfile_category
-                )
+        # Resolve dependencies and update lockfile
+        _resolve_and_update_lockfile(
+            project,
+            requested_packages,
+            pipfile_category,
+            category,
+            package_args,
+            pre,
+            system,
+            pypi_mirror,
+            lockfile,
+        )
 
-            requested_packages[pipfile_category][normalized_name] = pipfile_entry
-
-            # Handle reverse dependencies
-            if normalized_name in reverse_deps:
-                for dependency, _ in reverse_deps[normalized_name]:
-                    pipfile_entry = project.get_pipfile_entry(
-                        dependency, category=pipfile_category
-                    )
-                    if not pipfile_entry:
-                        requested_packages[pipfile_category][dependency] = {
-                            normalized_name: "*"
-                        }
-                        continue
-                    requested_packages[pipfile_category][dependency] = pipfile_entry
-
-        # When packages are not provided we simply perform full resolution
-        upgrade_lock_data = None
-        if requested_packages[pipfile_category]:
-            err.print(
-                f"[bold][green]Upgrading[/bold][/green] {', '.join(package_args)} in [{category}] dependencies."
-            )
-
-            # Resolve package to generate constraints of new package data
-            upgrade_lock_data = venv_resolve_deps(
-                requested_packages[pipfile_category],
-                which=project._which,
-                project=project,
-                lockfile={},
-                pipfile_category=pipfile_category,
-                pre=pre,
-                allow_global=system,
-                pypi_mirror=pypi_mirror,
-            )
-            if not upgrade_lock_data:
-                err.print("Nothing to upgrade!")
-                return
-
-        complete_packages = project.parsed_pipfile.get(pipfile_category, {})
-
-        if upgrade_lock_data is not None:  # Upgrade a subset of packages
-            full_lock_resolution = venv_resolve_deps(
-                complete_packages,
-                which=project._which,
-                project=project,
-                lockfile={},
-                pipfile_category=pipfile_category,
-                pre=pre,
-                allow_global=system,
-                pypi_mirror=pypi_mirror,
-            )
-
-            # Update lockfile with verified resolution data
-            for package_name in upgrade_lock_data:
-                correct_package_lock = full_lock_resolution.get(package_name)
-                if correct_package_lock:
-                    if category not in lockfile:
-                        lockfile[category] = {}
-                    lockfile[category][package_name] = correct_package_lock
-
-        # reset package args in case of multiple categories being processed
-        if has_package_args is False:
+        # Reset package args for next category if needed
+        if not has_package_args:
             package_args = []
 
+    # Update and write lockfile
     lockfile.update({"_meta": project.get_lockfile_meta()})
     project.write_lockfile(lockfile)
