@@ -429,7 +429,131 @@ def run(state, command, args):
 
 
 @cli.command(
-    short_help="Checks for PyUp Safety security vulnerabilities and against"
+    short_help="Scans for security vulnerabilities and checks PEP 508 markers.",
+    context_settings=subcommand_context,
+)
+@option(
+    "--db",
+    nargs=1,
+    default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
+    help="Path or URL to a PyUp Safety vulnerabilities database."
+    " Default: ENV PIPENV_SAFETY_DB or None.",
+)
+@option(
+    "--ignore",
+    "-i",
+    multiple=True,
+    help="Ignore specified vulnerability during security scans.",
+)
+@option(
+    "--output",
+    type=Choice(["default", "json", "full-report", "bare", "screen", "text", "minimal"]),
+    default="default",
+    help="Output format for scan results.",
+)
+@option(
+    "--key",
+    help="Safety API key from PyUp.io for scanning dependencies against a live"
+    " vulnerabilities database. Leave blank for scanning against a"
+    " database that only updates once a month.",
+)
+@option(
+    "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
+)
+@option("--policy-file", default="", help="Define the policy file to be used")
+@option(
+    "--exit-code/--continue-on-error",
+    default=True,
+    help="Output standard exit codes. Default: --exit-code",
+)
+@option(
+    "--audit-and-monitor/--disable-audit-and-monitor",
+    default=True,
+    help="Send results back to pyup.io for viewing on your dashboard. Requires an API key.",
+)
+@option(
+    "--project",
+    default=None,
+    help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown",
+)
+@option(
+    "--save-json",
+    default="",
+    help="Path to where output file will be placed, if the path is a directory, "
+    "Safety will use safety-report.json as filename. Default: empty",
+)
+@option(
+    "--use-installed",
+    is_flag=True,
+    help="Whether to use the lockfile as input to scan (instead of result from pip list).",
+)
+@option(
+    "--categories",
+    is_flag=False,
+    default="",
+    help="Use the specified categories from the lockfile as input to scan.",
+)
+@option(
+    "--legacy-mode",
+    is_flag=True,
+    default=False,
+    help="Use the legacy 'check' command instead of the new 'scan' command.",
+)
+@option(
+    "--auto-install",
+    is_flag=True,
+    default=False,
+    help="Automatically install safety if not already installed.",
+)
+@common_options
+@system_option
+@pass_state
+def scan(
+    state,
+    db=None,
+    ignore=None,
+    output="screen",
+    key=None,
+    quiet=False,
+    exit_code=True,
+    policy_file="",
+    save_json="",
+    audit_and_monitor=True,
+    project=None,
+    use_installed=False,
+    categories="",
+    legacy_mode=False,
+    auto_install=False,
+    **kwargs,
+):
+    """Scans for security vulnerabilities and checks PEP 508 markers provided in Pipfile."""
+    from pipenv.routines.scan import do_scan
+
+    do_scan(
+        state.project,
+        python=state.python,
+        system=state.system,
+        db=db,
+        ignore=ignore,
+        output=output,
+        key=key,
+        quiet=quiet,
+        verbose=state.verbose,
+        exit_code=exit_code,
+        policy_file=policy_file,
+        save_json=save_json,
+        audit_and_monitor=audit_and_monitor,
+        safety_project=project,
+        pypi_mirror=state.pypi_mirror,
+        use_installed=use_installed,
+        categories=categories,
+        legacy_mode=legacy_mode,
+        auto_install=auto_install,
+    )
+
+
+@cli.command(
+    short_help="[DEPRECATED] Checks for PyUp Safety security vulnerabilities and against"
     " PEP 508 markers provided in Pipfile.",
     context_settings=subcommand_context,
 )
@@ -494,6 +618,12 @@ def run(state, command, args):
     default="",
     help="Use the specified categories from the lockfile as input to check.",
 )
+@option(
+    "--auto-install",
+    is_flag=True,
+    default=False,
+    help="Automatically install safety if not already installed.",
+)
 @common_options
 @system_option
 @pass_state
@@ -511,9 +641,15 @@ def check(
     project=None,
     use_installed=False,
     categories="",
+    auto_install=False,
     **kwargs,
 ):
-    """Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile."""
+    """DEPRECATED: Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
+
+    This command has been deprecated and will be unsupported beyond 01 June 2024.
+    Please use the 'scan' command instead, which is easier to use and more powerful.
+    """
+
     from pipenv.routines.check import do_check
 
     do_check(
@@ -534,6 +670,7 @@ def check(
         pypi_mirror=state.pypi_mirror,
         use_installed=use_installed,
         categories=categories,
+        auto_install=auto_install,
     )
 
 

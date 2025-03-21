@@ -80,6 +80,17 @@ The user can provide these additional parameters:
 
 ``$ pipenv check`` checks for security vulnerabilities and asserts that [PEP 508](https://www.python.org/dev/peps/pep-0508/) requirements are being met by the project's lock file or current environment.
 
+The user can provide these additional parameters:
+
+    --auto-install — Automatically install safety if not already installed.
+
+## scan
+
+``$ pipenv scan`` scans for security vulnerabilities and checks PEP 508 markers. This is the newer version of the check command with improved functionality.
+
+The user can provide these additional parameters:
+
+    --auto-install — Automatically install safety if not already installed.
 
 ## scripts
 ``$ pipenv scripts`` will list the scripts in the current environment config.

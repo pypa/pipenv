@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 from pathlib import Path
 
 from pipenv import pep508checker
@@ -12,23 +13,39 @@ from pipenv.utils.shell import project_python
 from pipenv.vendor import click, plette
 
 
-def build_safety_options(
+def build_safety_check_options(
     audit_and_monitor=True,
     exit_code=True,
     output="screen",
     save_json="",
     policy_file="",
     safety_project=None,
-    temp_requirements_name="",
+    temp_requirements_path="",
+    ignore=None,
+    key=None,
+    db=None,
+    project=None,
 ):
-    options = [
-        "--audit-and-monitor" if audit_and_monitor else "--disable-audit-and-monitor",
-        "--exit-code" if exit_code else "--continue-on-error",
-    ]
-    formats = {"full-report": "--full-report", "minimal": "--json"}
+    """Build command line options for the safety check command."""
+    options = []
 
-    if output in formats:
-        options.append(formats.get(output, ""))
+    # Add exit code option
+    if exit_code:
+        options.append("--exit-code")
+    else:
+        options.append("--continue-on-error")
+
+    # Add audit and monitor option
+    if audit_and_monitor:
+        options.append("--audit-and-monitor")
+    else:
+        options.append("--disable-audit-and-monitor")
+
+    # Map output formats to safety CLI options
+    if output == "full-report":
+        options.append("--full-report")
+    elif output in ["json", "minimal"]:
+        options.append("--json")
     elif output not in ["screen", "default"]:
         options.append(f"--output={output}")
 
@@ -42,15 +59,87 @@ def build_safety_options(
         options.append(f"--project={safety_project}")
 
     # Make sure we're using the absolute path to the requirements file
-    if temp_requirements_name:
-        temp_requirements_path = str(Path(temp_requirements_name).absolute())
+    if temp_requirements_path:
         options.extend(["--file", temp_requirements_path])
         console.print(f"[dim]Using requirements file: {temp_requirements_path}[/dim]")
+
+    # Add database options
+    if db:
+        options.append(f"--db={db}")
+    elif key or (project and project.s.PIPENV_PYUP_API_KEY):
+        api_key = key or project.s.PIPENV_PYUP_API_KEY
+        options.append(f"--key={api_key}")
+    else:
+        PIPENV_SAFETY_DB = "https://pyup.io/aws/safety/free/2.0.0/"
+        os.environ["SAFETY_ANNOUNCEMENTS_URL"] = f"{PIPENV_SAFETY_DB}announcements.json"
+        options.append(f"--db={PIPENV_SAFETY_DB}")
+
+    # Add ignore options
+    if ignore:
+        for cve in ignore:
+            options.extend(["--ignore", cve])
 
     return options
 
 
+def build_safety_scan_options(
+    output="screen",
+    save_json="",
+    policy_file="",
+    temp_requirements_path="",
+    key=None,
+    db=None,
+    project=None,
+):
+    """Build command line options for the safety scan command."""
+    options = []
+    global_options = []
+
+    # Set output format
+    if output not in ["screen", "default"]:
+        options.append(f"--output={output}")
+
+    # Add detailed output for screen format
+    if output in ["screen", "default"]:
+        options.append("--detailed-output")
+
+    # Save results to file if requested
+    if save_json:
+        options.extend(["--save-as", "json", save_json])
+
+    # Add policy file if specified
+    if policy_file:
+        options.append(f"--policy-file={policy_file}")
+
+    # Add target directory (current directory by default)
+    options.append("--target=.")
+
+    # Add global options
+
+    # Set stage to ci to avoid authentication prompt
+    global_options.append("--stage=cicd")
+
+    if key or (project and project.s.PIPENV_PYUP_API_KEY):
+        api_key = key or project.s.PIPENV_PYUP_API_KEY
+        global_options.append(f"--key={api_key}")
+    else:
+        # For CI stage, we need to provide a key
+        # Use a dummy key to avoid authentication prompt
+        global_options.append("--key=dummy-key")
+
+    # Note: The --db option is not supported by the scan command
+    # We'll set the SAFETY_API_URL environment variable instead
+    if db:
+        os.environ["SAFETY_API_URL"] = db
+    else:
+        PIPENV_SAFETY_DB = "https://pyup.io/aws/safety/free/2.0.0/"
+        os.environ["SAFETY_ANNOUNCEMENTS_URL"] = f"{PIPENV_SAFETY_DB}announcements.json"
+
+    return global_options, options
+
+
 def run_pep508_check(project, system, python):
+    """Run PEP 508 environment marker checks."""
     pep508checker_path = pep508checker.__file__.rstrip("cdo")
     cmd = [project_python(project, system=system), Path(pep508checker_path).as_posix()]
     c = run_command(cmd, is_verbose=project.s.is_verbose())
@@ -67,6 +156,7 @@ def run_pep508_check(project, system, python):
 
 
 def check_pep508_requirements(project, results, quiet):
+    """Verify PEP 508 environment markers in Pipfile match the current environment."""
     p = plette.Pipfile.load(open(project.pipfile_location))
     p = plette.Lockfile.with_meta_from(p)
     failed = False
@@ -88,6 +178,7 @@ def check_pep508_requirements(project, results, quiet):
 
 
 def get_requirements(project, use_installed, categories):
+    """Get package requirements from either installed packages or Pipfile.lock."""
     _cmd = [project_python(project, system=False)]
     if use_installed:
         return run_command(
@@ -103,24 +194,22 @@ def get_requirements(project, use_installed, categories):
         return run_command(["pipenv", "requirements"], is_verbose=project.s.is_verbose())
 
 
-def create_temp_requirements(project, requirements):
-    """Create a temporary requirements file that safety can access."""
-    # Use the current directory which should be accessible
-    temp_file_path = os.path.join(os.getcwd(), f"safety_requirements_{os.getpid()}.txt")
+def create_temp_requirements_file(requirements_content):
+    """Create a temporary requirements file for safety to scan.
 
-    # Write the requirements to the file
-    with open(temp_file_path, "w") as temp_file:
-        temp_file.write(requirements.stdout.strip())
+    Uses the tempfile module to ensure proper cleanup.
+    """
+    fd, temp_path = tempfile.mkstemp(prefix="pipenv_safety_", suffix=".txt")
+    try:
+        with os.fdopen(fd, "w") as temp_file:
+            temp_file.write(requirements_content)
 
-    # Make sure the file exists and log its path
-    if os.path.exists(temp_file_path):
-        console.print(f"[dim]Created temporary requirements file: {temp_file_path}[/dim]")
-    else:
-        err.print(
-            f"[red]Failed to create temporary requirements file at {temp_file_path}[/red]"
-        )
-
-    return Path(temp_file_path).absolute()
+        console.print(f"[dim]Created temporary requirements file: {temp_path}[/dim]")
+        return temp_path
+    except Exception as e:
+        err.print(f"[red]Failed to create temporary requirements file: {e}[/red]")
+        os.unlink(temp_path)
+        sys.exit(1)
 
 
 def is_safety_installed(project=None, system=False):
@@ -181,8 +270,8 @@ def install_safety(project, system=False, auto_install=False):
     return True
 
 
-def run_safety_check(cmd, quiet):
-    """Run safety check with the given command."""
+def run_safety_scan(cmd, quiet):
+    """Run safety scan with the given command."""
     # Run safety as a separate process instead of importing it
     import subprocess
 
@@ -201,6 +290,7 @@ def run_safety_check(cmd, quiet):
 
 
 def parse_safety_output(output, quiet):
+    """Parse and display safety scan output in a user-friendly format."""
     try:
         json_report = json.loads(output)
         meta = json_report.get("report_meta", {})
@@ -239,7 +329,7 @@ def parse_safety_output(output, quiet):
         err.print("Failed to parse Safety output.")
 
 
-def do_check(
+def do_scan(
     project,
     python=False,
     system=False,
@@ -257,8 +347,13 @@ def do_check(
     pypi_mirror=None,
     use_installed=False,
     categories="",
+    legacy_mode=False,
     auto_install=False,
 ):
+    """Run a security vulnerability scan on dependencies.
+
+    This is the new, improved version of the check command.
+    """
     if not verbose:
         logging.getLogger("pipenv").setLevel(logging.ERROR if quiet else logging.WARN)
 
@@ -283,11 +378,11 @@ def do_check(
     if not quiet and not project.s.is_quiet():
         if use_installed:
             console.print(
-                "[bold]Checking installed packages for vulnerabilities...[/bold]"
+                "[bold]Scanning installed packages for vulnerabilities...[/bold]"
             )
         else:
             console.print(
-                "[bold]Checking Pipfile.lock packages for vulnerabilities...[/bold]"
+                "[bold]Scanning Pipfile.lock packages for vulnerabilities...[/bold]"
             )
 
     if ignore:
@@ -300,20 +395,11 @@ def do_check(
                 )
             )
 
+    # Get requirements and create a temporary file
     requirements = get_requirements(project, use_installed, categories)
-    temp_requirements = create_temp_requirements(project, requirements)
+    temp_requirements_path = create_temp_requirements_file(requirements.stdout.strip())
 
     try:
-        options = build_safety_options(
-            audit_and_monitor=audit_and_monitor,
-            exit_code=exit_code,
-            output=output,
-            save_json=save_json,
-            policy_file=policy_file,
-            safety_project=safety_project,
-            temp_requirements_name=temp_requirements.name,
-        )
-
         # Check if safety is installed
         if not is_safety_installed(project, system=system):
             if not install_safety(project, system=system, auto_install=auto_install):
@@ -341,31 +427,61 @@ def do_check(
                 )
                 return
 
-        # Use installed safety module
-        cmd = [project_python(project, system=system), "-m", "safety", "check"] + options
-
-        if db:
-            if not quiet and not project.s.is_quiet():
-                console.print(f"Using {db} database")
-            cmd.append(f"--db={db}")
-        elif key or project.s.PIPENV_PYUP_API_KEY:
-            cmd.append(f"--key={key or project.s.PIPENV_PYUP_API_KEY}")
-        else:
-            PIPENV_SAFETY_DB = "https://pyup.io/aws/safety/free/2.0.0/"
-            os.environ["SAFETY_ANNOUNCEMENTS_URL"] = (
-                f"{PIPENV_SAFETY_DB}announcements.json"
-            )
-            cmd.append(f"--db={PIPENV_SAFETY_DB}")
-
-        if ignore:
-            for cve in ignore:
-                cmd.extend(["--ignore", cve])
-
+        # Set up environment variables for safety
         os.environ["SAFETY_CUSTOM_INTEGRATION"] = "True"
         os.environ["SAFETY_SOURCE"] = "pipenv"
         os.environ["SAFETY_PURE_YAML"] = "True"
 
-        output, error, exit_code = run_safety_check(cmd, quiet)
+        # Build options for safety command based on mode
+        if legacy_mode:
+            # Use the check command with appropriate options
+            options = build_safety_check_options(
+                audit_and_monitor=audit_and_monitor,
+                exit_code=exit_code,
+                output=output,
+                save_json=save_json,
+                policy_file=policy_file,
+                safety_project=safety_project,
+                temp_requirements_path=temp_requirements_path,
+                ignore=ignore,
+                key=key,
+                db=db,
+                project=project,
+            )
+            cmd = [
+                project_python(project, system=system),
+                "-m",
+                "safety",
+                "check",
+            ] + options
+        else:
+            # Use the scan command with appropriate options
+            global_options, scan_options = build_safety_scan_options(
+                output=output,
+                save_json=save_json,
+                policy_file=policy_file,
+                temp_requirements_path=temp_requirements_path,
+                key=key,
+                db=db,
+                project=project,
+            )
+
+            # For scan command, global options come before the command
+            cmd = (
+                [project_python(project, system=system), "-m", "safety"]
+                + global_options
+                + ["scan"]
+                + scan_options
+            )
+
+            # Note: scan command doesn't support ignore directly, but we can use a policy file
+            if ignore and not policy_file:
+                console.print(
+                    "[yellow]Note: Ignoring vulnerabilities with the scan command requires a policy file.[/yellow]"
+                )
+
+        # Run the safety scan
+        output, error, exit_code = run_safety_scan(cmd, quiet)
 
         if quiet:
             parse_safety_output(output, quiet)
@@ -375,11 +491,10 @@ def do_check(
 
         sys.exit(exit_code)
     finally:
-        # Always clean up the temporary file, even if an exception occurs
-        if temp_requirements.exists():
-            try:
-                temp_requirements.unlink()
-            except Exception as e:
-                err.print(
-                    f"[yellow]Warning: Failed to delete temporary file {temp_requirements}: {e}[/yellow]"
-                )
+        # Always clean up the temporary file
+        try:
+            os.unlink(temp_requirements_path)
+        except Exception as e:
+            err.print(
+                f"[yellow]Warning: Failed to delete temporary file {temp_requirements_path}: {e}[/yellow]"
+            )
