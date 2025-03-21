@@ -12,10 +12,10 @@ from .path_utils import (
 )
 from .version_utils import (
     get_python_version,
-    parse_python_version,
     guess_company,
-    parse_pyenv_version_order,
     parse_asdf_version_order,
+    parse_pyenv_version_order,
+    parse_python_version,
 )
 
 __all__ = [

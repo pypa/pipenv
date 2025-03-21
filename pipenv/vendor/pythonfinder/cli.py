@@ -2,13 +2,12 @@ from __future__ import annotations
 
 import argparse
 import sys
-from typing import List, Optional
 
 from . import __version__
 from .pythonfinder import Finder
 
 
-def colorize(text: str, color: Optional[str] = None, bold: bool = False) -> str:
+def colorize(text: str, color: str | None = None, bold: bool = False) -> str:
     """
     Simple function to colorize text for terminal output.
     """
@@ -21,14 +20,14 @@ def colorize(text: str, color: Optional[str] = None, bold: bool = False) -> str:
         "cyan": "\033[36m",
         "white": "\033[37m",
     }
-    
+
     reset = "\033[0m"
     bold_code = "\033[1m" if bold else ""
     color_code = colors.get(color, "")
-    
+
     if not color_code and not bold:
         return text
-    
+
     return f"{bold_code}{color_code}{text}{reset}"
 
 
@@ -36,64 +35,54 @@ def create_parser() -> argparse.ArgumentParser:
     """
     Create the argument parser for the CLI.
     """
-    parser = argparse.ArgumentParser(
-        description="Find and manage Python installations."
-    )
-    
+    parser = argparse.ArgumentParser(description="Find and manage Python installations.")
+
+    parser.add_argument("--find", help="Find a specific python version.")
+
+    parser.add_argument("--which", help="Run the which command.")
+
     parser.add_argument(
-        "--find", 
-        help="Find a specific python version."
+        "--findall", action="store_true", help="Find all python versions."
     )
-    
-    parser.add_argument(
-        "--which", 
-        help="Run the which command."
-    )
-    
-    parser.add_argument(
-        "--findall", 
-        action="store_true",
-        help="Find all python versions."
-    )
-    
+
     parser.add_argument(
         "--ignore-unsupported",
         "--no-unsupported",
         action="store_true",
         default=True,
-        help="Ignore unsupported python versions."
+        help="Ignore unsupported python versions.",
     )
-    
+
     parser.add_argument(
-        "--version",
-        action="store_true",
-        help="Show the version and exit."
+        "--version", action="store_true", help="Show the version and exit."
     )
-    
+
     return parser
 
 
-def cli(args: Optional[List[str]] = None) -> int:
+def cli(args: list[str] | None = None) -> int:
     """
     Main CLI function.
-    
+
     Args:
         args: Command line arguments. If None, sys.argv[1:] is used.
-        
+
     Returns:
         Exit code.
     """
     parser = create_parser()
     parsed_args = parser.parse_args(args)
-    
+
     # Show version and exit
     if parsed_args.version:
-        print(f"{colorize('PythonFinder', bold=True)} {colorize(__version__, color='yellow')}")
+        print(
+            f"{colorize('PythonFinder', bold=True)} {colorize(__version__, color='yellow')}"
+        )
         return 0
-    
+
     # Create finder
     finder = Finder(ignore_unsupported=parsed_args.ignore_unsupported)
-    
+
     # Find all Python versions
     if parsed_args.findall:
         versions = [v for v in finder.find_all_python_versions()]
@@ -109,7 +98,7 @@ def cli(args: Optional[List[str]] = None) -> int:
                 print(
                     colorize(
                         f"{py.name or 'python'}: {py.version_str} ({py.architecture or 'unknown'}) @ {comes_from_path}",
-                        color="yellow"
+                        color="yellow",
                     )
                 )
             return 0
@@ -117,14 +106,16 @@ def cli(args: Optional[List[str]] = None) -> int:
             print(
                 colorize(
                     "ERROR: No valid python versions found! Check your path and try again.",
-                    color="red"
+                    color="red",
                 )
             )
             return 1
-    
+
     # Find a specific Python version
     if parsed_args.find:
-        print(colorize(f"Searching for python: {parsed_args.find.strip()}", color="yellow"))
+        print(
+            colorize(f"Searching for python: {parsed_args.find.strip()}", color="yellow")
+        )
         found = finder.find_python_version(parsed_args.find.strip())
         if found:
             py = found
@@ -138,14 +129,14 @@ def cli(args: Optional[List[str]] = None) -> int:
             print(
                 colorize(
                     f"{py.name or 'python'}: {py.version_str} ({py.architecture or 'unknown'}) @ {comes_from_path}",
-                    color="yellow"
+                    color="yellow",
                 )
             )
             return 0
         else:
             print(colorize("Failed to find matching executable...", color="yellow"))
             return 1
-    
+
     # Which command
     elif parsed_args.which:
         found = finder.which(parsed_args.which.strip())
@@ -155,7 +146,7 @@ def cli(args: Optional[List[str]] = None) -> int:
         else:
             print(colorize("Failed to find matching executable...", color="yellow"))
             return 1
-    
+
     # No command provided
     else:
         print(colorize("Please provide a command", color="red"))

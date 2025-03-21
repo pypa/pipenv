@@ -1,31 +1,33 @@
 from __future__ import annotations
 
 import abc
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING
 
-from ..models.python_info import PythonInfo
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from ..models.python_info import PythonInfo
 
 
 class BaseFinder(abc.ABC):
     """
     Abstract base class for all Python finders.
     """
-    
+
     @abc.abstractmethod
     def find_all_python_versions(
         self,
-        major: Optional[Union[str, int]] = None,
-        minor: Optional[int] = None,
-        patch: Optional[int] = None,
-        pre: Optional[bool] = None,
-        dev: Optional[bool] = None,
-        arch: Optional[str] = None,
-        name: Optional[str] = None,
-    ) -> List[PythonInfo]:
+        major: str | int | None = None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool | None = None,
+        dev: bool | None = None,
+        arch: str | None = None,
+        name: str | None = None,
+    ) -> list[PythonInfo]:
         """
         Find all Python versions matching the specified criteria.
-        
+
         Args:
             major: Major version number or full version string.
             minor: Minor version number.
@@ -34,26 +36,26 @@ class BaseFinder(abc.ABC):
             dev: Whether to include dev-releases.
             arch: Architecture to include, e.g. '64bit'.
             name: The name of a python version, e.g. ``anaconda3-5.3.0``.
-            
+
         Returns:
             A list of PythonInfo objects matching the criteria.
         """
         pass
-    
+
     @abc.abstractmethod
     def find_python_version(
         self,
-        major: Optional[Union[str, int]] = None,
-        minor: Optional[int] = None,
-        patch: Optional[int] = None,
-        pre: Optional[bool] = None,
-        dev: Optional[bool] = None,
-        arch: Optional[str] = None,
-        name: Optional[str] = None,
-    ) -> Optional[PythonInfo]:
+        major: str | int | None = None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool | None = None,
+        dev: bool | None = None,
+        arch: str | None = None,
+        name: str | None = None,
+    ) -> PythonInfo | None:
         """
         Find a Python version matching the specified criteria.
-        
+
         Args:
             major: Major version number or full version string.
             minor: Minor version number.
@@ -62,36 +64,36 @@ class BaseFinder(abc.ABC):
             dev: Whether to include dev-releases.
             arch: Architecture to include, e.g. '64bit'.
             name: The name of a python version, e.g. ``anaconda3-5.3.0``.
-            
+
         Returns:
             A PythonInfo object matching the criteria, or None if not found.
         """
         pass
-    
-    def which(self, executable: str) -> Optional[Path]:
+
+    def which(self, executable: str) -> Path | None:
         """
         Find an executable in the paths searched by this finder.
-        
+
         Args:
             executable: The name of the executable to find.
-            
+
         Returns:
             The path to the executable, or None if not found.
         """
         return None
-    
+
     def parse_major(
         self,
-        major: Optional[str],
-        minor: Optional[int] = None,
-        patch: Optional[int] = None,
-        pre: Optional[bool] = None,
-        dev: Optional[bool] = None,
-        arch: Optional[str] = None,
-    ) -> Dict[str, Union[int, str, bool, None]]:
+        major: str | None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool | None = None,
+        dev: bool | None = None,
+        arch: str | None = None,
+    ) -> dict[str, int | str | bool | None]:
         """
         Parse a major version string into a dictionary of version components.
-        
+
         Args:
             major: Major version number or full version string.
             minor: Minor version number.
@@ -99,12 +101,12 @@ class BaseFinder(abc.ABC):
             pre: Whether to include pre-releases.
             dev: Whether to include dev-releases.
             arch: Architecture to include, e.g. '64bit'.
-            
+
         Returns:
             A dictionary containing the parsed version components.
         """
         from ..utils.version_utils import parse_python_version
-        
+
         major_is_str = major and isinstance(major, str)
         is_num = (
             major
@@ -119,7 +121,7 @@ class BaseFinder(abc.ABC):
             and major[0].isdigit()
         )
         name = None
-        
+
         if major and major_has_arch:
             orig_string = f"{major!s}"
             major, _, arch = major.rpartition("-")
@@ -141,6 +143,7 @@ class BaseFinder(abc.ABC):
             return {"major": None, "name": major, "arch": arch}
         elif major and is_num:
             import re
+
             version_re = re.compile(
                 r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
                 r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
@@ -163,10 +166,10 @@ class BaseFinder(abc.ABC):
                 "dev": dev,
                 "arch": arch,
             }
-        
+
         if not version_dict.get("arch") and arch:
             version_dict["arch"] = arch
-        
+
         version_dict["minor"] = (
             int(version_dict["minor"]) if version_dict.get("minor") is not None else minor
         )
@@ -176,10 +179,10 @@ class BaseFinder(abc.ABC):
         version_dict["major"] = (
             int(version_dict["major"]) if version_dict.get("major") is not None else major
         )
-        
+
         if not (version_dict["major"] or version_dict.get("name")):
             version_dict["major"] = major
             if name:
                 version_dict["name"] = name
-        
+
         return version_dict

@@ -4,7 +4,7 @@ import errno
 import os
 import re
 from pathlib import Path
-from typing import Iterable, Iterator, List, Optional, Set, Union
+from typing import Iterator
 
 # Constants for Python implementations and file extensions
 PYTHON_IMPLEMENTATIONS = (
@@ -56,31 +56,31 @@ for rule in RULES:
     MATCH_RULES.extend([f"{rule}.{ext}" if ext else f"{rule}" for ext in KNOWN_EXTS])
 
 
-def ensure_path(path: Union[Path, str]) -> Path:
+def ensure_path(path: Path | str) -> Path:
     """
     Given a path (either a string or a Path object), expand variables and return a Path object.
-    
+
     Args:
         path: A string or a Path object.
-        
+
     Returns:
         A fully expanded Path object.
     """
     if isinstance(path, Path):
         return path.absolute()
-    
+
     # Expand environment variables and user tilde in the path
     expanded_path = os.path.expandvars(os.path.expanduser(path))
     return Path(expanded_path).absolute()
 
 
-def resolve_path(path: Union[Path, str]) -> Path:
+def resolve_path(path: Path | str) -> Path:
     """
     Resolves the path to an absolute path, expanding user variables and environment variables.
-    
+
     Args:
         path: A string or a Path object.
-        
+
     Returns:
         A fully resolved Path object.
     """
@@ -104,36 +104,36 @@ def resolve_path(path: Union[Path, str]) -> Path:
                 expanded_home = os.path.expanduser(path)
                 return Path(expanded_home)
         path = Path(path)
-    
+
     # Expand variables
     path_str = str(path)
     if "$" in path_str:
         path = Path(os.path.expandvars(path_str))
-    
+
     # Resolve to absolute path
     return path.resolve()
 
 
-def is_executable(path: Union[Path, str]) -> bool:
+def is_executable(path: Path | str) -> bool:
     """
     Determine whether the supplied path is executable.
-    
+
     Args:
         path: The path to check.
-        
+
     Returns:
         Whether the provided path is executable.
     """
     return os.access(str(path), os.X_OK)
 
 
-def is_readable(path: Union[Path, str]) -> bool:
+def is_readable(path: Path | str) -> bool:
     """
     Determine whether the supplied path is readable.
-    
+
     Args:
         path: The path to check.
-        
+
     Returns:
         Whether the provided path is readable.
     """
@@ -144,70 +144,69 @@ def path_is_known_executable(path: Path) -> bool:
     """
     Returns whether a given path is a known executable from known executable extensions
     or has the executable bit toggled.
-    
+
     Args:
         path: The path to the target executable.
-        
+
     Returns:
         True if the path has chmod +x, or is a readable, known executable extension.
     """
-    return (
-        is_executable(path)
-        or (is_readable(path) and path.suffix.lower() in KNOWN_EXTS)
+    return is_executable(path) or (
+        is_readable(path) and path.suffix.lower() in KNOWN_EXTS
     )
 
 
 def looks_like_python(name: str) -> bool:
     """
     Determine whether the supplied filename looks like a possible name of python.
-    
+
     Args:
         name: The name of the provided file.
-        
+
     Returns:
         Whether the provided name looks like python.
     """
     from fnmatch import fnmatch
-    
+
     if not any(name.lower().startswith(py_name) for py_name in PYTHON_IMPLEMENTATIONS):
         return False
-    
+
     match = EXE_MATCHER.match(name)
     if match:
         return any(fnmatch(name, rule) for rule in MATCH_RULES)
-    
+
     return False
 
 
 def path_is_python(path: Path) -> bool:
     """
     Determine whether the supplied path is executable and looks like a possible path to python.
-    
+
     Args:
         path: The path to an executable.
-        
+
     Returns:
         Whether the provided path is an executable path to python.
     """
     return path_is_known_executable(path) and looks_like_python(path.name)
 
 
-def filter_pythons(path: Union[str, Path]) -> Iterator[Path]:
+def filter_pythons(path: str | Path) -> Iterator[Path]:
     """
     Return all valid pythons in a given path.
-    
+
     Args:
         path: The path to search for Python executables.
-        
+
     Returns:
         An iterator of Path objects that are Python executables.
     """
     if not isinstance(path, Path):
         path = Path(str(path))
-    
+
     if not path.is_dir():
         return iter([path] if path_is_python(path) else [])
-    
+
     try:
         return filter(path_is_python, path.iterdir())
     except (PermissionError, OSError):
@@ -217,10 +216,10 @@ def filter_pythons(path: Union[str, Path]) -> Iterator[Path]:
 def exists_and_is_accessible(path: Path) -> bool:
     """
     Check if a path exists and is accessible.
-    
+
     Args:
         path: The path to check.
-        
+
     Returns:
         Whether the path exists and is accessible.
     """
@@ -233,14 +232,14 @@ def exists_and_is_accessible(path: Path) -> bool:
             raise
 
 
-def is_in_path(path: Union[str, Path], parent_path: Union[str, Path]) -> bool:
+def is_in_path(path: str | Path, parent_path: str | Path) -> bool:
     """
     Check if a path is inside another path.
-    
+
     Args:
         path: The path to check.
         parent_path: The potential parent path.
-        
+
     Returns:
         Whether the path is inside the parent path.
     """
@@ -248,28 +247,28 @@ def is_in_path(path: Union[str, Path], parent_path: Union[str, Path]) -> bool:
         path = Path(str(path))
     if not isinstance(parent_path, Path):
         parent_path = Path(str(parent_path))
-    
+
     # Resolve both paths to absolute paths
     path = path.absolute()
     parent_path = parent_path.absolute()
-    
+
     # Check if path is a subpath of parent_path
     try:
         # In Python 3.9+, we could use is_relative_to
         # return path.is_relative_to(parent_path)
-        
+
         # For compatibility with Python 3.8 and earlier
         path_str = str(path)
         parent_path_str = str(parent_path)
-        
+
         # Check if paths are the same
         if path_str == parent_path_str:
             return True
-            
+
         # Ensure parent_path ends with a separator to avoid partial matches
         if not parent_path_str.endswith(os.sep):
             parent_path_str += os.sep
-            
+
         return path_str.startswith(parent_path_str)
     except (ValueError, OSError):
         return False

@@ -4,10 +4,12 @@ import os
 import re
 import subprocess
 from builtins import TimeoutError
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, Any
 
-from packaging.version import InvalidVersion, Version
+from packaging.version import InvalidVersion
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 from ..exceptions import InvalidPythonVersion
 
@@ -20,7 +22,7 @@ version_re_str = (
 version_re = re.compile(version_re_str)
 
 
-def get_python_version(path: Union[str, Path]) -> str:
+def get_python_version(path: str | Path) -> str:
     """
     Get python version string using subprocess from a given path.
 
@@ -63,7 +65,7 @@ def get_python_version(path: Union[str, Path]) -> str:
     return out.strip()
 
 
-def parse_python_version(version_str: str) -> Dict[str, Any]:
+def parse_python_version(version_str: str) -> dict[str, Any]:
     """
     Parse a Python version string into a dictionary of version components.
 
@@ -95,20 +97,24 @@ def parse_python_version(version_str: str) -> Dict[str, Any]:
     is_prerelease = False
     is_devrelease = False
     is_postrelease = False
-    
+
     try:
         version = parse_version(version_str)
         # Use packaging.version's properties to determine release type
         is_devrelease = version.is_devrelease
-        
+
         # Check if this is a prerelease
         # A version is a prerelease if:
         # 1. It has a prerelease component (a, b, c, rc) but is not ONLY a dev release
         # 2. For complex versions with both prerelease and dev components, we consider them prereleases
-        has_prerelease_component = hasattr(version, 'pre') and version.pre is not None
-        is_prerelease = has_prerelease_component or (version.is_prerelease and not is_devrelease)
+        has_prerelease_component = hasattr(version, "pre") and version.pre is not None
+        is_prerelease = has_prerelease_component or (
+            version.is_prerelease and not is_devrelease
+        )
         # Check for post-release by examining the version string and the version object
-        is_postrelease = (hasattr(version, "post") and version.post is not None) or (version_dict.get("post") is not None)
+        is_postrelease = (hasattr(version, "post") and version.post is not None) or (
+            version_dict.get("post") is not None
+        )
     except (TypeError, InvalidVersion):
         # If packaging.version can't parse it, try to construct a version string
         # that it can parse
@@ -125,15 +131,19 @@ def parse_python_version(version_str: str) -> Dict[str, Any]:
             version = parse_version(version_str)
             # Update release type flags based on the parsed version
             is_devrelease = version.is_devrelease
-            
+
             # Check if this is a prerelease
             # A version is a prerelease if:
             # 1. It has a prerelease component (a, b, c, rc) but is not ONLY a dev release
             # 2. For complex versions with both prerelease and dev components, we consider them prereleases
-            has_prerelease_component = hasattr(version, 'pre') and version.pre is not None
-            is_prerelease = has_prerelease_component or (version.is_prerelease and not is_devrelease)
+            has_prerelease_component = hasattr(version, "pre") and version.pre is not None
+            is_prerelease = has_prerelease_component or (
+                version.is_prerelease and not is_devrelease
+            )
             # Check for post-release by examining the version string and the version object
-            is_postrelease = (hasattr(version, "post") and version.post is not None) or (version_dict.get("post") is not None)
+            is_postrelease = (hasattr(version, "post") and version.post is not None) or (
+                version_dict.get("post") is not None
+            )
         except (TypeError, InvalidVersion):
             version = None
 
@@ -149,7 +159,7 @@ def parse_python_version(version_str: str) -> Dict[str, Any]:
     }
 
 
-def guess_company(path: str) -> Optional[str]:
+def guess_company(path: str) -> str | None:
     """
     Given a path to python, guess the company who created it.
 
@@ -167,7 +177,7 @@ def guess_company(path: str) -> Optional[str]:
     )
 
 
-def parse_pyenv_version_order(filename: str = "version") -> List[str]:
+def parse_pyenv_version_order(filename: str = "version") -> list[str]:
     """
     Parse the pyenv version order from the specified file.
 
@@ -193,7 +203,7 @@ def parse_pyenv_version_order(filename: str = "version") -> List[str]:
     return []
 
 
-def parse_asdf_version_order(filename: str = ".tool-versions") -> List[str]:
+def parse_asdf_version_order(filename: str = ".tool-versions") -> list[str]:
     """
     Parse the asdf version order from the specified file.
 

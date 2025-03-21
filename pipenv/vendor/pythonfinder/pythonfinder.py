@@ -1,18 +1,19 @@
 from __future__ import annotations
 
 import os
-import sys
-from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import TYPE_CHECKING
 
-from .exceptions import PythonNotFound
 from .finders import (
     AsdfFinder,
     BaseFinder,
     PyenvFinder,
     SystemFinder,
 )
-from .models.python_info import PythonInfo
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from .models.python_info import PythonInfo
 
 # Import Windows registry finder if on Windows
 if os.name == "nt":
@@ -23,10 +24,10 @@ class Finder:
     """
     Main finder class that orchestrates all the finders.
     """
-    
+
     def __init__(
         self,
-        path: Optional[str] = None,
+        path: str | None = None,
         system: bool = False,
         global_search: bool = True,
         ignore_unsupported: bool = True,
@@ -34,7 +35,7 @@ class Finder:
     ):
         """
         Initialize a new Finder.
-        
+
         Args:
             path: Path to prepend to the search path.
             system: Whether to include the system Python.
@@ -46,7 +47,7 @@ class Finder:
         self.global_search = global_search
         self.ignore_unsupported = ignore_unsupported
         self.sort_by_path = sort_by_path
-        
+
         # Initialize finders
         self.system_finder = SystemFinder(
             paths=[path] if path else None,
@@ -54,39 +55,39 @@ class Finder:
             system=system,
             ignore_unsupported=ignore_unsupported,
         )
-        
+
         self.pyenv_finder = PyenvFinder(
             ignore_unsupported=ignore_unsupported,
         )
-        
+
         self.asdf_finder = AsdfFinder(
             ignore_unsupported=ignore_unsupported,
         )
-        
+
         # Initialize Windows registry finder if on Windows
         self.windows_finder = None
         if os.name == "nt":
             self.windows_finder = WindowsRegistryFinder(
                 ignore_unsupported=ignore_unsupported,
             )
-        
+
         # List of all finders
-        self.finders: List[BaseFinder] = [
+        self.finders: list[BaseFinder] = [
             self.system_finder,
             self.pyenv_finder,
             self.asdf_finder,
         ]
-        
+
         if self.windows_finder:
             self.finders.append(self.windows_finder)
-    
-    def which(self, executable: str) -> Optional[Path]:
+
+    def which(self, executable: str) -> Path | None:
         """
         Find an executable in the paths searched by this finder.
-        
+
         Args:
             executable: The name of the executable to find.
-            
+
         Returns:
             The path to the executable, or None if not found.
         """
@@ -94,22 +95,22 @@ class Finder:
             path = finder.which(executable)
             if path:
                 return path
-        
+
         return None
-    
+
     def find_python_version(
         self,
-        major: Optional[Union[str, int]] = None,
-        minor: Optional[int] = None,
-        patch: Optional[int] = None,
-        pre: Optional[bool] = None,
-        dev: Optional[bool] = None,
-        arch: Optional[str] = None,
-        name: Optional[str] = None,
-    ) -> Optional[PythonInfo]:
+        major: str | int | None = None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool | None = None,
+        dev: bool | None = None,
+        arch: str | None = None,
+        name: str | None = None,
+    ) -> PythonInfo | None:
         """
         Find a Python version matching the specified criteria.
-        
+
         Args:
             major: Major version number or full version string.
             minor: Minor version number.
@@ -118,7 +119,7 @@ class Finder:
             dev: Whether to include dev-releases.
             arch: Architecture to include, e.g. '64bit'.
             name: The name of a python version, e.g. ``anaconda3-5.3.0``.
-            
+
         Returns:
             A PythonInfo object matching the criteria, or None if not found.
         """
@@ -135,7 +136,7 @@ class Finder:
                     dev = version_dict.get("is_devrelease")
                     arch = version_dict.get("arch")
                     break
-        
+
         # Try to find the Python version in each finder
         for finder in self.finders:
             python_version = finder.find_python_version(
@@ -143,22 +144,22 @@ class Finder:
             )
             if python_version:
                 return python_version
-        
+
         return None
-    
+
     def find_all_python_versions(
         self,
-        major: Optional[Union[str, int]] = None,
-        minor: Optional[int] = None,
-        patch: Optional[int] = None,
-        pre: Optional[bool] = None,
-        dev: Optional[bool] = None,
-        arch: Optional[str] = None,
-        name: Optional[str] = None,
-    ) -> List[PythonInfo]:
+        major: str | int | None = None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool | None = None,
+        dev: bool | None = None,
+        arch: str | None = None,
+        name: str | None = None,
+    ) -> list[PythonInfo]:
         """
         Find all Python versions matching the specified criteria.
-        
+
         Args:
             major: Major version number or full version string.
             minor: Minor version number.
@@ -167,7 +168,7 @@ class Finder:
             dev: Whether to include dev-releases.
             arch: Architecture to include, e.g. '64bit'.
             name: The name of a python version, e.g. ``anaconda3-5.3.0``.
-            
+
         Returns:
             A list of PythonInfo objects matching the criteria.
         """
@@ -184,31 +185,34 @@ class Finder:
                     dev = version_dict.get("is_devrelease")
                     arch = version_dict.get("arch")
                     break
-        
+
         # Find all Python versions in each finder
         python_versions = []
         for finder in self.finders:
             python_versions.extend(
-                finder.find_all_python_versions(
-                    major, minor, patch, pre, dev, arch, name
-                )
+                finder.find_all_python_versions(major, minor, patch, pre, dev, arch, name)
             )
-        
+
         # Sort by version and remove duplicates
         seen_paths = set()
         unique_versions = []
-        
+
         # Choose the sort key based on sort_by_path
         if self.sort_by_path:
-            sort_key = lambda x: (x.path, x.version_sort)
+
+            def sort_key(x):
+                return x.path, x.version_sort
+
         else:
-            sort_key = lambda x: x.version_sort
-            
+
+            def sort_key(x):
+                return x.version_sort
+
         for version in sorted(
             python_versions, key=sort_key, reverse=not self.sort_by_path
         ):
             if version.path not in seen_paths:
                 seen_paths.add(version.path)
                 unique_versions.append(version)
-        
+
         return unique_versions

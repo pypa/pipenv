@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 import dataclasses
-import os
 import platform
 import sys
-from dataclasses import field
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any
 
-from packaging.version import Version
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from packaging.version import Version
 
 
 @dataclasses.dataclass
@@ -17,30 +17,31 @@ class PythonInfo:
     A simple dataclass to store Python version information.
     This replaces the complex PythonVersion class from the original implementation.
     """
+
     path: Path
     version_str: str
     major: int
-    minor: Optional[int] = None
-    patch: Optional[int] = None
+    minor: int | None = None
+    patch: int | None = None
     is_prerelease: bool = False
     is_postrelease: bool = False
     is_devrelease: bool = False
     is_debug: bool = False
-    version: Optional[Version] = None
-    architecture: Optional[str] = None
-    company: Optional[str] = None
-    name: Optional[str] = None
-    executable: Optional[Union[str, Path]] = None
-    
+    version: Version | None = None
+    architecture: str | None = None
+    company: str | None = None
+    name: str | None = None
+    executable: str | Path | None = None
+
     @property
     def is_python(self) -> bool:
         """
         Check if this is a valid Python executable.
         """
         return True  # Since this object is only created for valid Python executables
-        
+
     @property
-    def as_python(self) -> 'PythonInfo':
+    def as_python(self) -> PythonInfo:
         """
         Return self as a PythonInfo object.
         This is for compatibility with the test suite.
@@ -48,7 +49,7 @@ class PythonInfo:
         return self
 
     @property
-    def version_tuple(self) -> Tuple[int, Optional[int], Optional[int], bool, bool, bool]:
+    def version_tuple(self) -> tuple[int, int | None, int | None, bool, bool, bool]:
         """
         Provides a version tuple for using as a dictionary key.
         """
@@ -62,7 +63,7 @@ class PythonInfo:
         )
 
     @property
-    def version_sort(self) -> Tuple[int, int, int, int, int]:
+    def version_sort(self) -> tuple[int, int, int, int, int]:
         """
         A tuple for sorting against other instances of the same class.
         """
@@ -86,14 +87,14 @@ class PythonInfo:
 
     def matches(
         self,
-        major: Optional[int] = None,
-        minor: Optional[int] = None,
-        patch: Optional[int] = None,
-        pre: Optional[bool] = None,
-        dev: Optional[bool] = None,
-        arch: Optional[str] = None,
-        debug: Optional[bool] = None,
-        python_name: Optional[str] = None,
+        major: int | None = None,
+        minor: int | None = None,
+        patch: int | None = None,
+        pre: bool | None = None,
+        dev: bool | None = None,
+        arch: str | None = None,
+        debug: bool | None = None,
+        python_name: str | None = None,
     ) -> bool:
         """
         Check if this Python version matches the specified criteria.
@@ -137,7 +138,7 @@ class PythonInfo:
         self.architecture = arch
         return arch
 
-    def as_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> dict[str, Any]:
         """
         Convert this PythonInfo to a dictionary.
         """
@@ -152,21 +153,21 @@ class PythonInfo:
             "version": self.version,
             "company": self.company,
         }
-    
+
     def __eq__(self, other: object) -> bool:
         """
         Check if this PythonInfo is equal to another PythonInfo.
-        
+
         Two PythonInfo objects are considered equal if they have the same path.
         """
         if not isinstance(other, PythonInfo):
             return NotImplemented
         return self.path == other.path
-    
+
     def __lt__(self, other: object) -> bool:
         """
         Check if this PythonInfo is less than another PythonInfo.
-        
+
         This is used for sorting PythonInfo objects by version.
         """
         if not isinstance(other, PythonInfo):
