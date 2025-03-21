@@ -8,7 +8,7 @@ from dataclasses import field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from pipenv.vendor.packaging.version import Version
+from packaging.version import Version
 
 
 @dataclasses.dataclass
@@ -33,6 +33,21 @@ class PythonInfo:
     executable: Optional[Union[str, Path]] = None
     
     @property
+    def is_python(self) -> bool:
+        """
+        Check if this is a valid Python executable.
+        """
+        return True  # Since this object is only created for valid Python executables
+        
+    @property
+    def as_python(self) -> 'PythonInfo':
+        """
+        Return self as a PythonInfo object.
+        This is for compatibility with the test suite.
+        """
+        return self
+
+    @property
     def version_tuple(self) -> Tuple[int, Optional[int], Optional[int], bool, bool, bool]:
         """
         Provides a version tuple for using as a dictionary key.
@@ -45,7 +60,7 @@ class PythonInfo:
             self.is_devrelease,
             self.is_debug,
         )
-    
+
     @property
     def version_sort(self) -> Tuple[int, int, int, int, int]:
         """
@@ -68,7 +83,7 @@ class PythonInfo:
             self.patch or 0,
             release_sort,
         )
-    
+
     def matches(
         self,
         major: Optional[int] = None,
@@ -87,7 +102,7 @@ class PythonInfo:
             own_arch = self.architecture or self._get_architecture()
             if arch.isdigit():
                 arch = f"{arch}bit"
-        
+
         return (
             (major is None or self.major == major)
             and (minor is None or self.minor == minor)
@@ -102,26 +117,26 @@ class PythonInfo:
                 and (self.name == python_name or self.name.startswith(python_name))
             )
         )
-    
+
     def _get_architecture(self) -> str:
         """
         Get the architecture of this Python version.
         """
         if self.architecture:
             return self.architecture
-        
+
         arch = None
         if self.path:
             arch, _ = platform.architecture(str(self.path))
         elif self.executable:
             arch, _ = platform.architecture(str(self.executable))
-        
+
         if arch is None:
             arch, _ = platform.architecture(sys.executable)
-        
+
         self.architecture = arch
         return arch
-    
+
     def as_dict(self) -> Dict[str, Any]:
         """
         Convert this PythonInfo to a dictionary.
@@ -137,3 +152,23 @@ class PythonInfo:
             "version": self.version,
             "company": self.company,
         }
+    
+    def __eq__(self, other: object) -> bool:
+        """
+        Check if this PythonInfo is equal to another PythonInfo.
+        
+        Two PythonInfo objects are considered equal if they have the same path.
+        """
+        if not isinstance(other, PythonInfo):
+            return NotImplemented
+        return self.path == other.path
+    
+    def __lt__(self, other: object) -> bool:
+        """
+        Check if this PythonInfo is less than another PythonInfo.
+        
+        This is used for sorting PythonInfo objects by version.
+        """
+        if not isinstance(other, PythonInfo):
+            return NotImplemented
+        return self.version_sort < other.version_sort

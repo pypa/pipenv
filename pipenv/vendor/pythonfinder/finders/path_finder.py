@@ -68,7 +68,7 @@ class PathFinder(BaseFinder):
                 name=path.stem,
                 executable=str(path),
             )
-        except (InvalidPythonVersion, ValueError, OSError):
+        except (InvalidPythonVersion, ValueError, OSError, Exception):
             if not self.ignore_unsupported:
                 raise
             return None

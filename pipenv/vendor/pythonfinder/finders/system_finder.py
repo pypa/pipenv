@@ -32,7 +32,7 @@ class SystemFinder(PathFinder):
             only_python: Whether to only find Python executables.
             ignore_unsupported: Whether to ignore unsupported Python versions.
         """
-        paths = paths or []
+        paths = list(paths) if paths else []
         
         # Add paths from PATH environment variable
         if global_search and "PATH" in os.environ:

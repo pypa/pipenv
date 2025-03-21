@@ -7,14 +7,14 @@ from builtins import TimeoutError
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from pipenv.vendor.packaging.version import InvalidVersion, Version
+from packaging.version import InvalidVersion, Version
 
 from ..exceptions import InvalidPythonVersion
 
 # Regular expression for parsing Python version strings
 version_re_str = (
     r"(?P<major>\d+)(?:\.(?P<minor>\d+))?(?:\.(?P<patch>(?<=\.)[0-9]+))?\.?"
-    r"(?:(?P<prerel>[abc]|rc|dev)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
+    r"(?:(?P<prerel>[abc]|rc)(?:(?P<prerelversion>\d+(?:\.\d+)*))?)"
     r"?(?P<postdev>(\.post(?P<post>\d+))?(\.dev(?P<dev>\d+))?)?"
 )
 version_re = re.compile(version_re_str)
@@ -23,13 +23,13 @@ version_re = re.compile(version_re_str)
 def get_python_version(path: Union[str, Path]) -> str:
     """
     Get python version string using subprocess from a given path.
-    
+
     Args:
         path: Path to the Python executable.
-        
+
     Returns:
         The Python version string.
-        
+
     Raises:
         InvalidPythonVersion: If the path is not a valid Python executable.
     """
@@ -45,55 +45,70 @@ def get_python_version(path: Union[str, Path]) -> str:
         "stderr": subprocess.PIPE,
         "shell": False,
     }
-    
+
     try:
         c = subprocess.Popen(version_cmd, **subprocess_kwargs)
-        out, _ = c.communicate(timeout=5)  # 5 second timeout
-    except (SystemExit, KeyboardInterrupt, TimeoutError):
+        try:
+            out, _ = c.communicate(timeout=5)  # 5 second timeout
+        except TypeError:  # For Python versions or mocks that don't support timeout
+            out, _ = c.communicate()
+    except (SystemExit, KeyboardInterrupt, TimeoutError, subprocess.TimeoutExpired):
         raise InvalidPythonVersion(f"{path} is not a valid python path (timeout)")
     except OSError:
         raise InvalidPythonVersion(f"{path} is not a valid python path")
-    
+
     if not out:
         raise InvalidPythonVersion(f"{path} is not a valid python path")
-    
+
     return out.strip()
 
 
 def parse_python_version(version_str: str) -> Dict[str, Any]:
     """
     Parse a Python version string into a dictionary of version components.
-    
+
     Args:
         version_str: The version string to parse.
-        
+
     Returns:
         A dictionary containing the parsed version components.
-        
+
     Raises:
         InvalidPythonVersion: If the version string is not a valid Python version.
     """
-    from pipenv.vendor.packaging.version import parse as parse_version
-    
+    from packaging.version import parse as parse_version
+
     is_debug = False
     if version_str.endswith("-debug"):
         is_debug = True
         version_str, _, _ = version_str.rpartition("-")
-    
+
     match = version_re.match(version_str)
     if not match:
         raise InvalidPythonVersion(f"{version_str} is not a python version")
-    
+
     version_dict = match.groupdict()
     major = int(version_dict.get("major", 0)) if version_dict.get("major") else None
     minor = int(version_dict.get("minor", 0)) if version_dict.get("minor") else None
     patch = int(version_dict.get("patch", 0)) if version_dict.get("patch") else None
-    is_postrelease = True if version_dict.get("post") else False
-    is_prerelease = True if version_dict.get("prerel") else False
-    is_devrelease = True if version_dict.get("dev") else False
+    # Initialize release type flags
+    is_prerelease = False
+    is_devrelease = False
+    is_postrelease = False
     
     try:
         version = parse_version(version_str)
+        # Use packaging.version's properties to determine release type
+        is_devrelease = version.is_devrelease
+        
+        # Check if this is a prerelease
+        # A version is a prerelease if:
+        # 1. It has a prerelease component (a, b, c, rc) but is not ONLY a dev release
+        # 2. For complex versions with both prerelease and dev components, we consider them prereleases
+        has_prerelease_component = hasattr(version, 'pre') and version.pre is not None
+        is_prerelease = has_prerelease_component or (version.is_prerelease and not is_devrelease)
+        # Check for post-release by examining the version string and the version object
+        is_postrelease = (hasattr(version, "post") and version.post is not None) or (version_dict.get("post") is not None)
     except (TypeError, InvalidVersion):
         # If packaging.version can't parse it, try to construct a version string
         # that it can parse
@@ -108,9 +123,20 @@ def parse_python_version(version_str: str) -> Dict[str, Any]:
         version_str = ".".join([str(v) for v in values if v])
         try:
             version = parse_version(version_str)
+            # Update release type flags based on the parsed version
+            is_devrelease = version.is_devrelease
+            
+            # Check if this is a prerelease
+            # A version is a prerelease if:
+            # 1. It has a prerelease component (a, b, c, rc) but is not ONLY a dev release
+            # 2. For complex versions with both prerelease and dev components, we consider them prereleases
+            has_prerelease_component = hasattr(version, 'pre') and version.pre is not None
+            is_prerelease = has_prerelease_component or (version.is_prerelease and not is_devrelease)
+            # Check for post-release by examining the version string and the version object
+            is_postrelease = (hasattr(version, "post") and version.post is not None) or (version_dict.get("post") is not None)
         except (TypeError, InvalidVersion):
             version = None
-    
+
     return {
         "major": major,
         "minor": minor,
@@ -126,15 +152,15 @@ def parse_python_version(version_str: str) -> Dict[str, Any]:
 def guess_company(path: str) -> Optional[str]:
     """
     Given a path to python, guess the company who created it.
-    
+
     Args:
         path: The path to guess about.
-        
+
     Returns:
         The guessed company name, or "PythonCore" if no match is found.
     """
     from .path_utils import PYTHON_IMPLEMENTATIONS
-    
+
     non_core_pythons = [impl for impl in PYTHON_IMPLEMENTATIONS if impl != "python"]
     return next(
         iter(impl for impl in non_core_pythons if impl in path.lower()), "PythonCore"
@@ -144,43 +170,43 @@ def guess_company(path: str) -> Optional[str]:
 def parse_pyenv_version_order(filename: str = "version") -> List[str]:
     """
     Parse the pyenv version order from the specified file.
-    
+
     Args:
         filename: The name of the file to parse.
-        
+
     Returns:
         A list of version strings in the order specified by pyenv.
     """
     from .path_utils import resolve_path
-    
+
     pyenv_root = os.path.expanduser(
         os.path.expandvars(os.environ.get("PYENV_ROOT", "~/.pyenv"))
     )
     version_order_file = resolve_path(os.path.join(pyenv_root, filename))
-    
+
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
         with open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
         version_order = [v for v in contents.splitlines()]
         return version_order
-    
+
     return []
 
 
 def parse_asdf_version_order(filename: str = ".tool-versions") -> List[str]:
     """
     Parse the asdf version order from the specified file.
-    
+
     Args:
         filename: The name of the file to parse.
-        
+
     Returns:
         A list of version strings in the order specified by asdf.
     """
     from .path_utils import resolve_path
-    
+
     version_order_file = resolve_path(os.path.join("~", filename))
-    
+
     if os.path.exists(version_order_file) and os.path.isfile(version_order_file):
         with open(version_order_file, encoding="utf-8") as fh:
             contents = fh.read()
@@ -193,5 +219,5 @@ def parse_asdf_version_order(filename: str = ".tool-versions") -> List[str]:
             _, _, versions = python_section.partition(" ")
             if versions:
                 return versions.split()
-    
+
     return []

@@ -30,6 +30,7 @@ class Finder:
         system: bool = False,
         global_search: bool = True,
         ignore_unsupported: bool = True,
+        sort_by_path: bool = False,
     ):
         """
         Initialize a new Finder.
@@ -44,6 +45,7 @@ class Finder:
         self.system = system
         self.global_search = global_search
         self.ignore_unsupported = ignore_unsupported
+        self.sort_by_path = sort_by_path
         
         # Initialize finders
         self.system_finder = SystemFinder(
@@ -195,8 +197,15 @@ class Finder:
         # Sort by version and remove duplicates
         seen_paths = set()
         unique_versions = []
+        
+        # Choose the sort key based on sort_by_path
+        if self.sort_by_path:
+            sort_key = lambda x: (x.path, x.version_sort)
+        else:
+            sort_key = lambda x: x.version_sort
+            
         for version in sorted(
-            python_versions, key=lambda x: x.version_sort, reverse=True
+            python_versions, key=sort_key, reverse=not self.sort_by_path
         ):
             if version.path not in seen_paths:
                 seen_paths.add(version.path)
