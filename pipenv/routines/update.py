@@ -286,6 +286,12 @@ def upgrade(
 
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
 
+    # Track which packages were explicitly requested for which categories
+    explicitly_requested = {}
+    for package in packages or []:
+        package_name = package.split("==")[0] if "==" in package else package
+        explicitly_requested[package_name] = categories[:]  # Copy the original categories
+
     # Check if we need to update packages in all categories
     # This is needed when a package is specified in one category but also used in others
     if packages:
@@ -295,6 +301,7 @@ def upgrade(
         ]
 
         # Check if any of the packages to upgrade are also in other categories
+        additional_categories = []
         for category in all_lockfile_categories:
             if category in categories:
                 continue  # Skip categories already in the list
@@ -304,11 +311,14 @@ def upgrade(
                 package_name = package.split("==")[0] if "==" in package else package
                 if package_name in category_section:
                     # If the package is also in this category, add it to categories
-                    categories.append(category)
+                    additional_categories.append(category)
                     err.print(
                         f"[bold][green]Package {package_name} found in {category} section, will update there too.[/bold][/green]"
                     )
                     break
+
+        # Add all additional categories at once to avoid duplicates
+        categories.extend(additional_categories)
 
     # Early conflict detection
     conflicts_found = False
@@ -355,8 +365,12 @@ def upgrade(
                 install_req, package, category=pipfile_category, index_name=index_name
             )
 
-            # Only add to Pipfile if explicitly requested
-            if has_package_args:
+            # Only add to Pipfile if this category was explicitly requested for this package
+            # This prevents adding packages to categories where they're only implicit dependencies
+            if has_package_args and (
+                normalized_name not in explicitly_requested
+                or category in explicitly_requested.get(normalized_name, [])
+            ):
                 project.add_pipfile_entry_to_pipfile(
                     name, normalized_name, pipfile_entry, category=pipfile_category
                 )
