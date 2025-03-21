@@ -309,7 +309,7 @@ class Factory:
                 specifier=specifier,
                 hashes=hashes,
             )
-            icans = list(result.iter_applicable())
+            icans = result.applicable_candidates
 
             # PEP 592: Yanked releases are ignored unless the specifier
             # explicitly pins a version (via '==' or '===') that can be

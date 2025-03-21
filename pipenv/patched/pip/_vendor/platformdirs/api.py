@@ -91,6 +91,12 @@ class PlatformDirsABC(ABC):  # noqa: PLR0904
         if self.ensure_exists:
             Path(path).mkdir(parents=True, exist_ok=True)
 
+    def _first_item_as_path_if_multipath(self, directory: str) -> Path:
+        if self.multipath:
+            # If multipath is True, the first path is returned.
+            directory = directory.split(os.pathsep)[0]
+        return Path(directory)
+
     @property
     @abstractmethod
     def user_data_dir(self) -> str:

@@ -234,7 +234,7 @@ class Specifier(BaseSpecifier):
         """
         match = self._regex.search(spec)
         if not match:
-            raise InvalidSpecifier(f"Invalid specifier: '{spec}'")
+            raise InvalidSpecifier(f"Invalid specifier: {spec!r}")
 
         self._spec: tuple[str, str] = (
             match.group("operator").strip(),
@@ -256,7 +256,7 @@ class Specifier(BaseSpecifier):
         # operators, and if they are if they are including an explicit
         # prerelease.
         operator, version = self._spec
-        if operator in ["==", ">=", "<=", "~=", "==="]:
+        if operator in ["==", ">=", "<=", "~=", "===", ">", "<"]:
             # The == specifier can include a trailing .*, if it does we
             # want to remove before parsing.
             if operator == "==" and version.endswith(".*"):
@@ -694,12 +694,18 @@ class SpecifierSet(BaseSpecifier):
     specifiers (``>=3.0,!=3.1``), or no specifier at all.
     """
 
-    def __init__(self, specifiers: str = "", prereleases: bool | None = None) -> None:
+    def __init__(
+        self,
+        specifiers: str | Iterable[Specifier] = "",
+        prereleases: bool | None = None,
+    ) -> None:
         """Initialize a SpecifierSet instance.
 
         :param specifiers:
             The string representation of a specifier or a comma-separated list of
             specifiers which will be parsed and normalized before use.
+            May also be an iterable of ``Specifier`` instances, which will be used
+            as is.
         :param prereleases:
             This tells the SpecifierSet if it should accept prerelease versions if
             applicable or not. The default of ``None`` will autodetect it from the
@@ -710,12 +716,17 @@ class SpecifierSet(BaseSpecifier):
             raised.
         """
 
-        # Split on `,` to break each individual specifier into it's own item, and
-        # strip each item to remove leading/trailing whitespace.
-        split_specifiers = [s.strip() for s in specifiers.split(",") if s.strip()]
+        if isinstance(specifiers, str):
+            # Split on `,` to break each individual specifier into its own item, and
+            # strip each item to remove leading/trailing whitespace.
+            split_specifiers = [s.strip() for s in specifiers.split(",") if s.strip()]
 
-        # Make each individual specifier a Specifier and save in a frozen set for later.
-        self._specs = frozenset(map(Specifier, split_specifiers))
+            # Make each individual specifier a Specifier and save in a frozen set
+            # for later.
+            self._specs = frozenset(map(Specifier, split_specifiers))
+        else:
+            # Save the supplied specifiers in a frozen set.
+            self._specs = frozenset(specifiers)
 
         # Store our prereleases value so we can use it later to determine if
         # we accept prereleases or not.

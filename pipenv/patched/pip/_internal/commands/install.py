@@ -10,6 +10,13 @@ from typing import List, Optional
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.rich import print_json
 
+# Eagerly import self_outdated_check to avoid crashes. Otherwise,
+# this module would be imported *after* pip was replaced, resulting
+# in crashes if the new self_outdated_check module was incompatible
+# with the rest of pip that's already imported, or allowing a
+# wheel to execute arbitrary code on install by replacing
+# self_outdated_check.
+import pipenv.patched.pip._internal.self_outdated_check  # noqa: F401
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
@@ -408,12 +415,6 @@ class InstallCommand(RequirementCommand):
                 # If we're not replacing an already installed pip,
                 # we're not modifying it.
                 modifying_pip = pip_req.satisfied_by is None
-                if modifying_pip:
-                    # Eagerly import this module to avoid crashes. Otherwise, this
-                    # module would be imported *after* pip was replaced, resulting in
-                    # crashes if the new self_outdated_check module was incompatible
-                    # with the rest of pip that's already imported.
-                    import pipenv.patched.pip._internal.self_outdated_check  # noqa: F401
             protect_pip_from_modification_on_windows(modifying_pip=modifying_pip)
 
             reqs_to_build = [
@@ -432,7 +433,7 @@ class InstallCommand(RequirementCommand):
 
             if build_failures:
                 raise InstallationError(
-                    "ERROR: Failed to build installable wheels for some "
+                    "Failed to build installable wheels for some "
                     "pyproject.toml based projects ({})".format(
                         ", ".join(r.name for r in build_failures)  # type: ignore
                     )
