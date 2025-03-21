@@ -425,15 +425,15 @@ def is_using_venv() -> bool:
     return result
 
 
-def is_in_virtualenv():
+def is_in_virtualenv() -> bool:
     """
     Check virtualenv membership dynamically
 
-    :return: True or false depending on whether we are in a regular virtualenv or not
+    :return: True or False depending on whether we are in a regular virtualenv or not
     :rtype: bool
     """
 
-    pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
+    pipenv_active = os.environ.get("PIPENV_ACTIVE")
     virtual_env = bool(os.environ.get("VIRTUAL_ENV"))
     ignore_virtualenvs = bool(get_from_env("IGNORE_VIRTUALENVS"))
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
