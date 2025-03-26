@@ -193,11 +193,65 @@ def test_pipenv_check(pipenv_instance_private_pypi):
 @pytest.mark.parametrize("category", ["CVE", "packages"])
 def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
     with pipenv_instance_pypi() as p:
+        # Install wheel with a known vulnerability
         c = p.pipenv(f"install wheel==0.37.1 --categories={category}")
         assert c.returncode == 0
-        c = p.pipenv(f"check --categories={category}")
-        assert c.returncode != 0
-        assert "wheel" in c.stdout
+
+        # Run the check command with a pipe to provide the "Y" input
+        import subprocess
+        import os
+
+        # Use the environment and path of the pipenv instance
+        env = os.environ.copy()
+        env["PIPENV_SAFETY_AUTO_INSTALL"] = "1"
+
+        # Create the command with echo to pipe "Y" as input
+        cmd = f"echo Y | pipenv check --categories={category}"
+
+        # Run the command in the pipenv directory
+        result = subprocess.run(cmd, shell=True, cwd=p.path,
+                                capture_output=True, text=True, env=env)
+
+        assert result.returncode != 0
+        assert "wheel" in result.stdout
+
+
+ # Note: We don't test scan because no valid API key.
+@pytest.mark.cli
+@pytest.mark.needs_internet(reason="required by check/scan")
+@pytest.mark.parametrize("command", ["check"])
+def test_pipenv_auto_install_safety(pipenv_instance_pypi, command):
+    with pipenv_instance_pypi() as p:
+        # Install wheel with a known vulnerability
+        c = p.pipenv("install wheel==0.37.1")
+        assert c.returncode == 0
+
+        # First, make sure safety is not installed
+        import subprocess
+        import os
+
+        # Use the environment and path of the pipenv instance
+        env = os.environ.copy()
+
+        # Uninstall safety if it exists
+        uninstall_cmd = f"pipenv run pip uninstall -y safety"
+        subprocess.run(uninstall_cmd, shell=True, cwd=p.path,
+                      capture_output=True, text=True, env=env)
+
+        # Run the command with auto-install flag
+        cmd = f"pipenv {command} --auto-install"
+
+        # Run the command in the pipenv directory
+        result = subprocess.run(cmd, shell=True, cwd=p.path,
+                               capture_output=True, text=True, env=env)
+
+        # Check that safety was installed and used
+        assert "Installing safety" in result.stdout
+        assert "Safety installed successfully" in result.stdout
+
+        # The command should find the vulnerability in wheel
+        assert result.returncode != 0
+        assert "wheel" in result.stdout
 
 
 @pytest.mark.cli
