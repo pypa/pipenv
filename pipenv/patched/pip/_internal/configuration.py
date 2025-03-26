@@ -330,7 +330,7 @@ class Configuration:
         This should be treated like items of a dictionary. The order
         here doesn't affect what gets overridden. That is controlled
         by OVERRIDE_ORDER. However this does control the order they are
-        displayed to the user. It's probably most ergononmic to display
+        displayed to the user. It's probably most ergonomic to display
         things in the same order as OVERRIDE_ORDER
         """
         # SMELL: Move the conditions out of this function

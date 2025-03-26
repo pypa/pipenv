@@ -7,16 +7,18 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone, tzinfo
 from functools import lru_cache
 import re
-from typing import Any
+from typing import Any, Final
 
 from ._types import ParseFloat
 
 # E.g.
 # - 00:32:00.999999
 # - 00:32:00
-_TIME_RE_STR = r"([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(?:\.([0-9]{1,6})[0-9]*)?"
+_TIME_RE_STR: Final = (
+    r"([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9])(?:\.([0-9]{1,6})[0-9]*)?"
+)
 
-RE_NUMBER = re.compile(
+RE_NUMBER: Final = re.compile(
     r"""
 0
 (?:
@@ -35,8 +37,8 @@ RE_NUMBER = re.compile(
 """,
     flags=re.VERBOSE,
 )
-RE_LOCALTIME = re.compile(_TIME_RE_STR)
-RE_DATETIME = re.compile(
+RE_LOCALTIME: Final = re.compile(_TIME_RE_STR)
+RE_DATETIME: Final = re.compile(
     rf"""
 ([0-9]{{4}})-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])  # date, e.g. 1988-10-27
 (?:
@@ -84,6 +86,9 @@ def match_to_datetime(match: re.Match) -> datetime | date:
     return datetime(year, month, day, hour, minute, sec, micros, tzinfo=tz)
 
 
+# No need to limit cache size. This is only ever called on input
+# that matched RE_DATETIME, so there is an implicit bound of
+# 24 (hours) * 60 (minutes) * 2 (offset direction) = 2880.
 @lru_cache(maxsize=None)
 def cached_tz(hour_str: str, minute_str: str, sign_str: str) -> timezone:
     sign = 1 if sign_str == "+" else -1

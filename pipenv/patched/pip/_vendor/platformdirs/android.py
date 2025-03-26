@@ -117,7 +117,7 @@ class Android(PlatformDirsABC):
 
 
 @lru_cache(maxsize=1)
-def _android_folder() -> str | None:  # noqa: C901, PLR0912
+def _android_folder() -> str | None:  # noqa: C901
     """:return: base folder for the Android OS or None if it cannot be found"""
     result: str | None = None
     # type checker isn't happy with our "import android", just don't do this when type checking see
