@@ -12,10 +12,54 @@ from pathlib import Path
 
 
 from pipenv import pep508checker
-from pipenv.utils.processes import run_command
+from pipenv.utils import console, err
+from pipenv.utils.processes import run_command, subprocess_run
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import project_python
 from pipenv.vendor import click, plette
+
+
+def _get_safety(project, system=False, auto_install=True):
+    """Install safety and its dependencies."""
+    python = project_python(project, system=system)
+
+    cmd = [python, "-m", "safety"]
+    c = subprocess_run(cmd)
+    if c.returncode:
+        console.print(
+            "[yellow bold]Safety package is required for vulnerability scanning but not installed.[/yellow bold]"
+        )
+
+        install = auto_install
+        if not auto_install:
+            install = click.confirm(
+                "Would you like to install safety? This will not modify your Pipfile/lockfile.",
+                default=True,
+            )
+
+        if not install:
+            console.print(
+                "[yellow]Vulnerability scanning skipped. Install safety with 'pip install pipenv[safety]'[/yellow]"
+            )
+            return ""
+
+        console.print("[green]Installing safety...[/green]")
+
+        # Install safety directly rather than as an extra to ensure it works in development mode
+        cmd = [python, "-m", "pip", "install", "safety>=3.0.0", "typer>=0.9.0", "--quiet"]
+        c = run_command(cmd)
+
+        if c.returncode != 0:
+            err.print(
+                "[red]Failed to install safety. Please install it manually with 'pip install pipenv[safety]'[/red]"
+            )
+            return ""
+
+        console.print("[green]Safety installed successfully![/green]")
+    else:
+        console.print("[green]Safety found![/green]")
+
+    return os.path.join(os.path.dirname(python), "safety")
 
 
 def build_safety_options(
@@ -92,8 +136,6 @@ def parse_safety_output(output, quiet):
     except json.JSONDecodeError:
         click.echo("Failed to parse Safety output.")
 
-def _get_safety():
-    return shutil.which("safety")
 
 def has_safey_auth_token() -> bool:
     """"
@@ -151,10 +193,8 @@ def do_check(
             pypi_mirror=pypi_mirror,
         )
 
-    safety_path = _get_safety()
-    if not safety_path:
-        click.secho("Safety isn't installed. Please install safety on your system.", bold=True)
-        sys.exit(1)
+    if not shutil.which("safety"):
+        safety_path = _get_safety(project)
 
     if not has_safey_auth_token():
         click.secho("Could not find saftey token. Use `safety check` to manually login to your account", bold=True)
