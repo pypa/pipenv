@@ -98,45 +98,6 @@ def run_safety_check(cmd, verbose):
     return c.stdout, c.stderr, c.returncode
 
 
-def parse_safety_output(output, quiet):
-    try:
-        json_report = json.loads(output)
-        meta = json_report.get("report_meta", {})
-        vulnerabilities_found = meta.get("vulnerabilities_found", 0)
-        db_type = "commercial" if meta.get("api_key", False) else "free"
-
-        if quiet:
-            click.secho(
-                f"{vulnerabilities_found} vulnerabilities found.",
-                fg="red" if vulnerabilities_found else "green",
-            )
-        else:
-            fg = "red" if vulnerabilities_found else "green"
-            message = f"Scan complete using Safety's {db_type} vulnerability database."
-            click.echo()
-            click.secho(f"{vulnerabilities_found} vulnerabilities found.", fg=fg)
-            click.echo()
-
-            for vuln in json_report.get("vulnerabilities", []):
-                click.echo(
-                    "{}: {} {} open to vulnerability {} ({}). More info: {}".format(
-                        click.style(vuln["vulnerability_id"], bold=True, fg="red"),
-                        click.style(vuln["package_name"], fg="green"),
-                        click.style(vuln["analyzed_version"], fg="yellow", bold=True),
-                        click.style(vuln["vulnerability_id"], bold=True),
-                        click.style(vuln["vulnerable_spec"], fg="yellow", bold=False),
-                        click.style(vuln["more_info_url"], bold=True),
-                    )
-                )
-                click.echo(f"{vuln['advisory']}")
-                click.echo()
-
-            click.secho(message, fg="white", bold=True)
-
-    except json.JSONDecodeError:
-        click.echo("Failed to parse Safety output.")
-
-
 def has_safey_auth_token() -> bool:
     """"
     Retrieve a token from the local authentication configuration.
@@ -234,7 +195,7 @@ def do_check(
         safety_project=safety_project,
     )
 
-    cmd = [safety_path, "check"] + options
+    cmd = [safety_path, "scan"] + options
 
     if db:
         if not quiet and not project.s.is_quiet():
@@ -250,10 +211,7 @@ def do_check(
     os.environ["SAFETY_PURE_YAML"] = "True"
     output, error, exit_code = run_safety_check(cmd, verbose)
 
-    if quiet:
-        parse_safety_output(output, quiet)
-    else:
-        sys.stdout.write(output.decode())
-        sys.stderr.write(error.decode())
+    sys.stdout.write(output.decode())
+    sys.stderr.write(error.decode())
 
     sys.exit(exit_code)
