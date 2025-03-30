@@ -94,7 +94,7 @@ def build_safety_options(
 def run_safety_check(cmd, verbose):
     if verbose:
         click.echo(f"Running: {' '.join(cmd)}")
-    c = sp.run(cmd,capture_output=True)
+    c = sp.run(cmd, capture_output=False)
     return c.stdout, c.stderr, c.returncode
 
 
@@ -206,12 +206,6 @@ def do_check(
         for cve in ignore:
             cmd.extend(["--ignore", cve])
 
-    os.environ["SAFETY_CUSTOM_INTEGRATION"] = "True"
-    os.environ["SAFETY_SOURCE"] = "pipenv"
-    os.environ["SAFETY_PURE_YAML"] = "True"
-    output, error, exit_code = run_safety_check(cmd, verbose)
-
-    sys.stdout.write(output.decode())
-    sys.stderr.write(error.decode())
+    _, _, exit_code = run_safety_check(cmd, verbose)
 
     sys.exit(exit_code)
