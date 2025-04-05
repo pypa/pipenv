@@ -187,9 +187,9 @@ def prepare_lockfile(project, results, pipfile, lockfile_section, old_lock_data=
 def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> None:
     """Atomically open `target` for writing.
     This is based on Lektor's `atomic_open()` utility, but simplified a lot
-    to handle only writing, and skip many multi-process/thread edge cases
+    to handle only writing, and skip many multiprocess/thread edge cases
     handled by Werkzeug.
-    :param str target: Target filename to write
+    :param target: Target filename to write (string or Path)
     :param bool binary: Whether to open in binary mode, default False
     :param Optional[str] newline: The newline character to use when writing, determined
         from system if not supplied.
@@ -198,11 +198,11 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> 
     How this works:
     * Create a temp file (in the same directory of the actual target), and
       yield for surrounding code to write to it.
-    * If some thing goes wrong, try to remove the temp file. The actual target
+    * If something goes wrong, try to remove the temp file. The actual target
       is not touched whatsoever.
     * If everything goes well, close the temp file, and replace the actual
       target with this new file.
-    .. code:: python
+    . code:: python
         >>> fn = "test_file.txt"
         >>> def read_test_file(filename=fn):
                 with open(filename, 'r') as fh:
@@ -232,35 +232,47 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> 
         >>> read_test_file()
             writing some new text
     """
+    # Convert target to Path object
+    target_path = Path(target)
 
+    # Create mode string
     mode = "w+b" if binary else "w"
+
+    # Create temporary file in the same directory as the target
     f = NamedTemporaryFile(
-        dir=os.path.dirname(target),
+        dir=str(target_path.parent),
         prefix=".__atomic-write",
         mode=mode,
         encoding=encoding,
         newline=newline,
         delete=False,
     )
-    # set permissions to 0644
+
+    # Get path object for the temporary file
+    temp_path = Path(f.name)
+
+    # Set permissions to 0644
     with suppress(OSError):
-        os.chmod(f.name, stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+        temp_path.chmod(stat.S_IWUSR | stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
 
     try:
         yield f
     except BaseException:
         f.close()
         with suppress(OSError):
-            os.remove(f.name)
-
+            temp_path.unlink(missing_ok=True)
         raise
     else:
         f.close()
         try:
-            os.remove(target)  # This is needed on Windows.
+            # This is needed on Windows
+            target_path.unlink(missing_ok=True)
         except OSError:
             pass
-        os.rename(f.name, target)  # No os.replace() on Python 2.
+
+        # Rename the temporary file to the target
+        # Note: Path.rename() is equivalent to os.rename()
+        temp_path.rename(target_path)
 
 
 @dataclass
@@ -350,11 +362,18 @@ class Lockfile:
     def lockfile_from_pipfile(cls, pipfile_path):
         from pipenv.utils.pipfile import Pipfile
 
-        if os.path.isfile(pipfile_path):
-            if not os.path.isabs(pipfile_path):
-                pipfile_path = os.path.abspath(pipfile_path)
-            pipfile = Pipfile.load(os.path.dirname(pipfile_path))
+        # Convert to Path object
+        path = Path(pipfile_path)
+
+        if path.is_file():
+            # Ensure we have an absolute path
+            if not path.is_absolute():
+                path = path.resolve()
+
+            # Load the Pipfile from the parent directory
+            pipfile = Pipfile.load(path.parent)
             return lockfiles.Lockfile.with_meta_from(pipfile.pipfile)
+
         raise PipfileNotFound(pipfile_path)
 
     @classmethod
@@ -397,26 +416,39 @@ class Lockfile:
             raise MissingParameter("data")
         if not isinstance(data, dict):
             raise TypeError("Expecting a dictionary for parameter 'data'")
-        path = os.path.abspath(str(path))
-        if os.path.isdir(path):
-            project_path = path
-        elif not os.path.isdir(path) and os.path.isdir(os.path.dirname(path)):
-            project_path = os.path.dirname(path)
-        pipfile_path = os.path.join(project_path, "Pipfile")
-        lockfile_path = os.path.join(project_path, "Pipfile.lock")
+
+        # Convert to Path object and resolve to absolute path
+        path_obj = Path(path).resolve()
+
+        # Determine project directory
+        if path_obj.is_dir():
+            project_path = path_obj
+        elif not path_obj.is_dir() and path_obj.parent.is_dir():
+            project_path = path_obj.parent
+
+        # Create paths for Pipfile and Pipfile.lock
+        pipfile_path = project_path / "Pipfile"
+        lockfile_path = project_path / "Pipfile.lock"
+
         if meta_from_project:
             lockfile = cls.lockfile_from_pipfile(pipfile_path)
             lockfile.update(data)
         else:
             lockfile = lockfiles.Lockfile(data)
+
         projectfile = ProjectFile(
-            line_ending=DEFAULT_NEWLINES, location=lockfile_path, model=lockfile
+            line_ending=DEFAULT_NEWLINES,
+            location=str(
+                lockfile_path
+            ),  # Convert to string if ProjectFile expects a string
+            model=lockfile,
         )
+
         return cls(
             projectfile=projectfile,
             lockfile=lockfile,
             newlines=projectfile.line_ending,
-            path=Path(projectfile.location),
+            path=lockfile_path,  # No need to convert to Path again if already expecting Path
         )
 
     @classmethod
@@ -424,16 +456,28 @@ class Lockfile:
         try:
             projectfile = cls.load_projectfile(path, create=create)
         except JSONDecodeError:
-            path = os.path.abspath(path)
-            path = Path(
-                os.path.join(path, "Pipfile.lock") if os.path.isdir(path) else path
-            )
-            formatted_path = path.as_posix()
+            # Convert to Path object and resolve to absolute path
+            path_obj = Path(path).resolve()
+
+            # Determine if the path is a directory or file
+            if path_obj.is_dir():
+                path_obj = path_obj / "Pipfile.lock"
+
+            # Create backup path
+            formatted_path = str(path_obj)
             backup_path = f"{formatted_path}.bak"
+
+            # Show error and create backup
             LockfileCorruptException.show(formatted_path, backup_path=backup_path)
-            path.rename(backup_path)
+            path_obj.rename(backup_path)
+
+            # Try loading again after backing up corrupted file
             cls.load(formatted_path, create=True)
+
+        # Create Path object from projectfile location
         lockfile_path = Path(projectfile.location)
+
+        # Create instance with required arguments
         creation_args = {
             "projectfile": projectfile,
             "lockfile": projectfile.model,

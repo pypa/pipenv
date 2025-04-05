@@ -60,6 +60,8 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
 
     Args are appended to the command in [scripts] section of project if found.
     """
+    from pathlib import Path
+
     from pipenv.cmdparse import ScriptEmptyError
 
     env = os.environ.copy()
@@ -74,14 +76,13 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
 
     path = env.get("PATH", "")
     if project.virtualenv_location:
-        new_path = os.path.join(
-            project.virtualenv_location, "Scripts" if os.name == "nt" else "bin"
-        )
-        paths = path.split(os.pathsep)
-        paths.insert(0, new_path)
-        path = os.pathsep.join(paths)
-        env["VIRTUAL_ENV"] = project.virtualenv_location
-    env["PATH"] = path
+        virtualenv_path = Path(project.virtualenv_location)
+        bin_dir = "Scripts" if os.name == "nt" else "bin"
+        new_path = str(virtualenv_path / bin_dir)
+        env["PATH"] = f"{new_path}{os.pathsep}{path}"
+        env["VIRTUAL_ENV"] = str(virtualenv_path)
+    else:
+        env["PATH"] = str(path)
 
     # Set an environment variable, so we know we're in the environment.
     # Only set PIPENV_ACTIVE after finishing reading virtualenv_location
@@ -135,7 +136,7 @@ def do_run_posix(project, script, command, env):
         sys.exit(1)
     os.execve(
         command_path,
-        [command_path, *(os.path.expandvars(arg) for arg in script.args)],
+        [command_path, *(expandvars(arg) for arg in script.args)],
         env,
     )
 

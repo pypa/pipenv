@@ -152,7 +152,7 @@ class Project:
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
-        self._original_dir = os.path.abspath(os.curdir)
+        self._original_dir = Path.cwd().resolve()
         self._environment = None
         self._build_system = {"requires": ["setuptools", "wheel"]}
         self.python_version = python_version
@@ -692,11 +692,12 @@ class Project:
             return toml.loads(contents)
 
     def _read_pyproject(self) -> None:
-        pyproject = self.path_to("pyproject.toml")
-        if os.path.exists(pyproject):
-            self._pyproject = toml.load(pyproject)
+        pyproject_path = Path(self.path_to("pyproject.toml"))
+        if pyproject_path.exists():
+            self._pyproject = toml.load(pyproject_path)
             build_system = self._pyproject.get("build-system", None)
-            if not os.path.exists(self.path_to("setup.py")):
+            setup_py_path = Path(self.path_to("setup.py"))
+            if not setup_py_path.exists():
                 if not build_system or not build_system.get("requires"):
                     build_system = {
                         "requires": ["setuptools>=40.8.0", "wheel"],
@@ -783,7 +784,7 @@ class Project:
 
     @property
     def lockfile_exists(self):
-        return os.path.isfile(self.lockfile_location)
+        return Path(self.lockfile_location).is_file()
 
     @property
     def lockfile_content(self):
@@ -987,9 +988,7 @@ class Project:
             if os.environ.get("PIPENV_PYPI_MIRROR"):
                 sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
             return sources
-        # We need to make copies of the source info so we don't
-        # accidentally modify the cache. See #2100 where values are
-        # written after the os.path.expandvars() call.
+        # Expand environment variables in the source URLs.
         sources = [
             {k: safe_expandvars(v) if expand_vars else v for k, v in source.items()}
             for source in self.parsed_pipfile["source"]
@@ -1320,25 +1319,34 @@ class Project:
 
     def load_lockfile(self, expand_env_vars=True):
         lockfile_modified = False
-        with open(self.lockfile_location, encoding="utf-8") as lock:
-            try:
-                j = json.load(lock)
-                self._lockfile_newlines = preferred_newlines(lock)
-            except JSONDecodeError:
-                err.print(
-                    "[bold yellow]Pipfile.lock is corrupted; ignoring contents.[/bold yellow]"
-                )
-                j = {}
+        lockfile_path = Path(self.lockfile_location)
+        pipfile_path = Path(self.pipfile_location)
+
+        try:
+            with lockfile_path.open(encoding="utf-8") as lock:
+                try:
+                    j = json.load(lock)
+                    self._lockfile_newlines = preferred_newlines(lock)
+                except JSONDecodeError:
+                    err.print(
+                        "[bold yellow]Pipfile.lock is corrupted; ignoring contents.[/bold yellow]"
+                    )
+                    j = {}
+        except FileNotFoundError:
+            j = {}
+
         if not j.get("_meta"):
-            with open(self.pipfile_location) as pf:
+            with pipfile_path.open() as pf:
                 default_lockfile = plette.Lockfile.with_meta_from(
                     plette.Pipfile.load(pf), categories=[]
                 )
                 j["_meta"] = default_lockfile._data["_meta"]
                 lockfile_modified = True
+
         if j.get("default") is None:
             j["default"] = {}
             lockfile_modified = True
+
         if j.get("develop") is None:
             j["develop"] = {}
             lockfile_modified = True
@@ -1349,6 +1357,7 @@ class Project:
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
             for i, _ in enumerate(j["_meta"].get("sources", {})):
+                # Path doesn't have expandvars method, so we need to use os.path.expandvars
                 j["_meta"]["sources"][i]["url"] = os.path.expandvars(
                     j["_meta"]["sources"][i]["url"]
                 )
@@ -1356,7 +1365,8 @@ class Project:
         return j
 
     def get_lockfile_hash(self):
-        if not os.path.exists(self.lockfile_location):
+        lockfile_path = Path(self.lockfile_location)
+        if not lockfile_path.exists():
             return
 
         try:
@@ -1443,22 +1453,35 @@ class Project:
                 location = self.virtualenv_location
             else:
                 location = os.environ.get("VIRTUAL_ENV", None)
-        if not (location and Path(location).exists()) and not allow_global:
+
+        location_path = Path(location) if location else None
+
+        if not (location_path and location_path.exists()) and not allow_global:
             raise RuntimeError("location not created nor specified")
 
-        version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))
-        is_python = command in ("python", os.path.basename(sys.executable), version_str)
+        version_str = f"python{'.'.join([str(v) for v in sys.version_info[:2]])}"
+        is_python = command in ("python", Path(sys.executable).name, version_str)
+
         if not allow_global:
             if os.name == "nt":
-                p = find_windows_executable(os.path.join(location, "Scripts"), command)
+                p = find_windows_executable(str(location_path / "Scripts"), command)
+                # Convert to Path object if it's a string
+                p = Path(p) if isinstance(p, str) else p
             else:
-                p = Path(location) / "bin" / command
+                p = location_path / "bin" / command
         elif is_python:
             p = Path(sys.executable)
-        p_str = str(p) if isinstance(p, Path) else p
-        if not os.path.exists(p_str):
+        else:
+            p = None
+
+        if p is None or not p.exists():
             if is_python:
-                p = sys.executable or system_which("python")
+                p = (
+                    Path(sys.executable)
+                    if sys.executable
+                    else Path(system_which("python"))
+                )
             else:
-                p = system_which(command)
+                p = Path(system_which(command)) if system_which(command) else None
+
         return p

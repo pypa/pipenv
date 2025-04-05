@@ -8,7 +8,7 @@ import sys
 import warnings
 from contextlib import contextmanager
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from pipenv.utils import err
 from pipenv.utils.fileutils import normalize_drive
@@ -63,10 +63,31 @@ def chdir(path):
 
 
 def looks_like_dir(path):
-    if isinstance(path, Path):
+    """
+    Determine if a path looks like a directory by checking for path separators
+    or if it's already a Path object.
+
+    :param path: A string path or Path object
+    :return: True if the path appears to be a directory, False otherwise
+    """
+    # If it's already a Path or PurePath object, it's directory-like
+    if isinstance(path, (Path, PurePath)):
         return True
-    seps = (sep for sep in (os.path.sep, os.path.altsep) if sep is not None)
-    return any(sep in path for sep in seps)
+
+    # Convert to string if needed
+    path_str = str(path)
+
+    # Check if it has a trailing slash which would indicate a directory
+    if path_str.endswith(os.path.sep) or (
+        os.path.altsep and path_str.endswith(os.path.altsep)
+    ):
+        return True
+
+    # Create a PurePath which won't access the filesystem
+    pure_path = PurePath(path_str)
+
+    # If it has multiple parts, it likely has directory separators
+    return len(pure_path.parts) > 1
 
 
 def load_path(python):
@@ -82,21 +103,39 @@ def load_path(python):
 
 
 def path_to_url(path):
-    return Path(normalize_drive(os.path.abspath(path))).as_uri()
+    """
+    Convert a file system path to a URI.
+
+    First normalizes drive letter case on Windows, then converts to absolute path,
+    and finally to a URI.
+    """
+    path_obj = Path(path).resolve()
+    normalized_path = normalize_drive(str(path_obj))
+    return Path(normalized_path).as_uri()
 
 
 def get_windows_path(*args):
     """Sanitize a path for windows environments
 
-    Accepts an arbitrary list of arguments and makes a clean windows path"""
-    return Path(*args).resolve().as_posix()
+    Accepts an arbitrary list of arguments and makes a clean windows path
+
+    Returns a fully resolved windows path as a string
+    """
+    # Create and resolve the path
+    path = Path(*args).resolve()
+
+    # Return the string representation of the path (Windows-friendly)
+    return str(path)
 
 
 def find_windows_executable(bin_path, exe_name):
     """Given an executable name, search the given location for an executable"""
-    requested_path = get_windows_path(bin_path, exe_name)
-    if os.path.isfile(requested_path):
-        return requested_path
+    bin_path = Path(bin_path)
+    requested_path = get_windows_path(str(bin_path), exe_name)
+    requested_path_obj = Path(requested_path)
+
+    if requested_path_obj.is_file():
+        return requested_path_obj
 
     try:
         pathext = os.environ["PATHEXT"]
@@ -104,35 +143,43 @@ def find_windows_executable(bin_path, exe_name):
         pass
     else:
         for ext in pathext.split(os.pathsep):
-            path = get_windows_path(bin_path, exe_name + ext.strip().lower())
-            if os.path.isfile(path):
+            path_str = get_windows_path(str(bin_path), exe_name + ext.strip().lower())
+            path = Path(path_str)
+            if path.is_file():
                 return path
 
-    return shutil.which(exe_name)
+    # shutil.which returns a string or None
+    which_result = shutil.which(exe_name)
+    return Path(which_result) if which_result else None
 
 
 def walk_up(bottom):
-    """Mimic os.walk, but walk 'up' instead of down the directory tree.
-    From: https://gist.github.com/zdavkeos/1098474
-    """
-    bottom = os.path.realpath(bottom)
-    # Get files in current dir.
+    """Mimic os.walk, but walk 'up' instead of down the directory tree."""
+    # Convert to Path object and resolve to absolute path
+    bottom_path = Path(bottom).resolve()
+
+    # Get files in current dir
     try:
-        names = os.listdir(bottom)
+        # Path.iterdir() returns Path objects for all children
+        path_objects = list(bottom_path.iterdir())
     except Exception:
         return
 
+    # Sort into directories and non-directories
     dirs, nondirs = [], []
-    for name in names:
-        if os.path.isdir(os.path.join(bottom, name)):
-            dirs.append(name)
+    for path in path_objects:
+        if path.is_dir():
+            dirs.append(path.name)
         else:
-            nondirs.append(name)
-    yield bottom, dirs, nondirs
+            nondirs.append(path.name)
 
-    new_path = os.path.realpath(os.path.join(bottom, ".."))
-    # See if we are at the top.
-    if new_path == bottom:
+    yield str(bottom_path), dirs, nondirs
+
+    # Get parent directory
+    new_path = bottom_path.parent.resolve()
+
+    # See if we are at the top (parent is same as current)
+    if new_path == bottom_path:
         return
 
     yield from walk_up(new_path)
@@ -172,9 +219,18 @@ def escape_cmd(cmd):
 
 
 def safe_expandvars(value):
-    """Call os.path.expandvars if value is a string, otherwise do nothing."""
+    """
+    Expand environment variables in a string value, do nothing for non-strings.
+
+    Note: pathlib.Path doesn't have an expandvars method, so we still use os.path.expandvars
+    for the actual expansion.
+    """
     if isinstance(value, str):
         return os.path.expandvars(value)
+    # Handle Path objects
+    elif isinstance(value, Path):
+        expanded_str = os.path.expandvars(str(value))
+        return Path(expanded_str)
     return value
 
 
@@ -198,7 +254,7 @@ def get_workon_home():
     if isinstance(workon_home, Path):
         path_str = str(workon_home)
         if "$" in path_str:
-            workon_home = Path(os.path.expandvars(path_str))
+            workon_home = safe_expandvars(path_str)
 
     # Expand user directory and ensure path is absolute
     expanded_path = workon_home.expanduser()
@@ -211,13 +267,22 @@ def get_workon_home():
 
 def is_file(package):
     """Determine if a package name is for a File dependency."""
+    # Check if it's a dictionary-like object with keys
     if hasattr(package, "keys"):
         return any(key for key in package if key in ["file", "path"])
 
-    if os.path.exists(str(package)):
-        return True
+    # Convert to string if it's a Path object, or use as is
+    package_str = str(package)
 
-    return any(str(package).startswith(start) for start in SCHEME_LIST)
+    # Check if the path exists as a file
+    try:
+        return Path(package_str).exists()
+    except (OSError, ValueError):
+        # Handle invalid path syntax
+        pass
+
+    # Check if the string starts with any of the scheme prefixes
+    return any(package_str.startswith(start) for start in SCHEME_LIST)
 
 
 def is_virtual_environment(path):
@@ -252,21 +317,28 @@ def find_python(finder, line=None):
     """
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
+
     if line:
         modified_line = line
+        path_obj = Path(modified_line)
+
+        # Add .exe extension on Windows if needed
         if (
             os.name == "nt"
-            and not os.path.exists(modified_line)
+            and not path_obj.exists()
             and not modified_line.lower().endswith(".exe")
         ):
             modified_line += ".exe"
-        if os.path.exists(modified_line) and shutil.which(modified_line):
-            return modified_line
+            path_obj = Path(modified_line)
+
+        if path_obj.exists() and shutil.which(modified_line):
+            return str(path_obj)
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
 
         finder = Finder(global_search=True)
+
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
     elif line and line[0].isdigit() or re.match(r"^\d+(\.\d+)*$", line):
@@ -280,8 +352,10 @@ def find_python(finder, line=None):
         )
     else:
         result = finder.find_python_version(name=line)
+
     if not result:
         result = finder.which(line)
+
     if not result and "python" not in line.lower():
         line = f"python{line}"
         result = find_python(finder, line)
@@ -289,11 +363,12 @@ def find_python(finder, line=None):
     if result:
         if not isinstance(result, str):
             if hasattr(result, "path"):  # It's a PythonInfo object
+                # Already using .as_posix() which is pathlib-friendly
                 return result.path.as_posix()
             else:  # It's a Path object
-                return result.as_posix()
+                return str(result)
         return result
-    return
+    return None
 
 
 def is_python_command(line):

@@ -6,7 +6,7 @@ import os
 import sys
 import warnings
 from contextlib import contextmanager
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 from tempfile import TemporaryDirectory
 from typing import Any, Optional
 from urllib import parse as urllib_parse
@@ -65,8 +65,15 @@ if os.name == "nt":
 
 def normalize_path(path: str) -> str:
     """Return a case-normalized absolute variable-expanded path."""
-    path_obj = Path(os.path.expandvars(os.path.expanduser(str(path))))
-    return os.path.normcase(str(path_obj.absolute()))
+    # Convert to string if it's a Path object
+    path_str = str(path)
+
+    # Expand user directory and environment variables
+    # (pathlib doesn't have expandvars equivalent)
+    expanded_path = os.path.expandvars(Path(path_str).expanduser())
+
+    # Create Path object, resolve to absolute path
+    return Path(expanded_path).resolve()
 
 
 def normalize_drive(path):
@@ -76,14 +83,27 @@ def normalize_drive(path):
     identified with either upper or lower cased drive names. The case is
     always converted to uppercase because it seems to be preferred.
     """
-    if os.name != "nt" or not isinstance(path, str):
+    if os.name != "nt":
         return path
 
-    drive, tail = os.path.splitdrive(path)
-    # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts.
-    if drive.islower() and len(drive) == 2 and drive[1] == ":":
-        return f"{drive.upper()}{tail}"
+    # Handle Path objects
+    if isinstance(path, Path):
+        path_str = str(path)
+        result = normalize_drive(path_str)
+        return Path(result) if result != path_str else path
 
+    # Handle strings
+    if isinstance(path, str):
+        # Use PureWindowsPath to handle Windows-specific path operations
+        win_path = PureWindowsPath(path)
+        drive = win_path.drive
+
+        # Only match (lower cased) local drives (e.g. 'c:'), not UNC mounts
+        if drive.islower() and len(drive) == 2 and drive[1] == ":":
+            # Replace just the drive part with its uppercase version
+            return f"{drive.upper()}{path[2:]}"
+
+    # Return unchanged for non-string, non-Path objects or paths without lowercase drives
     return path
 
 
@@ -96,22 +116,27 @@ def path_to_url(path):
     >>> path_to_url("/home/user/code/myrepo/myfile.zip")
     'file:///home/user/code/myrepo/myfile.zip'
     """
-
     if not path:
         return path  # type: ignore
-    normalized_path = Path(normalize_drive(os.path.abspath(path))).as_posix()
-    if os.name == "nt" and normalized_path[1] == ":":
-        drive, _, path = normalized_path.partition(":")
-        # XXX: This enables us to handle half-surrogates that were never
-        # XXX: actually part of a surrogate pair, but were just incidentally
-        # XXX: passed in as a piece of a filename
-        quoted_path = quote(path, errors="backslashreplace")
+
+    # Create an absolute path
+    abs_path = Path(path).resolve()
+
+    # Normalize drive letter on Windows
+    normalized_path = normalize_drive(str(abs_path))
+
+    # Convert to POSIX path format
+    posix_path = Path(normalized_path).as_posix()
+
+    if os.name == "nt" and posix_path[1] == ":":
+        drive, _, remainder = posix_path.partition(":")
+        # Handle half-surrogates that were never actually part of a surrogate pair
+        quoted_path = quote(remainder, errors="backslashreplace")
         return f"file:///{drive}:{quoted_path}"
-    # XXX: This is also here to help deal with incidental dangling surrogates
-    # XXX: on linux, by making sure they are preserved during encoding so that
-    # XXX: we can urlencode the backslash correctly
-    # bytes_path = to_bytes(normalized_path, errors="backslashreplace")
-    return "file://{}".format(quote(path, errors="backslashreplace"))
+
+    # Handle dangling surrogates on Linux
+    quoted_path = quote(posix_path, errors="backslashreplace")
+    return f"file://{quoted_path}"
 
 
 @contextmanager
@@ -131,16 +156,19 @@ def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
         except AttributeError:
             raise ValueError(f"Cannot parse url from unknown type: {link!r}")
 
-    if not is_valid_url(link) and os.path.exists(link):
-        link = path_to_url(link)
+    # Check if the link is a local path that exists
+    if not is_valid_url(link):
+        path_obj = Path(link)
+        if path_obj.exists():
+            link = path_to_url(path_obj)
 
     if is_file_url(link):
         # Local URL
-        local_path = url_to_path(link)
-        if os.path.isdir(local_path):
+        local_path = Path(url_to_path(link))
+        if local_path.is_dir():
             raise ValueError(f"Cannot open directory for read: {link}")
         else:
-            with open(local_path, "rb") as local_file:
+            with local_path.open("rb") as local_file:
                 yield local_file
     else:
         # Remote URL

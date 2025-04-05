@@ -956,7 +956,7 @@ def resolve_deps(
     index_lookup = {}
     markers_lookup = {}
     if not os.environ.get("PIP_SRC"):
-        os.environ["PIP_SRC"] = project.virtualenv_src_location
+        os.environ["PIP_SRC"] = str(project.virtualenv_src_location)
     results = []
     resolver = None
     if not deps:
