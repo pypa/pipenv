@@ -14,10 +14,11 @@ __all__ = [
     "AsdfFinder",
 ]
 
-# Import Windows registry finder if on Windows
+# Import Windows-specific finders if on Windows
 import os
 
 if os.name == "nt":
     from .windows_registry import WindowsRegistryFinder
+    from .py_launcher_finder import PyLauncherFinder
 
-    __all__.append("WindowsRegistryFinder")
+    __all__.extend(["WindowsRegistryFinder", "PyLauncherFinder"])

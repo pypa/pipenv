@@ -15,9 +15,9 @@ if TYPE_CHECKING:
 
     from .models.python_info import PythonInfo
 
-# Import Windows registry finder if on Windows
+# Import Windows-specific finders if on Windows
 if os.name == "nt":
-    from .finders import WindowsRegistryFinder
+    from .finders import PyLauncherFinder, WindowsRegistryFinder
 
 
 class Finder:
@@ -64,22 +64,31 @@ class Finder:
             ignore_unsupported=ignore_unsupported,
         )
 
-        # Initialize Windows registry finder if on Windows
+        # Initialize Windows-specific finders if on Windows
+        self.py_launcher_finder = None
         self.windows_finder = None
         if os.name == "nt":
+            self.py_launcher_finder = PyLauncherFinder(
+                ignore_unsupported=ignore_unsupported,
+            )
             self.windows_finder = WindowsRegistryFinder(
                 ignore_unsupported=ignore_unsupported,
             )
 
         # List of all finders
         self.finders: list[BaseFinder] = [
-            self.system_finder,
             self.pyenv_finder,
             self.asdf_finder,
         ]
 
+        # Add Windows-specific finders if on Windows
+        if self.py_launcher_finder:
+            self.finders.append(self.py_launcher_finder)
         if self.windows_finder:
             self.finders.append(self.windows_finder)
+            
+        # Add system finder last
+        self.finders.append(self.system_finder)
 
     def which(self, executable: str) -> Path | None:
         """
