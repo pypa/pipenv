@@ -1430,12 +1430,8 @@ class Project:
         result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
         if not result:
             result = self._which(search)
-        else:
-            if as_path:
-                if hasattr(result, "path"):
-                    result = str(result.path)
-                else:
-                    result = str(result)
+        elif as_path:
+            result = str(result.path)
         return result
 
     def python(self, system=False) -> str:
@@ -1460,9 +1456,8 @@ class Project:
                 p = find_windows_executable(os.path.join(location, "Scripts"), command)
             else:
                 p = os.path.join(location, "bin", command)
-        else:
-            if is_python:
-                p = sys.executable
+        elif is_python:
+            p = sys.executable
         if not os.path.exists(p):
             if is_python:
                 p = sys.executable or system_which("python")

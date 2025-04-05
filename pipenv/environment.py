@@ -816,12 +816,11 @@ class Environment:
             if self.is_venv:
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = prefix
-            else:
-                if not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
-                    "VIRTUAL_ENV"
-                ):
-                    os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
-                    os.environ.pop("PYTHONHOME", None)
+            elif not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
+                "VIRTUAL_ENV"
+            ):
+                os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+                os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             try:
