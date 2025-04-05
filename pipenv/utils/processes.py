@@ -60,7 +60,9 @@ def subprocess_run(
     _env = os.environ.copy()
     _env["PYTHONIOENCODING"] = encoding
     if env:
-        _env.update(env)
+        # Ensure all environment variables are strings
+        string_env = {k: str(v) for k, v in env.items() if v is not None}
+        _env.update(string_env)
     other_kwargs["env"] = _env
     if capture_output:
         other_kwargs["stdout"] = subprocess.PIPE
