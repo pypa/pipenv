@@ -117,16 +117,16 @@ def test_run_with_usr_env_shebang(pipenv_instance_pypi):
                 "print(os.getenv('VIRTUAL_ENV'))\n"
             )
         os.chmod(script_path, 0o700)
-        
+
         # Get the virtualenv location before running the script
         c_venv = p.pipenv("--venv")
         assert c_venv.returncode == 0
         venv_path = c_venv.stdout.strip()
-        
+
         # Run the script
         c = p.pipenv("run ./test_script")
         assert c.returncode == 0
-        
+
         # Compare output lines with the actual virtualenv path used
         lines = [line.strip() for line in c.stdout.splitlines()]
         assert all(line == venv_path for line in lines)
