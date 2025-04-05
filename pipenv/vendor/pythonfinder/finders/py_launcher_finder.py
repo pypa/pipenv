@@ -136,7 +136,7 @@ class PyLauncherFinder(BaseFinder):
             An iterator of PythonInfo objects.
         """
         if not self._available:
-            return
+            return iter([])  # Return empty iterator when py launcher is not available
 
         for version, path, is_default in self._get_py_launcher_versions():
             python_info = self._create_python_info_from_py_launcher(version, path, is_default)
