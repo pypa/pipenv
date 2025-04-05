@@ -242,9 +242,19 @@ def ensure_python(project, python=None):
         not path_to_python
         and os.name == "nt"
         and python is not None
-        and python[0].isdigit()
+        and (python[0].isdigit() or python.startswith("python"))
     ):
-        python_path = find_python_from_py_launcher(python)
+        # Extract version number if it's in format like "python3.11" or "python_version = 3.11"
+        if python.startswith("python"):
+            version_match = re.search(r"(\d+\.\d+)", python)
+            if version_match:
+                python_version_str = version_match.group(1)
+            else:
+                python_version_str = python
+        else:
+            python_version_str = python
+
+        python_path = find_python_from_py_launcher(python_version_str)
         if python_path:
             if project.s.is_verbose():
                 err.print(f"Found Python using py launcher: {python_path}")
@@ -360,7 +370,7 @@ def find_python_from_py_launcher(version):
 
     try:
         # Run py --list-paths to get all installed Python versions
-        c = subprocess_run(["py", "--list-paths"], shell=True)
+        c = subprocess_run(["py", "--list-paths"], capture_output=True, text=True)
         if c.returncode != 0:
             return None
 
