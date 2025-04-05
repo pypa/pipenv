@@ -213,12 +213,13 @@ class Project:
             with contextlib.suppress(TypeError, AttributeError):
                 os.chdir(self.project_directory)
 
-    def path_to(self, p: str) -> str:
+    def path_to(self, p: str) -> Path:
         """Returns the absolute path to a given relative path."""
-        if os.path.isabs(p):
-            return p
+        path = Path(p)
+        if path.is_absolute():
+            return path
 
-        return os.sep.join([self._original_dir, p])
+        return Path(self._original_dir) / p
 
     def get_pipfile_section(self, section):
         """Returns the details from the section of the Project's Pipfile."""
@@ -611,12 +612,12 @@ class Project:
         return loc
 
     @property
-    def download_location(self) -> str:
+    def download_location(self) -> Path:
         if self._download_location is None:
-            loc = os.sep.join([self.virtualenv_location, "downloads"])
+            loc = Path(self.virtualenv_location) / "downloads"
             self._download_location = loc
         # Create the directory, if it doesn't exist.
-        os.makedirs(self._download_location, exist_ok=True)
+        self._download_location.mkdir(parents=True, exist_ok=True)
         return self._download_location
 
     @property
@@ -1446,7 +1447,7 @@ class Project:
                 location = self.virtualenv_location
             else:
                 location = os.environ.get("VIRTUAL_ENV", None)
-        if not (location and os.path.exists(location)) and not allow_global:
+        if not (location and Path(location).exists()) and not allow_global:
             raise RuntimeError("location not created nor specified")
 
         version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))

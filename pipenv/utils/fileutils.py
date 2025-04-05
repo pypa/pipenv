@@ -36,7 +36,7 @@ def is_valid_url(url: str) -> bool:
     return all([pieces.scheme, pieces.netloc])
 
 
-def url_to_path(url: str) -> str:
+def url_to_path(url: str) -> Path:
     """Convert a valid file url to a local filesystem path.
 
     Follows logic taken from pip's equivalent function
@@ -47,8 +47,8 @@ def url_to_path(url: str) -> str:
     if netloc:
         netloc = "\\\\" + netloc
 
-    path = urllib_request.url2pathname(netloc + path)
-    return urllib_parse.unquote(path)
+    path_str = urllib_request.url2pathname(netloc + path)
+    return Path(urllib_parse.unquote(path_str))
 
 
 if os.name == "nt":
@@ -65,9 +65,8 @@ if os.name == "nt":
 
 def normalize_path(path: str) -> str:
     """Return a case-normalized absolute variable-expanded path."""
-    return os.path.expandvars(
-        os.path.expanduser(os.path.normcase(os.path.normpath(os.path.abspath(str(path)))))
-    )
+    path_obj = Path(os.path.expandvars(os.path.expanduser(str(path))))
+    return os.path.normcase(str(path_obj.absolute()))
 
 
 def normalize_drive(path):
@@ -195,7 +194,7 @@ def temp_path():
 TRACKED_TEMPORARY_DIRECTORIES = []
 
 
-def create_tracked_tempdir(*args: Any, **kwargs: Any) -> str:
+def create_tracked_tempdir(*args: Any, **kwargs: Any) -> Path:
     """Create a tracked temporary directory.
 
     This uses `TemporaryDirectory`, but does not remove the directory
@@ -207,7 +206,7 @@ def create_tracked_tempdir(*args: Any, **kwargs: Any) -> str:
     TRACKED_TEMPORARY_DIRECTORIES.append(tempdir)
     atexit.register(tempdir.cleanup)
     warnings.simplefilter("ignore", ResourceWarning)
-    return tempdir.name
+    return Path(tempdir.name)
 
 
 def check_for_unc_path(path):

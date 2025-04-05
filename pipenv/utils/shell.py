@@ -1,6 +1,5 @@
 import errno
 import os
-import posixpath
 import re
 import shlex
 import shutil
@@ -12,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from pipenv.utils import err
-from pipenv.utils.fileutils import normalize_drive, normalize_path
+from pipenv.utils.fileutils import normalize_drive
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
@@ -38,13 +37,7 @@ def make_posix(path: str) -> str:
     """
     if not isinstance(path, str):
         raise TypeError(f"Expected a string for path, received {path!r}...")
-    starts_with_sep = path.startswith(os.path.sep)
-    separated = normalize_path(path).split(os.path.sep)
-    if isinstance(separated, (list, tuple)):
-        path = posixpath.join(*separated)
-        if starts_with_sep:
-            path = f"/{path}"
-    return path
+    return Path(path).as_posix()
 
 
 @contextmanager
@@ -63,6 +56,8 @@ def chdir(path):
 
 
 def looks_like_dir(path):
+    if isinstance(path, Path):
+        return True
     seps = (sep for sep in (os.path.sep, os.path.altsep) if sep is not None)
     return any(sep in path for sep in seps)
 
@@ -87,7 +82,7 @@ def get_windows_path(*args):
     """Sanitize a path for windows environments
 
     Accepts an arbitrary list of arguments and makes a clean windows path"""
-    return os.path.normpath(os.path.join(*args))
+    return Path(*args).resolve().as_posix()
 
 
 def find_windows_executable(bin_path, exe_name):
@@ -142,9 +137,9 @@ def find_requirements(max_depth=3):
     for c, _, _ in walk_up(os.getcwd()):
         i += 1
         if i < max_depth:
-            r = os.path.join(c, "requirements.txt")
-            if os.path.isfile(r):
-                return r
+            r = Path(c) / "requirements.txt"
+            if r.is_file():
+                return str(r)
 
     raise RuntimeError("No requirements.txt found!")
 
@@ -328,16 +323,18 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    if os.path.exists(fn):
-        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
+    path = Path(fn) if not isinstance(fn, Path) else fn
+    if path.exists():
+        return (path.stat().st_mode & stat.S_IREAD) or not os.access(path, os.W_OK)
 
     return False
 
 
 def set_write_bit(fn):
-    if isinstance(fn, str) and not os.path.exists(fn):
+    path = Path(fn) if not isinstance(fn, Path) else fn
+    if not path.exists():
         return
-    os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
+    path.chmod(stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
     return
 
 
@@ -445,15 +442,13 @@ def system_which(command, path=None):
 
 def shorten_path(location, bold=False):
     """Returns a visually shorter representation of a given system path."""
-    original = location
-    short = os.sep.join(
-        [s[0] if len(s) > (len("2long4")) else s for s in location.split(os.sep)]
-    )
-    short = short.split(os.sep)
-    short[-1] = original.split(os.sep)[-1]
+    path = Path(location) if not isinstance(location, Path) else location
+    path_parts = list(path.parts)
+    short_parts = [p[0] if len(p) > len("2long4") else p for p in path_parts[:-1]]
+    short_parts.append(path_parts[-1])
     if bold:
-        short[-1] = f"[bold]{short[-1]}[/bold]"
-    return os.sep.join(short)
+        short_parts[-1] = f"[bold]{short_parts[-1]}[/bold]"
+    return os.sep.join(short_parts)
 
 
 def isatty(stream):
