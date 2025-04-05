@@ -72,8 +72,8 @@ def normalize_path(path: str) -> str:
     # (pathlib doesn't have expandvars equivalent)
     expanded_path = os.path.expandvars(Path(path_str).expanduser())
 
-    # Create Path object, resolve to absolute path
-    return Path(expanded_path).resolve()
+    # Create Path object, resolve to absolute path, and return as string
+    return str(Path(expanded_path).resolve())
 
 
 def normalize_drive(path):
