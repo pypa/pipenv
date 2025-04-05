@@ -45,13 +45,20 @@ def chdir(path):
     """Context manager to change working directories."""
     if not path:
         return
-    prev_cwd = Path.cwd().as_posix()
-    if isinstance(path, Path):
-        path = path.as_posix()
-    os.chdir(str(path))
+
+    # Store the current working directory
+    prev_cwd = Path.cwd()
+
+    # Convert input path to Path object if it's not already
+    path_obj = Path(path) if not isinstance(path, Path) else path
+
+    # Change directory using the resolved path
+    os.chdir(path_obj.resolve())
+
     try:
         yield
     finally:
+        # Change back to previous directory
         os.chdir(prev_cwd)
 
 
@@ -180,15 +187,25 @@ def get_workon_home():
     workon_home = os.environ.get("WORKON_HOME")
     if not workon_home:
         if os.name == "nt":
-            workon_home = "~/.virtualenvs"
+            workon_home = Path("~/.virtualenvs")
         else:
-            workon_home = os.path.join(
-                os.environ.get("XDG_DATA_HOME", "~/.local/share"), "virtualenvs"
-            )
-    # Create directory if it does not already exist
-    expanded_path = Path(os.path.expandvars(workon_home)).expanduser()
+            xdg_data_home = os.environ.get("XDG_DATA_HOME", "~/.local/share")
+            workon_home = Path(xdg_data_home) / "virtualenvs"
+    else:
+        workon_home = Path(workon_home)
+
+    # Expand environment variables if present in the path string
+    if isinstance(workon_home, Path):
+        path_str = str(workon_home)
+        if "$" in path_str:
+            workon_home = Path(os.path.expandvars(path_str))
+
+    # Expand user directory and ensure path is absolute
+    expanded_path = workon_home.expanduser()
     expanded_path = ensure_path(expanded_path)
-    os.makedirs(expanded_path, exist_ok=True)
+
+    # Create directory if it does not already exist
+    expanded_path.mkdir(parents=True, exist_ok=True)
     return expanded_path
 
 

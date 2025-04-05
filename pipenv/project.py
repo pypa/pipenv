@@ -377,12 +377,12 @@ class Project:
     @property
     def name(self) -> str:
         if self._name is None:
-            self._name = self.pipfile_location.split(os.sep)[-2]
+            self._name = Path(self.pipfile_location).parent.name
         return self._name
 
     @property
     def pipfile_exists(self) -> bool:
-        return os.path.isfile(self.pipfile_location)
+        return Path(self.pipfile_location).is_file()
 
     @property
     def required_python_version(self) -> str:
@@ -395,7 +395,7 @@ class Project:
 
     @property
     def project_directory(self) -> str:
-        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        return str(Path(self.pipfile_location).parent.absolute())
 
     @property
     def requirements_exists(self) -> bool:
@@ -405,50 +405,49 @@ class Project:
         if self.s.PIPENV_VENV_IN_PROJECT is False:
             return False
         return self.s.PIPENV_VENV_IN_PROJECT or (
-            self.project_directory
-            and os.path.isdir(os.path.join(self.project_directory, ".venv"))
+            self.project_directory and Path(self.project_directory, ".venv").is_dir()
         )
 
     @property
     def virtualenv_exists(self) -> bool:
-        if os.path.exists(self.virtualenv_location):
+        venv_path = Path(self.virtualenv_location)
+        if venv_path.exists():
             if os.name == "nt":
-                extra = ["Scripts", "activate.bat"]
+                activate_path = venv_path / "Scripts" / "activate.bat"
             else:
-                extra = ["bin", "activate"]
-            return os.path.isfile(os.sep.join([self.virtualenv_location] + extra))
+                activate_path = venv_path / "bin" / "activate"
+            return activate_path.is_file()
 
         return False
 
-    def get_location_for_virtualenv(self) -> str:
+    def get_location_for_virtualenv(self) -> Path:
         # If there's no project yet, set location based on config.
         if not self.project_directory:
             if self.is_venv_in_project():
-                return os.path.abspath(".venv")
-            return str(get_workon_home().joinpath(self.virtualenv_name))
+                return Path(".venv").absolute()
+            return get_workon_home().joinpath(self.virtualenv_name)
 
-        dot_venv = os.path.join(self.project_directory, ".venv")
+        dot_venv = Path(self.project_directory) / ".venv"
 
         # If there's no .venv in project root or it is a folder, set location based on config.
-        if not os.path.exists(dot_venv) or os.path.isdir(dot_venv):
+        if not dot_venv.exists() or dot_venv.is_dir():
             if self.is_venv_in_project():
                 return dot_venv
-            return str(get_workon_home().joinpath(self.virtualenv_name))
+            return get_workon_home().joinpath(self.virtualenv_name)
 
         # Now we assume .venv in project root is a file. Use its content.
-        with open(dot_venv) as f:
-            name = f.read().strip()
+        name = dot_venv.read_text().strip()
 
         # If .venv file is empty, set location based on config.
         if not name:
-            return str(get_workon_home().joinpath(self.virtualenv_name))
+            return get_workon_home().joinpath(self.virtualenv_name)
 
         # If content looks like a path, use it as a relative path.
         # Otherwise, use directory named after content in WORKON_HOME.
         if looks_like_dir(name):
-            path = Path(self.project_directory, name)
-            return path.absolute().as_posix()
-        return str(get_workon_home().joinpath(name))
+            path = Path(self.project_directory) / name
+            return path.absolute()
+        return get_workon_home().joinpath(name)
 
     @property
     def installed_packages(self):
@@ -577,8 +576,8 @@ class Project:
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
         suffix = ""
         if self.s.PIPENV_PYTHON:
-            if os.path.isabs(self.s.PIPENV_PYTHON):
-                suffix = f"-{os.path.basename(self.s.PIPENV_PYTHON)}"
+            if Path(self.s.PIPENV_PYTHON).is_absolute():
+                suffix = f"-{Path(self.s.PIPENV_PYTHON).name}"
             else:
                 suffix = f"-{self.s.PIPENV_PYTHON}"
 
@@ -595,20 +594,22 @@ class Project:
             and not self.s.PIPENV_IGNORE_VIRTUALENVS
             and virtualenv_env
         ):
-            return virtualenv_env
+            return Path(virtualenv_env)
 
         if not self._virtualenv_location:  # Use cached version, if available.
-            assert self.project_directory, "project not created"
-            self._virtualenv_location = self.get_location_for_virtualenv()
+            if not self.project_directory:
+                raise RuntimeError("Project location not created nor specified")
+            location = self.get_location_for_virtualenv()
+            self._virtualenv_location = Path(location)
         return self._virtualenv_location
 
     @property
-    def virtualenv_src_location(self) -> str:
+    def virtualenv_src_location(self) -> Path:
         if self.virtualenv_location:
-            loc = os.sep.join([self.virtualenv_location, "src"])
+            loc = Path(self.virtualenv_location) / "src"
         else:
-            loc = os.sep.join([self.project_directory, "src"])
-        os.makedirs(loc, exist_ok=True)
+            loc = Path(self.project_directory) / "src"
+        loc.mkdir(parents=True, exist_ok=True)
         return loc
 
     @property
@@ -858,10 +859,7 @@ class Project:
         # Default requires.
         required_python = python
         if not python:
-            if self.virtualenv_location:
-                required_python = self.which("python", self.virtualenv_location)
-            else:
-                required_python = self.which("python")
+            required_python = self.which("python")
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
@@ -1415,9 +1413,9 @@ class Project:
         from .vendor.pythonfinder import Finder
 
         scripts_dirname = "Scripts" if os.name == "nt" else "bin"
-        scripts_dir = os.path.join(self.virtualenv_location, scripts_dirname)
+        scripts_dir = Path(self.virtualenv_location) / scripts_dirname
         finders = [
-            Finder(path=scripts_dir, global_search=gs, system=False)
+            Finder(path=str(scripts_dir), global_search=gs, system=False)
             for gs in (False, True)
         ]
         return finders
@@ -1426,13 +1424,11 @@ class Project:
     def finder(self):
         return next(iter(self.finders), None)
 
-    def which(self, search, as_path=True):
+    def which(self, search):
         find = operator.methodcaller("which", search)
         result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
         if not result:
             result = self._which(search)
-        elif as_path:
-            result = str(result.path)
         return result
 
     def python(self, system=False) -> str:
@@ -1456,10 +1452,11 @@ class Project:
             if os.name == "nt":
                 p = find_windows_executable(os.path.join(location, "Scripts"), command)
             else:
-                p = os.path.join(location, "bin", command)
+                p = Path(location) / "bin" / command
         elif is_python:
-            p = sys.executable
-        if not os.path.exists(p):
+            p = Path(sys.executable)
+        p_str = str(p) if isinstance(p, Path) else p
+        if not os.path.exists(p_str):
             if is_python:
                 p = sys.executable or system_which("python")
             else:

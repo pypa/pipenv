@@ -83,16 +83,17 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         raise exceptions.VirtualenvCreationException(extra=f"[red]{error}[/red]")
 
     # Associate project directory with the environment.
-    project_file_name = os.path.join(project.virtualenv_location, ".project")
-    with open(project_file_name, "w") as f:
-        f.write(project.project_directory)
+    virtualenv_path = Path(project.virtualenv_location)
+    project_file_path = virtualenv_path / ".project"
+    project_file_path.write_text(project.project_directory)
+
     from pipenv.environment import Environment
 
     sources = project.pipfile_sources()
     # project.get_location_for_virtualenv is only for if we are creating a new virtualenv
     # whereas virtualenv_location is for the current path to the runtime
     project._environment = Environment(
-        prefix=project.virtualenv_location,
+        prefix=str(virtualenv_path),
         is_venv=True,
         sources=sources,
         pipfile=project.parsed_pipfile,
@@ -462,12 +463,15 @@ def do_where(project, virtualenv=False, bare=True):
 
 def inline_activate_virtual_environment(project):
     root = project.virtualenv_location
-    if os.path.exists(os.path.join(root, "pyvenv.cfg")):
+    virtualenv_path = Path(root)
+
+    if (virtualenv_path / "pyvenv.cfg").exists():
         _inline_activate_venv(project)
     else:
         _inline_activate_virtualenv(project)
+
     if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = root
+        os.environ["VIRTUAL_ENV"] = str(virtualenv_path)
 
 
 def _inline_activate_venv(project):
@@ -478,24 +482,31 @@ def _inline_activate_venv(project):
 
     See: https://bugs.python.org/issue21496#msg218455
     """
+    virtualenv_path = Path(project.virtualenv_location)
     components = []
+
     for name in ("bin", "Scripts"):
-        bindir = os.path.join(project.virtualenv_location, name)
-        if os.path.exists(bindir):
-            components.append(bindir)
+        bindir = virtualenv_path / name
+        if bindir.exists():
+            components.append(str(bindir))
+
     if "PATH" in os.environ:
         components.append(os.environ["PATH"])
+
     os.environ["PATH"] = os.pathsep.join(components)
 
 
 def _inline_activate_virtualenv(project):
     try:
         activate_this = project._which("activate_this.py")
-        if not activate_this or not os.path.exists(activate_this):
+        activate_path = Path(activate_this) if activate_this else None
+
+        if not activate_path or not activate_path.exists():
             raise exceptions.VirtualenvActivationException()
-        with open(activate_this) as f:
-            code = compile(f.read(), activate_this, "exec")
-            exec(code, {"__file__": activate_this})
+
+        code = compile(activate_path.read_text(), str(activate_path), "exec")
+        exec(code, {"__file__": str(activate_path)})
+
     # Catch all errors, just in case.
     except Exception:
         err.print(
