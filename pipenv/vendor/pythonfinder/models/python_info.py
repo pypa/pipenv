@@ -20,7 +20,7 @@ class PythonInfo:
 
     path: Path
     version_str: str
-    major: int
+    major: int | None
     minor: int | None = None
     patch: int | None = None
     is_prerelease: bool = False
@@ -49,7 +49,7 @@ class PythonInfo:
         return self
 
     @property
-    def version_tuple(self) -> tuple[int, int | None, int | None, bool, bool, bool]:
+    def version_tuple(self) -> tuple[int | None, int | None, int | None, bool, bool, bool]:
         """
         Provides a version tuple for using as a dictionary key.
         """
@@ -79,7 +79,7 @@ class PythonInfo:
             release_sort = 1
         return (
             company_sort,
-            self.major,
+            self.major or 0,  # Handle None case by defaulting to 0
             self.minor or 0,
             self.patch or 0,
             release_sort,
@@ -143,7 +143,7 @@ class PythonInfo:
         Convert this PythonInfo to a dictionary.
         """
         return {
-            "major": self.major,
+            "major": self.major,  # Can be None
             "minor": self.minor,
             "patch": self.patch,
             "is_prerelease": self.is_prerelease,
