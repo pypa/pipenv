@@ -221,28 +221,6 @@ class _PipenvInstance:
         # Make sure we change back to the original directory before cleanup
         os.chdir(self.original_dir)
 
-        # On Windows with Python 3.8, we need to be extra careful with cleanup
-        if self._path:
-            try:
-                # First try normal cleanup
-                self._path.cleanup()
-            except OSError as e:
-                if os.name == 'nt' and sys.version_info[:2] == (3, 8):
-                    # On Windows with Python 3.8, try a more robust cleanup approach
-                    import time
-                    # Give the system a moment to release any locks
-                    time.sleep(0.1)
-                    try:
-                        # Try using our custom rmtree function
-                        _rmtree_func(self._path.name, ignore_errors=True)
-                    except (OSError, FileNotFoundError, PermissionError):
-                        # If that still fails, just warn and continue
-                        _warn_msg = warn_msg.format(e)
-                        warnings.warn(_warn_msg, ResourceWarning, stacklevel=1)
-                else:
-                    # For other platforms, just warn
-                    _warn_msg = warn_msg.format(e)
-                    warnings.warn(_warn_msg, ResourceWarning, stacklevel=1)
         self.path = None
         self._path = None
 
