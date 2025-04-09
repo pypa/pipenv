@@ -1,5 +1,5 @@
-import os
 import re
+from pathlib import Path
 from typing import Tuple
 from urllib.parse import quote, unquote
 
@@ -59,8 +59,8 @@ def import_requirements(project, r=None, dev=False, categories=None):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
-    if r:
-        assert os.path.isfile(r)
+    if r and not Path(r).is_file():
+        raise OSError(f"Requirements file not found: {r}")
     # Default path, if none is provided.
     if r is None:
         r = project.requirements_location

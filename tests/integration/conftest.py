@@ -213,18 +213,13 @@ class _PipenvInstance:
         return self
 
     def __exit__(self, *args):
-        warn_msg = "Failed to remove resource: {!r}"
         if self.pipfile_path:
             with contextlib.suppress(OSError):
                 os.remove(self.pipfile_path)
 
+        # Make sure we change back to the original directory before cleanup
         os.chdir(self.original_dir)
-        if self._path:
-            try:
-                self._path.cleanup()
-            except OSError as e:
-                _warn_msg = warn_msg.format(e)
-                warnings.warn(_warn_msg, ResourceWarning, stacklevel=1)
+
         self.path = None
         self._path = None
 

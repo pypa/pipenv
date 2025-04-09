@@ -60,6 +60,8 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
 
     Args are appended to the command in [scripts] section of project if found.
     """
+    from pathlib import Path
+
     from pipenv.cmdparse import ScriptEmptyError
 
     env = os.environ.copy()
@@ -74,13 +76,23 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
 
     path = env.get("PATH", "")
     if project.virtualenv_location:
-        new_path = os.path.join(
-            project.virtualenv_location, "Scripts" if os.name == "nt" else "bin"
-        )
+        # Get the exact string representation of virtualenv_location
+        virtualenv_location = str(project.virtualenv_location)
+
+        # Use pathlib for path construction but convert back to string
+        from pathlib import Path
+
+        virtualenv_path = Path(virtualenv_location)
+        bin_dir = "Scripts" if os.name == "nt" else "bin"
+        new_path = str(virtualenv_path / bin_dir)
+
+        # Update PATH
         paths = path.split(os.pathsep)
         paths.insert(0, new_path)
         path = os.pathsep.join(paths)
-        env["VIRTUAL_ENV"] = project.virtualenv_location
+
+        # Set VIRTUAL_ENV to the exact string representation
+        env["VIRTUAL_ENV"] = virtualenv_location
     env["PATH"] = path
 
     # Set an environment variable, so we know we're in the environment.
@@ -133,10 +145,14 @@ def do_run_posix(project, script, command, env):
                 err=True,
             )
         sys.exit(1)
+
+    # Ensure all environment variables are strings
+    string_env = {k: str(v) for k, v in env.items() if v is not None}
+
     os.execve(
         command_path,
-        [command_path, *(os.path.expandvars(arg) for arg in script.args)],
-        env,
+        [command_path, *(expandvars(arg) for arg in script.args)],
+        string_env,
     )
 
 
@@ -150,7 +166,9 @@ def _launch_windows_subprocess(script, env):
     path = env.get("PATH", "")
     command = system_which(script.command, path=path)
 
-    options = {"universal_newlines": True, "env": env}
+    # Ensure all environment variables are strings
+    string_env = {k: str(v) for k, v in env.items() if v is not None}
+    options = {"universal_newlines": True, "env": string_env}
     script.cmd_args[1:] = [expandvars(arg) for arg in script.args]
 
     # Command not found, maybe this is a shell built-in?

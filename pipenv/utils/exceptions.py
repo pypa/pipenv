@@ -1,6 +1,6 @@
 import errno
-import os
 import sys
+from pathlib import Path
 
 
 class RequirementError(Exception):
@@ -24,15 +24,20 @@ class FileCorruptException(OSError):
     def __init__(self, path, *args, **kwargs):
         backup_path = kwargs.pop("backup_path", None)
         if not backup_path and args:
-            args = reversed(args)
+            args = list(reversed(args))
             backup_path = args.pop()
-            if not isinstance(backup_path, str) or not os.path.exists(
-                os.path.abspath(os.path.dirname(backup_path))
+
+            # Check if backup_path is a valid path with an existing parent directory
+            if (
+                not isinstance(backup_path, (str, Path))
+                or not Path(backup_path).parent.exists()
             ):
                 args.append(backup_path)
                 backup_path = None
+
             if args:
-                args = reversed(args)
+                args = list(reversed(args))
+
         self.message = self.get_message(path, backup_path=backup_path)
         super().__init__(self.message)
 
