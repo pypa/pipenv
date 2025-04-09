@@ -1,10 +1,7 @@
-import os
 import shutil
 from pathlib import Path
 
 import pytest
-
-from pipenv.utils.processes import subprocess_run
 
 
 @pytest.mark.integration
@@ -34,7 +31,7 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         # The src directory could be in the project directory or in the virtualenv directory
         src_dir_project = Path(p.path) / "src"
         src_dir_venv = Path(p.virtualenv_location) / "src"
-        
+
         # Check if either src directory exists
         src_dir = src_dir_project if src_dir_project.exists() else src_dir_venv
         assert src_dir.exists(), f"src directory was not created in either {src_dir_project} or {src_dir_venv}"
@@ -56,7 +53,7 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         # Check both possible locations again
         src_dir_project = Path(p.path) / "src"
         src_dir_venv = Path(p.virtualenv_location) / "src"
-        
+
         # Check if either src directory exists
         src_dir = src_dir_project if src_dir_project.exists() else src_dir_venv
         assert src_dir.exists(), f"src directory was not recreated in either {src_dir_project} or {src_dir_venv}"
