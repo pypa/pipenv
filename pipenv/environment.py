@@ -17,6 +17,7 @@ from urllib.parse import urlparse
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.locations.base import get_src_prefix
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
@@ -743,23 +744,11 @@ class Environment:
             elif req.editable and req.link.is_vcs:
                 # For editable VCS dependencies, check if the source directory exists
                 # This ensures we reinstall if the source checkout is missing
+                # Use get_src_prefix() to get the appropriate src directory
+                # This handles both virtualenv and non-virtualenv cases
+                src_dir = get_src_prefix()
 
-                # Check for src directory in both possible locations
-                src_dir_cwd = os.path.join(os.getcwd(), "src")
-                src_dir_venv = (
-                    os.path.join(self.prefix, "src") if hasattr(self, "prefix") else None
-                )
-
-                # Use the src directory that exists, or default to the current working directory
-                src_dir = src_dir_cwd
-                if (
-                    not os.path.exists(src_dir_cwd)
-                    and src_dir_venv
-                    and os.path.exists(src_dir_venv)
-                ):
-                    src_dir = src_dir_venv
-
-                # If neither src directory exists, the requirement is not satisfied
+                # If the src directory doesn't exist, the requirement is not satisfied
                 if not os.path.exists(src_dir):
                     return False
 
