@@ -83,16 +83,17 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         raise exceptions.VirtualenvCreationException(extra=f"[red]{error}[/red]")
 
     # Associate project directory with the environment.
-    project_file_name = os.path.join(project.virtualenv_location, ".project")
-    with open(project_file_name, "w") as f:
-        f.write(project.project_directory)
+    virtualenv_path = Path(project.virtualenv_location)
+    project_file_path = virtualenv_path / ".project"
+    project_file_path.write_text(project.project_directory)
+
     from pipenv.environment import Environment
 
     sources = project.pipfile_sources()
     # project.get_location_for_virtualenv is only for if we are creating a new virtualenv
     # whereas virtualenv_location is for the current path to the runtime
     project._environment = Environment(
-        prefix=project.virtualenv_location,
+        prefix=str(virtualenv_path),
         is_venv=True,
         sources=sources,
         pipfile=project.parsed_pipfile,
@@ -133,7 +134,10 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
             # Ensure Python is available.
             python = ensure_python(project, python=python)
             if python is not None and not isinstance(python, str):
-                python = python.path.as_posix()
+                if hasattr(python, "path"):  # It's a PythonInfo object
+                    python = python.path.as_posix()
+                else:  # It's a Path object
+                    python = python.as_posix()
             # Create the virtualenv.
             # Abort if --system (or running in a virtualenv).
             if project.s.PIPENV_USE_SYSTEM:
@@ -160,7 +164,10 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
         # Ensure python is installed before deleting existing virtual env
         python = ensure_python(project, python=python)
         if python is not None and not isinstance(python, str):
-            python = python.path.as_posix()
+            if hasattr(python, "path"):  # It's a PythonInfo object
+                python = python.path.as_posix()
+            else:  # It's a Path object
+                python = python.as_posix()
 
         err.print("[red]Virtualenv already exists![/red]")
         # If VIRTUAL_ENV is set, there is a possibility that we are
@@ -224,10 +231,36 @@ def ensure_python(project, python=None):
 
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
+    # Try to find Python using system registry and default paths first
     path_to_python = find_a_system_python(python)
+
     if project.s.is_verbose():
         err.print(f"Using python: {python}")
         err.print(f"Path to python: {path_to_python}")
+
+    # If not found and we're on Windows, try using the py launcher
+    if (
+        not path_to_python
+        and os.name == "nt"
+        and python is not None
+        and (python[0].isdigit() or python.startswith("python"))
+    ):
+        # Extract version number if it's in format like "python3.11" or "python_version = 3.11"
+        if python.startswith("python"):
+            version_match = re.search(r"(\d+\.\d+)", python)
+            if version_match:
+                python_version_str = version_match.group(1)
+            else:
+                python_version_str = python
+        else:
+            python_version_str = python
+
+        python_path = find_python_from_py_launcher(python_version_str)
+        if python_path:
+            if project.s.is_verbose():
+                err.print(f"Found Python using py launcher: {python_path}")
+            return python_path
+
     if not path_to_python and python is not None:
         # We need to install Python.
         err.print(
@@ -251,7 +284,12 @@ def ensure_python(project, python=None):
                 installer = Asdf(project)
 
         if not installer:
-            abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
+            if os.name == "nt":
+                abort(
+                    "Python was not found on your system and neither 'pyenv' nor 'asdf' could be found to install Python."
+                )
+            else:
+                abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
         else:
             if environments.SESSION_IS_INTERACTIVE or project.s.PIPENV_YES:
                 try:
@@ -266,45 +304,103 @@ def ensure_python(project, python=None):
                     f"with {installer}?",
                 )
 
-                # Prompt the user to continue...
-                if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
-                    abort()
-                else:
-                    # Tell the user we're installing Python.
-                    console.print(
-                        f"[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
-                    )
-                    console.print("(this may take a few minutes)[bold]...[/bold]")
-                    with console.status(
-                        "Installing python...", spinner=project.s.PIPENV_SPINNER
-                    ):
-                        try:
-                            c = installer.install(version)
-                        except InstallerError as e:
-                            err.print(
-                                environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
-                            )
-                            err.print("Something went wrong...")
-                            err.print(f"[cyan]{e.err}[/cyan]")
-                        else:
-                            console.print(
-                                environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                            )
-                            # Print the results, in a beautiful blue...
-                            err.print(f"[cyan]{c.stdout}[/cyan]")
-                    # Find the newly installed Python, hopefully.
-                    version = str(version)
-                    path_to_python = find_a_system_python(version)
+            # Prompt the user to continue...
+            if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
+                abort()
+            else:
+                # Tell the user we're installing Python.
+                console.print(
+                    f"[bold]Installing [green]CPython[/green] {version} with {installer.cmd}[/bold]"
+                )
+                console.print("(this may take a few minutes)[bold]...[/bold]")
+                with console.status(
+                    "Installing python...", spinner=project.s.PIPENV_SPINNER
+                ):
                     try:
-                        assert python_version(path_to_python) == version
-                    except AssertionError:
+                        c = installer.install(version)
+                    except InstallerError as e:
                         err.print(
-                            "[bold][red]Warning:[/red][/bold]"
-                            " The Python you just installed is not available "
-                            "on your [bold]PATH[/bold], apparently."
+                            environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed...")
                         )
-                        sys.exit(1)
+                        err.print("Something went wrong...")
+                        err.print(f"[cyan]{e.err}[/cyan]")
+                    else:
+                        console.print(
+                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+                        )
+                        # Print the results, in a beautiful blue...
+                        err.print(f"[cyan]{c.stdout}[/cyan]")
+                # Find the newly installed Python, hopefully.
+                version = str(version)
+                path_to_python = find_a_system_python(version)
+                try:
+                    assert python_version(path_to_python) == version
+                except AssertionError:
+                    err.print(
+                        "[bold][red]Warning:[/red][/bold]"
+                        " The Python you just installed is not available "
+                        "on your [bold]PATH[/bold], apparently."
+                    )
+                    sys.exit(1)
     return path_to_python
+
+
+def find_python_from_py_launcher(version):
+    """Find a Python installation using the Windows py launcher.
+
+    This uses the py --list-paths command to find Python installations on Windows.
+
+    Args:
+        version: A version string like "3.9" or "3.9.0"
+
+    Returns:
+        The path to the Python executable, or None if not found
+    """
+    if os.name != "nt":
+        return None
+
+    # Normalize version to major.minor format
+    if version and version[0].isdigit():
+        version_parts = version.split(".")
+        if len(version_parts) >= 2:
+            version = f"{version_parts[0]}.{version_parts[1]}"
+        else:
+            version = version_parts[0]
+    else:
+        return None
+
+    try:
+        # Run py --list-paths to get all installed Python versions
+        c = subprocess_run(["py", "--list-paths"], capture_output=True, text=True)
+        if c.returncode != 0:
+            return None
+
+        # Parse the output to find the requested version
+        for line in c.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+
+            # Format is: -V:3.9 * path\to\python.exe
+            # We need to extract the version and path
+            parts = line.split(None, 2)
+            if len(parts) < 3:
+                continue
+
+            # Extract version from -V:3.9
+            v_part = parts[0]
+            if not v_part.startswith("-V:"):
+                continue
+
+            v = v_part[3:]  # Remove -V: prefix
+            if v == version:
+                # Found the requested version, return the path
+                return parts[-1]
+    except Exception:
+        # If anything goes wrong, fall back to other methods
+        pass
+
+    return None
 
 
 def find_a_system_python(line):
@@ -318,6 +414,8 @@ def find_a_system_python(line):
       in PATH, and use it directly.
     * Search for "python" and "pythonX.Y" executables in PATH to find a match.
     * Nothing fits, return None.
+
+    Note: The Windows py launcher is handled separately in ensure_python.
     """
 
     from pipenv.vendor.pythonfinder import Finder
@@ -328,6 +426,8 @@ def find_a_system_python(line):
     # Use the windows finder executable
     if (line.startswith(("py ", "py.exe "))) and os.name == "nt":
         line = line.split(" ", 1)[1].lstrip("-")
+
+    # Try to find Python using the regular methods
     python_entry = find_python(finder, line)
     return python_entry
 
@@ -363,12 +463,15 @@ def do_where(project, virtualenv=False, bare=True):
 
 def inline_activate_virtual_environment(project):
     root = project.virtualenv_location
-    if os.path.exists(os.path.join(root, "pyvenv.cfg")):
+    virtualenv_path = Path(root)
+
+    if (virtualenv_path / "pyvenv.cfg").exists():
         _inline_activate_venv(project)
     else:
         _inline_activate_virtualenv(project)
+
     if "VIRTUAL_ENV" not in os.environ:
-        os.environ["VIRTUAL_ENV"] = root
+        os.environ["VIRTUAL_ENV"] = str(virtualenv_path)
 
 
 def _inline_activate_venv(project):
@@ -379,24 +482,31 @@ def _inline_activate_venv(project):
 
     See: https://bugs.python.org/issue21496#msg218455
     """
+    virtualenv_path = Path(project.virtualenv_location)
     components = []
+
     for name in ("bin", "Scripts"):
-        bindir = os.path.join(project.virtualenv_location, name)
-        if os.path.exists(bindir):
-            components.append(bindir)
+        bindir = virtualenv_path / name
+        if bindir.exists():
+            components.append(str(bindir))
+
     if "PATH" in os.environ:
         components.append(os.environ["PATH"])
+
     os.environ["PATH"] = os.pathsep.join(components)
 
 
 def _inline_activate_virtualenv(project):
     try:
         activate_this = project._which("activate_this.py")
-        if not activate_this or not os.path.exists(activate_this):
+        activate_path = Path(activate_this) if activate_this else None
+
+        if not activate_path or not activate_path.exists():
             raise exceptions.VirtualenvActivationException()
-        with open(activate_this) as f:
-            code = compile(f.read(), activate_this, "exec")
-            exec(code, {"__file__": activate_this})
+
+        code = compile(activate_path.read_text(), str(activate_path), "exec")
+        exec(code, {"__file__": str(activate_path)})
+
     # Catch all errors, just in case.
     except Exception:
         err.print(

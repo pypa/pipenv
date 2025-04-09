@@ -152,7 +152,7 @@ class Project:
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
-        self._original_dir = os.path.abspath(os.curdir)
+        self._original_dir = Path.cwd().resolve()
         self._environment = None
         self._build_system = {"requires": ["setuptools", "wheel"]}
         self.python_version = python_version
@@ -213,12 +213,13 @@ class Project:
             with contextlib.suppress(TypeError, AttributeError):
                 os.chdir(self.project_directory)
 
-    def path_to(self, p: str) -> str:
+    def path_to(self, p: str) -> Path:
         """Returns the absolute path to a given relative path."""
-        if os.path.isabs(p):
-            return p
+        path = Path(p)
+        if path.is_absolute():
+            return path
 
-        return os.sep.join([self._original_dir, p])
+        return Path(self._original_dir) / p
 
     def get_pipfile_section(self, section):
         """Returns the details from the section of the Project's Pipfile."""
@@ -376,12 +377,12 @@ class Project:
     @property
     def name(self) -> str:
         if self._name is None:
-            self._name = self.pipfile_location.split(os.sep)[-2]
+            self._name = Path(self.pipfile_location).parent.name
         return self._name
 
     @property
     def pipfile_exists(self) -> bool:
-        return os.path.isfile(self.pipfile_location)
+        return Path(self.pipfile_location).is_file()
 
     @property
     def required_python_version(self) -> str:
@@ -394,7 +395,7 @@ class Project:
 
     @property
     def project_directory(self) -> str:
-        return os.path.abspath(os.path.join(self.pipfile_location, os.pardir))
+        return str(Path(self.pipfile_location).parent.absolute())
 
     @property
     def requirements_exists(self) -> bool:
@@ -404,50 +405,49 @@ class Project:
         if self.s.PIPENV_VENV_IN_PROJECT is False:
             return False
         return self.s.PIPENV_VENV_IN_PROJECT or (
-            self.project_directory
-            and os.path.isdir(os.path.join(self.project_directory, ".venv"))
+            self.project_directory and Path(self.project_directory, ".venv").is_dir()
         )
 
     @property
     def virtualenv_exists(self) -> bool:
-        if os.path.exists(self.virtualenv_location):
+        venv_path = Path(self.virtualenv_location)
+        if venv_path.exists():
             if os.name == "nt":
-                extra = ["Scripts", "activate.bat"]
+                activate_path = venv_path / "Scripts" / "activate.bat"
             else:
-                extra = ["bin", "activate"]
-            return os.path.isfile(os.sep.join([self.virtualenv_location] + extra))
+                activate_path = venv_path / "bin" / "activate"
+            return activate_path.is_file()
 
         return False
 
-    def get_location_for_virtualenv(self) -> str:
+    def get_location_for_virtualenv(self) -> Path:
         # If there's no project yet, set location based on config.
         if not self.project_directory:
             if self.is_venv_in_project():
-                return os.path.abspath(".venv")
-            return str(get_workon_home().joinpath(self.virtualenv_name))
+                return Path(".venv").absolute()
+            return get_workon_home().joinpath(self.virtualenv_name)
 
-        dot_venv = os.path.join(self.project_directory, ".venv")
+        dot_venv = Path(self.project_directory) / ".venv"
 
         # If there's no .venv in project root or it is a folder, set location based on config.
-        if not os.path.exists(dot_venv) or os.path.isdir(dot_venv):
+        if not dot_venv.exists() or dot_venv.is_dir():
             if self.is_venv_in_project():
                 return dot_venv
-            return str(get_workon_home().joinpath(self.virtualenv_name))
+            return get_workon_home().joinpath(self.virtualenv_name)
 
         # Now we assume .venv in project root is a file. Use its content.
-        with open(dot_venv) as f:
-            name = f.read().strip()
+        name = dot_venv.read_text().strip()
 
         # If .venv file is empty, set location based on config.
         if not name:
-            return str(get_workon_home().joinpath(self.virtualenv_name))
+            return get_workon_home().joinpath(self.virtualenv_name)
 
         # If content looks like a path, use it as a relative path.
         # Otherwise, use directory named after content in WORKON_HOME.
         if looks_like_dir(name):
-            path = Path(self.project_directory, name)
-            return path.absolute().as_posix()
-        return str(get_workon_home().joinpath(name))
+            path = Path(self.project_directory) / name
+            return path.absolute()
+        return get_workon_home().joinpath(name)
 
     @property
     def installed_packages(self):
@@ -576,8 +576,8 @@ class Project:
         sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
         suffix = ""
         if self.s.PIPENV_PYTHON:
-            if os.path.isabs(self.s.PIPENV_PYTHON):
-                suffix = f"-{os.path.basename(self.s.PIPENV_PYTHON)}"
+            if Path(self.s.PIPENV_PYTHON).is_absolute():
+                suffix = f"-{Path(self.s.PIPENV_PYTHON).name}"
             else:
                 suffix = f"-{self.s.PIPENV_PYTHON}"
 
@@ -594,29 +594,31 @@ class Project:
             and not self.s.PIPENV_IGNORE_VIRTUALENVS
             and virtualenv_env
         ):
-            return virtualenv_env
+            return Path(virtualenv_env)
 
         if not self._virtualenv_location:  # Use cached version, if available.
-            assert self.project_directory, "project not created"
-            self._virtualenv_location = self.get_location_for_virtualenv()
+            if not self.project_directory:
+                raise RuntimeError("Project location not created nor specified")
+            location = self.get_location_for_virtualenv()
+            self._virtualenv_location = Path(location)
         return self._virtualenv_location
 
     @property
-    def virtualenv_src_location(self) -> str:
+    def virtualenv_src_location(self) -> Path:
         if self.virtualenv_location:
-            loc = os.sep.join([self.virtualenv_location, "src"])
+            loc = Path(self.virtualenv_location) / "src"
         else:
-            loc = os.sep.join([self.project_directory, "src"])
-        os.makedirs(loc, exist_ok=True)
+            loc = Path(self.project_directory) / "src"
+        loc.mkdir(parents=True, exist_ok=True)
         return loc
 
     @property
-    def download_location(self) -> str:
+    def download_location(self) -> Path:
         if self._download_location is None:
-            loc = os.sep.join([self.virtualenv_location, "downloads"])
+            loc = Path(self.virtualenv_location) / "downloads"
             self._download_location = loc
         # Create the directory, if it doesn't exist.
-        os.makedirs(self._download_location, exist_ok=True)
+        self._download_location.mkdir(parents=True, exist_ok=True)
         return self._download_location
 
     @property
@@ -690,11 +692,12 @@ class Project:
             return toml.loads(contents)
 
     def _read_pyproject(self) -> None:
-        pyproject = self.path_to("pyproject.toml")
-        if os.path.exists(pyproject):
-            self._pyproject = toml.load(pyproject)
+        pyproject_path = Path(self.path_to("pyproject.toml"))
+        if pyproject_path.exists():
+            self._pyproject = toml.load(pyproject_path)
             build_system = self._pyproject.get("build-system", None)
-            if not os.path.exists(self.path_to("setup.py")):
+            setup_py_path = Path(self.path_to("setup.py"))
+            if not setup_py_path.exists():
                 if not build_system or not build_system.get("requires"):
                     build_system = {
                         "requires": ["setuptools>=40.8.0", "wheel"],
@@ -781,7 +784,7 @@ class Project:
 
     @property
     def lockfile_exists(self):
-        return os.path.isfile(self.lockfile_location)
+        return Path(self.lockfile_location).is_file()
 
     @property
     def lockfile_content(self):
@@ -857,10 +860,7 @@ class Project:
         # Default requires.
         required_python = python
         if not python:
-            if self.virtualenv_location:
-                required_python = self.which("python", self.virtualenv_location)
-            else:
-                required_python = self.which("python")
+            required_python = self.which("python")
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
@@ -988,9 +988,7 @@ class Project:
             if os.environ.get("PIPENV_PYPI_MIRROR"):
                 sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
             return sources
-        # We need to make copies of the source info so we don't
-        # accidentally modify the cache. See #2100 where values are
-        # written after the os.path.expandvars() call.
+        # Expand environment variables in the source URLs.
         sources = [
             {k: safe_expandvars(v) if expand_vars else v for k, v in source.items()}
             for source in self.parsed_pipfile["source"]
@@ -1321,25 +1319,34 @@ class Project:
 
     def load_lockfile(self, expand_env_vars=True):
         lockfile_modified = False
-        with open(self.lockfile_location, encoding="utf-8") as lock:
-            try:
-                j = json.load(lock)
-                self._lockfile_newlines = preferred_newlines(lock)
-            except JSONDecodeError:
-                err.print(
-                    "[bold yellow]Pipfile.lock is corrupted; ignoring contents.[/bold yellow]"
-                )
-                j = {}
+        lockfile_path = Path(self.lockfile_location)
+        pipfile_path = Path(self.pipfile_location)
+
+        try:
+            with lockfile_path.open(encoding="utf-8") as lock:
+                try:
+                    j = json.load(lock)
+                    self._lockfile_newlines = preferred_newlines(lock)
+                except JSONDecodeError:
+                    err.print(
+                        "[bold yellow]Pipfile.lock is corrupted; ignoring contents.[/bold yellow]"
+                    )
+                    j = {}
+        except FileNotFoundError:
+            j = {}
+
         if not j.get("_meta"):
-            with open(self.pipfile_location) as pf:
+            with pipfile_path.open() as pf:
                 default_lockfile = plette.Lockfile.with_meta_from(
                     plette.Pipfile.load(pf), categories=[]
                 )
                 j["_meta"] = default_lockfile._data["_meta"]
                 lockfile_modified = True
+
         if j.get("default") is None:
             j["default"] = {}
             lockfile_modified = True
+
         if j.get("develop") is None:
             j["develop"] = {}
             lockfile_modified = True
@@ -1350,6 +1357,7 @@ class Project:
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
             for i, _ in enumerate(j["_meta"].get("sources", {})):
+                # Path doesn't have expandvars method, so we need to use os.path.expandvars
                 j["_meta"]["sources"][i]["url"] = os.path.expandvars(
                     j["_meta"]["sources"][i]["url"]
                 )
@@ -1357,7 +1365,8 @@ class Project:
         return j
 
     def get_lockfile_hash(self):
-        if not os.path.exists(self.lockfile_location):
+        lockfile_path = Path(self.lockfile_location)
+        if not lockfile_path.exists():
             return
 
         try:
@@ -1414,9 +1423,9 @@ class Project:
         from .vendor.pythonfinder import Finder
 
         scripts_dirname = "Scripts" if os.name == "nt" else "bin"
-        scripts_dir = os.path.join(self.virtualenv_location, scripts_dirname)
+        scripts_dir = Path(self.virtualenv_location) / scripts_dirname
         finders = [
-            Finder(path=scripts_dir, global_search=gs, system=False)
+            Finder(path=str(scripts_dir), global_search=gs, system=False)
             for gs in (False, True)
         ]
         return finders
@@ -1425,14 +1434,11 @@ class Project:
     def finder(self):
         return next(iter(self.finders), None)
 
-    def which(self, search, as_path=True):
+    def which(self, search):
         find = operator.methodcaller("which", search)
         result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
         if not result:
             result = self._which(search)
-        else:
-            if as_path:
-                result = str(result.path)
         return result
 
     def python(self, system=False) -> str:
@@ -1447,22 +1453,35 @@ class Project:
                 location = self.virtualenv_location
             else:
                 location = os.environ.get("VIRTUAL_ENV", None)
-        if not (location and os.path.exists(location)) and not allow_global:
+
+        location_path = Path(location) if location else None
+
+        if not (location_path and location_path.exists()) and not allow_global:
             raise RuntimeError("location not created nor specified")
 
-        version_str = "python{}".format(".".join([str(v) for v in sys.version_info[:2]]))
-        is_python = command in ("python", os.path.basename(sys.executable), version_str)
+        version_str = f"python{'.'.join([str(v) for v in sys.version_info[:2]])}"
+        is_python = command in ("python", Path(sys.executable).name, version_str)
+
         if not allow_global:
             if os.name == "nt":
-                p = find_windows_executable(os.path.join(location, "Scripts"), command)
+                p = find_windows_executable(str(location_path / "Scripts"), command)
+                # Convert to Path object if it's a string
+                p = Path(p) if isinstance(p, str) else p
             else:
-                p = os.path.join(location, "bin", command)
+                p = location_path / "bin" / command
+        elif is_python:
+            p = Path(sys.executable)
         else:
+            p = None
+
+        if p is None or not p.exists():
             if is_python:
-                p = sys.executable
-        if not os.path.exists(p):
-            if is_python:
-                p = sys.executable or system_which("python")
+                p = (
+                    Path(sys.executable)
+                    if sys.executable
+                    else Path(system_which("python"))
+                )
             else:
-                p = system_which(command)
+                p = Path(system_which(command)) if system_which(command) else None
+
         return p

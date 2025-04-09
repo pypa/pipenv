@@ -1,8 +1,8 @@
 import glob
 import os
-import pathlib
 import re
 import sys
+from pathlib import Path
 
 from pipenv.patched.pip._vendor.platformdirs import user_cache_dir
 from pipenv.utils.fileutils import normalize_drive
@@ -53,7 +53,7 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
 def normalize_pipfile_path(p):
     if p is None:
         return None
-    loc = pathlib.Path(p)
+    loc = Path(p)
     try:
         loc = loc.resolve()
     except OSError:
@@ -61,10 +61,10 @@ def normalize_pipfile_path(p):
     # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
     if os.name == "nt":
         matches = glob.glob(re.sub(r"([^:/\\])(?=[/\\]|$)", r"[\1]", str(loc)))
-        path_str = matches and matches[0] or str(loc)
+        path = Path(matches[0] if matches else str(loc))
     else:
-        path_str = str(loc)
-    return normalize_drive(os.path.abspath(path_str))
+        path = loc
+    return normalize_drive(str(path.absolute()))
 
 
 # HACK: Prevent invalid shebangs with Homebrew-installed Python:
@@ -425,16 +425,16 @@ def is_using_venv() -> bool:
     return result
 
 
-def is_in_virtualenv():
+def is_in_virtualenv() -> bool:
     """
     Check virtualenv membership dynamically
 
-    :return: True or false depending on whether we are in a regular virtualenv or not
+    :return: True or False depending on whether we are in a regular virtualenv or not
     :rtype: bool
     """
 
-    pipenv_active = os.environ.get("PIPENV_ACTIVE", False)
-    virtual_env = bool(os.environ.get("VIRTUAL_ENV"))
+    pipenv_active = is_env_truthy("PIPENV_ACTIVE")
+    virtual_env = bool(os.getenv("VIRTUAL_ENV"))
     ignore_virtualenvs = bool(get_from_env("IGNORE_VIRTUALENVS"))
     return virtual_env and not (pipenv_active or ignore_virtualenvs)
 

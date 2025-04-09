@@ -113,7 +113,7 @@ class Environment:
     @property
     def python_info(self) -> dict[str, str]:
         include_dir = self.prefix / "include"
-        if not os.path.exists(include_dir):
+        if not include_dir.exists():
             include_dirs = self.get_include_path()
             if include_dirs:
                 include_path = include_dirs.get(
@@ -130,15 +130,17 @@ class Environment:
         return {}
 
     def _replace_parent_version(self, path: str, replace_version: str) -> str:
-        if not os.path.exists(path):
-            base, leaf = os.path.split(path)
-            base, parent = os.path.split(base)
-            leaf = os.path.join(parent, leaf).replace(
+        path_obj = Path(path)
+        if not path_obj.exists():
+            parent = path_obj.parent
+            grandparent = parent.parent
+            leaf = f"{parent.name}/{path_obj.name}"
+            leaf = leaf.replace(
                 replace_version,
                 self.python_info.get("py_version_short", get_python_version()),
             )
-            return os.path.join(base, leaf)
-        return path
+            return str(grandparent / leaf)
+        return str(path_obj)
 
     @cached_property
     def install_scheme(self):
@@ -816,12 +818,11 @@ class Environment:
             if self.is_venv:
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = prefix
-            else:
-                if not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
-                    "VIRTUAL_ENV"
-                ):
-                    os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
-                    os.environ.pop("PYTHONHOME", None)
+            elif not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
+                "VIRTUAL_ENV"
+            ):
+                os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+                os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             try:

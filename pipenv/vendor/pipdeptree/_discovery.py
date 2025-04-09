@@ -39,10 +39,10 @@ def get_installed_distributions(
         result = subprocess.run(args, stdout=subprocess.PIPE, check=False, text=True)  # noqa: S603
         paths = ast.literal_eval(result.stdout)
     elif local_only and in_venv:
-        paths = [p for p in paths if p.startswith(sys.prefix)]
+        paths = [p for p in paths if str(p).startswith(sys.prefix)]
 
     if user_only:
-        paths = [p for p in paths if p.startswith(site.getusersitepackages())]
+        paths = [p for p in paths if str(p).startswith(site.getusersitepackages())]
 
     return filter_valid_distributions(distributions(path=paths))
 
