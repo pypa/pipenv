@@ -30,7 +30,8 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         # Verify the src directory was created
         # The src directory could be in the project directory or in the virtualenv directory
         src_dir_project = Path(p.path) / "src"
-        src_dir_venv = Path(p.virtualenv_location) / "src"
+        venv_location = p.virtualenv_location
+        src_dir_venv = Path(venv_location) / "src" if venv_location else None
 
         # Check if either src directory exists
         src_dir = src_dir_project if src_dir_project.exists() else src_dir_venv
@@ -52,7 +53,8 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         # Verify the src directory was recreated
         # Check both possible locations again
         src_dir_project = Path(p.path) / "src"
-        src_dir_venv = Path(p.virtualenv_location) / "src"
+        venv_location = p.virtualenv_location
+        src_dir_venv = Path(venv_location) / "src" if venv_location else None
 
         # Check if either src directory exists
         src_dir = src_dir_project if src_dir_project.exists() else src_dir_venv

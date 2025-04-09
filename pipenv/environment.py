@@ -17,7 +17,6 @@ from urllib.parse import urlparse
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
-from pipenv.patched.pip._internal.locations.base import get_src_prefix
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
@@ -735,18 +734,12 @@ class Environment:
             None,
         )
         if match is not None:
-            if req.specifier is not None:
-                return SpecifierSet(str(req.specifier)).contains(
-                    match.version, prereleases=True
-                )
-            if req.link is None:
-                return True
-            elif req.editable and req.link.is_vcs:
-                # For editable VCS dependencies, check if the source directory exists
-                # This ensures we reinstall if the source checkout is missing
-                # Use get_src_prefix() to get the appropriate src directory
-                # This handles both virtualenv and non-virtualenv cases
-                src_dir = get_src_prefix()
+            # For editable VCS dependencies, check if the source directory exists first
+            # This ensures we reinstall if the source checkout is missing
+            if req.editable and req.link and req.link.is_vcs:
+                # Use the environment's prefix to get the src directory
+                # (get_src_prefix() uses sys.prefix which is pipenv's venv, not the project's)
+                src_dir = os.path.join(str(self.prefix), "src")
 
                 # If the src directory doesn't exist, the requirement is not satisfied
                 if not os.path.exists(src_dir):
@@ -758,6 +751,12 @@ class Environment:
                     if not os.path.exists(pkg_dir):
                         return False
 
+                return True
+            if req.specifier is not None:
+                return SpecifierSet(str(req.specifier)).contains(
+                    match.version, prereleases=True
+                )
+            if req.link is None:
                 return True
             elif req.editable and req.link.is_file:
                 requested_path = req.link.file_path
