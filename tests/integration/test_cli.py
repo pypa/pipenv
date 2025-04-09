@@ -30,10 +30,6 @@ def test_pipenv_venv(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info < (3, 11),
-    reason="Test issue with Windows Python versions less than 3.11",
-)
 def test_pipenv_py(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("--python python")
@@ -45,10 +41,6 @@ def test_pipenv_py(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info < (3, 11),
-    reason="Test issue with Windows Python versions less than 3.11",
-)
 def test_pipenv_site_packages(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("--python python --site-packages")
