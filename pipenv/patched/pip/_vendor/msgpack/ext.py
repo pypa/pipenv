@@ -1,6 +1,6 @@
-from collections import namedtuple
 import datetime
 import struct
+from collections import namedtuple
 
 
 class ExtType(namedtuple("ExtType", "code data")):
@@ -157,7 +157,9 @@ class Timestamp:
         :rtype: `datetime.datetime`
         """
         utc = datetime.timezone.utc
-        return datetime.datetime.fromtimestamp(0, utc) + datetime.timedelta(seconds=self.to_unix())
+        return datetime.datetime.fromtimestamp(0, utc) + datetime.timedelta(
+            seconds=self.seconds, microseconds=self.nanoseconds // 1000
+        )
 
     @staticmethod
     def from_datetime(dt):
@@ -165,4 +167,4 @@ class Timestamp:
 
         :rtype: Timestamp
         """
-        return Timestamp.from_unix(dt.timestamp())
+        return Timestamp(seconds=int(dt.timestamp()), nanoseconds=dt.microsecond * 1000)
