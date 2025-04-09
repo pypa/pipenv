@@ -14,6 +14,24 @@ Checks for PyUp Safety security vulnerabilities and against PEP 508 markers prov
 pipenv check [OPTIONS]
 ```
 
+Options:
+```
+--auto-install  Automatically install safety if not already installed.
+```
+
+## scan
+
+Scans for security vulnerabilities and checks PEP 508 markers.
+
+```bash
+pipenv scan [OPTIONS]
+```
+
+Options:
+```
+--auto-install  Automatically install safety if not already installed.
+```
+
 ## clean
 
 Uninstalls all packages not specified in Pipfile.lock.
