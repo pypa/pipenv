@@ -4,6 +4,7 @@ import re
 import shutil
 import sys
 from pathlib import Path
+from virtualenv.discovery.py_info import PythonInfo
 
 from pipenv import environments, exceptions
 from pipenv.utils import Confirm, console, err
@@ -11,6 +12,25 @@ from pipenv.utils.dependencies import python_version
 from pipenv.utils.environment import ensure_environment
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import find_python, shorten_path
+
+PYINFO_CURRENT = PythonInfo.current_system()
+
+def virtualenv_scripts_dir(b):
+    """returns a system-dependent scripts/ path
+
+    POSIX environments (including Cygwin/MinGW64) will result in
+    `{base}/bin/`, native Windows environments will result in
+    `{base}/Scripts/`.
+
+    :param b: base path
+    :type b: str
+    :returns: pathlib.Path
+    """
+    return Path(
+        PYINFO_CURRENT.sysconfig_paths['scripts'].format(
+            base = b
+        )
+    )
 
 
 def warn_in_virtualenv(project):
