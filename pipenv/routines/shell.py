@@ -5,6 +5,7 @@ from os.path import expandvars
 
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import cmd_list_to_shell, system_which
+from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor import click
 
 
@@ -60,7 +61,6 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
 
     Args are appended to the command in [scripts] section of project if found.
     """
-    from pathlib import Path
 
     from pipenv.cmdparse import ScriptEmptyError
 
@@ -79,12 +79,7 @@ def do_run(project, command, args, python=False, pypi_mirror=None):
         # Get the exact string representation of virtualenv_location
         virtualenv_location = str(project.virtualenv_location)
 
-        # Use pathlib for path construction but convert back to string
-        from pathlib import Path
-
-        virtualenv_path = Path(virtualenv_location)
-        bin_dir = "Scripts" if os.name == "nt" else "bin"
-        new_path = str(virtualenv_path / bin_dir)
+        new_path = str(virtualenv_scripts_dir(virtualenv_location))
 
         # Update PATH
         paths = path.split(os.pathsep)
