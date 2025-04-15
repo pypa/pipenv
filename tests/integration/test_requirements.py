@@ -194,7 +194,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
         c = p.pipenv("requirements")
         assert c.returncode == 0
         assert "dataclasses-json" in c.stdout
-        
+
         # The output format may have changed with rich, so we need to normalize it
         # by removing newlines and checking for the hash in the combined string
         normalized_output = c.stdout.replace("\n", "")
@@ -280,10 +280,10 @@ def test_requirements_hashes_get_included(pipenv_instance_pypi):
 
         c = p.pipenv("requirements --hash")
         assert c.returncode == 0
-        
+
         # Check that the package, version, and markers are in the output
         assert f"{package}{version}; {markers}" in c.stdout
-        
+
         # Check that both hashes are in the output, regardless of format
         assert f"--hash={first_hash}" in c.stdout
         assert f"--hash={second_hash}" in c.stdout
