@@ -41,7 +41,8 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi)
         assert f"{packages[0]}=={packages[1]}" in e.stdout
         for value in p.lockfile["default"].values():
             for hash in value["hashes"]:
-                assert f" --hash={hash}" in e.stdout
+                # Check for hash in output, accounting for possible newlines
+                assert f"--hash={hash}" in e.stdout
 
 
 @pytest.mark.requirements
@@ -193,8 +194,11 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
         c = p.pipenv("requirements")
         assert c.returncode == 0
         assert "dataclasses-json" in c.stdout
-        # Check for the ref hash in the output, accounting for possible line breaks
-        assert req_hash in c.stdout.replace("\n", "")
+        
+        # The output format may have changed with rich, so we need to normalize it
+        # by removing newlines and checking for the hash in the combined string
+        normalized_output = c.stdout.replace("\n", "")
+        assert req_hash in normalized_output, f"Hash {req_hash} not found in output: {normalized_output}"
 
 
 @pytest.mark.requirements
