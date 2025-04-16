@@ -1,0 +1,22 @@
+# Improved virtualenv scripts path resolution
+
+## Summary
+
+This PR refactors the logic for determining virtual environment script paths
+by leveraging ``sysconfig``'s built-in mechanisms. By removing
+platform-dependent logic, ``pipenv`` now offers enhanced compatibility with
+POSIX-like environments, including Cygwin and MinGW. The fix also mitigates
+execution inconsistencies in non-native Windows environments, improving
+portability across platforms.
+
+## Motivation
+
+The original logic for determining the scripts path was unable to handle the
+deviations of MSYS2 MinGW CPython identifying as ``nt`` platform, yet using a
+POSIX ``{base}/bin`` path, instead of ``{base}/Scripts``.
+
+## Changes
+
+Removed custom logic for determining virtualenv scripts path in favor of
+retrieving the basename of the path string returned by
+``sysconfig.get_path('scripts')```.
