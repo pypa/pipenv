@@ -26,6 +26,7 @@ from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
+from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
@@ -246,16 +247,12 @@ class Environment:
     @property
     def python(self) -> str:
         """Path to the environment python"""
-        if self._python is not None:
-            return self._python
-        if os.name == "nt" and not self.is_venv:
-            py = Path(self.prefix).joinpath("python").absolute().as_posix()
-        else:
-            py = Path(self.script_basedir).joinpath("python").absolute().as_posix()
-        if not py:
-            py = Path(sys.executable).as_posix()
-        self._python = py
-        return py
+        if self._python is None:
+            self._python = (
+                (virtualenv_scripts_dir(self.prefix) / "python").absolute().as_posix()
+            )
+
+        return self._python
 
     @cached_property
     def sys_path(self) -> list[str]:
