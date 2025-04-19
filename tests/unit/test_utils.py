@@ -1,10 +1,11 @@
 import os
+import sys
 from unittest import mock
 
 import pytest
 
 from pipenv.exceptions import PipenvUsageError
-from pipenv.utils import dependencies, indexes, internet, shell, toml
+from pipenv.utils import dependencies, indexes, internet, shell, toml, virtualenv
 
 # Pipfile format <-> requirements.txt format.
 DEP_PIP_PAIRS = [
@@ -547,3 +548,17 @@ twine = "*"
         name = "ZZZ"
         monkeypatch.delenv(name, raising=False)
         assert shell.is_env_truthy(name) is False
+
+    @pytest.mark.utils
+    # substring search in version handles special-case of MSYS2 MinGW CPython
+    # https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-python/0017-sysconfig-treat-MINGW-builds-as-POSIX-builds.patch#L24
+    @pytest.mark.skipif(os.name != "nt" or "GCC" in sys.version, reason="Windows test only")
+    def test_virtualenv_scripts_dir_nt(self):
+        """
+        """
+        assert str(virtualenv.virtualenv_scripts_dir('foobar')) == 'foobar\\Scripts'
+
+    @pytest.mark.utils
+    @pytest.mark.skipif(os.name == "nt" and "GCC" not in sys.version, reason="POSIX test only")
+    def test_virtualenv_scripts_dir_posix(self):
+        assert str(virtualenv.virtualenv_scripts_dir('foobar')) == 'foobar/bin'
