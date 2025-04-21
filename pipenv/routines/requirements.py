@@ -59,6 +59,6 @@ def generate_requirements(
     )
 
     for line in pip_installable_lines:
-        console.print(line, no_wrap=True)
+        console.print(line, no_wrap=True, overflow="ignore", crop=False)
 
     sys.exit(0)
