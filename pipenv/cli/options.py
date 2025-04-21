@@ -1,5 +1,5 @@
-import os
 import re
+from pathlib import Path
 
 from pipenv.project import Project
 from pipenv.utils import console, err
@@ -460,7 +460,8 @@ def validate_python_path(ctx, param, value):
     # the path or an absolute path. To report errors as early as possible
     # we'll report absolute paths which do not exist:
     if isinstance(value, (str, bytes)):
-        if os.path.isabs(value) and not os.path.isfile(value):
+        path = Path(value)
+        if path.is_absolute() and not path.is_file():
             raise BadParameter(f"Expected Python at path {value} does not exist")
     return value
 

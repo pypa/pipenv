@@ -164,19 +164,27 @@ def is_installable_file(path):
         or parsed.scheme == "file"
         or (len(parsed.scheme) == 1 and os.name == "nt")
     )
+
     if parsed.scheme and parsed.scheme == "file":
         path = os.fsdecode(url_to_path(path))
-    normalized_path = normalize_path(path)
-    if is_local and not os.path.exists(normalized_path):
+
+    # Normalize the path
+    normalized_path = Path(normalize_path(path))
+
+    # Check if the path exists (for local paths)
+    if is_local and not normalized_path.exists():
         return False
 
-    is_archive = is_archive_file(normalized_path)
-    is_local_project = os.path.isdir(normalized_path) and is_installable_dir(
-        normalized_path
-    )
-    if is_local and is_local_project or is_archive:
+    # Check if it's an archive file
+    is_archive = is_archive_file(str(normalized_path))
+
+    # Check if it's a local installable project directory
+    is_local_project = normalized_path.is_dir() and is_installable_dir(normalized_path)
+
+    if is_local and (is_local_project or is_archive):
         return True
 
+    # Check if it's a remote archive
     if not is_local and is_archive_file(parsed.path):
         return True
 
@@ -184,28 +192,46 @@ def is_installable_file(path):
 
 
 def get_setup_paths(base_path, subdirectory=None):
-    # type: (S, Optional[S]) -> Dict[S, Optional[S]]
     """Get paths to setup.py, setup.cfg, and pyproject.toml in the given directory."""
     if base_path is None:
         raise TypeError("must provide a path to derive setup paths from")
-    setup_py = os.path.join(base_path, "setup.py")
-    setup_cfg = os.path.join(base_path, "setup.cfg")
-    pyproject_toml = os.path.join(base_path, "pyproject.toml")
+
+    # Convert to Path objects
+    base_path = Path(base_path)
+
+    # Define setup file paths in the base directory
+    setup_py = base_path / "setup.py"
+    setup_cfg = base_path / "setup.cfg"
+    pyproject_toml = base_path / "pyproject.toml"
+
+    # Handle subdirectory if specified
     if subdirectory is not None:
-        base_path = os.path.join(base_path, subdirectory)
-        subdir_setup_py = os.path.join(subdirectory, "setup.py")
-        subdir_setup_cfg = os.path.join(subdirectory, "setup.cfg")
-        subdir_pyproject_toml = os.path.join(subdirectory, "pyproject.toml")
-    if subdirectory and os.path.exists(subdir_setup_py):
-        setup_py = subdir_setup_py
-    if subdirectory and os.path.exists(subdir_setup_cfg):
-        setup_cfg = subdir_setup_cfg
-    if subdirectory and os.path.exists(subdir_pyproject_toml):
-        pyproject_toml = subdir_pyproject_toml
+        subdirectory = Path(subdirectory)
+
+        # If subdirectory is relative, join it with base_path
+        if not subdirectory.is_absolute():
+            subdir_path = base_path / subdirectory
+        else:
+            subdir_path = subdirectory
+
+        # Define setup file paths in the subdirectory
+        subdir_setup_py = subdir_path / "setup.py"
+        subdir_setup_cfg = subdir_path / "setup.cfg"
+        subdir_pyproject_toml = subdir_path / "pyproject.toml"
+
+        # Use subdirectory paths if they exist
+        if subdir_setup_py.exists():
+            setup_py = subdir_setup_py
+        if subdir_setup_cfg.exists():
+            setup_cfg = subdir_setup_cfg
+        if subdir_pyproject_toml.exists():
+            pyproject_toml = subdir_pyproject_toml
+
+    # Return the dictionary with string paths (or None if not existing)
     return {
-        "setup_py": setup_py if os.path.exists(setup_py) else None,
-        "setup_cfg": setup_cfg if os.path.exists(setup_cfg) else None,
-        "pyproject_toml": pyproject_toml if os.path.exists(pyproject_toml) else None,
+        "setup_py": str(setup_py) if setup_py.exists() else None,
+        "setup_cfg": str(setup_cfg) if setup_cfg.exists() else None,
+        "pyproject_toml": str(pyproject_toml) if pyproject_toml.exists() else None,
     }
 
 

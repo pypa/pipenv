@@ -1,119 +1,111 @@
 from __future__ import annotations
 
-import dataclasses
-import operator
-from typing import Any, Iterable
+import os
+from typing import TYPE_CHECKING
 
-from .environment import set_asdf_paths, set_pyenv_paths
-from .exceptions import InvalidPythonVersion
-from .models.path import PathEntry, SystemPath
-from .models.python import PythonVersion
-from .utils import version_re
+from .finders import (
+    AsdfFinder,
+    BaseFinder,
+    PyenvFinder,
+    SystemFinder,
+)
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from .models.python_info import PythonInfo
+
+# Import Windows-specific finders if on Windows
+if os.name == "nt":
+    from .finders import PyLauncherFinder, WindowsRegistryFinder
 
 
-@dataclasses.dataclass(unsafe_hash=True)
 class Finder:
-    path: str | None = None
-    system: bool = False
-    global_search: bool = True
-    ignore_unsupported: bool = True
-    sort_by_path: bool = False
-    system_path: SystemPath | None = dataclasses.field(default=None, init=False)
+    """
+    Main finder class that orchestrates all the finders.
+    """
 
-    def __post_init__(self):
-        self.system_path = self.create_system_path()
+    def __init__(
+        self,
+        path: str | None = None,
+        system: bool = False,
+        global_search: bool = True,
+        ignore_unsupported: bool = True,
+        sort_by_path: bool = False,
+    ):
+        """
+        Initialize a new Finder.
 
-    def create_system_path(self) -> SystemPath:
-        # Implementation of set_asdf_paths and set_pyenv_paths might need to be adapted.
-        set_asdf_paths()
-        set_pyenv_paths()
-        return SystemPath.create(
-            path=self.path,
-            system=self.system,
-            global_search=self.global_search,
-            ignore_unsupported=self.ignore_unsupported,
+        Args:
+            path: Path to prepend to the search path.
+            system: Whether to include the system Python.
+            global_search: Whether to search in the system PATH.
+            ignore_unsupported: Whether to ignore unsupported Python versions.
+        """
+        self.path = path
+        self.system = system
+        self.global_search = global_search
+        self.ignore_unsupported = ignore_unsupported
+        self.sort_by_path = sort_by_path
+
+        # Initialize finders
+        self.system_finder = SystemFinder(
+            paths=[path] if path else None,
+            global_search=global_search,
+            system=system,
+            ignore_unsupported=ignore_unsupported,
         )
 
-    def which(self, exe) -> PathEntry | None:
-        return self.system_path.which(exe)
+        self.pyenv_finder = PyenvFinder(
+            ignore_unsupported=ignore_unsupported,
+        )
 
-    @classmethod
-    def parse_major(
-        cls,
-        major: str | None,
-        minor: int | None = None,
-        patch: int | None = None,
-        pre: bool | None = None,
-        dev: bool | None = None,
-        arch: str | None = None,
-    ) -> dict[str, Any]:
-        major_is_str = major and isinstance(major, str)
-        is_num = (
-            major
-            and major_is_str
-            and all(part.isdigit() for part in major.split(".")[:2])
+        self.asdf_finder = AsdfFinder(
+            ignore_unsupported=ignore_unsupported,
         )
-        major_has_arch = (
-            arch is None
-            and major
-            and major_is_str
-            and "-" in major
-            and major[0].isdigit()
-        )
-        name = None
-        if major and major_has_arch:
-            orig_string = f"{major!s}"
-            major, _, arch = major.rpartition("-")
-            if arch:
-                arch = arch.lower().lstrip("x").replace("bit", "")
-                if not (arch.isdigit() and (int(arch) & int(arch) - 1) == 0):
-                    major = orig_string
-                    arch = None
-                else:
-                    arch = f"{arch}bit"
-            try:
-                version_dict = PythonVersion.parse(major)
-            except (ValueError, InvalidPythonVersion):
-                if name is None:
-                    name = f"{major!s}"
-                    major = None
-                version_dict = {}
-        elif major and major[0].isalpha():
-            return {"major": None, "name": major, "arch": arch}
-        elif major and is_num:
-            match = version_re.match(major)
-            version_dict = match.groupdict() if match else {}
-            version_dict.update(
-                {
-                    "is_prerelease": bool(version_dict.get("prerel", False)),
-                    "is_devrelease": bool(version_dict.get("dev", False)),
-                }
+
+        # Initialize Windows-specific finders if on Windows
+        self.py_launcher_finder = None
+        self.windows_finder = None
+        if os.name == "nt":
+            self.py_launcher_finder = PyLauncherFinder(
+                ignore_unsupported=ignore_unsupported,
             )
-        else:
-            version_dict = {
-                "major": major,
-                "minor": minor,
-                "patch": patch,
-                "pre": pre,
-                "dev": dev,
-                "arch": arch,
-            }
-        if not version_dict.get("arch") and arch:
-            version_dict["arch"] = arch
-        version_dict["minor"] = (
-            int(version_dict["minor"]) if version_dict.get("minor") is not None else minor
-        )
-        version_dict["patch"] = (
-            int(version_dict["patch"]) if version_dict.get("patch") is not None else patch
-        )
-        version_dict["major"] = (
-            int(version_dict["major"]) if version_dict.get("major") is not None else major
-        )
-        if not (version_dict["major"] or version_dict.get("name")):
-            version_dict["major"] = major
-            if name:
-                version_dict["name"] = name
-        return version_dict
+            self.windows_finder = WindowsRegistryFinder(
+                ignore_unsupported=ignore_unsupported,
+            )
+
+        # List of all finders
+        self.finders: list[BaseFinder] = [
+            self.pyenv_finder,
+            self.asdf_finder,
+        ]
+
+        # Add Windows-specific finders if on Windows
+        if self.py_launcher_finder:
+            self.finders.append(self.py_launcher_finder)
+        if self.windows_finder:
+            self.finders.append(self.windows_finder)
+            
+        # Add system finder last
+        self.finders.append(self.system_finder)
+
+    def which(self, executable: str) -> Path | None:
+        """
+        Find an executable in the paths searched by this finder.
+
+        Args:
+            executable: The name of the executable to find.
+
+        Returns:
+            The path to the executable, or None if not found.
+        """
+        for finder in self.finders:
+            path = finder.which(executable)
+            if path:
+                return path
+
+        return None
 
     def find_python_version(
         self,
@@ -124,55 +116,45 @@ class Finder:
         dev: bool | None = None,
         arch: str | None = None,
         name: str | None = None,
-        sort_by_path: bool = False,
-    ) -> PathEntry | None:
+    ) -> PythonInfo | None:
         """
-        Find the python version which corresponds most closely to the version requested.
+        Find a Python version matching the specified criteria.
 
-        :param major: The major version to look for, or the full version, or the name of the target version.
-        :param minor: The minor version. If provided, disables string-based lookups from the major version field.
-        :param patch: The patch version.
-        :param pre: If provided, specifies whether to search pre-releases.
-        :param dev: If provided, whether to search dev-releases.
-        :param arch: If provided, which architecture to search.
-        :param name: *Name* of the target python, e.g. ``anaconda3-5.3.0``
-        :param sort_by_path: Whether to sort by path -- default sort is by version(default: False)
-        :return: A new *PathEntry* pointer at a matching python version, if one can be located.
+        Args:
+            major: Major version number or full version string.
+            minor: Minor version number.
+            patch: Patch version number.
+            pre: Whether to include pre-releases.
+            dev: Whether to include dev-releases.
+            arch: Architecture to include, e.g. '64bit'.
+            name: The name of a python version, e.g. ``anaconda3-5.3.0``.
+
+        Returns:
+            A PythonInfo object matching the criteria, or None if not found.
         """
-        minor = int(minor) if minor is not None else minor
-        patch = int(patch) if patch is not None else patch
+        # Parse the major version if it's a string
+        if isinstance(major, str) and not any([minor, patch, pre, dev, arch]):
+            for finder in self.finders:
+                version_dict = finder.parse_major(major, minor, patch, pre, dev, arch)
+                if version_dict.get("name") and not name:
+                    name = version_dict.get("name")
+                    major = version_dict.get("major")
+                    minor = version_dict.get("minor")
+                    patch = version_dict.get("patch")
+                    pre = version_dict.get("is_prerelease")
+                    dev = version_dict.get("is_devrelease")
+                    arch = version_dict.get("arch")
+                    break
 
-        if (
-            isinstance(major, str)
-            and pre is None
-            and minor is None
-            and dev is None
-            and patch is None
-        ):
-            version_dict = self.parse_major(major, minor=minor, patch=patch, arch=arch)
-            major = version_dict["major"]
-            minor = version_dict.get("minor", minor)
-            patch = version_dict.get("patch", patch)
-            arch = version_dict.get("arch", arch)
-            name = version_dict.get("name", name)
-            _pre = version_dict.get("is_prerelease", pre)
-            pre = bool(_pre) if _pre is not None else pre
-            _dev = version_dict.get("is_devrelease", dev)
-            dev = bool(_dev) if _dev is not None else dev
-            if "architecture" in version_dict and isinstance(
-                version_dict["architecture"], str
-            ):
-                arch = version_dict["architecture"]
-        return self.system_path.find_python_version(
-            major=major,
-            minor=minor,
-            patch=patch,
-            pre=pre,
-            dev=dev,
-            arch=arch,
-            name=name,
-            sort_by_path=sort_by_path,
-        )
+        # Try to find the Python version in each finder
+        for finder in self.finders:
+            python_version = finder.find_python_version(
+                major, minor, patch, pre, dev, arch, name
+            )
+            if python_version:
+                return python_version
+
+        return None
 
     def find_all_python_versions(
         self,
@@ -183,32 +165,63 @@ class Finder:
         dev: bool | None = None,
         arch: str | None = None,
         name: str | None = None,
-    ) -> list[PathEntry]:
-        version_sort = operator.attrgetter("as_python.version_sort")
-        python_version_dict = getattr(self.system_path, "python_version_dict", {})
-        if python_version_dict:
-            paths = (
-                path
-                for version in python_version_dict.values()
-                for path in version
-                if path is not None and path.as_python
+    ) -> list[PythonInfo]:
+        """
+        Find all Python versions matching the specified criteria.
+
+        Args:
+            major: Major version number or full version string.
+            minor: Minor version number.
+            patch: Patch version number.
+            pre: Whether to include pre-releases.
+            dev: Whether to include dev-releases.
+            arch: Architecture to include, e.g. '64bit'.
+            name: The name of a python version, e.g. ``anaconda3-5.3.0``.
+
+        Returns:
+            A list of PythonInfo objects matching the criteria.
+        """
+        # Parse the major version if it's a string
+        if isinstance(major, str) and not any([minor, patch, pre, dev, arch]):
+            for finder in self.finders:
+                version_dict = finder.parse_major(major, minor, patch, pre, dev, arch)
+                if version_dict.get("name") and not name:
+                    name = version_dict.get("name")
+                    major = version_dict.get("major")
+                    minor = version_dict.get("minor")
+                    patch = version_dict.get("patch")
+                    pre = version_dict.get("is_prerelease")
+                    dev = version_dict.get("is_devrelease")
+                    arch = version_dict.get("arch")
+                    break
+
+        # Find all Python versions in each finder
+        python_versions = []
+        for finder in self.finders:
+            python_versions.extend(
+                finder.find_all_python_versions(major, minor, patch, pre, dev, arch, name)
             )
-            path_list = sorted(paths, key=version_sort, reverse=True)
-            return path_list
-        versions = self.system_path.find_all_python_versions(
-            major=major, minor=minor, patch=patch, pre=pre, dev=dev, arch=arch, name=name
-        )
-        if not isinstance(versions, Iterable):
-            versions = [versions]
-        path_list = sorted(
-            filter(lambda v: v and v.as_python, versions), key=version_sort, reverse=True
-        )
-        path_map = {}
-        for p in path_list:
-            try:
-                resolved_path = p.path.resolve(strict=True)
-            except (OSError, RuntimeError):
-                resolved_path = p.path.absolute()
-            if resolved_path not in path_map:
-                path_map[resolved_path] = p
-        return [path_map[p] for p in path_map]
+
+        # Sort by version and remove duplicates
+        seen_paths = set()
+        unique_versions = []
+
+        # Choose the sort key based on sort_by_path
+        if self.sort_by_path:
+
+            def sort_key(x):
+                return x.path, x.version_sort
+
+        else:
+
+            def sort_key(x):
+                return x.version_sort
+
+        for version in sorted(
+            python_versions, key=sort_key, reverse=not self.sort_by_path
+        ):
+            if version.path not in seen_paths:
+                seen_paths.add(version.path)
+                unique_versions.append(version)
+
+        return unique_versions

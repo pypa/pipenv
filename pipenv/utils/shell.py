@@ -1,6 +1,5 @@
 import errno
 import os
-import posixpath
 import re
 import shlex
 import shutil
@@ -9,10 +8,10 @@ import sys
 import warnings
 from contextlib import contextmanager
 from functools import lru_cache
-from pathlib import Path
+from pathlib import Path, PurePath
 
 from pipenv.utils import err
-from pipenv.utils.fileutils import normalize_drive, normalize_path
+from pipenv.utils.fileutils import normalize_drive
 from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
@@ -38,13 +37,7 @@ def make_posix(path: str) -> str:
     """
     if not isinstance(path, str):
         raise TypeError(f"Expected a string for path, received {path!r}...")
-    starts_with_sep = path.startswith(os.path.sep)
-    separated = normalize_path(path).split(os.path.sep)
-    if isinstance(separated, (list, tuple)):
-        path = posixpath.join(*separated)
-        if starts_with_sep:
-            path = f"/{path}"
-    return path
+    return Path(path).as_posix()
 
 
 @contextmanager
@@ -52,19 +45,49 @@ def chdir(path):
     """Context manager to change working directories."""
     if not path:
         return
-    prev_cwd = Path.cwd().as_posix()
-    if isinstance(path, Path):
-        path = path.as_posix()
-    os.chdir(str(path))
+
+    # Store the current working directory
+    prev_cwd = Path.cwd()
+
+    # Convert input path to Path object if it's not already
+    path_obj = Path(path) if not isinstance(path, Path) else path
+
+    # Change directory using the resolved path
+    os.chdir(path_obj.resolve())
+
     try:
         yield
     finally:
+        # Change back to previous directory
         os.chdir(prev_cwd)
 
 
 def looks_like_dir(path):
-    seps = (sep for sep in (os.path.sep, os.path.altsep) if sep is not None)
-    return any(sep in path for sep in seps)
+    """
+    Determine if a path looks like a directory by checking for path separators
+    or if it's already a Path object.
+
+    :param path: A string path or Path object
+    :return: True if the path appears to be a directory, False otherwise
+    """
+    # If it's already a Path or PurePath object, it's directory-like
+    if isinstance(path, (Path, PurePath)):
+        return True
+
+    # Convert to string if needed
+    path_str = str(path)
+
+    # Check if it has a trailing slash which would indicate a directory
+    if path_str.endswith(os.path.sep) or (
+        os.path.altsep and path_str.endswith(os.path.altsep)
+    ):
+        return True
+
+    # Create a PurePath which won't access the filesystem
+    pure_path = PurePath(path_str)
+
+    # If it has multiple parts, it likely has directory separators
+    return len(pure_path.parts) > 1
 
 
 def load_path(python):
@@ -80,21 +103,39 @@ def load_path(python):
 
 
 def path_to_url(path):
-    return Path(normalize_drive(os.path.abspath(path))).as_uri()
+    """
+    Convert a file system path to a URI.
+
+    First normalizes drive letter case on Windows, then converts to absolute path,
+    and finally to a URI.
+    """
+    path_obj = Path(path).resolve()
+    normalized_path = normalize_drive(str(path_obj))
+    return Path(normalized_path).as_uri()
 
 
 def get_windows_path(*args):
     """Sanitize a path for windows environments
 
-    Accepts an arbitrary list of arguments and makes a clean windows path"""
-    return os.path.normpath(os.path.join(*args))
+    Accepts an arbitrary list of arguments and makes a clean windows path
+
+    Returns a fully resolved windows path as a string
+    """
+    # Create and resolve the path
+    path = Path(*args).resolve()
+
+    # Return the string representation of the path (Windows-friendly)
+    return str(path)
 
 
 def find_windows_executable(bin_path, exe_name):
     """Given an executable name, search the given location for an executable"""
-    requested_path = get_windows_path(bin_path, exe_name)
-    if os.path.isfile(requested_path):
-        return requested_path
+    bin_path = Path(bin_path)
+    requested_path = get_windows_path(str(bin_path), exe_name)
+    requested_path_obj = Path(requested_path)
+
+    if requested_path_obj.is_file():
+        return requested_path_obj
 
     try:
         pathext = os.environ["PATHEXT"]
@@ -102,35 +143,43 @@ def find_windows_executable(bin_path, exe_name):
         pass
     else:
         for ext in pathext.split(os.pathsep):
-            path = get_windows_path(bin_path, exe_name + ext.strip().lower())
-            if os.path.isfile(path):
+            path_str = get_windows_path(str(bin_path), exe_name + ext.strip().lower())
+            path = Path(path_str)
+            if path.is_file():
                 return path
 
-    return shutil.which(exe_name)
+    # shutil.which returns a string or None
+    which_result = shutil.which(exe_name)
+    return Path(which_result) if which_result else None
 
 
 def walk_up(bottom):
-    """Mimic os.walk, but walk 'up' instead of down the directory tree.
-    From: https://gist.github.com/zdavkeos/1098474
-    """
-    bottom = os.path.realpath(bottom)
-    # Get files in current dir.
+    """Mimic os.walk, but walk 'up' instead of down the directory tree."""
+    # Convert to Path object and resolve to absolute path
+    bottom_path = Path(bottom).resolve()
+
+    # Get files in current dir
     try:
-        names = os.listdir(bottom)
+        # Path.iterdir() returns Path objects for all children
+        path_objects = list(bottom_path.iterdir())
     except Exception:
         return
 
+    # Sort into directories and non-directories
     dirs, nondirs = [], []
-    for name in names:
-        if os.path.isdir(os.path.join(bottom, name)):
-            dirs.append(name)
+    for path in path_objects:
+        if path.is_dir():
+            dirs.append(path.name)
         else:
-            nondirs.append(name)
-    yield bottom, dirs, nondirs
+            nondirs.append(path.name)
 
-    new_path = os.path.realpath(os.path.join(bottom, ".."))
-    # See if we are at the top.
-    if new_path == bottom:
+    yield str(bottom_path), dirs, nondirs
+
+    # Get parent directory
+    new_path = bottom_path.parent.resolve()
+
+    # See if we are at the top (parent is same as current)
+    if new_path == bottom_path:
         return
 
     yield from walk_up(new_path)
@@ -142,9 +191,9 @@ def find_requirements(max_depth=3):
     for c, _, _ in walk_up(os.getcwd()):
         i += 1
         if i < max_depth:
-            r = os.path.join(c, "requirements.txt")
-            if os.path.isfile(r):
-                return r
+            r = Path(c) / "requirements.txt"
+            if r.is_file():
+                return str(r)
 
     raise RuntimeError("No requirements.txt found!")
 
@@ -170,9 +219,18 @@ def escape_cmd(cmd):
 
 
 def safe_expandvars(value):
-    """Call os.path.expandvars if value is a string, otherwise do nothing."""
+    """
+    Expand environment variables in a string value, do nothing for non-strings.
+
+    Note: pathlib.Path doesn't have an expandvars method, so we still use os.path.expandvars
+    for the actual expansion.
+    """
     if isinstance(value, str):
         return os.path.expandvars(value)
+    # Handle Path objects
+    elif isinstance(value, Path):
+        expanded_str = os.path.expandvars(str(value))
+        return Path(expanded_str)
     return value
 
 
@@ -185,27 +243,46 @@ def get_workon_home():
     workon_home = os.environ.get("WORKON_HOME")
     if not workon_home:
         if os.name == "nt":
-            workon_home = "~/.virtualenvs"
+            workon_home = Path("~/.virtualenvs")
         else:
-            workon_home = os.path.join(
-                os.environ.get("XDG_DATA_HOME", "~/.local/share"), "virtualenvs"
-            )
-    # Create directory if it does not already exist
-    expanded_path = Path(os.path.expandvars(workon_home)).expanduser()
+            xdg_data_home = os.environ.get("XDG_DATA_HOME", "~/.local/share")
+            workon_home = Path(xdg_data_home) / "virtualenvs"
+    else:
+        workon_home = Path(workon_home)
+
+    # Expand environment variables if present in the path string
+    if isinstance(workon_home, Path):
+        path_str = str(workon_home)
+        if "$" in path_str:
+            workon_home = safe_expandvars(path_str)
+
+    # Expand user directory and ensure path is absolute
+    expanded_path = workon_home.expanduser()
     expanded_path = ensure_path(expanded_path)
-    os.makedirs(expanded_path, exist_ok=True)
+
+    # Create directory if it does not already exist
+    expanded_path.mkdir(parents=True, exist_ok=True)
     return expanded_path
 
 
 def is_file(package):
     """Determine if a package name is for a File dependency."""
+    # Check if it's a dictionary-like object with keys
     if hasattr(package, "keys"):
         return any(key for key in package if key in ["file", "path"])
 
-    if os.path.exists(str(package)):
-        return True
+    # Convert to string if it's a Path object, or use as is
+    package_str = str(package)
 
-    return any(str(package).startswith(start) for start in SCHEME_LIST)
+    # Check if the path exists as a file
+    try:
+        return Path(package_str).exists()
+    except (OSError, ValueError):
+        # Handle invalid path syntax
+        pass
+
+    # Check if the string starts with any of the scheme prefixes
+    return any(package_str.startswith(start) for start in SCHEME_LIST)
 
 
 def is_virtual_environment(path):
@@ -240,21 +317,28 @@ def find_python(finder, line=None):
     """
     if line and not isinstance(line, str):
         raise TypeError(f"Invalid python search type: expected string, received {line!r}")
+
     if line:
         modified_line = line
+        path_obj = Path(modified_line)
+
+        # Add .exe extension on Windows if needed
         if (
             os.name == "nt"
-            and not os.path.exists(modified_line)
+            and not path_obj.exists()
             and not modified_line.lower().endswith(".exe")
         ):
             modified_line += ".exe"
-        if os.path.exists(modified_line) and shutil.which(modified_line):
-            return modified_line
+            path_obj = Path(modified_line)
+
+        if path_obj.exists() and shutil.which(modified_line):
+            return str(path_obj)
 
     if not finder:
         from pipenv.vendor.pythonfinder import Finder
 
         finder = Finder(global_search=True)
+
     if not line:
         result = next(iter(finder.find_all_python_versions()), None)
     elif line and line[0].isdigit() or re.match(r"^\d+(\.\d+)*$", line):
@@ -265,21 +349,26 @@ def find_python(finder, line=None):
             patch=version_info.get("patch"),
             pre=version_info.get("is_prerelease"),
             dev=version_info.get("is_devrelease"),
-            sort_by_path=True,
         )
     else:
         result = finder.find_python_version(name=line)
+
     if not result:
         result = finder.which(line)
+
     if not result and "python" not in line.lower():
         line = f"python{line}"
         result = find_python(finder, line)
 
     if result:
         if not isinstance(result, str):
-            return result.path.as_posix()
+            if hasattr(result, "path"):  # It's a PythonInfo object
+                # Already using .as_posix() which is pathlib-friendly
+                return result.path.as_posix()
+            else:  # It's a Path object
+                return str(result)
         return result
-    return
+    return None
 
 
 def is_python_command(line):
@@ -326,16 +415,18 @@ def is_readonly_path(fn):
 
     Permissions check is `bool(path.stat & stat.S_IREAD)` or `not os.access(path, os.W_OK)`
     """
-    if os.path.exists(fn):
-        return (os.stat(fn).st_mode & stat.S_IREAD) or not os.access(fn, os.W_OK)
+    path = Path(fn) if not isinstance(fn, Path) else fn
+    if path.exists():
+        return (path.stat().st_mode & stat.S_IREAD) or not os.access(path, os.W_OK)
 
     return False
 
 
 def set_write_bit(fn):
-    if isinstance(fn, str) and not os.path.exists(fn):
+    path = Path(fn) if not isinstance(fn, Path) else fn
+    if not path.exists():
         return
-    os.chmod(fn, stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
+    path.chmod(stat.S_IWRITE | stat.S_IWUSR | stat.S_IRUSR)
     return
 
 
@@ -384,6 +475,8 @@ def env_to_bool(val):
     :raises:
         ValueError: if val is not a valid boolean-like
     """
+    if val is None:
+        return False
     if isinstance(val, bool):
         return val
 
@@ -400,7 +493,10 @@ def env_to_bool(val):
 
 def is_env_truthy(name):
     """An environment variable is truthy if it exists and isn't one of (0, false, no, off)"""
-    return env_to_bool(os.getenv(name, False))  # noqa: PLW1508
+    value = os.getenv(name)
+    if value is None:
+        return False
+    return env_to_bool(value)
 
 
 def project_python(project, system=False):
@@ -438,15 +534,13 @@ def system_which(command, path=None):
 
 def shorten_path(location, bold=False):
     """Returns a visually shorter representation of a given system path."""
-    original = location
-    short = os.sep.join(
-        [s[0] if len(s) > (len("2long4")) else s for s in location.split(os.sep)]
-    )
-    short = short.split(os.sep)
-    short[-1] = original.split(os.sep)[-1]
+    path = Path(location) if not isinstance(location, Path) else location
+    path_parts = list(path.parts)
+    short_parts = [p[0] if len(p) > len("2long4") else p for p in path_parts[:-1]]
+    short_parts.append(path_parts[-1])
     if bold:
-        short[-1] = f"[bold]{short[-1]}[/bold]"
-    return os.sep.join(short)
+        short_parts[-1] = f"[bold]{short_parts[-1]}[/bold]"
+    return os.sep.join(short_parts)
 
 
 def isatty(stream):

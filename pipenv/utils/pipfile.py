@@ -20,31 +20,32 @@ DEFAULT_NEWLINES = "\n"
 
 
 def walk_up(bottom):
-    """mimic os.walk, but walk 'up' instead of down the directory tree.
-    From: https://gist.github.com/zdavkeos/1098474
-    """
+    """mimic os.walk, but walk 'up' instead of down the directory tree."""
+    # Convert to Path object and resolve to absolute path
+    bottom_path = Path(bottom).resolve()
 
-    bottom = os.path.realpath(bottom)
-
-    # get files in current dir
+    # Get files in current dir
     try:
-        names = os.listdir(bottom)
+        # Path.iterdir() returns Path objects for all children
+        path_objects = list(bottom_path.iterdir())
     except Exception:
         return
 
+    # Sort into directories and non-directories
     dirs, nondirs = [], []
-    for name in names:
-        if os.path.isdir(os.path.join(bottom, name)):
-            dirs.append(name)
+    for path in path_objects:
+        if path.is_dir():
+            dirs.append(path.name)
         else:
-            nondirs.append(name)
+            nondirs.append(path.name)
 
-    yield bottom, dirs, nondirs
+    yield str(bottom_path), dirs, nondirs
 
-    new_path = os.path.realpath(os.path.join(bottom, ".."))
+    # Get parent directory
+    new_path = bottom_path.parent.resolve()
 
-    # see if we are at the top
-    if new_path == bottom:
+    # See if we are at the top (parent is same as current)
+    if new_path == bottom_path:
         return
 
     yield from walk_up(new_path)
@@ -53,13 +54,20 @@ def walk_up(bottom):
 def find_pipfile(max_depth=3):
     """Returns the path of a Pipfile in parent directories."""
     i = 0
-    for c, _, _ in walk_up(os.getcwd()):
+    # Get current working directory as a Path object
+    current_dir = Path.cwd()
+
+    for directory, _, _ in walk_up(current_dir):
         i += 1
 
-        if i < max_depth and "Pipfile":
-            p = os.path.join(c, "Pipfile")
-            if os.path.isfile(p):
-                return p
+        if i < max_depth:
+            # Create a Path object for the potential Pipfile
+            pipfile_path = Path(directory) / "Pipfile"
+
+            # Check if it's a file
+            if pipfile_path.is_file():
+                return str(pipfile_path)
+
     raise RuntimeError("No Pipfile found!")
 
 
@@ -84,7 +92,10 @@ def ensure_pipfile(
             )
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
-            requirements_dir_path = os.path.dirname(project.requirements_location)
+            # Get the directory containing the requirements file
+            requirements_path = Path(project.requirements_location)
+            requirements_dir_path = requirements_path.parent
+
             console.print(
                 f"[bold]requirements.txt[/bold] found in [bold yellow]{requirements_dir_path}"
                 "[/bold yellow] instead of [bold]Pipfile[/bold]! Converting..."
@@ -151,16 +162,18 @@ def preferred_newlines(f):
 
 @dataclass
 class ProjectFile:
-    location: str
+    location: Path
     line_ending: str
     model: Optional[Any] = field(default_factory=dict)
 
     @classmethod
     def read(cls, location: str, model_cls, invalid_ok: bool = False) -> "ProjectFile":
-        if not os.path.exists(location) and not invalid_ok:
+        # Convert string location to Path
+        path = Path(location)
+        if not path.exists() and not invalid_ok:
             raise FileNotFoundError(location)
         try:
-            with open(location, encoding="utf-8") as f:
+            with path.open(encoding="utf-8") as f:
                 model = model_cls.load(f)
                 line_ending = preferred_newlines(f)
         except Exception:
@@ -168,11 +181,11 @@ class ProjectFile:
                 raise
             model = {}
             line_ending = DEFAULT_NEWLINES
-        return cls(location=location, line_ending=line_ending, model=model)
+        return cls(location=path, line_ending=line_ending, model=model)
 
     def write(self) -> None:
         kwargs = {"encoding": "utf-8", "newline": self.line_ending}
-        with open(self.location, "w", **kwargs) as f:
+        with self.location.open("w", **kwargs) as f:
             if self.model:
                 self.model.dump(f)
 
