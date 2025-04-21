@@ -69,6 +69,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
+from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor import plette, tomlkit
 
 try:
@@ -411,11 +412,19 @@ class Project:
     @property
     def virtualenv_exists(self) -> bool:
         venv_path = Path(self.virtualenv_location)
+
+        scripts_dir = self.virtualenv_scripts_location
+
         if venv_path.exists():
-            if os.name == "nt":
-                activate_path = venv_path / "Scripts" / "activate.bat"
+
+            # existence of active.bat is dependent on the platform path prefix
+            # scheme, not platform itself. This handles special cases such as
+            # Cygwin/MinGW identifying as 'nt' platform, yet preferring a
+            # 'posix' path prefix scheme.
+            if scripts_dir.name == "Scripts":
+                activate_path = scripts_dir / "activate.bat"
             else:
-                activate_path = venv_path / "bin" / "activate"
+                activate_path = scripts_dir / "activate"
             return activate_path.is_file()
 
         return False
@@ -611,6 +620,10 @@ class Project:
             loc = Path(self.project_directory) / "src"
         loc.mkdir(parents=True, exist_ok=True)
         return loc
+
+    @property
+    def virtualenv_scripts_location(self) -> Path:
+        return virtualenv_scripts_dir(self.virtualenv_location)
 
     @property
     def download_location(self) -> Path:
@@ -1422,10 +1435,10 @@ class Project:
     def finders(self):
         from .vendor.pythonfinder import Finder
 
-        scripts_dirname = "Scripts" if os.name == "nt" else "bin"
-        scripts_dir = Path(self.virtualenv_location) / scripts_dirname
         finders = [
-            Finder(path=str(scripts_dir), global_search=gs, system=False)
+            Finder(
+                path=str(self.virtualenv_scripts_location), global_search=gs, system=False
+            )
             for gs in (False, True)
         ]
         return finders
@@ -1463,12 +1476,14 @@ class Project:
         is_python = command in ("python", Path(sys.executable).name, version_str)
 
         if not allow_global:
+            scripts_location = virtualenv_scripts_dir(location_path)
+
             if os.name == "nt":
-                p = find_windows_executable(str(location_path / "Scripts"), command)
+                p = find_windows_executable(str(scripts_location), command)
                 # Convert to Path object if it's a string
                 p = Path(p) if isinstance(p, str) else p
             else:
-                p = location_path / "bin" / command
+                p = scripts_location / command
         elif is_python:
             p = Path(sys.executable)
         else:
