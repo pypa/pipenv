@@ -239,7 +239,7 @@ def parse_safety_output(output, quiet):
         err.print("Failed to parse Safety output.")
 
 
-def do_check(
+def do_check(  # noqa: PLR0913
     project,
     python=False,
     system=False,
@@ -258,9 +258,45 @@ def do_check(
     use_installed=False,
     categories="",
     auto_install=False,
+    scan=False,
 ):
     if not verbose:
         logging.getLogger("pipenv").setLevel(logging.ERROR if quiet else logging.WARN)
+
+    # If scan option is provided, use the scan command instead
+    if scan:
+        from pipenv.routines.scan import do_scan
+
+        do_scan(
+            project,
+            python=python,
+            system=system,
+            db=db,
+            ignore=ignore,
+            output=output,
+            key=key,
+            quiet=quiet,
+            verbose=verbose,
+            exit_code=exit_code,
+            policy_file=policy_file,
+            save_json=save_json,
+            audit_and_monitor=audit_and_monitor,
+            safety_project=safety_project,
+            pypi_mirror=pypi_mirror,
+            use_installed=use_installed,
+            categories=categories,
+            auto_install=auto_install,
+        )
+        return
+    # Show deprecation warning when not using scan option
+    elif not quiet and not project.s.is_quiet():
+        err.print(
+            "[yellow bold]DEPRECATION WARNING:[/yellow bold] "
+            "The 'check' command is deprecated and will be unsupported beyond 01 June 2025.\n"
+            "In future versions, 'check' will run the 'scan' command by default.\n"
+            "Use [green]--scan[/green] option to run the new scan command now, or switch to [green]pipenv scan[/green].\n"
+            "The scan command requires an API key which you can obtain from https://pyup.io"
+        )
 
     if not system:
         ensure_project(

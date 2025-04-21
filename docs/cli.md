@@ -8,7 +8,7 @@ pipenv [OPTIONS] COMMAND [ARGS]...
 
 ## check
 
-Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
+[DEPRECATED] Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
 
 ```bash
 pipenv check [OPTIONS]
@@ -17,7 +17,10 @@ pipenv check [OPTIONS]
 Options:
 ```
 --auto-install  Automatically install safety if not already installed.
+--scan          Use the new scan command instead of the deprecated check command.
 ```
+
+Note: The check command is deprecated and will be unsupported beyond 01 June 2024. In future versions, the check command will run the scan command by default. Use the `--scan` option to run the new scan command now, or switch to `pipenv scan`.
 
 ## scan
 

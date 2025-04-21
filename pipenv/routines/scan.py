@@ -329,7 +329,7 @@ def parse_safety_output(output, quiet):
         err.print("Failed to parse Safety output.")
 
 
-def do_scan(
+def do_scan(  # noqa: PLR0913
     project,
     python=False,
     system=False,

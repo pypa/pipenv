@@ -190,8 +190,8 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
         assert c.returncode == 0
 
         # Run the check command with a pipe to provide the "Y" input
-        import subprocess
         import os
+        import subprocess
 
         # Use the environment and path of the pipenv instance
         env = os.environ.copy()
@@ -202,7 +202,7 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
 
         # Run the command in the pipenv directory
         result = subprocess.run(cmd, shell=True, cwd=p.path,
-                                capture_output=True, text=True, env=env)
+                                capture_output=True, text=True, env=env, check=False)
 
         assert result.returncode != 0
         assert "wheel" in result.stdout
@@ -219,23 +219,23 @@ def test_pipenv_auto_install_safety(pipenv_instance_pypi, command):
         assert c.returncode == 0
 
         # First, make sure safety is not installed
-        import subprocess
         import os
+        import subprocess
 
         # Use the environment and path of the pipenv instance
         env = os.environ.copy()
 
         # Uninstall safety if it exists
-        uninstall_cmd = f"pipenv run pip uninstall -y safety"
+        uninstall_cmd = "pipenv run pip uninstall -y safety"
         subprocess.run(uninstall_cmd, shell=True, cwd=p.path,
-                      capture_output=True, text=True, env=env)
+                      capture_output=True, text=True, env=env, check=False)
 
         # Run the command with auto-install flag
         cmd = f"pipenv {command} --auto-install"
 
         # Run the command in the pipenv directory
         result = subprocess.run(cmd, shell=True, cwd=p.path,
-                               capture_output=True, text=True, env=env)
+                               capture_output=True, text=True, env=env, check=False)
 
         # Check that safety was installed and used
         assert "Installing safety" in result.stdout
