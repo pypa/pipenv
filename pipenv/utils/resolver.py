@@ -424,9 +424,11 @@ class Resolver:
     def get_resolver(self, clear=False):
         from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
-        with global_tempdir_manager(), get_build_tracker() as build_tracker, TempDirectory(
-            globally_managed=True
-        ) as directory:
+        with (
+            global_tempdir_manager(),
+            get_build_tracker() as build_tracker,
+            TempDirectory(globally_managed=True) as directory,
+        ):
             pip_options = self.pip_options
             finder = self.finder()
             wheel_cache = WheelCache(pip_options.cache_dir)
@@ -952,7 +954,7 @@ def resolve_deps(
     index_lookup = {}
     markers_lookup = {}
     if not os.environ.get("PIP_SRC"):
-        os.environ["PIP_SRC"] = project.virtualenv_src_location
+        os.environ["PIP_SRC"] = str(project.virtualenv_src_location)
     results = []
     resolver = None
     if not deps:

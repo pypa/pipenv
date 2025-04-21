@@ -1,4 +1,5 @@
 from __future__ import annotations
 
-from .path import SystemPath
-from .python import PythonVersion
+from .python_info import PythonInfo
+
+__all__ = ["PythonInfo"]

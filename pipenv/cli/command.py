@@ -1,5 +1,6 @@
 import os
 import sys
+from pathlib import Path
 
 from pipenv import environments
 from pipenv.__version__ import __version__
@@ -98,8 +99,8 @@ def cli(
 
     if man:
         if system_which("man"):
-            path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "pipenv.1")
-            os.execle(system_which("man"), "man", path, os.environ)
+            path = Path(__file__).parent.parent / "pipenv.1"
+            os.execle(system_which("man"), "man", str(path), os.environ)
             return 0
         else:
             err.print(
@@ -393,8 +394,8 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
     # Use fancy mode for Windows or pwsh on *nix.
     if (
         os.name == "nt"
-        or (os.environ.get("PIPENV_SHELL") or "").split(os.path.sep)[-1] == "pwsh"
-        or (os.environ.get("SHELL") or "").split(os.path.sep)[-1] == "pwsh"
+        or Path(os.environ.get("PIPENV_SHELL") or "").name == "pwsh"
+        or Path(os.environ.get("SHELL") or "").name == "pwsh"
     ):
         fancy = True
     do_shell(
@@ -624,7 +625,7 @@ def run_open(state, module, *args, **kwargs):
         console.print("Module not found!", style="red")
         sys.exit(1)
     if "__init__.py" in c.stdout:
-        p = os.path.dirname(c.stdout.strip().rstrip("cdo"))
+        p = Path(c.stdout.strip().rstrip("cdo")).parent
     else:
         p = c.stdout.strip().rstrip("cdo")
     console.print(f"Opening {p!r} in your EDITOR.", style="bold")

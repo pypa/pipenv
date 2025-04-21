@@ -1,0 +1,1 @@
+Fix issue with default constraints not applying to other package categories.

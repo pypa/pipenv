@@ -30,10 +30,6 @@ def test_pipenv_venv(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(
-    sys.version_info[:2] == (3, 8) and os.name == "nt",
-    reason="Python 3.8 on Windows is not supported",
-)
 def test_pipenv_py(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("--python python")
@@ -45,10 +41,6 @@ def test_pipenv_py(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-@pytest.mark.skipif(
-    os.name == "nt" and sys.version_info[:2] == (3, 8),
-    reason="Test issue with windows 3.8 CIs",
-)
 def test_pipenv_site_packages(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("--python python --site-packages")
