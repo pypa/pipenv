@@ -378,7 +378,7 @@ class Resolver:
             )
         )
 
-        # Always add default constraints for dev packages
+        # Only add default constraints for dev packages if setting allows
         if self.category != "default" and self.project.settings.get(
             "use_default_constraints", True
         ):
@@ -950,14 +950,6 @@ def venv_resolve_deps(
                 deps, project.pipfile_sources(), include_index=True
             )
 
-            # For dev packages, add constraints from default packages
-            constraints = deps.copy()
-            if pipfile_category != "packages" and "default" in lockfile:
-                # Get the locked versions from default packages
-                for pkg_name, pkg_data in lockfile["default"].items():
-                    if isinstance(pkg_data, dict) and "version" in pkg_data:
-                        # Add as a constraint to ensure compatibility
-                        constraints[pkg_name] = pkg_data["version"]
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
@@ -1009,19 +1001,6 @@ def venv_resolve_deps(
                     # Write the current category dependencies
                     for dep_name, pip_line in deps.items():
                         constraints_file.write(f"{dep_name}, {pip_line}\n")
-
-                    # For dev packages, add explicit constraints from default packages
-                    if pipfile_category != "packages" and "default" in lockfile:
-                        for pkg_name, pkg_data in lockfile["default"].items():
-                            if isinstance(pkg_data, dict) and "version" in pkg_data:
-                                # Add as a constraint to ensure compatibility
-                                version = pkg_data["version"]
-                                constraints_file.write(
-                                    f"{pkg_name}, {pkg_name}{version}\n"
-                                )
-                                st.console.print(
-                                    f"Adding constraint: {pkg_name}{version}"
-                                )
 
                 cmd.append("--constraints-file")
                 cmd.append(constraints_file.name)
