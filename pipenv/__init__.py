@@ -2,11 +2,12 @@ import importlib.util
 import os
 import sys
 import warnings
+from pathlib import Path
 
 # This has to come before imports of pipenv
-PIPENV_ROOT = os.path.abspath(os.path.dirname(os.path.realpath(__file__)))
-PIP_ROOT = os.sep.join([PIPENV_ROOT, "patched", "pip"])
-sys.path.insert(0, PIPENV_ROOT)
+PIPENV_ROOT = Path(__file__).resolve().parent.absolute()
+PIP_ROOT = str(PIPENV_ROOT / "patched" / "pip")
+sys.path.insert(0, str(PIPENV_ROOT))
 sys.path.insert(0, PIP_ROOT)
 
 # Load patched pip instead of system pip
@@ -15,9 +16,10 @@ os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
 
 def _ensure_modules():
     # Ensure when pip gets invoked it uses our patched version
+    location = Path(__file__).parent / "patched" / "pip" / "__init__.py"
     spec = importlib.util.spec_from_file_location(
         "pip",
-        location=os.path.join(os.path.dirname(__file__), "patched", "pip", "__init__.py"),
+        location=str(location),
     )
     pip = importlib.util.module_from_spec(spec)
     sys.modules["pip"] = pip

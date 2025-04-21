@@ -26,6 +26,7 @@ from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
+from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
@@ -113,7 +114,7 @@ class Environment:
     @property
     def python_info(self) -> dict[str, str]:
         include_dir = self.prefix / "include"
-        if not os.path.exists(include_dir):
+        if not include_dir.exists():
             include_dirs = self.get_include_path()
             if include_dirs:
                 include_path = include_dirs.get(
@@ -130,15 +131,17 @@ class Environment:
         return {}
 
     def _replace_parent_version(self, path: str, replace_version: str) -> str:
-        if not os.path.exists(path):
-            base, leaf = os.path.split(path)
-            base, parent = os.path.split(base)
-            leaf = os.path.join(parent, leaf).replace(
+        path_obj = Path(path)
+        if not path_obj.exists():
+            parent = path_obj.parent
+            grandparent = parent.parent
+            leaf = f"{parent.name}/{path_obj.name}"
+            leaf = leaf.replace(
                 replace_version,
                 self.python_info.get("py_version_short", get_python_version()),
             )
-            return os.path.join(base, leaf)
-        return path
+            return str(grandparent / leaf)
+        return str(path_obj)
 
     @cached_property
     def install_scheme(self):
@@ -244,16 +247,12 @@ class Environment:
     @property
     def python(self) -> str:
         """Path to the environment python"""
-        if self._python is not None:
-            return self._python
-        if os.name == "nt" and not self.is_venv:
-            py = Path(self.prefix).joinpath("python").absolute().as_posix()
-        else:
-            py = Path(self.script_basedir).joinpath("python").absolute().as_posix()
-        if not py:
-            py = Path(sys.executable).as_posix()
-        self._python = py
-        return py
+        if self._python is None:
+            self._python = (
+                (virtualenv_scripts_dir(self.prefix) / "python").absolute().as_posix()
+            )
+
+        return self._python
 
     @cached_property
     def sys_path(self) -> list[str]:
@@ -816,12 +815,11 @@ class Environment:
             if self.is_venv:
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = prefix
-            else:
-                if not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
-                    "VIRTUAL_ENV"
-                ):
-                    os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
-                    os.environ.pop("PYTHONHOME", None)
+            elif not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
+                "VIRTUAL_ENV"
+            ):
+                os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
+                os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path
             sys.prefix = self.sys_prefix
             try:

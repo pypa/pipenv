@@ -399,9 +399,13 @@ def is_pinned_requirement(ireq):
 
 
 def is_editable_path(path):
-    if os.path.isdir(path):
-        return True
-    return False
+    """
+    Determine if a path is editable by checking if it's a directory.
+
+    :param path: A path as string or Path object
+    :return: True if the path is a directory, False otherwise
+    """
+    return Path(path).is_dir()
 
 
 def dependency_as_pip_install_line(
@@ -662,35 +666,43 @@ def find_package_name_from_zipfile(zip_filepath):
 
 def find_package_name_from_directory(directory):
     parsed_url = urlparse(directory)
-    directory = (
-        os.path.normpath(parsed_url.path)
-        if parsed_url.scheme
-        else os.path.normpath(directory)
-    )
-    if "#egg=" in directory:  # parse includes the fragment in py3.7 and py3.8
-        expected_name = directory.split("#egg=")[1]
+    directory_path = Path(parsed_url.path) if parsed_url.scheme else Path(directory)
+
+    # Handle egg fragment for direct dependencies
+    if "#egg=" in str(directory_path):
+        expected_name = str(directory_path).split("#egg=")[1]
         return expected_name
+
+    # Windows path normalization
+    directory_str = str(directory_path)
     if os.name == "nt":
-        if directory.startswith("\\") and (":\\" in directory or ":/" in directory):
-            directory = directory[1:]
-        if directory.startswith("\\\\"):
-            directory = directory[1:]
-    directory_contents = sorted(
-        os.listdir(directory),
-        key=lambda x: (os.path.isdir(os.path.join(directory, x)), x),
-    )
-    for filename in directory_contents:
-        filepath = os.path.join(directory, filename)
-        if os.path.isfile(filepath):
-            if filename.endswith(RELEVANT_PROJECT_FILES):
-                with open(filepath, "rb") as file:
-                    possible_name = find_package_name_from_filename(filename, file)
-                    if possible_name:
-                        return possible_name
-        elif os.path.isdir(filepath):
-            possible_name = find_package_name_from_directory(filepath)
-            if possible_name:
-                return possible_name
+        if directory_str.startswith("\\") and (
+            ":\\" in directory_str or ":/" in directory_str
+        ):
+            directory_path = Path(directory_str[1:])
+        if directory_str.startswith("\\\\"):
+            directory_path = Path(directory_str[1:])
+
+    try:
+        # Sort contents - directories first, then files
+        directory_contents = sorted(
+            directory_path.iterdir(), key=lambda x: (x.is_file(), x.name)
+        )
+
+        for path in directory_contents:
+            if path.is_file():
+                if path.name.endswith(RELEVANT_PROJECT_FILES):
+                    with path.open("rb") as file:
+                        possible_name = find_package_name_from_filename(path.name, file)
+                        if possible_name:
+                            return possible_name
+            elif path.is_dir():
+                possible_name = find_package_name_from_directory(str(path))
+                if possible_name:
+                    return possible_name
+    except (FileNotFoundError, PermissionError):
+        # Handle cases where the directory doesn't exist or isn't accessible
+        pass
 
     return None
 
@@ -1261,17 +1273,16 @@ def get_constraints_from_deps(deps):
                 c = f"{canonicalize_name(dep_name)}{dep_version}"
             else:
                 c = canonicalize_name(dep_name)
-        else:
-            if not any(k in dep_version for k in ["path", "file", "uri"]):
-                if dep_version.get("skip_resolver") is True:
-                    continue
-                version = dep_version.get("version", None)
-                if version and not is_star(version):
-                    if COMPARE_OP.match(version) is None:
-                        version = f"=={dep_version}"
-                    c = f"{canonicalize_name(dep_name)}{version}"
-                else:
-                    c = canonicalize_name(dep_name)
+        elif not any(k in dep_version for k in ["path", "file", "uri"]):
+            if dep_version.get("skip_resolver") is True:
+                continue
+            version = dep_version.get("version", None)
+            if version and not is_star(version):
+                if COMPARE_OP.match(version) is None:
+                    version = f"=={dep_version}"
+                c = f"{canonicalize_name(dep_name)}{version}"
+            else:
+                c = canonicalize_name(dep_name)
         if c:
             constraints.add(c)
     return constraints

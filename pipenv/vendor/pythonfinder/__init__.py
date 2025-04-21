@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-from .exceptions import InvalidPythonVersion
-from .models import SystemPath
+from .exceptions import InvalidPythonVersion, PythonNotFound
+from .models.python_info import PythonInfo
 from .pythonfinder import Finder
 
-__version__ = "2.1.0"
+__version__ = "3.0.0"
 
-
-__all__ = ["Finder", "SystemPath", "InvalidPythonVersion"]
+__all__ = ["Finder", "PythonInfo", "InvalidPythonVersion", "PythonNotFound"]

@@ -15,7 +15,8 @@ ShellDetectionFailure = shellingham.ShellDetectionFailure
 
 
 def _build_info(value):
-    return (os.path.splitext(os.path.basename(value))[0], value)
+    path = Path(value)
+    return (path.stem, value)
 
 
 def detect_info(project):
@@ -86,25 +87,25 @@ class Shell:
 
     @contextlib.contextmanager
     def inject_path(self, venv):
+        venv_path = Path(venv)
         with temp_environ():
-            os.environ["PATH"] = "{}{}{}".format(
-                os.pathsep.join(str(p.parent) for p in _iter_python(venv)),
-                os.pathsep,
-                os.environ["PATH"],
+            os.environ["PATH"] = (
+                f"{os.pathsep.join(str(p.parent) for p in _iter_python(venv_path))}{os.pathsep}{os.environ['PATH']}"
             )
             yield
 
     def fork(self, venv, cwd, args):
         # FIXME: This isn't necessarily the correct prompt. We should read the
         # actual prompt by peeking into the activation script.
-        name = os.path.basename(venv)
-        os.environ["VIRTUAL_ENV"] = str(venv)
+        venv_path = Path(venv)
+        name = venv_path.name
+        os.environ["VIRTUAL_ENV"] = str(venv_path)
         if "PROMPT" in os.environ:
-            os.environ["PROMPT"] = "({}) {}".format(name, os.environ["PROMPT"])
+            os.environ["PROMPT"] = f"({name}) {os.environ['PROMPT']}"
         if "PS1" in os.environ:
-            os.environ["PS1"] = "({}) {}".format(name, os.environ["PS1"])
+            os.environ["PS1"] = f"({name}) {os.environ['PS1']}"
         with self.inject_path(venv):
-            os.chdir(cwd)
+            os.chdir(str(cwd) if isinstance(cwd, Path) else cwd)
             _handover(self.cmd, self.args + list(args))
 
     def fork_compat(self, venv, cwd, args):
@@ -187,16 +188,16 @@ class CmderEmulatedShell(Shell):
 
 class CmderCommandPrompt(CmderEmulatedShell):
     def fork(self, venv, cwd, args):
-        rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\init.bat")
-        if os.path.exists(rc):
-            self.args.extend(["/k", rc])
+        rc_path = Path(os.path.expandvars("%CMDER_ROOT%\\vendor\\init.bat"))
+        if rc_path.exists():
+            self.args.extend(["/k", str(rc_path)])
         super().fork(venv, cwd, args)
 
 
 class CmderPowershell(Shell):
     def fork(self, venv, cwd, args):
-        rc = os.path.expandvars("%CMDER_ROOT%\\vendor\\profile.ps1")
-        if os.path.exists(rc):
+        rc_path = Path(os.path.expandvars("%CMDER_ROOT%\\vendor\\profile.ps1"))
+        if rc_path.exists():
             self.args.extend(
                 [
                     "-ExecutionPolicy",
@@ -205,7 +206,7 @@ class CmderPowershell(Shell):
                     "-NoProfile",
                     "-NoExit",
                     "-Command",
-                    f"Invoke-Expression '. ''{rc}'''",
+                    f"Invoke-Expression '. ''{rc_path}'''",
                 ]
             )
         super().fork(venv, cwd, args)
