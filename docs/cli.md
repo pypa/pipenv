@@ -18,8 +18,8 @@ Options:
 ```
 --db TEXT                       Path or URL to a PyUp Safety vulnerabilities database.
 --ignore, -i TEXT               Ignore specified vulnerability during PyUp Safety checks.
---output [default|json|full-report|bare|screen|text|minimal]
-                                Translates to --json, --full-report or --bare from PyUp Safety check.
+--output [screen|text|json|bare]
+                                Specifies the output format for the PyUp Safety check.
 --key TEXT                      Safety API key from PyUp.io for scanning dependencies against a live
                                 vulnerabilities database.
 --quiet                         Quiet standard output, except vulnerability report.
