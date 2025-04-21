@@ -379,7 +379,9 @@ class Resolver:
         )
 
         # Always add default constraints for dev packages
-        if self.category != "default":
+        if self.category != "default" and self.project.settings.get(
+            "use_default_constraints", True
+        ):
             constraints.extend(self.parsed_default_constraints)
 
         return constraints
@@ -421,7 +423,9 @@ class Resolver:
             constraints_list.add(c)
 
         # Always use default_constraints when installing dev-packages
-        if self.category != "default":
+        if self.category != "default" and self.project.settings.get(
+            "use_default_constraints", True
+        ):
             constraints_list |= self.default_constraints
 
         return constraints_list
