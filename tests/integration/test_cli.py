@@ -183,7 +183,8 @@ def test_pipenv_check(pipenv_instance_private_pypi):
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason="required by check")
 @pytest.mark.parametrize("category", ["CVE", "packages"])
-def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
+@pytest.mark.parametrize("scan_option", ["", "--scan"])
+def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category, scan_option):
     with pipenv_instance_pypi() as p:
         # Install wheel with a known vulnerability
         c = p.pipenv(f"install wheel==0.37.1 --categories={category}")
@@ -197,8 +198,12 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
         env = os.environ.copy()
         env["PIPENV_SAFETY_AUTO_INSTALL"] = "1"
 
+        # Skip scan tests if no API key is available
+        if scan_option and not (os.environ.get("PIPENV_PYUP_API_KEY") or os.environ.get("SAFETY_API_KEY")):
+            pytest.skip("Skipping scan test because no API key is available")
+
         # Create the command with echo to pipe "Y" as input
-        cmd = f"echo Y | pipenv check --categories={category}"
+        cmd = f"echo Y | pipenv check {scan_option} --categories={category}"
 
         # Run the command in the pipenv directory
         result = subprocess.run(cmd, shell=True, cwd=p.path,
@@ -208,11 +213,11 @@ def test_pipenv_check_check_lockfile_categories(pipenv_instance_pypi, category):
         assert "wheel" in result.stdout
 
 
- # Note: We don't test scan because no valid API key.
+# Note: We test both regular check and check with --scan option
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason="required by check/scan")
-@pytest.mark.parametrize("command", ["check"])
-def test_pipenv_auto_install_safety(pipenv_instance_pypi, command):
+@pytest.mark.parametrize("scan_option", ["", "--scan"])
+def test_pipenv_auto_install_safety(pipenv_instance_pypi, scan_option):
     with pipenv_instance_pypi() as p:
         # Install wheel with a known vulnerability
         c = p.pipenv("install wheel==0.37.1")
@@ -225,13 +230,17 @@ def test_pipenv_auto_install_safety(pipenv_instance_pypi, command):
         # Use the environment and path of the pipenv instance
         env = os.environ.copy()
 
+        # Skip scan tests if no API key is available
+        if scan_option and not (os.environ.get("PIPENV_PYUP_API_KEY") or os.environ.get("SAFETY_API_KEY")):
+            pytest.skip("Skipping scan test because no API key is available")
+
         # Uninstall safety if it exists
         uninstall_cmd = "pipenv run pip uninstall -y safety"
         subprocess.run(uninstall_cmd, shell=True, cwd=p.path,
                       capture_output=True, text=True, env=env, check=False)
 
         # Run the command with auto-install flag
-        cmd = f"pipenv {command} --auto-install"
+        cmd = f"pipenv check {scan_option} --auto-install"
 
         # Run the command in the pipenv directory
         result = subprocess.run(cmd, shell=True, cwd=p.path,
