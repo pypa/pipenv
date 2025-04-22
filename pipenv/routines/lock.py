@@ -1,9 +1,9 @@
 import contextlib
 
+from pipenv.utils import err
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
-from pipenv.vendor import click
 
 
 def do_lock(
@@ -48,13 +48,8 @@ def do_lock(
 
         if write:
             if not quiet:  # Alert the user of progress.
-                click.echo(
-                    "{} {} {}".format(
-                        click.style("Locking"),
-                        click.style(f"[{pipfile_category}]", fg="yellow"),
-                        click.style("dependencies..."),
-                    ),
-                    err=True,
+                err.print(
+                    f"Locking [yellow][{pipfile_category}][/yellow] dependencies..."
                 )
 
         # Prune old lockfile category as new one will be created.
@@ -91,14 +86,9 @@ def do_lock(
         lockfile.update({"_meta": project.get_lockfile_meta()})
         project.write_lockfile(lockfile)
         if not quiet:
-            click.echo(
-                "{}".format(
-                    click.style(
-                        f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
-                        bold=True,
-                    )
-                ),
-                err=True,
+            err.print(
+                f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
+                style="bold",
             )
     else:
         return lockfile
