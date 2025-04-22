@@ -190,41 +190,14 @@ def check_version_conflicts(
         if req_version == "Any":
             continue
 
-        try:
-            specifier_set = SpecifierSet(req_version)
-            # For Version objects, we check if the specifier contains the version
-            # For SpecifierSet objects, we need to check compatibility differently
-            if isinstance(new_version_obj, Version):
-                if not specifier_set.contains(new_version_obj):
-                    conflicts.add(dependent)
-            # This is a complex case where we have a specifier vs specifier
-            # We'll use sample versions that satisfy our specifier to test
-            elif new_version == "*":
-                # For full wildcard, check with a recent stable version
-                # This is just a heuristic - we can't check all possible versions
-                test_version = Version("9999.0.0")
-                if not specifier_set.contains(test_version):
-                    # If the latest version doesn't work, try an older one
-                    test_version = Version("0.0.0")
-                    if not specifier_set.contains(test_version):
-                        conflicts.add(dependent)
-            elif new_version.endswith(".*"):
-                # For major version wildcards, check with the base version
-                try:
-                    test_version = Version(new_version[:-2] + ".0")
-                    if not specifier_set.contains(test_version):
-                        conflicts.add(dependent)
-                except InvalidVersion:
-                    # If we can't create a test version, assume no conflict
-                    pass
-            else:
-                # For other specifiers, we'll assume compatibility
-                # This is a simplification, but it's hard to do better without
-                # checking all possible versions
-                pass
-        except Exception:  # noqa: PERF203
-            # If we can't parse the version requirement, assume it's a conflict
-            conflicts.add(dependent)
+        specifier_set = SpecifierSet(req_version)
+        # For Version objects, we check if the specifier contains the version
+        # For SpecifierSet objects, we need to check compatibility differently
+        if isinstance(new_version_obj, Version):
+            if not specifier_set.contains(new_version_obj):
+                conflicts.add(dependent)
+        # Otherwise this is a complex case where we have a specifier vs specifier ...
+        # We'll let the resolver figure those out
 
     return conflicts
 
