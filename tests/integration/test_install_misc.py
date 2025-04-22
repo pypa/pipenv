@@ -82,7 +82,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-requests = "=2.*"
+requests = "==2.*"
 """
             f.write(contents)
         c = p.pipenv("install")
@@ -109,7 +109,7 @@ name = "pypi"
             f.write(contents)
 
         # Test with single equals and star specifier
-        c = p.pipenv("install urllib3=1.*")
+        c = p.pipenv("install urllib3==1.*")
         assert c.returncode == 0
         assert "urllib3" in p.lockfile["default"]
 
