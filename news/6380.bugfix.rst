@@ -1,0 +1,1 @@
+Fix for locking fails with a ``KeyError in MAX_VERSIONS[next_tuple[0]]``
