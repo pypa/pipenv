@@ -8,11 +8,11 @@ import pytest
 def test_install_path_with_spaces(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         # Create a test directory with spaces in the name
-        test_dir = Path(p.path / "test dir with spaces")
+        test_dir = Path(p.path) / "test dir with spaces"
         test_dir.mkdir()
 
         # Create a simple package in the directory with spaces
-        package_dir = Path(test_dir / "simple_package")
+        package_dir = test_dir / "simple_package"
         package_dir.mkdir()
 
         # Create a simple setup.py file
