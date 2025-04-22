@@ -159,6 +159,21 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
         assert yarl["markers"] == "python_version >= '3.9'"
 
 
+@pytest.mark.markers
+@pytest.mark.install
+@pytest.mark.needs_internet
+def test_install_package_with_invalid_python_version_specifier(pipenv_instance_pypi):
+    """Test that installing a package with an invalid Python version specifier
+    doesn't raise a KeyError. This test verifies the fix for issue #6370.
+    """
+    with pipenv_instance_pypi() as p:
+        # typedb-driver 3.0.5 has an invalid Python version specifier that was causing a KeyError
+        c = p.pipenv("install typedb-driver==3.0.5")
+        assert c.returncode == 0
+        assert "typedb-driver" in p.pipfile["packages"]
+        assert "typedb-driver" in p.lockfile["default"]
+
+
 @flaky
 @pytest.mark.project
 @pytest.mark.needs_internet
