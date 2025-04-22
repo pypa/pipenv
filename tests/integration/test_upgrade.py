@@ -102,3 +102,110 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
         # Step 5: Run pipenv lock to check for dependency resolution errors
         c = cli_runner.invoke(cli, "lock")
         assert c.exit_code == 0, f"Failed to run pipenv lock: {c.stderr}"
+
+
+@pytest.mark.upgrade
+def test_upgrade_updates_lockfile_in_all_categories(pipenv_instance_private_pypi):
+    """Test that upgrading a package updates it in all categories of the lockfile."""
+    with pipenv_instance_private_pypi() as p:
+        # Create a Pipfile with a package in default and a dev package that depends on it
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+requests = "==2.25.0"
+
+[dev-packages]
+pytest = "*"
+            """.strip()
+            f.write(contents)
+
+        # Lock the dependencies
+        c = p.pipenv("lock")
+        assert c.returncode == 0, f"Failed to lock dependencies: {c.stderr}"
+
+        # Verify initial state
+        lockfile_path = os.path.join(p.path, "Pipfile.lock")
+        with open(lockfile_path) as lockfile:
+            lock_data = json.load(lockfile)
+
+        # Check initial version in default section
+        assert lock_data["default"]["requests"]["version"] == "==2.25.0"
+
+        # Check if requests is in develop section (as a dependency of pytest)
+        develop_has_requests = "requests" in lock_data["develop"]
+
+        # Upgrade the package
+        target_version = "2.28.0"
+        c = p.pipenv(f"upgrade requests=={target_version}")
+        assert c.returncode == 0, f"Failed to upgrade requests: {c.stderr}"
+
+        # Verify the package was updated in the lockfile
+        with open(lockfile_path) as lockfile:
+            updated_lock_data = json.load(lockfile)
+
+        # Check updated version in default section
+        assert updated_lock_data["default"]["requests"]["version"] == f"=={target_version}"
+
+        # If requests was in develop section, check it was updated there too
+        if develop_has_requests:
+            assert updated_lock_data["develop"]["requests"]["version"] == f"=={target_version}"
+
+
+@pytest.mark.upgrade
+def test_upgrade_only_adds_to_explicit_categories(pipenv_instance_private_pypi):
+    """Test that upgrading a package only adds it to the Pipfile for explicitly requested categories."""
+    with pipenv_instance_private_pypi() as p:
+        # Create a Pipfile with a package in default but not in dev-packages
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+requests = "==2.25.0"
+
+[dev-packages]
+pytest = "*"
+            """.strip()
+            f.write(contents)
+
+        # Lock the dependencies
+        c = p.pipenv("lock")
+        assert c.returncode == 0, f"Failed to lock dependencies: {c.stderr}"
+
+        # Verify initial state
+        with open(p.pipfile_path) as pipfile:
+            initial_pipfile_content = pipfile.read()
+
+        # Make sure requests is not in dev-packages initially
+        assert "requests" not in initial_pipfile_content.split("[dev-packages]")[1].split("[")[0]
+
+        # Upgrade the package
+        target_version = "2.28.0"
+        c = p.pipenv(f"upgrade requests=={target_version}")
+        assert c.returncode == 0, f"Failed to upgrade requests: {c.stderr}"
+
+        # Verify the Pipfile was updated correctly
+        with open(p.pipfile_path) as pipfile:
+            updated_pipfile_content = pipfile.read()
+
+        # Check that requests was updated in packages section
+        packages_section = updated_pipfile_content.split("[packages]")[1].split("[")[0]
+        assert f'requests = "=={target_version}"' in packages_section
+
+        # Check that requests was NOT added to dev-packages section
+        if "[dev-packages]" in updated_pipfile_content:
+            dev_packages_section = updated_pipfile_content.split("[dev-packages]")[1].split("[")[0]
+        else:
+            dev_packages_section = ""
+        assert "requests" not in dev_packages_section
+
+        # Verify the lockfile was updated in both sections
+        lockfile_path = os.path.join(p.path, "Pipfile.lock")
+        with open(lockfile_path) as lockfile:
+            updated_lock_data = json.load(lockfile)
+
+        # Check that requests was updated in default section
+        assert updated_lock_data["default"]["requests"]["version"] == f"=={target_version}"
+
+        # Check if requests is in develop section (it might be there as a dependency of pytest)
+        if "requests" in updated_lock_data["develop"]:
+            # If it's there, it should be updated
+            assert updated_lock_data["develop"]["requests"]["version"] == f"=={target_version}"
