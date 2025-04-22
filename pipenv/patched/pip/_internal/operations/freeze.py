@@ -1,9 +1,10 @@
 import collections
 import logging
 import os
+from dataclasses import dataclass, field
 from typing import Container, Dict, Generator, Iterable, List, NamedTuple, Optional, Set
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion
 
 from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
@@ -220,19 +221,16 @@ def _get_editable_info(dist: BaseDistribution) -> _EditableInfo:
     )
 
 
+@dataclass(frozen=True)
 class FrozenRequirement:
-    def __init__(
-        self,
-        name: str,
-        req: str,
-        editable: bool,
-        comments: Iterable[str] = (),
-    ) -> None:
-        self.name = name
-        self.canonical_name = canonicalize_name(name)
-        self.req = req
-        self.editable = editable
-        self.comments = comments
+    name: str
+    req: str
+    editable: bool
+    comments: Iterable[str] = field(default_factory=tuple)
+
+    @property
+    def canonical_name(self) -> NormalizedName:
+        return canonicalize_name(self.name)
 
     @classmethod
     def from_dist(cls, dist: BaseDistribution) -> "FrozenRequirement":

@@ -2,6 +2,7 @@ import email.message
 import importlib.metadata
 import pathlib
 import zipfile
+from os import PathLike
 from typing import (
     Collection,
     Dict,
@@ -10,6 +11,7 @@ from typing import (
     Mapping,
     Optional,
     Sequence,
+    Union,
     cast,
 )
 
@@ -94,6 +96,11 @@ class WheelDistribution(importlib.metadata.Distribution):
             error = f"Error decoding metadata for {wheel}: {e} in {filename} file"
             raise UnsupportedWheel(error)
         return text
+
+    def locate_file(self, path: Union[str, "PathLike[str]"]) -> pathlib.Path:
+        # This method doesn't make sense for our in-memory wheel, but the API
+        # requires us to define it.
+        raise NotImplementedError
 
 
 class Distribution(BaseDistribution):
@@ -190,7 +197,7 @@ class Distribution(BaseDistribution):
         return content
 
     def iter_entry_points(self) -> Iterable[BaseEntryPoint]:
-        # importlib.metadata's EntryPoint structure sasitfies BaseEntryPoint.
+        # importlib.metadata's EntryPoint structure satisfies BaseEntryPoint.
         return self._dist.entry_points
 
     def _metadata_impl(self) -> email.message.Message:

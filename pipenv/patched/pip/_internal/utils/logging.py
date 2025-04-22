@@ -137,12 +137,19 @@ class IndentedRenderable:
             yield Segment("\n")
 
 
+class PipConsole(Console):
+    def on_broken_pipe(self) -> None:
+        # Reraise the original exception, rich 13.8.0+ exits by default
+        # instead, preventing our handler from firing.
+        raise BrokenPipeError() from None
+
+
 class RichPipStreamHandler(RichHandler):
     KEYWORDS: ClassVar[Optional[List[str]]] = []
 
     def __init__(self, stream: Optional[TextIO], no_color: bool) -> None:
         super().__init__(
-            console=Console(file=stream, no_color=no_color, soft_wrap=True),
+            console=PipConsole(file=stream, no_color=no_color, soft_wrap=True),
             show_time=False,
             show_level=False,
             show_path=False,

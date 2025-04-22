@@ -6,7 +6,7 @@ from __future__ import annotations
 import hashlib
 import os
 from textwrap import dedent
-from typing import IO, TYPE_CHECKING, Union
+from typing import IO, TYPE_CHECKING
 from pathlib import Path
 
 from pipenv.patched.pip._vendor.cachecontrol.cache import BaseCache, SeparateBodyBaseCache
