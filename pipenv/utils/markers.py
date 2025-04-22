@@ -272,6 +272,8 @@ def fix_version_tuple(version_tuple):
     max_major = max(MAX_VERSIONS.keys())
     if version[0] > max_major:
         return (op, (max_major, MAX_VERSIONS[max_major]))
+    # If version[0] is not in MAX_VERSIONS, we return the original version tuple.
+    # This fallback is intentional to allow handling of unexpected or future versions.
     if version[0] not in MAX_VERSIONS:
         return (op, version)
     max_allowed = MAX_VERSIONS[version[0]]
