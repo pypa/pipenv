@@ -3,8 +3,8 @@ import pytest
 
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_path_with_spaces(PipenvInstance):
-    with PipenvInstance(chdir=True) as p:
+def test_install_path_with_spaces(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
         # Create a test directory with spaces in the name
         test_dir = p.path / "test dir with spaces"
         test_dir.mkdir()
