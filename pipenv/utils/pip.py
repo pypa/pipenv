@@ -144,7 +144,4 @@ def get_pip_args(
 
 
 def get_trusted_hosts():
-    try:
-        return os.environ.get("PIP_TRUSTED_HOSTS", "").split(" ")
-    except AttributeError:
-        return []
+    return os.environ.get("PIP_TRUSTED_HOSTS", "").split(" ")
