@@ -45,7 +45,6 @@ optional-dependencies.dev = [
 ]
 optional-dependencies.safety = [
   "safety>=3.0.0",
-  "typer>=0.9.0",
 ]
 optional-dependencies.tests = [
   "flaky",
