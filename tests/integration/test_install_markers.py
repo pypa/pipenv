@@ -163,7 +163,7 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 @pytest.mark.skipif(
-    sys.os.name == "nt",
+    os.name == "nt",
     reason="This dependency is not available on Windows",
 )
 def test_install_package_with_invalid_python_version_specifier(pipenv_instance_pypi):
