@@ -162,6 +162,10 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
 @pytest.mark.markers
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skipif(
+    sys.os.name == "nt",
+    reason="This dependency is not available on Windows",
+)
 def test_install_package_with_invalid_python_version_specifier(pipenv_instance_pypi):
     """Test that installing a package with an invalid Python version specifier
     doesn't raise a KeyError. This test verifies the fix for issue #6370.

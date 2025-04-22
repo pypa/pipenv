@@ -1,1 +1,1 @@
-Fix for locking fails with a ``KeyError in MAX_VERSIONS[next_tuple[0]]``
+Fixed KeyError when installing packages with invalid Python version specifiers in their metadata.
