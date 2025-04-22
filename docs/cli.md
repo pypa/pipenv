@@ -8,11 +8,37 @@ pipenv [OPTIONS] COMMAND [ARGS]...
 
 ## check
 
-Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
+Checks and scans project for PyUp Safety security vulnerabilities and against PEP 508 markers.
 
 ```bash
 pipenv check [OPTIONS]
 ```
+
+Options:
+```
+--db TEXT                       Path or URL to a PyUp Safety vulnerabilities database.
+--ignore, -i TEXT               Ignore specified vulnerability during PyUp Safety checks.
+--output [screen|text|json|bare]
+                                Specifies the output format for the PyUp Safety check.
+--key TEXT                      Safety API key from PyUp.io for scanning dependencies against a live
+                                vulnerabilities database.
+--quiet                         Quiet standard output, except vulnerability report.
+--policy-file TEXT              Define the policy file to be used.
+--exit-code / --continue-on-error
+                                Output standard exit codes. Default: --exit-code.
+--audit-and-monitor / --disable-audit-and-monitor
+                                Send results back to pyup.io for viewing on your dashboard.
+--project TEXT                  Project to associate this scan with on pyup.io.
+--save-json TEXT                Path to where output file will be placed.
+--use-installed                 Whether to use the lockfile as input to check.
+--categories TEXT               Use the specified categories from the lockfile as input to check.
+--auto-install                  Automatically install safety if not already installed.
+--scan                          Use the new scan command instead of the deprecated check command.
+```
+
+**Note**: The check command is deprecated and will be unsupported beyond 01 June 2024. In future versions, the check command will run the scan command by default. Use the `--scan` option to run the new scan command now.
+
+When using the `--scan` option, you'll need to obtain an API key from https://pyup.io to access the full vulnerability database.
 
 ## clean
 
