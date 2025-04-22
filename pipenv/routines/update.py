@@ -202,10 +202,10 @@ def check_version_conflicts(
             elif new_version == "*":
                 # For full wildcard, check with a recent stable version
                 # This is just a heuristic - we can't check all possible versions
-                test_version = Version("999.0.0")
+                test_version = Version("9999.0.0")
                 if not specifier_set.contains(test_version):
                     # If the latest version doesn't work, try an older one
-                    test_version = Version("1.0.0")
+                    test_version = Version("0.0.0")
                     if not specifier_set.contains(test_version):
                         conflicts.add(dependent)
             elif new_version.endswith(".*"):
