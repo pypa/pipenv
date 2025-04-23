@@ -1,11 +1,17 @@
 [[source]]
-url = "https://pypi.python.org/simple"
+url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
 [packages]
-requests = "*"
-
+requests = ">=2.32.0"
+urllib3 = ">=2.2.1"
+certifi = ">=2024.2.2"
+idna = ">=3.6"
+charset-normalizer = ">=3.3.2"
 
 [dev-packages]
-pytest = "*"
+pytest = ">=7.4.0"
+
+[requires]
+python_version = "3.11"
