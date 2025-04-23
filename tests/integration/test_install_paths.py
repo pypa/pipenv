@@ -23,7 +23,6 @@ from setuptools import setup
 setup(
     name="simple-package",
     version="0.1.0",
-    packages=["simple_package"],
 )
 """)
 
