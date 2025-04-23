@@ -5,6 +5,10 @@ import pytest
 
 @pytest.mark.install
 @pytest.mark.needs_internet
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="This test is not for Windows",
+)
 def test_install_path_with_spaces(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         # Create a test directory with spaces in the name
@@ -45,7 +49,8 @@ def hello():
 
         # Test with escaped spaces
         p.pipenv("uninstall simple-package")
-        c = p.pipenv(f'install {package_dir.as_posix().replace(" ", "\\ ")}')
+        escaped_path = package_dir.as_posix().replace(" ", "\\ ")
+        c = p.pipenv(f'install {escaped_path}')
         assert c.returncode == 0
 
         # Verify the package was installed correctly
