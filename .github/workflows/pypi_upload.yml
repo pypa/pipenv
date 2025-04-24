@@ -48,16 +48,24 @@ jobs:
       run: |
         python -m pipenv run python -m build
 
-    # Publish to PyPI using Trusted Publishers
+    # Publish to PyPI using token authentication
+    # Note: To use Trusted Publishers in the future, you need to set up a publisher on PyPI:
+    # Visit: https://pypi.org/manage/project/pipenv/settings/publishing/
+    # And add a publisher with:
+    #   - Provider: GitHub
+    #   - Owner: pypa
+    #   - Repository: pipenv
+    #   - Workflow filename: pypi_upload.yml
     - name: Publish a Python distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
+        user: __token__
+        password: ${{ secrets.PYPI_TOKEN }}
         packages-dir: dist/
         verbose: true
         retry-on-error: true
         retry-on-5xx: true
         max-retries: 10
         retry-sleep-time: 60
-        # Remove the token-based authentication to use Trusted Publishers
         # Uncomment the following line to publish to Test PyPI instead
         # repository-url: https://test.pypi.org/legacy/
