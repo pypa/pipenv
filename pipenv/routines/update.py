@@ -160,22 +160,44 @@ def check_version_conflicts(
     Returns set of conflicting packages.
     """
     conflicts = set()
-    try:
-        new_version_obj = Version(new_version)
-    except InvalidVersion:
-        new_version_obj = SpecifierSet(new_version)
+
+    # Handle various wildcard patterns
+    if new_version == "*":
+        # Full wildcard - matches any version
+        # We'll use a very permissive specifier
+        new_version_obj = SpecifierSet(">=0.0.0")
+    elif new_version.endswith(".*"):
+        # Major version wildcard like '2.*'
+        try:
+            major = int(new_version[:-2])
+            new_version_obj = SpecifierSet(f">={major},<{major+1}")
+        except (ValueError, TypeError):
+            # If we can't parse the major version, use a permissive specifier
+            new_version_obj = SpecifierSet(">=0.0.0")
+    else:
+        try:
+            new_version_obj = Version(new_version)
+        except InvalidVersion:
+            try:
+                # Try to parse as a specifier set
+                new_version_obj = SpecifierSet(new_version)
+            except Exception:  # noqa: PERF203
+                # If we can't parse the version at all, return no conflicts
+                # This allows the installation to proceed and let pip handle it
+                return conflicts
 
     for dependent, req_version in reverse_deps.get(package_name, set()):
         if req_version == "Any":
             continue
 
-        try:
-            specifier_set = SpecifierSet(req_version)
+        specifier_set = SpecifierSet(req_version)
+        # For Version objects, we check if the specifier contains the version
+        # For SpecifierSet objects, we need to check compatibility differently
+        if isinstance(new_version_obj, Version):
             if not specifier_set.contains(new_version_obj):
                 conflicts.add(dependent)
-        except Exception:  # noqa: PERF203
-            # If we can't parse the version requirement, assume it's a conflict
-            conflicts.add(dependent)
+        # Otherwise this is a complex case where we have a specifier vs specifier ...
+        # We'll let the resolver figure those out
 
     return conflicts
 
@@ -296,15 +318,21 @@ def _detect_conflicts(package_args, reverse_deps, lockfile):
     """Detect version conflicts in package arguments."""
     conflicts_found = False
     for package in package_args:
+        # Handle both == and = version specifiers
         if "==" in package:
-            name, version = package.split("==")
-            conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
-            if conflicts:
-                conflicts_found = True
-                err.print(
-                    f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
-                    f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
-                )
+            name, version = package.split("==", 1)  # Split only on the first occurrence
+        elif "=" in package and not package.startswith("-e"):  # Avoid matching -e flag
+            name, version = package.split("=", 1)  # Split only on the first occurrence
+        else:
+            continue  # Skip packages without version specifiers
+
+        conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
+        if conflicts:
+            conflicts_found = True
+            err.print(
+                f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
+                f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
+            )
 
     return conflicts_found
 
