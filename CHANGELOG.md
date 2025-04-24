@@ -1,6 +1,6 @@
-2024.4.1 (2025-04-24)
+2025.0.0 (2025-04-24)
 =====================
-Pipenv 2024.4.1 (2025-04-24)
+Pipenv 2025.0.0 (2025-04-24)
 ============================
 
 
@@ -85,6 +85,8 @@ Bug Fixes
 
   Users are encouraged to start using the ``--scan`` option with the ``check`` command to prepare for the future change.
   This option requires users to obtain and configure an API key from https://pyup.io.  `#safety-command <https://github.com/pypa/pipenv/issues/safety-command>`_
+
+
 2024.4.0 (2025-01-22)
 =====================
 Pipenv 2024.4.0 (2025-01-22)
