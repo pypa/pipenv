@@ -1,1 +1,0 @@
-Fix for parsing and using the star specifier in install and update/upgrade commands.

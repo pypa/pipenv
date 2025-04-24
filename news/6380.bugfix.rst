@@ -1,1 +1,0 @@
-Fixed KeyError when installing packages with invalid Python version specifiers in their metadata.
