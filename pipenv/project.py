@@ -640,6 +640,8 @@ class Project:
             self._proper_names_db_path = Path(
                 self.virtualenv_location, "pipenv-proper-names.txt"
             )
+        # Ensure the parent directory exists before touching the file
+        self._proper_names_db_path.parent.mkdir(parents=True, exist_ok=True)
         self._proper_names_db_path.touch()  # Ensure the file exists.
         return self._proper_names_db_path
 

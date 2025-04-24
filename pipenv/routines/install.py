@@ -282,17 +282,6 @@ def do_install(
         pipfile_categories=pipfile_categories,
     )
 
-    do_init(
-        project,
-        package_args,
-        system=system,
-        allow_global=system,
-        deploy=deploy,
-        pypi_mirror=pypi_mirror,
-        skip_lock=skip_lock,
-        categories=pipfile_categories,
-    )
-
     do_install_validations(
         project,
         package_args,
@@ -306,6 +295,18 @@ def do_install(
         categories=pipfile_categories,
         skip_lock=skip_lock,
     )
+
+    do_init(
+        project,
+        package_args,
+        system=system,
+        allow_global=system,
+        deploy=deploy,
+        pypi_mirror=pypi_mirror,
+        skip_lock=skip_lock,
+        categories=pipfile_categories,
+    )
+
     if not (deploy or system):
         new_packages, _ = handle_new_packages(
             project,
