@@ -6,11 +6,11 @@ on:
     tags:
       - v[0-9]+.[0-9]+.*  # add .* to allow dev releases
 
-permissions: {}
+permissions:
+  id-token: write  # Required for trusted publishing
+  contents: write  # Required for release creation
 jobs:
   deploy:
-    permissions:
-      contents: write # to create a release (actions/create-release)
 
     name: pipenv PyPI Upload
     runs-on: ubuntu-latest
@@ -48,11 +48,16 @@ jobs:
       run: |
         python -m pipenv run python -m build
 
-    # to upload to test pypi, pass repository_url: https://test.pypi.org/legacy/ and use secrets.TEST_PYPI_TOKEN
+    # Publish to PyPI using Trusted Publishers
     - name: Publish a Python distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
-        user: __token__
-        password: ${{ secrets.PYPI_TOKEN }}
-        # repository_url: https://test.pypi.org/legacy/
         packages-dir: dist/
+        verbose: true
+        retry-on-error: true
+        retry-on-5xx: true
+        max-retries: 10
+        retry-sleep-time: 60
+        # Remove the token-based authentication to use Trusted Publishers
+        # Uncomment the following line to publish to Test PyPI instead
+        # repository-url: https://test.pypi.org/legacy/
