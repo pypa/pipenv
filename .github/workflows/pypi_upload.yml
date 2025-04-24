@@ -63,9 +63,5 @@ jobs:
         password: ${{ secrets.PYPI_TOKEN }}
         packages-dir: dist/
         verbose: true
-        retry-on-error: true
-        retry-on-5xx: true
-        max-retries: 10
-        retry-sleep-time: 60
         # Uncomment the following line to publish to Test PyPI instead
         # repository-url: https://test.pypi.org/legacy/
