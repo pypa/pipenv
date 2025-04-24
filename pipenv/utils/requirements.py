@@ -79,7 +79,9 @@ def import_requirements(project, r=None, dev=False, categories=None):
             indexes.append(extra_index)
         if trusted_host:
             trusted_hosts.append(get_host_and_port(trusted_host))
-    for f in parse_requirements(r, session=PipSession()):
+    # Convert Path object to string to avoid 'PosixPath' has no attribute 'decode' error
+    req_path = str(r) if isinstance(r, Path) else r
+    for f in parse_requirements(req_path, session=PipSession()):
         package = install_req_from_parsed_requirement(f)
         if package.name not in BAD_PACKAGES:
             if package.link is not None:

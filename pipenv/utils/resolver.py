@@ -344,8 +344,14 @@ class Resolver:
     def parsed_default_constraints(self):
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
+        # Convert Path object to string to avoid 'PosixPath' has no attribute 'decode' error
+        constraint_file = (
+            str(self.default_constraint_file)
+            if isinstance(self.default_constraint_file, Path)
+            else self.default_constraint_file
+        )
         parsed_default_constraints = parse_requirements(
-            self.default_constraint_file,
+            constraint_file,
             constraint=True,
             finder=self.finder(),
             session=self.session,
@@ -358,9 +364,15 @@ class Resolver:
         """Get parsed constraints including those from default packages if needed."""
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
+        # Convert Path object to string to avoid 'PosixPath' has no attribute 'decode' error
+        constraint_file = (
+            str(self.prepare_constraint_file())
+            if isinstance(self.prepare_constraint_file(), Path)
+            else self.prepare_constraint_file()
+        )
         constraints = list(
             parse_requirements(
-                self.prepare_constraint_file(),
+                constraint_file,
                 finder=self.finder(),
                 session=self.session,
                 options=pip_options,
