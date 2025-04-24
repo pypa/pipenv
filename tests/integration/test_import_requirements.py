@@ -1,7 +1,7 @@
 import os
 import tempfile
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 import pytest
 
@@ -130,7 +130,7 @@ def test_import_requirements_with_path_object(pipenv_instance_pypi):
             import_requirements(project, r=req_file_path)
 
             # Verify that the package was added to the Pipfile
-            with open("Pipfile", "r") as f:
+            with open("Pipfile") as f:
                 pipfile_content = f.read()
                 assert "requests" in pipfile_content
         finally:
