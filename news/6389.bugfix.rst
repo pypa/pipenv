@@ -1,0 +1,1 @@
+Fix for ``UnboundLocalError`` in ``ensure_python`` when ``SESSION_IS_INTERACTIVE=False``, using pyenv, and python version in Pipfile not available.
