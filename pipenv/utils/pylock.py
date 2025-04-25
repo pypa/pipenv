@@ -15,7 +15,6 @@ from typing import Any, Dict, List, Optional, Set, Union
 
 from pipenv.utils import err
 from pipenv.utils.locking import atomic_open_for_write
-from pipenv.utils.toml import tomlkit_value_to_python
 from pipenv.vendor import tomlkit
 
 
@@ -96,6 +95,12 @@ class PylockFile:
             pylock_data["requires-python"] = f">={requires['python_version']}"
         elif "python_full_version" in requires:
             pylock_data["requires-python"] = f"=={requires['python_full_version']}"
+
+        # Ensure all values are properly formatted for TOML
+        # Convert None values to empty strings or arrays
+        for key in ["environments", "extras", "dependency-groups", "default-groups"]:
+            if key in pylock_data and pylock_data[key] is None:
+                pylock_data[key] = []
 
         # Add sources
         sources = meta.get("sources", [])
@@ -183,12 +188,23 @@ class PylockFile:
 
         try:
             with open(path, encoding="utf-8") as f:
-                data = tomlkit.parse(f.read())
+                content = f.read()
+                data = tomlkit.parse(content)
+                # Convert tomlkit objects to Python native types
+                data_dict = {}
+                for key, value in data.items():
+                    if isinstance(
+                        value,
+                        (tomlkit.items.Table, tomlkit.items.AoT, tomlkit.items.Array),
+                    ):
+                        data_dict[key] = value.unwrap()
+                    else:
+                        data_dict[key] = value
         except Exception as e:
             raise PylockFormatError(f"Invalid pylock.toml file: {e}")
 
         # Validate lock-version
-        lock_version = data.get("lock-version")
+        lock_version = data_dict.get("lock-version")
         if not lock_version:
             raise PylockFormatError("Missing required field: lock-version")
 
@@ -198,7 +214,7 @@ class PylockFile:
                 f"Unsupported lock-version: {lock_version}. Only version 1.0 is supported."
             )
 
-        return cls(path=path, data=tomlkit_value_to_python(data))
+        return cls(path=path, data=data_dict)
 
     def write(self) -> None:
         """Write the pylock.toml file to disk.
@@ -207,6 +223,23 @@ class PylockFile:
             OSError: If there is an error writing the file
         """
         try:
+            # Ensure all values are properly formatted for TOML
+            # Create a deep copy of the data to avoid modifying the original
+            data_copy = {}
+            for key, value in self.data.items():
+                if isinstance(value, dict):
+                    data_copy[key] = value.copy()
+                elif isinstance(value, list):
+                    data_copy[key] = value.copy()
+                else:
+                    data_copy[key] = value
+
+            # Convert None values to empty strings or arrays
+            for key in ["environments", "extras", "dependency-groups", "default-groups"]:
+                if key in data_copy:
+                    if data_copy[key] is None:
+                        data_copy[key] = []
+
             # Convert the data to a TOML document
             doc = tomlkit.document()
 
@@ -220,49 +253,94 @@ class PylockFile:
                 "default-groups",
                 "created-by",
             ]:
-                if key in self.data:
-                    doc[key] = self.data[key]
+                if key in data_copy:
+                    doc[key] = data_copy[key]
 
             # Add packages
-            if "packages" in self.data:
-                doc["packages"] = []
-                for package in self.data["packages"]:
+            if "packages" in data_copy:
+                doc["packages"] = tomlkit.aot()
+                for package in data_copy["packages"]:
                     pkg_table = tomlkit.table()
+
+                    # Add basic package info first for better readability
+                    for key in ["name", "version", "marker", "requires-python"]:
+                        if key in package:
+                            pkg_table[key] = package[key]
+
+                    # Add remaining keys except wheels and sdist
                     for k, v in package.items():
-                        if k not in {"wheels", "sdist"}:
+                        if k not in {
+                            "name",
+                            "version",
+                            "marker",
+                            "requires-python",
+                            "wheels",
+                            "sdist",
+                        }:
                             pkg_table[k] = v
 
-                    # Add wheels as an array of tables
+                    # Add wheels as an array of tables with better formatting
                     if "wheels" in package:
-                        pkg_table["wheels"] = []
+                        wheels_array = tomlkit.array()
+                        wheels_array.multiline(True)
+
                         for wheel in package["wheels"]:
                             wheel_table = tomlkit.inline_table()
-                            for k, v in wheel.items():
-                                wheel_table[k] = v
-                            pkg_table["wheels"].append(wheel_table)
+
+                            # Add wheel properties in a specific order
+                            for key in ["name", "upload-time", "url", "size"]:
+                                if key in wheel:
+                                    wheel_table[key] = wheel[key]
+
+                            # Add hashes as a table
+                            if "hashes" in wheel:
+                                hashes_table = tomlkit.inline_table()
+                                for hash_algo, hash_value in wheel["hashes"].items():
+                                    hashes_table[hash_algo] = hash_value
+                                wheel_table["hashes"] = hashes_table
+
+                            wheels_array.append(wheel_table)
+
+                        pkg_table["wheels"] = wheels_array
 
                     # Add sdist as a table
                     if "sdist" in package:
-                        sdist_table = tomlkit.table()
-                        for k, v in package["sdist"].items():
-                            sdist_table[k] = v
+                        sdist_table = tomlkit.inline_table()
+
+                        # Add sdist properties in a specific order
+                        for key in ["name", "upload-time", "url", "size"]:
+                            if key in package["sdist"]:
+                                sdist_table[key] = package["sdist"][key]
+
+                        # Add hashes as a table
+                        if "hashes" in package["sdist"]:
+                            hashes_table = tomlkit.inline_table()
+                            for hash_algo, hash_value in package["sdist"][
+                                "hashes"
+                            ].items():
+                                hashes_table[hash_algo] = hash_value
+                            sdist_table["hashes"] = hashes_table
+
                         pkg_table["sdist"] = sdist_table
 
                     doc["packages"].append(pkg_table)
 
             # Add tool section
-            if "tool" in self.data:
+            if "tool" in data_copy:
                 tool_table = tomlkit.table()
-                for tool_name, tool_data in self.data["tool"].items():
+                for tool_name, tool_data in data_copy["tool"].items():
                     tool_section = tomlkit.table()
                     for k, v in tool_data.items():
                         tool_section[k] = v
                     tool_table[tool_name] = tool_section
                 doc["tool"] = tool_table
 
-            # Write the document to the file
+            # Write the document to the file with proper formatting
             with atomic_open_for_write(self.path, encoding="utf-8") as f:
-                f.write(tomlkit.dumps(doc))
+                content = tomlkit.dumps(doc)
+                # Ensure there's a blank line between package entries for readability
+                content = content.replace("[[packages]]\n", "\n[[packages]]\n")
+                f.write(content)
 
         except Exception as e:
             err.print(f"[bold red]Error writing pylock.toml: {e}[/bold red]")
@@ -369,6 +447,19 @@ class PylockFile:
         # Add Python version requirement if present
         if self.requires_python:
             lockfile["_meta"]["requires"]["python_version"] = self.requires_python
+
+        # Add sources if present
+        if "sources" in self.data:
+            lockfile["_meta"]["sources"] = self.data["sources"]
+        # If no sources in pylock.toml, add a default source
+        else:
+            lockfile["_meta"]["sources"] = [
+                {
+                    "name": "pypi",
+                    "url": "https://pypi.org/simple",
+                    "verify_ssl": True,
+                }
+            ]
 
         # Process packages
         for package in self.packages:
