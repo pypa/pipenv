@@ -306,21 +306,25 @@ def ensure_python(project, python=None):
             else:
                 abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")
         else:
-            if environments.SESSION_IS_INTERACTIVE or project.s.PIPENV_YES:
-                try:
-                    version = installer.find_version_to_install(python)
-                except ValueError:
-                    abort()
-                except InstallerError as e:
-                    abort(f"Something went wrong while installing Python:\n{e.err}")
-                s = (
-                    "Would you like us to install ",
-                    f"[green]CPython {version}[/green] ",
-                    f"with {installer}?",
-                )
+            try:
+                version = installer.find_version_to_install(python)
+            except ValueError:
+                abort()
+            except InstallerError as e:
+                abort(f"Something went wrong while installing Python:\n{e.err}")
+
+            s = (
+                "Would you like us to install ",
+                f"[green]CPython {version}[/green] ",
+                f"with {installer}?",
+            )
 
             # Prompt the user to continue...
-            if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
+            if environments.SESSION_IS_INTERACTIVE:
+                if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
+                    abort()
+            elif not project.s.PIPENV_YES:
+                # Non-interactive session without PIPENV_YES, proceed with installation
                 abort()
             else:
                 # Tell the user we're installing Python.
