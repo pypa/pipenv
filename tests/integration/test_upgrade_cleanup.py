@@ -1,11 +1,5 @@
-import os
-import shutil
-from pathlib import Path
 
 import pytest
-
-from pipenv.project import Project
-from pipenv.utils.processes import subprocess_run
 
 
 @pytest.mark.upgrade
