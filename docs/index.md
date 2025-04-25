@@ -61,6 +61,7 @@ credentials
 shell
 docker
 scripts
+pylock
 advanced
 diagnose
 changelog

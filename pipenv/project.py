@@ -57,6 +57,7 @@ from pipenv.utils.internet import (
     proper_case,
 )
 from pipenv.utils.locking import atomic_open_for_write
+from pipenv.utils.pylock import PylockFile, find_pylock_file
 from pipenv.utils.project import get_default_pyproject_backend
 from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
@@ -794,6 +795,19 @@ class Project:
         return pf
 
     @property
+    def pylock_location(self):
+        """Returns the location of the pylock.toml file, if it exists."""
+        pylock_path = find_pylock_file(self.project_directory)
+        if pylock_path:
+            return str(pylock_path)
+        return None
+
+    @property
+    def pylock_exists(self):
+        """Returns True if a pylock.toml file exists."""
+        return self.pylock_location is not None
+
+    @property
     def lockfile_location(self):
         return f"{self.pipfile_location}.lock"
 
@@ -803,6 +817,13 @@ class Project:
 
     @property
     def lockfile_content(self):
+        """Returns the content of the lockfile, checking for pylock.toml first."""
+        if self.pylock_exists:
+            try:
+                pylock = PylockFile.from_path(self.pylock_location)
+                return pylock.convert_to_pipenv_lockfile()
+            except Exception as e:
+                err.print(f"[bold yellow]Error loading pylock.toml: {e}[/bold yellow]")
         return self.load_lockfile()
 
     def get_editable_packages(self, category):

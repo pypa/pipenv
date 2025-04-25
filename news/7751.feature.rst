@@ -1,0 +1,1 @@
+Added support for reading PEP 751 pylock.toml files. When both a Pipfile.lock and a pylock.toml file exist, Pipenv will prioritize the pylock.toml file.
