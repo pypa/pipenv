@@ -19,9 +19,6 @@ name = "pypi"
 django = "==3.2.10"
 
 [dev-packages]
-
-[requires]
-python_version = "3.11"
 """)
 
         # Install dependencies
