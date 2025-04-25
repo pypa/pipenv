@@ -56,15 +56,34 @@ hashes = {sha256 = 'b8aa58f8cf793ffd8782d3d8cb19e66ef36f7aba4353eec859e74678b01b
 - **Flexibility**: pylock.toml can support both single-use and multi-use lock files, allowing for more complex dependency scenarios.
 - **Interoperability**: pylock.toml can be used by different tools, reducing vendor lock-in.
 
+## Writing pylock.toml Files
+
+Pipenv can generate pylock.toml files alongside Pipfile.lock files. To enable this feature, add the following to your Pipfile:
+
+```toml
+[pipenv]
+use_pylock = true
+```
+
+With this setting, whenever Pipenv updates the Pipfile.lock file (e.g., when running `pipenv lock`), it will also generate a pylock.toml file in the same directory.
+
+You can also specify a custom name for the pylock.toml file:
+
+```toml
+[pipenv]
+use_pylock = true
+pylock_name = "dev"  # This will generate pylock.dev.toml
+```
+
 ## Limitations
 
-- Currently, Pipenv only supports reading pylock.toml files, not writing them.
 - Some advanced features of pylock.toml, such as environment markers for extras and dependency groups, are not fully supported yet.
+- The generated pylock.toml files are simplified versions of what a full PEP 751 implementation might produce.
 
 ## Future Plans
 
 In future releases, Pipenv plans to add support for:
 
-- Writing pylock.toml files
 - Full support for environment markers for extras and dependency groups
-- Converting between Pipfile.lock and pylock.toml formats
+- More comprehensive conversion between Pipfile.lock and pylock.toml formats
+- Command-line options for generating pylock.toml files

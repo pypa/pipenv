@@ -1007,8 +1007,22 @@ class Project:
         with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
 
+    @property
+    def use_pylock(self) -> bool:
+        """Returns True if pylock.toml should be generated."""
+        return self.settings.get("use_pylock", False)
+
+    @property
+    def pylock_output_path(self) -> str:
+        """Returns the path where pylock.toml should be written."""
+        pylock_name = self.settings.get("pylock_name")
+        if pylock_name:
+            return str(Path(self.project_directory) / f"pylock.{pylock_name}.toml")
+        return str(Path(self.project_directory) / "pylock.toml")
+
     def write_lockfile(self, content):
         """Write out the lockfile."""
+        # Always write the Pipfile.lock
         s = self._lockfile_encoder.encode(content)
         open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
         with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
@@ -1017,6 +1031,22 @@ class Project:
             # Only need '\n' here; the file object handles the rest.
             if not s.endswith("\n"):
                 f.write("\n")
+
+        # If use_pylock is enabled, also write a pylock.toml file
+        if self.use_pylock:
+            try:
+                from pipenv.utils.pylock import PylockFile
+
+                pylock = PylockFile.from_lockfile(
+                    lockfile_path=self.lockfile_location,
+                    pylock_path=self.pylock_output_path,
+                )
+                pylock.write()
+                err.print(
+                    f"[bold green]Generated pylock.toml at {self.pylock_output_path}[/bold green]"
+                )
+            except Exception as e:
+                err.print(f"[bold red]Error generating pylock.toml: {e}[/bold red]")
 
     def pipfile_sources(self, expand_vars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:

@@ -6,11 +6,15 @@ as specified in PEP 751 (A file format to record Python dependencies for
 installation reproducibility).
 """
 
+import datetime
+import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
 
+from pipenv.utils import err
+from pipenv.utils.locking import atomic_open_for_write
 from pipenv.utils.toml import tomlkit_value_to_python
 from pipenv.vendor import tomlkit
 
@@ -39,6 +43,122 @@ class PylockFile:
 
     path: Path
     data: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_lockfile(
+        cls, lockfile_path: Union[str, Path], pylock_path: Union[str, Path] = None
+    ) -> "PylockFile":
+        """Create a PylockFile from a Pipfile.lock file.
+
+        Args:
+            lockfile_path: Path to the Pipfile.lock file
+            pylock_path: Path to save the pylock.toml file, defaults to pylock.toml in the same directory
+
+        Returns:
+            A PylockFile instance
+
+        Raises:
+            FileNotFoundError: If the Pipfile.lock file doesn't exist
+            ValueError: If the Pipfile.lock file is invalid
+        """
+        if isinstance(lockfile_path, str):
+            lockfile_path = Path(lockfile_path)
+
+        if not lockfile_path.exists():
+            raise FileNotFoundError(f"Pipfile.lock not found: {lockfile_path}")
+
+        if pylock_path is None:
+            pylock_path = lockfile_path.parent / "pylock.toml"
+        elif isinstance(pylock_path, str):
+            pylock_path = Path(pylock_path)
+
+        try:
+            with open(lockfile_path, encoding="utf-8") as f:
+                lockfile_data = json.load(f)
+        except Exception as e:
+            raise ValueError(f"Invalid Pipfile.lock file: {e}")
+
+        # Create the basic pylock.toml structure
+        pylock_data = {
+            "lock-version": "1.0",
+            "environments": [],
+            "extras": [],
+            "dependency-groups": [],
+            "default-groups": [],
+            "created-by": "pipenv",
+            "packages": [],
+        }
+
+        # Add Python version requirement if present
+        meta = lockfile_data.get("_meta", {})
+        requires = meta.get("requires", {})
+        if "python_version" in requires:
+            pylock_data["requires-python"] = f">={requires['python_version']}"
+        elif "python_full_version" in requires:
+            pylock_data["requires-python"] = f"=={requires['python_full_version']}"
+
+        # Add sources
+        sources = meta.get("sources", [])
+        if sources:
+            pylock_data["sources"] = sources
+
+        # Process packages
+        for section in ["default", "develop"]:
+            packages = lockfile_data.get(section, {})
+            for name, package_data in packages.items():
+                package = {"name": name}
+
+                # Add version if present
+                if "version" in package_data:
+                    version = package_data["version"]
+                    if version.startswith("=="):
+                        package["version"] = version[2:]
+                    else:
+                        package["version"] = version
+
+                # Add markers if present
+                if "markers" in package_data:
+                    # For develop packages, add dependency_groups marker
+                    if section == "develop":
+                        if "markers" in package_data:
+                            package["marker"] = (
+                                f"dependency_groups in ('dev', 'test') and ({package_data['markers']})"
+                            )
+                        else:
+                            package["marker"] = "dependency_groups in ('dev', 'test')"
+                    else:
+                        package["marker"] = package_data["markers"]
+                elif section == "develop":
+                    package["marker"] = "dependency_groups in ('dev', 'test')"
+
+                # Add hashes if present
+                if "hashes" in package_data:
+                    wheels = []
+                    for hash_value in package_data["hashes"]:
+                        if hash_value.startswith("sha256:"):
+                            hash_value = hash_value[7:]  # Remove "sha256:" prefix
+                            wheel = {
+                                "name": f"{name}-{package.get('version', '0.0.0')}-py3-none-any.whl",
+                                "hashes": {"sha256": hash_value},
+                            }
+                            wheels.append(wheel)
+                    if wheels:
+                        package["wheels"] = wheels
+
+                pylock_data["packages"].append(package)
+
+        # Add tool.pipenv section with metadata
+        pylock_data["tool"] = {
+            "pipenv": {
+                "generated_from": "Pipfile.lock",
+                "generation_date": datetime.datetime.now(
+                    datetime.timezone.utc
+                ).isoformat(),
+            }
+        }
+
+        instance = cls(path=pylock_path, data=pylock_data)
+        return instance
 
     @classmethod
     def from_path(cls, path: Union[str, Path]) -> "PylockFile":
@@ -79,6 +199,74 @@ class PylockFile:
             )
 
         return cls(path=path, data=tomlkit_value_to_python(data))
+
+    def write(self) -> None:
+        """Write the pylock.toml file to disk.
+
+        Raises:
+            OSError: If there is an error writing the file
+        """
+        try:
+            # Convert the data to a TOML document
+            doc = tomlkit.document()
+
+            # Add top-level keys in a specific order for readability
+            for key in [
+                "lock-version",
+                "environments",
+                "requires-python",
+                "extras",
+                "dependency-groups",
+                "default-groups",
+                "created-by",
+            ]:
+                if key in self.data:
+                    doc[key] = self.data[key]
+
+            # Add packages
+            if "packages" in self.data:
+                doc["packages"] = []
+                for package in self.data["packages"]:
+                    pkg_table = tomlkit.table()
+                    for k, v in package.items():
+                        if k not in {"wheels", "sdist"}:
+                            pkg_table[k] = v
+
+                    # Add wheels as an array of tables
+                    if "wheels" in package:
+                        pkg_table["wheels"] = []
+                        for wheel in package["wheels"]:
+                            wheel_table = tomlkit.inline_table()
+                            for k, v in wheel.items():
+                                wheel_table[k] = v
+                            pkg_table["wheels"].append(wheel_table)
+
+                    # Add sdist as a table
+                    if "sdist" in package:
+                        sdist_table = tomlkit.table()
+                        for k, v in package["sdist"].items():
+                            sdist_table[k] = v
+                        pkg_table["sdist"] = sdist_table
+
+                    doc["packages"].append(pkg_table)
+
+            # Add tool section
+            if "tool" in self.data:
+                tool_table = tomlkit.table()
+                for tool_name, tool_data in self.data["tool"].items():
+                    tool_section = tomlkit.table()
+                    for k, v in tool_data.items():
+                        tool_section[k] = v
+                    tool_table[tool_name] = tool_section
+                doc["tool"] = tool_table
+
+            # Write the document to the file
+            with atomic_open_for_write(self.path, encoding="utf-8") as f:
+                f.write(tomlkit.dumps(doc))
+
+        except Exception as e:
+            err.print(f"[bold red]Error writing pylock.toml: {e}[/bold red]")
+            raise OSError(f"Error writing pylock.toml: {e}")
 
     @property
     def lock_version(self) -> str:

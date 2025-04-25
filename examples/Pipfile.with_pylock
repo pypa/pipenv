@@ -1,0 +1,21 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+requests = "*"
+
+[dev-packages]
+pytest = "*"
+
+[requires]
+python_version = "3.8"
+
+[pipenv]
+# Enable pylock.toml generation
+use_pylock = true
+
+# Optional: Specify a custom name for the pylock file
+# This will generate pylock.dev.toml instead of pylock.toml
+# pylock_name = "dev"
