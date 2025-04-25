@@ -818,10 +818,12 @@ class Project:
     @property
     def lockfile_content(self):
         """Returns the content of the lockfile, checking for pylock.toml first."""
-        if self.pylock_exists:
+        if self.pylock_exists or self.use_pylock:
             try:
-                pylock = PylockFile.from_path(self.pylock_location)
-                return pylock.convert_to_pipenv_lockfile()
+                if self.pylock_exists:
+                    pylock = PylockFile.from_path(self.pylock_location)
+                    lockfile_data = pylock.convert_to_pipenv_lockfile()
+                    return lockfile_data
             except Exception as e:
                 err.print(f"[bold yellow]Error loading pylock.toml: {e}[/bold yellow]")
         return self.load_lockfile()
