@@ -45,9 +45,16 @@ def get_build_dir(ctx):
     return _get_git_root(ctx) / "build"
 
 
-def _render_log():
+def _render_log(ctx=None, version=None):
     """Totally tap into Towncrier internals to get an in-memory result."""
-    rendered = subprocess.check_output(["towncrier", "--draft"]).decode("utf-8")
+    if ctx and not version:
+        version = find_version(ctx)
+
+    cmd = ["towncrier", "--draft"]
+    if version:
+        cmd.extend(["--version", version])
+
+    rendered = subprocess.check_output(cmd).decode("utf-8")
     return rendered
 
 
@@ -69,9 +76,10 @@ def release(
         dry_run=dry_run,
         pre=pre,
     )
-    tag_content = _render_log()
+    tag_content = _render_log(ctx, version)
     if dry_run:
-        ctx.run("towncrier --draft > CHANGELOG.draft.md")
+        # Use the correct version when generating the draft
+        ctx.run(f"towncrier --draft --version={version} > CHANGELOG.draft.md")
         log("would remove: news/*")
         log("would remove: CHANGELOG.draft.md")
         log("would update: pipenv/pipenv.1")
@@ -79,10 +87,12 @@ def release(
     else:
         if pre:
             log("generating towncrier draft...")
-            ctx.run("towncrier --draft > CHANGELOG.draft.md")
+            # Use the correct version when generating the draft
+            ctx.run(f"towncrier --draft --version={version} > CHANGELOG.draft.md")
             ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
-            ctx.run("towncrier")
+            # Use the correct version when generating the changelog
+            ctx.run(f"towncrier --version={version}")
             ctx.run(f"git add CHANGELOG.md news/ {get_version_file(ctx).as_posix()}")
             log("removing changelog draft if present")
             draft_changelog = pathlib.Path("CHANGELOG.draft.md")
@@ -185,12 +195,14 @@ def generate_contributing_md(ctx, commit=False):
 @invoke.task
 def generate_changelog(ctx, commit=False, draft=False):
     log("Generating changelog...")
+    # Get the current version to ensure it's used in the changelog
+    version = find_version(ctx)
     if draft:
         commit = False
         log("Writing draft to file...")
-        ctx.run("towncrier --draft > CHANGELOG.draft.md")
+        ctx.run(f"towncrier --draft --version={version} > CHANGELOG.draft.md")
     else:
-        ctx.run("towncrier")
+        ctx.run(f"towncrier --version={version}")
     if commit:
         log("Committing...")
         ctx.run("git add CHANGELOG.md")
