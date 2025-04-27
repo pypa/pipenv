@@ -158,12 +158,20 @@ Uninstall all development packages:
 $ pipenv uninstall --all-dev
 ```
 
+Uninstall a dev package using --dev flag:
+
+```bash
+$ pipenv uninstall ruff --dev
+```
+
 ### Options
 
 | Option | Description |
 |--------|-------------|
 | `--all` | Remove all packages from virtual environment |
 | `--all-dev` | Remove all development packages |
+| `--dev` | Uninstall package from dev-packages section |
+| `--categories` | Specify which categories to uninstall from |
 | `--skip-lock` | Don't update Pipfile.lock after uninstalling |
 
 ## lock
