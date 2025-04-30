@@ -84,7 +84,7 @@ Bug Fixes
 - Update ``check`` command to support the new ``scan`` functionality
   ---------------------------------------------------------------
 
-  The ``check`` command has been deprecated and will be unsupported beyond June 1, 2024.
+  The ``check`` command has been deprecated and will be unsupported beyond June 1, 2025.
   Instead of adding a separate ``scan`` command, we've updated the ``check`` command to include a ``--scan`` option.
 
   Key changes:

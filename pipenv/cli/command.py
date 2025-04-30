@@ -530,8 +530,7 @@ def check(
 ):
     """DEPRECATED: Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
 
-    This command has been deprecated and will be unsupported beyond 01 June 2024.
-    Please use the 'scan' command instead, which is easier to use and more powerful.
+    This command has been deprecated and will be replaced beyond 01 June 2025.
 
     Use the --scan option to run the new scan command instead of the deprecated check command.
     In future versions, the check command will run the scan command by default.
