@@ -9,6 +9,8 @@ Bug Fixes
 
 - Cleanup unused dependencies when upgrading packages.  `#6386 <https://github.com/pypa/pipenv/issues/6386>`_
 - Fix for ``UnboundLocalError`` in ``ensure_python`` when ``SESSION_IS_INTERACTIVE=False``, using pyenv, and python version in Pipfile not available.  `#6389 <https://github.com/pypa/pipenv/issues/6389>`_
+
+
 2025.0.1 (2025-04-24)
 =====================
 Pipenv 2025.0.1 (2025-04-24)
@@ -19,6 +21,9 @@ Bug Fixes
 ---------
 
 - Fix for broken import requirements in ``2025.0.0``  `#6385 <https://github.com/pypa/pipenv/issues/6385>`_
+
+
+
 2025.0.0 (2025-04-24)
 =====================
 Pipenv 2025.0.0 (2025-04-24)
