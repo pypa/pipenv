@@ -83,14 +83,7 @@ The user can provide these additional parameters:
 The user can provide these additional parameters:
 
     --auto-install — Automatically install safety if not already installed.
-
-## scan
-
-``$ pipenv scan`` scans for security vulnerabilities and checks PEP 508 markers. This is the newer version of the check command with improved functionality.
-
-The user can provide these additional parameters:
-
-    --auto-install — Automatically install safety if not already installed.
+    --scan - Enable the newer version of the check command with improved functionality.
 
 ## scripts
 ``$ pipenv scripts`` will list the scripts in the current environment config.

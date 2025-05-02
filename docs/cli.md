@@ -36,7 +36,7 @@ Options:
 --scan                          Use the new scan command instead of the deprecated check command.
 ```
 
-**Note**: The check command is deprecated and will be unsupported beyond 01 June 2024. In future versions, the check command will run the scan command by default. Use the `--scan` option to run the new scan command now.
+**Note**: The check command is deprecated and will be unsupported beyond 01 June 2025. In future versions, the check command will run the scan command by default. Use the `--scan` option to run the new scan command now.
 
 When using the `--scan` option, you'll need to obtain an API key from https://pyup.io to access the full vulnerability database.
 
