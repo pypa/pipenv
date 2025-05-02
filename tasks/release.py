@@ -52,7 +52,7 @@ def _render_log(ctx=None, version=None):
 
     cmd = ["towncrier", "--draft"]
     if version:
-        cmd.extend(["--version", version])
+        cmd.append(f"--name={version}")  # Use --name instead of --version
 
     rendered = subprocess.check_output(cmd).decode("utf-8")
     return rendered
@@ -79,7 +79,7 @@ def release(
     tag_content = _render_log(ctx, version)
     if dry_run:
         # Use the correct version when generating the draft
-        ctx.run(f"towncrier --draft --version={version} > CHANGELOG.draft.md")
+        ctx.run(f"towncrier --draft --name={version} > CHANGELOG.draft.md")
         log("would remove: news/*")
         log("would remove: CHANGELOG.draft.md")
         log("would update: pipenv/pipenv.1")
@@ -88,11 +88,11 @@ def release(
         if pre:
             log("generating towncrier draft...")
             # Use the correct version when generating the draft
-            ctx.run(f"towncrier --draft --version={version} > CHANGELOG.draft.md")
+            ctx.run(f"towncrier --draft --name={version} > CHANGELOG.draft.md")
             ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
             # Use the correct version when generating the changelog
-            ctx.run(f"towncrier --version={version}")
+            ctx.run(f"towncrier --name={version}")
             ctx.run(f"git add CHANGELOG.md news/ {get_version_file(ctx).as_posix()}")
             log("removing changelog draft if present")
             draft_changelog = pathlib.Path("CHANGELOG.draft.md")
@@ -200,9 +200,9 @@ def generate_changelog(ctx, commit=False, draft=False):
     if draft:
         commit = False
         log("Writing draft to file...")
-        ctx.run(f"towncrier --draft --version={version} > CHANGELOG.draft.md")
+        ctx.run(f"towncrier --draft --name={version} > CHANGELOG.draft.md")
     else:
-        ctx.run(f"towncrier --version={version}")
+        ctx.run(f"towncrier --name={version}")
     if commit:
         log("Committing...")
         ctx.run("git add CHANGELOG.md")
