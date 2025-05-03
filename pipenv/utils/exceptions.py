@@ -28,10 +28,7 @@ class FileCorruptException(OSError):
             backup_path = args.pop()
 
             # Check if backup_path is a valid path with an existing parent directory
-            if (
-                not isinstance(backup_path, (str, Path))
-                or not Path(backup_path).parent.exists()
-            ):
+            if not isinstance(backup_path, (str, Path)) or not Path(backup_path).parent.exists():
                 args.append(backup_path)
                 backup_path = None
 

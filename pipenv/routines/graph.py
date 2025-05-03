@@ -68,11 +68,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
             def traverse(obj):
                 if isinstance(obj, list):
-                    return [
-                        traverse(package)
-                        for package in obj
-                        if package["key"] not in BAD_PACKAGES
-                    ]
+                    return [traverse(package) for package in obj if package["key"] not in BAD_PACKAGES]
                 else:
                     obj["dependencies"] = traverse(obj["dependencies"])
                     return obj

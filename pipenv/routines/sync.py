@@ -36,9 +36,7 @@ def do_sync(
     )
 
     # Install everything.
-    requirements_dir = fileutils.create_tracked_tempdir(
-        suffix="-requirements", prefix="pipenv-"
-    )
+    requirements_dir = fileutils.create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     if system:
         project.s.PIPENV_USE_SYSTEM = True
         os.environ["PIPENV_USE_SYSTEM"] = "1"

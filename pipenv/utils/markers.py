@@ -40,9 +40,7 @@ class PipenvMarkers:
         try:
             marker = Marker(marker_string)
         except InvalidMarker:
-            raise RequirementError(
-                f"Invalid requirement: Invalid marker {marker_string!r}"
-            )
+            raise RequirementError(f"Invalid requirement: Invalid marker {marker_string!r}")
         return marker
 
     @classmethod
@@ -124,15 +122,8 @@ def _format_pyspec(specifier):
         next_tuple = (curr_tuple[0], curr_tuple[1] + 1)
     except IndexError:
         next_tuple = (curr_tuple[0], 1)
-    if (
-        next_tuple[0] not in MAX_VERSIONS
-        or not next_tuple[1] <= MAX_VERSIONS[next_tuple[0]]
-    ):
-        if (
-            specifier.operator == "<"
-            and next_tuple[0] in MAX_VERSIONS
-            and curr_tuple[1] <= MAX_VERSIONS[next_tuple[0]]
-        ):
+    if next_tuple[0] not in MAX_VERSIONS or not next_tuple[1] <= MAX_VERSIONS[next_tuple[0]]:
+        if specifier.operator == "<" and next_tuple[0] in MAX_VERSIONS and curr_tuple[1] <= MAX_VERSIONS[next_tuple[0]]:
             op = "<="
             next_tuple = (next_tuple[0], curr_tuple[1])
         else:
@@ -169,9 +160,7 @@ def _get_specs(specset):
 def _group_by_op(specs):
     # type: (Union[Set[Specifier], SpecifierSet]) -> Iterator
     specs = [_get_specs(x) for x in list(specs)]
-    flattened = [
-        ((op, len(version) > 2), version) for spec in specs for op, version in spec
-    ]
+    flattened = [((op, len(version) > 2), version) for spec in specs for op, version in spec]
     specs = sorted(flattened)
     grouping = itertools.groupby(specs, key=operator.itemgetter(0))
     return grouping
@@ -587,9 +576,7 @@ def parse_marker_dict(marker_dict):
         # Actually when we "or" things as well we can also just turn them into a reduced
         # set using this logic now
         sides = reduce(lambda x, y: set(x) & set(y), side_spec_list)
-        finalized_marker = " or ".join(
-            [normalize_marker_str(m) for m in side_markers_list]
-        )
+        finalized_marker = " or ".join([normalize_marker_str(m) for m in side_markers_list])
         specset._specs = frozenset(sorted(sides))
         return specset, finalized_marker
     else:
@@ -648,16 +635,12 @@ def marker_from_specifier(spec) -> Marker:
         spec = "=={}".format(spec.lstrip("="))
     if not spec:
         return None
-    marker_segments = [
-        format_pyversion(marker_segment) for marker_segment in cleanup_pyspecs(spec)
-    ]
+    marker_segments = [format_pyversion(marker_segment) for marker_segment in cleanup_pyspecs(spec)]
     marker_str = " and ".join(marker_segments).replace('"', "'")
     return Marker(marker_str)
 
 
 def format_pyversion(parts):
     op, val = parts
-    version_marker = (
-        "python_full_version" if _contains_micro_version(val) else "python_version"
-    )
+    version_marker = "python_full_version" if _contains_micro_version(val) else "python_version"
     return f"{version_marker} {op} '{val}'"

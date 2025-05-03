@@ -20,9 +20,7 @@ def generate_requirements(
     # Print index URLs first
     for i, package_index in enumerate(lockfile["_meta"]["sources"]):
         prefix = "-i" if i == 0 else "--extra-index-url"
-        print(
-            " ".join([prefix, package_index["url"]])
-        )  # Use print instead of console.print
+        print(" ".join([prefix, package_index["url"]]))  # Use print instead of console.print
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []
@@ -32,28 +30,18 @@ def generate_requirements(
             category = get_lockfile_section_using_pipfile_category(category.strip())
             category_deps = lockfile.get(category, {})
             if from_pipfile:
-                category_deps = {
-                    k: v
-                    for k, v in category_deps.items()
-                    if k in pipfile_root_package_names
-                }
+                category_deps = {k: v for k, v in category_deps.items() if k in pipfile_root_package_names}
             deps.update(category_deps)
     else:
         if dev or dev_only:
             dev_deps = lockfile["develop"]
             if from_pipfile:
-                dev_deps = {
-                    k: v for k, v in dev_deps.items() if k in pipfile_root_package_names
-                }
+                dev_deps = {k: v for k, v in dev_deps.items() if k in pipfile_root_package_names}
             deps.update(dev_deps)
         if not dev_only:
             default_deps = lockfile["default"]
             if from_pipfile:
-                default_deps = {
-                    k: v
-                    for k, v in default_deps.items()
-                    if k in pipfile_root_package_names
-                }
+                default_deps = {k: v for k, v in default_deps.items() if k in pipfile_root_package_names}
             deps.update(default_deps)
 
     pip_installable_lines = requirements_from_lockfile(

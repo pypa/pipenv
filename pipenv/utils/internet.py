@@ -8,15 +8,11 @@ from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
 
 
-def get_requests_session(
-    max_retries=1, verify_ssl=True, cache_dir=USER_CACHE_DIR, source=None
-):
+def get_requests_session(max_retries=1, verify_ssl=True, cache_dir=USER_CACHE_DIR, source=None):
     """Load requests lazily."""
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     index_urls = [source] if source else None
-    requests_session = PipSession(
-        cache=cache_dir, retries=max_retries, index_urls=index_urls
-    )
+    requests_session = PipSession(cache=cache_dir, retries=max_retries, index_urls=index_urls)
     if pip_client_cert:
         requests_session.cert = pip_client_cert
     if verify_ssl is False:
@@ -35,9 +31,7 @@ def is_pypi_url(url):
 
 
 def replace_pypi_sources(sources, pypi_replacement_source):
-    return [pypi_replacement_source] + [
-        source for source in sources if not is_pypi_url(source["url"])
-    ]
+    return [pypi_replacement_source] + [source for source in sources if not is_pypi_url(source["url"])]
 
 
 def create_mirror_source(url, name):
@@ -120,9 +114,7 @@ def is_url_equal(url: str, other_url: str) -> bool:
 def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
-    r = get_requests_session().get(
-        f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True
-    )
+    r = get_requests_session().get(f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True)
     r.close()
     if not r.ok:
         raise OSError(f"Unable to find package {package_name} in PyPI repository.")

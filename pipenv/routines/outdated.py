@@ -20,29 +20,20 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
 
     installed_packages = project.environment.get_installed_packages()
     outdated_packages = {
-        canonicalize_name(pkg.name): package_info(
-            pkg.name, parse_version(pkg.version), pkg.latest_version
-        )
+        canonicalize_name(pkg.name): package_info(pkg.name, parse_version(pkg.version), pkg.latest_version)
         for pkg in project.environment.get_outdated_packages()
     }
-    reverse_deps = {
-        canonicalize_name(name): deps
-        for name, deps in project.environment.reverse_dependencies().items()
-    }
+    reverse_deps = {canonicalize_name(name): deps for name, deps in project.environment.reverse_dependencies().items()}
     for result in installed_packages:
         dep, _ = expansive_install_req_from_line(f"{result.name}=={result.version}")
         packages.update(as_pipfile(dep))
 
     updated_packages = {}
-    lockfile = do_lock(
-        project, clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror
-    )
+    lockfile = do_lock(project, clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror)
     for category in project.get_package_categories(for_lockfile=True):
         for package in lockfile.get(category, []):
             try:
-                updated_packages[package] = parse_version(
-                    lockfile[category][package]["version"].replace("==", "")
-                )
+                updated_packages[package] = parse_version(lockfile[category][package]["version"].replace("==", ""))
             except KeyError:  # noqa: PERF203
                 pass
     outdated = []
@@ -56,16 +47,12 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
             else:
                 version = parse_version(version.replace("==", ""))
             if updated_packages[norm_name] != version:
-                outdated.append(
-                    package_info(package, str(version), str(updated_packages[norm_name]))
-                )
+                outdated.append(package_info(package, str(version), str(updated_packages[norm_name])))
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])
     for package, old_version, new_version in skipped:
         for category in project.get_package_categories():
-            name_in_pipfile = project.get_package_name_in_pipfile(
-                package, category=category
-            )
+            name_in_pipfile = project.get_package_name_in_pipfile(package, category=category)
             pipfile_section = project.get_pipfile_section(category)
             if name_in_pipfile and name_in_pipfile in pipfile_section:
                 required = ""
@@ -84,9 +71,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
                     style="yellow",
                 )
     for package, old_version, new_version in set(outdated).union(set(skipped)):
-        console.print(
-            f"Package {package!r} out-of-date: {old_version!r} installed, {new_version!r} available."
-        )
+        console.print(f"Package {package!r} out-of-date: {old_version!r} installed, {new_version!r} available.")
     if not outdated:
         console.print("All packages are up to date!", style="green bold")
     sys.exit(bool(outdated))

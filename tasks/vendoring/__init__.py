@@ -34,8 +34,7 @@ HARDCODED_LICENSE_URLS = {
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
-    "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
-    "master/LICENSE",
+    "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/" "master/LICENSE",
     "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
     "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
@@ -270,9 +269,7 @@ def _ensure_package_in_requirements(ctx, requirements_file, package):
         if match:
             for m in match:
                 specifiers = [m.index(s) for s in [">", "<", "=", "~"] if s in m]
-                if m.lower() == package or (
-                    specifiers and m[: min(specifiers)].lower() == package
-                ):
+                if m.lower() == package or (specifiers and m[: min(specifiers)].lower() == package):
                     matched_req = f"{m}"
                     requirement = matched_req
                     log(f"Matched req: {matched_req!r}")
@@ -293,9 +290,7 @@ def install(ctx, vendor_dir, package=None):
     # We use --no-deps because we want to ensure that all of our dependencies
     # are added to vendor.txt, this includes all dependencies recursively up
     # the chain.
-    ctx.run(
-        f"pip install -t {vendor_dir.as_posix()} --no-compile --no-deps --upgrade {requirement}"
-    )
+    ctx.run(f"pip install -t {vendor_dir.as_posix()} --no-compile --no-deps --upgrade {requirement}")
     # read licenses from distinfo files if possible
     for path in vendor_dir.glob("*.dist-info"):
         pkg, _, _ = path.stem.rpartition("-")
@@ -303,9 +298,7 @@ def install(ctx, vendor_dir, package=None):
         if not license_file.exists():
             continue
         if vendor_dir.joinpath(pkg).exists():
-            vendor_dir.joinpath(pkg).joinpath("LICENSE").write_text(
-                license_file.read_text()
-            )
+            vendor_dir.joinpath(pkg).joinpath("LICENSE").write_text(license_file.read_text())
         elif vendor_dir.joinpath(f"{pkg}.py").exists():
             vendor_dir.joinpath(f"{pkg}.LICENSE").write_text(license_file.read_text())
         else:
@@ -442,9 +435,7 @@ def rewrite_all_imports(ctx):
 
 
 @invoke.task
-def packages_missing_licenses(
-    ctx, vendor_dir=None, requirements_file="vendor.txt", package=None
-):
+def packages_missing_licenses(ctx, vendor_dir=None, requirements_file="vendor.txt", package=None):
     if not vendor_dir:
         vendor_dir = _get_vendor_dir(ctx)
     if package is not None:
@@ -453,10 +444,7 @@ def packages_missing_licenses(
         requirements = vendor_dir.joinpath(requirements_file).read_text().splitlines()
     new_requirements = []
     LICENSE_EXTS = ("rst", "txt", "APACHE", "BSD", "md")
-    LICENSES = [
-        ".".join(lic)
-        for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)
-    ]
+    LICENSES = [".".join(lic) for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)]
     for _, req in enumerate(requirements):
         if req.startswith("git+"):
             pkg = req.strip().split("#egg=")[1]
@@ -513,9 +501,7 @@ def download_licenses(
         else:
             vendor_dir = _get_vendor_dir(ctx)
     requirements_file = vendor_dir / requirements_file
-    requirements = packages_missing_licenses(
-        ctx, vendor_dir, requirements_file, package=package
-    )
+    requirements = packages_missing_licenses(ctx, vendor_dir, requirements_file, package=package)
     log(requirements)
     tmp_dir = vendor_dir / "__tmp__"
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
@@ -660,9 +646,7 @@ def extract_license_member(vendor_dir, tar, member, name):
 def generate_patch(ctx, package_path, patch_description, base="HEAD"):
     pkg = Path(package_path)
     if len(pkg.parts) != 2 or pkg.parts[0] not in ("vendor", "patched"):
-        raise ValueError(
-            "example usage: generate-patch patched/piptools some-description"
-        )
+        raise ValueError("example usage: generate-patch patched/piptools some-description")
     if patch_description:
         patch_fn = f"{pkg.parts[1]}-{patch_description}.patch"
     else:
@@ -783,9 +767,7 @@ def vendor_artifact(ctx, package, version=None):
     simple = requests.get(f"https://pypi.org/simple/{package}/")
     pkg_str = f"{package}-{version}"
     soup = bs4.BeautifulSoup(simple.content)
-    links = [
-        a.attrs["href"] for a in soup.find_all("a") if a.getText().startswith(pkg_str)
-    ]
+    links = [a.attrs["href"] for a in soup.find_all("a") if a.getText().startswith(pkg_str)]
     for link in links:
         dest_dir = _get_git_root(ctx) / "tests" / "pypi" / package
         if not dest_dir.exists():

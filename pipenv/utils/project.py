@@ -54,9 +54,7 @@ def ensure_project(
             # Warn users if they are using the wrong version of Python.
             if project.required_python_version:
                 path_to_python = project._which("python") or project._which("py")
-                if path_to_python and project.required_python_version not in (
-                    python_version(path_to_python) or ""
-                ):
+                if path_to_python and project.required_python_version not in (python_version(path_to_python) or ""):
                     err.print(
                         f"[red][bold]Warning[/bold][/red]: Your Pipfile requires "
                         f'[bold]"python_version"[/bold] [cyan]{project.required_python_version}[/cyan], '
@@ -64,8 +62,7 @@ def ensure_project(
                         f"from [green]{shorten_path(path_to_python)}[/green]."
                     )
                     err.print(
-                        "[green]$ pipenv --rm[/green] and rebuilding the virtual environment "
-                        "may resolve the issue."
+                        "[green]$ pipenv --rm[/green] and rebuilding the virtual environment " "may resolve the issue."
                     )
                     if not deploy:
                         err.print("[yellow]$ pipenv check[/yellow] will surely fail.")

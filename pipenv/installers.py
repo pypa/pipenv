@@ -103,17 +103,11 @@ class Installer(metaclass=ABCMeta):
             # strategy will work.
             find_windows_executable("", name),
             # Check for explicitly set install locations (e.g. PYENV_ROOT, ASDF_DIR).
-            os.path.join(
-                os.path.expanduser(os.getenv(env_var, "/dev/null")), "bin", name
-            ),
+            os.path.join(os.path.expanduser(os.getenv(env_var, "/dev/null")), "bin", name),
             # Check the pyenv/asdf-recommended from-source install locations
             os.path.join(os.path.expanduser(f"~/.{name}"), "bin", name),
         ):
-            if (
-                candidate is not None
-                and os.path.isfile(candidate)
-                and os.access(candidate, os.X_OK)
-            ):
+            if candidate is not None and os.path.isfile(candidate) and os.access(candidate, os.X_OK):
                 return candidate
         raise InstallerNotFound()
 

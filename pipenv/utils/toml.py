@@ -65,9 +65,7 @@ def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
     def convert_toml_table(section):
         result = section.copy()
         for package, value in section.items():
-            if hasattr(value, "keys") and not isinstance(
-                value, toml.decoder.InlineTableDict
-            ):
+            if hasattr(value, "keys") and not isinstance(value, toml.decoder.InlineTableDict):
                 table = toml.TomlDecoder().get_empty_inline_table()
                 table.update(value)
                 result[package] = table
@@ -90,10 +88,7 @@ def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
 def tomlkit_value_to_python(toml_value):
     # type: (Union[Array, AoT, TOML_DICT_TYPES, Item]) -> Union[List, Dict]
     value_type = type(toml_value).__name__
-    if (
-        isinstance(toml_value, TOML_DICT_OBJECTS + (dict,))
-        or value_type in TOML_DICT_NAMES
-    ):
+    if isinstance(toml_value, TOML_DICT_OBJECTS + (dict,)) or value_type in TOML_DICT_NAMES:
         return tomlkit_dict_to_python(toml_value)
     elif isinstance(toml_value, AoT) or value_type == "AoT":
         return [tomlkit_value_to_python(val) for val in toml_value._body]
@@ -119,9 +114,7 @@ def tomlkit_dict_to_python(toml_dict):
         "Table",
     ):
         converted = toml_dict.value
-    elif isinstance(toml_dict, (Package, PackageCollection)) or value_type in (
-        "Package, PackageCollection"
-    ):
+    elif isinstance(toml_dict, (Package, PackageCollection)) or value_type in ("Package, PackageCollection"):
         converted = toml_dict._data
         if isinstance(converted, Container) or type(converted).__name__ == "Container":
             converted = converted.value
@@ -130,9 +123,7 @@ def tomlkit_dict_to_python(toml_dict):
     elif isinstance(toml_dict, dict):
         converted = toml_dict.copy()
     else:
-        raise TypeError(
-            f"Invalid type for conversion: expected Container, Dict, or Table, got {toml_dict}"
-        )
+        raise TypeError(f"Invalid type for conversion: expected Container, Dict, or Table, got {toml_dict}")
     if isinstance(converted, dict):
         return {k: tomlkit_value_to_python(v) for k, v in converted.items()}
     elif isinstance(converted, (TOML_DICT_OBJECTS)) or value_type in TOML_DICT_NAMES:
