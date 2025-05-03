@@ -29,7 +29,6 @@ from pipenv.patched.pip._internal.exceptions import (
     NetworkConnectionError,
     PreviousBuildDirError,
 )
-from pipenv.patched.pip._internal.utils.deprecation import deprecated
 from pipenv.patched.pip._internal.utils.filesystem import check_path_owner
 from pipenv.patched.pip._internal.utils.logging import BrokenStdoutLoggingError, setup_logging
 from pipenv.patched.pip._internal.utils.misc import get_prog, normalize_path
@@ -172,6 +171,8 @@ class Command(CommandContextMixIn):
 
         # Set verbosity so that it can be used elsewhere.
         self.verbosity = options.verbose - options.quiet
+        if options.debug_mode:
+            self.verbosity = 2
 
         reconfigure(no_color=options.no_color)
         level_number = setup_logging(
@@ -228,13 +229,5 @@ class Command(CommandContextMixIn):
                     options.cache_dir,
                 )
                 options.cache_dir = None
-
-        if options.no_python_version_warning:
-            deprecated(
-                reason="--no-python-version-warning is deprecated.",
-                replacement="to remove the flag as it's a no-op",
-                gone_in="25.1",
-                issue=13154,
-            )
 
         return self._run_wrapper(level_number, options, args)

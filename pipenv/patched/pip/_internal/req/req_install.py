@@ -527,7 +527,6 @@ class InstallRequirement:
             self.unpacked_source_directory,
             backend,
             backend_path=backend_path,
-            python_executable=os.getenv('PIP_PYTHON_PATH', sys.executable)
         )
 
     def isolated_editable_sanity_check(self) -> None:
@@ -838,7 +837,7 @@ class InstallRequirement:
                     "try using --config-settings editable_mode=compat. "
                     "Please consult the setuptools documentation for more information"
                 ),
-                gone_in="25.1",
+                gone_in="25.3",
                 issue=11457,
             )
             if self.config_settings:
@@ -926,7 +925,7 @@ def check_legacy_setup_py_options(
             reason="--build-option and --global-option are deprecated.",
             issue=11859,
             replacement="to use --config-settings",
-            gone_in=None,
+            gone_in="25.3",
         )
         logger.warning(
             "Implying --no-binary=:all: due to the presence of "

@@ -14,92 +14,97 @@ CommandInfo = namedtuple("CommandInfo", "module_path, class_name, summary")
 # - Enables avoiding additional (costly) imports for presenting `--help`.
 # - The ordering matters for help display.
 #
-# Even though the module path starts with the same "pipenv.patched.pip._internal.commands"
+# Even though the module path starts with the same "pipenv.patched.pip_internal.commands"
 # prefix, the full path makes testing easier (specifically when modifying
 # `commands_dict` in test setup / teardown).
 commands_dict: Dict[str, CommandInfo] = {
     "install": CommandInfo(
-        "pipenv.patched.pip._internal.commands.install",
+        "pipenv.patched.pip_internal.commands.install",
         "InstallCommand",
         "Install packages.",
     ),
+    "lock": CommandInfo(
+        "pipenv.patched.pip_internal.commands.lock",
+        "LockCommand",
+        "Generate a lock file.",
+    ),
     "download": CommandInfo(
-        "pipenv.patched.pip._internal.commands.download",
+        "pipenv.patched.pip_internal.commands.download",
         "DownloadCommand",
         "Download packages.",
     ),
     "uninstall": CommandInfo(
-        "pipenv.patched.pip._internal.commands.uninstall",
+        "pipenv.patched.pip_internal.commands.uninstall",
         "UninstallCommand",
         "Uninstall packages.",
     ),
     "freeze": CommandInfo(
-        "pipenv.patched.pip._internal.commands.freeze",
+        "pipenv.patched.pip_internal.commands.freeze",
         "FreezeCommand",
         "Output installed packages in requirements format.",
     ),
     "inspect": CommandInfo(
-        "pipenv.patched.pip._internal.commands.inspect",
+        "pipenv.patched.pip_internal.commands.inspect",
         "InspectCommand",
         "Inspect the python environment.",
     ),
     "list": CommandInfo(
-        "pipenv.patched.pip._internal.commands.list",
+        "pipenv.patched.pip_internal.commands.list",
         "ListCommand",
         "List installed packages.",
     ),
     "show": CommandInfo(
-        "pipenv.patched.pip._internal.commands.show",
+        "pipenv.patched.pip_internal.commands.show",
         "ShowCommand",
         "Show information about installed packages.",
     ),
     "check": CommandInfo(
-        "pipenv.patched.pip._internal.commands.check",
+        "pipenv.patched.pip_internal.commands.check",
         "CheckCommand",
         "Verify installed packages have compatible dependencies.",
     ),
     "config": CommandInfo(
-        "pipenv.patched.pip._internal.commands.configuration",
+        "pipenv.patched.pip_internal.commands.configuration",
         "ConfigurationCommand",
         "Manage local and global configuration.",
     ),
     "search": CommandInfo(
-        "pipenv.patched.pip._internal.commands.search",
+        "pipenv.patched.pip_internal.commands.search",
         "SearchCommand",
         "Search PyPI for packages.",
     ),
     "cache": CommandInfo(
-        "pipenv.patched.pip._internal.commands.cache",
+        "pipenv.patched.pip_internal.commands.cache",
         "CacheCommand",
         "Inspect and manage pip's wheel cache.",
     ),
     "index": CommandInfo(
-        "pipenv.patched.pip._internal.commands.index",
+        "pipenv.patched.pip_internal.commands.index",
         "IndexCommand",
         "Inspect information available from package indexes.",
     ),
     "wheel": CommandInfo(
-        "pipenv.patched.pip._internal.commands.wheel",
+        "pipenv.patched.pip_internal.commands.wheel",
         "WheelCommand",
         "Build wheels from your requirements.",
     ),
     "hash": CommandInfo(
-        "pipenv.patched.pip._internal.commands.hash",
+        "pipenv.patched.pip_internal.commands.hash",
         "HashCommand",
         "Compute hashes of package archives.",
     ),
     "completion": CommandInfo(
-        "pipenv.patched.pip._internal.commands.completion",
+        "pipenv.patched.pip_internal.commands.completion",
         "CompletionCommand",
         "A helper command used for command completion.",
     ),
     "debug": CommandInfo(
-        "pipenv.patched.pip._internal.commands.debug",
+        "pipenv.patched.pip_internal.commands.debug",
         "DebugCommand",
         "Show information useful for debugging.",
     ),
     "help": CommandInfo(
-        "pipenv.patched.pip._internal.commands.help",
+        "pipenv.patched.pip_internal.commands.help",
         "HelpCommand",
         "Show help for commands.",
     ),

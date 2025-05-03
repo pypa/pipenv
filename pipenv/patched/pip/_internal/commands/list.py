@@ -1,5 +1,6 @@
 import json
 import logging
+from email.parser import Parser
 from optparse import Values
 from typing import TYPE_CHECKING, Generator, List, Optional, Sequence, Tuple, cast
 
@@ -125,7 +126,7 @@ class ListCommand(IndexGroupCommand):
             "--include-editable",
             action="store_true",
             dest="include_editable",
-            help="Include editable package from output.",
+            help="Include editable package in output.",
             default=True,
         )
         self.cmd_opts.add_option(cmdoptions.list_exclude())
@@ -323,17 +324,29 @@ def format_for_columns(
     if running_outdated:
         header.extend(["Latest", "Type"])
 
-    has_editables = any(x.editable for x in pkgs)
-    if has_editables:
-        header.append("Editable project location")
+    def wheel_build_tag(dist: BaseDistribution) -> Optional[str]:
+        try:
+            wheel_file = dist.read_text("WHEEL")
+        except FileNotFoundError:
+            return None
+        return Parser().parsestr(wheel_file).get("Build")
+
+    build_tags = [wheel_build_tag(p) for p in pkgs]
+    has_build_tags = any(build_tags)
+    if has_build_tags:
+        header.append("Build")
 
     if options.verbose >= 1:
         header.append("Location")
     if options.verbose >= 1:
         header.append("Installer")
 
+    has_editables = any(x.editable for x in pkgs)
+    if has_editables:
+        header.append("Editable project location")
+
     data = []
-    for proj in pkgs:
+    for i, proj in enumerate(pkgs):
         # if we're working on the 'outdated' list, separate out the
         # latest_version and type
         row = [proj.raw_name, proj.raw_version]
@@ -341,6 +354,9 @@ def format_for_columns(
         if running_outdated:
             row.append(str(proj.latest_version))
             row.append(proj.latest_filetype)
+
+        if has_build_tags:
+            row.append(build_tags[i] or "")
 
         if has_editables:
             row.append(proj.editable_project_location or "")

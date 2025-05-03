@@ -250,10 +250,12 @@ class _InstallRequirementBackedCandidate(Candidate):
         return dist
 
     def iter_dependencies(self, with_requires: bool) -> Iterable[Optional[Requirement]]:
+        # Emit the Requires-Python requirement first to fail fast on
+        # unsupported candidates and avoid pointless downloads/preparation.
+        yield self._factory.make_requires_python_requirement(self.dist.requires_python)
         requires = self.dist.iter_dependencies() if with_requires else ()
         for r in requires:
             yield from self._factory.make_requirements_from_spec(str(r), self._ireq)
-        yield self._factory.make_requires_python_requirement(self.dist.requires_python)
 
     def get_install_requirement(self) -> Optional[InstallRequirement]:
         ireq = self._ireq
@@ -555,6 +557,9 @@ class RequiresPythonCandidate(Candidate):
 
     def __str__(self) -> str:
         return f"Python {self._version}"
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({self._version!r})"
 
     @property
     def project_name(self) -> NormalizedName:

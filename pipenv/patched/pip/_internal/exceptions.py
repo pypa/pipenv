@@ -27,6 +27,7 @@ if TYPE_CHECKING:
     from pipenv.patched.pip._vendor.requests.models import Request, Response
 
     from pipenv.patched.pip._internal.metadata import BaseDistribution
+    from pipenv.patched.pip._internal.models.link import Link
     from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 
 logger = logging.getLogger(__name__)
@@ -806,4 +807,56 @@ class InvalidInstalledPackage(DiagnosticPipError):
                 f"{invalid_type}s can not be processed."
             ),
             hint_stmt="To proceed this package must be uninstalled.",
+        )
+
+
+class IncompleteDownloadError(DiagnosticPipError):
+    """Raised when the downloader receives fewer bytes than advertised
+    in the Content-Length header."""
+
+    reference = "incomplete-download"
+
+    def __init__(
+        self, link: "Link", received: int, expected: int, *, retries: int
+    ) -> None:
+        # Dodge circular import.
+        from pipenv.patched.pip._internal.utils.misc import format_size
+
+        download_status = f"{format_size(received)}/{format_size(expected)}"
+        if retries:
+            retry_status = f"after {retries} attempts "
+            hint = "Use --resume-retries to configure resume attempt limit."
+        else:
+            retry_status = ""
+            hint = "Consider using --resume-retries to enable download resumption."
+        message = Text(
+            f"Download failed {retry_status}because not enough bytes "
+            f"were received ({download_status})"
+        )
+
+        super().__init__(
+            message=message,
+            context=f"URL: {link.redacted_url}",
+            hint_stmt=hint,
+            note_stmt="This is an issue with network connectivity, not pip.",
+        )
+
+
+class ResolutionTooDeepError(DiagnosticPipError):
+    """Raised when the dependency resolver exceeds the maximum recursion depth."""
+
+    reference = "resolution-too-deep"
+
+    def __init__(self) -> None:
+        super().__init__(
+            message="Dependency resolution exceeded maximum depth",
+            context=(
+                "Pip cannot resolve the current dependencies as the dependency graph "
+                "is too complex for pip to solve efficiently."
+            ),
+            hint_stmt=(
+                "Try adding lower bounds to constrain your dependencies, "
+                "for example: 'package>=2.0.0' instead of just 'package'. "
+            ),
+            link="https://pip.pypa.io/en/stable/topics/dependency-resolution/#handling-resolution-too-deep-errors",
         )

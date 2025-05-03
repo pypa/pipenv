@@ -4,7 +4,7 @@ import os
 import pathlib
 import sys
 import sysconfig
-from typing import Any, Dict, Generator, Optional, Tuple
+from typing import Any, Dict, Optional
 
 from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
@@ -174,22 +174,6 @@ def _looks_like_msys2_mingw_scheme() -> bool:
     )
 
 
-def _fix_abiflags(parts: Tuple[str]) -> Generator[str, None, None]:
-    ldversion = sysconfig.get_config_var("LDVERSION")
-    abiflags = getattr(sys, "abiflags", None)
-
-    # LDVERSION does not end with sys.abiflags. Just return the path unchanged.
-    if not ldversion or not abiflags or not ldversion.endswith(abiflags):
-        yield from parts
-        return
-
-    # Strip sys.abiflags from LDVERSION-based path components.
-    for part in parts:
-        if part.endswith(ldversion):
-            part = part[: (0 - len(abiflags))]
-        yield part
-
-
 @functools.lru_cache(maxsize=None)
 def _warn_mismatched(old: pathlib.Path, new: pathlib.Path, *, key: str) -> None:
     issue_url = "https://github.com/pypa/pip/issues/10151"
@@ -304,7 +288,6 @@ def get_scheme(
             user
             and k == "platlib"
             and not WINDOWS
-            and sys.version_info >= (3, 9)
             and _PLATLIBDIR != "lib"
             and _looks_like_bpo_44860()
         )
