@@ -1,127 +1,90 @@
+from __future__ import annotations
+
 import collections
 import itertools
 import operator
+from typing import TYPE_CHECKING, Collection, Generic, Iterable, Mapping
 
-from .providers import AbstractResolver
-from .structs import DirectedGraph, IteratorMapping, build_iter_view
-
-RequirementInformation = collections.namedtuple(
-    "RequirementInformation", ["requirement", "parent"]
+from ..structs import (
+    CT,
+    KT,
+    RT,
+    DirectedGraph,
+    IterableView,
+    IteratorMapping,
+    RequirementInformation,
+    State,
+    build_iter_view,
+)
+from .abstract import AbstractResolver, Result
+from .criterion import Criterion
+from .exceptions import (
+    InconsistentCandidate,
+    RequirementsConflicted,
+    ResolutionImpossible,
+    ResolutionTooDeep,
+    ResolverException,
 )
 
-
-class ResolverException(Exception):
-    """A base class for all exceptions raised by this module.
-
-    Exceptions derived by this class should all be handled in this module. Any
-    bubbling pass the resolver should be treated as a bug.
-    """
+if TYPE_CHECKING:
+    from ..providers import AbstractProvider, Preference
+    from ..reporters import BaseReporter
 
 
-class RequirementsConflicted(ResolverException):
-    def __init__(self, criterion):
-        super(RequirementsConflicted, self).__init__(criterion)
-        self.criterion = criterion
+def _build_result(state: State[RT, CT, KT]) -> Result[RT, CT, KT]:
+    mapping = state.mapping
+    all_keys: dict[int, KT | None] = {id(v): k for k, v in mapping.items()}
+    all_keys[id(None)] = None
 
-    def __str__(self):
-        return "Requirements conflict: {}".format(
-            ", ".join(repr(r) for r in self.criterion.iter_requirement()),
-        )
+    graph: DirectedGraph[KT | None] = DirectedGraph()
+    graph.add(None)  # Sentinel as root dependencies' parent.
 
+    connected: set[KT | None] = {None}
+    for key, criterion in state.criteria.items():
+        if not _has_route_to_root(state.criteria, key, all_keys, connected):
+            continue
+        if key not in graph:
+            graph.add(key)
+        for p in criterion.iter_parent():
+            try:
+                pkey = all_keys[id(p)]
+            except KeyError:
+                continue
+            if pkey not in graph:
+                graph.add(pkey)
+            graph.connect(pkey, key)
 
-class InconsistentCandidate(ResolverException):
-    def __init__(self, candidate, criterion):
-        super(InconsistentCandidate, self).__init__(candidate, criterion)
-        self.candidate = candidate
-        self.criterion = criterion
-
-    def __str__(self):
-        return "Provided candidate {!r} does not satisfy {}".format(
-            self.candidate,
-            ", ".join(repr(r) for r in self.criterion.iter_requirement()),
-        )
-
-
-class Criterion(object):
-    """Representation of possible resolution results of a package.
-
-    This holds three attributes:
-
-    * `information` is a collection of `RequirementInformation` pairs.
-      Each pair is a requirement contributing to this criterion, and the
-      candidate that provides the requirement.
-    * `incompatibilities` is a collection of all known not-to-work candidates
-      to exclude from consideration.
-    * `candidates` is a collection containing all possible candidates deducted
-      from the union of contributing requirements and known incompatibilities.
-      It should never be empty, except when the criterion is an attribute of a
-      raised `RequirementsConflicted` (in which case it is always empty).
-
-    .. note::
-        This class is intended to be externally immutable. **Do not** mutate
-        any of its attribute containers.
-    """
-
-    def __init__(self, candidates, information, incompatibilities):
-        self.candidates = candidates
-        self.information = information
-        self.incompatibilities = incompatibilities
-
-    def __repr__(self):
-        requirements = ", ".join(
-            "({!r}, via={!r})".format(req, parent)
-            for req, parent in self.information
-        )
-        return "Criterion({})".format(requirements)
-
-    def iter_requirement(self):
-        return (i.requirement for i in self.information)
-
-    def iter_parent(self):
-        return (i.parent for i in self.information)
+    return Result(
+        mapping={k: v for k, v in mapping.items() if k in connected},
+        graph=graph,
+        criteria=state.criteria,
+    )
 
 
-class ResolutionError(ResolverException):
-    pass
-
-
-class ResolutionImpossible(ResolutionError):
-    def __init__(self, causes):
-        super(ResolutionImpossible, self).__init__(causes)
-        # causes is a list of RequirementInformation objects
-        self.causes = causes
-
-
-class ResolutionTooDeep(ResolutionError):
-    def __init__(self, round_count):
-        super(ResolutionTooDeep, self).__init__(round_count)
-        self.round_count = round_count
-
-
-# Resolution state in a round.
-State = collections.namedtuple("State", "mapping criteria backtrack_causes")
-
-
-class Resolution(object):
+class Resolution(Generic[RT, CT, KT]):
     """Stateful resolution object.
 
     This is designed as a one-off object that holds information to kick start
     the resolution process, and holds the results afterwards.
     """
 
-    def __init__(self, provider, reporter):
+    def __init__(
+        self,
+        provider: AbstractProvider[RT, CT, KT],
+        reporter: BaseReporter[RT, CT, KT],
+    ) -> None:
         self._p = provider
         self._r = reporter
-        self._states = []
+        self._states: list[State[RT, CT, KT]] = []
 
     @property
-    def state(self):
+    def state(self) -> State[RT, CT, KT]:
         try:
             return self._states[-1]
-        except IndexError:
-            raise AttributeError("state")
+        except IndexError as e:
+            raise AttributeError("state") from e
 
-    def _push_new_state(self):
+    def _push_new_state(self) -> None:
         """Push a new state into history.
 
         This new state will be used to hold resolution results of the next
@@ -135,7 +98,12 @@ class Resolution(object):
         )
         self._states.append(state)
 
-    def _add_to_criteria(self, criteria, requirement, parent):
+    def _add_to_criteria(
+        self,
+        criteria: dict[KT, Criterion[RT, CT]],
+        requirement: RT,
+        parent: CT | None,
+    ) -> None:
         self._r.adding_requirement(requirement=requirement, parent=parent)
 
         identifier = self._p.identify(requirement_or_candidate=requirement)
@@ -174,7 +142,9 @@ class Resolution(object):
             raise RequirementsConflicted(criterion)
         criteria[identifier] = criterion
 
-    def _remove_information_from_criteria(self, criteria, parents):
+    def _remove_information_from_criteria(
+        self, criteria: dict[KT, Criterion[RT, CT]], parents: Collection[KT]
+    ) -> None:
         """Remove information from parents of criteria.
 
         Concretely, removes all values from each criterion's ``information``
@@ -199,7 +169,7 @@ class Resolution(object):
                 criterion.incompatibilities,
             )
 
-    def _get_preference(self, name):
+    def _get_preference(self, name: KT) -> Preference:
         return self._p.get_preference(
             identifier=name,
             resolutions=self.state.mapping,
@@ -214,7 +184,9 @@ class Resolution(object):
             backtrack_causes=self.state.backtrack_causes,
         )
 
-    def _is_current_pin_satisfying(self, name, criterion):
+    def _is_current_pin_satisfying(
+        self, name: KT, criterion: Criterion[RT, CT]
+    ) -> bool:
         try:
             current_pin = self.state.mapping[name]
         except KeyError:
@@ -224,16 +196,16 @@ class Resolution(object):
             for r in criterion.iter_requirement()
         )
 
-    def _get_updated_criteria(self, candidate):
+    def _get_updated_criteria(self, candidate: CT) -> dict[KT, Criterion[RT, CT]]:
         criteria = self.state.criteria.copy()
         for requirement in self._p.get_dependencies(candidate=candidate):
             self._add_to_criteria(criteria, requirement, parent=candidate)
         return criteria
 
-    def _attempt_to_pin_criterion(self, name):
+    def _attempt_to_pin_criterion(self, name: KT) -> list[Criterion[RT, CT]]:
         criterion = self.state.criteria[name]
 
-        causes = []
+        causes: list[Criterion[RT, CT]] = []
         for candidate in criterion.candidates:
             try:
                 criteria = self._get_updated_criteria(candidate)
@@ -267,7 +239,42 @@ class Resolution(object):
         # end, signal for backtracking.
         return causes
 
-    def _backjump(self, causes):
+    def _patch_criteria(
+        self, incompatibilities_from_broken: list[tuple[KT, list[CT]]]
+    ) -> bool:
+        # Create a new state from the last known-to-work one, and apply
+        # the previously gathered incompatibility information.
+        for k, incompatibilities in incompatibilities_from_broken:
+            if not incompatibilities:
+                continue
+            try:
+                criterion = self.state.criteria[k]
+            except KeyError:
+                continue
+            matches = self._p.find_matches(
+                identifier=k,
+                requirements=IteratorMapping(
+                    self.state.criteria,
+                    operator.methodcaller("iter_requirement"),
+                ),
+                incompatibilities=IteratorMapping(
+                    self.state.criteria,
+                    operator.attrgetter("incompatibilities"),
+                    {k: incompatibilities},
+                ),
+            )
+            candidates: IterableView[CT] = build_iter_view(matches)
+            if not candidates:
+                return False
+            incompatibilities.extend(criterion.incompatibilities)
+            self.state.criteria[k] = Criterion(
+                candidates=candidates,
+                information=list(criterion.information),
+                incompatibilities=incompatibilities,
+            )
+        return True
+
+    def _backjump(self, causes: list[RequirementInformation[RT, CT]]) -> bool:
         """Perform backjumping.
 
         When we enter here, the stack is like this::
@@ -298,7 +305,7 @@ class Resolution(object):
             the new Z and go back to step 2.
         5b. If the incompatibilities apply cleanly, end backtracking.
         """
-        incompatible_reqs = itertools.chain(
+        incompatible_reqs: Iterable[CT | RT] = itertools.chain(
             (c.parent for c in causes if c.parent is not None),
             (c.requirement for c in causes),
         )
@@ -307,66 +314,44 @@ class Resolution(object):
             # Remove the state that triggered backtracking.
             del self._states[-1]
 
-            # Ensure to backtrack to a state that caused the incompatibility
-            incompatible_state = False
-            while not incompatible_state:
+            # Optimistically backtrack to a state that caused the incompatibility
+            broken_state = self.state
+            while True:
                 # Retrieve the last candidate pin and known incompatibilities.
                 try:
                     broken_state = self._states.pop()
                     name, candidate = broken_state.mapping.popitem()
                 except (IndexError, KeyError):
-                    raise ResolutionImpossible(causes)
+                    raise ResolutionImpossible(causes) from None
+
+                # Only backjump if the current broken state is
+                # an incompatible dependency
+                if name not in incompatible_deps:
+                    break
+
+                # If the current dependencies and the incompatible dependencies
+                # are overlapping then we have found a cause of the incompatibility
                 current_dependencies = {
-                    self._p.identify(d)
-                    for d in self._p.get_dependencies(candidate)
+                    self._p.identify(d) for d in self._p.get_dependencies(candidate)
                 }
-                incompatible_state = not current_dependencies.isdisjoint(
-                    incompatible_deps
-                )
+                if not current_dependencies.isdisjoint(incompatible_deps):
+                    break
+
+                # Fallback: We should not backtrack to the point where
+                # broken_state.mapping is empty, so stop backtracking for
+                # a chance for the resolution to recover
+                if not broken_state.mapping:
+                    break
 
             incompatibilities_from_broken = [
-                (k, list(v.incompatibilities))
-                for k, v in broken_state.criteria.items()
+                (k, list(v.incompatibilities)) for k, v in broken_state.criteria.items()
             ]
 
             # Also mark the newly known incompatibility.
             incompatibilities_from_broken.append((name, [candidate]))
 
-            # Create a new state from the last known-to-work one, and apply
-            # the previously gathered incompatibility information.
-            def _patch_criteria():
-                for k, incompatibilities in incompatibilities_from_broken:
-                    if not incompatibilities:
-                        continue
-                    try:
-                        criterion = self.state.criteria[k]
-                    except KeyError:
-                        continue
-                    matches = self._p.find_matches(
-                        identifier=k,
-                        requirements=IteratorMapping(
-                            self.state.criteria,
-                            operator.methodcaller("iter_requirement"),
-                        ),
-                        incompatibilities=IteratorMapping(
-                            self.state.criteria,
-                            operator.attrgetter("incompatibilities"),
-                            {k: incompatibilities},
-                        ),
-                    )
-                    candidates = build_iter_view(matches)
-                    if not candidates:
-                        return False
-                    incompatibilities.extend(criterion.incompatibilities)
-                    self.state.criteria[k] = Criterion(
-                        candidates=candidates,
-                        information=list(criterion.information),
-                        incompatibilities=incompatibilities,
-                    )
-                return True
-
             self._push_new_state()
-            success = _patch_criteria()
+            success = self._patch_criteria(incompatibilities_from_broken)
 
             # It works! Let's work on this new state.
             if success:
@@ -378,7 +363,13 @@ class Resolution(object):
         # No way to backtrack anymore.
         return False
 
-    def resolve(self, requirements, max_rounds):
+    def _extract_causes(
+        self, criteron: list[Criterion[RT, CT]]
+    ) -> list[RequirementInformation[RT, CT]]:
+        """Extract causes from list of criterion and deduplicate"""
+        return list({id(i): i for c in criteron for i in c.information}.values())
+
+    def resolve(self, requirements: Iterable[RT], max_rounds: int) -> State[RT, CT, KT]:
         if self._states:
             raise RuntimeError("already resolved")
 
@@ -396,7 +387,7 @@ class Resolution(object):
             try:
                 self._add_to_criteria(self.state.criteria, r, parent=None)
             except RequirementsConflicted as e:
-                raise ResolutionImpossible(e.criterion.information)
+                raise ResolutionImpossible(e.criterion.information) from e
 
         # The root state is saved as a sentinel so the first ever pin can have
         # something to backtrack to if it fails. The root state is basically
@@ -418,16 +409,42 @@ class Resolution(object):
                 return self.state
 
             # keep track of satisfied names to calculate diff after pinning
-            satisfied_names = set(self.state.criteria.keys()) - set(
-                unsatisfied_names
-            )
+            satisfied_names = set(self.state.criteria.keys()) - set(unsatisfied_names)
 
-            # Choose the most preferred unpinned criterion to try.
-            name = min(unsatisfied_names, key=self._get_preference)
-            failure_causes = self._attempt_to_pin_criterion(name)
+            if len(unsatisfied_names) > 1:
+                narrowed_unstatisfied_names = list(
+                    self._p.narrow_requirement_selection(
+                        identifiers=unsatisfied_names,
+                        resolutions=self.state.mapping,
+                        candidates=IteratorMapping(
+                            self.state.criteria,
+                            operator.attrgetter("candidates"),
+                        ),
+                        information=IteratorMapping(
+                            self.state.criteria,
+                            operator.attrgetter("information"),
+                        ),
+                        backtrack_causes=self.state.backtrack_causes,
+                    )
+                )
+            else:
+                narrowed_unstatisfied_names = unsatisfied_names
 
-            if failure_causes:
-                causes = [i for c in failure_causes for i in c.information]
+            # If there are no unsatisfied names use unsatisfied names
+            if not narrowed_unstatisfied_names:
+                raise RuntimeError("narrow_requirement_selection returned 0 names")
+
+            # If there is only 1 unsatisfied name skip calling self._get_preference
+            if len(narrowed_unstatisfied_names) > 1:
+                # Choose the most preferred unpinned criterion to try.
+                name = min(narrowed_unstatisfied_names, key=self._get_preference)
+            else:
+                name = narrowed_unstatisfied_names[0]
+
+            failure_criterion = self._attempt_to_pin_criterion(name)
+
+            if failure_criterion:
+                causes = self._extract_causes(failure_criterion)
                 # Backjump if pinning fails. The backjump process puts us in
                 # an unpinned state, so we can work on it in the next round.
                 self._r.resolving_conflicts(causes=causes)
@@ -457,64 +474,16 @@ class Resolution(object):
         raise ResolutionTooDeep(max_rounds)
 
 
-def _has_route_to_root(criteria, key, all_keys, connected):
-    if key in connected:
-        return True
-    if key not in criteria:
-        return False
-    for p in criteria[key].iter_parent():
-        try:
-            pkey = all_keys[id(p)]
-        except KeyError:
-            continue
-        if pkey in connected:
-            connected.add(key)
-            return True
-        if _has_route_to_root(criteria, pkey, all_keys, connected):
-            connected.add(key)
-            return True
-    return False
-
-
-Result = collections.namedtuple("Result", "mapping graph criteria")
-
-
-def _build_result(state):
-    mapping = state.mapping
-    all_keys = {id(v): k for k, v in mapping.items()}
-    all_keys[id(None)] = None
-
-    graph = DirectedGraph()
-    graph.add(None)  # Sentinel as root dependencies' parent.
-
-    connected = {None}
-    for key, criterion in state.criteria.items():
-        if not _has_route_to_root(state.criteria, key, all_keys, connected):
-            continue
-        if key not in graph:
-            graph.add(key)
-        for p in criterion.iter_parent():
-            try:
-                pkey = all_keys[id(p)]
-            except KeyError:
-                continue
-            if pkey not in graph:
-                graph.add(pkey)
-            graph.connect(pkey, key)
-
-    return Result(
-        mapping={k: v for k, v in mapping.items() if k in connected},
-        graph=graph,
-        criteria=state.criteria,
-    )
-
-
-class Resolver(AbstractResolver):
+class Resolver(AbstractResolver[RT, CT, KT]):
     """The thing that performs the actual resolution work."""
 
     base_exception = ResolverException
 
-    def resolve(self, requirements, max_rounds=100):
+    def resolve(  # type: ignore[override]
+        self,
+        requirements: Iterable[RT],
+        max_rounds: int = 100,
+    ) -> Result[RT, CT, KT]:
         """Take a collection of constraints, spit out the resolution result.
 
         The return value is a representation to the final resolution result. It
@@ -545,3 +514,28 @@ class Resolver(AbstractResolver):
         resolution = Resolution(self.provider, self.reporter)
         state = resolution.resolve(requirements, max_rounds=max_rounds)
         return _build_result(state)
+
+
+def _has_route_to_root(
+    criteria: Mapping[KT, Criterion[RT, CT]],
+    key: KT | None,
+    all_keys: dict[int, KT | None],
+    connected: set[KT | None],
+) -> bool:
+    if key in connected:
+        return True
+    if key not in criteria:
+        return False
+    assert key is not None
+    for p in criteria[key].iter_parent():
+        try:
+            pkey = all_keys[id(p)]
+        except KeyError:
+            continue
+        if pkey in connected:
+            connected.add(key)
+            return True
+        if _has_route_to_root(criteria, pkey, all_keys, connected):
+            connected.add(key)
+            return True
+    return False

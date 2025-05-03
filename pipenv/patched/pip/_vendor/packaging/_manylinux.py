@@ -161,8 +161,7 @@ def _parse_glibc_version(version_str: str) -> tuple[int, int]:
     m = re.match(r"(?P<major>[0-9]+)\.(?P<minor>[0-9]+)", version_str)
     if not m:
         warnings.warn(
-            f"Expected glibc version with 2 components major.minor,"
-            f" got: {version_str}",
+            f"Expected glibc version with 2 components major.minor, got: {version_str}",
             RuntimeWarning,
             stacklevel=2,
         )

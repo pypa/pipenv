@@ -816,8 +816,7 @@ class SpecifierSet(BaseSpecifier):
             specifier._prereleases = self._prereleases
         else:
             raise ValueError(
-                "Cannot combine SpecifierSets with True and False prerelease "
-                "overrides."
+                "Cannot combine SpecifierSets with True and False prerelease overrides."
             )
 
         return specifier

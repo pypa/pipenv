@@ -3,6 +3,7 @@ import os.path
 from typing import List, Optional
 
 from pipenv.patched.pip._internal.cli.spinners import open_spinner
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
 from pipenv.patched.pip._internal.utils.setuptools_build import make_setuptools_bdist_wheel_args
 from pipenv.patched.pip._internal.utils.subprocess import call_subprocess, format_command_args
 
@@ -68,6 +69,21 @@ def build_wheel_legacy(
 
     Returns path to wheel if successfully built. Otherwise, returns None.
     """
+    deprecated(
+        reason=(
+            f"Building {name!r} using the legacy setup.py bdist_wheel mechanism, "
+            "which will be removed in a future version."
+        ),
+        replacement=(
+            "to use the standardized build interface by "
+            "setting the `--use-pep517` option, "
+            "(possibly combined with `--no-build-isolation`), "
+            f"or adding a `pyproject.toml` file to the source tree of {name!r}"
+        ),
+        gone_in="25.3",
+        issue=6334,
+    )
+
     wheel_args = make_setuptools_bdist_wheel_args(
         setup_py_path,
         global_options=global_options,

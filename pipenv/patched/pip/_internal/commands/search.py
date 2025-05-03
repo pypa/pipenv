@@ -5,7 +5,7 @@ import textwrap
 import xmlrpc.client
 from collections import OrderedDict
 from optparse import Values
-from typing import TYPE_CHECKING, Dict, List, Optional, TypedDict
+from typing import Dict, List, Optional, TypedDict
 
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
@@ -14,17 +14,17 @@ from pipenv.patched.pip._internal.cli.req_command import SessionCommandMixin
 from pipenv.patched.pip._internal.cli.status_codes import NO_MATCHES_FOUND, SUCCESS
 from pipenv.patched.pip._internal.exceptions import CommandError
 from pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pip._internal.metadata.base import BaseDistribution
 from pipenv.patched.pip._internal.models.index import PyPI
 from pipenv.patched.pip._internal.network.xmlrpc import PipXmlrpcTransport
 from pipenv.patched.pip._internal.utils.logging import indent_log
 from pipenv.patched.pip._internal.utils.misc import write_output
 
-if TYPE_CHECKING:
 
-    class TransformedHit(TypedDict):
-        name: str
-        summary: str
-        versions: List[str]
+class TransformedHit(TypedDict):
+    name: str
+    summary: str
+    versions: List[str]
 
 
 logger = logging.getLogger(__name__)
@@ -111,9 +111,7 @@ def transform_hits(hits: List[Dict[str, str]]) -> List["TransformedHit"]:
     return list(packages.values())
 
 
-def print_dist_installation_info(name: str, latest: str) -> None:
-    env = get_default_environment()
-    dist = env.get_distribution(name)
+def print_dist_installation_info(latest: str, dist: Optional[BaseDistribution]) -> None:
     if dist is not None:
         with indent_log():
             if dist.version == latest:
@@ -128,6 +126,11 @@ def print_dist_installation_info(name: str, latest: str) -> None:
                     )
                 else:
                     write_output("LATEST:    %s", latest)
+
+
+def get_installed_distribution(name: str) -> Optional[BaseDistribution]:
+    env = get_default_environment()
+    return env.get_distribution(name)
 
 
 def print_results(
@@ -163,7 +166,8 @@ def print_results(
         line = f"{name_latest:{name_column_width}} - {summary}"
         try:
             write_output(line)
-            print_dist_installation_info(name, latest)
+            dist = get_installed_distribution(name)
+            print_dist_installation_info(latest, dist)
         except UnicodeEncodeError:
             pass
 

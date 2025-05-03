@@ -1,4 +1,5 @@
 import logging
+import string
 from optparse import Values
 from typing import Generator, Iterable, Iterator, List, NamedTuple, Optional
 
@@ -11,6 +12,13 @@ from pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_
 from pipenv.patched.pip._internal.utils.misc import write_output
 
 logger = logging.getLogger(__name__)
+
+
+def normalize_project_url_label(label: str) -> str:
+    # This logic is from PEP 753 (Well-known Project URLs in Metadata).
+    chars_to_remove = string.punctuation + string.whitespace
+    removal_map = str.maketrans("", "", chars_to_remove)
+    return label.translate(removal_map).lower()
 
 
 class ShowCommand(Command):
@@ -135,13 +143,9 @@ def search_packages_info(query: List[str]) -> Generator[_PackageInfo, None, None
         if not homepage:
             # It's common that there is a "homepage" Project-URL, but Home-page
             # remains unset (especially as PEP 621 doesn't surface the field).
-            #
-            # This logic was taken from PyPI's codebase.
             for url in project_urls:
                 url_label, url = url.split(",", maxsplit=1)
-                normalized_label = (
-                    url_label.casefold().replace("-", "").replace("_", "").strip()
-                )
+                normalized_label = normalize_project_url_label(url_label)
                 if normalized_label == "homepage":
                     homepage = url.strip()
                     break
