@@ -1,0 +1,1 @@
+Vendor in ``pip==25.1.1`` latest.
