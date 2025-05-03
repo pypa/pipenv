@@ -59,9 +59,7 @@ def run_pep508_check(project, system, python):
         try:
             return json.loads(c.stdout.strip())
         except json.JSONDecodeError:
-            err.print(
-                f"Failed parsing pep508 results:\n{c.stdout.strip()}\n{c.stderr.strip()}"
-            )
+            err.print(f"Failed parsing pep508 results:\n{c.stdout.strip()}\n{c.stderr.strip()}")
             sys.exit(1)
     return {}
 
@@ -116,9 +114,7 @@ def create_temp_requirements(project, requirements):
     if os.path.exists(temp_file_path):
         console.print(f"[dim]Created temporary requirements file: {temp_file_path}[/dim]")
     else:
-        err.print(
-            f"[red]Failed to create temporary requirements file at {temp_file_path}[/red]"
-        )
+        err.print(f"[red]Failed to create temporary requirements file at {temp_file_path}[/red]")
 
     return Path(temp_file_path).absolute()
 
@@ -149,9 +145,7 @@ def install_safety(project, system=False, auto_install=False):
     """Install safety and its dependencies."""
     python = project_python(project, system=system)
 
-    console.print(
-        "[yellow bold]Safety package is required for vulnerability scanning but not installed.[/yellow bold]"
-    )
+    console.print("[yellow bold]Safety package is required for vulnerability scanning but not installed.[/yellow bold]")
 
     install = auto_install
     if not auto_install:
@@ -172,9 +166,7 @@ def install_safety(project, system=False, auto_install=False):
     c = run_command(cmd)
 
     if c.returncode != 0:
-        err.print(
-            "[red]Failed to install safety. Please install it manually with 'pip install pipenv[safety]'[/red]"
-        )
+        err.print("[red]Failed to install safety. Please install it manually with 'pip install pipenv[safety]'[/red]")
         return False
 
     console.print("[green]Safety installed successfully![/green]")
@@ -209,16 +201,12 @@ def parse_safety_output(output, quiet):
 
         if quiet:
             color = "red" if vulnerabilities_found else "green"
-            console.print(
-                f"[{color}]{vulnerabilities_found} vulnerabilities found.[/{color}]"
-            )
+            console.print(f"[{color}]{vulnerabilities_found} vulnerabilities found.[/{color}]")
         else:
             color = "red" if vulnerabilities_found else "green"
             message = f"Scan complete using Safety's {db_type} vulnerability database."
             console.print()
-            console.print(
-                f"[{color}]{vulnerabilities_found} vulnerabilities found.[/{color}]"
-            )
+            console.print(f"[{color}]{vulnerabilities_found} vulnerabilities found.[/{color}]")
             console.print()
 
             for vuln in json_report.get("vulnerabilities", []):
@@ -261,7 +249,7 @@ def do_check(  # noqa: PLR0913
     scan=False,
 ):
     if not verbose:
-        logging.getLogger("pipenv").setLevel(logging.ERROR if quiet else logging.WARN)
+        logging.getLogger("pipenv").setLevel(logging.ERROR if quiet else logging.WARNING)
 
     # If scan option is provided, use the scan command instead
     if scan:
@@ -294,7 +282,8 @@ def do_check(  # noqa: PLR0913
             "[yellow bold]DEPRECATION WARNING:[/yellow bold] "
             "The 'check' command is deprecated and will be unsupported beyond 01 June 2025.\n"
             "In future versions, 'check' will run the 'scan' command by default.\n"
-            "Use [green]--scan[/green] option to run the new scan command now, or switch to [green]pipenv scan[/green].\n"
+            "Use [green]--scan[/green] option to run the new scan command now, "
+            "or switch to [green]pipenv scan[/green].\n"
             "The scan command requires an API key which you can obtain from https://pyup.io"
         )
 
@@ -318,13 +307,9 @@ def do_check(  # noqa: PLR0913
 
     if not quiet and not project.s.is_quiet():
         if use_installed:
-            console.print(
-                "[bold]Checking installed packages for vulnerabilities...[/bold]"
-            )
+            console.print("[bold]Checking installed packages for vulnerabilities...[/bold]")
         else:
-            console.print(
-                "[bold]Checking Pipfile.lock packages for vulnerabilities...[/bold]"
-            )
+            console.print("[bold]Checking Pipfile.lock packages for vulnerabilities...[/bold]")
 
     if ignore:
         ignore = [ignore] if not isinstance(ignore, (tuple, list)) else ignore
@@ -388,9 +373,7 @@ def do_check(  # noqa: PLR0913
             cmd.append(f"--key={key or project.s.PIPENV_PYUP_API_KEY}")
         else:
             PIPENV_SAFETY_DB = "https://pyup.io/aws/safety/free/2.0.0/"
-            os.environ["SAFETY_ANNOUNCEMENTS_URL"] = (
-                f"{PIPENV_SAFETY_DB}announcements.json"
-            )
+            os.environ["SAFETY_ANNOUNCEMENTS_URL"] = f"{PIPENV_SAFETY_DB}announcements.json"
             cmd.append(f"--db={PIPENV_SAFETY_DB}")
 
         if ignore:
@@ -416,6 +399,4 @@ def do_check(  # noqa: PLR0913
             try:
                 temp_requirements.unlink()
             except Exception as e:
-                err.print(
-                    f"[yellow]Warning: Failed to delete temporary file {temp_requirements}: {e}[/yellow]"
-                )
+                err.print(f"[yellow]Warning: Failed to delete temporary file {temp_requirements}: {e}[/yellow]")

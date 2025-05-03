@@ -1,6 +1,5 @@
 import re
 from pathlib import Path
-from typing import Tuple
 from urllib.parse import quote, unquote
 
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -15,7 +14,7 @@ from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
 
 
-def redact_netloc(netloc: str) -> Tuple[str]:
+def redact_netloc(netloc: str) -> tuple[str]:
     """
     Replace the sensitive data in a netloc with "****", if it exists, unless it's an environment variable.
 
@@ -88,15 +87,11 @@ def import_requirements(project, r=None, dev=False, categories=None):
                 if package.editable:
                     package_string = f"-e {package.link}"
                 else:
-                    package_string = unquote(
-                        redact_auth_from_url(package.original_link.url)
-                    )
+                    package_string = unquote(redact_auth_from_url(package.original_link.url))
 
                 if categories:
                     for category in categories:
-                        project.add_package_to_pipfile(
-                            package, package_string, dev=dev, category=category
-                        )
+                        project.add_package_to_pipfile(package, package_string, dev=dev, category=category)
                 else:
                     project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
@@ -105,9 +100,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
                     package_string += f" ; {package.markers}"
                 if categories:
                     for category in categories:
-                        project.add_package_to_pipfile(
-                            package, package_string, dev=dev, category=category
-                        )
+                        project.add_package_to_pipfile(package, package_string, dev=dev, category=category)
                 else:
                     project.add_package_to_pipfile(package, package_string, dev=dev)
     indexes = sorted(set(indexes))
@@ -127,9 +120,7 @@ def add_index_to_pipfile(project, index, trusted_hosts=None):
         v in trusted_hosts
         for v in (
             host_and_port,
-            host_and_port.partition(":")[
-                0
-            ],  # also check if hostname without port is in trusted_hosts
+            host_and_port.partition(":")[0],  # also check if hostname without port is in trusted_hosts
         )
     )
     index_name = project.add_index_to_pipfile(index, verify_ssl=require_valid_https)
@@ -145,9 +136,7 @@ BAD_PACKAGES = (
 )
 
 
-def requirement_from_lockfile(
-    package_name, package_info, include_hashes=True, include_markers=True
-):
+def requirement_from_lockfile(package_name, package_info, include_hashes=True, include_markers=True):
     from pipenv.utils.dependencies import is_editable_path, is_star, normalize_vcs_url
 
     # Handle string requirements
@@ -178,20 +167,12 @@ def requirement_from_lockfile(
             vcs_url, fallback_ref = normalize_vcs_url(vcs_url)
             if not ref:
                 ref = fallback_ref
-            extras = (
-                "[{}]".format(",".join(package_info.get("extras", [])))
-                if "extras" in package_info
-                else ""
-            )
+            extras = "[{}]".format(",".join(package_info.get("extras", []))) if "extras" in package_info else ""
             subdirectory = package_info.get("subdirectory", "")
             include_vcs = "" if f"{vcs}+" in vcs_url else f"{vcs}+"
             egg_fragment = "" if "#egg=" in vcs_url else f"#egg={package_name}"
             ref_str = "" if not ref or f"@{ref}" in vcs_url else f"@{ref}"
-            if (
-                is_editable_path(vcs_url)
-                or "file://" in vcs_url
-                or package_info.get("editable", False)
-            ):
+            if is_editable_path(vcs_url) or "file://" in vcs_url or package_info.get("editable", False):
                 pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}{extras}"
                 pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
             else:
@@ -215,16 +196,8 @@ def requirement_from_lockfile(
 
     # Handling packages from standard pypi like indexes
     version = package_info.get("version", "")
-    hashes = (
-        f" --hash={' --hash='.join(package_info['hashes'])}"
-        if include_hashes and "hashes" in package_info
-        else ""
-    )
-    extras = (
-        "[{}]".format(",".join(package_info.get("extras", [])))
-        if "extras" in package_info
-        else ""
-    )
+    hashes = f" --hash={' --hash='.join(package_info['hashes'])}" if include_hashes and "hashes" in package_info else ""
+    extras = "[{}]".format(",".join(package_info.get("extras", []))) if "extras" in package_info else ""
     pip_line = f"{package_name}{extras}{version}{os_markers}{markers}{hashes}"
     return pip_line
 
@@ -233,9 +206,7 @@ def requirements_from_lockfile(deps, include_hashes=True, include_markers=True):
     pip_packages = []
 
     for package_name, package_info in deps.items():
-        pip_package = requirement_from_lockfile(
-            package_name, package_info, include_hashes, include_markers
-        )
+        pip_package = requirement_from_lockfile(package_name, package_info, include_hashes, include_markers)
 
         # Append to the list
         pip_packages.append(pip_package)

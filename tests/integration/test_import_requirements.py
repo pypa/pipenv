@@ -32,7 +32,10 @@ def test_auth_with_pw_redacted(
         requirements_file.close()
         import_requirements(project, r=requirements_file.name)
         os.unlink(requirements_file.name)
-        assert p.pipfile["packages"]["myproject"] == {'git': 'https://${AUTH_USER}:****@github.com/user/myproject.git', 'ref': 'main'}
+        assert p.pipfile["packages"]["myproject"] == {
+            'git': 'https://${AUTH_USER}:****@github.com/user/myproject.git',
+            'ref': 'main'
+        }
 
 
 @pytest.mark.cli
@@ -57,7 +60,10 @@ def test_auth_with_username_redacted(
         requirements_file.close()
         import_requirements(project, r=requirements_file.name)
         os.unlink(requirements_file.name)
-        assert p.pipfile["packages"]["myproject"] == {'git': 'https://****@github.com/user/myproject.git', 'ref': 'main'}
+        assert p.pipfile["packages"]["myproject"] == {
+            'git': 'https://****@github.com/user/myproject.git',
+            'ref': 'main'
+        }
 
 
 
@@ -109,7 +115,10 @@ def test_auth_with_only_username_variable_passed_to_pipfile(
         requirements_file.close()
         import_requirements(project, r=requirements_file.name)
         os.unlink(requirements_file.name)
-        assert p.pipfile["packages"]["myproject"] == {'git': 'https://${AUTH_USER}@github.com/user/myproject.git', 'ref': 'main'}
+        assert p.pipfile["packages"]["myproject"] == {
+            'git': 'https://${AUTH_USER}@github.com/user/myproject.git',
+            'ref': 'main'
+        }
 
 
 

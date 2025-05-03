@@ -1,5 +1,4 @@
 import contextlib
-import errno
 import functools
 import json
 import logging
@@ -15,7 +14,6 @@ from tempfile import TemporaryDirectory
 import pytest
 
 from pipenv.patched.pip._vendor import requests
-from pipenv.utils.funktools import handle_remove_readonly
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.vendor import tomlkit
@@ -273,21 +271,7 @@ class _PipenvInstance:
         return Path(os.sep.join([self.path, "Pipfile.lock"]))
 
 
-if sys.version_info[:2] <= (3, 8):
-    # Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
-    def _rmtree_func(path, ignore_errors=True, onerror=None):
-        shutil_rmtree = _rmtree
-        if onerror is None:
-            onerror = handle_remove_readonly
-        try:
-            shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
-        except (OSError, FileNotFoundError, PermissionError) as exc:
-            # Ignore removal failures where the file doesn't exist
-            if exc.errno != errno.ENOENT:
-                raise
-
-else:
-    _rmtree_func = _rmtree
+_rmtree_func = _rmtree
 
 
 @pytest.fixture()

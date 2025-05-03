@@ -9,10 +9,11 @@ import stat
 import subprocess
 import time
 import warnings
+from collections.abc import Iterable
 from functools import partial
 from itertools import count, islice
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 DIRECTORY_CLEANUP_TIMEOUT = 1.0
 
@@ -177,10 +178,7 @@ def _get_powershell_path():
     :return: Path to powershell.exe as a string if found, None otherwise
     """
     # Search in common Windows directories
-    paths = [
-        Path(os.path.expandvars(rf"%windir%\{subdir}\WindowsPowerShell"))
-        for subdir in ("SysWOW64", "system32")
-    ]
+    paths = [Path(os.path.expandvars(rf"%windir%\{subdir}\WindowsPowerShell")) for subdir in ("SysWOW64", "system32")]
 
     # Try to find powershell in the specified paths
     for path in paths:
@@ -190,9 +188,7 @@ def _get_powershell_path():
 
     # Fall back to using the 'where' command
     try:
-        powershell_result = subprocess.run(
-            ["where", "powershell"], check=False, capture_output=True, text=True
-        )
+        powershell_result = subprocess.run(["where", "powershell"], check=False, capture_output=True, text=True)
 
         if powershell_result.stdout:
             return powershell_result.stdout.strip()
@@ -260,9 +256,7 @@ def _get_sid_from_registry():
             for i in count():
                 key_name = winreg.EnumKey(key, i)
                 subkey_names.append(key_name)
-                value = query_registry_value(
-                    root, rf"{subkey}\{key_name}", "ProfileImagePath"
-                )
+                value = query_registry_value(root, rf"{subkey}\{key_name}", "ProfileImagePath")
                 if value and value.lower() == current_user_home.lower():
                     matching_key = key_name
                     break
@@ -291,10 +285,7 @@ def _find_icacls_exe():
     """
     if os.name == "nt":
         # Define common Windows directories to search
-        paths = [
-            Path(os.path.expandvars(rf"%windir%\{subdir}"))
-            for subdir in ("system32", "SysWOW64")
-        ]
+        paths = [Path(os.path.expandvars(rf"%windir%\{subdir}")) for subdir in ("system32", "SysWOW64")]
 
         # Search for icacls.exe in each path
         for path in paths:

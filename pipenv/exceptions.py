@@ -109,9 +109,7 @@ class JSONParseError(PipenvException):
 
     def show(self, file=None):
         console = Console(stderr=True, file=file, highlight=False)
-        console.print(
-            f"[bold][red]Failed parsing JSON results:[/red][/bold]: {self.contents}"
-        )
+        console.print(f"[bold][red]Failed parsing JSON results:[/red][/bold]: {self.contents}")
         if self.error_text:
             console.print(f"[bold][red]ERROR TEXT:[/red][/bold]: {self.error_text}")
 
@@ -131,9 +129,7 @@ class PipenvUsageError(UsageError):
         if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
             hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
         if self.ctx is not None:
-            console = Console(
-                stderr=True, file=file, highlight=False, force_terminal=self.ctx.color
-            )
+            console = Console(stderr=True, file=file, highlight=False, force_terminal=self.ctx.color)
             console.print(self.ctx.get_usage() + f"\n{hint}")
         console = Console(stderr=True, file=file, highlight=False)
         console.print(self.message)
@@ -146,9 +142,7 @@ class PipenvFileError(FileError):
         extra = kwargs.pop("extra", [])
         if not message:
             message = "[bold]Please ensure that the file exists![/bold]"
-        message = self.formatted_message.format(
-            f"[bold]{filename} not found![/bold]", message
-        )
+        message = self.formatted_message.format(f"[bold]{filename} not found![/bold]", message)
         FileError.__init__(self, filename=filename, hint=message, **kwargs)
         self.extra = extra
 
@@ -223,10 +217,7 @@ class SetupException(PipenvException):
 class VirtualenvException(PipenvException):
     def __init__(self, message=None, **kwargs):
         if not message:
-            message = (
-                "There was an unexpected error while activating your virtualenv. "
-                "Continuing anyway..."
-            )
+            message = "There was an unexpected error while activating your virtualenv. Continuing anyway..."
         PipenvException.__init__(self, message, **kwargs)
 
 
@@ -234,8 +225,7 @@ class VirtualenvActivationException(VirtualenvException):
     def __init__(self, message=None, **kwargs):
         if not message:
             message = (
-                "activate_this.py not found. Your environment is most certainly "
-                "not activated. Continuing anyway..."
+                "activate_this.py not found. Your environment is most certainly not activated. Continuing anyway..."
             )
         self.message = message
         VirtualenvException.__init__(self, message, **kwargs)
@@ -263,9 +253,7 @@ class UninstallError(PipenvException):
                 f"[bold yellow]$ {command!r}[/bold yellow]",
             )
         ]
-        extra.extend(
-            [f"[cyan]{line.strip()}[/cyan]" for line in return_values.splitlines()]
-        )
+        extra.extend([f"[cyan]{line.strip()}[/cyan]" for line in return_values.splitlines()])
         if isinstance(package, (tuple, list, set)):
             package = " ".join(package)
         message = "{!s} {!s}...".format(
@@ -281,9 +269,7 @@ class InstallError(PipenvException):
     def __init__(self, package, **kwargs):
         package_message = ""
         if package is not None:
-            package_message = "Couldn't install package: {}\n".format(
-                f"[bold]{package!s}[/bold]"
-            )
+            package_message = "Couldn't install package: {}\n".format(f"[bold]{package!s}[/bold]")
         message = "{} {}".format(
             f"{package_message}",
             "[yellow]Package installation failed...[/yellow]",
@@ -311,7 +297,8 @@ class ResolutionFailure(PipenvException):
         extra = (
             "Your dependencies could not be resolved. You likely have a "
             "mismatch in your sub-dependencies.\n"
-            "You can use [yellow]$ pipenv run pip install <requirement_name>[/yellow] to bypass this mechanism, then run "
+            "You can use [yellow]$ pipenv run pip install <requirement_name>[/yellow] "
+            "to bypass this mechanism, then run "
             "[yellow]$ pipenv graph[/yellow] to inspect the versions actually installed in the virtualenv.\n"
             "Hint: try [yellow]$ pipenv lock --pre[/yellow] if it is a pre-release dependency."
         )
@@ -337,9 +324,7 @@ class RequirementError(PipenvException):
         )
         if req is not None:
             possible_display_values = [getattr(req, value, None) for value in keys]
-            req_value = next(
-                iter(val for val in possible_display_values if val is not None), None
-            )
+            req_value = next(iter(val for val in possible_display_values if val is not None), None)
             if not req_value:
                 getstate_fn = getattr(req, "__getstate__", None)
                 slots = getattr(req, "__slots__", None)
@@ -347,9 +332,7 @@ class RequirementError(PipenvException):
                 if getstate_fn:
                     req_value = getstate_fn()
                 elif slots:
-                    slot_vals = [
-                        (k, getattr(req, k, None)) for k in slots if getattr(req, k, None)
-                    ]
+                    slot_vals = [(k, getattr(req, k, None)) for k in slots if getattr(req, k, None)]
                     req_value = "\n".join([f"    {k}: {v}" for k, v in slot_vals])
                 elif keys_fn:
                     values = [(k, req.get(k)) for k in keys_fn() if req.get(k)]
@@ -372,9 +355,7 @@ def prettify_exc(error):
     errors = []
     for exc in KNOWN_EXCEPTIONS:
         search_string = exc.match_string if exc.match_string else exc.exception_name
-        split_string = (
-            exc.show_from_string if exc.show_from_string else exc.exception_name
-        )
+        split_string = exc.show_from_string if exc.show_from_string else exc.exception_name
         if search_string in error:
             # for known exceptions with no display rules and no prefix
             # we should simply show nothing

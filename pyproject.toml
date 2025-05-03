@@ -36,10 +36,9 @@ dependencies = [
 ]
 optional-dependencies.dev = [
   "beautifulsoup4",
-  "black==24.3.0",
-  "flake8<4,>=3.3",
   "invoke",
   "parver",
+  "ruff>=0.1.11",
   "sphinx",
   "towncrier",
 ]
@@ -82,36 +81,10 @@ version = { attr = "pipenv.__version__" }
 
 ## TESTING AND DEVELOPER CONFIGURATION BELOW ##
 
-[tool.black]
-line-length = 90
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.eggs
-  | \.git
-  | \.github
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.pyre_configuration
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-  | pipenv/vendor
-  | pipenv/patched
-  | tests/pypi
-  | tests/test_artifacts
-  | get-pipenv.py
-  | pyproject.toml
-)
-'''
-
 [tool.ruff]
-target-version = "py37"
+target-version = "py39"
 
-line-length = 137
+line-length = 120
 exclude = [
   "get-pipenv.py",
   "pipenv/patched/*",
@@ -121,17 +94,23 @@ exclude = [
   "tests/test_artifacts/*",
 ]
 
+format.indent-style = "space"
+# Same as Black.
+format.quote-style = "double"
+format.line-ending = "auto"
+format.skip-magic-trailing-comma = false
+# Enable Pyflakes `E` and `F` codes by default.
 lint.select = [
   "ASYNC",
-  "B",
+  "B",     # Bugbear
   "C4",
   "C90",
-  "E",
-  "F",
-  "FLY",
-  "G",
-  "I",
-  "ISC",
+  "E",     # Pycodestyle
+  "F",     # Pyflakes
+  "FLY",   # Flynt
+  "G",     # flake8-logging-format
+  "I",     # isort
+  "ISC",   # Pylint
   "PERF",
   "PIE",
   "PL",
@@ -146,6 +125,7 @@ lint.ignore = [
   "PLW2901", # `for` loop variable overwritten
   "TID252",  # Relative imports
 ]
+
 lint.per-file-ignores = { "pipenv/cli/command.py" = [
   "F811",
 ], "pipenv/__init__.py" = [

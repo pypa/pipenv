@@ -7,7 +7,7 @@ import tempfile
 import warnings
 from functools import cached_property, lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -136,10 +136,7 @@ class Resolver:
         self._hash_cache = None
 
     def __repr__(self):
-        return (
-            f"<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, "
-            f"sources={self.sources})>"
-        )
+        return f"<Resolver (constraints={self.initial_constraints}, req_dir={self.req_dir}, sources={self.sources})>"
 
     @staticmethod
     @lru_cache
@@ -167,11 +164,11 @@ class Resolver:
     @classmethod
     def create(
         cls,
-        deps: Dict[str, str],
+        deps: dict[str, str],
         project: Project,
-        index_lookup: Dict[str, str] = None,
-        markers_lookup: Dict[str, str] = None,
-        sources: List[str] = None,
+        index_lookup: dict[str, str] = None,
+        markers_lookup: dict[str, str] = None,
+        sources: list[str] = None,
         req_dir: str = None,
         clear: bool = False,
         pre: bool = False,
@@ -204,18 +201,14 @@ class Resolver:
                 pipfile_entry = pipfile_entries.get(package_name)
                 if isinstance(pipfile_entry, dict):
                     if packages[package_name].get("index"):
-                        index_lookup[canonical_package_name] = packages[package_name].get(
-                            "index"
-                        )
+                        index_lookup[canonical_package_name] = packages[package_name].get("index")
                     if packages[package_name].get("skip_resolver"):
                         is_constraint = False
                         skipped[package_name] = dep
                 elif index:
                     index_lookup[canonical_package_name] = index
                 else:
-                    index_lookup[canonical_package_name] = project.get_default_index()[
-                        "name"
-                    ]
+                    index_lookup[canonical_package_name] = project.get_default_index()["name"]
             if install_req.markers:
                 markers_lookup[package_name] = install_req.markers
             if is_constraint:
@@ -270,9 +263,7 @@ class Resolver:
     def pip_args(self):
         use_pep517 = environments.get_from_env("USE_PEP517", prefix="PIP")
         build_isolation = environments.get_from_env("BUILD_ISOLATION", prefix="PIP")
-        return self.prepare_pip_args(
-            use_pep517=use_pep517, build_isolation=build_isolation
-        )
+        return self.prepare_pip_args(use_pep517=use_pep517, build_isolation=build_isolation)
 
     def prepare_constraint_file(self):
         constraint_filename = prepare_constraint_file(
@@ -302,9 +293,7 @@ class Resolver:
         pip_options.no_input = self.project.settings.get("disable_pip_input", True)
         pip_options.progress_bar = "off"
         pip_options.ignore_requires_python = True
-        pip_options.pre = self.pre or self.project.settings.get(
-            "allow_prereleases", False
-        )
+        pip_options.pre = self.pre or self.project.settings.get("allow_prereleases", False)
         return pip_options
 
     @cached_property
@@ -380,9 +369,7 @@ class Resolver:
         )
 
         # Only add default constraints for dev packages if setting allows
-        if self.category != "default" and self.project.settings.get(
-            "use_default_constraints", True
-        ):
+        if self.category != "default" and self.project.settings.get("use_default_constraints", True):
             constraints.extend(self.parsed_default_constraints)
 
         return constraints
@@ -425,9 +412,7 @@ class Resolver:
             constraints_list.add(c)
 
         # Only use default_constraints when installing dev-packages and setting allows
-        if self.category != "default" and self.project.settings.get(
-            "use_default_constraints", True
-        ):
+        if self.category != "default" and self.project.settings.get("use_default_constraints", True):
             constraints_list |= self.default_constraints
 
         return constraints_list
@@ -487,11 +472,7 @@ class Resolver:
         if platform_machine:
             platform_machine = f"platform_machine {platform_machine}"
 
-        combined_markers = [
-            f"({marker})"
-            for marker in (sys_platform, markers, platform_machine)
-            if marker
-        ]
+        combined_markers = [f"({marker})" for marker in (sys_platform, markers, platform_machine) if marker]
 
         return " and ".join(combined_markers).strip()
 
@@ -517,9 +498,7 @@ class Resolver:
             if pipfile_entry and isinstance(pipfile_entry, dict):
                 return self._get_pipfile_markers(pipfile_entry)
         else:
-            markers = self._fold_markers(
-                dependency_tree, comes_from, checked_dependencies
-            )
+            markers = self._fold_markers(dependency_tree, comes_from, checked_dependencies)
             if markers:
                 self.markers_lookup[install_req.name] = markers
             return markers
@@ -539,11 +518,7 @@ class Resolver:
                 comes_from[result.name] = "Pipfile"
 
             # Collect Python requirements from package metadata
-            candidate = (
-                self.finder()
-                .find_best_candidate(result.name, result.specifier)
-                .best_candidate
-            )
+            candidate = self.finder().find_best_candidate(result.name, result.specifier).best_candidate
             if candidate and candidate.link.requires_python:
                 try:
                     marker = marker_from_specifier(candidate.link.requires_python)
@@ -607,9 +582,7 @@ class Resolver:
                     return hashes
 
         # Updated section to use applicable_candidates directly
-        best_candidate_result = self.finder(
-            ignore_compatibility=True
-        ).find_best_candidate(ireq.name, ireq.specifier)
+        best_candidate_result = self.finder(ignore_compatibility=True).find_best_candidate(ireq.name, ireq.specifier)
         if best_candidate_result.applicable_candidates:
             return sorted(
                 {
@@ -632,8 +605,8 @@ class Resolver:
         self,
         req_name: str,
         ireq: InstallRequirement,
-        pipfile_entry: Union[str, Dict[str, Any]],
-    ) -> Tuple[str, Dict[str, Any]]:
+        pipfile_entry: Union[str, dict[str, Any]],
+    ) -> tuple[str, dict[str, Any]]:
         """Clean up skipped requirements with better VCS handling."""
         # Start with pipfile entry if it's a dict, otherwise create new dict
         entry = pipfile_entry.copy() if isinstance(pipfile_entry, dict) else {}
@@ -667,7 +640,7 @@ class Resolver:
 
         return req_name, entry
 
-    def clean_results(self) -> List[Dict[str, Any]]:
+    def clean_results(self) -> list[dict[str, Any]]:
         """Clean all results including both resolved and skipped packages."""
         results = {}
 
@@ -851,17 +824,13 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
-        with console.status(
-            f"Locking {pipfile_category}...", spinner=project.s.PIPENV_SPINNER
-        ) as st:
+        with console.status(f"Locking {pipfile_category}...", spinner=project.s.PIPENV_SPINNER) as st:
             # This conversion is somewhat slow on local and file-type requirements since
             # we now download those requirements / make temporary folders to perform
             # dependency resolution on them, so we are including this step inside the
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
-            deps = convert_deps_to_pip(
-                deps, project.pipfile_sources(), include_index=True
-            )
+            deps = convert_deps_to_pip(deps, project.pipfile_sources(), include_index=True)
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
@@ -877,13 +846,9 @@ def venv_resolve_deps(
                         constraints=deps,
                     )
                     if results:
-                        st.console.print(
-                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                        )
+                        st.console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                 except Exception:
-                    st.console.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                    )
+                    st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
                     raise  # maybe sys.exit(1) here?
             else:  # Default/Production behavior is to use project python's resolver
                 cmd = [
@@ -901,9 +866,7 @@ def venv_resolve_deps(
                     cmd.append(pipfile_category)
                 if project.s.is_verbose():
                     cmd.append("--verbose")
-                target_file = tempfile.NamedTemporaryFile(
-                    prefix="resolver", suffix=".json", delete=False
-                )
+                target_file = tempfile.NamedTemporaryFile(prefix="resolver", suffix=".json", delete=False)
                 target_file.close()
                 cmd.extend(["--write", make_posix(target_file.name)])
 
@@ -928,24 +891,16 @@ def venv_resolve_deps(
                         raise RuntimeError("There was a problem with locking.")
                     if os.path.exists(target_file.name):
                         os.unlink(target_file.name)
-                    st.console.print(
-                        environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                    )
+                    st.console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Success!"))
                     if not project.s.is_verbose() and c.stderr.strip():
-                        err.print(
-                            f"Warning: {c.stderr.strip()}", overflow="ignore", crop=False
-                        )
+                        err.print(f"Warning: {c.stderr.strip()}", overflow="ignore", crop=False)
                 else:
-                    st.console.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                    )
+                    st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
                     err.print(f"Output: {c.stdout.strip()}")
                     err.print(f"Error: {c.stderr.strip()}")
     if lockfile_category not in lockfile:
         lockfile[lockfile_category] = {}
-    return prepare_lockfile(
-        project, results, pipfile, lockfile[lockfile_category], old_lock_data
-    )
+    return prepare_lockfile(project, results, pipfile, lockfile[lockfile_category], old_lock_data)
 
 
 def resolve_deps(

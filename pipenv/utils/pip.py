@@ -1,7 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.utils import err
@@ -20,12 +20,10 @@ def pip_install_deps(
     no_deps=False,
     requirements_dir=None,
     use_pep517=True,
-    extra_pip_args: Optional[List] = None,
+    extra_pip_args: Optional[list] = None,
 ):
     if not allow_global:
-        src_dir = os.getenv(
-            "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
-        )
+        src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location))
     else:
         src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR"))
     if not requirements_dir:
@@ -42,9 +40,7 @@ def pip_install_deps(
         ignore_hash = ignore_hashes or "--hash" not in pip_line
 
         if project.s.is_verbose():
-            err.print(
-                f"Writing supplied requirement line to temporary file: {pip_line!r}"
-            )
+            err.print(f"Writing supplied requirement line to temporary file: {pip_line!r}")
         target = editable_requirements if ignore_hash else standard_requirements
         target.write(pip_line.encode())
         target.write(b"\n")
@@ -79,7 +75,8 @@ def pip_install_deps(
         pip_command.extend(pip_args)
         pip_command.extend(["-r", normalize_path(file.name)])
         if project.s.is_verbose():
-            msg = f"Install Phase: {'Standard Requirements' if file == standard_requirements else 'Editable Requirements'}"
+            req_type = "Standard Requirements" if file == standard_requirements else "Editable Requirements"
+            msg = f"Install Phase: {req_type}"
             err.print(msg, style="bold")
             for pip_line in deps:
                 err.print(f"Preparing Installation of {pip_line!r}", style="bold")
@@ -123,8 +120,8 @@ def get_pip_args(
     no_use_pep517: bool = False,
     no_deps: bool = False,
     src_dir: Optional[str] = None,
-    extra_pip_args: Optional[List] = None,
-) -> List[str]:
+    extra_pip_args: Optional[list] = None,
+) -> list[str]:
     arg_map = {
         "pre": ["--pre"],
         "verbose": ["--verbose"],
