@@ -49,12 +49,8 @@ subcommand_context_no_interspersion["allow_interspersed_args"] = False
 @group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
 @option("--where", is_flag=True, default=False, help="Output project home information.")
 @option("--venv", is_flag=True, default=False, help="Output virtualenv information.")
-@option(
-    "--py", is_flag=True, default=False, help="Output Python interpreter information."
-)
-@option(
-    "--envs", is_flag=True, default=False, help="Output Environment Variable options."
-)
+@option("--py", is_flag=True, default=False, help="Output Python interpreter information.")
+@option("--envs", is_flag=True, default=False, help="Output Environment Variable options.")
 @option("--rm", is_flag=True, default=False, help="Remove the virtualenv.")
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--man", is_flag=True, default=False, help="Display manpage.")
@@ -93,8 +89,7 @@ def cli(
 
     if "PIPENV_COLORBLIND" in os.environ:
         err.print(
-            "PIPENV_COLORBLIND is deprecated, use NO_COLOR"
-            " per https://no-color.org/ instead",
+            "PIPENV_COLORBLIND is deprecated, use NO_COLOR per https://no-color.org/ instead",
         )
 
     if man:
@@ -103,14 +98,10 @@ def cli(
             os.execle(system_which("man"), "man", str(path), os.environ)
             return 0
         else:
-            err.print(
-                "man does not appear to be available on your system.", style="bold yellow"
-            )
+            err.print("man does not appear to be available on your system.", style="bold yellow")
             return 1
     if envs:
-        console.print(
-            "The following environment variables can be set, to do various things:\n"
-        )
+        console.print("The following environment variables can be set, to do various things:\n")
         for key in state.project.__dict__:
             if key.startswith("PIPENV"):
                 console.print(f"  - {key}", style="bold")
@@ -156,16 +147,13 @@ def cli(
             # Abort if --system (or running in a virtualenv).
             if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
                 console.print(
-                    "You are attempting to remove a virtualenv that "
-                    "Pipenv did not create. Aborting.",
+                    "You are attempting to remove a virtualenv that Pipenv did not create. Aborting.",
                     style="red",
                 )
                 ctx.abort()
             if state.project.virtualenv_exists:
                 loc = state.project.virtualenv_location
-                console.print(
-                    f"[bold]Removing virtualenv[/bold] ([green]{loc}[green])..."
-                )
+                console.print(f"[bold]Removing virtualenv[/bold] ([green]{loc}[green])...")
 
                 with console.status("Running..."):
                     # Remove the virtualenv.
@@ -192,7 +180,10 @@ def cli(
 
 
 @cli.command(
-    short_help="Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.",
+    short_help=(
+        "Installs provided packages and adds them to Pipfile, or "
+        "(if no packages are given), installs all packages from Pipfile."
+    ),
     context_settings=subcommand_context,
 )
 @system_option
@@ -226,7 +217,10 @@ def install(state, **kwargs):
 
 
 @cli.command(
-    short_help="Resolves provided packages and adds them to Pipfile, or (if no packages are given), merges results to Pipfile.lock",
+    short_help=(
+        "Resolves provided packages and adds them to Pipfile, or "
+        "(if no packages are given), merges results to Pipfile.lock"
+    ),
     context_settings=subcommand_context,
 )
 @system_option
@@ -368,9 +362,7 @@ def lock(ctx, state, **kwargs):
     default=False,
     help="Always spawn a sub-shell, even if one is already spawned.",
 )
-@option(
-    "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
-)
+@option("--quiet", is_flag=True, help="Quiet standard output, except vulnerability report.")
 @argument("shell_args", nargs=-1)
 @pypi_mirror_option
 @python_option
@@ -430,16 +422,14 @@ def run(state, command, args):
 
 
 @cli.command(
-    short_help="Checks for PyUp Safety security vulnerabilities and against"
-    " PEP 508 markers provided in Pipfile.",
+    short_help="Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.",
     context_settings=subcommand_context,
 )
 @option(
     "--db",
     nargs=1,
     default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
-    help="Path or URL to a PyUp Safety vulnerabilities database."
-    " Default: ENV PIPENV_SAFETY_DB or None.",
+    help="Path or URL to a PyUp Safety vulnerabilities database. Default: ENV PIPENV_SAFETY_DB or None.",
 )
 @option(
     "--ignore",
@@ -459,9 +449,7 @@ def run(state, command, args):
     " vulnerabilities database. Leave blank for scanning against a"
     " database that only updates once a month.",
 )
-@option(
-    "--quiet", is_flag=True, help="Quiet standard output, except vulnerability report."
-)
+@option("--quiet", is_flag=True, help="Quiet standard output, except vulnerability report.")
 @option("--policy-file", default="", help="Define the policy file to be used")
 @option(
     "--exit-code/--continue-on-error",
@@ -476,7 +464,10 @@ def run(state, command, args):
 @option(
     "--project",
     default=None,
-    help="Project to associate this scan with on pyup.io. Defaults to a canonicalized github style name if available, otherwise unknown",
+    help=(
+        "Project to associate this scan with on pyup.io. "
+        "Defaults to a canonicalized github style name if available, otherwise unknown"
+    ),
 )
 @option(
     "--save-json",
@@ -724,9 +715,7 @@ def scripts(state):
     second_column_width = max(len(word) for word in ["Script"] + list(scripts.values()))
     lines = [f"{command:<{first_column_width}}  Script" for command in ["Command"]]
     lines.append(f"{'-' * first_column_width}  {'-' * second_column_width}")
-    lines.extend(
-        f"{name:<{first_column_width}}  {script}" for name, script in scripts.items()
-    )
+    lines.extend(f"{name:<{first_column_width}}  {script}" for name, script in scripts.items())
     console.print("\n".join(line for line in lines))
 
 
@@ -741,9 +730,7 @@ def verify(state):
         err.print("No Pipfile present at project home.")
         sys.exit(1)
     if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
-        err.print(
-            "Pipfile.lock is out-of-date. Run [yellow bold]$ pipenv lock[/yellow bold] to update."
-        )
+        err.print("Pipfile.lock is out-of-date. Run [yellow bold]$ pipenv lock[/yellow bold] to update.")
         sys.exit(1)
     console.print("Pipfile.lock is up-to-date.", style="green")
     sys.exit(0)
@@ -754,9 +741,7 @@ def verify(state):
     context_settings=CONTEXT_SETTINGS,
 )
 @option("--dev", is_flag=True, default=False, help="Also add development requirements.")
-@option(
-    "--dev-only", is_flag=True, default=False, help="Only add development requirements."
-)
+@option("--dev-only", is_flag=True, default=False, help="Only add development requirements.")
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
 @option(

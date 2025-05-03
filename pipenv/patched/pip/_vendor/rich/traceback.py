@@ -26,15 +26,22 @@ from pipenv.patched.pip._vendor.pygments.token import Token
 from pipenv.patched.pip._vendor.pygments.util import ClassNotFound
 
 from . import pretty
-from ._loop import loop_last
+from ._loop import loop_first_last, loop_last
 from .columns import Columns
-from .console import Console, ConsoleOptions, ConsoleRenderable, RenderResult, group
+from .console import (
+    Console,
+    ConsoleOptions,
+    ConsoleRenderable,
+    Group,
+    RenderResult,
+    group,
+)
 from .constrain import Constrain
 from .highlighter import RegexHighlighter, ReprHighlighter
 from .panel import Panel
 from .scope import render_scope
 from .style import Style
-from .syntax import Syntax
+from .syntax import Syntax, SyntaxPosition
 from .text import Text
 from .theme import Theme
 
@@ -42,6 +49,34 @@ WINDOWS = sys.platform == "win32"
 
 LOCALS_MAX_LENGTH = 10
 LOCALS_MAX_STRING = 80
+
+
+def _iter_syntax_lines(
+    start: SyntaxPosition, end: SyntaxPosition
+) -> Iterable[Tuple[int, int, int]]:
+    """Yield start and end positions per line.
+
+    Args:
+        start: Start position.
+        end: End position.
+
+    Returns:
+        Iterable of (LINE, COLUMN1, COLUMN2).
+    """
+
+    line1, column1 = start
+    line2, column2 = end
+
+    if line1 == line2:
+        yield line1, column1, column2
+    else:
+        for first, last, line_no in loop_first_last(range(line1, line2 + 1)):
+            if first:
+                yield line_no, column1, -1
+            elif last:
+                yield line_no, 0, column2
+            else:
+                yield line_no, 0, -1
 
 
 def install(
@@ -100,26 +135,25 @@ def install(
         value: BaseException,
         traceback: Optional[TracebackType],
     ) -> None:
-        traceback_console.print(
-            Traceback.from_exception(
-                type_,
-                value,
-                traceback,
-                width=width,
-                code_width=code_width,
-                extra_lines=extra_lines,
-                theme=theme,
-                word_wrap=word_wrap,
-                show_locals=show_locals,
-                locals_max_length=locals_max_length,
-                locals_max_string=locals_max_string,
-                locals_hide_dunder=locals_hide_dunder,
-                locals_hide_sunder=bool(locals_hide_sunder),
-                indent_guides=indent_guides,
-                suppress=suppress,
-                max_frames=max_frames,
-            )
+        exception_traceback = Traceback.from_exception(
+            type_,
+            value,
+            traceback,
+            width=width,
+            code_width=code_width,
+            extra_lines=extra_lines,
+            theme=theme,
+            word_wrap=word_wrap,
+            show_locals=show_locals,
+            locals_max_length=locals_max_length,
+            locals_max_string=locals_max_string,
+            locals_hide_dunder=locals_hide_dunder,
+            locals_hide_sunder=bool(locals_hide_sunder),
+            indent_guides=indent_guides,
+            suppress=suppress,
+            max_frames=max_frames,
         )
+        traceback_console.print(exception_traceback)
 
     def ipy_excepthook_closure(ip: Any) -> None:  # pragma: no cover
         tb_data = {}  # store information about showtraceback call
@@ -191,6 +225,7 @@ class _SyntaxError:
     line: str
     lineno: int
     msg: str
+    notes: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -200,6 +235,9 @@ class Stack:
     syntax_error: Optional[_SyntaxError] = None
     is_cause: bool = False
     frames: List[Frame] = field(default_factory=list)
+    notes: List[str] = field(default_factory=list)
+    is_group: bool = False
+    exceptions: List["Trace"] = field(default_factory=list)
 
 
 @dataclass
@@ -403,6 +441,8 @@ class Traceback:
 
         from pipenv.patched.pip._vendor.rich import _IMPORT_CWD
 
+        notes: List[str] = getattr(exc_value, "__notes__", None) or []
+
         def safe_str(_object: Any) -> str:
             """Don't allow exceptions from __str__ to propagate."""
             try:
@@ -415,7 +455,24 @@ class Traceback:
                 exc_type=safe_str(exc_type.__name__),
                 exc_value=safe_str(exc_value),
                 is_cause=is_cause,
+                notes=notes,
             )
+
+            if sys.version_info >= (3, 11):
+                if isinstance(exc_value, (BaseExceptionGroup, ExceptionGroup)):
+                    stack.is_group = True
+                    for exception in exc_value.exceptions:
+                        stack.exceptions.append(
+                            Traceback.extract(
+                                type(exception),
+                                exception,
+                                exception.__traceback__,
+                                show_locals=show_locals,
+                                locals_max_length=locals_max_length,
+                                locals_hide_dunder=locals_hide_dunder,
+                                locals_hide_sunder=locals_hide_sunder,
+                            )
+                        )
 
             if isinstance(exc_value, SyntaxError):
                 stack.syntax_error = _SyntaxError(
@@ -424,13 +481,14 @@ class Traceback:
                     lineno=exc_value.lineno or 0,
                     line=exc_value.text or "",
                     msg=exc_value.msg,
+                    notes=notes,
                 )
 
             stacks.append(stack)
             append = stack.frames.append
 
             def get_locals(
-                iter_locals: Iterable[Tuple[str, object]]
+                iter_locals: Iterable[Tuple[str, object]],
             ) -> Iterable[Tuple[str, object]]:
                 """Extract locals from an iterator of key pairs."""
                 if not (locals_hide_dunder or locals_hide_sunder):
@@ -524,6 +582,7 @@ class Traceback:
             break  # pragma: no cover
 
         trace = Trace(stacks=stacks)
+
         return trace
 
     def __rich_console__(
@@ -556,7 +615,9 @@ class Traceback:
         )
 
         highlighter = ReprHighlighter()
-        for last, stack in loop_last(reversed(self.trace.stacks)):
+
+        @group()
+        def render_stack(stack: Stack, last: bool) -> RenderResult:
             if stack.frames:
                 stack_renderable: ConsoleRenderable = Panel(
                     self._render_stack(stack),
@@ -569,6 +630,7 @@ class Traceback:
                 stack_renderable = Constrain(stack_renderable, self.width)
                 with console.use_theme(traceback_theme):
                     yield stack_renderable
+
             if stack.syntax_error is not None:
                 with console.use_theme(traceback_theme):
                     yield Constrain(
@@ -594,6 +656,24 @@ class Traceback:
             else:
                 yield Text.assemble((f"{stack.exc_type}", "traceback.exc_type"))
 
+            for note in stack.notes:
+                yield Text.assemble(("[NOTE] ", "traceback.note"), highlighter(note))
+
+            if stack.is_group:
+                for group_no, group_exception in enumerate(stack.exceptions, 1):
+                    grouped_exceptions: List[Group] = []
+                    for group_last, group_stack in loop_last(group_exception.stacks):
+                        grouped_exceptions.append(render_stack(group_stack, group_last))
+                    yield ""
+                    yield Constrain(
+                        Panel(
+                            Group(*grouped_exceptions),
+                            title=f"Sub-exception #{group_no}",
+                            border_style="traceback.group.border",
+                        ),
+                        self.width,
+                    )
+
             if not last:
                 if stack.is_cause:
                     yield Text.from_markup(
@@ -603,6 +683,9 @@ class Traceback:
                     yield Text.from_markup(
                         "\n[i]During handling of the above exception, another exception occurred:\n",
                     )
+
+        for last, stack in loop_last(reversed(self.trace.stacks)):
+            yield render_stack(stack, last)
 
     @group()
     def _render_syntax_error(self, syntax_error: _SyntaxError) -> RenderResult:
@@ -647,17 +730,6 @@ class Traceback:
     def _render_stack(self, stack: Stack) -> RenderResult:
         path_highlighter = PathHighlighter()
         theme = self.theme
-
-        def read_code(filename: str) -> str:
-            """Read files, and cache results on filename.
-
-            Args:
-                filename (str): Filename to read
-
-            Returns:
-                str: Contents of file
-            """
-            return "".join(linecache.getlines(filename))
 
         def render_locals(frame: Frame) -> Iterable[ConsoleRenderable]:
             if frame.locals:
@@ -720,7 +792,8 @@ class Traceback:
                 continue
             if not suppressed:
                 try:
-                    code = read_code(frame.filename)
+                    code_lines = linecache.getlines(frame.filename)
+                    code = "".join(code_lines)
                     if not code:
                         # code may be an empty string if the file doesn't exist, OR
                         # if the traceback filename is generated dynamically
@@ -749,12 +822,26 @@ class Traceback:
                 else:
                     if frame.last_instruction is not None:
                         start, end = frame.last_instruction
-                        syntax.stylize_range(
-                            style="traceback.error_range",
-                            start=start,
-                            end=end,
-                            style_before=True,
-                        )
+
+                        # Stylize a line at a time
+                        # So that indentation isn't underlined (which looks bad)
+                        for line1, column1, column2 in _iter_syntax_lines(start, end):
+                            try:
+                                if column1 == 0:
+                                    line = code_lines[line1 - 1]
+                                    column1 = len(line) - len(line.lstrip())
+                                if column2 == -1:
+                                    column2 = len(code_lines[line1 - 1])
+                            except IndexError:
+                                # Being defensive here
+                                # If last_instruction reports a line out-of-bounds, we don't want to crash
+                                continue
+
+                            syntax.stylize_range(
+                                style="traceback.error_range",
+                                start=(line1, column1),
+                                end=(line1, column2),
+                            )
                     yield (
                         Columns(
                             [

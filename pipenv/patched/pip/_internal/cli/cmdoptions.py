@@ -13,6 +13,7 @@ pass on state. To be consistent, all options will follow this design.
 import importlib.util
 import logging
 import os
+import pathlib
 import textwrap
 from functools import partial
 from optparse import SUPPRESS_HELP, Option, OptionGroup, OptionParser, Values
@@ -280,8 +281,17 @@ retries: Callable[..., Option] = partial(
     dest="retries",
     type="int",
     default=5,
-    help="Maximum number of retries each connection should attempt "
-    "(default %default times).",
+    help="Maximum attempts to establish a new HTTP connection. (default: %default)",
+)
+
+resume_retries: Callable[..., Option] = partial(
+    Option,
+    "--resume-retries",
+    dest="resume_retries",
+    type="int",
+    default=0,
+    help="Maximum attempts to resume or restart an incomplete download. "
+    "(default: %default)",
 )
 
 timeout: Callable[..., Option] = partial(
@@ -733,6 +743,46 @@ no_deps: Callable[..., Option] = partial(
     help="Don't install package dependencies.",
 )
 
+
+def _handle_dependency_group(
+    option: Option, opt: str, value: str, parser: OptionParser
+) -> None:
+    """
+    Process a value provided for the --group option.
+
+    Splits on the rightmost ":", and validates that the path (if present) ends
+    in `pyproject.toml`. Defaults the path to `pyproject.toml` when one is not given.
+
+    `:` cannot appear in dependency group names, so this is a safe and simple parse.
+
+    This is an optparse.Option callback for the dependency_groups option.
+    """
+    path, sep, groupname = value.rpartition(":")
+    if not sep:
+        path = "pyproject.toml"
+    else:
+        # check for 'pyproject.toml' filenames using pathlib
+        if pathlib.PurePath(path).name != "pyproject.toml":
+            msg = "group paths use 'pyproject.toml' filenames"
+            raise_option_error(parser, option=option, msg=msg)
+
+    parser.values.dependency_groups.append((path, groupname))
+
+
+dependency_groups: Callable[..., Option] = partial(
+    Option,
+    "--group",
+    dest="dependency_groups",
+    default=[],
+    type=str,
+    action="callback",
+    callback=_handle_dependency_group,
+    metavar="[path:]group",
+    help='Install a named dependency-group from a "pyproject.toml" file. '
+    'If a path is given, the name of the file must be "pyproject.toml". '
+    'Defaults to using "pyproject.toml" in the current directory.',
+)
+
 ignore_requires_python: Callable[..., Option] = partial(
     Option,
     "--ignore-requires-python",
@@ -783,9 +833,9 @@ def _handle_no_use_pep517(
         """
         raise_option_error(parser, option=option, msg=msg)
 
-    # If user doesn't wish to use pep517, we check if setuptools and wheel are installed
+    # If user doesn't wish to use pep517, we check if setuptools is installed
     # and raise error if it is not.
-    packages = ("setuptools", "wheel")
+    packages = ("setuptools",)
     if not all(importlib.util.find_spec(package) for package in packages):
         msg = (
             f"It is not possible to use --no-use-pep517 "
@@ -885,6 +935,14 @@ pre: Callable[..., Option] = partial(
     default=False,
     help="Include pre-release and development versions. By default, "
     "pip only finds stable versions.",
+)
+
+json: Callable[..., Option] = partial(
+    Option,
+    "--json",
+    action="store_true",
+    default=False,
+    help="Output data in a machine-readable JSON format.",
 )
 
 disable_pip_version_check: Callable[..., Option] = partial(
@@ -990,7 +1048,7 @@ no_python_version_warning: Callable[..., Option] = partial(
     dest="no_python_version_warning",
     action="store_true",
     default=False,
-    help="Silence deprecation warnings for upcoming unsupported Pythons.",
+    help=SUPPRESS_HELP,  # No-op, a hold-over from the Python 2->3 transition.
 )
 
 
@@ -1028,7 +1086,6 @@ use_deprecated_feature: Callable[..., Option] = partial(
     help=("Enable deprecated functionality, that will be removed in the future."),
 )
 
-
 ##########
 # groups #
 ##########
@@ -1061,6 +1118,7 @@ general_group: Dict[str, Any] = {
         no_python_version_warning,
         use_new_feature,
         use_deprecated_feature,
+        resume_retries,
     ],
 }
 

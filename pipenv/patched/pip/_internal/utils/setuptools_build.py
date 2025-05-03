@@ -17,16 +17,17 @@ _SETUPTOOLS_SHIM = textwrap.dedent(
     #   setuptools doesn't think the script is `-c`. This avoids the following warning:
     #     manifest_maker: standard file '-c' not found".
     # - It generates a shim setup.py, for handling setup.cfg-only projects.
-    import os, sys, tokenize
+    import os, sys, tokenize, traceback
 
     try:
         import setuptools
-    except ImportError as error:
+    except ImportError:
         print(
-            "ERROR: Can not execute `setup.py` since setuptools is not available in "
-            "the build environment.",
+            "ERROR: Can not execute `setup.py` since setuptools failed to import in "
+            "the build environment with exception:",
             file=sys.stderr,
         )
+        traceback.print_exc()
         sys.exit(1)
 
     __file__ = %r

@@ -22,7 +22,7 @@ pip-checkout-dir = $(get_checkout_dir)/patch-pip
 PY ?= python
 
 format:
-	black pipenv/*.py
+	ruff format .
 
 .PHONY: install
 install:
@@ -112,7 +112,8 @@ pre-bump:
 
 .PHONY: lint
 lint:
-	ruff .
+	ruff check .
+	ruff format .
 
 man:
 	$(MAKE) -C docs $@

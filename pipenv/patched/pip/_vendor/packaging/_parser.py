@@ -349,6 +349,5 @@ def _parse_marker_op(tokenizer: Tokenizer) -> Op:
         return Op(tokenizer.read().text)
     else:
         return tokenizer.raise_syntax_error(
-            "Expected marker operator, one of "
-            "<=, <, !=, ==, >=, >, ~=, ===, in, not in"
+            "Expected marker operator, one of <=, <, !=, ==, >=, >, ~=, ===, in, not in"
         )

@@ -5,11 +5,12 @@ import os
 from typing import TYPE_CHECKING, Dict, List, Optional, Set, Tuple, cast
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.patched.pip._vendor.resolvelib import BaseReporter, ResolutionImpossible
+from pipenv.patched.pip._vendor.resolvelib import BaseReporter, ResolutionImpossible, ResolutionTooDeep
 from pipenv.patched.pip._vendor.resolvelib import Resolver as RLResolver
 from pipenv.patched.pip._vendor.resolvelib.structs import DirectedGraph
 
 from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.exceptions import ResolutionTooDeepError
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
 from pipenv.patched.pip._internal.req.constructors import install_req_extend_extras
@@ -82,7 +83,7 @@ class Resolver(BaseResolver):
             user_requested=collected.user_requested,
         )
         if "PIP_RESOLVER_DEBUG" in os.environ:
-            reporter: BaseReporter = PipDebuggingReporter()
+            reporter: BaseReporter[Requirement, Candidate, str] = PipDebuggingReporter()
         else:
             reporter = PipReporter()
         resolver: RLResolver[Requirement, Candidate, str] = RLResolver(
@@ -102,6 +103,8 @@ class Resolver(BaseResolver):
                 collected.constraints,
             )
             raise error from e
+        except ResolutionTooDeep:
+            raise ResolutionTooDeepError from None
 
         req_set = RequirementSet(check_supported_wheels=check_supported_wheels)
         # process candidates with extras last to ensure their base equivalent is

@@ -1,5 +1,4 @@
-"""Primary application entrypoint.
-"""
+"""Primary application entrypoint."""
 
 import locale
 import logging

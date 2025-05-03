@@ -2,16 +2,12 @@ import contextlib
 import functools
 import os
 import sys
-from typing import TYPE_CHECKING, List, Optional, Type, cast
+from typing import List, Literal, Optional, Protocol, Type, cast
 
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
 from pipenv.patched.pip._internal.utils.misc import strtobool
 
 from .base import BaseDistribution, BaseEnvironment, FilesystemWheel, MemoryWheel, Wheel
-
-if TYPE_CHECKING:
-    from typing import Literal, Protocol
-else:
-    Protocol = object
 
 __all__ = [
     "BaseDistribution",
@@ -30,23 +26,58 @@ def _should_use_importlib_metadata() -> bool:
     """Whether to use the ``importlib.metadata`` or ``pkg_resources`` backend.
 
     By default, pip uses ``importlib.metadata`` on Python 3.11+, and
-    ``pkg_resources`` otherwise. This can be overridden by a couple of ways:
+    ``pkg_resources`` otherwise. Up to Python 3.13, This can be
+    overridden by a couple of ways:
 
     * If environment variable ``_PIP_USE_IMPORTLIB_METADATA`` is set, it
-      dictates whether ``importlib.metadata`` is used, regardless of Python
-      version.
-    * On Python 3.11+, Python distributors can patch ``importlib.metadata``
-      to add a global constant ``_PIP_USE_IMPORTLIB_METADATA = False``. This
-      makes pip use ``pkg_resources`` (unless the user set the aforementioned
-      environment variable to *True*).
+      dictates whether ``importlib.metadata`` is used, for Python <3.14.
+    * On Python 3.11, 3.12 and 3.13, Python distributors can patch
+      ``importlib.metadata`` to add a global constant
+      ``_PIP_USE_IMPORTLIB_METADATA = False``. This makes pip use
+      ``pkg_resources`` (unless the user set the aforementioned environment
+      variable to *True*).
+
+    On Python 3.14+, the ``pkg_resources`` backend cannot be used.
     """
+    if sys.version_info >= (3, 14):
+        # On Python >=3.14 we only support importlib.metadata.
+        return True
     with contextlib.suppress(KeyError, ValueError):
+        # On Python <3.14, if the environment variable is set, we obey what it says.
         return bool(strtobool(os.environ["_PIP_USE_IMPORTLIB_METADATA"]))
     if sys.version_info < (3, 11):
+        # On Python <3.11, we always use pkg_resources, unless the environment
+        # variable was set.
         return False
+    # On Python 3.11, 3.12 and 3.13, we check if the global constant is set.
     import importlib.metadata
 
     return bool(getattr(importlib.metadata, "_PIP_USE_IMPORTLIB_METADATA", True))
+
+
+def _emit_pkg_resources_deprecation_if_needed() -> None:
+    if sys.version_info < (3, 11):
+        # All pip versions supporting Python<=3.11 will support pkg_resources,
+        # and pkg_resources is the default for these, so let's not bother users.
+        return
+
+    import importlib.metadata
+
+    if hasattr(importlib.metadata, "_PIP_USE_IMPORTLIB_METADATA"):
+        # The Python distributor has set the global constant, so we don't
+        # warn, since it is not a user decision.
+        return
+
+    # The user has decided to use pkg_resources, so we warn.
+    deprecated(
+        reason="Using the pkg_resources metadata backend is deprecated.",
+        replacement=(
+            "to use the default importlib.metadata backend, "
+            "by unsetting the _PIP_USE_IMPORTLIB_METADATA environment variable"
+        ),
+        gone_in="26.3",
+        issue=13317,
+    )
 
 
 class Backend(Protocol):
@@ -61,6 +92,9 @@ def select_backend() -> Backend:
         from . import importlib
 
         return cast(Backend, importlib)
+
+    _emit_pkg_resources_deprecation_if_needed()
+
     from . import pkg_resources
 
     return cast(Backend, pkg_resources)

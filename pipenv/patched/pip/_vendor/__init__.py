@@ -60,6 +60,7 @@ if DEBUNDLED:
     # Actually alias all of our vendored dependencies.
     vendored("cachecontrol")
     vendored("certifi")
+    vendored("dependency-groups")
     vendored("distlib")
     vendored("distro")
     vendored("packaging")

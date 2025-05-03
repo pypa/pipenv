@@ -6,9 +6,12 @@ import os
 import sys
 from configparser import ConfigParser
 from pathlib import Path
-from typing import Iterator, NoReturn
+from typing import TYPE_CHECKING, NoReturn
 
 from .api import PlatformDirsABC
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 if sys.platform == "win32":
 

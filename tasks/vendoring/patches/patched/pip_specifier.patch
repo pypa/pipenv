@@ -1,0 +1,24 @@
+diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
+index d976026ac..49706667c 100644
+--- a/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
++++ b/pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py
+@@ -3,6 +3,7 @@ import sys
+ from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
+
+ from pip._vendor.packaging.requirements import InvalidRequirement
++from pip._vendor.packaging.specifiers import SpecifierSet
+ from pip._vendor.packaging.utils import NormalizedName, canonicalize_name
+ from pip._vendor.packaging.version import Version
+
+@@ -257,7 +258,10 @@ class _InstallRequirementBackedCandidate(Candidate):
+             yield from self._factory.make_requirements_from_spec(str(r), self._ireq)
+
+     def get_install_requirement(self) -> Optional[InstallRequirement]:
+-        return self._ireq
++        ireq = self._ireq
++        if self._version and ireq.req and not ireq.req.url:
++            ireq.req.specifier = SpecifierSet(f"=={self._version}")
++        return ireq
+
+
+ class LinkCandidate(_InstallRequirementBackedCandidate):

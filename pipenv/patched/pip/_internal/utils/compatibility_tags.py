@@ -1,5 +1,4 @@
-"""Generate and work with PEP 425 Compatibility Tags.
-"""
+"""Generate and work with PEP 425 Compatibility Tags."""
 
 import re
 from typing import List, Optional, Tuple
@@ -7,6 +6,7 @@ from typing import List, Optional, Tuple
 from pipenv.patched.pip._vendor.packaging.tags import (
     PythonVersion,
     Tag,
+    android_platforms,
     compatible_tags,
     cpython_tags,
     generic_tags,
@@ -64,6 +64,16 @@ def _ios_platforms(arch: str) -> List[str]:
     return arches
 
 
+def _android_platforms(arch: str) -> List[str]:
+    match = re.fullmatch(r"android_(\d+)_(.+)", arch)
+    if match:
+        api_level, abi = match.groups()
+        return list(android_platforms(int(api_level), abi))
+    else:
+        # arch pattern didn't match (?!)
+        return [arch]
+
+
 def _custom_manylinux_platforms(arch: str) -> List[str]:
     arches = [arch]
     arch_prefix, arch_sep, arch_suffix = arch.partition("_")
@@ -91,6 +101,8 @@ def _get_custom_platforms(arch: str) -> List[str]:
         arches = _mac_platforms(arch)
     elif arch.startswith("ios"):
         arches = _ios_platforms(arch)
+    elif arch_prefix == "android":
+        arches = _android_platforms(arch)
     elif arch_prefix in ["manylinux2014", "manylinux2010"]:
         arches = _custom_manylinux_platforms(arch)
     else:

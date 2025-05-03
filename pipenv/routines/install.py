@@ -43,7 +43,6 @@ def handle_new_packages(
 
     new_packages = []
     if packages or editable_packages:
-
         pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
 
         for pkg_line in pkg_list:
@@ -55,9 +54,7 @@ def handle_new_packages(
                         del os.environ["PYTHONHOME"]
 
                 try:
-                    pkg_requirement, _ = expansive_install_req_from_line(
-                        pkg_line, expand_env=True
-                    )
+                    pkg_requirement, _ = expansive_install_req_from_line(pkg_line, expand_env=True)
                     if index:
                         source = project.get_index_by_name(index)
                         default_index = project.get_default_index()["name"]
@@ -69,11 +66,7 @@ def handle_new_packages(
                             pkg_requirement.index = source["name"]
                 except ValueError as e:
                     err.print(f"[red]WARNING[/red]: {e}")
-                    err.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                            "Installation Failed"
-                        )
-                    )
+                    err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Installation Failed"))
                     sys.exit(1)
 
                 try:
@@ -85,24 +78,16 @@ def handle_new_packages(
                             if added:
                                 new_packages.append((normalized_name, cat))
                     else:
-                        added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, pkg_line, dev
-                        )
+                        added, cat, normalized_name = project.add_package_to_pipfile(pkg_requirement, pkg_line, dev)
                         if added:
                             new_packages.append((normalized_name, cat))
                 except ValueError:
                     import traceback
 
                     err.print(f"[bold][red]Error:[/red][/bold] {traceback.format_exc()}")
-                    err.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                            "Failed adding package to Pipfile"
-                        )
-                    )
+                    err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed adding package to Pipfile"))
 
-                console.print(
-                    environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded")
-                )
+                console.print(environments.PIPENV_SPINNER_OK_TEXT.format("Installation Succeeded"))
 
         # Update project settings with pre-release preference.
         if pre:
@@ -144,11 +129,7 @@ def handle_lockfile(
     categories,
 ):
     """Handle the lockfile, updating if necessary.  Returns True if package updates were applied."""
-    if (
-        (project.lockfile_exists and not ignore_pipfile)
-        and not skip_lock
-        and not packages
-    ):
+    if (project.lockfile_exists and not ignore_pipfile) and not skip_lock and not packages:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
@@ -197,9 +178,7 @@ def handle_outdated_lockfile(
         )
     else:
         if old_hash:
-            msg = (
-                "Pipfile.lock ({0}) out of date: run `pipenv lock` to update to ({1})..."
-            )
+            msg = "Pipfile.lock ({0}) out of date: run `pipenv lock` to update to ({1})..."
         else:
             msg = "Pipfile.lock is corrupt, replaced with ({1})..."
         err.print(
@@ -257,9 +236,7 @@ def do_install(
     pipfile_categories=None,
     skip_lock=False,
 ):
-    requirements_directory = fileutils.create_tracked_tempdir(
-        suffix="-requirements", prefix="pipenv-"
-    )
+    requirements_directory = fileutils.create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
     warnings.filterwarnings("ignore", category=ResourceWarning)
     packages = packages if packages else []
     editable_packages = editable_packages if editable_packages else []
@@ -368,13 +345,9 @@ def do_install_validations(
         pre = project.settings.get("allow_prereleases")
     remote = requirementstxt and is_valid_url(requirementstxt)
     if "default" in categories:
-        raise exceptions.PipenvUsageError(
-            message="Cannot install to category `default`-- did you mean `packages`?"
-        )
+        raise exceptions.PipenvUsageError(message="Cannot install to category `default`-- did you mean `packages`?")
     if "develop" in categories:
-        raise exceptions.PipenvUsageError(
-            message="Cannot install to category `develop`-- did you mean `dev-packages`?"
-        )
+        raise exceptions.PipenvUsageError(message="Cannot install to category `develop`-- did you mean `dev-packages`?")
     # Warn and exit if --system is used without a pipfile.
     if (system and package_args) and not project.s.PIPENV_VIRTUALENV:
         raise exceptions.SystemUsageError
@@ -390,9 +363,7 @@ def do_install_validations(
             "Remote requirements file provided! Downloading...",
             style="bold",
         )
-        fd = NamedTemporaryFile(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
-        )
+        fd = NamedTemporaryFile(prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory)
         temp_reqs = fd.name
         requirements_url = requirementstxt
         # Download requirements file
@@ -475,9 +446,7 @@ def do_install_dependencies(
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not bare:
-                lockfile_category = get_lockfile_section_using_pipfile_category(
-                    pipfile_category
-                )
+                lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
                 console.print(
                     f"Installing dependencies from Pipfile.lock [{lockfile_category}]"
                     f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
@@ -486,9 +455,7 @@ def do_install_dependencies(
         if skip_lock:
             deps_list = []
             for req_name, pipfile_entry in pipfile.items():
-                install_req, markers, req_line = install_req_from_pipfile(
-                    req_name, pipfile_entry
-                )
+                install_req, markers, req_line = install_req_from_pipfile(req_name, pipfile_entry)
                 deps_list.append(
                     (
                         install_req,
@@ -496,22 +463,10 @@ def do_install_dependencies(
                     )
                 )
         else:
-            lockfile_category = get_lockfile_section_using_pipfile_category(
-                pipfile_category
-            )
-            deps_list = list(
-                lockfile.get_requirements(
-                    dev=dev, only=False, categories=[lockfile_category]
-                )
-            )
-        editable_or_vcs_deps = [
-            (dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)
-        ]
-        normal_deps = [
-            (dep, pip_line)
-            for dep, pip_line in deps_list
-            if not (dep.link and dep.editable)
-        ]
+            lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
+            deps_list = list(lockfile.get_requirements(dev=dev, only=False, categories=[lockfile_category]))
+        editable_or_vcs_deps = [(dep, pip_line) for dep, pip_line in deps_list if (dep.link and dep.editable)]
+        normal_deps = [(dep, pip_line) for dep, pip_line in deps_list if not (dep.link and dep.editable)]
 
         install_kwargs = {
             "no_deps": not skip_lock,
@@ -524,9 +479,7 @@ def do_install_dependencies(
         if skip_lock:
             lockfile_section = pipfile
         else:
-            lockfile_category = get_lockfile_section_using_pipfile_category(
-                pipfile_category
-            )
+            lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
             lockfile_section = lockfile[lockfile_category]
         batch_install(
             project,
@@ -594,9 +547,7 @@ def batch_install(
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     deps_to_install = [
-        (dep, pip_line)
-        for dep, pip_line in deps_to_install
-        if not project.environment.is_satisfied(dep)
+        (dep, pip_line) for dep, pip_line in deps_to_install if not project.environment.is_satisfied(dep)
     ]
     search_all_sources = project.settings.get("install_search_all_sources", False)
     sources = get_source_list(
