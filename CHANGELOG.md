@@ -1,3 +1,118 @@
+2025.0.1 (2025-05-02)
+=====================
+2025.0.2 2025.0.1 (2025-05-02)
+==============================
+
+
+Bug Fixes
+---------
+
+- Cleanup unused dependencies when upgrading packages.  `#6386 <https://github.com/pypa/pipenv/issues/6386>`_
+- Fix for ``UnboundLocalError`` in ``ensure_python`` when ``SESSION_IS_INTERACTIVE=False``, using pyenv, and python version in Pipfile not available.  `#6389 <https://github.com/pypa/pipenv/issues/6389>`_
+
+
+2025.0.1 (2025-04-24)
+=====================
+Pipenv 2025.0.1 (2025-04-24)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix for broken import requirements in ``2025.0.0``  `#6385 <https://github.com/pypa/pipenv/issues/6385>`_
+
+
+
+2025.0.0 (2025-04-24)
+=====================
+Pipenv 2025.0.0 (2025-04-24)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- # Refactor pythonfinder for improved efficiency and PEP 514 support
+
+  ## Summary
+  This PR completely refactors the pythonfinder module to improve efficiency, reduce logical errors, and fix support for PEP 514 (Python registration in the Windows registry). The refactoring replaces the complex object hierarchy with a more modular, composition-based approach that is easier to maintain and extend.
+
+  ## Motivation
+  The original pythonfinder implementation had several issues:
+  * Complex object wrapping with paths as objects, leading to excessive recursion
+  * Tight coupling between classes making the code difficult to follow and maintain
+  * Broken Windows registry support (PEP 514)
+  * Performance issues due to redundant path scanning and inefficient caching
+
+  ## Changes
+  * **Architecture**: Replaced inheritance-heavy design with a composition-based approach using specialized finders
+  * **Data Model**: Simplified the data model with a clean ``PythonInfo`` dataclass
+  * **Windows Support**: Implemented proper PEP 514 support for Windows registry
+  * **Performance**: Improved caching and reduced redundant operations
+  * **Error Handling**: Added more specific exceptions and better error handling
+
+  ## Features
+  The refactored implementation continues to support all required features:
+  * System and user PATH searches
+  * pyenv installations
+  * asdf installations
+  * Windows registry (PEP 514) - now working correctly  `#6360 <https://github.com/pypa/pipenv/issues/6360>`_
+- Almost finished with conversion off click echo/secho to rich console outputs.  `#6366 <https://github.com/pypa/pipenv/issues/6366>`_
+- Make safety an optional dependency via extras
+
+  - Removed vendored safety package from pipenv/patched
+  - Added safety as an optional dependency via pipenv[safety]
+  - Modified check.py to prompt for safety installation if not present
+  - Safety installation will not modify user's Pipfile or lockfile  `#safety-extras <https://github.com/pypa/pipenv/issues/safety-extras>`_
+
+Bug Fixes
+---------
+
+- Fix launching PowerShell on UNC paths  `#6322 <https://github.com/pypa/pipenv/issues/6322>`_
+- Check if we need to upgrade a package in more than one category.  `#6361 <https://github.com/pypa/pipenv/issues/6361>`_
+- Fix issue with default constraints not applying to other package categories.  `#6364 <https://github.com/pypa/pipenv/issues/6364>`_
+- Fix for parsing and using the star specifier in install and update/upgrade commands.  `#6378 <https://github.com/pypa/pipenv/issues/6378>`_
+- Fixed KeyError when installing packages with invalid Python version specifiers in their metadata.  `#6380 <https://github.com/pypa/pipenv/issues/6380>`_
+- Fixed an issue with installing local packages that have spaces in their path names.  `#6381 <https://github.com/pypa/pipenv/issues/6381>`_
+- # Improved virtualenv scripts path resolution
+
+  ## Summary
+
+  This PR refactors the logic for determining virtual environment script paths
+  by leveraging ``sysconfig``'s built-in mechanisms. By removing
+  platform-dependent logic, ``pipenv`` now offers enhanced compatibility with
+  POSIX-like environments, including Cygwin and MinGW. The fix also mitigates
+  execution inconsistencies in non-native Windows environments, improving
+  portability across platforms.
+
+  ## Motivation
+
+  The original logic for determining the scripts path was unable to handle the
+  deviations of MSYS2 MinGW CPython identifying as ``nt`` platform, yet using a
+  POSIX ``{base}/bin`` path, instead of ``{base}/Scripts``.
+
+  ## Changes
+
+  Removed custom logic for determining virtualenv scripts path in favor of
+  retrieving the basename of the path string returned by
+  ``sysconfig.get_path('scripts')```.  `#6737 <https://github.com/pypa/pipenv/issues/6737>`_
+- Update ``check`` command to support the new ``scan`` functionality
+  ---------------------------------------------------------------
+
+  The ``check`` command has been deprecated and will be unsupported beyond June 1, 2025.
+  Instead of adding a separate ``scan`` command, we've updated the ``check`` command to include a ``--scan`` option.
+
+  Key changes:
+  - Added a ``--scan`` option to the ``check`` command to use the new scan functionality
+  - Added a deprecation warning explaining that in future versions, ``check`` will run the scan command by default
+  - Better temporary file handling using the ``tempfile`` module to ensure proper cleanup
+  - More robust error handling
+
+  Users are encouraged to start using the ``--scan`` option with the ``check`` command to prepare for the future change.
+  This option requires users to obtain and configure an API key from https://pyup.io.  `#safety-command <https://github.com/pypa/pipenv/issues/safety-command>`_
+
+
 2024.4.0 (2025-01-22)
 =====================
 Pipenv 2024.4.0 (2025-01-22)
@@ -16,9 +131,9 @@ Vendored Libraries
 ------------------
 
 - Remove click.echo from exceptions.py  `#6216 <https://github.com/pypa/pipenv/issues/6216>`_
-2024.2.0 (2024-11-05)
+2024.4.0 (2024-11-05)
 =====================
-Pipenv 2024.2.0 (2024-11-05)
+Pipenv 2024.4.0 (2024-11-05)
 ============================
 
 

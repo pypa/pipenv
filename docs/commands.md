@@ -304,31 +304,9 @@ $ pipenv check --output json
 | `--use-installed` | Use installed packages instead of lockfile |
 | `--categories` | Check packages in specified categories |
 | `--auto-install` | Automatically install safety if not already installed |
-| `--scan` | Use the new scan command instead |
+| `--scan` | Enable the newer version of the check command with improved functionality. |
 
 **Note**: The check command is deprecated and will be unsupported beyond June 1, 2024. Use the `scan` command instead.
-
-## scan
-
-The `scan` command is the newer version of `check` with improved functionality for scanning security vulnerabilities.
-
-### Basic Usage
-
-```bash
-$ pipenv scan
-```
-
-### Examples
-
-Scan with a specific output format:
-
-```bash
-$ pipenv scan --output json
-```
-
-### Options
-
-Similar to the `check` command, with enhanced functionality.
 
 ## run
 
@@ -393,6 +371,7 @@ The `graph` command displays a dependency graph of your installed packages.
 ```bash
 $ pipenv graph
 ```
+
 
 ### Examples
 

@@ -999,6 +999,11 @@ def expansive_install_req_from_line(
     """
     name = None
     pip_line = pip_line.strip("'").lstrip(" ")
+
+    # Handle paths with escaped spaces
+    if os.path.exists(os.path.expanduser(pip_line.replace("\\ ", " "))):
+        pip_line = pip_line.replace("\\ ", " ")
+
     for new_req_symbol in ("@ ", " @ "):  # Check for new style pip lines
         if new_req_symbol in pip_line:
             pip_line_parts = pip_line.split(new_req_symbol, 1)

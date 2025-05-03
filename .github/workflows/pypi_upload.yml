@@ -6,11 +6,11 @@ on:
     tags:
       - v[0-9]+.[0-9]+.*  # add .* to allow dev releases
 
-permissions: {}
+permissions:
+  id-token: write  # Required for trusted publishing
+  contents: write  # Required for release creation
 jobs:
   deploy:
-    permissions:
-      contents: write # to create a release (actions/create-release)
 
     name: pipenv PyPI Upload
     runs-on: ubuntu-latest
@@ -48,11 +48,20 @@ jobs:
       run: |
         python -m pipenv run python -m build
 
-    # to upload to test pypi, pass repository_url: https://test.pypi.org/legacy/ and use secrets.TEST_PYPI_TOKEN
+    # Publish to PyPI using token authentication
+    # Note: To use Trusted Publishers in the future, you need to set up a publisher on PyPI:
+    # Visit: https://pypi.org/manage/project/pipenv/settings/publishing/
+    # And add a publisher with:
+    #   - Provider: GitHub
+    #   - Owner: pypa
+    #   - Repository: pipenv
+    #   - Workflow filename: pypi_upload.yml
     - name: Publish a Python distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
         user: __token__
         password: ${{ secrets.PYPI_TOKEN }}
-        # repository_url: https://test.pypi.org/legacy/
         packages-dir: dist/
+        verbose: true
+        # Uncomment the following line to publish to Test PyPI instead
+        # repository-url: https://test.pypi.org/legacy/

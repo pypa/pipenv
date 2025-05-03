@@ -160,22 +160,44 @@ def check_version_conflicts(
     Returns set of conflicting packages.
     """
     conflicts = set()
-    try:
-        new_version_obj = Version(new_version)
-    except InvalidVersion:
-        new_version_obj = SpecifierSet(new_version)
+
+    # Handle various wildcard patterns
+    if new_version == "*":
+        # Full wildcard - matches any version
+        # We'll use a very permissive specifier
+        new_version_obj = SpecifierSet(">=0.0.0")
+    elif new_version.endswith(".*"):
+        # Major version wildcard like '2.*'
+        try:
+            major = int(new_version[:-2])
+            new_version_obj = SpecifierSet(f">={major},<{major+1}")
+        except (ValueError, TypeError):
+            # If we can't parse the major version, use a permissive specifier
+            new_version_obj = SpecifierSet(">=0.0.0")
+    else:
+        try:
+            new_version_obj = Version(new_version)
+        except InvalidVersion:
+            try:
+                # Try to parse as a specifier set
+                new_version_obj = SpecifierSet(new_version)
+            except Exception:  # noqa: PERF203
+                # If we can't parse the version at all, return no conflicts
+                # This allows the installation to proceed and let pip handle it
+                return conflicts
 
     for dependent, req_version in reverse_deps.get(package_name, set()):
         if req_version == "Any":
             continue
 
-        try:
-            specifier_set = SpecifierSet(req_version)
+        specifier_set = SpecifierSet(req_version)
+        # For Version objects, we check if the specifier contains the version
+        # For SpecifierSet objects, we need to check compatibility differently
+        if isinstance(new_version_obj, Version):
             if not specifier_set.contains(new_version_obj):
                 conflicts.add(dependent)
-        except Exception:  # noqa: PERF203
-            # If we can't parse the version requirement, assume it's a conflict
-            conflicts.add(dependent)
+        # Otherwise this is a complex case where we have a specifier vs specifier ...
+        # We'll let the resolver figure those out
 
     return conflicts
 
@@ -296,15 +318,21 @@ def _detect_conflicts(package_args, reverse_deps, lockfile):
     """Detect version conflicts in package arguments."""
     conflicts_found = False
     for package in package_args:
+        # Handle both == and = version specifiers
         if "==" in package:
-            name, version = package.split("==")
-            conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
-            if conflicts:
-                conflicts_found = True
-                err.print(
-                    f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
-                    f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
-                )
+            name, version = package.split("==", 1)  # Split only on the first occurrence
+        elif "=" in package and not package.startswith("-e"):  # Avoid matching -e flag
+            name, version = package.split("=", 1)  # Split only on the first occurrence
+        else:
+            continue  # Skip packages without version specifiers
+
+        conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
+        if conflicts:
+            conflicts_found = True
+            err.print(
+                f"[red bold]Error[/red bold]: Updating [bold]{name}[/bold] "
+                f"to version {version} would create conflicts with: {', '.join(sorted(conflicts))}"
+            )
 
     return conflicts_found
 
@@ -413,6 +441,39 @@ def _resolve_and_update_lockfile(
     return upgrade_lock_data
 
 
+def _clean_unused_dependencies(
+    project, lockfile, category, full_lock_resolution, original_lockfile
+):
+    """
+    Remove dependencies that are no longer needed after an upgrade.
+
+    Args:
+        project: The project instance
+        lockfile: The current lockfile being built
+        category: The category to clean (e.g., 'default', 'develop')
+        full_lock_resolution: The complete resolution of dependencies
+        original_lockfile: The original lockfile before the upgrade
+    """
+    if category not in lockfile or category not in original_lockfile:
+        return
+
+    # Get the set of packages in the new resolution
+    resolved_packages = set(full_lock_resolution.keys())
+
+    # Get the set of packages in the original lockfile for this category
+    original_packages = set(original_lockfile[category].keys())
+
+    # Find packages that were in the original lockfile but not in the new resolution
+    unused_packages = original_packages - resolved_packages
+
+    # Remove unused packages from the lockfile
+    for package_name in unused_packages:
+        if package_name in lockfile[category]:
+            if project.s.is_verbose():
+                err.print(f"Removing unused dependency: {package_name}")
+            del lockfile[category][package_name]
+
+
 def upgrade(
     project,
     pre=False,
@@ -428,6 +489,11 @@ def upgrade(
 ):
     """Enhanced upgrade command with dependency conflict detection."""
     lockfile = project.lockfile()
+    # Store the original lockfile for comparison later
+    original_lockfile = {
+        k: v.copy() if isinstance(v, dict) else v for k, v in lockfile.items()
+    }
+
     if not pre:
         pre = project.settings.get("allow_prereleases")
 
@@ -476,6 +542,8 @@ def upgrade(
 
     # Process each category
     requested_packages = defaultdict(dict)
+    category_resolutions = {}
+
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
@@ -500,7 +568,7 @@ def upgrade(
             )
 
         # Resolve dependencies and update lockfile
-        _resolve_and_update_lockfile(
+        upgrade_lock_data = _resolve_and_update_lockfile(
             project,
             requested_packages,
             pipfile_category,
@@ -511,6 +579,26 @@ def upgrade(
             pypi_mirror,
             lockfile,
         )
+
+        # Store the full resolution for this category
+        if upgrade_lock_data:
+            complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+            full_lock_resolution = venv_resolve_deps(
+                complete_packages,
+                which=project._which,
+                project=project,
+                lockfile={},
+                pipfile_category=pipfile_category,
+                pre=pre,
+                allow_global=system,
+                pypi_mirror=pypi_mirror,
+            )
+            category_resolutions[category] = full_lock_resolution
+
+            # Clean up unused dependencies
+            _clean_unused_dependencies(
+                project, lockfile, category, full_lock_resolution, original_lockfile
+            )
 
         # Reset package args for next category if needed
         if not has_package_args:
