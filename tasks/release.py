@@ -50,9 +50,12 @@ def _render_log(ctx=None, version=None):
     if ctx and not version:
         version = find_version(ctx)
 
+    # Towncrier expects --version to be a flag to show its own version
+    # For setting the project version, we need to use a positional argument
     cmd = ["towncrier", "--draft"]
     if version:
-        cmd.append(f"--name={version}")  # Use --name instead of --version
+        # Add version as a positional argument
+        cmd.append(version)
 
     rendered = subprocess.check_output(cmd).decode("utf-8")
     return rendered
@@ -79,7 +82,7 @@ def release(
     tag_content = _render_log(ctx, version)
     if dry_run:
         # Use the correct version when generating the draft
-        ctx.run(f"towncrier --draft --name={version} > CHANGELOG.draft.md")
+        ctx.run(f"towncrier --draft {version} > CHANGELOG.draft.md")
         log("would remove: news/*")
         log("would remove: CHANGELOG.draft.md")
         log("would update: pipenv/pipenv.1")
@@ -88,11 +91,11 @@ def release(
         if pre:
             log("generating towncrier draft...")
             # Use the correct version when generating the draft
-            ctx.run(f"towncrier --draft --name={version} > CHANGELOG.draft.md")
+            ctx.run(f"towncrier --draft {version} > CHANGELOG.draft.md")
             ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
             # Use the correct version when generating the changelog
-            ctx.run(f"towncrier --name={version}")
+            ctx.run(f"towncrier {version}")
             ctx.run(f"git add CHANGELOG.md news/ {get_version_file(ctx).as_posix()}")
             log("removing changelog draft if present")
             draft_changelog = pathlib.Path("CHANGELOG.draft.md")
