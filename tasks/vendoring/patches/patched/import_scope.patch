@@ -1,8 +1,8 @@
 diff --git a/pipenv/patched/pip/_internal/commands/__init__.py b/pipenv/patched/pip/_internal/commands/__init__.py
-index 858a41014..868a1cad9 100644
+index bc4f216a8..156846015 100644
 --- a/pipenv/patched/pip/_internal/commands/__init__.py
 +++ b/pipenv/patched/pip/_internal/commands/__init__.py
-@@ -14,92 +14,92 @@ CommandInfo = namedtuple("CommandInfo", "module_path, class_name, summary")
+@@ -14,97 +14,97 @@ CommandInfo = namedtuple("CommandInfo", "module_path, class_name, summary")
  # - Enables avoiding additional (costly) imports for presenting `--help`.
  # - The ordering matters for help display.
  #
@@ -16,6 +16,12 @@ index 858a41014..868a1cad9 100644
 +        "pipenv.patched.pip._internal.commands.install",
          "InstallCommand",
          "Install packages.",
+     ),
+     "lock": CommandInfo(
+-        "pip._internal.commands.lock",
++        "pipenv.patched.pip._internal.commands.lock",
+         "LockCommand",
+         "Generate a lock file.",
      ),
      "download": CommandInfo(
 -        "pip._internal.commands.download",
@@ -113,18 +119,6 @@ index 858a41014..868a1cad9 100644
          "HelpCommand",
          "Show help for commands.",
      ),
-diff --git a/pipenv/patched/pip/_internal/req/req_install.py b/pipenv/patched/pip/_internal/req/req_install.py
-index 1f479713a..a97401be4 100644
---- a/pipenv/patched/pip/_internal/req/req_install.py
-+++ b/pipenv/patched/pip/_internal/req/req_install.py
-@@ -514,6 +514,7 @@ class InstallRequirement:
-             self.unpacked_source_directory,
-             backend,
-             backend_path=backend_path,
-+            python_executable=os.getenv('PIP_PYTHON_PATH', sys.executable)
-         )
-
-     def isolated_editable_sanity_check(self) -> None:
 diff --git a/pipenv/patched/pip/_vendor/requests/packages.py b/pipenv/patched/pip/_vendor/requests/packages.py
 index 200c38287..c92ef2d0d 100644
 --- a/pipenv/patched/pip/_vendor/requests/packages.py

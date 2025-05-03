@@ -8,10 +8,9 @@ absolutely need, and not "download the world" when we only need one version of
 something.
 """
 
-import functools
 import logging
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, Callable, Iterator, Optional, Set, Tuple
+from typing import Any, Callable, Iterator, Optional, Set, Tuple
 
 from pipenv.patched.pip._vendor.packaging.version import _BaseVersion
 
@@ -22,21 +21,6 @@ from .base import Candidate
 logger = logging.getLogger(__name__)
 
 IndexCandidateInfo = Tuple[_BaseVersion, Callable[[], Optional[Candidate]]]
-
-if TYPE_CHECKING:
-    SequenceCandidate = Sequence[Candidate]
-else:
-    # For compatibility: Python before 3.9 does not support using [] on the
-    # Sequence class.
-    #
-    # >>> from collections.abc import Sequence
-    # >>> Sequence[str]
-    # Traceback (most recent call last):
-    #   File "<stdin>", line 1, in <module>
-    # TypeError: 'ABCMeta' object is not subscriptable
-    #
-    # TODO: Remove this block after dropping Python 3.8 support.
-    SequenceCandidate = Sequence
 
 
 def _iter_built(infos: Iterator[IndexCandidateInfo]) -> Iterator[Candidate]:
@@ -124,7 +108,7 @@ def _iter_built_with_inserted(
         yield installed
 
 
-class FoundCandidates(SequenceCandidate):
+class FoundCandidates(Sequence[Candidate]):
     """A lazy sequence to provide candidates to the resolver.
 
     The intended usage is to return this from `find_matches()` so the resolver
@@ -144,6 +128,7 @@ class FoundCandidates(SequenceCandidate):
         self._installed = installed
         self._prefers_installed = prefers_installed
         self._incompatible_ids = incompatible_ids
+        self._bool: Optional[bool] = None
 
     def __getitem__(self, index: Any) -> Any:
         # Implemented to satisfy the ABC check. This is not needed by the
@@ -167,8 +152,13 @@ class FoundCandidates(SequenceCandidate):
         # performance reasons).
         raise NotImplementedError("don't do this")
 
-    @functools.lru_cache(maxsize=1)
     def __bool__(self) -> bool:
+        if self._bool is not None:
+            return self._bool
+
         if self._prefers_installed and self._installed:
+            self._bool = True
             return True
-        return any(self)
+
+        self._bool = any(self)
+        return self._bool

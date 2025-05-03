@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import tempfile
 from textwrap import dedent
 from typing import IO, TYPE_CHECKING
 from pathlib import Path
@@ -16,47 +17,6 @@ if TYPE_CHECKING:
     from datetime import datetime
 
     from filelock import BaseFileLock
-
-
-def _secure_open_write(filename: str, fmode: int) -> IO[bytes]:
-    # We only want to write to this file, so open it in write only mode
-    flags = os.O_WRONLY
-
-    # os.O_CREAT | os.O_EXCL will fail if the file already exists, so we only
-    #  will open *new* files.
-    # We specify this because we want to ensure that the mode we pass is the
-    # mode of the file.
-    flags |= os.O_CREAT | os.O_EXCL
-
-    # Do not follow symlinks to prevent someone from making a symlink that
-    # we follow and insecurely open a cache file.
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-
-    # On Windows we'll mark this file as binary
-    if hasattr(os, "O_BINARY"):
-        flags |= os.O_BINARY
-
-    # Before we open our file, we want to delete any existing file that is
-    # there
-    try:
-        os.remove(filename)
-    except OSError:
-        # The file must not exist already, so we can just skip ahead to opening
-        pass
-
-    # Open our file, the use of os.O_CREAT | os.O_EXCL will ensure that if a
-    # race condition happens between the os.remove and this line, that an
-    # error will be raised. Because we utilize a lockfile this should only
-    # happen if someone is attempting to attack us.
-    fd = os.open(filename, flags, fmode)
-    try:
-        return os.fdopen(fd, "wb")
-
-    except:
-        # An error occurred wrapping our FD in a file object
-        os.close(fd)
-        raise
 
 
 class _FileCacheMixin:
@@ -122,15 +82,18 @@ class _FileCacheMixin:
         Safely write the data to the given path.
         """
         # Make sure the directory exists
-        try:
-            os.makedirs(os.path.dirname(path), self.dirmode)
-        except OSError:
-            pass
+        dirname = os.path.dirname(path)
+        os.makedirs(dirname, self.dirmode, exist_ok=True)
 
         with self.lock_class(path + ".lock"):
             # Write our actual file
-            with _secure_open_write(path, self.filemode) as fh:
-                fh.write(data)
+            (fd, name) = tempfile.mkstemp(dir=dirname)
+            try:
+                os.write(fd, data)
+            finally:
+                os.close(fd)
+            os.chmod(name, self.filemode)
+            os.replace(name, path)
 
     def _delete(self, key: str, suffix: str) -> None:
         name = self._fn(key) + suffix

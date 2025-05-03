@@ -1,5 +1,4 @@
-"""Build Environment used for isolation during sdist building
-"""
+"""Build Environment used for isolation during sdist building"""
 
 import logging
 import os
@@ -241,6 +240,10 @@ class BuildEnvironment:
             prefix.path,
             "--no-warn-script-location",
             "--disable-pip-version-check",
+            # As the build environment is ephemeral, it's wasteful to
+            # pre-compile everything, especially as not every Python
+            # module will be used/compiled in most cases.
+            "--no-compile",
             # The prefix specified two lines above, thus
             # target from config file or env var should be ignored
             "--target",

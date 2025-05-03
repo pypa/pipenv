@@ -800,7 +800,7 @@ def determine_package_name(package: InstallRequirement):
                 local_file = unpack_url(
                     link=package.link,
                     location=td,
-                    download=Downloader(session, "off"),
+                    download=Downloader(session, "off", resume_retries=5),
                     verbosity=1,
                 )
                 if local_file.path.endswith(".whl") or local_file.path.endswith(".zip"):

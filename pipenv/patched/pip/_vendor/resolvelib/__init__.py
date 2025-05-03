@@ -11,12 +11,13 @@ __all__ = [
     "ResolutionTooDeep",
 ]
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 
-from .providers import AbstractProvider, AbstractResolver
+from .providers import AbstractProvider
 from .reporters import BaseReporter
 from .resolvers import (
+    AbstractResolver,
     InconsistentCandidate,
     RequirementsConflicted,
     ResolutionError,

@@ -678,8 +678,7 @@ class _Validator(Generic[T]):
                 )
             if pathlib.PureWindowsPath(path).as_posix() != path:
                 raise self._invalid_metadata(
-                    f"{path!r} is invalid for {{field}}, "
-                    "paths must use '/' delimiter"
+                    f"{path!r} is invalid for {{field}}, paths must use '/' delimiter"
                 )
             paths.append(path)
         return paths

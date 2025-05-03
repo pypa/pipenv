@@ -8,7 +8,7 @@ import threading
 from dataclasses import dataclass
 from io import TextIOWrapper
 from logging import Filter
-from typing import Any, ClassVar, Generator, List, Optional, TextIO, Type
+from typing import Any, ClassVar, Generator, List, Optional, Type
 
 from pipenv.patched.pip._vendor.rich.console import (
     Console,
@@ -29,6 +29,8 @@ from pipenv.patched.pip._internal.utils.deprecation import DEPRECATION_MSG_PREFI
 from pipenv.patched.pip._internal.utils.misc import ensure_dir
 
 _log_state = threading.local()
+_stdout_console = None
+_stderr_console = None
 subprocess_logger = getLogger("pip.subprocessor")
 
 
@@ -144,12 +146,21 @@ class PipConsole(Console):
         raise BrokenPipeError() from None
 
 
+def get_console(*, stderr: bool = False) -> Console:
+    if stderr:
+        assert _stderr_console is not None, "stderr rich console is missing!"
+        return _stderr_console
+    else:
+        assert _stdout_console is not None, "stdout rich console is missing!"
+        return _stdout_console
+
+
 class RichPipStreamHandler(RichHandler):
     KEYWORDS: ClassVar[Optional[List[str]]] = []
 
-    def __init__(self, stream: Optional[TextIO], no_color: bool) -> None:
+    def __init__(self, console: Console) -> None:
         super().__init__(
-            console=PipConsole(file=stream, no_color=no_color, soft_wrap=True),
+            console=console,
             show_time=False,
             show_level=False,
             show_path=False,
@@ -266,10 +277,6 @@ def setup_logging(verbosity: int, no_color: bool, user_log_file: Optional[str]) 
     vendored_log_level = "WARNING" if level in ["INFO", "ERROR"] else "DEBUG"
 
     # Shorthands for clarity
-    log_streams = {
-        "stdout": "ext://sys.stdout",
-        "stderr": "ext://sys.stderr",
-    }
     handler_classes = {
         "stream": "pipenv.patched.pip._internal.utils.logging.RichPipStreamHandler",
         "file": "pipenv.patched.pip._internal.utils.logging.BetterRotatingFileHandler",
@@ -277,6 +284,9 @@ def setup_logging(verbosity: int, no_color: bool, user_log_file: Optional[str]) 
     handlers = ["console", "console_errors", "console_subprocess"] + (
         ["user_log"] if include_user_log else []
     )
+    global _stdout_console, stderr_console
+    _stdout_console = PipConsole(file=sys.stdout, no_color=no_color, soft_wrap=True)
+    _stderr_console = PipConsole(file=sys.stderr, no_color=no_color, soft_wrap=True)
 
     logging.config.dictConfig(
         {
@@ -311,16 +321,14 @@ def setup_logging(verbosity: int, no_color: bool, user_log_file: Optional[str]) 
                 "console": {
                     "level": level,
                     "class": handler_classes["stream"],
-                    "no_color": no_color,
-                    "stream": log_streams["stdout"],
+                    "console": _stdout_console,
                     "filters": ["exclude_subprocess", "exclude_warnings"],
                     "formatter": "indent",
                 },
                 "console_errors": {
                     "level": "WARNING",
                     "class": handler_classes["stream"],
-                    "no_color": no_color,
-                    "stream": log_streams["stderr"],
+                    "console": _stderr_console,
                     "filters": ["exclude_subprocess"],
                     "formatter": "indent",
                 },
@@ -329,8 +337,7 @@ def setup_logging(verbosity: int, no_color: bool, user_log_file: Optional[str]) 
                 "console_subprocess": {
                     "level": level,
                     "class": handler_classes["stream"],
-                    "stream": log_streams["stderr"],
-                    "no_color": no_color,
+                    "console": _stderr_console,
                     "filters": ["restrict_to_subprocess"],
                     "formatter": "indent",
                 },

@@ -5,7 +5,7 @@ import ssl
 import sys
 import typing
 
-import _ssl  # type: ignore[import-not-found]
+import _ssl
 
 from ._ssl_constants import (
     _original_SSLContext,
@@ -40,6 +40,23 @@ def inject_into_ssl() -> None:
         import pipenv.patched.pip._vendor.urllib3.util.ssl_ as urllib3_ssl
 
         setattr(urllib3_ssl, "SSLContext", SSLContext)
+    except ImportError:
+        pass
+
+    # requests starting with 2.32.0 added a preloaded SSL context to improve concurrent performance;
+    # this unfortunately leads to a RecursionError, which can be avoided by patching the preloaded SSL context with
+    # the truststore patched instance
+    # also see https://github.com/psf/requests/pull/6667
+    try:
+        from pipenv.patched.pip._vendor.requests import adapters as requests_adapters
+
+        preloaded_context = getattr(requests_adapters, "_preloaded_ssl_context", None)
+        if preloaded_context is not None:
+            setattr(
+                requests_adapters,
+                "_preloaded_ssl_context",
+                SSLContext(ssl.PROTOCOL_TLS_CLIENT),
+            )
     except ImportError:
         pass
 

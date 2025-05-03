@@ -69,8 +69,7 @@ class ELFFile:
             }[(self.capacity, self.encoding)]
         except KeyError as e:
             raise ELFInvalid(
-                f"unrecognized capacity ({self.capacity}) or "
-                f"encoding ({self.encoding})"
+                f"unrecognized capacity ({self.capacity}) or encoding ({self.encoding})"
             ) from e
 
         try:

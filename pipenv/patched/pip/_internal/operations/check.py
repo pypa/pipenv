@@ -1,5 +1,4 @@
-"""Validation of dependencies of packages
-"""
+"""Validation of dependencies of packages"""
 
 import logging
 from contextlib import suppress
