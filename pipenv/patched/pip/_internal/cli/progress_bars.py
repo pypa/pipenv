@@ -1,6 +1,6 @@
 import functools
 import sys
-from typing import Callable, Generator, Iterable, Iterator, Optional, Tuple, TypeVar
+from typing import Any, Callable, Generator, Iterable, Iterator, Optional, Tuple, TypeVar
 
 from pipenv.patched.pip._vendor.rich.progress import (
     BarColumn,
@@ -17,11 +17,12 @@ from pipenv.patched.pip._vendor.rich.progress import (
 )
 
 from pipenv.patched.pip._internal.cli.spinners import RateLimiter
-from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.logging import get_console, get_indentation
+from pipenv.patched.pip._internal.utils.logging import get_indentation
+from pipenv.patched.pip._vendor.rich import get_console
 
 T = TypeVar("T")
 ProgressRenderer = Callable[[Iterable[T]], Iterator[T]]
+InstallRequirement = Any
 
 
 def _rich_download_progress_bar(
