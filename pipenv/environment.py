@@ -36,8 +36,9 @@ else:
     import importlib.metadata as importlib_metadata
 
 if typing.TYPE_CHECKING:
+    from collections.abc import Generator
     from types import ModuleType
-    from typing import ContextManager, Generator
+    from typing import AbstractContextManager
 
     from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor import tomlkit
@@ -117,9 +118,7 @@ class Environment:
         if not include_dir.exists():
             include_dirs = self.get_include_path()
             if include_dirs:
-                include_path = include_dirs.get(
-                    "include", include_dirs.get("platinclude")
-                )
+                include_path = include_dirs.get("include", include_dirs.get("platinclude"))
                 if not include_path:
                     return {}
                 include_dir = Path(include_path)
@@ -196,9 +195,7 @@ class Environment:
                 try:
                     for k in list(paths.keys()):
                         if not os.path.exists(paths[k]):
-                            paths[k] = self._replace_parent_version(
-                                paths[k], current_version
-                            )
+                            paths[k] = self._replace_parent_version(paths[k], current_version)
                 except OSError:
                     # Sometimes virtualenvs are made using virtualenv interpreters and there is no
                     # include directory, which will cause this approach to fail. This failsafe
@@ -248,9 +245,7 @@ class Environment:
     def python(self) -> str:
         """Path to the environment python"""
         if self._python is None:
-            self._python = (
-                (virtualenv_scripts_dir(self.prefix) / "python").absolute().as_posix()
-            )
+            self._python = (virtualenv_scripts_dir(self.prefix) / "python").absolute().as_posix()
 
         return self._python
 
@@ -298,10 +293,7 @@ class Environment:
         """
         pylib_lines = []
         pyinc_lines = []
-        py_command = (
-            "import sysconfig, json; paths = {%s};"
-            "value = u'{0}'.format(json.dumps(paths)); print(value)"
-        )
+        py_command = "import sysconfig, json; paths = {%s};value = u'{0}'.format(json.dumps(paths)); print(value)"
         sysconfig_line = "sysconfig.get_path('{0}')"
 
         if python_lib:
@@ -311,18 +303,13 @@ class Environment:
             ]
         if python_inc:
             pyinc_lines += [
-                f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})"
-                for key in ("include", "platinclude")
+                f"u'{key}': u'{{0}}'.format({sysconfig_line.format(key)})" for key in ("include", "platinclude")
             ]
         lines = pylib_lines + pyinc_lines
         if scripts:
-            lines.append(
-                "u'scripts': u'{{0}}'.format({})".format(sysconfig_line.format("scripts"))
-            )
+            lines.append("u'scripts': u'{{0}}'.format({})".format(sysconfig_line.format("scripts")))
         if py_version:
-            lines.append(
-                "u'py_version_short': u'{0}'.format(sysconfig.get_python_version()),"
-            )
+            lines.append("u'py_version_short': u'{0}'.format(sysconfig.get_python_version()),")
         lines_as_str = ",".join(lines)
         py_command = py_command % lines_as_str
         return py_command
@@ -334,9 +321,7 @@ class Environment:
         :return: The python paths for the environment
         :rtype: Dict[str, str]
         """
-        py_command = self.build_command(
-            python_lib=True, python_inc=True, scripts=True, py_version=True
-        )
+        py_command = self.build_command(python_lib=True, python_inc=True, scripts=True, py_version=True)
         command = [self.python, "-c", py_command]
         c = subprocess_run(command)
         if c.returncode == 0:
@@ -384,26 +369,12 @@ class Environment:
             if not self.prefix.joinpath("lib").exists():
                 return {}
             stdlib_path = next(
-                iter(
-                    [
-                        p
-                        for p in self.prefix.joinpath("lib").iterdir()
-                        if p.name.startswith("python")
-                    ]
-                ),
+                iter([p for p in self.prefix.joinpath("lib").iterdir() if p.name.startswith("python")]),
                 None,
             )
             lib_path = None
             if stdlib_path:
-                lib_path = next(
-                    iter(
-                        [
-                            p.as_posix()
-                            for p in stdlib_path.iterdir()
-                            if p.name == "site-packages"
-                        ]
-                    )
-                )
+                lib_path = next(iter([p.as_posix() for p in stdlib_path.iterdir() if p.name == "site-packages"]))
                 paths = {"stdlib": stdlib_path.as_posix()}
                 if lib_path:
                     paths["purelib"] = lib_path
@@ -484,9 +455,7 @@ class Environment:
             for pth in loc.iterdir():
                 if pth.suffix != ".egg-link":
                     continue
-                contents = [
-                    normalize_path(line.strip()) for line in pth.read_text().splitlines()
-                ]
+                contents = [normalize_path(line.strip()) for line in pth.read_text().splitlines()]
                 pth.write_text("\n".join(contents))
 
     def get_distributions(self) -> Generator[importlib_metadata.Distribution, None, None]:
@@ -533,42 +502,28 @@ class Environment:
             return False
 
         # Since is_relative_to is not available in Python 3.8, we use a workaround
-        if sys.version_info < (3, 9):
-            location_str = str(location)
-            return any(location_str.startswith(str(libdir)) for libdir in libdirs)
-        else:
-            return any(location.is_relative_to(libdir) for libdir in libdirs)
+        return any(location.is_relative_to(libdir) for libdir in libdirs)
 
     def get_installed_packages(self) -> list[importlib_metadata.Distribution]:
         """Returns all of the installed packages in a given environment"""
         workingset = self.get_working_set()
-        packages = [
-            pkg
-            for pkg in workingset
-            if self.dist_is_in_project(pkg) and normalized_name(pkg) != "python"
-        ]
+        packages = [pkg for pkg in workingset if self.dist_is_in_project(pkg) and normalized_name(pkg) != "python"]
         return packages
 
     @contextlib.contextmanager
-    def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
+    def get_finder(self, pre: bool = False) -> AbstractContextManager[PackageFinder]:
         from .utils.resolver import get_package_finder
 
-        pip_command = InstallCommand(
-            name="InstallCommand", summary="pip Install command."
-        )
+        pip_command = InstallCommand(name="InstallCommand", summary="pip Install command.")
         pip_args = prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
         session = pip_command._build_session(pip_options)
-        finder = get_package_finder(
-            install_cmd=pip_command, options=pip_options, session=session
-        )
+        finder = get_package_finder(install_cmd=pip_command, options=pip_options, session=session)
         yield finder
 
-    def get_package_info(
-        self, pre: bool = False
-    ) -> Generator[importlib_metadata.Distribution, None, None]:
+    def get_package_info(self, pre: bool = False) -> Generator[importlib_metadata.Distribution, None, None]:
         packages = self.get_installed_packages()
 
         with self.get_finder() as finder:
@@ -577,21 +532,13 @@ class Environment:
                 all_candidates = finder.find_all_candidates(name)
                 if not self.pipfile.get("pre", finder.allow_all_prereleases):
                     # Remove prereleases
-                    all_candidates = [
-                        candidate
-                        for candidate in all_candidates
-                        if not candidate.version.is_prerelease
-                    ]
+                    all_candidates = [candidate for candidate in all_candidates if not candidate.version.is_prerelease]
 
                 if not all_candidates:
                     continue
                 candidate_evaluator = finder.make_candidate_evaluator(project_name=name)
-                best_candidate_result = candidate_evaluator.compute_best_candidate(
-                    all_candidates
-                )
-                remote_version = parse_version(
-                    str(best_candidate_result.best_candidate.version)
-                )
+                best_candidate_result = candidate_evaluator.compute_best_candidate(all_candidates)
+                remote_version = parse_version(str(best_candidate_result.best_candidate.version))
                 if best_candidate_result.best_candidate.link.is_wheel:
                     pass
                 else:
@@ -600,14 +547,8 @@ class Environment:
                 dist.latest_version = remote_version
                 yield dist
 
-    def get_outdated_packages(
-        self, pre: bool = False
-    ) -> list[importlib_metadata.Distribution]:
-        return [
-            pkg
-            for pkg in self.get_package_info(pre=pre)
-            if pkg.latest_version > parse_version(pkg.version)
-        ]
+    def get_outdated_packages(self, pre: bool = False) -> list[importlib_metadata.Distribution]:
+        return [pkg for pkg in self.get_package_info(pre=pre) if pkg.latest_version > parse_version(pkg.version)]
 
     @classmethod
     def _get_requirements_for_package(cls, node, key_tree, parent=None, chain=None):
@@ -623,9 +564,7 @@ class Environment:
         get_children = lambda n: key_tree.get(n.key, [])  # noqa
 
         d["dependencies"] = [
-            cls._get_requirements_for_package(
-                c, key_tree, parent=node, chain=chain + [c.project_name]
-            )
+            cls._get_requirements_for_package(c, key_tree, parent=node, chain=chain + [c.project_name])
             for c in get_children(node)
             if c.project_name not in chain
         ]
@@ -705,9 +644,7 @@ class Environment:
         for k in list(rdeps.keys()):
             entry = rdeps[k]
             if entry.get("parents"):
-                rdeps[k]["parents"] = {
-                    p for p, version in chunked(2, unnest(entry["parents"]))
-                }
+                rdeps[k]["parents"] = {p for p, version in chunked(2, unnest(entry["parents"]))}
         return rdeps
 
     def get_working_set(self) -> Iterable:
@@ -731,16 +668,13 @@ class Environment:
             iter(
                 d
                 for d in self.get_distributions()
-                if req.name
-                and canonicalize_name(normalized_name(d)) == canonicalize_name(req.name)
+                if req.name and canonicalize_name(normalized_name(d)) == canonicalize_name(req.name)
             ),
             None,
         )
         if match is not None:
             if req.specifier is not None:
-                return SpecifierSet(str(req.specifier)).contains(
-                    match.version, prereleases=True
-                )
+                return SpecifierSet(str(req.specifier)).contains(match.version, prereleases=True)
             if req.link is None:
                 return True
             elif req.editable and req.link.is_file:
@@ -791,11 +725,7 @@ class Environment:
         """
 
         # Fail if the virtualenv is needed but cannot be found
-        if self.is_venv and (
-            hasattr(self, "prefix")
-            and not self.prefix.exists()
-            or not hasattr(self, "prefix")
-        ):
+        if self.is_venv and (hasattr(self, "prefix") and not self.prefix.exists() or not hasattr(self, "prefix")):
             yield False
             return
 
@@ -815,9 +745,7 @@ class Environment:
             if self.is_venv:
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ["VIRTUAL_ENV"] = prefix
-            elif not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get(
-                "VIRTUAL_ENV"
-            ):
+            elif not self.project.s.PIPENV_USE_SYSTEM and not os.environ.get("VIRTUAL_ENV"):
                 os.environ["PYTHONPATH"] = self.base_paths["PYTHONPATH"]
                 os.environ.pop("PYTHONHOME", None)
             sys.path = self.sys_path

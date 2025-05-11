@@ -187,9 +187,7 @@ def lock_dev_option(f):
 
 
 def uninstall_dev_option(f):
-    return _dev_option(
-        f, "Deprecated (as it has no effect). May be removed in a future release."
-    )
+    return _dev_option(f, "Deprecated (as it has no effect). May be removed in a future release.")
 
 
 def pre_option(f):
@@ -483,7 +481,8 @@ def skip_lock_option(f):
         if value:
             err.print(
                 "The flag --skip-lock has been reintroduced (but is not recommended).  "
-                "Without the lock resolver it is difficult to manage multiple package indexes, and hash checking is not provided.  "
+                "Without the lock resolver it is difficult to manage multiple package indexes, "
+                "and hash checking is not provided.  "
                 "However it can help manage installs with current deficiencies in locking across platforms.",
                 style="yellow bold",
             )

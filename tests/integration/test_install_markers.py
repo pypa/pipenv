@@ -32,7 +32,8 @@ dataclass-factory = {}
         assert c.returncode == 0
         assert "markers" in p.lockfile["default"]["dataclass-factory"], p.lockfile["default"]
         assert (
-            p.lockfile["default"]["dataclass-factory"]["markers"] == "python_version >= '3.6' and os_name == 'splashwear'"
+            p.lockfile["default"]["dataclass-factory"]["markers"] ==
+            "python_version >= '3.6' and os_name == 'splashwear'"
         ), p.lockfile["default"]["dataclass-factory"]["markers"]
         c = p.pipenv('run python -c "import dataclass_factory;"')
         assert c.returncode == 1  # dataclass-factory is not installed due to the marker

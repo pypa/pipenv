@@ -90,11 +90,7 @@ def get_source_list(
 
     if pypi_mirror:
         sources = [
-            (
-                create_mirror_source(pypi_mirror, source["name"])
-                if is_pypi_url(source["url"])
-                else source
-            )
+            (create_mirror_source(pypi_mirror, source["name"]) if is_pypi_url(source["url"]) else source)
             for source in sources
         ]
     return sources
@@ -113,9 +109,6 @@ def parse_indexes(line, strict=False):
     index = args.index
     extra_index = args.extra_index
     trusted_host = args.trusted_host
-    if (
-        strict
-        and sum(bool(arg) for arg in (index, extra_index, trusted_host, remainder)) > 1
-    ):
+    if strict and sum(bool(arg) for arg in (index, extra_index, trusted_host, remainder)) > 1:
         raise ValueError("Index arguments must be on their own lines.")
     return index, extra_index, trusted_host, remainder

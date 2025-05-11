@@ -61,7 +61,9 @@ def test_install_vcs_ref_by_commit_hash(pipenv_instance_private_pypi):
             == "5efb522b0647f7467248273ec1b893d06b984a59"
         )
         pipfile = Path(p.pipfile_path)
-        new_content = pipfile.read_text().replace("5efb522b0647f7467248273ec1b893d06b984a59", "15e31431af97e5e64b80af0a3f598d382bcdd49a")
+        old_ref = "5efb522b0647f7467248273ec1b893d06b984a59"
+        new_ref = "15e31431af97e5e64b80af0a3f598d382bcdd49a"
+        new_content = pipfile.read_text().replace(old_ref, new_ref)
         pipfile.write_text(new_content)
         c = p.pipenv("lock")
         assert c.returncode == 0

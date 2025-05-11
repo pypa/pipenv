@@ -110,9 +110,11 @@ def test_lock_includes_hashes_for_all_platforms(pipenv_instance_private_pypi):
     # releases = pytest_pypi.app.packages['yarl'].releases
 
     releases = {
-        "yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl": "3890ab952d508523ef4881457c4099056546593fa05e93da84c7250516e632eb",
+        "yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl":
+        "3890ab952d508523ef4881457c4099056546593fa05e93da84c7250516e632eb",
         "yarl-1.3.0-cp35-cp35m-win_amd64.whl": "b25de84a8c20540531526dfbb0e2d2b648c13fd5dd126728c496d7c3fea33310",
-        "yarl-1.3.0-cp36-cp36m-manylinux1_x86_64.whl": "5badb97dd0abf26623a9982cd448ff12cb39b8e4c94032ccdedf22ce01a64842",
+        "yarl-1.3.0-cp36-cp36m-manylinux1_x86_64.whl":
+        "5badb97dd0abf26623a9982cd448ff12cb39b8e4c94032ccdedf22ce01a64842",
         "yarl-1.3.0-cp36-cp36m-win_amd64.whl": "c6e341f5a6562af74ba55205dbd56d248daf1b5748ec48a0200ba227bb9e33f4",
         "yarl-1.3.0-cp37-cp37m-win_amd64.whl": "73f447d11b530d860ca1e6b582f947688286ad16ca42256413083d13f260b7a0",
         "yarl-1.3.0.tar.gz": "024ecdc12bc02b321bc66b41327f930d1c2c543fa9a561b39861da9388ba7aa9",
@@ -121,7 +123,8 @@ def test_lock_includes_hashes_for_all_platforms(pipenv_instance_private_pypi):
     def get_hash(release_name):
         # Convert a specific filename to a hash like what would show up in a Pipfile.lock.
         # For example:
-        # 'yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl' -> 'sha256:3890ab952d508523ef4881457c4099056546593fa05e93da84c7250516e632eb'
+        # 'yarl-1.3.0-cp35-cp35m-manylinux1_x86_64.whl' ->
+        # 'sha256:3890ab952d508523ef4881457c4099056546593fa05e93da84c7250516e632eb'
         return f"sha256:{releases[release_name]}"
 
     with pipenv_instance_private_pypi() as p:

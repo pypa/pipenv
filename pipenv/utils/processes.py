@@ -68,10 +68,6 @@ def subprocess_run(
         other_kwargs["stdout"] = subprocess.PIPE
         other_kwargs["stderr"] = subprocess.PIPE
     if block:
-        return subprocess.run(
-            args, text=text, encoding=encoding, check=False, **other_kwargs
-        )
+        return subprocess.run(args, text=text, encoding=encoding, check=False, **other_kwargs)
     else:
-        return subprocess.Popen(
-            args, universal_newlines=text, encoding=encoding, **other_kwargs
-        )
+        return subprocess.Popen(args, universal_newlines=text, encoding=encoding, **other_kwargs)
