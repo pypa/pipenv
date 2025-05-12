@@ -42,14 +42,18 @@ The user can provide these additional parameters:
 
 ## uninstall
 
-``$ pipenv uninstall`` supports all of the parameters in `pipenv install, as well as two additional options,
-``--all`` and ``--all-dev``.
+``$ pipenv uninstall`` supports all of the parameters in `pipenv install, as well as these additional options:
+
+    - --dev — This parameter will uninstall packages from the dev-packages section.
 
     - --all — This parameter will purge all files from the virtual environment,
       but leave the Pipfile untouched.
 
     - --all-dev — This parameter will remove all of the development packages from
       the virtual environment, and remove them from the Pipfile.
+
+    - --categories — This parameter allows you to specify which categories to uninstall from.
+      For example: ``pipenv uninstall ruff --categories dev-packages``
 
 
 ## lock

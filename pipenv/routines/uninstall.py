@@ -62,6 +62,14 @@ def do_uninstall(
     if not categories:
         categories = ["default"]
 
+    # If dev flag is set but no dev-packages in categories, add it
+    if (
+        "dev-packages" not in categories
+        and "develop" not in categories
+        and project.s.PIPENV_DEV
+    ):
+        categories.append("dev-packages")
+
     lockfile_content = project.lockfile_content
 
     if all_dev:
