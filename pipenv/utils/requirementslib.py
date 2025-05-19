@@ -1,7 +1,7 @@
 import os
 from collections.abc import ItemsView, Mapping, Sequence, Set
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, TypeVar, Union
+from typing import Optional, TypeVar, Union
 from urllib.parse import urlparse, urlsplit, urlunparse
 
 from pipenv.patched.pip._internal.commands.install import InstallCommand
@@ -25,8 +25,8 @@ from pipenv.vendor import tomlkit
 
 STRING_TYPE = Union[bytes, str, str]
 S = TypeVar("S", bytes, str, str)
-PipfileEntryType = Union[STRING_TYPE, bool, Tuple[STRING_TYPE], List[STRING_TYPE]]
-PipfileType = Union[STRING_TYPE, Dict[STRING_TYPE, PipfileEntryType]]
+PipfileEntryType = Union[STRING_TYPE, bool, tuple[STRING_TYPE], list[STRING_TYPE]]
+PipfileType = Union[STRING_TYPE, dict[STRING_TYPE, PipfileEntryType]]
 
 
 VCS_LIST = ("git", "svn", "hg", "bzr")
@@ -117,9 +117,7 @@ def is_editable(pipfile_entry):
 def is_star(val):
     # type: (PipfileType) -> bool
     """Check if a Pipfile entry has a version specified as '*'."""
-    return (isinstance(val, str) and val == "*") or (
-        isinstance(val, Mapping) and val.get("version", "") == "*"
-    )
+    return (isinstance(val, str) and val == "*") or (isinstance(val, Mapping) and val.get("version", "") == "*")
 
 
 def convert_entry_to_path(path):
@@ -159,11 +157,7 @@ def is_installable_file(path):
             return False
 
     parsed = urlparse(path)
-    is_local = (
-        not parsed.scheme
-        or parsed.scheme == "file"
-        or (len(parsed.scheme) == 1 and os.name == "nt")
-    )
+    is_local = not parsed.scheme or parsed.scheme == "file" or (len(parsed.scheme) == 1 and os.name == "nt")
 
     if parsed.scheme and parsed.scheme == "file":
         path = os.fsdecode(url_to_path(path))
@@ -408,9 +402,7 @@ def dict_path_enter(path, key, value):
     if isinstance(value, str):
         return value, False
     elif isinstance(value, (tomlkit.items.Table, tomlkit.items.InlineTable)):
-        return value.__class__(
-            tomlkit.container.Container(), value.trivia, False
-        ), ItemsView(value)
+        return value.__class__(tomlkit.container.Container(), value.trivia, False), ItemsView(value)
     elif isinstance(value, (Mapping, dict)):
         return value.__class__(), ItemsView(value)
     elif isinstance(value, tomlkit.items.Array):
@@ -459,9 +451,7 @@ def dict_path_exit(path, key, old_parent, new_parent, new_items):
     return ret
 
 
-def remap(
-    root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit, **kwargs
-):
+def remap(root, visit=default_visit, enter=dict_path_enter, exit=dict_path_exit, **kwargs):
     """The remap ("recursive map") function is used to traverse and transform
     nested structures. Lists, tuples, sets, and dictionaries are just a few of
     the data structures nested into heterogeneous tree-like structures that are
@@ -575,9 +565,7 @@ def remap(
                 new_parent, new_items = res
             except TypeError:
                 # TODO: handle False?
-                raise TypeError(
-                    f"enter should return a tuple of (new_parent, items_iterator), not: {res!r}"
-                )
+                raise TypeError(f"enter should return a tuple of (new_parent, items_iterator), not: {res!r}")
             if new_items is not False:
                 # traverse unless False is explicitly passed
                 registry[id_value] = new_parent
@@ -658,9 +646,7 @@ def get_pip_command() -> InstallCommand:
     # Use pip's parser for pip.conf management and defaults.
     # General options (find_links, index_url, extra_index_url, trusted_host,
     # and pre) are deferred to pip.
-    pip_command = InstallCommand(
-        name="InstallCommand", summary="pipenv pip Install command."
-    )
+    pip_command = InstallCommand(name="InstallCommand", summary="pipenv pip Install command.")
     return pip_command
 
 

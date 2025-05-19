@@ -108,9 +108,7 @@ def do_uninstall(
 
     # Determine packages and their dependencies for removal
     for category in categories:
-        category = get_lockfile_section_using_pipfile_category(
-            category
-        )  # In case they passed pipfile category
+        category = get_lockfile_section_using_pipfile_category(category)  # In case they passed pipfile category
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
         for package in package_args[:]:
@@ -120,9 +118,7 @@ def do_uninstall(
             )
 
             # Remove the package from the Pipfile
-            if project.remove_package_from_pipfile(
-                normalized_name, category=pipfile_category
-            ):
+            if project.remove_package_from_pipfile(normalized_name, category=pipfile_category):
                 console.print(f"Removed {normalized_name} from Pipfile.")
 
             # Rebuild the dependencies for resolution from the updated Pipfile
@@ -144,15 +140,10 @@ def do_uninstall(
             try:
                 current_lock_data = lockfile_content[category]
                 if current_lock_data:
-                    deps_to_remove = [
-                        dep for dep in current_lock_data if dep not in resolved_lock_data
-                    ]
+                    deps_to_remove = [dep for dep in current_lock_data if dep not in resolved_lock_data]
                     # Remove unnecessary dependencies from Pipfile and lockfile
                     for dep in deps_to_remove:
-                        if (
-                            category in lockfile_content
-                            and dep in lockfile_content[category]
-                        ):
+                        if category in lockfile_content and dep in lockfile_content[category]:
                             del lockfile_content[category][dep]
             except KeyError:
                 pass  # No lockfile data for this category
@@ -182,9 +173,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         return
 
     # Remove comments from the output, if any.
-    installed = {
-        normalized_name(pkg) for pkg in project.environment.get_installed_packages()
-    }
+    installed = {normalized_name(pkg) for pkg in project.environment.get_installed_packages()}
     bad_pkgs = {pep423_name(pkg) for pkg in BAD_PACKAGES}
     # Remove setuptools, pip, etc from targets for removal
     to_remove = installed - bad_pkgs
@@ -209,9 +198,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         console.print(f"$ {cmd_list_to_shell(command)}")
     c = subprocess_run(command)
     if c.returncode != 0:
-        raise exceptions.UninstallError(
-            installed, cmd_list_to_shell(command), c.stdout + c.stderr, c.returncode
-        )
+        raise exceptions.UninstallError(installed, cmd_list_to_shell(command), c.stdout + c.stderr, c.returncode)
     if not bare:
         console.print(c.stdout, style="cyan")
         console.print("Environment now purged and fresh!", style="green")

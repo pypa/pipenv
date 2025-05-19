@@ -5,15 +5,13 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Optional
 
 
 def _ensure_modules():
     spec = importlib.util.spec_from_file_location(
         "typing_extensions",
-        location=os.path.join(
-            os.path.dirname(__file__), "patched", "pip", "_vendor", "typing_extensions.py"
-        ),
+        location=os.path.join(os.path.dirname(__file__), "patched", "pip", "_vendor", "typing_extensions.py"),
     )
     typing_extensions = importlib.util.module_from_spec(spec)
     sys.modules["typing_extensions"] = typing_extensions
@@ -115,9 +113,9 @@ class PackageRequirement:
 
     name: str
     version: Optional[str] = None
-    extras: Set[str] = field(default_factory=set)
+    extras: set[str] = field(default_factory=set)
     markers: Optional[str] = None
-    hashes: Set[str] = field(default_factory=set)
+    hashes: set[str] = field(default_factory=set)
     source: PackageSource = field(default_factory=PackageSource)
 
     def __post_init__(self):
@@ -132,10 +130,10 @@ class Entry:
     """Represents a resolved package entry with its dependencies and constraints."""
 
     name: str
-    entry_dict: Dict[str, Any]
+    entry_dict: dict[str, Any]
     project: Any  # Could be more specific with a Project type
     resolver: Any  # Could be more specific with a Resolver type
-    reverse_deps: Optional[Dict[str, Any]] = None
+    reverse_deps: Optional[dict[str, Any]] = None
     category: Optional[str] = None
 
     def __post_init__(self):
@@ -148,9 +146,7 @@ class Entry:
         """Construct a PackageRequirement from entry data."""
         # Extract VCS information
         vcs_info = self._extract_vcs_info()
-        source = PackageSource(
-            index=self.resolver.index_lookup.get(self.name), **vcs_info
-        )
+        source = PackageSource(index=self.resolver.index_lookup.get(self.name), **vcs_info)
 
         # Clean and normalize version
         version = self._clean_version(self.entry_dict.get("version"))
@@ -165,7 +161,7 @@ class Entry:
             source=source,
         )
 
-    def _extract_vcs_info(self) -> Dict[str, Optional[str]]:
+    def _extract_vcs_info(self) -> dict[str, Optional[str]]:
         """Extract VCS information from entry dict and lockfile."""
         vcs_info = {}
         vcs_keys = {"git", "hg", "svn", "bzr"}
@@ -188,9 +184,7 @@ class Entry:
             return None
         if version.strip().lower() in {"any", "<any>", "*"}:
             return "*"
-        if not any(
-            version.startswith(op) for op in ("==", ">=", "<=", "~=", "!=", ">", "<")
-        ):
+        if not any(version.startswith(op) for op in ("==", ">=", "<=", "~=", "!=", ">", "<")):
             version = f"=={version}"
         return version
 
@@ -221,25 +215,21 @@ class Entry:
 
         return get_lockfile_section_using_pipfile_category(self.category)
 
-    def _get_pipfile_content(self) -> Dict[str, Any]:
+    def _get_pipfile_content(self) -> dict[str, Any]:
         """Get and normalize pipfile content."""
         from pipenv.utils.toml import tomlkit_value_to_python
 
         return tomlkit_value_to_python(self.project.parsed_pipfile.get(self.category, {}))
 
     @property
-    def get_cleaned_dict(self) -> Dict[str, Any]:
+    def get_cleaned_dict(self) -> dict[str, Any]:
         """Create a cleaned dictionary representation of the entry."""
         cleaned = {
             "name": self.name,
             "version": self.requirement.version,
-            "extras": (
-                sorted(self.requirement.extras) if self.requirement.extras else None
-            ),
+            "extras": (sorted(self.requirement.extras) if self.requirement.extras else None),
             "markers": self.requirement.markers,
-            "hashes": (
-                sorted(self.requirement.hashes) if self.requirement.hashes else None
-            ),
+            "hashes": (sorted(self.requirement.hashes) if self.requirement.hashes else None),
             "subdirectory": self.requirement.source.subdirectory,
             "editable": self.entry_dict.get("editable", None),
             "path": self.requirement.source.path,
@@ -302,8 +292,8 @@ class Entry:
 
 
 def process_resolver_results(
-    results: List[Dict[str, Any]], resolver: Any, project: Any, category: Optional[str]
-) -> List[Dict[str, Any]]:
+    results: list[dict[str, Any]], resolver: Any, project: Any, category: Optional[str]
+) -> list[dict[str, Any]]:
     """
     Process the results from the dependency resolver into cleaned lockfile entries.
 
@@ -352,10 +342,10 @@ def resolve_packages(
     system: bool,
     write: Optional[str],
     requirements_dir: Optional[str],
-    packages: Dict[str, Any],
+    packages: dict[str, Any],
     pipfile_category: Optional[str],
-    constraints: Optional[Dict[str, Any]] = None,
-) -> List[Dict[str, Any]]:
+    constraints: Optional[dict[str, Any]] = None,
+) -> list[dict[str, Any]]:
     """
     Resolve package dependencies and return processed results.
 
@@ -410,9 +400,7 @@ def resolve_packages(
     )
 
     # Process results
-    processed_results = process_resolver_results(
-        results, resolver, project, pipfile_category
-    )
+    processed_results = process_resolver_results(results, resolver, project, pipfile_category)
 
     # Write results if requested
     if write:
@@ -433,9 +421,7 @@ def _main(
     parse_only=False,
     category=None,
 ):
-    resolve_packages(
-        pre, clear, verbose, system, write, requirements_dir, packages, category
-    )
+    resolve_packages(pre, clear, verbose, system, write, requirements_dir, packages, category)
 
 
 def main(argv=None):
@@ -447,7 +433,7 @@ def main(argv=None):
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
     if not parsed.verbose:
-        logging.getLogger("pipenv").setLevel(logging.WARN)
+        logging.getLogger("pipenv").setLevel(logging.WARNING)
     _main(
         parsed.pre,
         parsed.clear,

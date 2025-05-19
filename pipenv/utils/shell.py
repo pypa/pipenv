@@ -78,9 +78,7 @@ def looks_like_dir(path):
     path_str = str(path)
 
     # Check if it has a trailing slash which would indicate a directory
-    if path_str.endswith(os.path.sep) or (
-        os.path.altsep and path_str.endswith(os.path.altsep)
-    ):
+    if path_str.endswith(os.path.sep) or (os.path.altsep and path_str.endswith(os.path.altsep)):
         return True
 
     # Create a PurePath which won't access the filesystem
@@ -323,11 +321,7 @@ def find_python(finder, line=None):
         path_obj = Path(modified_line)
 
         # Add .exe extension on Windows if needed
-        if (
-            os.name == "nt"
-            and not path_obj.exists()
-            and not modified_line.lower().endswith(".exe")
-        ):
+        if os.name == "nt" and not path_obj.exists() and not modified_line.lower().endswith(".exe"):
             modified_line += ".exe"
             path_obj = Path(modified_line)
 
@@ -388,11 +382,7 @@ def is_python_command(line):
     from pipenv.vendor.pythonfinder.utils import PYTHON_IMPLEMENTATIONS
 
     is_version = re.match(r"\d+(\.\d+)*", line)
-    if (
-        line.startswith("python")
-        or is_version
-        or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS)
-    ):
+    if line.startswith("python") or is_version or any(line.startswith(v) for v in PYTHON_IMPLEMENTATIONS):
         return True
     # we are less sure about this but we can guess
     if line.startswith("py"):
@@ -446,9 +436,7 @@ def handle_remove_readonly(func, path, exc):
             func(path)
         except OSError as e:
             if e.errno in [errno.EACCES, errno.EPERM]:
-                warnings.warn(
-                    default_warning_message.format(path), ResourceWarning, stacklevel=1
-                )
+                warnings.warn(default_warning_message.format(path), ResourceWarning, stacklevel=1)
                 return
 
     if exc_exception.errno in [errno.EACCES, errno.EPERM]:

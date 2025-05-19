@@ -52,8 +52,10 @@ jobs:
         with:
           python-version: 3.x
       - run: |
-          python -m pip install pre-commit
+          python -m pip install pre-commit ruff
           pre-commit run --all-files --verbose --show-diff-on-failure
+          ruff check --output-format=github .
+          ruff format --check .
   vendor:
     name: Vendoring
     needs: lint

@@ -74,9 +74,7 @@ os.environ.pop("__PYVENV_LAUNCHER__", None)
 SESSION_IS_INTERACTIVE = isatty(sys.stdout)
 
 # TF_BUILD indicates to Azure pipelines it is a build step
-PIPENV_IS_CI = get_from_env("CI", prefix="", check_for_negation=False) or is_env_truthy(
-    "TF_BUILD"
-)
+PIPENV_IS_CI = get_from_env("CI", prefix="", check_for_negation=False) or is_env_truthy("TF_BUILD")
 
 
 NO_COLOR = False
@@ -110,14 +108,10 @@ class Setting:
 
         #: Location for Pipenv to store its package cache.
         #: Default is to use appdir's user cache directory.
-        self.PIPENV_CACHE_DIR = get_from_env(
-            "CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv")
-        )
+        self.PIPENV_CACHE_DIR = get_from_env("CACHE_DIR", check_for_negation=False, default=user_cache_dir("pipenv"))
 
         # Tells Pipenv which Python to default to, when none is provided.
-        self.PIPENV_DEFAULT_PYTHON_VERSION = get_from_env(
-            "DEFAULT_PYTHON_VERSION", check_for_negation=False
-        )
+        self.PIPENV_DEFAULT_PYTHON_VERSION = get_from_env("DEFAULT_PYTHON_VERSION", check_for_negation=False)
         """Use this Python version when creating new virtual environments by default.
 
         This can be set to a version string, e.g. ``3.9``, or a path. Default is to use
@@ -126,33 +120,25 @@ class Setting:
         this configuration.
         """
 
-        self.PIPENV_DONT_LOAD_ENV = bool(
-            get_from_env("DONT_LOAD_ENV", check_for_negation=False)
-        )
+        self.PIPENV_DONT_LOAD_ENV = bool(get_from_env("DONT_LOAD_ENV", check_for_negation=False))
         """If set, Pipenv does not load the ``.env`` file.
 
         Default is to load ``.env`` for ``run`` and ``shell`` commands.
         """
 
-        self.PIPENV_DONT_USE_PYENV = bool(
-            get_from_env("DONT_USE_PYENV", check_for_negation=False)
-        )
+        self.PIPENV_DONT_USE_PYENV = bool(get_from_env("DONT_USE_PYENV", check_for_negation=False))
         """If set, Pipenv does not attempt to install Python with pyenv.
 
         Default is to install Python automatically via pyenv when needed, if possible.
         """
 
-        self.PIPENV_DONT_USE_ASDF = bool(
-            get_from_env("DONT_USE_ASDF", check_for_negation=False)
-        )
+        self.PIPENV_DONT_USE_ASDF = bool(get_from_env("DONT_USE_ASDF", check_for_negation=False))
         """If set, Pipenv does not attempt to install Python with asdf.
 
         Default is to install Python automatically via asdf when needed, if possible.
         """
 
-        self.PIPENV_DOTENV_LOCATION = get_from_env(
-            "DOTENV_LOCATION", check_for_negation=False
-        )
+        self.PIPENV_DOTENV_LOCATION = get_from_env("DOTENV_LOCATION", check_for_negation=False)
         """If set, Pipenv loads the ``.env`` file at the specified location.
 
         Default is to load ``.env`` from the project root, if found.
@@ -173,9 +159,7 @@ class Setting:
         and enables the user to use any user-built environments with Pipenv.
         """
 
-        self.PIPENV_INSTALL_TIMEOUT = int(
-            get_from_env("INSTALL_TIMEOUT", default=60 * 15)
-        )
+        self.PIPENV_INSTALL_TIMEOUT = int(get_from_env("INSTALL_TIMEOUT", default=60 * 15))
         """Max number of seconds to wait for package installation.
 
         Defaults to 900 (15 minutes), a very long arbitrary time.
@@ -188,17 +172,13 @@ class Setting:
         Default is 3. See also ``PIPENV_NO_INHERIT``.
         """
 
-        self.PIPENV_MAX_RETRIES = (
-            int(get_from_env("MAX_RETRIES", default=1)) if PIPENV_IS_CI else 0
-        )
+        self.PIPENV_MAX_RETRIES = int(get_from_env("MAX_RETRIES", default=1)) if PIPENV_IS_CI else 0
         """Specify how many retries Pipenv should attempt for network requests.
 
         Default is 0. Automatically set to 1 on CI environments for robust testing.
         """
 
-        self.PIPENV_NO_INHERIT = bool(
-            get_from_env("NO_INHERIT", check_for_negation=False)
-        )
+        self.PIPENV_NO_INHERIT = bool(get_from_env("NO_INHERIT", check_for_negation=False))
         """Tell Pipenv not to inherit parent directories.
 
         This is useful for deployment to avoid using the wrong current directory.
@@ -223,9 +203,7 @@ class Setting:
             self.PIPENV_SPINNER = None
         else:
             pipenv_spinner = "bouncingBar" if os.name == "nt" else "dots"
-            self.PIPENV_SPINNER = get_from_env(
-                "SPINNER", check_for_negation=False, default=pipenv_spinner
-            )
+            self.PIPENV_SPINNER = get_from_env("SPINNER", check_for_negation=False, default=pipenv_spinner)
         """Sets the default spinner type.
 
         You can see which spinners are available by running::
@@ -281,17 +259,13 @@ class Setting:
         Default is to use the compatibility shell if possible.
         """
 
-        self.PIPENV_TIMEOUT = int(
-            get_from_env("TIMEOUT", check_for_negation=False, default=120)
-        )
+        self.PIPENV_TIMEOUT = int(get_from_env("TIMEOUT", check_for_negation=False, default=120))
         """Max number of seconds Pipenv will wait for virtualenv creation to complete.
 
         Default is 120 seconds, an arbitrary number that seems to work.
         """
 
-        self.PIPENV_REQUESTS_TIMEOUT = int(
-            get_from_env("REQUESTS_TIMEOUT", check_for_negation=False, default=10)
-        )
+        self.PIPENV_REQUESTS_TIMEOUT = int(get_from_env("REQUESTS_TIMEOUT", check_for_negation=False, default=10))
         """Timeout setting for requests.
 
         Default is 10 seconds.
@@ -334,9 +308,7 @@ class Setting:
         NOTE: This only affects the ``install`` and ``uninstall`` commands.
         """
 
-        self.PIP_EXISTS_ACTION = get_from_env(
-            "EXISTS_ACTION", prefix="PIP", check_for_negation=False, default="w"
-        )
+        self.PIP_EXISTS_ACTION = get_from_env("EXISTS_ACTION", prefix="PIP", check_for_negation=False, default="w")
         """Specifies the value for pip's --exists-action option
 
         Defaults to ``(w)ipe``
@@ -350,19 +322,13 @@ class Setting:
         approach, you may disable this.
         """
 
-        self.PIPENV_CUSTOM_VENV_NAME = get_from_env(
-            "CUSTOM_VENV_NAME", check_for_negation=False
-        )
+        self.PIPENV_CUSTOM_VENV_NAME = get_from_env("CUSTOM_VENV_NAME", check_for_negation=False)
         """Tells Pipenv whether to name the venv something other than the default dir name."""
 
-        self.PIPENV_VIRTUALENV_CREATOR = get_from_env(
-            "VIRTUALENV_CREATOR", check_for_negation=False
-        )
+        self.PIPENV_VIRTUALENV_CREATOR = get_from_env("VIRTUALENV_CREATOR", check_for_negation=False)
         """Tells Pipenv to use the virtualenv --creator= argument with the user specified value."""
 
-        self.PIPENV_VIRTUALENV_COPIES = get_from_env(
-            "VIRTUALENV_COPIES", check_for_negation=True
-        )
+        self.PIPENV_VIRTUALENV_COPIES = get_from_env("VIRTUALENV_COPIES", check_for_negation=True)
         """Tells Pipenv to use the virtualenv --copies to prevent symlinks when specified as Truthy."""
 
         self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY", check_for_negation=False)
@@ -387,11 +353,7 @@ class Setting:
         self.PIPENV_SKIP_VALIDATION = True
 
         # Internal, the default shell to use if shell detection fails.
-        self.PIPENV_SHELL = (
-            os.environ.get("SHELL")
-            or os.environ.get("PYENV_SHELL")
-            or os.environ.get("COMSPEC")
-        )
+        self.PIPENV_SHELL = os.environ.get("SHELL") or os.environ.get("PYENV_SHELL") or os.environ.get("COMSPEC")
 
         # Internal, consolidated verbosity representation as an integer. The default
         # level is 0, increased for wordiness and decreased for terseness.
