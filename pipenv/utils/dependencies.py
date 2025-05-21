@@ -684,9 +684,10 @@ def find_package_name_from_directory(directory):
             directory_path = Path(directory_str[1:])
 
     try:
-        # Sort contents - directories first, then files
+        # Sort contents - files first, then directories to search parent
+        # directories before leaf directories.
         directory_contents = sorted(
-            directory_path.iterdir(), key=lambda x: (x.is_file(), x.name)
+            directory_path.iterdir(), key=lambda x: (x.is_dir(), x.name)
         )
 
         for path in directory_contents:
@@ -844,31 +845,31 @@ def determine_package_name(package: InstallRequirement):
 
 
 def find_package_name_from_filename(filename, file):
-    if filename.endswith("METADATA"):
+    if filename == "METADATA":
         content = file.read().decode()
         possible_name = parse_metadata_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("PKG-INFO"):
+    if filename == "PKG-INFO":
         content = file.read().decode()
         possible_name = parse_pkginfo_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("setup.py"):
+    if filename == "setup.py":
         content = file.read().decode()
         possible_name = parse_setup_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("setup.cfg"):
+    if filename == "setup.cfg":
         content = file.read().decode()
         possible_name = parse_cfg_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("pyproject.toml"):
+    if filename == "pyproject.toml":
         content = file.read().decode()
         possible_name = parse_toml_file(content)
         if possible_name:
