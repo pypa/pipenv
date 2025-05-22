@@ -57,5 +57,5 @@ def configure():
 
         # Ensure my_simple_package was not parsed from the setup.py module
         # inside the package.
-        with open(Path(p.path) / "Pipfile", "r") as f:
+        with open(Path(p.path) / "Pipfile") as f:
             assert "my_simple_package" not in f.read()
