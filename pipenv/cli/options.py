@@ -187,9 +187,24 @@ def lock_dev_option(f):
 
 
 def uninstall_dev_option(f):
-    return _dev_option(
-        f, "Deprecated (as it has no effect). May be removed in a future release."
-    )
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        state.installstate.dev = value
+        if value:
+            state.installstate.categories.append("dev-packages")
+        return value
+
+    return option(
+        "--dev",
+        "-d",
+        is_flag=True,
+        default=False,
+        type=click_types.BOOL,
+        help="Uninstall packages from dev-packages.",
+        callback=callback,
+        expose_value=False,
+        show_envvar=True,
+    )(f)
 
 
 def pre_option(f):
