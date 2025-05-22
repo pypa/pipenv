@@ -51,9 +51,13 @@ echo "$ git submodule sync && git submodule update --init --recursive"
 
 git submodule sync && git submodule update --init --recursive
 
-echo "pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &"
-
-pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+readonly RUN_PYPI_SERVER="\
+pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 \
+  --disable-fallback ./tests/pypi/ ./tests/fixtures --welcome /dev/null"
+echo "${RUN_PYPI_SERVER} &"
+eval "${RUN_PYPI_SERVER} &"
+PYPI_SERVER_PID=$!
+trap "kill ${PYPI_SERVER_PID}" SIGINT SIGTERM EXIT
 
 echo "$pipenv run pytest -v -ra -n auto --cov-config pyproject.toml --fulltrace tests"
 
