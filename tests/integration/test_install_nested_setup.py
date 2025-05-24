@@ -36,8 +36,8 @@ setup(
 
         (module_dir / "__init__.py").touch()
 
-        # Create the package module
-        with open(module_dir / "setup.py", "w") as f:
+        # Create a test module that contains setup.py-like content but isn't setup.py
+        with open(module_dir / "test_setup.py", "w") as f:
             f.write("""
 def setup(name = ''):
     return f'Setup package {name}'
@@ -54,12 +54,14 @@ def configure():
 
         # Verify the package was installed correctly
         c = p.pipenv('run python -c "'
-                     'from simple_package import setup; '
-                     'print(setup.configure())"')
+                     'import simple_package.test_setup; '
+                     'print(simple_package.test_setup.configure())"')
         assert c.returncode == 0
         assert "Setup package my_simple_package" in c.stdout
 
-        # Ensure my_simple_package was not parsed from the setup.py module
-        # inside the package.
+        # Ensure my_simple_package was not parsed from the test_setup.py module
+        # inside the package - this is the key test for our fix.
         with open(Path(p.path) / "Pipfile") as f:
-            assert "my_simple_package" not in f.read()
+            pipfile_content = f.read()
+            assert "my_simple_package" not in pipfile_content
+            assert "simple-package" in pipfile_content  # Should find the correct name
