@@ -38,7 +38,7 @@ def _script_names(
 
 
 def _unique(
-    fn: Callable[..., Generator[Any, None, None]]
+    fn: Callable[..., Generator[Any, None, None]],
 ) -> Callable[..., Generator[Any, None, None]]:
     @functools.wraps(fn)
     def unique(*args: Any, **kw: Any) -> Generator[Any, None, None]:
@@ -505,10 +505,13 @@ class UninstallPathSet:
             # package installed by easy_install
             # We cannot match on dist.egg_name because it can slightly vary
             # i.e. setuptools-0.6c11-py2.6.egg vs setuptools-0.6rc11-py2.6.egg
-            paths_to_remove.add(dist_location)
-            easy_install_egg = os.path.split(dist_location)[1]
+            # XXX We use normalized_dist_location because dist_location my contain
+            # a trailing / if the distribution is a zipped egg
+            # (which is not a directory).
+            paths_to_remove.add(normalized_dist_location)
+            easy_install_egg = os.path.split(normalized_dist_location)[1]
             easy_install_pth = os.path.join(
-                os.path.dirname(dist_location),
+                os.path.dirname(normalized_dist_location),
                 "easy-install.pth",
             )
             paths_to_remove.add_pth(easy_install_pth, "./" + easy_install_egg)

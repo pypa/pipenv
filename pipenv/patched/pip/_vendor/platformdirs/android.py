@@ -23,7 +23,7 @@ class Android(PlatformDirsABC):
     @property
     def user_data_dir(self) -> str:
         """:return: data directory tied to the user, e.g. ``/data/user/<userid>/<packagename>/files/<AppName>``"""
-        return self._append_app_name_and_version(cast(str, _android_folder()), "files")
+        return self._append_app_name_and_version(cast("str", _android_folder()), "files")
 
     @property
     def site_data_dir(self) -> str:
@@ -36,7 +36,7 @@ class Android(PlatformDirsABC):
         :return: config directory tied to the user, e.g. \
         ``/data/user/<userid>/<packagename>/shared_prefs/<AppName>``
         """
-        return self._append_app_name_and_version(cast(str, _android_folder()), "shared_prefs")
+        return self._append_app_name_and_version(cast("str", _android_folder()), "shared_prefs")
 
     @property
     def site_config_dir(self) -> str:
@@ -46,7 +46,7 @@ class Android(PlatformDirsABC):
     @property
     def user_cache_dir(self) -> str:
         """:return: cache directory tied to the user, e.g.,``/data/user/<userid>/<packagename>/cache/<AppName>``"""
-        return self._append_app_name_and_version(cast(str, _android_folder()), "cache")
+        return self._append_app_name_and_version(cast("str", _android_folder()), "cache")
 
     @property
     def site_cache_dir(self) -> str:

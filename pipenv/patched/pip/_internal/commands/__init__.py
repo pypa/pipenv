@@ -23,6 +23,11 @@ commands_dict: Dict[str, CommandInfo] = {
         "InstallCommand",
         "Install packages.",
     ),
+    "lock": CommandInfo(
+        "pipenv.patched.pip._internal.commands.lock",
+        "LockCommand",
+        "Generate a lock file.",
+    ),
     "download": CommandInfo(
         "pipenv.patched.pip._internal.commands.download",
         "DownloadCommand",

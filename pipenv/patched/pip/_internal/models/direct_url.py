@@ -1,4 +1,4 @@
-""" PEP 610 """
+"""PEP 610"""
 
 import json
 import re

@@ -231,7 +231,9 @@ class BaseDistribution(Protocol):
         location = self.location
         if not location:
             return False
-        return location.endswith(".egg")
+        # XXX if the distribution is a zipped egg, location has a trailing /
+        # so we resort to pathlib.Path to check the suffix in a reliable way.
+        return pathlib.Path(location).suffix == ".egg"
 
     @property
     def installed_with_setuptools_egg_info(self) -> bool:

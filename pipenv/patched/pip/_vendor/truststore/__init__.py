@@ -7,7 +7,7 @@ if _sys.version_info < (3, 10):
 
 # Detect Python runtimes which don't implement SSLObject.get_unverified_chain() API
 # This API only became public in Python 3.13 but was available in CPython and PyPy since 3.10.
-if _sys.version_info < (3, 13):
+if _sys.version_info < (3, 13) and _sys.implementation.name not in ("cpython", "pypy"):
     try:
         import ssl as _ssl
     except ImportError:
@@ -33,4 +33,4 @@ from ._api import SSLContext, extract_from_ssl, inject_into_ssl  # noqa: E402
 del _api, _sys  # type: ignore[name-defined] # noqa: F821
 
 __all__ = ["SSLContext", "inject_into_ssl", "extract_from_ssl"]
-__version__ = "0.10.0"
+__version__ = "0.10.1"

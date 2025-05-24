@@ -1,5 +1,4 @@
-"""Metadata generation logic for source distributions.
-"""
+"""Metadata generation logic for source distributions."""
 
 import os
 

@@ -32,7 +32,6 @@ class FreezeCommand(Command):
     ignore_require_venv = True
     usage = """
       %prog [options]"""
-    log_streams = ("ext://sys.stderr", "ext://sys.stderr")
 
     def add_options(self) -> None:
         self.cmd_opts.add_option(

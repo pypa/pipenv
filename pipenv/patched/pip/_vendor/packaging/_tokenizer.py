@@ -68,7 +68,8 @@ DEFAULT_RULES: dict[str, str | re.Pattern[str]] = {
                 |platform[._](version|machine|python_implementation)
                 |python_implementation
                 |implementation_(name|version)
-                |extra
+                |extras?
+                |dependency_groups
             )\b
         """,
         re.VERBOSE,
@@ -119,9 +120,9 @@ class Tokenizer:
         another check. If `peek` is set to `True`, the token is not loaded and
         would need to be checked again.
         """
-        assert (
-            self.next_token is None
-        ), f"Cannot check for {name!r}, already have {self.next_token!r}"
+        assert self.next_token is None, (
+            f"Cannot check for {name!r}, already have {self.next_token!r}"
+        )
         assert name in self.rules, f"Unknown token name: {name!r}"
 
         expression = self.rules[name]
