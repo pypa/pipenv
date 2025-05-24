@@ -12,6 +12,10 @@ import pytest
 )
 def test_install_path_with_nested_setup_module(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
+        # Install setuptools first for Python 3.12+ compatibility
+        c = p.pipenv("install setuptools")
+        assert c.returncode == 0
+
         # Create a simple package.
         package_dir = Path(p.path) / "simple_package"
         package_dir.mkdir()
