@@ -48,7 +48,7 @@ def configure():
 
         # Install the package using a path with spaces
         # Use both escaped spaces and quoted path to test both scenarios
-        relative_package_dir = package_dir.relative_to(p.path)
+        relative_package_dir = f'"{package_dir.relative_to(p.path)}"'
         c = p.pipenv(f'install -e {relative_package_dir}')
         assert c.returncode == 0
 
