@@ -1,73 +1,410 @@
-# Credentials
+# Managing Credentials in Pipenv
 
-## Injecting credentials into Pipfile via environment variables
+This guide covers best practices for securely managing credentials and authentication in Pipenv, including environment variables, private repositories, and security considerations.
 
-Pipenv will expand environment variables (if defined) in your Pipfile. Quite
-useful if you need to authenticate to a private PyPI:
+## Credentials in Package Sources
 
-    [[source]]
-    url = "https://$USERNAME:${PASSWORD}@mypypi.example.com/simple"
-    verify_ssl = true
-    name = "pypi"
+When working with private package repositories or authenticated services, you need to securely manage credentials in your Pipenv workflow.
 
-Luckily - pipenv will hash your Pipfile *before* expanding environment
-variables (and, helpfully, will substitute the environment variables again when
-you install from the lock file - so no need to commit any secrets! Woo!)
+### Environment Variable Expansion
 
-If your credentials contain special characters, make sure they are URL-encoded as specified in `rfc3986 <https://datatracker.ietf.org/doc/html/rfc3986>`_.
+Pipenv automatically expands environment variables in your `Pipfile`, providing a secure way to inject credentials without storing them in version control.
 
-Environment variables may be specified as `${MY_ENVAR}` or `$MY_ENVAR`.
+#### Basic Environment Variable Syntax
 
-On Windows, `%MY_ENVAR%` is supported in addition to `${MY_ENVAR}` or `$MY_ENVAR`.
+You can use environment variables in your `Pipfile` using the following syntax:
 
-Environment variables in the URL part of requirement specifiers can also be expanded, where the variable must be in the form of `${VAR_NAME}`. Neither `$VAR_NAME` nor `%VAR_NAME%` is acceptable:
+- `${VARIABLE_NAME}` - Standard syntax
+- `$VARIABLE_NAME` - Alternative syntax
+- `%VARIABLE_NAME%` - Windows-specific syntax (also supported on all platforms)
 
-    [[package]]
-    requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
+#### Example: Private Repository Authentication
 
-Keep in mind that environment variables are expanded in runtime, leaving the entries in `Pipfile` or `Pipfile.lock` untouched. This is to avoid the accidental leakage of credentials in the source code.
+```toml
+[[source]]
+url = "https://${USERNAME}:${PASSWORD}@mypypi.example.com/simple"
+verify_ssl = true
+name = "private-pypi"
+```
 
-## Injecting credentials through keychain support
+When Pipenv reads this `Pipfile`, it will replace `${USERNAME}` and `${PASSWORD}` with the values of the corresponding environment variables.
 
-Private registries on Google Cloud, Azure and AWS support dynamic credentials using
-the keychain implementation.
+#### Setting Environment Variables
 
-Pipenv supports this keychain implementation. It will automatically detect the
-keychain implementation and use it to authenticate to the private registry.
+Before running Pipenv commands, set the required environment variables:
 
-### Google Cloud
+**Linux/macOS:**
+```bash
+$ export USERNAME="your-username"
+$ export PASSWORD="your-password"
+$ pipenv install
+```
 
-Google Cloud supports private registries. You can find more information about
-this here: https://cloud.google.com/artifact-registry/docs/python/authentication
+**Windows (Command Prompt):**
+```cmd
+> set USERNAME=your-username
+> set PASSWORD=your-password
+> pipenv install
+```
 
-In order to utilize, you need to install the `keyring` and `keyrings.google-artifactregistry` packages,
-and they must be available in the same virtualenv that you intend to use Pipenv in.
+**Windows (PowerShell):**
+```powershell
+> $env:USERNAME="your-username"
+> $env:PASSWORD="your-password"
+> pipenv install
+```
 
-    pipenv run pip install keyring keyrings.google-artifactregistry-auth
+### Security Considerations
 
-Depending on the way your keychain is structured, it may ask for user input.
-Asking the user for input is disabled by default, and this may disable the keychain support completely.
-If you want to work with private registries that use the keychain for authentication,
-you may need to disable the "enforcement of no input".
+Pipenv hashes your `Pipfile` *before* expanding environment variables and substitutes them again when installing from the lock file. This means:
 
-**Note:** Please be sure that the keychain will really not ask for input.
-Otherwise, the process will hang forever!:
+1. Your credentials are never stored in the lock file
+2. You don't need to commit any secrets to version control
+3. Different developers can use different credentials with the same `Pipfile`
 
-    [[source]]
-    url = "https://pypi.org/simple"
-    verify_ssl = true
-    name = "pypi"
+```{warning}
+While environment variables provide better security than hardcoded credentials, they are still accessible to any process running with the same user permissions. For highly sensitive credentials, consider using a dedicated secrets management solution.
+```
 
-    [[source]]
-    url = "https://europe-python.pkg.dev/my-project/python/simple"
-    verify_ssl = true
-    name = "private-gcp"
+### URL Encoding for Special Characters
 
-    [packages]
-    flask = "*"
-    private-test-package = {version = "*", index = "private-gcp"}
+If your credentials contain special characters, they must be URL-encoded according to [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 
-    [pipenv]
-    disable_pip_input = false
+For example, if your password is `p@ssw0rd!`, it should be encoded as `p%40ssw0rd%21`:
 
-Above example will install `flask` and a private package `private-test-package` from GCP.
+```toml
+[[source]]
+url = "https://${USERNAME}:${PASSWORD_ENCODED}@mypypi.example.com/simple"
+verify_ssl = true
+name = "private-pypi"
+```
+
+You can generate URL-encoded strings using Python:
+
+```python
+import urllib.parse
+print(urllib.parse.quote("p@ssw0rd!", safe=""))
+# Output: p%40ssw0rd%21
+```
+
+## Credentials in Package Requirements
+
+Environment variables can also be used in package requirement specifiers, but with some limitations.
+
+### VCS Repository Authentication
+
+For version control system (VCS) repositories that require authentication:
+
+```toml
+[packages]
+requests = {git = "git://${USERNAME}:${PASSWORD}@private.git.com/psf/requests.git", ref = "2.22.0"}
+```
+
+```{note}
+For VCS repositories, only the `${VAR_NAME}` syntax is supported. Neither `$VAR_NAME` nor `%VAR_NAME%` will work in this context.
+```
+
+### Runtime vs. Install-time Expansion
+
+It's important to understand that environment variables are expanded at runtime, not when the `Pipfile` or `Pipfile.lock` is created. This means:
+
+1. The entries in `Pipfile` and `Pipfile.lock` remain untouched
+2. You need to have the environment variables set every time you run Pipenv commands
+3. Different environments (development, CI/CD, production) can use different credentials
+
+## Keychain Integration
+
+For certain cloud providers, Pipenv supports keychain integration for authentication to private registries.
+
+### Google Cloud Artifact Registry
+
+Google Cloud Artifact Registry supports authentication via keychain:
+
+1. Install the required packages:
+   ```bash
+   $ pipenv run pip install keyring keyrings.google-artifactregistry-auth
+   ```
+
+2. Configure your `Pipfile`:
+   ```toml
+   [[source]]
+   url = "https://pypi.org/simple"
+   verify_ssl = true
+   name = "pypi"
+
+   [[source]]
+   url = "https://europe-python.pkg.dev/my-project/python/simple"
+   verify_ssl = true
+   name = "private-gcp"
+
+   [packages]
+   flask = "*"
+   private-test-package = {version = "*", index = "private-gcp"}
+   ```
+
+3. If the keychain might ask for user input, you may need to disable input enforcement:
+   ```toml
+   [pipenv]
+   disable_pip_input = false
+   ```
+
+### Azure Artifact Registry
+
+For Azure Artifact Registry:
+
+1. Install the required packages:
+   ```bash
+   $ pipenv run pip install keyring keyrings.azureartifacts
+   ```
+
+2. Configure your `Pipfile` similar to the Google Cloud example above.
+
+### AWS CodeArtifact
+
+For AWS CodeArtifact:
+
+1. Install the required packages:
+   ```bash
+   $ pipenv run pip install keyring keyrings.aws-codeartifact
+   ```
+
+2. Configure your `Pipfile` with the appropriate AWS CodeArtifact URL.
+
+## Best Practices for Credential Management
+
+### Use Environment Variables
+
+Always use environment variables instead of hardcoding credentials:
+
+```toml
+# Good
+url = "https://${USERNAME}:${PASSWORD}@private-repo.example.com/simple"
+
+# Bad
+url = "https://actual-username:actual-password@private-repo.example.com/simple"
+```
+
+### Store Credentials in .env Files
+
+For local development, store credentials in `.env` files that are not committed to version control:
+
+```
+# .env
+USERNAME=your-username
+PASSWORD=your-password
+```
+
+Add `.env` to your `.gitignore`:
+```
+# .gitignore
+.env
+```
+
+Pipenv will automatically load variables from `.env` files when you run commands.
+
+### Provide Templates
+
+Include a template `.env.example` file in your repository:
+
+```
+# .env.example
+USERNAME=
+PASSWORD=
+```
+
+This helps other developers understand which environment variables they need to set.
+
+### Use Different Credentials for Different Environments
+
+Maintain separate credential sets for different environments:
+
+```
+# .env.development
+USERNAME=dev-username
+PASSWORD=dev-password
+
+# .env.production
+USERNAME=prod-username
+PASSWORD=prod-password
+```
+
+Use them with:
+```bash
+$ PIPENV_DOTENV_LOCATION=.env.development pipenv install
+```
+
+### Rotate Credentials Regularly
+
+Regularly rotate your credentials to minimize the impact of potential leaks:
+
+1. Generate new credentials
+2. Update your environment variables or `.env` files
+3. Revoke the old credentials
+
+### Consider Credential Managers
+
+For team environments, consider using dedicated credential management solutions:
+
+- [HashiCorp Vault](https://www.vaultproject.io/)
+- [AWS Secrets Manager](https://aws.amazon.com/secrets-manager/)
+- [Google Secret Manager](https://cloud.google.com/secret-manager)
+- [Azure Key Vault](https://azure.microsoft.com/en-us/services/key-vault/)
+
+These can be integrated into your workflow to provide secure, centralized credential management.
+
+## CI/CD Integration
+
+### GitHub Actions
+
+For GitHub Actions, use secrets to store credentials:
+
+```yaml
+name: Python Package
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install dependencies
+      env:
+        USERNAME: ${{ secrets.PYPI_USERNAME }}
+        PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+      run: |
+        pip install pipenv
+        pipenv install --dev
+```
+
+### GitLab CI
+
+For GitLab CI, use CI/CD variables:
+
+```yaml
+stages:
+  - test
+
+test:
+  stage: test
+  image: python:3.10
+  variables:
+    USERNAME: ${PYPI_USERNAME}
+    PASSWORD: ${PYPI_PASSWORD}
+  script:
+    - pip install pipenv
+    - pipenv install --dev
+    - pipenv run pytest
+```
+
+### Jenkins
+
+For Jenkins, use credentials binding:
+
+```groovy
+pipeline {
+    agent {
+        docker {
+            image 'python:3.10'
+        }
+    }
+    stages {
+        stage('Build') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'pypi-username', variable: 'USERNAME'),
+                    string(credentialsId: 'pypi-password', variable: 'PASSWORD')
+                ]) {
+                    sh 'pip install pipenv'
+                    sh 'pipenv install --dev'
+                    sh 'pipenv run pytest'
+                }
+            }
+        }
+    }
+}
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### Environment Variables Not Being Expanded
+
+If environment variables aren't being expanded:
+
+1. Verify the variables are set correctly:
+   ```bash
+   $ echo $USERNAME
+   $ echo $PASSWORD
+   ```
+
+2. Check the syntax in your `Pipfile`:
+   - Use `${VARIABLE_NAME}` for the most reliable expansion
+   - Ensure there are no typos in variable names
+
+3. Try setting the variables directly in the command:
+   ```bash
+   $ USERNAME=user PASSWORD=pass pipenv install
+   ```
+
+#### Authentication Failures
+
+If you're experiencing authentication failures:
+
+1. Verify your credentials work outside of Pipenv:
+   ```bash
+   $ curl -u "${USERNAME}:${PASSWORD}" https://private-repo.example.com/simple
+   ```
+
+2. Check for special characters that might need URL encoding
+
+3. Ensure your credentials have the necessary permissions
+
+#### Keychain Integration Issues
+
+If keychain integration isn't working:
+
+1. Verify the keychain packages are installed:
+   ```bash
+   $ pipenv run pip list | grep keyring
+   ```
+
+2. Check if the keychain is properly configured for your system
+
+3. Try disabling pip input enforcement:
+   ```toml
+   [pipenv]
+   disable_pip_input = false
+   ```
+
+## Security Considerations
+
+### Credential Leakage Risks
+
+Be aware of these common credential leakage risks:
+
+1. **Command history**: Credentials passed directly in commands are stored in shell history
+2. **Process listing**: Environment variables set on the command line may be visible in process listings
+3. **Log files**: Debug logs might include expanded environment variables
+4. **Core dumps**: Application crashes might include memory containing credentials
+
+### Mitigating Risks
+
+To mitigate these risks:
+
+1. Use `.env` files instead of setting variables on the command line
+2. Limit access to environments where credentials are used
+3. Use temporary credentials or tokens when possible
+4. Implement the principle of least privilege for all credentials
+5. Monitor for unauthorized access to your repositories
+
+## Conclusion
+
+Properly managing credentials in Pipenv is essential for security and maintainability. By using environment variables, `.env` files, and following best practices, you can securely authenticate to private repositories and services without compromising sensitive information.
+
+Remember that credential management is an ongoing process that requires regular review and updates to maintain security. Always follow the principle of least privilege and rotate credentials regularly to minimize potential security risks.

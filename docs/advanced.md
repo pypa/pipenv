@@ -1,352 +1,491 @@
-# Other topics
+# Advanced Pipenv Usage
 
-This document is current in the process of being broken apart into more granular sections so that we may provide better overall documentation.
+This guide covers advanced features and techniques for using Pipenv effectively in complex scenarios. These topics build on the basic functionality covered in other documentation sections.
 
-## ☤ Supplying additional arguments to pip
+## Passing Additional Arguments to pip
 
-There may be cases where you wish to supply additional arguments to pip to be used during the install phase. For example, you may want to enable the pip feature for using [system certificate stores](https://pip.pypa.io/en/latest/topics/https-certificates/#using-system-certificate-stores)
+When you need more control over the underlying pip commands that Pipenv executes, you can pass additional arguments directly to pip.
 
-In this case you can supply these additional arguments to `pipenv sync` or `pipenv install` by passing additional
-argument `--extra-pip-args="--use-feature=truststore"`. It is possible to supply multiple arguments in the `--extra-pip-args`. Example usage:
+### Using --extra-pip-args
 
-    pipenv sync --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
+The `--extra-pip-args` option allows you to supply additional arguments to pip during installation:
 
-## ☤ Using pipenv for Deployments
+```bash
+$ pipenv install --extra-pip-args="--use-feature=truststore --proxy=127.0.0.1"
+```
 
-You may want to use `pipenv` as part of a deployment process.
+This is particularly useful for:
 
-You can enforce that your `Pipfile.lock` is in parity with your `Pipfile` by using the `--deploy` flag:
+- Using experimental pip features
+- Configuring proxies
+- Setting build options for packages with C extensions
+- Controlling cache behavior
+- Specifying platform-specific wheels
 
-    $ pipenv install --deploy
+### Common Use Cases
 
-This will fail a build if the `Pipfile.lock` `_meta` `hash` is out of date from the Pipfile contents.
+#### Using System Certificate Stores
 
-Or you can install packages exactly as specified in `Pipfile.lock` using the `install` or `sync` command:
+```bash
+$ pipenv install --extra-pip-args="--use-feature=truststore"
+```
 
-    $ pipenv install
+#### Installing Platform-Specific Packages
 
-    or
+```bash
+$ pipenv install --extra-pip-args="--platform=win_amd64 --only-binary=:all:"
+```
 
-    $ pipenv install
+#### Setting Build Options
 
-Note:  Legacy versions of pipenv (prior to pipenv 2024) would relock dependencies when running `pipenv install`.  This behavior was changed in pipenv 2024.0.0 to only relock dependencies when supply package specifiers to the `install` command.
+```bash
+$ pipenv install pycurl --extra-pip-args="--global-option=--with-openssl-dir=/usr/local/opt/openssl"
+```
 
-    ``pipenv sync`` is nearly equivalent to ``pipenv install`` at this point, except pipenv install provides more functionality for adding and upgrading packages.
+## Deployment Strategies
 
-You may only wish to verify your `Pipfile.lock` is up-to-date with dependencies specified in the `Pipfile`, without installing:
+Pipenv provides several approaches for deploying applications in production environments.
 
-    $ pipenv verify
+### Using --deploy Flag
 
-The command will perform a verification, and return an exit code `1` when dependency locking is needed. This may be useful for cases when the `Pipfile.lock` file is subject to version control, so this command can be used within your CI/CD pipelines.
+The `--deploy` flag ensures that your `Pipfile.lock` is up-to-date with your `Pipfile` before installation:
 
-### Deploying System Dependencies
+```bash
+$ pipenv install --deploy
+```
 
-You can tell Pipenv to install a Pipfile's contents into its parent system with the `--system` flag:
+This will fail if:
+- The `Pipfile.lock` is out of date
+- The `Pipfile.lock` is missing
+- The hash in `Pipfile.lock` doesn't match the `Pipfile`
 
-    $ pipenv install --system
+This is crucial for production deployments to ensure you're installing exactly what you expect.
 
-This is useful for managing the system Python, and deployment infrastructure (e.g. Heroku does this).
+### System-Wide Installation
 
-## ☤ Pipenv and Other Python Distributions
+For some deployment scenarios (like containerized applications), you may want to install packages directly to the system Python rather than in a virtual environment:
 
-To use Pipenv with a third-party Python distribution (e.g. Anaconda), you simply provide the path to the Python binary:
+```bash
+$ pipenv install --system --deploy
+```
 
-    $ pipenv install --python=/path/to/python
+This installs all packages specified in `Pipfile.lock` to the system Python. Use this approach with caution, as it can potentially conflict with system packages.
 
-Anaconda uses Conda to manage packages. To reuse Conda–installed Python packages, use the `--site-packages` flag:
+### Verifying Lock File Without Installing
 
-    $ pipenv --python=/path/to/python --site-packages
+To verify that your `Pipfile.lock` is up-to-date without installing packages:
 
-## ☤ Generating a `requirements.txt`
+```bash
+$ pipenv verify
+```
 
-Sometimes, you would want to generate a requirements file based on your current
-environment, for example to include tooling that only supports requirements.txt.
-You can convert a `Pipfile.lock` into a `requirements.txt`
-file very easily.
+This is useful in CI/CD pipelines to ensure the lock file has been properly updated after changes to the `Pipfile`.
 
-Let's take this `Pipfile`:
+### Docker Deployment
 
-    [[source]]
-    name = "pypi"
-    url = "https://pypi.org/simple"
-    verify_ssl = true
+For Docker deployments, a multi-stage build approach is recommended:
 
-    [packages]
-    requests = {version="==2.18.4"}
+```dockerfile
+FROM python:3.10-slim AS builder
 
-    [dev-packages]
-    pytest = {version="==3.2.3"}
+WORKDIR /app
 
-Which generates a `Pipfile.lock` upon completion of running ``pipenv lock``` similar to:
+# Copy dependency files
+COPY Pipfile Pipfile.lock ./
 
-    {
-            "_meta": {
-                    "hash": {
-                            "sha256": "4b81df812babd4e54ba5a4086714d7d303c1c3f00d725c76e38dd58cbd360f4e"
-                    },
-                    "pipfile-spec": 6,
-                    "requires": {},
-                    "sources": [
-                            {
-                                    "name": "pypi",
-                                    "url": "https://pypi.org/simple",
-                                    "verify_ssl": true
-                            }
-                    ]
-            },
-            "default": {
-    		... snipped ...
-                    "requests": {
-                            "hashes": [
-                                    "sha256:6a1b267aa90cac58ac3a765d067950e7dbbf75b1da07e895d1f594193a40a38b",
-                                    "sha256:9c443e7324ba5b85070c4a818ade28bfabedf16ea10206da1132edaa6dda237e"
-                            ],
-                            "index": "pypi",
-                            "version": "==2.18.4"
-                    },
-    		... snipped ...
-            },
-            "develop": {
-                    ... snipped ...
-                    "pytest": {
-                            "hashes": [
-                                    "sha256:27fa6617efc2869d3e969a3e75ec060375bfb28831ade8b5cdd68da3a741dc3c",
-                                    "sha256:81a25f36a97da3313e1125fce9e7bbbba565bc7fec3c5beb14c262ddab238ac1"
-                            ],
-                            "index": "pypi",
-                            "version": "==3.2.3"
-                    }
-                    ... snipped ...
-    }
-
-Given the `Pipfile.lock` exists, you may generate a set of requirements out of it with the default dependencies:
-
-    $ pipenv requirements
-    -i https://pypi.org/simple
-    certifi==2022.9.24 ; python_version >= '3.6'
-    chardet==3.0.4
-    idna==2.6
-    requests==2.18.4
-    urllib3==1.22
-
-As with other commands, passing `--dev` will include both the default and
-development dependencies:
-
-     $ pipenv requirements --dev
-    -i https://pypi.org/simple
-    colorama==0.4.5 ; sys_platform == 'win32'
-    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-    pytest==3.2.3
-    setuptools==65.4.1 ; python_version >= '3.7'
-    certifi==2022.9.24 ; python_version >= '3.6'
-    chardet==3.0.4
-    idna==2.6
-    requests==2.18.4
-    urllib3==1.22
-
-If you wish to generate a requirements file with only the development requirements you can do that too, using the `--dev-only` flag:
-
-    $ pipenv requirements --dev-only
-    -i https://pypi.org/simple
-    colorama==0.4.5 ; sys_platform == 'win32'
-    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-    pytest==3.2.3
-    setuptools==65.4.1 ; python_version >= '3.7'
-
-Adding the `--hash` flag adds package hashes to the output for extra security.
-Adding the `--exclude-markers` flag excludes the markers from the output.
-
-The locked requirements are written to stdout, with shell output redirection
-used to write them to a file:
-
-    $ pipenv requirements > requirements.txt
-    $ pipenv requirements --dev-only > dev-requirements.txt
-    $ cat requirements.txt
-    -i https://pypi.org/simple
-    certifi==2022.9.24 ; python_version >= '3.6'
-    chardet==3.0.4
-    idna==2.6
-    requests==2.18.4
-    urllib3==1.22
-    $ cat dev-requirements.txt
-    -i https://pypi.org/simple
-    colorama==0.4.5 ; sys_platform == 'win32'
-    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-    pytest==3.2.3
-    setuptools==65.4.1 ; python_version >= '3.7'
-
-If you have multiple categories in your Pipfile and wish to generate
-a requirements file for only some categories, you can do that too,
-using the `--categories` option:
-
-    $ pipenv requirements --categories="tests" > requirements-tests.txt
-    $ pipenv requirements --categories="docs" > requirements-docs.txt
-    $ cat requirements-tests.txt
-    -i https://pypi.org/simple
-    attrs==22.1.0 ; python_version >= '3.5'
-    iniconfig==1.1.1
-    packaging==21.3 ; python_version >= '3.6'
-    pluggy==1.0.0 ; python_version >= '3.6'
-    py==1.11.0 ; python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'
-    pyparsing==3.0.9 ; python_full_version >= '3.6.8'
-    pytest==7.1.3
-    tomli==2.0.1 ; python_version >= '3.7'
-
-It can be used to specify multiple categories also.
-
-    $ pipenv requirements --categories="tests,docs"
-
-## ☤ Detection of Security Vulnerabilities
-
-Pipenv includes the [safety](https://github.com/pyupio/safety) package, and will use it to scan your dependency graph for known security vulnerabilities!
-
-By default `pipenv check` will scan the Pipfile.lock default packages group and use this as the input to the safety command.
-To scan other package categories pass the specific `--categories` you want to check against.
-To have `pipenv check` scan the virtualenv packages for what is installed and use this as the input to the safety command,
-run`pipenv check --use-installed`.
-Note: `--use-installed` was the default behavior in `pipenv<=2023.2.4`.
-
-Example:
-
-    $ pipenv install wheel==0.37.1
-    $ cat Pipfile.lock
-    ...
-    "default": {
-        "wheel": {
-            "hashes": [
-                "sha256:4bdcd7d840138086126cd09254dc6195fb4fc6f01c050a1d7236f2630db1d22a",
-                "sha256:e9a504e793efbca1b8e0e9cb979a249cf4a0a7b5b8c9e8b65a5e39d49529c1c4"
-            ],
-            "index": "pypi",
-            "version": "==0.37.1"
-        }
-    },
-    ...
-
-    $ pipenv check --use-lock
-    ...
-    -> Vulnerability found in wheel version 0.37.1
-       Vulnerability ID: 51499
-       Affected spec: <0.38.1
-       ADVISORY: Wheel 0.38.1 includes a fix for CVE-2022-40898: An issue discovered in Python Packaging Authority (PyPA) Wheel 0.37.1 and earlier allows remote attackers to cause a denial of service
-       via attacker controlled input to wheel cli.https://pyup.io/posts/pyup-discovers-redos-vulnerabilities-in-top-python-packages
-       CVE-2022-40898
-       For more information, please visit https://pyup.io/v/51499/742
-
-     Scan was completed. 1 vulnerability was found.
-     ...
-
-Note
-
-Each month, [PyUp.io](https://pyup.io) updates the `safety` database of insecure Python packages and [makes it available to the open source community for free](https://pyup.io/safety/). Each time you run `pipenv check` to show you vulnerable dependencies,
-Pipenv makes an API call to retrieve and use those results.
-
-For more up-to-date vulnerability data, you may also use your own safety API key by setting the environment variable `PIPENV_PYUP_API_KEY`.
-
-## ☤ Community Integrations
-
-There are a range of community-maintained plugins and extensions available for a range of editors and IDEs, as well as different products which integrate with Pipenv projects:
-
--   [Heroku](https://heroku.com/python) (Cloud Hosting)
--   [Platform.sh](https://platform.sh/hosting/python)(Cloud Hosting)
--   [PyUp](https://pyup.io) (Security Notification)
--   [Emacs](https://github.com/pwalsh/pipenv.el) (Editor Integration)
--   [Fish Shell](https://github.com/fisherman/pipenv) (Automatic `$ pipenv shell`!)
--   [VS Code](https://code.visualstudio.com/docs/python/environments) (Editor Integration)
--   [PyCharm](https://www.jetbrains.com/pycharm/download/) (Editor Integration)
-
-## ☤ Open a Module in Your Editor
-
-Pipenv allows you to open any Python module that is installed (including ones in your codebase), with the `$ pipenv open` command:
-
-    $ pipenv install -e git+https://github.com/kennethreitz/background.git#egg=background
-    Installing -e git+https://github.com/kennethreitz/background.git#egg=background...
-    ...
-    Updated Pipfile.lock!
-
-    $ pipenv open background
-    Opening '/Users/kennethreitz/.local/share/virtualenvs/hmm-mGOawwm_/src/background/background.py' in your EDITOR.
-
-This allows you to easily read the code you're consuming, instead of looking it up on GitHub.
-
-Note
-
-The standard `EDITOR` environment variable is used for this. If you're using VS Code, for example, you'll want to `export EDITOR=code` (if you're on macOS you will want to [install the command](https://code.visualstudio.com/docs/setup/mac#_launching-from-the-command-line) on to your `PATH` first).
-
-## ☤ Automatic Python Installation
-
-This is a very fancy feature, and we're very proud of it:
-
-    $ cat Pipfile
-    [[source]]
-    name = "pypi"
-    url = "https://pypi.org/simple"
-    verify_ssl = true
-
-    [dev-packages]
-
-    [packages]
-    requests = "*"
-
-    [requires]
-    python_version = "3.11"
-
-    $ pipenv install
-    Warning: Python 3.11 was not found on your system...
-    Would you like us to install latest CPython 3.11 with pyenv? [Y/n]: y
-    Installing CPython 3.11.2 with pyenv (this may take a few minutes)...
-    ...
-    Making Python installation global...
-    Creating a virtualenv for this project...
-    Using /Users/kennethreitz/.pyenv/shims/python3 to create virtualenv...
-    ...
-    No package provided, installing all dependencies.
-    ...
-    Installing dependencies from Pipfile.lock...
-    🐍   ❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒❒ 5/5 — 00:00:03
-    To activate this project's virtualenv, run the following:
-     $ pipenv shell
-
-Pipenv automatically honors both the `python_full_version` and `python_version` [PEP 508](https://www.python.org/dev/peps/pep-0508/) specifiers.
-
-💫✨🍰✨💫
-
-## ☤ Testing Projects
-
-Pipenv is being used in projects like [Requests](https://github.com/psf/requests) for declaring development dependencies and running the test suite.
-
-### Tox Automation Project
-
-Here's an example `tox.ini` for both local and external testing:
-
-    [tox]
-    envlist = py37, py38, py39, py310, py311, pypy3, ruff
-
-    [testenv]
-    deps = pipenv
-    commands=
+# Install pipenv and dependencies
+RUN pip install pipenv && \
+    pipenv install --deploy --system
+
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy installed packages from builder stage
+COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+
+# Copy application code
+COPY . .
+
+# Run the application
+CMD ["python", "app.py"]
+```
+
+This approach:
+1. Installs dependencies in a builder stage
+2. Copies only the necessary files to the final image
+3. Results in a smaller, more secure image
+
+## Working with Different Python Distributions
+
+Pipenv can work with various Python distributions and installations.
+
+### Using Specific Python Interpreters
+
+To use a specific Python interpreter:
+
+```bash
+$ pipenv --python /path/to/python
+```
+
+This is useful when you have multiple Python versions installed or need to use a specific distribution.
+
+### Anaconda/Conda Integration
+
+To use Pipenv with Anaconda:
+
+```bash
+$ pipenv --python /path/to/anaconda/bin/python
+```
+
+To reuse Conda-installed packages:
+
+```bash
+$ pipenv --python /path/to/anaconda/bin/python --site-packages
+```
+
+The `--site-packages` flag allows the virtual environment to access packages installed in the system Python.
+
+### pyenv Integration
+
+Pipenv automatically detects and works with pyenv:
+
+```bash
+# Set local Python version with pyenv
+$ pyenv local 3.10.4
+
+# Pipenv will use this version automatically
+$ pipenv install
+```
+
+If the specified Python version isn't installed, Pipenv will prompt you to install it with pyenv:
+
+```bash
+$ pipenv --python 3.11
+Warning: Python 3.11 was not found on your system...
+Would you like us to install latest CPython 3.11 with pyenv? [Y/n]: y
+Installing CPython 3.11.0 with pyenv...
+```
+
+### asdf Integration
+
+Similar to pyenv, Pipenv also works with asdf:
+
+```bash
+# Install Python with asdf
+$ asdf install python 3.10.4
+
+# Use this version with Pipenv
+$ pipenv --python 3.10.4
+```
+
+## Generating Requirements Files
+
+While Pipenv uses `Pipfile` and `Pipfile.lock`, you may need to generate traditional `requirements.txt` files for compatibility with other tools.
+
+### Basic Requirements Generation
+
+```bash
+$ pipenv requirements > requirements.txt
+```
+
+This generates a `requirements.txt` file from your `Pipfile.lock` with exact versions.
+
+### Including Development Dependencies
+
+```bash
+$ pipenv requirements --dev > requirements-dev.txt
+```
+
+### Development Dependencies Only
+
+```bash
+$ pipenv requirements --dev-only > dev-requirements.txt
+```
+
+### Including Hashes
+
+```bash
+$ pipenv requirements --hash > requirements.txt
+```
+
+This includes package hashes for additional security.
+
+### Excluding PEP 508 Markers
+
+```bash
+$ pipenv requirements --exclude-markers > requirements.txt
+```
+
+This removes environment markers (like `python_version >= '3.7'`).
+
+### Specific Package Categories
+
+```bash
+$ pipenv requirements --categories="docs,tests" > requirements-docs-tests.txt
+```
+
+This generates requirements for specific custom package categories.
+
+## Security Features
+
+Pipenv includes several advanced security features to help protect your projects.
+
+### Vulnerability Scanning
+
+Pipenv integrates with the [safety](https://github.com/pyupio/safety) package to scan for known vulnerabilities:
+
+```bash
+$ pipenv scan
+```
+
+This checks your dependencies against the PyUp Safety database of known vulnerabilities.
+
+#### Using a Custom Vulnerability Database
+
+```bash
+$ pipenv scan --db /path/to/custom/db
+```
+
+#### Ignoring Specific Vulnerabilities
+
+```bash
+$ pipenv scan --ignore 12345
+```
+
+#### Different Output Formats
+
+```bash
+$ pipenv scan --output json > vulnerabilities.json
+```
+
+### Automatic Python Installation
+
+Pipenv can automatically install the required Python version if you have pyenv or asdf installed:
+
+```toml
+# Pipfile
+[requires]
+python_version = "3.11"
+```
+
+When you run `pipenv install`, it will check if Python 3.11 is available and prompt to install it if needed.
+
+## Custom Scripts
+
+Pipenv allows you to define custom scripts in your `Pipfile` for common tasks.
+
+### Defining Scripts
+
+```toml
+[scripts]
+start = "python app.py"
+test = "pytest"
+lint = "flake8 ."
+format = "black ."
+```
+
+### Running Scripts
+
+```bash
+$ pipenv run start
+$ pipenv run test
+```
+
+### Script with Arguments
+
+```bash
+$ pipenv run test tests/test_api.py -v
+```
+
+### Complex Script Definitions
+
+You can define more complex scripts using the extended syntax:
+
+```toml
+[scripts]
+start = {cmd = "python app.py"}
+complex = {call = "package.module:function('arg1', 'arg2')"}
+```
+
+## Environment Variables and Configuration
+
+### Automatic Loading of .env
+
+Pipenv automatically loads environment variables from `.env` files in your project directory:
+
+```
+# .env
+DEBUG=True
+DATABASE_URL=postgresql://user:password@localhost/dbname
+```
+
+These variables are available when you run `pipenv shell` or `pipenv run`.
+
+### Custom .env Location
+
+```bash
+$ PIPENV_DOTENV_LOCATION=/path/to/.env pipenv shell
+```
+
+### Variable Expansion in .env
+
+You can use variable expansion in your `.env` files:
+
+```
+# .env
+HOME_DIR=${HOME}
+CONFIG_PATH=${HOME_DIR}/.config/app
+```
+
+## Working with Air-Gapped Environments
+
+In environments without internet access, you can still use Pipenv by preparing packages in advance.
+
+### Downloading Packages
+
+On a connected system:
+
+```bash
+# Generate requirements with hashes
+$ pipenv requirements --hash > requirements.txt
+
+# Download packages
+$ pip download -r requirements.txt -d ./packages
+```
+
+### Installing in Air-Gapped Environment
+
+Transfer the packages directory to the air-gapped environment, then:
+
+```bash
+$ pip install --no-index --find-links=./packages -r requirements.txt
+```
+
+## Testing and CI/CD Integration
+
+### Using Pipenv with tox
+
+Here's an example `tox.ini` for testing with multiple Python versions:
+
+```ini
+[tox]
+envlist = py37, py38, py39, py310, py311
+
+[testenv]
+deps = pipenv
+commands =
+    pipenv install --dev
+    pipenv run pytest {posargs:tests}
+```
+
+### GitHub Actions Integration
+
+```yaml
+name: Python Tests
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ['3.8', '3.9', '3.10', '3.11']
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipenv
         pipenv install --dev
-        pipenv run pytest tests
+    - name: Verify lock file
+      run: pipenv verify
+    - name: Run tests
+      run: pipenv run pytest
+    - name: Security scan
+      run: pipenv scan
+```
 
-    [testenv:ruff]
-    basepython = python3.11
-    commands=
-        pipenv install --dev
-        pipenv run ruff --version
-        pipenv run ruff .
+## Performance Optimization
 
-Pipenv will automatically use the virtualenv provided by `tox`. If `pipenv install --dev` installs e.g. `pytest`, then installed command `pytest` will be present in given virtualenv and can be called directly by `pytest tests` instead of `pipenv run pytest tests`.
-W
-✨🍰✨
+### Caching
 
-## ☤ Working with Platform-Provided Python Components
+Pipenv maintains a cache to speed up installations. You can control this cache:
 
-It's reasonably common for platform specific Python bindings for operating system interfaces to only be available through the system package manager, and hence unavailable for installation into virtual
-environments with `pip`. In these cases, the virtual environment can be created with access to the system `site-packages` directory:
+```bash
+# Clear the cache
+$ pipenv lock --clear
 
-    $ pipenv --site-packages
+# Set a custom cache location
+$ export PIPENV_CACHE_DIR=/path/to/custom/cache
+```
 
-To ensure that all `pip`-installable components actually are installed into the virtual environment and system packages are only used for interfaces that don't participate in Python-level dependency resolution
-at all, use the `PIP_IGNORE_INSTALLED` setting:
+### Speeding Up Installations
 
-    $ PIP_IGNORE_INSTALLED=1 pipenv install --dev
+For faster installations during development:
+
+```bash
+# Skip lock file generation
+$ export PIPENV_SKIP_LOCK=1
+$ pipenv install package-name
+```
+
+```{warning}
+Only use PIPENV_SKIP_LOCK during development, not in production environments.
+```
+
+### Handling Large Dependency Trees
+
+For projects with many dependencies:
+
+```bash
+# Increase the maximum depth for dependency resolution
+$ export PIPENV_MAX_DEPTH=20
+$ pipenv lock
+```
+
+## Community Integrations
+
+Pipenv works well with various tools and services in the Python ecosystem:
+
+- **Heroku**: Automatically detects and uses Pipfile/Pipfile.lock
+- **Platform.sh**: Native support for Pipenv projects
+- **PyUp**: Security monitoring for Pipenv projects
+- **VS Code**: Built-in support for Pipenv environments
+- **PyCharm**: Supports Pipenv for project environments
+- **Emacs**: Integration via pipenv.el
+- **Fish Shell**: Automatic shell activation
+
+## Opening Modules in Your Editor
+
+Pipenv allows you to quickly open installed packages in your editor:
+
+```bash
+$ pipenv open requests
+```
+
+This opens the source code of the requests package in your default editor (defined by the `EDITOR` environment variable).
+
+You can specify a different editor for a one-time use:
+
+```bash
+$ EDITOR=code pipenv open flask
+```
+
+This is useful for:
+- Exploring package source code
+- Debugging issues
+- Understanding how a package works
+- Adding temporary patches
+
+## Conclusion
+
+These advanced features make Pipenv a powerful tool for Python dependency management in complex scenarios. By leveraging these capabilities, you can create more efficient, secure, and maintainable Python projects.
+
+Remember that while these advanced features provide additional flexibility and power, they should be used judiciously. Always follow best practices for security and reproducibility, especially in production environments.
