@@ -39,3 +39,4 @@ test = "pytest -vvs"
 
 [pipenv]
 allow_prereleases = true
+use_pylock = true
