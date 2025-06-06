@@ -1068,6 +1068,13 @@ def expansive_install_req_from_line(
     return install_req, name
 
 
+def normalize_editable_path_for_pip(path_str):
+    """Normalize an editable package path for pip."""
+    # Windows paths need to be converted to POSIX paths otherwise path
+    # separators (back slashes) are interpreted as escape characters.
+    return path_str.replace(os.path.sep, "/")
+
+
 def file_path_from_pipfile(path_str, pipfile_entry):
     """Creates an installable file path from a pipfile entry.
     Handles local and remote paths, files and directories;
@@ -1082,7 +1089,7 @@ def file_path_from_pipfile(path_str, pipfile_entry):
     if pipfile_entry.get("extras"):
         req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
     if pipfile_entry.get("editable", False):
-        req_str = f"-e {req_str}"
+        req_str = f"-e {normalize_editable_path_for_pip(req_str)}"
 
     return req_str
 

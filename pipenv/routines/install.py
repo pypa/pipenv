@@ -13,6 +13,7 @@ from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
     install_req_from_pipfile,
+    normalize_editable_path_for_pip,
 )
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
@@ -44,7 +45,9 @@ def handle_new_packages(
     new_packages = []
     if packages or editable_packages:
 
-        pkg_list = packages + [f"-e {pkg}" for pkg in editable_packages]
+        pkg_list = packages + [
+            f"-e {normalize_editable_path_for_pip(pkg)}" for pkg in editable_packages
+        ]
 
         for pkg_line in pkg_list:
             console.print(f"Installing {pkg_line}...", style="bold green")
@@ -262,7 +265,11 @@ def do_install(
     )
     warnings.filterwarnings("ignore", category=ResourceWarning)
     packages = packages if packages else []
-    editable_packages = editable_packages if editable_packages else []
+    editable_packages = (
+        [normalize_editable_path_for_pip(p) for p in editable_packages]
+        if editable_packages
+        else []
+    )
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
     new_packages = []
     if dev and not pipfile_categories:

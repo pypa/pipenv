@@ -15,7 +15,7 @@ from urllib import parse
 from urllib.parse import unquote, urljoin
 
 from pipenv.utils.constants import VCS_LIST
-from pipenv.utils.dependencies import extract_vcs_url
+from pipenv.utils.dependencies import extract_vcs_url, normalize_editable_path_for_pip
 from pipenv.vendor.tomlkit.items import SingleKey, Table
 
 try:
@@ -1187,9 +1187,14 @@ class Project:
         if extras:
             entry["extras"] = list(extras)
         if path_specifier:
-            entry["file"] = unquote(str(path_specifier))
-            if pip_line.startswith("-e"):
-                entry["editable"] = True
+            editable = pip_line.startswith("-e")
+            entry["file"] = unquote(
+                normalize_editable_path_for_pip(path_specifier)
+                if editable
+                else str(path_specifier)
+            )
+            if editable:
+                entry["editable"] = editable
         elif vcs_specifier:
             for vcs in VCS_LIST:
                 if vcs in package.link.scheme:
