@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import Optional
 
 from pipenv import exceptions
@@ -14,10 +13,7 @@ from pipenv.utils.virtualenv import ensure_virtualenv
 if TYPE_CHECKING:
     from pipenv.patched.pip._vendor.typing_extensions import STRING_TYPE
 
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
+import importlib.metadata as importlib_metadata
 
 
 def ensure_project(

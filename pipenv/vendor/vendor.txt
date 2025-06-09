@@ -1,8 +1,6 @@
 click-didyoumean==0.3.1
 click==8.1.7
 colorama==0.4.6
-importlib-metadata==8.5.0
-  zipp==3.20.2
 packaging==24.1
 pexpect==4.9.0
 pipdeptree==2.23.4

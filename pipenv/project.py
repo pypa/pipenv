@@ -79,10 +79,7 @@ except ImportError:
     # eventually distlib will remove cached property when they drop Python3.7
     from pipenv.patched.pip._vendor.distlib.util import cached_property
 
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
+import importlib.metadata as importlib_metadata
 
 if is_type_checking():
     from typing import Dict, List, Union
