@@ -40,7 +40,7 @@ def normalized_name(dist: Distribution) -> str | None:
     try:
         return dist._normalized_name
     except AttributeError:
-        name = getattr(dist, "name", None) or dist.metadata["Name"]
+        name = getattr(dist, "name", None) or dist.metadata.get("Name")
         return normalize_name(name) if name else None
 
 

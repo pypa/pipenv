@@ -1,5 +1,8 @@
+import re
 import shutil
 import sys
+from importlib.metadata import Distribution
+from typing import Union
 
 from pipenv import exceptions
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
@@ -16,7 +19,24 @@ from pipenv.utils.processes import run_command, subprocess_run
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import cmd_list_to_shell, project_python
-from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
+
+
+def normalized_name(dist: Distribution) -> Union[str, None]:
+    """
+    Honor name normalization for distributions that don't provide ``_normalized_name``.
+    """
+    try:
+        return dist._normalized_name
+    except AttributeError:
+        name = getattr(dist, "name", None) or dist.metadata.get("Name")
+        return normalize_name(name) if name else None
+
+
+def normalize_name(name: str) -> str:
+    """
+    Normalize a package name according to PEP 503.
+    """
+    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 def _uninstall_from_environment(project: Project, package, system=False):
