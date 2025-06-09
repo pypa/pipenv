@@ -60,7 +60,6 @@ LIBRARY_RENAMES = {
     "requests": "pipenv.patched.pip._vendor.requests",
     # "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
-    "ruamel.yaml": "pipenv.vendor.ruamel.yaml",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
 
@@ -68,32 +67,6 @@ GLOBAL_REPLACEMENT = [
     (r"(?<!\.)\bpip\._vendor", r"pipenv.patched.pip._vendor"),
     (r"(?<!\.)\bpip\._internal", r"pipenv.patched.pip._internal"),
     (r"(?<!\.)\bpippipenv\.patched\.notpip", r"pipenv.patched.pip"),
-    (
-        r"(?<!\.)import pep517\.envbuild",
-        r"from pipenv.vendor.pep517 import envbuild",
-    ),
-    (
-        r"(?<!\.)import pep517\.wrappers",
-        r"from pipenv.vendor.pep517 import wrappers",
-    ),
-    (r"from pyparsing import", r"from pipenv.vendor.pyparsing import"),
-    (r"(?<!\.)pep517\.envbuild", r"envbuild"),
-    (r"(?<!\.)pep517\.wrappers", r"wrappers"),
-    (r" ruamel\.yaml", r" ruamel"),
-    (
-        "from platformdirs import user_cache_dir",
-        "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
-    ),
-    ("from distlib import", "from pipenv.patched.pip._vendor.distlib import"),
-    (
-        "from distlib.metadata import",
-        "from pipenv.patched.pip._vendor.distlib.metadata import",
-    ),
-    ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
-    (
-        "from typing_extensions import",
-        "from pipenv.patched.pip._vendor.typing_extensions import",
-    ),
     (
         "import zipp",
         "from pipenv.vendor import zipp",
