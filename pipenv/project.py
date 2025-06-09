@@ -21,7 +21,7 @@ from pipenv.vendor.tomlkit.items import SingleKey, Table
 try:
     import tomllib as toml
 except ImportError:
-    from pipenv.vendor import tomli as toml
+    from pipenv.patched.pip._vendor import tomli as toml
 
 import contextlib
 
