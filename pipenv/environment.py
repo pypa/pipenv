@@ -15,6 +15,7 @@ from urllib.parse import urlparse
 import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
+from pipenv.patched.pip._internal.locations.base import get_src_prefix
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
@@ -742,6 +743,24 @@ class Environment:
                     match.version, prereleases=True
                 )
             if req.link is None:
+                return True
+            elif req.editable and req.link.is_vcs:
+                # For editable VCS dependencies, check if the source directory exists
+                # This ensures we reinstall if the source checkout is missing
+                # Use get_src_prefix() to get the appropriate src directory
+                # This handles both virtualenv and non-virtualenv cases
+                src_dir = get_src_prefix()
+
+                # If the src directory doesn't exist, the requirement is not satisfied
+                if not os.path.exists(src_dir):
+                    return False
+
+                # If we have a specific package directory, check that too
+                if req.name:
+                    pkg_dir = os.path.join(src_dir, req.name)
+                    if not os.path.exists(pkg_dir):
+                        return False
+
                 return True
             elif req.editable and req.link.is_file:
                 requested_path = req.link.file_path
