@@ -485,8 +485,13 @@ def do_install_dependencies(
                 lockfile_category = get_lockfile_section_using_pipfile_category(
                     pipfile_category
                 )
+                lockfile_type = (
+                    "pylock.toml"
+                    if project.use_pylock and project.pylock_location
+                    else "Pipfile.lock"
+                )
                 console.print(
-                    f"Installing dependencies from Pipfile.lock [{lockfile_category}]"
+                    f"Installing dependencies from {lockfile_type} [{lockfile_category}]"
                     f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
                     style="bold",
                 )
