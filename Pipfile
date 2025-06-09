@@ -22,7 +22,6 @@ colorama= {version = "*", sys_platform = "== 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
 exceptiongroup = "==1.1.0"
-tomli = "*"
 pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
