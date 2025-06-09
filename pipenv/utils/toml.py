@@ -8,7 +8,7 @@ from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 try:
     import tomllib as toml
 except ImportError:
-    from pipenv.vendor import tomli as toml
+    from pipenv.patched.pip._vendor import tomli as toml
 
 from pipenv.vendor import tomlkit
 

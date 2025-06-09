@@ -11,5 +11,4 @@ ptyprocess==0.7.0
 python-dotenv==1.0.1
 pythonfinder==3.0.0
 shellingham==1.5.4
-tomli==2.0.2
 tomlkit==0.13.2
