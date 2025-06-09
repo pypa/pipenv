@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import contextlib
+import importlib.metadata as importlib_metadata
 import importlib.util
 import json
 import os
+import re
 import site
 import sys
 import typing
 from functools import cached_property
+from importlib.metadata import Distribution
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
@@ -27,13 +30,26 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
-from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
+
+def normalized_name(dist: Distribution) -> str | None:
+    """
+    Honor name normalization for distributions that don't provide ``_normalized_name``.
+    """
+    try:
+        return dist._normalized_name
+    except AttributeError:
+        name = getattr(dist, "name", None) or dist.metadata["Name"]
+        return normalize_name(name) if name else None
+
+
+def normalize_name(name: str) -> str:
+    """
+    Normalize a package name according to PEP 503.
+    """
+    return re.sub(r"[-_.]+", "-", name).lower()
+
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
