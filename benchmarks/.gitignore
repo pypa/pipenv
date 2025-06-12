@@ -1,0 +1,11 @@
+# Generated files
+requirements.txt
+Pipfile.lock
+stats.csv
+
+# Timing data
+timings/
+
+# Virtual environments
+.venv/
+__pycache__/

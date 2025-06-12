@@ -92,7 +92,7 @@ class Resolver(BaseResolver):
         )
 
         try:
-            limit_how_complex_resolution_can_be = 200000
+            limit_how_complex_resolution_can_be = 1000000
             result = self._result = resolver.resolve(
                 collected.requirements, max_rounds=limit_how_complex_resolution_can_be
             )

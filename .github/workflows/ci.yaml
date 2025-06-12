@@ -139,6 +139,36 @@ jobs:
         run: |
           pipenv run pytest -ra -n auto -v --fulltrace tests
 
+  benchmark:
+    name: Package Manager Benchmark
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libxmlsec1-dev librdkafka-dev
+      - name: Install benchmark utilities
+        run: pip install csv2md
+      - name: Run benchmark suite
+        working-directory: benchmarks
+        run: python benchmark.py
+      - name: Display benchmark results
+        working-directory: benchmarks
+        run: |
+          if [ -f stats.csv ]; then
+            csv2md stats.csv >> $GITHUB_STEP_SUMMARY
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pipenv-benchmark-stats
+          path: benchmarks/stats.csv
+          retention-days: 30
+
   build:
     name: Build Package
     needs: lint
