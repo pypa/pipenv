@@ -180,3 +180,12 @@ reimport-pip-patch:
 pypi-server: SERVER ?= gunicorn
 pypi-server:
 	pipenv run pypi-server run --server $(SERVER) -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+
+.PHONY: benchmark
+benchmark:
+	cd benchmarks && python benchmark.py
+
+.PHONY: benchmark-clean
+benchmark-clean:
+	cd benchmarks && rm -f requirements.txt Pipfile.lock stats.csv
+	cd benchmarks && rm -rf timings/
