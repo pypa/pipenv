@@ -26,6 +26,7 @@ class PipenvBenchmark:
         if cwd is None:
             cwd = self.benchmark_dir
 
+        print(f"  Running: {' '.join(command)}", flush=True)
         start_time = time.time()
         try:
             result = subprocess.run(
@@ -40,11 +41,28 @@ class PipenvBenchmark:
                     f"{elapsed:.3f},0,0,0,0,0,0\n"
                 )  # elapsed,system,user,cpu%,maxrss,inputs,outputs
 
+            print(f"  ✓ Completed in {elapsed:.3f}s")
+            if result.stdout.strip():
+                # Show first few lines of output
+                output_lines = result.stdout.strip().split("\n")[:3]
+                for line in output_lines:
+                    print(f"    {line[:100]}")
+                if len(result.stdout.strip().split("\n")) > 3:
+                    print("    ...")
+
             return elapsed, result.returncode
         except subprocess.CalledProcessError as e:
             elapsed = time.time() - start_time
-            print(f"Command failed: {' '.join(command)}")
-            print(f"Error: {e.stderr}")
+            print(f"  ✗ Command failed after {elapsed:.3f}s: {' '.join(command)}")
+            print(f"  Return code: {e.returncode}")
+            if e.stderr.strip():
+                print("  Error output:")
+                for line in e.stderr.strip().split("\n")[:5]:
+                    print(f"    {line}")
+            if e.stdout.strip():
+                print("  Stdout:")
+                for line in e.stdout.strip().split("\n")[:3]:
+                    print(f"    {line}")
             raise
 
     def setup_requirements(self):
@@ -98,8 +116,12 @@ class PipenvBenchmark:
             if result.returncode == 0:
                 venv_path = Path(result.stdout.strip())
                 if venv_path.exists():
+                    print(f"  Removing venv: {venv_path}")
                     shutil.rmtree(venv_path, ignore_errors=True)
-        except Exception:
+            else:
+                print("  No virtual environment found")
+        except Exception as e:
+            print(f"  Warning: Could not clean venv: {e}")
             pass  # Ignore errors if venv doesn't exist
 
     def clean_lock(self):
@@ -213,50 +235,94 @@ class PipenvBenchmark:
 
     def run_full_benchmark(self):
         """Run the complete benchmark suite."""
+        print("=" * 60)
         print("Starting pipenv benchmark suite...")
+        print("=" * 60)
+
+        steps = [
+            ("Setup", "setup_requirements"),
+            ("Tooling", "benchmark_tooling"),
+            ("Import", "benchmark_import"),
+            ("Lock (cold)", "lock_cold"),
+            ("Lock (warm)", "lock_warm"),
+            ("Install (cold)", "install_cold"),
+            ("Install (warm)", "install_warm"),
+            ("Update (cold)", "update_cold"),
+            ("Update (warm)", "update_warm"),
+            ("Add package", "benchmark_add_package"),
+            ("Generate stats", "generate_stats"),
+        ]
+
+        for i, (step_name, _) in enumerate(steps, 1):
+            print(f"\n[{i}/{len(steps)}] {step_name}")
+            print("-" * 40)
 
         # Setup
+        print(f"\n[1/{len(steps)}] Setup")
+        print("-" * 40)
         self.setup_requirements()
 
         # Tooling
+        print(f"\n[2/{len(steps)}] Tooling")
+        print("-" * 40)
         self.benchmark_tooling()
 
         # Import
+        print(f"\n[3/{len(steps)}] Import")
+        print("-" * 40)
         self.benchmark_import()
 
         # Lock cold
+        print(f"\n[4/{len(steps)}] Lock (cold)")
+        print("-" * 40)
         self.clean_cache()
         self.clean_venv()
         self.clean_lock()
         self.benchmark_lock("lock-cold.txt")
 
         # Lock warm
+        print(f"\n[5/{len(steps)}] Lock (warm)")
+        print("-" * 40)
         self.clean_lock()
         self.benchmark_lock("lock-warm.txt")
 
         # Install cold
+        print(f"\n[6/{len(steps)}] Install (cold)")
+        print("-" * 40)
         self.clean_cache()
         self.clean_venv()
         self.benchmark_install("install-cold.txt")
 
         # Install warm
+        print(f"\n[7/{len(steps)}] Install (warm)")
+        print("-" * 40)
         self.clean_venv()
         self.benchmark_install("install-warm.txt")
 
         # Update cold
+        print(f"\n[8/{len(steps)}] Update (cold)")
+        print("-" * 40)
         self.clean_cache()
         self.benchmark_update("update-cold.txt")
 
         # Update warm
+        print(f"\n[9/{len(steps)}] Update (warm)")
+        print("-" * 40)
         self.benchmark_update("update-warm.txt")
 
         # Add package
+        print(f"\n[10/{len(steps)}] Add package")
+        print("-" * 40)
         self.benchmark_add_package()
 
         # Generate stats
+        print(f"\n[11/{len(steps)}] Generate stats")
+        print("-" * 40)
         self.generate_stats()
 
+        print("\n" + "=" * 60)
         print("Benchmark suite completed!")
+        print("=" * 60)
 
 
 def main():
