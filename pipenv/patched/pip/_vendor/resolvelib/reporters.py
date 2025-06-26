@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 
 
 class BaseReporter(Generic[RT, CT, KT]):
-    """Delegate class to provider progress reporting for the resolver."""
+    """Delegate class to provide progress reporting for the resolver."""
 
     def starting(self) -> None:
         """Called before the resolution actually starts."""
