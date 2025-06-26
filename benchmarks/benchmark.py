@@ -7,6 +7,7 @@ import shutil
 import subprocess
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import List, Tuple
 
@@ -68,8 +69,6 @@ class PipenvBenchmark:
     def setup_requirements(self):
         """Download and prepare requirements.txt."""
         print("Setting up requirements.txt...")
-        import urllib.request
-
         requirements_path = self.benchmark_dir / "requirements.txt"
 
         try:

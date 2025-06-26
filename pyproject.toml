@@ -143,6 +143,7 @@ lint.select = [
 lint.ignore = [
   "B904",    # `raise` without `from` inside `except`
   "PIE790",  # Unnecessary `pass` statement
+  "PLC0415", # `import` should be placed at module level
   "PLW2901", # `for` loop variable overwritten
   "TID252",  # Relative imports
 ]
