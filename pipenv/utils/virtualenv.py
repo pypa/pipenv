@@ -324,7 +324,7 @@ def ensure_python(project, python=None):
                 if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
                     abort()
             elif not project.s.PIPENV_YES:
-                # Non-interactive session without PIPENV_YES, proceed with installation
+                # Non-interactive session without PIPENV_YES, aborting installation
                 abort()
 
             # Tell the user we're installing Python.
