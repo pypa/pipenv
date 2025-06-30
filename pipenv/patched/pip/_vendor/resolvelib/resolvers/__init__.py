@@ -13,15 +13,15 @@ from .resolution import Resolution, Resolver
 
 __all__ = [
     "AbstractResolver",
+    "Criterion",
     "InconsistentCandidate",
-    "Resolver",
-    "Resolution",
+    "RequirementInformation",
     "RequirementsConflicted",
+    "Resolution",
     "ResolutionError",
     "ResolutionImpossible",
     "ResolutionTooDeep",
-    "RequirementInformation",
+    "Resolver",
     "ResolverException",
     "Result",
-    "Criterion",
 ]

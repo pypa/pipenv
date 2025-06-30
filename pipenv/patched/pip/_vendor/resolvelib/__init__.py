@@ -1,17 +1,17 @@
 __all__ = [
-    "__version__",
     "AbstractProvider",
     "AbstractResolver",
     "BaseReporter",
     "InconsistentCandidate",
-    "Resolver",
     "RequirementsConflicted",
     "ResolutionError",
     "ResolutionImpossible",
     "ResolutionTooDeep",
+    "Resolver",
+    "__version__",
 ]
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
 from .providers import AbstractProvider

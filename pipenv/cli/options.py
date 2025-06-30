@@ -3,6 +3,7 @@ from pathlib import Path
 
 from pipenv.project import Project
 from pipenv.utils import console, err
+from pipenv.utils.display import format_help
 from pipenv.utils.internet import is_valid_url
 from pipenv.vendor.click import (
     BadArgumentUsage,
@@ -23,8 +24,6 @@ class PipenvGroup(DYMMixin, Group):
     """Custom Group class provides formatted main help"""
 
     def get_help_option(self, ctx):
-        from pipenv.utils.display import format_help
-
         """Override for showing formatted main help via --help and -h options"""
         help_options = self.get_help_option_names(ctx)
         if not help_options or not self.add_help_option:
