@@ -135,6 +135,8 @@ six = "*"
 [dev-packages]
             """.strip()
             f.write(contents)
+        c = p.pipenv("install setuptools --index pypi")
+        assert c.returncode == 0
         c = p.pipenv("install pipenv-test-private-package --index testpypi")
         assert c.returncode == 0
 
