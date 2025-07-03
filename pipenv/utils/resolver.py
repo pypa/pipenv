@@ -592,7 +592,7 @@ class Resolver:
                     sources,
                 )
             )
-        source = sources[0] if len(sources) else None
+        source = sources[0] if sources else None
         if source:
             if is_pypi_url(source["url"]):
                 hashes = self.project.get_hashes_from_pypi(ireq, source)
