@@ -15,7 +15,7 @@ from pipenv.utils.internet import get_host_and_port
 from pipenv.utils.pip import get_trusted_hosts
 
 
-def redact_netloc(netloc: str) -> Tuple[str]:
+def redact_netloc(netloc: str) -> str:
     """
     Replace the sensitive data in a netloc with "****", if it exists, unless it's an environment variable.
 
@@ -26,7 +26,7 @@ def redact_netloc(netloc: str) -> Tuple[str]:
     """
     netloc, (user, password) = split_auth_from_netloc(netloc)
     if user is None:
-        return (netloc,)
+        return netloc
     if password is None:
         # Check if user is an environment variable
         if not re.match(r"\$\{\w+\}", user):
@@ -42,12 +42,16 @@ def redact_netloc(netloc: str) -> Tuple[str]:
             # If it is, leave it as is
             password = ":" + password
         user = quote(user)
-    return (f"{user}{password}@{netloc}",)
+    return f"{user}{password}@{netloc}"
 
 
 def redact_auth_from_url(url: str) -> str:
     """Replace the password in a given url with ****."""
-    return _transform_url(url, redact_netloc)[0]
+
+    def _redact_netloc_wrapper(netloc: str) -> Tuple[str]:
+        return (redact_netloc(netloc),)
+
+    return _transform_url(url, _redact_netloc_wrapper)[0]
 
 
 def normalize_name(pkg) -> str:
@@ -68,9 +72,10 @@ def import_requirements(project, r=None, dev=False, categories=None):
         contents = f.read()
     if categories is None:
         categories = []
+
+    # Collect indexes and trusted hosts first
     indexes = []
     trusted_hosts = []
-    # Find and add extra indexes.
     for line in contents.split("\n"):
         index, extra_index, trusted_host, _ = parse_indexes(line.strip(), strict=True)
         if index:
@@ -79,8 +84,11 @@ def import_requirements(project, r=None, dev=False, categories=None):
             indexes.append(extra_index)
         if trusted_host:
             trusted_hosts.append(get_host_and_port(trusted_host))
-    # Convert Path object to string to avoid 'PosixPath' has no attribute 'decode' error
+
+    # Collect all packages for batch processing
+    packages_to_add = []
     req_path = str(r) if isinstance(r, Path) else r
+
     for f in parse_requirements(req_path, session=PipSession()):
         package = install_req_from_parsed_requirement(f)
         if package.name not in BAD_PACKAGES:
@@ -91,29 +99,26 @@ def import_requirements(project, r=None, dev=False, categories=None):
                     package_string = unquote(
                         redact_auth_from_url(package.original_link.url)
                     )
-
-                if categories:
-                    for category in categories:
-                        project.add_package_to_pipfile(
-                            package, package_string, dev=dev, category=category
-                        )
-                else:
-                    project.add_package_to_pipfile(package, package_string, dev=dev)
             else:
                 package_string = str(package.req)
                 if package.markers:
                     package_string += f" ; {package.markers}"
-                if categories:
-                    for category in categories:
-                        project.add_package_to_pipfile(
-                            package, package_string, dev=dev, category=category
-                        )
-                else:
-                    project.add_package_to_pipfile(package, package_string, dev=dev)
+
+            packages_to_add.append((package, package_string))
+
+    # Batch add all packages to Pipfile
+    if packages_to_add:
+        project.add_packages_to_pipfile_batch(
+            packages_to_add, dev=dev, categories=categories
+        )
+
+    # Add indexes after packages
     indexes = sorted(set(indexes))
     trusted_hosts = sorted(set(trusted_hosts))
     for index in indexes:
         add_index_to_pipfile(project, index, trusted_hosts)
+
+    # Recase pipfile once at the end
     project.recase_pipfile()
 
 

@@ -8,6 +8,7 @@ import site
 import sys
 import typing
 from functools import cached_property
+from itertools import chain
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
@@ -16,8 +17,10 @@ import pipenv
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._vendor.typing_extensions import Iterable
 from pipenv.utils import console
@@ -28,6 +31,8 @@ from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
+from pipenv.vendor.pipdeptree._models.dag import PackageDAG
+from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if sys.version_info < (3, 10):
@@ -102,8 +107,6 @@ class Environment:
     def python_version(self) -> str | None:
         with self.activated() as active:
             if active:
-                from pipenv.patched.pip._vendor.packaging.version import Version
-
                 # Extract version parts
                 version_str = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
                 python_version = Version(version_str)  # Create PEP 440 compliant version
@@ -633,12 +636,6 @@ class Environment:
         return d
 
     def get_package_requirements(self, pkg=None):
-        from itertools import chain
-
-        from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
-        from pipenv.vendor.pipdeptree._models.dag import PackageDAG
-        from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
-
         flatten = chain.from_iterable
 
         packages = self.get_installed_packages()

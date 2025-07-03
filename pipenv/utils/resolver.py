@@ -1,11 +1,12 @@
 import contextlib
+import hashlib
 import json
 import os
 import subprocess
 import sys
 import tempfile
+import time
 import warnings
-from functools import cached_property, lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -25,7 +26,6 @@ from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-from pipenv.project import Project
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import determine_vcs_revision_hash, normalize_vcs_url
 from pipenv.utils.fileutils import create_tracked_tempdir
@@ -142,7 +142,6 @@ class Resolver:
         )
 
     @staticmethod
-    @lru_cache
     def _get_pip_command():
         return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
@@ -168,7 +167,7 @@ class Resolver:
     def create(
         cls,
         deps: Dict[str, str],
-        project: Project,
+        project,
         index_lookup: Dict[str, str] = None,
         markers_lookup: Dict[str, str] = None,
         sources: List[str] = None,
@@ -307,7 +306,7 @@ class Resolver:
         )
         return pip_options
 
-    @cached_property
+    @property  # Remove cached_property to prevent stale sessions and authentication issues
     def session(self):
         return self.pip_command._build_session(self.pip_options)
 
@@ -436,35 +435,33 @@ class Resolver:
     def get_resolver(self, clear=False):
         from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
-        with (
-            global_tempdir_manager(),
-            get_build_tracker() as build_tracker,
-            TempDirectory(globally_managed=True) as directory,
-        ):
-            pip_options = self.pip_options
-            finder = self.finder()
-            wheel_cache = WheelCache(pip_options.cache_dir)
-            preparer = self.pip_command.make_requirement_preparer(
-                temp_build_dir=directory,
-                options=pip_options,
-                build_tracker=build_tracker,
-                session=self.session,
-                finder=finder,
-                use_user_site=False,
-            )
-            resolver = self.pip_command.make_resolver(
-                preparer=preparer,
-                finder=finder,
-                options=pip_options,
-                wheel_cache=wheel_cache,
-                use_user_site=False,
-                ignore_installed=True,
-                ignore_requires_python=pip_options.ignore_requires_python,
-                force_reinstall=pip_options.force_reinstall,
-                upgrade_strategy="to-satisfy-only",
-                use_pep517=pip_options.use_pep517,
-            )
-            yield resolver
+        with global_tempdir_manager():
+            with get_build_tracker() as build_tracker:
+                with TempDirectory(globally_managed=True) as directory:
+                    pip_options = self.pip_options
+                    finder = self.finder()
+                    wheel_cache = WheelCache(pip_options.cache_dir)
+                    preparer = self.pip_command.make_requirement_preparer(
+                        temp_build_dir=directory,
+                        options=pip_options,
+                        build_tracker=build_tracker,
+                        session=self.session,
+                        finder=finder,
+                        use_user_site=False,
+                    )
+                    resolver = self.pip_command.make_resolver(
+                        preparer=preparer,
+                        finder=finder,
+                        options=pip_options,
+                        wheel_cache=wheel_cache,
+                        use_user_site=False,
+                        ignore_installed=True,
+                        ignore_requires_python=pip_options.ignore_requires_python,
+                        force_reinstall=pip_options.force_reinstall,
+                        upgrade_strategy="to-satisfy-only",
+                        use_pep517=pip_options.use_pep517,
+                    )
+                    yield resolver
 
     def resolve(self):
         with temp_environ(), self.get_resolver() as resolver:
@@ -595,7 +592,7 @@ class Resolver:
                     sources,
                 )
             )
-        source = sources[0] if len(sources) else None
+        source = sources[0] if sources else None
         if source:
             if is_pypi_url(source["url"]):
                 hashes = self.project.get_hashes_from_pypi(ireq, source)
@@ -707,6 +704,73 @@ class Resolver:
                 results[name] = entry
 
         return list(results.values())
+
+
+# Global cache for resolution results to avoid repeated expensive subprocess calls
+_resolution_cache = {}
+_resolution_cache_timestamp = {}
+
+
+def _generate_resolution_cache_key(
+    deps, project, pipfile_category, pre, clear, allow_global, pypi_mirror, extra_pip_args
+):
+    """Generate a cache key for resolution results."""
+    # Get lockfile and pipfile modification times
+    lockfile_mtime = "no-lock"
+    if project.lockfile_location:
+        lockfile_path = Path(project.lockfile_location)
+        if lockfile_path.exists():
+            lockfile_mtime = str(lockfile_path.stat().st_mtime)
+
+    pipfile_mtime = "no-pipfile"
+    if project.pipfile_location:
+        pipfile_path = Path(project.pipfile_location)
+        if pipfile_path.exists():
+            pipfile_mtime = str(pipfile_path.stat().st_mtime)
+
+    # Include environment variables that affect resolution
+    env_factors = [
+        os.environ.get("PIPENV_CACHE_VERSION", "1"),
+        os.environ.get("PIPENV_PYPI_MIRROR", ""),
+        os.environ.get("PIP_INDEX_URL", ""),
+        str(pypi_mirror) if pypi_mirror else "",
+        json.dumps(extra_pip_args, sort_keys=True) if extra_pip_args else "",
+    ]
+
+    # Create a deterministic representation of dependencies
+    deps_str = json.dumps(deps, sort_keys=True) if isinstance(deps, dict) else str(deps)
+
+    key_components = [
+        str(project.project_directory),
+        lockfile_mtime,
+        pipfile_mtime,
+        deps_str,
+        str(pipfile_category),
+        str(pre),
+        str(clear),
+        str(allow_global),
+        "|".join(env_factors),
+    ]
+
+    key_string = "|".join(key_components)
+    return hashlib.md5(key_string.encode()).hexdigest()
+
+
+def _should_use_resolution_cache(cache_key, clear):
+    """Check if we should use cached resolution results."""
+    if clear:
+        return False
+
+    if cache_key not in _resolution_cache:
+        return False
+
+    if cache_key not in _resolution_cache_timestamp:
+        return False
+
+    # Cache is valid for 10 minutes
+    current_time = time.time()
+    cache_age = current_time - _resolution_cache_timestamp[cache_key]
+    return cache_age < 600  # 10 minutes
 
 
 def _show_warning(message, category, filename, lineno, line):
@@ -837,6 +901,31 @@ def venv_resolve_deps(
         lockfile = project.lockfile(categories=[pipfile_category])
     if old_lock_data is None:
         old_lock_data = lockfile.get(lockfile_category, {})
+
+    # Check cache before expensive resolution
+    cache_key = _generate_resolution_cache_key(
+        deps,
+        project,
+        pipfile_category,
+        pre,
+        clear,
+        allow_global,
+        pypi_mirror,
+        extra_pip_args,
+    )
+
+    if _should_use_resolution_cache(cache_key, clear):
+        if project.s.is_verbose():
+            err.print("[dim]Using cached resolution results...[/dim]")
+        cached_results = _resolution_cache[cache_key]
+        return prepare_lockfile(
+            project,
+            cached_results,
+            pipfile,
+            lockfile.get(lockfile_category, {}),
+            old_lock_data,
+        )
+
     req_dir = create_tracked_tempdir(prefix="pipenv", suffix="requirements")
     results = []
     with temp_environ():
@@ -941,6 +1030,21 @@ def venv_resolve_deps(
                     )
                     err.print(f"Output: {c.stdout.strip()}")
                     err.print(f"Error: {c.stderr.strip()}")
+
+    # Cache the results for future use
+    if results:
+        _resolution_cache[cache_key] = results
+        _resolution_cache_timestamp[cache_key] = time.time()
+
+        # Clean old cache entries (keep only last 5 projects)
+        if len(_resolution_cache) > 5:
+            oldest_key = min(
+                _resolution_cache_timestamp.keys(),
+                key=lambda k: _resolution_cache_timestamp[k],
+            )
+            _resolution_cache.pop(oldest_key, None)
+            _resolution_cache_timestamp.pop(oldest_key, None)
+
     if lockfile_category not in lockfile:
         lockfile[lockfile_category] = {}
     return prepare_lockfile(
@@ -1018,7 +1122,6 @@ def resolve_deps(
     return results, internal_resolver
 
 
-@lru_cache
 def get_pipenv_sitedir() -> Optional[str]:
     for dist in importlib_metadata.distributions():
         if dist.metadata.get("Name", "").lower() == "pipenv":
