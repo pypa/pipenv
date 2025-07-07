@@ -1,3 +1,15 @@
+2025.0.4 (2025-07-07)
+=====================
+Pipenv 2025.0.4 (2025-07-07)
+============================
+
+
+Bug Fixes
+---------
+
+- Significantly improved dependency resolution performance with ResolveLib 1.2.0 optimistic backjumping, intelligent caching system, and batch Pipfile operations. Added comprehensive benchmarking infrastructure to prevent performance regressions. Requirements imports are 60-80% faster for large files, complex resolutions are 10-30% faster, and repeated operations benefit from smart caching.  `#6419 <https://github.com/pypa/pipenv/issues/6419>`_
+- Ensure the requested Python version is installed when it differs from the one used with Pipenv.  `#6425 <https://github.com/pypa/pipenv/issues/6425>`_
+- Restored ignore compatibility finder patch to enable comprehensive cross-platform hash collection in lock files.  `#6426 <https://github.com/pypa/pipenv/issues/6426>`_
 2025.0.3 (2025-05-29)
 =====================
 Pipenv 2025.0.3 (2025-05-29)

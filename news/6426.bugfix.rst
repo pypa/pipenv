@@ -1,1 +1,0 @@
-Restored ignore compatibility finder patch to enable comprehensive cross-platform hash collection in lock files.
