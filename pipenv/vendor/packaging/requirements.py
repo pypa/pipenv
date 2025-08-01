@@ -31,7 +31,7 @@ class Requirement:
     #       the thing as well as the version? What about the markers?
     # TODO: Can we normalize the name and extra name?
 
-    def __init__(self, requirement_string: str) -> None:
+    def __init__(self, requirement_string: str, data: dict[str, Any]) -> None:
         try:
             parsed = _parse_requirement(requirement_string)
         except ParserSyntaxError as e:
@@ -45,6 +45,9 @@ class Requirement:
         if parsed.marker is not None:
             self.marker = Marker.__new__(Marker)
             self.marker._markers = _normalize_extra_values(parsed.marker)
+            
+        self.exclude_versions = data.get("exclude_versions", [])
+
 
     def _iter_parts(self, name: str) -> Iterator[str]:
         yield name

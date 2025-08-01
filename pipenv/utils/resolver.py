@@ -1067,6 +1067,19 @@ def resolve_deps(
     """Given a list of dependencies, return a resolved list of dependencies,
     and their hashes, using the warehouse API / pip.
     """
+     # --- exclude_versions desteği ---
+    # Eğer bir bağımlılık exclude_versions içeriyorsa, pip sürüm kısıtına != ekle
+    for dep_name, dep_value in list(deps.items()):
+        if isinstance(dep_value, dict) and dep_value.get("exclude_versions"):
+            exclude_versions = dep_value["exclude_versions"]
+            # Mevcut version kısıtını al
+            version_str = dep_value.get("version", "*")
+            # exclude_versions'daki her sürüm için != ekle
+            for v in exclude_versions:
+                version_str += f",!={v}"
+            dep_value["version"] = version_str
+    # --- /exclude_versions desteği ---
+    
     index_lookup = {}
     markers_lookup = {}
     if not os.environ.get("PIP_SRC"):

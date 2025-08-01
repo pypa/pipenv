@@ -1,0 +1,112 @@
+Exclude Function Usage Guide
+===========================
+
+This guide explains how to use the `exclude.py` utility to prevent specific versions of a package from being installed via Pipenv.
+
+What does it do?
+----------------
+The `exclude` function allows you to specify versions of a package that should never be installed. It updates your Pipfile by adding an `exclude_versions` field for the given package.
+
+How to use
+----------
+
+1. Import or run the function in your Python environment:
+
+    ```python
+    from exclude import exclude
+    ```
+
+2. Call the function with the package name and a list of versions to exclude:
+
+    ```python
+    exclude("tracerite", ["1.1.2", "1.1.3"])
+    ```
+
+    - This will update your Pipfile so that the specified versions are excluded from installation.
+
+3. After running the function, use Pipenv as usual:
+
+    ```
+    pipenv install
+    pipenv update
+    ```
+
+    Pipenv will now skip the excluded versions when resolving dependencies.
+
+Details
+-------
+
+- If the package already exists in your Pipfile, `exclude_versions` will be added or updated.
+- If the package does not exist, it will be added with `version="*"` and your excluded versions.
+- The function works with both string and table (dict) package specifications.
+
+Example Pipfile entry after using the function:
+
+```toml
+[packages]
+tracerite = {version = "*", exclude_versions = ["1.1.2", "1.1.3"]}
+```
+
+Notes
+-----
+
+- Make sure to commit your updated Pipfile to version control.
+- This feature requires the resolver patch in your Pipenv codebase to support `exclude_versions`.
+
+-----------------
+```// filepath: c:\Users\Monster\OneDrive\Desktop\Open_Source\pipenv\pipenv\exclude_usage.txt
+
+Exclude Function Usage Guide
+===========================
+
+This guide explains how to use the `exclude.py` utility to prevent specific versions of a package from being installed via Pipenv.
+
+What does it do?
+----------------
+The `exclude` function allows you to specify versions of a package that should never be installed. It updates your Pipfile by adding an `exclude_versions` field for the given package.
+
+How to use
+----------
+
+1. Import or run the function in your Python environment:
+
+    ```python
+    from exclude import exclude
+    ```
+
+2. Call the function with the package name and a list of versions to exclude:
+
+    ```python
+    exclude("tracerite", ["1.1.2", "1.1.3"])
+    ```
+
+    - This will update your Pipfile so that the specified versions are excluded from installation.
+
+3. After running the function, use Pipenv as usual:
+
+    ```
+    pipenv install
+    pipenv update
+    ```
+
+    Pipenv will now skip the excluded versions when resolving dependencies.
+
+Details
+-------
+
+- If the package already exists in your Pipfile, `exclude_versions` will be added or updated.
+- If the package does not exist, it will be added with `version="*"` and your excluded versions.
+- The function works with both string and table (dict) package specifications.
+
+Example Pipfile entry after using the function:
+
+```toml
+[packages]
+tracerite = {version = "*", exclude_versions = ["1.1.2", "1.1.3"]}
+```
+
+Notes
+-----
+
+- Make sure to commit your updated Pipfile to version control.
+- This feature requires the resolver patch in your Pipenv
