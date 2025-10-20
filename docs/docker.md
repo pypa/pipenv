@@ -578,7 +578,7 @@ RUN pip install --upgrade pip==22.2.2 pipenv==2022.8.5
 ENV PIP_CACHE_DIR=/var/cache/pip
 
 # Install with multiple workers
-RUN pipenv install --deploy --system --pip-args="--use-feature=fast-deps"
+RUN pipenv install --deploy --system --extra-pip-args="--use-feature=fast-deps"
 ```
 
 ## Best Practices
