@@ -20,6 +20,7 @@ from pipenv.patched.pip._vendor.rich.progress import (
 )
 
 from pipenv.patched.pip._internal.cli.spinners import RateLimiter
+from pipenv.patched.pip._internal.utils.logging import get_console, get_indentation
 
 T = TypeVar("T")
 ProgressRenderer = Callable[[Iterable[T]], Iterator[T]]
