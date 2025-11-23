@@ -12,16 +12,17 @@ license = { text = "MIT License (MIT)" }
 authors = [
   { name = "Pipenv maintainer team", email = "distutils-sig@python.org" },
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.9",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -194,7 +195,7 @@ indent = 2
 # if false will remove unnecessary trailing ``.0``'s from version specifiers
 keep_full_version = true
 # maximum Python version to use when generating version specifiers
-max_supported_python = "3.13"
+max_supported_python = "3.15"
 
 [tool.pytest.ini_options]
 addopts = "-ra --no-cov"
