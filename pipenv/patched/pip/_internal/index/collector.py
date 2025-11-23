@@ -2,6 +2,8 @@
 The main purpose of this module is to expose LinkCollector.collect_sources().
 """
 
+from __future__ import annotations
+
 import collections
 import email.message
 import functools
@@ -11,21 +13,14 @@ import logging
 import os
 import urllib.parse
 import urllib.request
+from collections.abc import Iterable, MutableMapping, Sequence
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from optparse import Values
 from typing import (
     Callable,
-    Dict,
-    Iterable,
-    List,
-    MutableMapping,
     NamedTuple,
-    Optional,
     Protocol,
-    Sequence,
-    Tuple,
-    Union,
 )
 
 from pipenv.patched.pip._vendor import requests
@@ -48,7 +43,7 @@ logger = logging.getLogger(__name__)
 ResponseHeaders = MutableMapping[str, str]
 
 
-def _match_vcs_scheme(url: str) -> Optional[str]:
+def _match_vcs_scheme(url: str) -> str | None:
     """Look for VCS schemes in the URL.
 
     Returns the matched VCS scheme, or None if there's no match.
@@ -173,7 +168,7 @@ def _get_simple_response(url: str, session: PipSession) -> Response:
     return resp
 
 
-def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
+def _get_encoding_from_headers(headers: ResponseHeaders) -> str | None:
     """Determine if we have any encoding information in our headers."""
     if headers and "Content-Type" in headers:
         m = email.message.Message()
@@ -185,7 +180,7 @@ def _get_encoding_from_headers(headers: ResponseHeaders) -> Optional[str]:
 
 
 class CacheablePageContent:
-    def __init__(self, page: "IndexContent") -> None:
+    def __init__(self, page: IndexContent) -> None:
         assert page.cache_link_parsing
         self.page = page
 
@@ -197,7 +192,7 @@ class CacheablePageContent:
 
 
 class ParseLinks(Protocol):
-    def __call__(self, page: "IndexContent") -> Iterable[Link]: ...
+    def __call__(self, page: IndexContent) -> Iterable[Link]: ...
 
 
 def with_cached_index_content(fn: ParseLinks) -> ParseLinks:
@@ -207,12 +202,12 @@ def with_cached_index_content(fn: ParseLinks) -> ParseLinks:
     `page` has `page.cache_link_parsing == False`.
     """
 
-    @functools.lru_cache(maxsize=None)
-    def wrapper(cacheable_page: CacheablePageContent) -> List[Link]:
+    @functools.cache
+    def wrapper(cacheable_page: CacheablePageContent) -> list[Link]:
         return list(fn(cacheable_page.page))
 
     @functools.wraps(fn)
-    def wrapper_wrapper(page: "IndexContent") -> List[Link]:
+    def wrapper_wrapper(page: IndexContent) -> list[Link]:
         if page.cache_link_parsing:
             return wrapper(CacheablePageContent(page))
         return list(fn(page))
@@ -221,7 +216,7 @@ def with_cached_index_content(fn: ParseLinks) -> ParseLinks:
 
 
 @with_cached_index_content
-def parse_links(page: "IndexContent") -> Iterable[Link]:
+def parse_links(page: IndexContent) -> Iterable[Link]:
     """
     Parse a Simple API's Index Content, and yield its anchor elements as Link objects.
     """
@@ -262,7 +257,7 @@ class IndexContent:
 
     content: bytes
     content_type: str
-    encoding: Optional[str]
+    encoding: str | None
     url: str
     cache_link_parsing: bool = True
 
@@ -280,10 +275,10 @@ class HTMLLinkParser(HTMLParser):
         super().__init__(convert_charrefs=True)
 
         self.url: str = url
-        self.base_url: Optional[str] = None
-        self.anchors: List[Dict[str, Optional[str]]] = []
+        self.base_url: str | None = None
+        self.anchors: list[dict[str, str | None]] = []
 
-    def handle_starttag(self, tag: str, attrs: List[Tuple[str, Optional[str]]]) -> None:
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         if tag == "base" and self.base_url is None:
             href = self.get_href(attrs)
             if href is not None:
@@ -291,7 +286,7 @@ class HTMLLinkParser(HTMLParser):
         elif tag == "a":
             self.anchors.append(dict(attrs))
 
-    def get_href(self, attrs: List[Tuple[str, Optional[str]]]) -> Optional[str]:
+    def get_href(self, attrs: list[tuple[str, str | None]]) -> str | None:
         for name, value in attrs:
             if name == "href":
                 return value
@@ -300,8 +295,8 @@ class HTMLLinkParser(HTMLParser):
 
 def _handle_get_simple_fail(
     link: Link,
-    reason: Union[str, Exception],
-    meth: Optional[Callable[..., None]] = None,
+    reason: str | Exception,
+    meth: Callable[..., None] | None = None,
 ) -> None:
     if meth is None:
         meth = logger.debug
@@ -321,7 +316,7 @@ def _make_index_content(
     )
 
 
-def _get_index_content(link: Link, *, session: PipSession) -> Optional["IndexContent"]:
+def _get_index_content(link: Link, *, session: PipSession) -> IndexContent | None:
     url = link.url.split("#", 1)[0]
 
     # Check for VCS schemes that do not support lookup as web pages.
@@ -383,8 +378,8 @@ def _get_index_content(link: Link, *, session: PipSession) -> Optional["IndexCon
 
 
 class CollectedSources(NamedTuple):
-    find_links: Sequence[Optional[LinkSource]]
-    index_urls: Sequence[Optional[LinkSource]]
+    find_links: Sequence[LinkSource | None]
+    index_urls: Sequence[LinkSource | None]
 
 
 class LinkCollector:
@@ -399,7 +394,7 @@ class LinkCollector:
         self,
         session: PipSession,
         search_scope: SearchScope,
-        index_lookup: Optional[Dict[str, List[str]]] = None,
+        index_lookup: dict[str, list[str]] | None = None,
     ) -> None:
         self.search_scope = search_scope
         self.session = session
@@ -411,8 +406,8 @@ class LinkCollector:
         session: PipSession,
         options: Values,
         suppress_no_index: bool = False,
-        index_lookup: Optional[Dict[str, List[str]]] = None,
-    ) -> "LinkCollector":
+        index_lookup: dict[str, list[str]] | None = None,
+    ) -> LinkCollector:
         """
         :param session: The Session to use to make requests.
         :param suppress_no_index: Whether to ignore the --no-index option
@@ -443,10 +438,10 @@ class LinkCollector:
         return link_collector
 
     @property
-    def find_links(self) -> List[str]:
+    def find_links(self) -> list[str]:
         return self.search_scope.find_links
 
-    def fetch_response(self, location: Link) -> Optional[IndexContent]:
+    def fetch_response(self, location: Link) -> IndexContent | None:
         """
         Fetch an HTML page containing package links.
         """

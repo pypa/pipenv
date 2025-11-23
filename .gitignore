@@ -175,3 +175,5 @@ pipenv/vendor/markupsafe/_speedups.c
 
 # ignore all vim files
 .sw[p,o]
+
+pip/

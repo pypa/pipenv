@@ -12,7 +12,7 @@ repos:
   - id: check-yaml
   - id: debug-statements
   - id: end-of-file-fixer
-    exclude: WHEEL
+    exclude: WHEEL|\.patch$
   - id: forbid-new-submodules
   - id: trailing-whitespace
     exclude: .patch
