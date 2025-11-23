@@ -7,6 +7,7 @@ import os
 import site
 import sys
 import typing
+from collections.abc import Iterable
 from functools import cached_property
 from itertools import chain
 from pathlib import Path
@@ -22,7 +23,6 @@ from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.typing_extensions import Iterable
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest

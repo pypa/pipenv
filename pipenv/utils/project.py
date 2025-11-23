@@ -1,10 +1,9 @@
 import os
 import sys
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
-from pipenv.patched.pip._vendor.typing_extensions import TYPE_CHECKING
 from pipenv.utils import err
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
@@ -12,7 +11,7 @@ from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv
 
 if TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.typing_extensions import STRING_TYPE
+    STRING_TYPE = str
 
 if sys.version_info < (3, 10):
     from pipenv.vendor import importlib_metadata
