@@ -165,7 +165,7 @@ class Project:
         pip_conf_indexes = []
         for section_key, value in self.configuration.items():
             key_parts = section_key.split(".", 1)
-            if key_parts[1] == "index-url":
+            if len(key_parts) > 1 and key_parts[1] == "index-url":
                 try:
                     trusted_hosts = self.configuration.get_value(
                         f"{key_parts[0]}.trusted-host"
