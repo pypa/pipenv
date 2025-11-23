@@ -1,8 +1,8 @@
 diff --git a/pipenv/patched/pip/_internal/commands/__init__.py b/pipenv/patched/pip/_internal/commands/__init__.py
-index bc4f216a8..156846015 100644
+index bedeca9e9..b2b1a6a8e 100644
 --- a/pipenv/patched/pip/_internal/commands/__init__.py
 +++ b/pipenv/patched/pip/_internal/commands/__init__.py
-@@ -14,97 +14,97 @@ CommandInfo = namedtuple("CommandInfo", "module_path, class_name, summary")
+@@ -16,97 +16,97 @@ CommandInfo = namedtuple("CommandInfo", "module_path, class_name, summary")
  # - Enables avoiding additional (costly) imports for presenting `--help`.
  # - The ordering matters for help display.
  #
@@ -10,7 +10,7 @@ index bc4f216a8..156846015 100644
 +# Even though the module path starts with the same "pipenv.patched.pip._internal.commands"
  # prefix, the full path makes testing easier (specifically when modifying
  # `commands_dict` in test setup / teardown).
- commands_dict: Dict[str, CommandInfo] = {
+ commands_dict: dict[str, CommandInfo] = {
      "install": CommandInfo(
 -        "pip._internal.commands.install",
 +        "pipenv.patched.pip._internal.commands.install",

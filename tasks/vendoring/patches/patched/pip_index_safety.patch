@@ -1,12 +1,12 @@
 diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
-index 5f8fdee3d..b7c40c190 100644
+index 00d66daa3..3cc20b1aa 100644
 --- a/pipenv/patched/pip/_internal/index/collector.py
 +++ b/pipenv/patched/pip/_internal/index/collector.py
-@@ -399,9 +399,11 @@ class LinkCollector:
+@@ -394,9 +394,11 @@ class LinkCollector:
          self,
          session: PipSession,
          search_scope: SearchScope,
-+        index_lookup: Optional[Dict[str, List[str]]] = None,
++        index_lookup: dict[str, list[str]] | None = None,
      ) -> None:
          self.search_scope = search_scope
          self.session = session
@@ -14,15 +14,15 @@ index 5f8fdee3d..b7c40c190 100644
 
      @classmethod
      def create(
-@@ -409,6 +411,7 @@ class LinkCollector:
+@@ -404,6 +406,7 @@ class LinkCollector:
          session: PipSession,
          options: Values,
          suppress_no_index: bool = False,
-+        index_lookup: Optional[Dict[str, List[str]]] = None,
-     ) -> "LinkCollector":
++        index_lookup: dict[str, list[str]] | None = None,
+     ) -> LinkCollector:
          """
          :param session: The Session to use to make requests.
-@@ -430,10 +433,12 @@ class LinkCollector:
+@@ -425,10 +428,12 @@ class LinkCollector:
              find_links=find_links,
              index_urls=index_urls,
              no_index=options.no_index,
@@ -36,19 +36,10 @@ index 5f8fdee3d..b7c40c190 100644
          return link_collector
 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index ee7bc8622..5e24ae67e 100644
+index 136163ca0..0101dd386 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -4,7 +4,7 @@ import os
- import posixpath
- import urllib.parse
- from dataclasses import dataclass
--from typing import List
-+from typing import Dict, List, Optional
-
- from pip._vendor.packaging.utils import canonicalize_name
-
-@@ -15,17 +15,16 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
+@@ -14,17 +14,17 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
  logger = logging.getLogger(__name__)
 
 
@@ -58,27 +49,27 @@ index ee7bc8622..5e24ae67e 100644
      """
      Encapsulates the locations that pip is configured to search.
      """
--
+
 -    __slots__ = ["find_links", "index_urls", "no_index"]
 -
-     find_links: List[str]
-     index_urls: List[str]
+     find_links: list[str]
+     index_urls: list[str]
      no_index: bool
-+    index_lookup: Optional[Dict[str, str]] = None
-+    index_restricted: Optional[bool] = None
++    index_lookup: dict[str, str] | None = None
++    index_restricted: bool | None = None
 
      @classmethod
      def create(
-@@ -33,6 +32,8 @@ class SearchScope:
-         find_links: List[str],
-         index_urls: List[str],
+@@ -32,6 +32,8 @@ class SearchScope:
+         find_links: list[str],
+         index_urls: list[str],
          no_index: bool,
-+        index_lookup: Optional[Dict[str, List[str]]] = None,
++        index_lookup: dict[str, list[str]] | None = None,
 +        index_restricted: bool = False,
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -67,6 +68,8 @@ class SearchScope:
+@@ -66,6 +68,8 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
@@ -87,7 +78,7 @@ index ee7bc8622..5e24ae67e 100644
          )
 
      def get_formatted_locations(self) -> str:
-@@ -124,4 +127,9 @@ class SearchScope:
+@@ -123,4 +127,9 @@ class SearchScope:
                  loc = loc + "/"
              return loc
 
