@@ -102,7 +102,7 @@ jobs:
         run: |
           git submodule sync
           git submodule update --init --recursive
-          python -m pip install -e .[safety] --upgrade
+          python -m pip install -e . --upgrade
           pipenv install --deploy --dev --python=${{ matrix.python-version }}
       - name: Run pypiserver with pipenv (Python 3.10+)
         run: |
