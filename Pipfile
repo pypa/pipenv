@@ -5,6 +5,8 @@ name = "pypi"
 
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
+urllib3 = ">=2.6.0"
+requests = ">=2.32.4"
 sphinx = "*"
 sphinx-click = "==4.*"
 sphinxcontrib-spelling = "==7.*"
