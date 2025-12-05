@@ -1,6 +1,9 @@
+from __future__ import annotations
+
 import logging
 import sys
-from typing import TYPE_CHECKING, Any, FrozenSet, Iterable, Optional, Tuple, Union, cast
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, Union, cast
 
 from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
@@ -8,6 +11,7 @@ from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonical
 from pipenv.patched.pip._vendor.packaging.version import Version
 
 from pipenv.patched.pip._internal.exceptions import (
+    FailedToPrepareCandidate,
     HashError,
     InstallationSubprocessError,
     InvalidInstalledPackage,
@@ -42,7 +46,7 @@ BaseCandidate = Union[
 REQUIRES_PYTHON_IDENTIFIER = cast(NormalizedName, "<Python from Requires-Python>")
 
 
-def as_base_candidate(candidate: Candidate) -> Optional[BaseCandidate]:
+def as_base_candidate(candidate: Candidate) -> BaseCandidate | None:
     """The runtime version of BaseCandidate."""
     base_candidate_classes = (
         AlreadyInstalledCandidate,
@@ -66,10 +70,8 @@ def make_install_req_from_link(
         line,
         user_supplied=template.user_supplied,
         comes_from=template.comes_from,
-        use_pep517=template.use_pep517,
         isolated=template.isolated,
         constraint=template.constraint,
-        global_options=template.global_options,
         hash_options=template.hash_options,
         config_settings=template.config_settings,
     )
@@ -83,15 +85,17 @@ def make_install_req_from_editable(
     link: Link, template: InstallRequirement
 ) -> InstallRequirement:
     assert template.editable, "template not editable"
+    if template.name:
+        req_string = f"{template.name} @ {link.url}"
+    else:
+        req_string = link.url
     ireq = install_req_from_editable(
-        link.url,
+        req_string,
         user_supplied=template.user_supplied,
         comes_from=template.comes_from,
-        use_pep517=template.use_pep517,
         isolated=template.isolated,
         constraint=template.constraint,
         permit_editable_wheels=template.permit_editable_wheels,
-        global_options=template.global_options,
         hash_options=template.hash_options,
         config_settings=template.config_settings,
     )
@@ -112,10 +116,8 @@ def _make_install_req_from_dist(
         line,
         user_supplied=template.user_supplied,
         comes_from=template.comes_from,
-        use_pep517=template.use_pep517,
         isolated=template.isolated,
         constraint=template.constraint,
-        global_options=template.global_options,
         hash_options=template.hash_options,
         config_settings=template.config_settings,
     )
@@ -147,9 +149,9 @@ class _InstallRequirementBackedCandidate(Candidate):
         link: Link,
         source_link: Link,
         ireq: InstallRequirement,
-        factory: "Factory",
-        name: Optional[NormalizedName] = None,
-        version: Optional[Version] = None,
+        factory: Factory,
+        name: NormalizedName | None = None,
+        version: Version | None = None,
     ) -> None:
         self._link = link
         self._source_link = source_link
@@ -158,7 +160,7 @@ class _InstallRequirementBackedCandidate(Candidate):
         self._name = name
         self._version = version
         self.dist = self._prepare()
-        self._hash: Optional[int] = None
+        self._hash: int | None = None
 
     def __str__(self) -> str:
         return f"{self.name} {self.version}"
@@ -179,7 +181,7 @@ class _InstallRequirementBackedCandidate(Candidate):
         return False
 
     @property
-    def source_link(self) -> Optional[Link]:
+    def source_link(self) -> Link | None:
         return self._source_link
 
     @property
@@ -242,14 +244,24 @@ class _InstallRequirementBackedCandidate(Candidate):
             e.req = self._ireq
             raise
         except InstallationSubprocessError as exc:
-            # The output has been presented already, so don't duplicate it.
-            exc.context = "See above for output."
-            raise
+            if isinstance(self._ireq.comes_from, InstallRequirement):
+                request_chain = self._ireq.comes_from.from_path()
+            else:
+                request_chain = self._ireq.comes_from
+
+            if request_chain is None:
+                request_chain = "directly requested"
+
+            raise FailedToPrepareCandidate(
+                package_name=self._ireq.name or str(self._link),
+                requirement_chain=request_chain,
+                failed_step=exc.command_description,
+            )
 
         self._check_metadata_consistency(dist)
         return dist
 
-    def iter_dependencies(self, with_requires: bool) -> Iterable[Optional[Requirement]]:
+    def iter_dependencies(self, with_requires: bool) -> Iterable[Requirement | None]:
         # Emit the Requires-Python requirement first to fail fast on
         # unsupported candidates and avoid pointless downloads/preparation.
         yield self._factory.make_requires_python_requirement(self.dist.requires_python)
@@ -257,7 +269,7 @@ class _InstallRequirementBackedCandidate(Candidate):
         for r in requires:
             yield from self._factory.make_requirements_from_spec(str(r), self._ireq)
 
-    def get_install_requirement(self) -> Optional[InstallRequirement]:
+    def get_install_requirement(self) -> InstallRequirement | None:
         ireq = self._ireq
         if self._version and ireq.req and not ireq.req.url:
             ireq.req.specifier = SpecifierSet(f"=={self._version}")
@@ -271,9 +283,9 @@ class LinkCandidate(_InstallRequirementBackedCandidate):
         self,
         link: Link,
         template: InstallRequirement,
-        factory: "Factory",
-        name: Optional[NormalizedName] = None,
-        version: Optional[Version] = None,
+        factory: Factory,
+        name: NormalizedName | None = None,
+        version: Version | None = None,
     ) -> None:
         source_link = link
         cache_entry = factory.get_wheel_cache_entry(source_link, name)
@@ -284,7 +296,7 @@ class LinkCandidate(_InstallRequirementBackedCandidate):
         assert ireq.link == link
         if ireq.link.is_wheel and not ireq.link.is_file:
             wheel = Wheel(ireq.link.filename)
-            wheel_name = canonicalize_name(wheel.name)
+            wheel_name = wheel.name
             assert name == wheel_name, f"{name!r} != {wheel_name!r} for wheel"
             # Version may not be present for PEP 508 direct URLs
             if version is not None:
@@ -328,9 +340,9 @@ class EditableCandidate(_InstallRequirementBackedCandidate):
         self,
         link: Link,
         template: InstallRequirement,
-        factory: "Factory",
-        name: Optional[NormalizedName] = None,
-        version: Optional[Version] = None,
+        factory: Factory,
+        name: NormalizedName | None = None,
+        version: Version | None = None,
     ) -> None:
         super().__init__(
             link=link,
@@ -353,7 +365,7 @@ class AlreadyInstalledCandidate(Candidate):
         self,
         dist: BaseDistribution,
         template: InstallRequirement,
-        factory: "Factory",
+        factory: Factory,
     ) -> None:
         self.dist = dist
         self._ireq = _make_install_req_from_dist(dist, template)
@@ -402,7 +414,7 @@ class AlreadyInstalledCandidate(Candidate):
     def format_for_error(self) -> str:
         return f"{self.name} {self.version} (Installed)"
 
-    def iter_dependencies(self, with_requires: bool) -> Iterable[Optional[Requirement]]:
+    def iter_dependencies(self, with_requires: bool) -> Iterable[Requirement | None]:
         if not with_requires:
             return
 
@@ -412,7 +424,7 @@ class AlreadyInstalledCandidate(Candidate):
         except InvalidRequirement as exc:
             raise InvalidInstalledPackage(dist=self.dist, invalid_exc=exc) from None
 
-    def get_install_requirement(self) -> Optional[InstallRequirement]:
+    def get_install_requirement(self) -> InstallRequirement | None:
         return None
 
 
@@ -444,9 +456,9 @@ class ExtrasCandidate(Candidate):
     def __init__(
         self,
         base: BaseCandidate,
-        extras: FrozenSet[str],
+        extras: frozenset[str],
         *,
-        comes_from: Optional[InstallRequirement] = None,
+        comes_from: InstallRequirement | None = None,
     ) -> None:
         """
         :param comes_from: the InstallRequirement that led to this candidate if it
@@ -502,10 +514,10 @@ class ExtrasCandidate(Candidate):
         return self.base.is_editable
 
     @property
-    def source_link(self) -> Optional[Link]:
+    def source_link(self) -> Link | None:
         return self.base.source_link
 
-    def iter_dependencies(self, with_requires: bool) -> Iterable[Optional[Requirement]]:
+    def iter_dependencies(self, with_requires: bool) -> Iterable[Requirement | None]:
         factory = self.base._factory
 
         # Add a dependency on the exact base
@@ -533,7 +545,7 @@ class ExtrasCandidate(Candidate):
                 valid_extras,
             )
 
-    def get_install_requirement(self) -> Optional[InstallRequirement]:
+    def get_install_requirement(self) -> InstallRequirement | None:
         # We don't return anything here, because we always
         # depend on the base candidate, and we'll get the
         # install requirement from that.
@@ -544,7 +556,7 @@ class RequiresPythonCandidate(Candidate):
     is_installed = False
     source_link = None
 
-    def __init__(self, py_version_info: Optional[Tuple[int, ...]]) -> None:
+    def __init__(self, py_version_info: tuple[int, ...] | None) -> None:
         if py_version_info is not None:
             version_info = normalize_version_info(py_version_info)
         else:
@@ -576,8 +588,8 @@ class RequiresPythonCandidate(Candidate):
     def format_for_error(self) -> str:
         return f"Python {self.version}"
 
-    def iter_dependencies(self, with_requires: bool) -> Iterable[Optional[Requirement]]:
+    def iter_dependencies(self, with_requires: bool) -> Iterable[Requirement | None]:
         return ()
 
-    def get_install_requirement(self) -> Optional[InstallRequirement]:
+    def get_install_requirement(self) -> InstallRequirement | None:
         return None

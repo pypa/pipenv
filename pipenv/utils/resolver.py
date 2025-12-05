@@ -408,7 +408,6 @@ class Resolver:
             install_req_from_parsed_requirement(
                 c,
                 isolated=self.pip_options.build_isolation,
-                use_pep517=self.pip_options.use_pep517,
                 user_supplied=True,
             )
             for c in self.parsed_constraints
@@ -459,7 +458,6 @@ class Resolver:
                         ignore_requires_python=pip_options.ignore_requires_python,
                         force_reinstall=pip_options.force_reinstall,
                         upgrade_strategy="to-satisfy-only",
-                        use_pep517=pip_options.use_pep517,
                     )
                     yield resolver
 

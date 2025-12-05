@@ -12,3 +12,4 @@ python-dotenv==1.0.1
 pythonfinder==3.0.0
 shellingham==1.5.4
 tomlkit==0.13.2
+pip

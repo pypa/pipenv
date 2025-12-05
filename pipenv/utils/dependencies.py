@@ -562,9 +562,7 @@ def parse_setup_file(content):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        if isinstance(node.value, ast.Str):  # for Python versions < 3.8
-                            variables[target.id] = node.value.s
-                        elif isinstance(node.value, ast.Constant) and isinstance(
+                        if isinstance(node.value, ast.Constant) and isinstance(
                             node.value.value, str
                         ):
                             variables[target.id] = node.value.value
@@ -585,8 +583,6 @@ def parse_setup_file(content):
                             ):
                                 return variables[keyword.value.id]
                             # Otherwise, check if it's directly provided
-                            elif isinstance(keyword.value, ast.Str):
-                                return keyword.value.s
                             elif isinstance(keyword.value, ast.Constant) and isinstance(
                                 keyword.value.value, str
                             ):
@@ -601,18 +597,28 @@ def parse_setup_file(content):
                                 ):
                                     if isinstance(
                                         keyword.value.slice, ast.Index
-                                    ) and isinstance(keyword.value.slice.value, ast.Str):
-                                        return keyword.value.slice.value.s
-                                return keyword.value.s
+                                    ) and isinstance(
+                                        keyword.value.slice.value, ast.Constant
+                                    ):
+                                        if isinstance(
+                                            keyword.value.slice.value.value, str
+                                        ):
+                                            return keyword.value.slice.value.value
+                                # Handle ast.Constant for the subscript value
+                                if isinstance(keyword.value, ast.Constant) and isinstance(
+                                    keyword.value.value, str
+                                ):
+                                    return keyword.value.value
                             elif sys.version_info >= (3, 9) and isinstance(
                                 keyword.value, ast.Subscript
                             ):
                                 if (
                                     isinstance(keyword.value.value, ast.Name)
-                                    and isinstance(keyword.value.slice, ast.Str)
+                                    and isinstance(keyword.value.slice, ast.Constant)
                                     and keyword.value.value.id == "about"
                                 ):
-                                    return keyword.value.slice.s
+                                    if isinstance(keyword.value.slice.value, str):
+                                        return keyword.value.slice.value
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
 
@@ -1028,9 +1034,7 @@ def expansive_install_req_from_line(
                 None,
                 comes_from,
                 link=link,
-                use_pep517=use_pep517,
                 isolated=isolated,
-                global_options=global_options,
                 hash_options=hash_options,
                 constraint=constraint,
                 user_supplied=user_supplied,
@@ -1056,9 +1060,7 @@ def expansive_install_req_from_line(
         comes_from,
         link=parts.link,
         markers=parts.markers,
-        use_pep517=use_pep517,
         isolated=isolated,
-        global_options=global_options,
         hash_options=hash_options,
         config_settings=config_settings,
         constraint=constraint,
