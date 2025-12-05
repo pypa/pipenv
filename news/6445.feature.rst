@@ -1,1 +1,0 @@
-Vendor in pip 25.3 for dependency resolution.
