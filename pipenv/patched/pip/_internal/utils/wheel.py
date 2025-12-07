@@ -1,4 +1,5 @@
 """Support functions for working with wheel files."""
+from __future__ import annotations
 
 import logging
 from email.message import Message

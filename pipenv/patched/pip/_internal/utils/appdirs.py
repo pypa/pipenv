@@ -5,6 +5,7 @@ compatible for the current pip code base.
 The intention is to rewrite current usages gradually, keeping the tests pass,
 and eventually drop this after all usages are changed.
 """
+from __future__ import annotations
 
 import os
 import sys

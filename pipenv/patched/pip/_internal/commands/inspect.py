@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 from optparse import Values
 from typing import Any
