@@ -1,3 +1,15 @@
+2025.1.3 (2025-12-09)
+=====================
+pipenv 2025.1.3 (2025-12-09)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix TypeError when using pipenv with Python 3.9 target environments
+  by adding ``from __future__ import annotations`` to files in
+  ``pipenv/patched/pip`` that use Python 3.10+ type annotation syntax.  `#6448 <https://github.com/pypa/pipenv/issues/6448>`_
 2025.1.1 (2025-12-05)
 =====================
 pipenv 2025.1.1 (2025-12-05)

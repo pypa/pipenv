@@ -1,3 +1,0 @@
-Fix TypeError when using pipenv with Python 3.9 target environments
-by adding ``from __future__ import annotations`` to files in
-``pipenv/patched/pip`` that use Python 3.10+ type annotation syntax.
