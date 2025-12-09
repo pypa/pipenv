@@ -113,10 +113,13 @@ class PylockFile:
             for name, package_data in packages.items():
                 package = {"name": name}
 
-                # Add version if present
+                # Add version if present and not a wildcard
                 if "version" in package_data:
                     version = package_data["version"]
-                    if version.startswith("=="):
+                    if version == "*":
+                        # Skip wildcard versions - they don't belong in pylock.toml
+                        pass
+                    elif version.startswith("=="):
                         package["version"] = version[2:]
                     else:
                         package["version"] = version
@@ -479,9 +482,12 @@ class PylockFile:
             # Create the package entry
             package_entry = {}
 
-            # Add version if present
+            # Add version if present, otherwise use wildcard for Pipfile.lock compatibility
             if "version" in package:
                 package_entry["version"] = f"=={package['version']}"
+            else:
+                # No version in pylock.toml means any version is acceptable
+                package_entry["version"] = "*"
 
             # Add hashes if present
             hashes = []
