@@ -34,7 +34,7 @@ When you run `pipenv install`, Pipenv verifies that the downloaded packages matc
 Pipenv includes the [safety](https://github.com/pyupio/safety) package, which scans your dependencies for known security vulnerabilities.
 
 ```bash
-$ pipenv scan
+$ pipenv check --scan
 ```
 
 This command checks your dependencies against the PyUp Safety database of known vulnerabilities and alerts you to any issues.
@@ -88,7 +88,7 @@ This ensures that your `Pipfile.lock` is up-to-date and fails if it isn't, preve
 Make vulnerability scanning a regular part of your development workflow:
 
 ```bash
-$ pipenv scan
+$ pipenv check --scan
 ```
 
 Consider integrating this into your CI/CD pipeline to catch vulnerabilities automatically.
@@ -150,7 +150,7 @@ $ pipenv install --deploy
 
 ### Understanding Vulnerability Reports
 
-When `pipenv scan` identifies vulnerabilities, it provides information to help you assess the risk:
+When `pipenv check --scan` identifies vulnerabilities, it provides information to help you assess the risk:
 
 - **Vulnerability ID**: A unique identifier for the vulnerability
 - **Affected spec**: The version range affected by the vulnerability
@@ -175,7 +175,7 @@ When vulnerabilities are found, you have several options:
 
 3. **Ignore specific vulnerabilities** (use with caution):
    ```bash
-   $ pipenv scan --ignore 38449
+   $ pipenv check --scan --ignore 38449
    ```
 
 4. **Apply patches or workarounds** as recommended in the vulnerability advisory.
@@ -250,7 +250,7 @@ jobs:
       - name: Verify Pipfile.lock
         run: pipenv verify
       - name: Security scan
-        run: pipenv scan
+        run: pipenv check --scan
 ```
 
 ### Preventing Lock File Tampering

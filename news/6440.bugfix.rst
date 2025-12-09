@@ -1,0 +1,1 @@
+Fix ``pipenv requirements --dev-only --from-pipfile`` to only include packages explicitly listed in ``dev-packages``, not packages from other categories that happen to also be transitive dependencies of dev packages.

@@ -12,8 +12,7 @@ This document provides a comprehensive reference for all Pipenv commands, includ
 | `sync` | Install packages from Pipfile.lock without modifying the lockfile |
 | `update` | Update dependencies and install them (lock + sync) |
 | `upgrade` | Update the lock of specified dependencies without installing |
-| `check` | Check for security vulnerabilities and PEP 508 compliance |
-| `scan` | Enhanced security scanning (replacement for check) |
+| `check` | Check for security vulnerabilities and PEP 508 compliance (use `--scan` for enhanced scanning) |
 | `shell` | Spawn a shell within the virtual environment |
 | `run` | Run a command within the virtual environment |
 | `graph` | Display dependency graph information |
@@ -306,7 +305,7 @@ $ pipenv check --output json
 | `--auto-install` | Automatically install safety if not already installed |
 | `--scan` | Enable the newer version of the check command with improved functionality. |
 
-**Note**: The check command is deprecated and will be unsupported beyond June 1, 2024. Use the `scan` command instead.
+**Note**: The check command is deprecated and will be unsupported beyond June 1, 2025. Use `pipenv check --scan` for enhanced security scanning.
 
 ## run
 
