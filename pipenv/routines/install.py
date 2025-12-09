@@ -712,7 +712,12 @@ def do_init(
         categories=categories,
     )
 
-    if not allow_global and not deploy and "PIPENV_ACTIVE" not in os.environ:
+    if (
+        not allow_global
+        and not deploy
+        and "PIPENV_ACTIVE" not in os.environ
+        and not project.s.is_quiet()
+    ):
         console.print(
             "To activate this project's virtualenv, run [yellow]pipenv shell[/yellow].\n"
             "Alternatively, run a command inside the virtualenv with [yellow]pipenv run[/yellow]."
