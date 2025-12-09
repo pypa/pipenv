@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from collections.abc import Generator
 
 from pipenv.patched.pip._vendor.requests.models import Response

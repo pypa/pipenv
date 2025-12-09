@@ -2,7 +2,7 @@ try:
     import tomllib
 except ImportError:
     try:
-        from pipenv.patched.pip._vendor import tomli as tomllib  # type: ignore[no-redef, unused-ignore]
+        import pipenv.patched.pip._vendor.tomli as tomllib  # type: ignore[no-redef, unused-ignore]
     except ModuleNotFoundError:  # pragma: no cover
         tomllib = None  # type: ignore[assignment, unused-ignore]
 

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 from optparse import Values
 from pathlib import Path
