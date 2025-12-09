@@ -49,27 +49,27 @@ def ensure_project(
             site_packages=site_packages,
             pypi_mirror=pypi_mirror,
         )
-        if warn:
-            # Warn users if they are using the wrong version of Python.
-            if project.required_python_version:
-                path_to_python = project._which("python") or project._which("py")
-                if path_to_python and project.required_python_version not in (
-                    python_version(path_to_python) or ""
-                ):
-                    err.print(
-                        f"[red][bold]Warning[/bold][/red]: Your Pipfile requires "
-                        f'[bold]"python_version"[/bold] [cyan]{project.required_python_version}[/cyan], '
-                        f"but you are using [cyan]{python_version(path_to_python)}[/cyan] "
-                        f"from [green]{shorten_path(path_to_python)}[/green]."
-                    )
-                    err.print(
-                        "[green]$ pipenv --rm[/green] and rebuilding the virtual environment "
-                        "may resolve the issue."
-                    )
-                    if not deploy:
-                        err.print("[yellow]$ pipenv check[/yellow] will surely fail.")
-                    else:
-                        raise exceptions.DeployException
+    # Always check Python version when warn is True (for both virtualenv and --system)
+    if warn and project.required_python_version:
+        path_to_python = project._which("python") or project._which("py")
+        if path_to_python and project.required_python_version not in (
+            python_version(path_to_python) or ""
+        ):
+            err.print(
+                f"[red][bold]Warning[/bold][/red]: Your Pipfile requires "
+                f'[bold]"python_version"[/bold] [cyan]{project.required_python_version}[/cyan], '
+                f"but you are using [cyan]{python_version(path_to_python)}[/cyan] "
+                f"from [green]{shorten_path(path_to_python)}[/green]."
+            )
+            if not system_or_exists:
+                err.print(
+                    "[green]$ pipenv --rm[/green] and rebuilding the virtual environment "
+                    "may resolve the issue."
+                )
+            if not deploy:
+                err.print("[yellow]$ pipenv check[/yellow] will surely fail.")
+            else:
+                raise exceptions.DeployException
     # Ensure the Pipfile exists.
     ensure_pipfile(
         project,

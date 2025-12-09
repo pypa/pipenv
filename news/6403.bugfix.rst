@@ -1,0 +1,3 @@
+Validate Python version when using ``--system`` flag.
+Previously, ``pipenv install --system --deploy`` would silently proceed even if the system Python version didn't match the ``python_version`` specified in Pipfile/Pipfile.lock.
+Now it properly raises a DeployException when the versions don't match.
