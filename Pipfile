@@ -28,8 +28,9 @@ pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
-pypiserver = "2.3.2"
 zipp = "==3.21.0"
+pypiserver = "*"
+tomli = "*"
 
 [packages]
 pytz = "*"

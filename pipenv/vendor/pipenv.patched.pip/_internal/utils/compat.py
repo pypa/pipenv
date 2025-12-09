@@ -70,7 +70,7 @@ else:
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    from pipenv.patched.pip._vendor import tomli as tomllib
+    import pipenv.patched.pip._vendor.tomli as tomllib
 
 
 # packages in the stdlib that may have installation metadata, but should not be
