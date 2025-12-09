@@ -220,6 +220,9 @@ def requirement_from_lockfile(
 
     # Handling packages from standard pypi like indexes
     version = package_info.get("version", "")
+    # Skip wildcard versions - they mean "any version" and should not be included
+    if is_star(version):
+        version = ""
     hashes = (
         f" --hash={' --hash='.join(package_info['hashes'])}"
         if include_hashes and "hashes" in package_info

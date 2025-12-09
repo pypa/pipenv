@@ -1,0 +1,83 @@
+# Example pylock.toml file for PEP 751
+# This demonstrates the pylock.toml format supported by Pipenv
+
+lock-version = '1.0'
+environments = ["sys_platform == 'win32'", "sys_platform == 'linux'", "sys_platform == 'darwin'"]
+requires-python = '>=3.8'
+extras = ['crypto']
+dependency-groups = ['dev', 'test']
+default-groups = ['default']
+created-by = 'pipenv'
+
+# Main dependencies (always installed)
+[[packages]]
+name = 'requests'
+version = '2.28.1'
+requires-python = '>=3.7'
+index = 'https://pypi.org/simple/'
+
+[[packages.wheels]]
+name = 'requests-2.28.1-py3-none-any.whl'
+upload-time = '2022-07-13T14:00:00Z'
+url = 'https://files.pythonhosted.org/packages/ca/91/6d9b8ccacd0412c08820f72cebaa4f0c61441f4AE7b7338a82051330d70/requests-2.28.1-py3-none-any.whl'
+size = 61805
+hashes = {sha256 = 'b8aa58f8cf793ffd8782d3d8cb19e66ef36f7aba4353eec859e74678b01b07a7'}
+
+[[packages]]
+name = 'urllib3'
+version = '1.26.12'
+requires-python = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, <4'
+index = 'https://pypi.org/simple/'
+
+[[packages.wheels]]
+name = 'urllib3-1.26.12-py2.py3-none-any.whl'
+upload-time = '2022-09-08T14:30:00Z'
+url = 'https://files.pythonhosted.org/packages/6f/de/5be2e3eed8426f871b170663333a0f627fc2924cc386cd41a2d2d3f1699/urllib3-1.26.12-py2.py3-none-any.whl'
+size = 141862
+hashes = {sha256 = 'b930dd878d5a8afb066a637fbb35144fe7901e3b209d1cd4f524bd0e9deee997'}
+
+[[packages]]
+name = 'certifi'
+version = '2022.9.24'
+index = 'https://pypi.org/simple/'
+
+[[packages.wheels]]
+name = 'certifi-2022.9.24-py3-none-any.whl'
+upload-time = '2022-09-24T18:00:00Z'
+url = 'https://files.pythonhosted.org/packages/1d/38/fa96a426e0c0e68aabc68e896584b83ad1eec779265a028e156ce509630/certifi-2022.9.24-py3-none-any.whl'
+size = 161915
+hashes = {sha256 = '0d9c601124e5a6ba9712dbc60d9c53c21e34f5f641fe83002317394311bdce14'}
+
+# Development dependency (only when 'dev' group is enabled)
+[[packages]]
+name = 'pytest'
+version = '7.2.0'
+requires-python = '>=3.7'
+marker = "'dev' in dependency_groups or 'test' in dependency_groups"
+index = 'https://pypi.org/simple/'
+
+[[packages.wheels]]
+name = 'pytest-7.2.0-py3-none-any.whl'
+upload-time = '2022-11-12T10:00:00Z'
+url = 'https://files.pythonhosted.org/packages/ab/cd/pytest-7.2.0-py3-none-any.whl'
+size = 312500
+hashes = {sha256 = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'}
+
+# Optional dependency for 'crypto' extra
+[[packages]]
+name = 'cryptography'
+version = '40.0.0'
+requires-python = '>=3.7'
+marker = "'crypto' in extras"
+index = 'https://pypi.org/simple/'
+
+[[packages.wheels]]
+name = 'cryptography-40.0.0-py3-none-any.whl'
+upload-time = '2023-03-20T08:00:00Z'
+url = 'https://files.pythonhosted.org/packages/ef/gh/cryptography-40.0.0-py3-none-any.whl'
+size = 654321
+hashes = {sha256 = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'}
+
+[tool.pipenv]
+generated_from = "Pipfile.lock"
+generation_date = "2025-04-25T04:20:00Z"

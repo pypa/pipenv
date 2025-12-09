@@ -44,6 +44,7 @@
                 "sha256:81b2c9071a49367a7f770170e5eec8cb66567cfbbc8c73d20ce5ca4a8d71cf11"
             ],
             "markers": "sys_platform == 'win32'",
+            "sys_platform": "== 'win32'",
             "version": "==1.4.1"
         },
         "attrs": {
@@ -363,6 +364,7 @@
                 "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
             ],
             "markers": "sys_platform == 'win32'",
+            "sys_platform": "== 'win32'",
             "version": "==0.4.6"
         },
         "coverage": {
@@ -705,7 +707,8 @@
             "version": "==25.7.0"
         },
         "legacy-cgi": {
-            "markers": "python_version >= '3.13'"
+            "markers": "python_version >= '3.13'",
+            "version": "*"
         },
         "linkify-it-py": {
             "hashes": [
@@ -1411,6 +1414,7 @@
                 "sha256:c56d67fd6e87c2ee598b76abdd4e96cfad1f24cacdea5078d382b1f9d7b5ed2e"
             ],
             "markers": "sys_platform == 'win32'",
+            "sys_platform": "== 'win32'",
             "version": "==3.0.2"
         },
         "zipp": {

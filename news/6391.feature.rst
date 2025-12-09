@@ -1,0 +1,5 @@
+Added support for PEP 751 pylock.toml files:
+
+- Reading: When both a Pipfile.lock and a pylock.toml file exist, Pipenv will prioritize the pylock.toml file.
+- Writing: Add ``use_pylock = true`` to the ``[pipenv]`` section of your Pipfile to generate pylock.toml files alongside Pipfile.lock.
+- Customization: Use ``pylock_name = "name"`` in the ``[pipenv]`` section to generate named pylock files (e.g., pylock.name.toml).

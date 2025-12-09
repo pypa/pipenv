@@ -57,6 +57,7 @@ from pipenv.utils.internet import (
     proper_case,
 )
 from pipenv.utils.locking import atomic_open_for_write
+from pipenv.utils.pylock import PylockFile, find_pylock_file
 from pipenv.utils.project import get_default_pyproject_backend
 from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
@@ -794,6 +795,19 @@ class Project:
         return pf
 
     @property
+    def pylock_location(self):
+        """Returns the location of the pylock.toml file, if it exists."""
+        pylock_path = find_pylock_file(self.project_directory)
+        if pylock_path:
+            return str(pylock_path)
+        return None
+
+    @property
+    def pylock_exists(self):
+        """Returns True if a pylock.toml file exists."""
+        return self.pylock_location is not None
+
+    @property
     def lockfile_location(self):
         return f"{self.pipfile_location}.lock"
 
@@ -803,6 +817,15 @@ class Project:
 
     @property
     def lockfile_content(self):
+        """Returns the content of the lockfile, checking for pylock.toml first."""
+        if self.pylock_exists or self.use_pylock:
+            try:
+                if self.pylock_exists:
+                    pylock = PylockFile.from_path(self.pylock_location)
+                    lockfile_data = pylock.convert_to_pipenv_lockfile()
+                    return lockfile_data
+            except Exception as e:
+                err.print(f"[bold yellow]Error loading pylock.toml: {e}[/bold yellow]")
         return self.load_lockfile()
 
     def get_editable_packages(self, category):
@@ -986,8 +1009,22 @@ class Project:
         with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
 
+    @property
+    def use_pylock(self) -> bool:
+        """Returns True if pylock.toml should be generated."""
+        return self.settings.get("use_pylock", False)
+
+    @property
+    def pylock_output_path(self) -> str:
+        """Returns the path where pylock.toml should be written."""
+        pylock_name = self.settings.get("pylock_name")
+        if pylock_name:
+            return str(Path(self.project_directory) / f"pylock.{pylock_name}.toml")
+        return str(Path(self.project_directory) / "pylock.toml")
+
     def write_lockfile(self, content):
         """Write out the lockfile."""
+        # Always write the Pipfile.lock
         s = self._lockfile_encoder.encode(content)
         open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
         with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
@@ -996,6 +1033,22 @@ class Project:
             # Only need '\n' here; the file object handles the rest.
             if not s.endswith("\n"):
                 f.write("\n")
+
+        # If use_pylock is enabled, also write a pylock.toml file
+        if self.use_pylock:
+            try:
+                from pipenv.utils.pylock import PylockFile
+
+                pylock = PylockFile.from_lockfile(
+                    lockfile_path=self.lockfile_location,
+                    pylock_path=self.pylock_output_path,
+                )
+                pylock.write()
+                err.print(
+                    f"[bold green]Generated pylock.toml at {self.pylock_output_path}[/bold green]"
+                )
+            except Exception as e:
+                err.print(f"[bold red]Error generating pylock.toml: {e}[/bold red]")
 
     def pipfile_sources(self, expand_vars=True):
         if self.pipfile_is_empty or "source" not in self.parsed_pipfile:
