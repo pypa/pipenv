@@ -62,9 +62,12 @@ def test_pylock_file_loading(pylock_project):
     assert pylock.lock_version == "1.0"
     assert pylock.created_by == "pipenv"
     assert pylock.requires_python == ">=3.8"
+    # Updated example now has 5 packages: requests, urllib3, certifi, pytest, cryptography
     assert len(pylock.packages) == 5
     assert pylock.packages[0]["name"] == "requests"
     assert pylock.packages[0]["version"] == "2.28.1"
+    # Check new index field
+    assert pylock.packages[0].get("index") == "https://pypi.org/simple/"
 
 
 def test_project_pylock_integration(pylock_project):
@@ -84,8 +87,9 @@ def test_project_pylock_integration(pylock_project):
     assert "requests" in lockfile_content["default"]
     assert "urllib3" in lockfile_content["default"]
     assert "certifi" in lockfile_content["default"]
-    assert "charset-normalizer" in lockfile_content["default"]
-    assert "idna" in lockfile_content["default"]
+    # pytest should be in develop section due to dependency_groups marker
+    assert "develop" in lockfile_content
+    assert "pytest" in lockfile_content["develop"]
 
     # Check that the converted content has the correct format
     requests_entry = lockfile_content["default"]["requests"]

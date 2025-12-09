@@ -1,15 +1,20 @@
+# Example pylock.toml file for PEP 751
+# This demonstrates the pylock.toml format supported by Pipenv
+
 lock-version = '1.0'
 environments = ["sys_platform == 'win32'", "sys_platform == 'linux'", "sys_platform == 'darwin'"]
 requires-python = '>=3.8'
-extras = []
-dependency-groups = []
-default-groups = []
+extras = ['crypto']
+dependency-groups = ['dev', 'test']
+default-groups = ['default']
 created-by = 'pipenv'
 
+# Main dependencies (always installed)
 [[packages]]
 name = 'requests'
 version = '2.28.1'
 requires-python = '>=3.7'
+index = 'https://pypi.org/simple/'
 
 [[packages.wheels]]
 name = 'requests-2.28.1-py3-none-any.whl'
@@ -22,6 +27,7 @@ hashes = {sha256 = 'b8aa58f8cf793ffd8782d3d8cb19e66ef36f7aba4353eec859e74678b01b
 name = 'urllib3'
 version = '1.26.12'
 requires-python = '>=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, <4'
+index = 'https://pypi.org/simple/'
 
 [[packages.wheels]]
 name = 'urllib3-1.26.12-py2.py3-none-any.whl'
@@ -33,6 +39,7 @@ hashes = {sha256 = 'b930dd878d5a8afb066a637fbb35144fe7901e3b209d1cd4f524bd0e9dee
 [[packages]]
 name = 'certifi'
 version = '2022.9.24'
+index = 'https://pypi.org/simple/'
 
 [[packages.wheels]]
 name = 'certifi-2022.9.24-py3-none-any.whl'
@@ -41,28 +48,35 @@ url = 'https://files.pythonhosted.org/packages/1d/38/fa96a426e0c0e68aabc68e89658
 size = 161915
 hashes = {sha256 = '0d9c601124e5a6ba9712dbc60d9c53c21e34f5f641fe83002317394311bdce14'}
 
+# Development dependency (only when 'dev' group is enabled)
 [[packages]]
-name = 'charset-normalizer'
-version = '2.1.1'
-requires-python = '>=3.6.0'
+name = 'pytest'
+version = '7.2.0'
+requires-python = '>=3.7'
+marker = "'dev' in dependency_groups or 'test' in dependency_groups"
+index = 'https://pypi.org/simple/'
 
 [[packages.wheels]]
-name = 'charset_normalizer-2.1.1-py3-none-any.whl'
-upload-time = '2022-08-05T12:00:00Z'
-url = 'https://files.pythonhosted.org/packages/a1/34/44964211e5410b051e4b8d2869c470ae8a68ae274953b1c7de6d98bbcf94/charset_normalizer-2.1.1-py3-none-any.whl'
-size = 39673
-hashes = {sha256 = '83e9a75d1911279afd89352c68b45348559d1fc0506b054b346651b5e7fee29f'}
+name = 'pytest-7.2.0-py3-none-any.whl'
+upload-time = '2022-11-12T10:00:00Z'
+url = 'https://files.pythonhosted.org/packages/ab/cd/pytest-7.2.0-py3-none-any.whl'
+size = 312500
+hashes = {sha256 = '1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef'}
 
+# Optional dependency for 'crypto' extra
 [[packages]]
-name = 'idna'
-version = '3.4'
+name = 'cryptography'
+version = '40.0.0'
+requires-python = '>=3.7'
+marker = "'crypto' in extras"
+index = 'https://pypi.org/simple/'
 
 [[packages.wheels]]
-name = 'idna-3.4-py3-none-any.whl'
-upload-time = '2022-08-12T15:00:00Z'
-url = 'https://files.pythonhosted.org/packages/fc/34/3030de6f1370931b9dbb4dad48f6ab1015ab1d32447850b9fc94e60097be/idna-3.4-py3-none-any.whl'
-size = 61545
-hashes = {sha256 = '90b77e79eaa3eba6de819a0c442c0b4ceefc341a7a2ab77d7562bf49f425c5c2'}
+name = 'cryptography-40.0.0-py3-none-any.whl'
+upload-time = '2023-03-20T08:00:00Z'
+url = 'https://files.pythonhosted.org/packages/ef/gh/cryptography-40.0.0-py3-none-any.whl'
+size = 654321
+hashes = {sha256 = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890'}
 
 [tool.pipenv]
 generated_from = "Pipfile.lock"

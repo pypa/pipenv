@@ -449,3 +449,133 @@ marker = "'dev' in dependency_groups"
     assert "cryptography" in package_names
     assert "validators" in package_names
     assert "dev-only-tool" in package_names
+
+
+def test_from_lockfile_with_custom_dev_groups(tmp_path):
+    """Test from_lockfile with custom dev_groups parameter."""
+    lockfile_content = {
+        "_meta": {
+            "sources": [
+                {"name": "pypi", "url": "https://pypi.org/simple/", "verify_ssl": True}
+            ],
+            "requires": {"python_version": "3.10"},
+        },
+        "default": {
+            "requests": {"version": "==2.28.1", "hashes": ["sha256:abc123"]},
+        },
+        "develop": {
+            "pytest": {"version": "==7.0.0", "hashes": ["sha256:def456"]},
+        },
+    }
+
+    lockfile_path = tmp_path / "Pipfile.lock"
+    import json
+    with open(lockfile_path, "w") as f:
+        json.dump(lockfile_content, f)
+
+    # Test with custom dev groups
+    pylock = PylockFile.from_lockfile(
+        lockfile_path, dev_groups=["testing", "development"]
+    )
+
+    # Check that the dependency-groups includes our custom groups
+    assert "testing" in pylock.dependency_groups
+    assert "development" in pylock.dependency_groups
+
+    # Check that the marker for develop packages uses the custom groups
+    pytest_pkg = next(p for p in pylock.packages if p["name"] == "pytest")
+    assert "'testing' in dependency_groups" in pytest_pkg["marker"]
+    assert "'development' in dependency_groups" in pytest_pkg["marker"]
+
+
+def test_from_lockfile_adds_package_index(tmp_path):
+    """Test that from_lockfile adds packages.index field (PEP 751)."""
+    lockfile_content = {
+        "_meta": {
+            "sources": [
+                {"name": "pypi", "url": "https://pypi.org/simple/", "verify_ssl": True}
+            ],
+            "requires": {"python_version": "3.10"},
+        },
+        "default": {
+            "requests": {"version": "==2.28.1", "hashes": ["sha256:abc123"]},
+        },
+        "develop": {},
+    }
+
+    lockfile_path = tmp_path / "Pipfile.lock"
+    import json
+    with open(lockfile_path, "w") as f:
+        json.dump(lockfile_content, f)
+
+    pylock = PylockFile.from_lockfile(lockfile_path)
+
+    # Check that packages have index field
+    requests_pkg = next(p for p in pylock.packages if p["name"] == "requests")
+    assert "index" in requests_pkg
+    assert requests_pkg["index"] == "https://pypi.org/simple/"
+
+
+def test_from_pyproject(tmp_path):
+    """Test creating a PylockFile from pyproject.toml."""
+    pyproject_content = '''
+[project]
+name = "my-project"
+version = "1.0.0"
+requires-python = ">=3.9"
+dependencies = [
+    "requests>=2.28.0",
+    "click>=8.0.0",
+]
+
+[project.optional-dependencies]
+crypto = [
+    "cryptography>=40.0.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+]
+'''
+    pyproject_path = tmp_path / "pyproject.toml"
+    with open(pyproject_path, "w") as f:
+        f.write(pyproject_content)
+
+    pylock = PylockFile.from_pyproject(pyproject_path)
+
+    # Check basic metadata
+    assert pylock.lock_version == "1.0"
+    assert pylock.created_by == "pipenv"
+    assert pylock.requires_python == ">=3.9"
+
+    # Check extras
+    assert "crypto" in pylock.extras
+
+    # Check dependency groups
+    assert "dev" in pylock.dependency_groups
+
+    # Check packages
+    package_names = [p["name"] for p in pylock.packages]
+    assert "requests" in package_names
+    assert "click" in package_names
+    assert "cryptography" in package_names
+    assert "pytest" in package_names
+    assert "black" in package_names
+
+    # Check markers for extras
+    crypto_pkg = next(p for p in pylock.packages if p["name"] == "cryptography")
+    assert "'crypto' in extras" in crypto_pkg["marker"]
+
+    # Check markers for dependency groups
+    pytest_pkg = next(p for p in pylock.packages if p["name"] == "pytest")
+    assert "'dev' in dependency_groups" in pytest_pkg["marker"]
+
+
+def test_from_pyproject_missing_file(tmp_path):
+    """Test from_pyproject raises error for missing file."""
+    pyproject_path = tmp_path / "pyproject.toml"
+
+    with pytest.raises(FileNotFoundError):
+        PylockFile.from_pyproject(pyproject_path)

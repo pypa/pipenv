@@ -794,6 +794,168 @@ def requirements(
     )
 
 
+@cli.command(
+    short_help="Manage PEP 751 pylock.toml files.",
+    context_settings=CONTEXT_SETTINGS,
+)
+@option(
+    "--generate",
+    is_flag=True,
+    default=False,
+    help="Generate pylock.toml from Pipfile.lock.",
+)
+@option(
+    "--from-pyproject",
+    is_flag=True,
+    default=False,
+    help="Generate pylock.toml skeleton from pyproject.toml.",
+)
+@option(
+    "--validate",
+    is_flag=True,
+    default=False,
+    help="Validate an existing pylock.toml file.",
+)
+@option(
+    "--output",
+    "-o",
+    default=None,
+    help="Output file path (default: pylock.toml in project directory).",
+)
+@option(
+    "--dev-groups",
+    default="dev",
+    help="Comma-separated list of dependency group names for dev packages.",
+)
+@common_options
+@pass_state
+def pylock(
+    state,
+    generate=False,
+    from_pyproject=False,
+    validate=False,
+    output=None,
+    dev_groups="dev",
+):
+    """Manage PEP 751 pylock.toml files.
+
+    Generate, validate, or convert pylock.toml files.
+
+    Examples:
+
+        pipenv pylock --generate
+
+        pipenv pylock --from-pyproject
+
+        pipenv pylock --validate
+    """
+    from pipenv.utils.pylock import PylockFile, PylockFormatError, PylockVersionError
+
+    project = state.project
+
+    # Parse dev_groups
+    groups = [g.strip() for g in dev_groups.split(",") if g.strip()]
+
+    if generate:
+        # Generate from Pipfile.lock
+        if not project.lockfile_exists:
+            err.print("[bold red]No Pipfile.lock found.[/bold red]")
+            sys.exit(1)
+
+        try:
+            output_path = output or project.pylock_output_path
+            pylock_file = PylockFile.from_lockfile(
+                lockfile_path=project.lockfile_location,
+                pylock_path=output_path,
+                dev_groups=groups,
+            )
+            pylock_file.write()
+            console.print(
+                f"[bold green]Generated pylock.toml at {output_path}[/bold green]"
+            )
+        except Exception as e:
+            err.print(f"[bold red]Error generating pylock.toml: {e}[/bold red]")
+            sys.exit(1)
+
+    elif from_pyproject:
+        # Generate skeleton from pyproject.toml
+        pyproject_path = Path(project.project_directory) / "pyproject.toml"
+        if not pyproject_path.exists():
+            err.print("[bold red]No pyproject.toml found.[/bold red]")
+            sys.exit(1)
+
+        try:
+            output_path = output or project.pylock_output_path
+            pylock_file = PylockFile.from_pyproject(
+                pyproject_path=pyproject_path,
+                pylock_path=output_path,
+            )
+            pylock_file.write()
+            console.print(
+                f"[bold green]Generated pylock.toml skeleton at {output_path}[/bold green]"
+            )
+            console.print(
+                "[yellow]Note: This is a skeleton file. Package versions and hashes "
+                "need to be resolved by running 'pipenv lock'.[/yellow]"
+            )
+        except Exception as e:
+            err.print(f"[bold red]Error generating pylock.toml: {e}[/bold red]")
+            sys.exit(1)
+
+    elif validate:
+        # Validate existing pylock.toml
+        pylock_path = project.pylock_location
+        if not pylock_path:
+            err.print("[bold red]No pylock.toml found.[/bold red]")
+            sys.exit(1)
+
+        try:
+            pylock_file = PylockFile.from_path(pylock_path)
+            console.print(
+                f"[bold green]✓ Valid pylock.toml (version {pylock_file.lock_version})[/bold green]"
+            )
+            console.print(f"  Created by: {pylock_file.created_by}")
+            console.print(f"  Packages: {len(pylock_file.packages)}")
+            if pylock_file.requires_python:
+                console.print(f"  Requires Python: {pylock_file.requires_python}")
+            if pylock_file.extras:
+                console.print(f"  Extras: {', '.join(pylock_file.extras)}")
+            if pylock_file.dependency_groups:
+                console.print(
+                    f"  Dependency Groups: {', '.join(pylock_file.dependency_groups)}"
+                )
+        except PylockVersionError as e:
+            err.print(f"[bold red]Version error: {e}[/bold red]")
+            sys.exit(1)
+        except PylockFormatError as e:
+            err.print(f"[bold red]Format error: {e}[/bold red]")
+            sys.exit(1)
+        except Exception as e:
+            err.print(f"[bold red]Error validating pylock.toml: {e}[/bold red]")
+            sys.exit(1)
+
+    else:
+        # Default: show status
+        pylock_path = project.pylock_location
+        if pylock_path:
+            try:
+                pylock_file = PylockFile.from_path(pylock_path)
+                console.print(f"[bold]pylock.toml[/bold]: {pylock_path}")
+                console.print(f"  Version: {pylock_file.lock_version}")
+                console.print(f"  Created by: {pylock_file.created_by}")
+                console.print(f"  Packages: {len(pylock_file.packages)}")
+            except Exception as e:
+                err.print(f"[yellow]Found pylock.toml but could not parse: {e}[/yellow]")
+        else:
+            console.print("[dim]No pylock.toml found.[/dim]")
+            console.print(
+                "Use [bold]pipenv pylock --generate[/bold] to create one from Pipfile.lock"
+            )
+            console.print(
+                "Use [bold]pipenv pylock --from-pyproject[/bold] to create from pyproject.toml"
+            )
+
+
 if __name__ == "__main__":
     cli()
 
