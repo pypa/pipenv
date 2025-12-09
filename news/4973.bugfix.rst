@@ -1,0 +1,4 @@
+Fix ``--system`` and ``--python`` flags to work together correctly. Previously,
+using both flags would still create a virtualenv. Now when ``--system`` is used
+with ``--python``, pipenv validates that the specified Python version exists
+on the system and raises a clear error if not found.

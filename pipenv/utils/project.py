@@ -8,7 +8,7 @@ from pipenv.utils import err
 from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
-from pipenv.utils.virtualenv import ensure_virtualenv
+from pipenv.utils.virtualenv import ensure_virtualenv, find_a_system_python
 
 if TYPE_CHECKING:
     STRING_TYPE = str
@@ -41,6 +41,16 @@ def ensure_project(
         system_or_exists = system  # default to False
     if not project.pipfile_exists and deploy:
         raise exceptions.PipfileNotFound
+
+    # When --system is used with --python, validate that the Python can be found
+    if system and python:
+        path_to_python = find_a_system_python(python)
+        if not path_to_python:
+            raise exceptions.PipenvUsageError(
+                message=f"Python version '{python}' was not found on your system. "
+                "Please ensure Python is installed and available in PATH.",
+            )
+
     # Skip virtualenv creation when --system was used.
     if not system_or_exists:
         ensure_virtualenv(
@@ -49,9 +59,20 @@ def ensure_project(
             site_packages=site_packages,
             pypi_mirror=pypi_mirror,
         )
-    # Always check Python version when warn is True (for both virtualenv and --system)
+
+    # Warn users if they are using the wrong version of Python.
+    # This check applies to both virtualenv and --system installations.
     if warn and project.required_python_version:
-        path_to_python = project._which("python") or project._which("py")
+        if system or project.s.PIPENV_USE_SYSTEM:
+            # For --system, check the system Python
+            path_to_python = find_a_system_python(python) if python else None
+            if not path_to_python:
+                from pipenv.utils.shell import system_which
+
+                path_to_python = system_which("python3") or system_which("python")
+        else:
+            path_to_python = project._which("python") or project._which("py")
+
         if path_to_python and project.required_python_version not in (
             python_version(path_to_python) or ""
         ):
@@ -61,7 +82,7 @@ def ensure_project(
                 f"but you are using [cyan]{python_version(path_to_python)}[/cyan] "
                 f"from [green]{shorten_path(path_to_python)}[/green]."
             )
-            if not system_or_exists:
+            if not (system or project.s.PIPENV_USE_SYSTEM):
                 err.print(
                     "[green]$ pipenv --rm[/green] and rebuilding the virtual environment "
                     "may resolve the issue."
@@ -70,6 +91,7 @@ def ensure_project(
                 err.print("[yellow]$ pipenv check[/yellow] will surely fail.")
             else:
                 raise exceptions.DeployException
+
     # Ensure the Pipfile exists.
     ensure_pipfile(
         project,

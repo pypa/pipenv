@@ -55,26 +55,37 @@ def do_shell(
         shell.fork(*fork_args)
 
 
-def do_run(project, command, args, python=False, pypi_mirror=None):
+def do_run(project, command, args, python=False, pypi_mirror=None, system=False):
     """Attempt to run command either pulling from project or interpreting as executable.
 
     Args are appended to the command in [scripts] section of project if found.
+
+    When system=True, skip virtualenv creation and use system Python directly.
+    This is useful in Docker environments where packages are installed with
+    `pipenv install --system` and users want to run scripts from [scripts] section.
     """
 
     from pipenv.cmdparse import ScriptEmptyError
 
     env = os.environ.copy()
 
-    # Ensure that virtualenv is available.
+    # Handle --system flag
+    if system:
+        project.s.PIPENV_USE_SYSTEM = True
+        os.environ["PIPENV_USE_SYSTEM"] = "1"
+
+    # Ensure that virtualenv is available (unless --system is used).
     ensure_project(
         project,
         python=python,
         validate=False,
         pypi_mirror=pypi_mirror,
+        system=system,
     )
 
     path = env.get("PATH", "")
-    if project.virtualenv_location:
+    # Only modify PATH for virtualenv if not using --system
+    if not system and project.virtualenv_location:
         # Get the exact string representation of virtualenv_location
         virtualenv_location = str(project.virtualenv_location)
 
