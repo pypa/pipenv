@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "02a60197073199a591e9ebab314f1be1e0c24da1509f785fd8a9ca11ec86646e"
+            "sha256": "e1dfd8313119c23ef67c94759a68e380b393740a2ab04571335bb255cb1a4969"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -61,6 +61,14 @@
             ],
             "markers": "python_version >= '3.8'",
             "version": "==2.17.0"
+        },
+        "backports.tarfile": {
+            "hashes": [
+                "sha256:77e284d754527b01fb1e6fa8a1afe577858ebe4e9dad8919e34c862cb399bc34",
+                "sha256:d75e02c268746e1b8144c278978b6e98e85de6ad16f8e4b0844a154557eca991"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==1.2.0"
         },
         "beautifulsoup4": {
             "hashes": [
@@ -696,6 +704,9 @@
             "markers": "python_version >= '3.9'",
             "version": "==25.7.0"
         },
+        "legacy-cgi": {
+            "markers": "python_version >= '3.13'"
+        },
         "linkify-it-py": {
             "hashes": [
                 "sha256:68cda27e162e9215c17d786649d1da0021a451bdc436ef9e0fa0ba5234b9b048",
@@ -951,7 +962,7 @@
                 "dev",
                 "tests"
             ],
-            "markers": "python_version >= '3.9'",
+            "markers": "python_version >= '3.10'",
             "path": "."
         },
         "platformdirs": {
@@ -1213,12 +1224,12 @@
         },
         "sphinx": {
             "hashes": [
-                "sha256:398ad29dee7f63a75888314e9424d40f52ce5a6a87ae88e7071e80af296ec348",
-                "sha256:4405915165f13521d875a8c29c8970800a0141c14cc5416a38feca4ea5d9b9c3"
+                "sha256:09719015511837b76bf6e03e42eb7595ac8c2e41eeb9c29c5b755c6b677992a2",
+                "sha256:43c1911eecb0d3e161ad78611bc905d1ad0e523e4ddc202a58a821773dc4c927"
             ],
             "index": "pypi",
-            "markers": "python_version >= '3.11'",
-            "version": "==8.2.3"
+            "markers": "python_version >= '3.10'",
+            "version": "==8.1.3"
         },
         "sphinx-click": {
             "hashes": [
@@ -1379,12 +1390,12 @@
         },
         "urllib3": {
             "hashes": [
-                "sha256:c90f7a39f716c572c4e3e58509581ebd83f9b59cced005b7db7ad2d22b0db99f",
-                "sha256:cb9bcef5a4b345d5da5d145dc3e30834f58e8018828cbc724d30b4cb7d4d49f1"
+                "sha256:5379eb6e1aba4088bae84f8242960017ec8d8e3decf30480b3a1abdaa9671a3f",
+                "sha256:e67d06fe947c36a7ca39f4994b08d73922d40e6cca949907be05efa6fd75110b"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.9'",
-            "version": "==2.6.0"
+            "version": "==2.6.1"
         },
         "virtualenv": {
             "hashes": [

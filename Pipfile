@@ -32,6 +32,7 @@ zipp = "==3.21.0"
 pypiserver = "*"
 tomli = "*"
 bottle = "*"
+legacy-cgi = {version = "*", markers = "python_version >= '3.13'"}
 
 [packages]
 pytz = "*"
