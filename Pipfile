@@ -31,6 +31,7 @@ semver = "*"
 zipp = "==3.21.0"
 pypiserver = "*"
 tomli = "*"
+bottle = "*"
 
 [packages]
 pytz = "*"
