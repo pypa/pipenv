@@ -125,19 +125,21 @@ class PylockFile:
                         package["version"] = version
 
                 # Add markers if present
+                # PEP 751 marker syntax: 'group' in dependency_groups
+                dev_marker = "'dev' in dependency_groups or 'test' in dependency_groups"
                 if "markers" in package_data:
                     # For develop packages, add dependency_groups marker
                     if section == "develop":
                         if "markers" in package_data:
                             package["marker"] = (
-                                f"dependency_groups in ('dev', 'test') and ({package_data['markers']})"
+                                f"({dev_marker}) and ({package_data['markers']})"
                             )
                         else:
-                            package["marker"] = "dependency_groups in ('dev', 'test')"
+                            package["marker"] = dev_marker
                     else:
                         package["marker"] = package_data["markers"]
                 elif section == "develop":
-                    package["marker"] = "dependency_groups in ('dev', 'test')"
+                    package["marker"] = dev_marker
 
                 # Add hashes if present
                 if "hashes" in package_data:
@@ -408,25 +410,40 @@ class PylockFile:
         Returns:
             List of package dictionaries that should be installed
         """
-        # These variables are set up for future marker evaluation implementation
-        _extras = extras if extras is not None else set()  # noqa: F841
-        _dependency_groups = (  # noqa: F841
-            dependency_groups
+        from pipenv.patched.pip._vendor.packaging.markers import (
+            InvalidMarker,
+            Marker,
+        )
+
+        # Set up extras and dependency_groups for marker evaluation
+        _extras = frozenset(extras) if extras is not None else frozenset()
+        _dependency_groups = (
+            frozenset(dependency_groups)
             if dependency_groups is not None
-            else set(self.default_groups)
+            else frozenset(self.default_groups)
         )
 
         result = []
 
         for package in self.packages:
             # Check if the package has a marker
-            marker = package.get("marker")
-            if marker:
-                # TODO: Implement proper marker evaluation using _extras and _dependency_groups
-                # For now, we'll just include packages without markers or with simple markers
-                if "extras" in marker or "dependency_groups" in marker:
-                    # Skip packages with extras or dependency_groups markers for now
-                    continue
+            marker_str = package.get("marker")
+            if marker_str:
+                try:
+                    marker = Marker(marker_str)
+                    # Evaluate the marker with the lock_file context
+                    # which supports extras and dependency_groups as sets
+                    environment = {
+                        "extras": _extras,
+                        "dependency_groups": _dependency_groups,
+                    }
+                    if not marker.evaluate(environment=environment, context="lock_file"):
+                        # Marker does not match, skip this package
+                        continue
+                except InvalidMarker:
+                    # If the marker is invalid, include the package anyway
+                    # to be safe and let the installer handle it
+                    pass
 
             result.append(package)
 

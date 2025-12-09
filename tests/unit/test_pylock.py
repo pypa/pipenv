@@ -30,7 +30,7 @@ hashes = {sha256 = 'abcdef1234567890abcdef1234567890abcdef1234567890abcdef123456
 [[packages]]
 name = 'pytest'
 version = '7.0.0'
-marker = "dependency_groups in ('dev', 'test')"
+marker = "'dev' in dependency_groups or 'test' in dependency_groups"
 requires-python = '>=3.6'
 
 [[packages.wheels]]
@@ -90,7 +90,7 @@ def test_pylock_file_from_path(pylock_file):
     assert pylock.packages[0]["name"] == "requests"
     assert pylock.packages[0]["version"] == "2.28.1"
     assert pylock.packages[1]["name"] == "pytest"
-    assert pylock.packages[1]["marker"] == "dependency_groups in ('dev', 'test')"
+    assert pylock.packages[1]["marker"] == "'dev' in dependency_groups or 'test' in dependency_groups"
 
 
 def test_pylock_file_invalid_version(invalid_version_pylock_content):
@@ -163,7 +163,7 @@ def test_convert_to_pipenv_lockfile(pylock_file):
     assert lockfile["default"]["requests"]["version"] == "==2.28.1"
     assert "hashes" in lockfile["default"]["requests"]
     assert lockfile["develop"]["pytest"]["version"] == "==7.0.0"
-    assert lockfile["develop"]["pytest"]["markers"] == "dependency_groups in ('dev', 'test')"
+    assert lockfile["develop"]["pytest"]["markers"] == "'dev' in dependency_groups or 'test' in dependency_groups"
 
 
 def test_from_lockfile(tmp_path):
@@ -348,3 +348,104 @@ def test_write_method(tmp_path):
     # Check that the tool.pipenv section was correctly written
     assert "pipenv" in loaded_pylock.tool
     assert loaded_pylock.tool["pipenv"]["generated_from"] == "test"
+
+
+def test_get_packages_for_environment_marker_evaluation(tmp_path):
+    """Test that get_packages_for_environment correctly evaluates markers.
+
+    This test verifies that:
+    - Packages without markers are always included
+    - Packages with dependency_groups markers are filtered based on provided groups
+    - Packages with extras markers are filtered based on provided extras
+
+    Note: PEP 751 marker syntax uses 'value' in marker_variable, e.g.:
+    - 'dev' in dependency_groups
+    - 'crypto' in extras
+    """
+    # Create a pylock file with various markers using PEP 751 syntax
+    pylock_content = """
+lock-version = '1.0'
+created-by = 'test-tool'
+
+[[packages]]
+name = 'requests'
+version = '2.28.1'
+
+[[packages]]
+name = 'pytest'
+version = '7.0.0'
+marker = "'dev' in dependency_groups or 'test' in dependency_groups"
+
+[[packages]]
+name = 'sphinx'
+version = '6.0.0'
+marker = "'docs' in dependency_groups"
+
+[[packages]]
+name = 'cryptography'
+version = '41.0.0'
+marker = "'crypto' in extras"
+
+[[packages]]
+name = 'validators'
+version = '0.22.0'
+marker = "'validation' in extras"
+
+[[packages]]
+name = 'dev-only-tool'
+version = '1.0.0'
+marker = "'dev' in dependency_groups"
+"""
+    pylock_path = tmp_path / "pylock.toml"
+    with open(pylock_path, "w") as f:
+        f.write(pylock_content)
+
+    pylock = PylockFile.from_path(pylock_path)
+
+    # Test 1: No extras, no dependency_groups - only packages without markers
+    packages = pylock.get_packages_for_environment(extras=set(), dependency_groups=set())
+    package_names = [p["name"] for p in packages]
+    assert "requests" in package_names
+    assert "pytest" not in package_names
+    assert "sphinx" not in package_names
+    assert "cryptography" not in package_names
+    assert "validators" not in package_names
+    assert "dev-only-tool" not in package_names
+
+    # Test 2: With 'dev' dependency_group
+    packages = pylock.get_packages_for_environment(extras=set(), dependency_groups={"dev"})
+    package_names = [p["name"] for p in packages]
+    assert "requests" in package_names
+    assert "pytest" in package_names  # 'dev' in dependency_groups evaluates to True
+    assert "sphinx" not in package_names  # 'docs' not provided
+    assert "dev-only-tool" in package_names  # 'dev' in dependency_groups evaluates to True
+    assert "cryptography" not in package_names
+
+    # Test 3: With 'docs' dependency_group
+    packages = pylock.get_packages_for_environment(extras=set(), dependency_groups={"docs"})
+    package_names = [p["name"] for p in packages]
+    assert "requests" in package_names
+    assert "pytest" not in package_names
+    assert "sphinx" in package_names  # 'docs' in dependency_groups evaluates to True
+    assert "dev-only-tool" not in package_names
+
+    # Test 4: With 'crypto' extra
+    packages = pylock.get_packages_for_environment(extras={"crypto"}, dependency_groups=set())
+    package_names = [p["name"] for p in packages]
+    assert "requests" in package_names
+    assert "cryptography" in package_names  # 'crypto' in extras evaluates to True
+    assert "validators" not in package_names  # 'validation' not provided
+    assert "pytest" not in package_names
+
+    # Test 5: With multiple dependency_groups and extras
+    packages = pylock.get_packages_for_environment(
+        extras={"crypto", "validation"},
+        dependency_groups={"dev", "docs"}
+    )
+    package_names = [p["name"] for p in packages]
+    assert "requests" in package_names
+    assert "pytest" in package_names
+    assert "sphinx" in package_names
+    assert "cryptography" in package_names
+    assert "validators" in package_names
+    assert "dev-only-tool" in package_names
