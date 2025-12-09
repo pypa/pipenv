@@ -1,11 +1,15 @@
+from __future__ import annotations
+
+import contextlib
 import os
 import platform
 import socket
 import ssl
 import sys
+import threading
 import typing
 
-import _ssl  # type: ignore[import-not-found]
+import _ssl
 
 from ._ssl_constants import (
     _original_SSLContext,
@@ -22,7 +26,7 @@ else:
     from ._openssl import _configure_context, _verify_peercerts_impl
 
 if typing.TYPE_CHECKING:
-    from pipenv.patched.pip._vendor.typing_extensions import Buffer
+    from typing_extensions import Buffer
 
 # From typeshed/stdlib/ssl.pyi
 _StrOrBytesPath: typing.TypeAlias = str | bytes | os.PathLike[str] | os.PathLike[bytes]
@@ -43,6 +47,23 @@ def inject_into_ssl() -> None:
     except ImportError:
         pass
 
+    # requests starting with 2.32.0 added a preloaded SSL context to improve concurrent performance;
+    # this unfortunately leads to a RecursionError, which can be avoided by patching the preloaded SSL context with
+    # the truststore patched instance
+    # also see https://github.com/psf/requests/pull/6667
+    try:
+        from pipenv.patched.pip._vendor.requests import adapters as requests_adapters
+
+        preloaded_context = getattr(requests_adapters, "_preloaded_ssl_context", None)
+        if preloaded_context is not None:
+            setattr(
+                requests_adapters,
+                "_preloaded_ssl_context",
+                SSLContext(ssl.PROTOCOL_TLS_CLIENT),
+            )
+    except ImportError:
+        pass
+
 
 def extract_from_ssl() -> None:
     """Restores the :class:`ssl.SSLContext` class to its original state"""
@@ -50,7 +71,7 @@ def extract_from_ssl() -> None:
     try:
         import pipenv.patched.pip._vendor.urllib3.util.ssl_ as urllib3_ssl
 
-        urllib3_ssl.SSLContext = _original_SSLContext  # type: ignore[assignment]
+        urllib3_ssl.SSLContext = _original_SSLContext
     except ImportError:
         pass
 
@@ -67,6 +88,7 @@ class SSLContext(_truststore_SSLContext_super_class):  # type: ignore[misc]
 
     def __init__(self, protocol: int = None) -> None:  # type: ignore[assignment]
         self._ctx = _original_SSLContext(protocol)
+        self._ctx_lock = threading.Lock()
 
         class TruststoreSSLObject(ssl.SSLObject):
             # This object exists because wrap_bio() doesn't
@@ -89,10 +111,15 @@ class SSLContext(_truststore_SSLContext_super_class):  # type: ignore[misc]
         server_hostname: str | None = None,
         session: ssl.SSLSession | None = None,
     ) -> ssl.SSLSocket:
-        # Use a context manager here because the
-        # inner SSLContext holds on to our state
-        # but also does the actual handshake.
-        with _configure_context(self._ctx):
+
+        # We need to lock around the .__enter__()
+        # but we don't need to lock within the
+        # context manager, so we need to expand the
+        # syntactic sugar of the `with` statement.
+        with contextlib.ExitStack() as stack:
+            with self._ctx_lock:
+                stack.enter_context(_configure_context(self._ctx))
+
             ssl_sock = self._ctx.wrap_socket(
                 sock,
                 server_side=server_side,
@@ -283,7 +310,7 @@ class SSLContext(_truststore_SSLContext_super_class):  # type: ignore[misc]
 if sys.version_info >= (3, 13):
 
     def _get_unverified_chain_bytes(sslobj: ssl.SSLObject) -> list[bytes]:
-        unverified_chain = sslobj.get_unverified_chain() or ()  # type: ignore[attr-defined]
+        unverified_chain = sslobj.get_unverified_chain() or ()
         return [
             cert if isinstance(cert, bytes) else cert.public_bytes(_ssl.ENCODING_DER)
             for cert in unverified_chain

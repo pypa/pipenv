@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from optparse import Values
-from typing import List
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
@@ -62,7 +63,7 @@ class UninstallCommand(Command, SessionCommandMixin):
         self.cmd_opts.add_option(cmdoptions.override_externally_managed())
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options: Values, args: list[str]) -> int:
         session = self.get_default_session(options)
 
         reqs_to_uninstall = {}

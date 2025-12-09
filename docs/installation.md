@@ -1,174 +1,349 @@
-# Pipenv Installation
+# Installing Pipenv
 
-```{note}
-This guide is written for Python 3.7+
+This guide provides comprehensive instructions for installing Pipenv on various platforms and environments. Follow the approach that best suits your system and requirements.
+
+## Prerequisites
+
+Before installing Pipenv, ensure you have Python and pip available on your system.
+
+### Verifying Python Installation
+
+Check that Python is installed and available from your command line:
+
+```bash
+$ python --version
+Python 3.10.4
 ```
 
+You should see output showing your Python version. If you don't have Python installed, download and install the latest version from [python.org](https://python.org).
 
-## Make sure you have python and pip
+### Verifying pip Installation
 
-Before you go any further, make sure you have Python and that it's available
-from your command line. You can check this by simply running
+Ensure pip is available:
 
-    $ python --version
-
-You should get some output like `3.12.1`. If you do not have Python, please
-install the latest 3.x version from [python.org](https://python.org)
-
-Additionally, make sure you have [pip] available, assuming you install via pip, our preferred method of installation.
-Check this by running
-
-    $ pip --version
-    pip 24.0
-
-If you installed Python from source, with an installer from [python.org] or via [Homebrew], you likely already have pip.
-If you're on Linux and installed using your OS package manager, you may have to [install pip](https://pip.pypa.io/en/stable/installing/) manually.
-
-[python.org]: https://python.org
-[pypi.org]: https://pypi.org
-[pip]: https://pypi.org/project/pip/
-[Homebrew]: https://brew.sh/
-
-
-## Installing Pipenv
-
-
-### Preferred Installation of Pipenv
-
-It is recommended that users on most platforms install pipenv from [pypi.org] using
-
-    $ pip install pipenv --user
-
-```{note}
-pip [user installations] allow for installation into your home directory to prevent breaking any system-wide packages.
-Due to interaction between dependencies, you should limit tools installed in this way to basic building blocks for a Python workflow such as virtualenv, pipenv, tox, and similar software.
+```bash
+$ pip --version
+pip 22.1.2
 ```
 
+If pip is not installed, you can install it following the [pip installation guide](https://pip.pypa.io/en/stable/installation/).
 
-If `pipenv` isn't available in your shell after installation,
-you'll need to add the user site-packages binary directory to your `PATH`.
+## Installation Methods
 
-On Linux and macOS you can find the [user base] binary directory by running
-`python -m site --user-base` and appending `bin` to the end. For example,
-this will typically print `~/.local` (with `~` expanded to the
-absolute path to your home directory), so you'll need to add
-`~/.local/bin` to your `PATH`. You can set your `PATH` permanently by
-[modifying ~/.profile].
+### Recommended: User Installation
 
-On Windows you can find the user base binary directory by running
-`python -m site --user-site` and replacing `site-packages` with
-`Scripts`. For example, this could return
-`C:\Users\Username\AppData\Roaming\Python37\site-packages`, so you would
-need to set your `PATH` to include
-`C:\Users\Username\AppData\Roaming\Python37\Scripts`. You can set your
-user `PATH` permanently in the [Control Panel](https://learn.microsoft.com/en-us/windows/win32/shell/user-environment-variables).
+The recommended approach is to install Pipenv for your user account. This avoids permission issues and prevents conflicts with system packages:
 
-You may need to log out for the `PATH` changes to take effect.
+```bash
+$ pip install --user pipenv
+```
 
-[user base]: https://docs.python.org/3/library/site.html#site.USER_BASE
-[user installations]: https://pip.pypa.io/en/stable/user_guide/#user-installs
-[modifying ~/.profile]: https://stackoverflow.com/a/14638025
-[Control Panel]: https://learn.microsoft.com/en-us/windows/win32/shell/user-environment-variables
+This installs Pipenv in your user site-packages directory.
 
-To upgrade pipenv at any time:
+### Adding Pipenv to PATH
 
-    $ pip install --user --upgrade pipenv
+After installing with `--user`, you may need to add the user site-packages binary directory to your PATH.
 
-### Homebrew Installation of Pipenv
-* [Homebrew] is a popular open-source package management system for macOS (or Linux).
+#### On Linux and macOS
 
-Once you have installed Homebrew simply run
+Find the user base binary directory:
 
-    $ brew install pipenv
+```bash
+$ python -m site --user-base
+/home/username/.local
+```
 
-To upgrade pipenv at any time:
+Add the `bin` directory to your PATH by adding this line to your shell configuration file (e.g., `~/.bashrc`, `~/.zshrc`, or `~/.profile`):
 
-    $ brew upgrade pipenv
+```bash
+export PATH="$HOME/.local/bin:$PATH"
+```
+
+Then reload your shell configuration:
+
+```bash
+$ source ~/.bashrc  # or ~/.zshrc, ~/.profile, etc.
+```
+
+#### On Windows
+
+Find the user site-packages directory:
+
+```powershell
+> python -m site --user-site
+C:\Users\Username\AppData\Roaming\Python\Python310\site-packages
+```
+
+Replace `site-packages` with `Scripts` in the path, and add it to your PATH environment variable:
+
+1. Press `Win + X` and select "System"
+2. Click "Advanced system settings"
+3. Click "Environment Variables"
+4. Under "User variables", select "Path" and click "Edit"
+5. Add the path (e.g., `C:\Users\Username\AppData\Roaming\Python\Python310\Scripts`)
+6. Click "OK" to save changes
+
+You may need to restart your terminal or computer for the PATH changes to take effect.
+
+### Alternative: System-Wide Installation
+
+If you have administrator privileges and want to install Pipenv system-wide:
+
+```bash
+# On Linux/macOS
+$ sudo pip install pipenv
+
+# On Windows (in an Administrator command prompt)
+> pip install pipenv
+```
+
+```{warning}
+System-wide installation is not recommended for most users as it can lead to conflicts with your system package manager.
+```
+
+### Using Package Managers
+
+#### macOS with Homebrew
+
+```bash
+$ brew install pipenv
+```
 
 ```{note}
 Homebrew installation is discouraged because it works better to install pipenv using pip on macOS.
 ```
 
-## Installing packages for your project
+#### Debian/Ubuntu
 
-Pipenv manages dependencies on a per-project basis. To install a package,
-change into your project's directory (or just an empty directory for this
-tutorial) and run
-
-    $ cd myproject
-    $ pipenv install <package>
-
-```{note}
-Pipenv is designed to be used by non-privileged OS users. It is not meant
-to install or handle packages for the whole OS. Running Pipenv as `root`
-or with `sudo` (or `Admin` on Windows) is highly discouraged and might
-lead to unintend breakage of your OS.
+```bash
+$ sudo apt update
+$ sudo apt install pipenv
 ```
 
-Pipenv will install the package and create a `Pipfile`
-for you in your project's directory. The `Pipfile` is used to track which
-dependencies your project needs in case you need to re-install them, such as
-when you share your project with others.
+#### Fedora
 
-For example when installing the `requests` library, you should get output similar to this:
-
-    $ pipenv install requests
-    Creating a virtualenv for this project...
-    Pipfile: /home/matteius/pipenv-triage/test_install2/Pipfile
-    Using default python from /mnt/extra/miniconda3/bin/python (3.12.1) to create virtualenv...
-    ⠹ Creating virtual environment...created virtual environment CPython3.12.1.final.0-64 in 139ms
-      creator CPython3Posix(dest=/home/matteius/Envs/test_install2-DMnDbAT9, clear=False, no_vcs_ignore=False, global=False)
-      seeder FromAppData(download=False, pip=bundle, via=copy, app_data_dir=/home/matteius/.local/share/virtualenv)
-        added seed packages: pip==24.0
-      activators BashActivator,CShellActivator,FishActivator,NushellActivator,PowerShellActivator,PythonActivator
-
-    ✔ Successfully created virtual environment!
-    Virtualenv location: /home/matteius/Envs/test_install2-DMnDbAT9
-    Creating a Pipfile for this project...
-    Installing requests...
-    Resolving requests...
-    Added requests to Pipfile's [packages] ...
-    ✔ Installation Succeeded
-    Pipfile.lock not found, creating...
-    Locking [packages] dependencies...
-    Building requirements...
-    Resolving dependencies...
-    ✔ Success!
-    Locking [dev-packages] dependencies...
-    Updated Pipfile.lock (1977acb1ba9778abb66054090e2618a0a1f1759b1b3b32afd8a7d404ba18b4fb)!
-    To activate this project's virtualenv, run pipenv shell.
-    Alternatively, run a command inside the virtualenv with pipenv run.
-    Installing dependencies from Pipfile.lock (18b4fb)...
-
-
-## Using installed packages
-
-Now that `requests` is installed you can create a simple `main.py` file to use it:
-
+```bash
+$ sudo dnf install pipenv
 ```
-import requests
 
-response = requests.get('https://httpbin.org/ip')
-print('Your IP is {0}'.format(response.json()['origin']))
+#### FreeBSD
+
+```bash
+$ pkg install py39-pipenv
 ```
-Then you can run this script using `pipenv run`
 
-    $ pipenv run python main.py
+#### Gentoo
 
-You should get output similar to this:
+```bash
+$ sudo emerge pipenv
+```
 
-    Your IP is 8.8.8.8
+#### Void Linux
 
-Using `$ pipenv run` ensures that your installed packages are available to
-your script by activating the virtualenv. It is also possible to spawn a new shell
-that ensures all commands have access to your installed packages with `$ pipenv shell`.
+```bash
+$ sudo xbps-install -S python3-pipenv
+```
 
+### Using pipx
 
-## Virtualenv mapping caveat
+[pipx](https://pypa.github.io/pipx/) is a tool to install and run Python applications in isolated environments:
 
-- Pipenv automatically maps projects to their specific virtualenvs.
-- By default, the virtualenv is stored globally with the name of the project’s root directory plus the hash of the full path to the project's root (e.g., `my_project-a3de50`).
-- Should you change your project's path, you break such a default mapping and pipenv will no longer be able to find and to use the project's virtualenv.
-- If you must move or rename a directory managed by pipenv, run 'pipenv --rm' before renaming or moving your project directory. Then, after renaming or moving the directory run 'pipenv install' to recreate the virtualenv.
-- Customize this behavior with `PIPENV_CUSTOM_VENV_NAME` environment variable.
-- You might also prefer to set `PIPENV_VENV_IN_PROJECT=1` in your .env or .bashrc/.zshrc (or other shell configuration file) for creating the virtualenv inside your project's directory.
+```bash
+# Install pipx
+$ pip install --user pipx
+$ python -m pipx ensurepath
+
+# Install Pipenv using pipx
+$ pipx install pipenv
+```
+
+This is a good alternative to the `--user` installation method, especially if you use multiple Python command-line tools.
+
+### Using Python Module
+
+You can also run Pipenv as a Python module:
+
+```bash
+$ python -m pip install pipenv
+$ python -m pipenv
+```
+
+This approach is useful when you have multiple Python versions installed and want to ensure you're using a specific one.
+
+## Verifying Installation
+
+After installation, verify that Pipenv is working correctly:
+
+```bash
+$ pipenv --version
+pipenv, version 2022.5.2
+```
+
+If you see the version number, Pipenv is installed correctly.
+
+## Upgrading Pipenv
+
+To upgrade an existing Pipenv installation:
+
+```bash
+# User installation
+$ pip install --user --upgrade pipenv
+
+# System-wide installation
+$ sudo pip install --upgrade pipenv
+
+# Homebrew
+$ brew upgrade pipenv
+
+# pipx
+$ pipx upgrade pipenv
+```
+
+## Installing Specific Versions
+
+If you need a specific version of Pipenv:
+
+```bash
+$ pip install --user pipenv==2022.1.8
+```
+
+## Installation in Virtual Environments
+
+You can install Pipenv inside a virtual environment, although this is less common:
+
+```bash
+$ python -m venv pipenv-venv
+$ source pipenv-venv/bin/activate  # On Windows: pipenv-venv\Scripts\activate
+(pipenv-venv) $ pip install pipenv
+```
+
+## Docker Installation
+
+For Docker environments, you can install Pipenv in your Dockerfile:
+
+```dockerfile
+FROM python:3.10-slim
+
+# Install pipenv
+RUN pip install pipenv
+
+# Set working directory
+WORKDIR /app
+
+# Copy Pipfile and Pipfile.lock
+COPY Pipfile Pipfile.lock ./
+
+# Install dependencies
+RUN pipenv install --system --deploy
+
+# Copy application code
+COPY . .
+
+# Run the application
+CMD ["python", "app.py"]
+```
+
+## CI/CD Installation
+
+For continuous integration environments:
+
+```yaml
+# GitHub Actions example
+name: Python CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Install pipenv
+      run: |
+        python -m pip install --upgrade pip
+        pip install pipenv
+    - name: Install dependencies
+      run: |
+        pipenv install --dev
+    - name: Run tests
+      run: |
+        pipenv run pytest
+```
+
+## Troubleshooting
+
+### Command Not Found
+
+If you get a "command not found" error after installation:
+
+1. Check if Pipenv is installed in your user site-packages:
+   ```bash
+   $ python -m pipenv --version
+   ```
+
+2. If that works, add the user site-packages bin directory to your PATH as described above.
+
+3. Try restarting your terminal or computer.
+
+### Permission Errors
+
+If you encounter permission errors during installation:
+
+1. Use the `--user` flag to install in your home directory:
+   ```bash
+   $ pip install --user pipenv
+   ```
+
+2. If using sudo, ensure you're using it correctly:
+   ```bash
+   $ sudo pip install pipenv
+   ```
+
+3. Check file permissions in your installation directories.
+
+### Python Version Compatibility
+
+Pipenv requires Python 3.7 or newer. If you're using an older version, you'll need to upgrade Python first.
+
+### pip Not Found
+
+If pip is not found:
+
+1. Install pip:
+   ```bash
+   # Download get-pip.py
+   $ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
+
+   # Install pip
+   $ python get-pip.py --user
+   ```
+
+2. Ensure pip is in your PATH.
+
+## Best Practices
+
+1. **Use user installation** (`--user`) to avoid permission issues and system conflicts.
+
+2. **Keep Pipenv updated** to benefit from the latest features and bug fixes.
+
+3. **Consider pipx** for a cleaner, isolated installation if you use multiple Python command-line tools.
+
+4. **Add Pipenv to your project's development setup instructions** to ensure all developers use the same environment.
+
+5. **Use version control** for your `Pipfile` and `Pipfile.lock` to ensure consistent environments across your team.
+
+## Next Steps
+
+Now that you have Pipenv installed, you can:
+
+1. Create a new project: `pipenv --python 3.10`
+2. Install packages: `pipenv install requests`
+3. Activate the environment: `pipenv shell`
+4. Run commands: `pipenv run python script.py`
+
+For more detailed usage instructions, see the [Quick Start Guide](quick_start.md) and [Commands Reference](commands.md).

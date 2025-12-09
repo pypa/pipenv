@@ -1,3 +1,69 @@
+2025.1.3 (2025-12-09)
+=====================
+pipenv 2025.1.3 (2025-12-09)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix TypeError when using pipenv with Python 3.9 target environments
+  by adding ``from __future__ import annotations`` to files in
+  ``pipenv/patched/pip`` that use Python 3.10+ type annotation syntax.  `#6448 <https://github.com/pypa/pipenv/issues/6448>`_
+2025.1.1 (2025-12-05)
+=====================
+pipenv 2025.1.1 (2025-12-05)
+============================
+
+
+No significant changes.
+
+
+2025.1.0 (2025-12-05)
+=====================
+pipenv 2025.1.0 (2025-12-05)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Vendor in pip 25.3 for dependency resolution.  `#6445 <https://github.com/pypa/pipenv/issues/6445>`_
+2025.0.4 (2025-07-07)
+=====================
+Pipenv 2025.0.4 (2025-07-07)
+============================
+
+
+Bug Fixes
+---------
+
+- Significantly improved dependency resolution performance with ResolveLib 1.2.0 optimistic backjumping, intelligent caching system, and batch Pipfile operations. Added comprehensive benchmarking infrastructure to prevent performance regressions. Requirements imports are 60-80% faster for large files, complex resolutions are 10-30% faster, and repeated operations benefit from smart caching.  `#6419 <https://github.com/pypa/pipenv/issues/6419>`_
+- Ensure the requested Python version is installed when it differs from the one used with Pipenv.  `#6425 <https://github.com/pypa/pipenv/issues/6425>`_
+- Restored ignore compatibility finder patch to enable comprehensive cross-platform hash collection in lock files.  `#6426 <https://github.com/pypa/pipenv/issues/6426>`_
+2025.0.3 (2025-05-29)
+=====================
+Pipenv 2025.0.3 (2025-05-29)
+============================
+
+
+Vendored Libraries
+------------------
+
+- Vendor in ``pip==25.1.1`` latest.  `#6400 <https://github.com/pypa/pipenv/issues/6400>`_
+2025.0.1 (2025-05-02)
+=====================
+2025.0.2 2025.0.1 (2025-05-02)
+==============================
+
+
+Bug Fixes
+---------
+
+- Cleanup unused dependencies when upgrading packages.  `#6386 <https://github.com/pypa/pipenv/issues/6386>`_
+- Fix for ``UnboundLocalError`` in ``ensure_python`` when ``SESSION_IS_INTERACTIVE=False``, using pyenv, and python version in Pipfile not available.  `#6389 <https://github.com/pypa/pipenv/issues/6389>`_
+
+
 2025.0.1 (2025-04-24)
 =====================
 Pipenv 2025.0.1 (2025-04-24)
@@ -8,6 +74,9 @@ Bug Fixes
 ---------
 
 - Fix for broken import requirements in ``2025.0.0``  `#6385 <https://github.com/pypa/pipenv/issues/6385>`_
+
+
+
 2025.0.0 (2025-04-24)
 =====================
 Pipenv 2025.0.0 (2025-04-24)
@@ -84,7 +153,7 @@ Bug Fixes
 - Update ``check`` command to support the new ``scan`` functionality
   ---------------------------------------------------------------
 
-  The ``check`` command has been deprecated and will be unsupported beyond June 1, 2024.
+  The ``check`` command has been deprecated and will be unsupported beyond June 1, 2025.
   Instead of adding a separate ``scan`` command, we've updated the ``check`` command to include a ``--scan`` option.
 
   Key changes:

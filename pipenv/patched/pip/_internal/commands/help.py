@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from optparse import Values
-from typing import List
 
 from pipenv.patched.pip._internal.cli.base_command import Command
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
@@ -13,7 +14,7 @@ class HelpCommand(Command):
       %prog <command>"""
     ignore_require_venv = True
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options: Values, args: list[str]) -> int:
         from pipenv.patched.pip._internal.commands import (
             commands_dict,
             create_command,

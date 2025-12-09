@@ -1,0 +1,25 @@
+diff --git a/pipenv/patched/pip/_internal/cli/progress_bars.py b/pipenv/patched/pip/_internal/cli/progress_bars.py
+index af1bb6a5e..1b898dc47 100644
+--- a/pipenv/patched/pip/_internal/cli/progress_bars.py
++++ b/pipenv/patched/pip/_internal/cli/progress_bars.py
+@@ -3,7 +3,7 @@ from __future__ import annotations
+ import functools
+ import sys
+ from collections.abc import Generator, Iterable, Iterator
+-from typing import Callable, Literal, TypeVar
++from typing import Any, Callable, Literal, TypeVar
+
+ from pip._vendor.rich.progress import (
+     BarColumn,
+@@ -20,10 +20,9 @@ from pip._vendor.rich.progress import (
+ )
+
+ from pip._internal.cli.spinners import RateLimiter
+-from pip._internal.req.req_install import InstallRequirement
+-from pip._internal.utils.logging import get_console, get_indentation
+
+ T = TypeVar("T")
+ ProgressRenderer = Callable[[Iterable[T]], Iterator[T]]
++InstallRequirement = Any
+ BarType = Literal["on", "off", "raw"]
+

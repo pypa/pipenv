@@ -20,23 +20,14 @@ from pipenv.utils.fileutils import open_file
 TASK_NAME = "update"
 
 LIBRARY_DIRNAMES = {
-    "requirements-parser": "requirements",
-    "backports.shutil_get_terminal_size": "backports/shutil_get_terminal_size",
     "python-dotenv": "dotenv",
     "setuptools": "pkg_resources",
-    "msgpack-python": "msgpack",
 }
 
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
-    "cursor": "https://raw.githubusercontent.com/GijsTimmers/cursor/master/LICENSE",
-    "CacheControl": "https://raw.githubusercontent.com/ionrock/cachecontrol/master/LICENSE.txt",
     "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
     "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
-    "pytoml": "https://github.com/avakar/pytoml/raw/master/LICENSE",
-    "webencodings": "https://github.com/SimonSapin/python-webencodings/raw/"
-    "master/LICENSE",
-    "distlib": "https://github.com/vsajip/distlib/raw/master/LICENSE.txt",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
     "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
@@ -48,8 +39,6 @@ FILE_WHITE_LIST = (
     "__init__.py",
     "README.rst",
     "README.md",
-    "safety.zip",
-    "cacert.pem",
     "vendor_pip.txt",
 )
 
@@ -60,7 +49,6 @@ LIBRARY_RENAMES = {
     "requests": "pipenv.patched.pip._vendor.requests",
     # "pep517": "pipenv.patched.pip._vendor.pep517",
     "pkg_resources": "pipenv.patched.pip._vendor.pkg_resources",
-    "ruamel.yaml": "pipenv.vendor.ruamel.yaml",
     "urllib3": "pipenv.patched.pip._vendor.urllib3",
 }
 
@@ -68,33 +56,6 @@ GLOBAL_REPLACEMENT = [
     (r"(?<!\.)\bpip\._vendor", r"pipenv.patched.pip._vendor"),
     (r"(?<!\.)\bpip\._internal", r"pipenv.patched.pip._internal"),
     (r"(?<!\.)\bpippipenv\.patched\.notpip", r"pipenv.patched.pip"),
-    (
-        r"(?<!\.)import pep517\.envbuild",
-        r"from pipenv.vendor.pep517 import envbuild",
-    ),
-    (
-        r"(?<!\.)import pep517\.wrappers",
-        r"from pipenv.vendor.pep517 import wrappers",
-    ),
-    (r"from pyparsing import", r"from pipenv.vendor.pyparsing import"),
-    (r"(?<!\.)pep517\.envbuild", r"envbuild"),
-    (r"(?<!\.)pep517\.wrappers", r"wrappers"),
-    (r" ruamel\.yaml", r" ruamel"),
-    (
-        "from platformdirs import user_cache_dir",
-        "from pipenv.patched.pip._vendor.platformdirs import user_cache_dir",
-    ),
-    ("from distlib import", "from pipenv.patched.pip._vendor.distlib import"),
-    ("    import tomli", "    from pipenv.patched.pip._vendor import tomli"),
-    (
-        "from distlib.metadata import",
-        "from pipenv.patched.pip._vendor.distlib.metadata import",
-    ),
-    ("from distlib.wheel import", "from pipenv.patched.pip._vendor.distlib.wheel import"),
-    (
-        "from typing_extensions import",
-        "from pipenv.patched.pip._vendor.typing_extensions import",
-    ),
     (
         "import zipp",
         "from pipenv.vendor import zipp",
@@ -324,16 +285,6 @@ def post_install_cleanup(ctx, vendor_dir):
     remove_all(vendor_dir.glob("*.dist-info"))
     remove_all(vendor_dir.glob("*.egg-info"))
 
-    # Cleanup setuptools unneeded parts
-    drop_dir(vendor_dir / "bin")
-    drop_dir(vendor_dir / "tests")
-    drop_dir(vendor_dir / "shutil_backports")
-    drop_dir(vendor_dir / "cerberus" / "tests")
-    drop_dir(vendor_dir / "cerberus" / "benchmarks")
-    drop_dir(vendor_dir / "colorama" / "tests")
-
-    remove_all(vendor_dir.glob("toml.py"))
-
     remove_all(
         (
             vendor_dir / "dotenv" / "cli.py",
@@ -399,13 +350,6 @@ def vendor(ctx, vendor_dir, package=None, rewrite=True):
             rewrite_file_imports(item, vendored_libs)
     if not package:
         apply_patches(ctx, patched=is_patched, pre=False)
-        if is_patched:
-            piptools_vendor = vendor_dir / "piptools" / "_vendored"
-            if piptools_vendor.exists():
-                drop_dir(piptools_vendor)
-            msgpack = vendor_dir / "pip" / "_vendor" / "msgpack"
-            if msgpack.exists():
-                remove_all(msgpack.glob("*.so"))
 
 
 @invoke.task

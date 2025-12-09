@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import logging
 from optparse import Values
-from typing import Any, Dict, List
+from typing import Any
 
 from pipenv.patched.pip._vendor.packaging.markers import default_environment
 from pipenv.patched.pip._vendor.rich import print_json
@@ -45,7 +47,7 @@ class InspectCommand(Command):
         self.cmd_opts.add_option(cmdoptions.list_path())
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options: Values, args: list[str]) -> int:
         cmdoptions.check_list_path_option(options)
         dists = get_environment(options.path).iter_installed_distributions(
             local_only=options.local,
@@ -62,8 +64,8 @@ class InspectCommand(Command):
         print_json(data=output)
         return SUCCESS
 
-    def _dist_to_dict(self, dist: BaseDistribution) -> Dict[str, Any]:
-        res: Dict[str, Any] = {
+    def _dist_to_dict(self, dist: BaseDistribution) -> dict[str, Any]:
+        res: dict[str, Any] = {
             "metadata": dist.metadata_dict,
             "metadata_location": dist.info_location,
         }

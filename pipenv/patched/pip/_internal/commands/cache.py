@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import os
 import textwrap
 from optparse import Values
-from typing import Any, List
+from typing import Callable
 
 from pipenv.patched.pip._internal.cli.base_command import Command
 from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
@@ -49,8 +51,8 @@ class CacheCommand(Command):
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
-        handlers = {
+    def handler_map(self) -> dict[str, Callable[[Values, list[str]], None]]:
+        return {
             "dir": self.get_cache_dir,
             "info": self.get_cache_info,
             "list": self.list_cache_items,
@@ -58,15 +60,18 @@ class CacheCommand(Command):
             "purge": self.purge_cache,
         }
 
+    def run(self, options: Values, args: list[str]) -> int:
+        handler_map = self.handler_map()
+
         if not options.cache_dir:
             logger.error("pip cache commands can not function since cache is disabled.")
             return ERROR
 
         # Determine action
-        if not args or args[0] not in handlers:
+        if not args or args[0] not in handler_map:
             logger.error(
                 "Need an action (%s) to perform.",
-                ", ".join(sorted(handlers)),
+                ", ".join(sorted(handler_map)),
             )
             return ERROR
 
@@ -74,20 +79,20 @@ class CacheCommand(Command):
 
         # Error handling happens here, not in the action-handlers.
         try:
-            handlers[action](options, args[1:])
+            handler_map[action](options, args[1:])
         except PipError as e:
             logger.error(e.args[0])
             return ERROR
 
         return SUCCESS
 
-    def get_cache_dir(self, options: Values, args: List[Any]) -> None:
+    def get_cache_dir(self, options: Values, args: list[str]) -> None:
         if args:
             raise CommandError("Too many arguments")
 
         logger.info(options.cache_dir)
 
-    def get_cache_info(self, options: Values, args: List[Any]) -> None:
+    def get_cache_info(self, options: Values, args: list[str]) -> None:
         if args:
             raise CommandError("Too many arguments")
 
@@ -129,7 +134,7 @@ class CacheCommand(Command):
 
         logger.info(message)
 
-    def list_cache_items(self, options: Values, args: List[Any]) -> None:
+    def list_cache_items(self, options: Values, args: list[str]) -> None:
         if len(args) > 1:
             raise CommandError("Too many arguments")
 
@@ -144,7 +149,7 @@ class CacheCommand(Command):
         else:
             self.format_for_abspath(files)
 
-    def format_for_human(self, files: List[str]) -> None:
+    def format_for_human(self, files: list[str]) -> None:
         if not files:
             logger.info("No locally built wheels cached.")
             return
@@ -157,11 +162,11 @@ class CacheCommand(Command):
         logger.info("Cache contents:\n")
         logger.info("\n".join(sorted(results)))
 
-    def format_for_abspath(self, files: List[str]) -> None:
+    def format_for_abspath(self, files: list[str]) -> None:
         if files:
             logger.info("\n".join(sorted(files)))
 
-    def remove_cache_items(self, options: Values, args: List[Any]) -> None:
+    def remove_cache_items(self, options: Values, args: list[str]) -> None:
         if len(args) > 1:
             raise CommandError("Too many arguments")
 
@@ -188,7 +193,7 @@ class CacheCommand(Command):
             logger.verbose("Removed %s", filename)
         logger.info("Files removed: %s (%s)", len(files), format_size(bytes_removed))
 
-    def purge_cache(self, options: Values, args: List[Any]) -> None:
+    def purge_cache(self, options: Values, args: list[str]) -> None:
         if args:
             raise CommandError("Too many arguments")
 
@@ -197,14 +202,14 @@ class CacheCommand(Command):
     def _cache_dir(self, options: Values, subdir: str) -> str:
         return os.path.join(options.cache_dir, subdir)
 
-    def _find_http_files(self, options: Values) -> List[str]:
+    def _find_http_files(self, options: Values) -> list[str]:
         old_http_dir = self._cache_dir(options, "http")
         new_http_dir = self._cache_dir(options, "http-v2")
         return filesystem.find_files(old_http_dir, "*") + filesystem.find_files(
             new_http_dir, "*"
         )
 
-    def _find_wheels(self, options: Values, pattern: str) -> List[str]:
+    def _find_wheels(self, options: Values, pattern: str) -> list[str]:
         wheel_dir = self._cache_dir(options, "wheels")
 
         # The wheel filename format, as specified in PEP 427, is:

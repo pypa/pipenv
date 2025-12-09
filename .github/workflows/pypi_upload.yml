@@ -46,7 +46,7 @@ jobs:
 
     - name: Build wheels
       run: |
-        python -m pipenv run python -m build
+        python -m build
 
     # Publish to PyPI using token authentication
     # Note: To use Trusted Publishers in the future, you need to set up a publisher on PyPI:

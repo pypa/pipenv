@@ -5,6 +5,8 @@ name = "pypi"
 
 [dev-packages]
 pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
+urllib3 = ">=2.6.0"
+requests = ">=2.32.4"
 sphinx = "*"
 sphinx-click = "==4.*"
 sphinxcontrib-spelling = "==7.*"
@@ -22,13 +24,15 @@ colorama= {version = "*", sys_platform = "== 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
 exceptiongroup = "==1.1.0"
-tomli = "*"
 pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
-pypiserver = "2.3.2"
 zipp = "==3.21.0"
+pypiserver = "*"
+tomli = "*"
+bottle = "*"
+legacy-cgi = {version = "*", markers = "python_version >= '3.13'"}
 
 [packages]
 pytz = "*"

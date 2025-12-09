@@ -441,6 +441,39 @@ def _resolve_and_update_lockfile(
     return upgrade_lock_data
 
 
+def _clean_unused_dependencies(
+    project, lockfile, category, full_lock_resolution, original_lockfile
+):
+    """
+    Remove dependencies that are no longer needed after an upgrade.
+
+    Args:
+        project: The project instance
+        lockfile: The current lockfile being built
+        category: The category to clean (e.g., 'default', 'develop')
+        full_lock_resolution: The complete resolution of dependencies
+        original_lockfile: The original lockfile before the upgrade
+    """
+    if category not in lockfile or category not in original_lockfile:
+        return
+
+    # Get the set of packages in the new resolution
+    resolved_packages = set(full_lock_resolution.keys())
+
+    # Get the set of packages in the original lockfile for this category
+    original_packages = set(original_lockfile[category].keys())
+
+    # Find packages that were in the original lockfile but not in the new resolution
+    unused_packages = original_packages - resolved_packages
+
+    # Remove unused packages from the lockfile
+    for package_name in unused_packages:
+        if package_name in lockfile[category]:
+            if project.s.is_verbose():
+                err.print(f"Removing unused dependency: {package_name}")
+            del lockfile[category][package_name]
+
+
 def upgrade(
     project,
     pre=False,
@@ -456,6 +489,11 @@ def upgrade(
 ):
     """Enhanced upgrade command with dependency conflict detection."""
     lockfile = project.lockfile()
+    # Store the original lockfile for comparison later
+    original_lockfile = {
+        k: v.copy() if isinstance(v, dict) else v for k, v in lockfile.items()
+    }
+
     if not pre:
         pre = project.settings.get("allow_prereleases")
 
@@ -504,6 +542,8 @@ def upgrade(
 
     # Process each category
     requested_packages = defaultdict(dict)
+    category_resolutions = {}
+
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
@@ -528,7 +568,7 @@ def upgrade(
             )
 
         # Resolve dependencies and update lockfile
-        _resolve_and_update_lockfile(
+        upgrade_lock_data = _resolve_and_update_lockfile(
             project,
             requested_packages,
             pipfile_category,
@@ -539,6 +579,26 @@ def upgrade(
             pypi_mirror,
             lockfile,
         )
+
+        # Store the full resolution for this category
+        if upgrade_lock_data:
+            complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+            full_lock_resolution = venv_resolve_deps(
+                complete_packages,
+                which=project._which,
+                project=project,
+                lockfile={},
+                pipfile_category=pipfile_category,
+                pre=pre,
+                allow_global=system,
+                pypi_mirror=pypi_mirror,
+            )
+            category_resolutions[category] = full_lock_resolution
+
+            # Clean up unused dependencies
+            _clean_unused_dependencies(
+                project, lockfile, category, full_lock_resolution, original_lockfile
+            )
 
         # Reset package args for next category if needed
         if not has_package_args:

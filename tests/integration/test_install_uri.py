@@ -1,5 +1,4 @@
 import os
-import sys
 from pathlib import Path
 
 import pytest
@@ -112,22 +111,24 @@ def test_install_git_tag(pipenv_instance_private_pypi):
 @pytest.mark.index
 @pytest.mark.install
 @pytest.mark.needs_internet
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
-)
 def test_install_named_index_alias(pipenv_instance_private_pypi):
+    """Test that pipenv can install packages from different named index sources.
+
+    This test verifies that the --index parameter works correctly with named aliases
+    by setting up two different named sources and installing packages from each.
+    """
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
 url = "https://pypi.org/simple"
 verify_ssl = true
 name = "pypi"
 
 [[source]]
-url = "https://test.pypi.org/simple"
-verify_ssl = true
-name = "testpypi"
+url = "{p.index_url}"
+verify_ssl = false
+name = "secondary"
 
 [packages]
 six = "*"
@@ -135,8 +136,21 @@ six = "*"
 [dev-packages]
             """.strip()
             f.write(contents)
-        c = p.pipenv("install pipenv-test-private-package --index testpypi")
+
+        # Test installing from the first named index
+        c = p.pipenv("install click --index secondary")
         assert c.returncode == 0
+
+        # Test installing from the second named index
+        c = p.pipenv("install requests --index pypi")
+        assert c.returncode == 0
+
+        # Verify both packages are in the Pipfile with correct index references
+        pipfile = p.pipfile
+        assert "click" in pipfile["packages"]
+        assert "requests" in pipfile["packages"]
+        assert pipfile["packages"]["click"]["index"] == "secondary"
+        assert pipfile["packages"]["requests"]["index"] == "pypi"
 
 
 @pytest.mark.urls

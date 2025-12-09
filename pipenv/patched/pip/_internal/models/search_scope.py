@@ -1,10 +1,11 @@
+from __future__ import annotations
+
 import itertools
 import logging
 import os
 import posixpath
 import urllib.parse
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
@@ -20,19 +21,20 @@ class SearchScope:
     """
     Encapsulates the locations that pip is configured to search.
     """
-    find_links: List[str]
-    index_urls: List[str]
+
+    find_links: list[str]
+    index_urls: list[str]
     no_index: bool
-    index_lookup: Optional[Dict[str, str]] = None
-    index_restricted: Optional[bool] = None
+    index_lookup: dict[str, str] | None = None
+    index_restricted: bool | None = None
 
     @classmethod
     def create(
         cls,
-        find_links: List[str],
-        index_urls: List[str],
+        find_links: list[str],
+        index_urls: list[str],
         no_index: bool,
-        index_lookup: Optional[Dict[str, List[str]]] = None,
+        index_lookup: dict[str, list[str]] | None = None,
         index_restricted: bool = False,
     ) -> "SearchScope":
         """
@@ -43,7 +45,7 @@ class SearchScope:
         # it and if it exists, use the normalized version.
         # This is deliberately conservative - it might be fine just to
         # blindly normalize anything starting with a ~...
-        built_find_links: List[str] = []
+        built_find_links: list[str] = []
         for link in find_links:
             if link.startswith("~"):
                 new_link = normalize_path(link)
@@ -107,7 +109,7 @@ class SearchScope:
             )
         return "\n".join(lines)
 
-    def get_index_urls_locations(self, project_name: str) -> List[str]:
+    def get_index_urls_locations(self, project_name: str) -> list[str]:
         """Returns the locations found via self.index_urls
 
         Checks the url_name on the main (first in the list) index and

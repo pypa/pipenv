@@ -15,13 +15,13 @@ from urllib import parse
 from urllib.parse import unquote, urljoin
 
 from pipenv.utils.constants import VCS_LIST
-from pipenv.utils.dependencies import extract_vcs_url
+from pipenv.utils.dependencies import extract_vcs_url, normalize_editable_path_for_pip
 from pipenv.vendor.tomlkit.items import SingleKey, Table
 
 try:
     import tomllib as toml
 except ImportError:
-    from pipenv.vendor import tomli as toml
+    from pipenv.patched.pip._vendor import tomli as toml
 
 import contextlib
 
@@ -166,7 +166,7 @@ class Project:
         pip_conf_indexes = []
         for section_key, value in self.configuration.items():
             key_parts = section_key.split(".", 1)
-            if key_parts[1] == "index-url":
+            if len(key_parts) > 1 and key_parts[1] == "index-url":
                 try:
                     trusted_hosts = self.configuration.get_value(
                         f"{key_parts[0]}.trusted-host"
@@ -1240,9 +1240,14 @@ class Project:
         if extras:
             entry["extras"] = list(extras)
         if path_specifier:
-            entry["file"] = unquote(str(path_specifier))
-            if pip_line.startswith("-e"):
-                entry["editable"] = True
+            editable = pip_line.startswith("-e")
+            entry["file"] = unquote(
+                normalize_editable_path_for_pip(path_specifier)
+                if editable
+                else str(path_specifier)
+            )
+            if editable:
+                entry["editable"] = editable
         elif vcs_specifier:
             for vcs in VCS_LIST:
                 if vcs in package.link.scheme:
@@ -1320,6 +1325,100 @@ class Project:
         # Write Pipfile.
         self.write_toml(parsed_pipfile)
         return newly_added, category, normalized_name
+
+    def add_packages_to_pipfile_batch(self, packages_data, dev=False, categories=None):
+        """
+        Add multiple packages to Pipfile in a single operation for better performance.
+
+        Args:
+            packages_data: List of tuples (package, pip_line) or list of dicts with package info
+            dev: Whether to add to dev-packages section
+            categories: List of categories to add packages to
+
+        Returns:
+            List of tuples (newly_added, category, normalized_name) for each package
+        """
+        if not packages_data:
+            return []
+
+        # Determine target categories
+        if categories is None or (isinstance(categories, list) and len(categories) == 0):
+            categories = ["dev-packages" if dev else "packages"]
+        elif isinstance(categories, str):
+            categories = [categories]
+
+        # Read Pipfile once
+        parsed_pipfile = self.parsed_pipfile
+        results = []
+
+        # Ensure all categories exist
+        for category in categories:
+            if category not in parsed_pipfile:
+                parsed_pipfile[category] = {}
+
+        # Process all packages
+        for package_data in packages_data:
+            if isinstance(package_data, tuple) and len(package_data) == 2:
+                package, pip_line = package_data
+
+                # Generate entry for this package
+                name, normalized_name, entry = self.generate_package_pipfile_entry(
+                    package, pip_line, category=categories[0]
+                )
+
+                # Add to each specified category
+                for category in categories:
+                    newly_added = False
+
+                    # Remove any existing entries with different casing
+                    section = parsed_pipfile.get(category, {})
+                    for entry_name in section.copy().keys():
+                        if entry_name.lower() == normalized_name.lower():
+                            del parsed_pipfile[category][entry_name]
+
+                    # Check if this is a new package
+                    if normalized_name not in parsed_pipfile[category]:
+                        newly_added = True
+
+                    # Add the package
+                    parsed_pipfile[category][normalized_name] = entry
+                    results.append((newly_added, category, normalized_name))
+
+            elif isinstance(package_data, dict):
+                # Handle pre-processed package data
+                name = package_data.get("name")
+                normalized_name = package_data.get("normalized_name")
+                entry = package_data.get("entry")
+
+                if name and normalized_name and entry:
+                    for category in categories:
+                        newly_added = False
+
+                        # Remove any existing entries with different casing
+                        section = parsed_pipfile.get(category, {})
+                        for entry_name in section.copy().keys():
+                            if entry_name.lower() == normalized_name.lower():
+                                del parsed_pipfile[category][entry_name]
+
+                        # Check if this is a new package
+                        if normalized_name not in parsed_pipfile[category]:
+                            newly_added = True
+
+                        # Add the package
+                        parsed_pipfile[category][normalized_name] = entry
+                        results.append((newly_added, category, normalized_name))
+
+        # Sort categories if requested
+        if self.settings.get("sort_pipfile"):
+            for category in categories:
+                if category in parsed_pipfile:
+                    parsed_pipfile[category] = self._sort_category(
+                        parsed_pipfile[category]
+                    )
+
+        # Write Pipfile once at the end
+        self.write_toml(parsed_pipfile)
+        return results
 
     def src_name_from_url(self, index_url):
         location = urllib.parse.urlsplit(index_url).netloc

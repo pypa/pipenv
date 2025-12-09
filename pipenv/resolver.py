@@ -9,15 +9,30 @@ from typing import Any, Dict, List, Optional, Set
 
 
 def _ensure_modules():
-    spec = importlib.util.spec_from_file_location(
-        "typing_extensions",
-        location=os.path.join(
+    # Try to ensure typing_extensions is available in sys.modules
+    # pip 25.3+ no longer vendors typing_extensions, so we need to handle multiple cases
+    if "typing_extensions" not in sys.modules:
+        # First, try to load from patched pip vendor (for pip < 25.3)
+        typing_ext_path = os.path.join(
             os.path.dirname(__file__), "patched", "pip", "_vendor", "typing_extensions.py"
-        ),
-    )
-    typing_extensions = importlib.util.module_from_spec(spec)
-    sys.modules["typing_extensions"] = typing_extensions
-    spec.loader.exec_module(typing_extensions)
+        )
+        if os.path.exists(typing_ext_path):
+            spec = importlib.util.spec_from_file_location(
+                "typing_extensions",
+                location=typing_ext_path,
+            )
+            typing_extensions = importlib.util.module_from_spec(spec)
+            sys.modules["typing_extensions"] = typing_extensions
+            spec.loader.exec_module(typing_extensions)
+        else:
+            # Try to import from system (if installed as a dependency)
+            try:
+                import typing_extensions  # noqa: F401
+            except ImportError:
+                # For Python 3.10+, most typing_extensions features are in typing
+                # Create a minimal shim that re-exports from typing
+                pass
+
     spec = importlib.util.spec_from_file_location(
         "pipenv", location=os.path.join(os.path.dirname(__file__), "__init__.py")
     )

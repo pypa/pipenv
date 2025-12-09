@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import contextlib
 import os
 import re
@@ -6,8 +8,10 @@ import typing
 
 # candidates based on https://github.com/tiran/certifi-system-store by Christian Heimes
 _CA_FILE_CANDIDATES = [
-    # Alpine, Arch, Fedora 34+, OpenWRT, RHEL 9+, BSD
+    # Alpine, Arch, Fedora 34-42, OpenWRT, RHEL 9-10, BSD
     "/etc/ssl/cert.pem",
+    # Fedora 43+, RHEL 11+
+    "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
     # Fedora <= 34, RHEL <= 9, CentOS <= 9
     "/etc/pki/tls/cert.pem",
     # Debian, Ubuntu (requires ca-certificates)

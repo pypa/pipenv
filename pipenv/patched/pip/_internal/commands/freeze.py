@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import sys
 from optparse import Values
-from typing import AbstractSet, List
 
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.base_command import Command
@@ -13,7 +14,7 @@ def _should_suppress_build_backends() -> bool:
     return sys.version_info < (3, 12)
 
 
-def _dev_pkgs() -> AbstractSet[str]:
+def _dev_pkgs() -> set[str]:
     pkgs = {"pip"}
 
     if _should_suppress_build_backends():
@@ -32,7 +33,6 @@ class FreezeCommand(Command):
     ignore_require_venv = True
     usage = """
       %prog [options]"""
-    log_streams = ("ext://sys.stderr", "ext://sys.stderr")
 
     def add_options(self) -> None:
         self.cmd_opts.add_option(
@@ -86,7 +86,7 @@ class FreezeCommand(Command):
 
         self.parser.insert_option_group(0, self.cmd_opts)
 
-    def run(self, options: Values, args: List[str]) -> int:
+    def run(self, options: Values, args: list[str]) -> int:
         skip = set(stdlib_pkgs)
         if not options.freeze_all:
             skip.update(_dev_pkgs())

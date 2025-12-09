@@ -7,7 +7,7 @@ import os
 import sys
 from typing import IO
 
-__all__ = ["get_path_uid", "stdlib_pkgs", "WINDOWS"]
+__all__ = ["get_path_uid", "stdlib_pkgs", "tomllib", "WINDOWS"]
 
 
 logger = logging.getLogger(__name__)
@@ -65,6 +65,12 @@ else:
         return (importlib.resources.files(package) / resource).open(
             "r", encoding=encoding, errors=errors
         )
+
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    from pipenv.patched.pip._vendor import tomli as tomllib
 
 
 # packages in the stdlib that may have installation metadata, but should not be

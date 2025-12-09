@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import logging
 from collections import OrderedDict
-from typing import Dict, List
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
@@ -13,10 +14,10 @@ class RequirementSet:
     def __init__(self, check_supported_wheels: bool = True) -> None:
         """Create a RequirementSet."""
 
-        self.requirements: Dict[str, InstallRequirement] = OrderedDict()
+        self.requirements: dict[str, InstallRequirement] = OrderedDict()
         self.check_supported_wheels = check_supported_wheels
 
-        self.unnamed_requirements: List[InstallRequirement] = []
+        self.unnamed_requirements: list[InstallRequirement] = []
 
     def __str__(self) -> str:
         requirements = sorted(
@@ -65,11 +66,11 @@ class RequirementSet:
         raise KeyError(f"No project with the name {name!r}")
 
     @property
-    def all_requirements(self) -> List[InstallRequirement]:
+    def all_requirements(self) -> list[InstallRequirement]:
         return self.unnamed_requirements + list(self.requirements.values())
 
     @property
-    def requirements_to_install(self) -> List[InstallRequirement]:
+    def requirements_to_install(self) -> list[InstallRequirement]:
         """Return the list of requirements that need to be installed.
 
         TODO remove this property together with the legacy resolver, since the new

@@ -562,9 +562,7 @@ def parse_setup_file(content):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        if isinstance(node.value, ast.Str):  # for Python versions < 3.8
-                            variables[target.id] = node.value.s
-                        elif isinstance(node.value, ast.Constant) and isinstance(
+                        if isinstance(node.value, ast.Constant) and isinstance(
                             node.value.value, str
                         ):
                             variables[target.id] = node.value.value
@@ -585,8 +583,6 @@ def parse_setup_file(content):
                             ):
                                 return variables[keyword.value.id]
                             # Otherwise, check if it's directly provided
-                            elif isinstance(keyword.value, ast.Str):
-                                return keyword.value.s
                             elif isinstance(keyword.value, ast.Constant) and isinstance(
                                 keyword.value.value, str
                             ):
@@ -601,18 +597,28 @@ def parse_setup_file(content):
                                 ):
                                     if isinstance(
                                         keyword.value.slice, ast.Index
-                                    ) and isinstance(keyword.value.slice.value, ast.Str):
-                                        return keyword.value.slice.value.s
-                                return keyword.value.s
+                                    ) and isinstance(
+                                        keyword.value.slice.value, ast.Constant
+                                    ):
+                                        if isinstance(
+                                            keyword.value.slice.value.value, str
+                                        ):
+                                            return keyword.value.slice.value.value
+                                # Handle ast.Constant for the subscript value
+                                if isinstance(keyword.value, ast.Constant) and isinstance(
+                                    keyword.value.value, str
+                                ):
+                                    return keyword.value.value
                             elif sys.version_info >= (3, 9) and isinstance(
                                 keyword.value, ast.Subscript
                             ):
                                 if (
                                     isinstance(keyword.value.value, ast.Name)
-                                    and isinstance(keyword.value.slice, ast.Str)
+                                    and isinstance(keyword.value.slice, ast.Constant)
                                     and keyword.value.value.id == "about"
                                 ):
-                                    return keyword.value.slice.s
+                                    if isinstance(keyword.value.slice.value, str):
+                                        return keyword.value.slice.value
     except ValueError:
         pass  # We will not exec unsafe code to determine the name pre-resolver
 
@@ -684,9 +690,10 @@ def find_package_name_from_directory(directory):
             directory_path = Path(directory_str[1:])
 
     try:
-        # Sort contents - directories first, then files
+        # Sort contents - files first, then directories to search parent
+        # directories before leaf directories.
         directory_contents = sorted(
-            directory_path.iterdir(), key=lambda x: (x.is_file(), x.name)
+            directory_path.iterdir(), key=lambda x: (x.is_dir(), x.name)
         )
 
         for path in directory_contents:
@@ -800,7 +807,7 @@ def determine_package_name(package: InstallRequirement):
                 local_file = unpack_url(
                     link=package.link,
                     location=td,
-                    download=Downloader(session, "off"),
+                    download=Downloader(session, "off", resume_retries=5),
                     verbosity=1,
                 )
                 if local_file.path.endswith(".whl") or local_file.path.endswith(".zip"):
@@ -844,31 +851,34 @@ def determine_package_name(package: InstallRequirement):
 
 
 def find_package_name_from_filename(filename, file):
-    if filename.endswith("METADATA"):
+    # Extract basename to handle both full paths (from archives) and basenames (from directories)
+    basename = Path(filename).name
+
+    if basename == "METADATA":
         content = file.read().decode()
         possible_name = parse_metadata_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("PKG-INFO"):
+    if basename == "PKG-INFO":
         content = file.read().decode()
         possible_name = parse_pkginfo_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("setup.py"):
+    if basename == "setup.py":
         content = file.read().decode()
         possible_name = parse_setup_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("setup.cfg"):
+    if basename == "setup.cfg":
         content = file.read().decode()
         possible_name = parse_cfg_file(content)
         if possible_name:
             return possible_name
 
-    if filename.endswith("pyproject.toml"):
+    if basename == "pyproject.toml":
         content = file.read().decode()
         possible_name = parse_toml_file(content)
         if possible_name:
@@ -1024,9 +1034,7 @@ def expansive_install_req_from_line(
                 None,
                 comes_from,
                 link=link,
-                use_pep517=use_pep517,
                 isolated=isolated,
-                global_options=global_options,
                 hash_options=hash_options,
                 constraint=constraint,
                 user_supplied=user_supplied,
@@ -1052,9 +1060,7 @@ def expansive_install_req_from_line(
         comes_from,
         link=parts.link,
         markers=parts.markers,
-        use_pep517=use_pep517,
         isolated=isolated,
-        global_options=global_options,
         hash_options=hash_options,
         config_settings=config_settings,
         constraint=constraint,
@@ -1062,6 +1068,13 @@ def expansive_install_req_from_line(
         user_supplied=user_supplied,
     )
     return install_req, name
+
+
+def normalize_editable_path_for_pip(path_str):
+    """Normalize an editable package path for pip."""
+    # Windows paths need to be converted to POSIX paths otherwise path
+    # separators (back slashes) are interpreted as escape characters.
+    return path_str.replace(os.path.sep, "/")
 
 
 def file_path_from_pipfile(path_str, pipfile_entry):
@@ -1078,7 +1091,7 @@ def file_path_from_pipfile(path_str, pipfile_entry):
     if pipfile_entry.get("extras"):
         req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
     if pipfile_entry.get("editable", False):
-        req_str = f"-e {req_str}"
+        req_str = f"-e {normalize_editable_path_for_pip(req_str)}"
 
     return req_str
 
