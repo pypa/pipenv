@@ -229,10 +229,11 @@ def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror):
             "See also: --deploy flag.",
         )
     else:
-        err.print(
-            "Pipfile.lock not found, creating...",
-            style="bold",
-        )
+        if not project.s.is_quiet():
+            err.print(
+                "Pipfile.lock not found, creating...",
+                style="bold",
+            )
         do_lock(
             project,
             system=system,
@@ -476,12 +477,12 @@ def do_install_dependencies(
         pipfile = None
         if skip_lock:
             ignore_hashes = True
-            if not bare:
+            if not bare and not project.s.is_quiet():
                 console.print("Installing dependencies from Pipfile...", style="bold")
             pipfile = project.get_pipfile_section(pipfile_category)
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
-            if not bare:
+            if not bare and not project.s.is_quiet():
                 lockfile_category = get_lockfile_section_using_pipfile_category(
                     pipfile_category
                 )

@@ -60,5 +60,5 @@ def do_sync(
         extra_pip_args=extra_pip_args,
         categories=categories,
     )
-    if not bare:
+    if not bare and not project.s.is_quiet():
         console.print("[green]All dependencies are now up-to-date![/green]")
