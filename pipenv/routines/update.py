@@ -202,10 +202,46 @@ def check_version_conflicts(
     return conflicts
 
 
+def _locked_version_satisfies_pipfile_specifier(pipfile_specifier, locked_version):
+    """
+    Check if the locked version satisfies the Pipfile specifier.
+
+    Args:
+        pipfile_specifier: Version specifier from Pipfile (e.g., "*", ">=2.25.1", "==1.0.0")
+        locked_version: Version string from lockfile (e.g., "==2.31.0")
+
+    Returns:
+        True if the locked version satisfies the Pipfile specifier, False otherwise.
+    """
+    # Handle wildcard - any version is acceptable
+    if pipfile_specifier == "*":
+        return True
+
+    # Extract the actual version number from the locked version (remove "==")
+    if locked_version.startswith("=="):
+        version_str = locked_version[2:]
+    else:
+        version_str = locked_version
+
+    try:
+        # Parse the Pipfile specifier and check if locked version satisfies it
+        specifier_set = SpecifierSet(pipfile_specifier)
+        version = Version(version_str)
+        return version in specifier_set
+    except (InvalidVersion, ValueError):
+        # If we can't parse, fall back to string comparison
+        return pipfile_specifier == locked_version
+
+
 def get_modified_pipfile_entries(project, pipfile_categories):
     """
     Detect Pipfile entries that have been modified since the last lock.
     Returns a dict mapping categories to sets of InstallRequirement objects.
+
+    A package is considered "modified" if:
+    - It's new (not in lockfile)
+    - Its version specifier has changed such that the locked version no longer satisfies it
+    - Its VCS URL, ref, or extras have changed
     """
     modified = defaultdict(dict)
     lockfile = project.lockfile()
@@ -223,16 +259,23 @@ def get_modified_pipfile_entries(project, pipfile_categories):
 
             locked_entry = locked_packages[package_name]
             is_modified = False
+            locked_version = locked_entry.get("version", "")
 
-            # For string entries, compare directly
+            # For string entries (version specifier only)
             if isinstance(pipfile_entry, str):
-                if pipfile_entry != locked_entry.get("version", ""):
+                # Check if locked version still satisfies the Pipfile specifier
+                if not _locked_version_satisfies_pipfile_specifier(
+                    pipfile_entry, locked_version
+                ):
                     is_modified = True
 
             # For dict entries, need to compare relevant fields
             elif isinstance(pipfile_entry, dict):
                 if "version" in pipfile_entry:
-                    if pipfile_entry["version"] != locked_entry.get("version", ""):
+                    # Check if locked version still satisfies the Pipfile specifier
+                    if not _locked_version_satisfies_pipfile_specifier(
+                        pipfile_entry["version"], locked_version
+                    ):
                         is_modified = True
 
                 # Compare VCS fields
@@ -396,8 +439,14 @@ def _resolve_and_update_lockfile(
     if not requested_packages[pipfile_category]:
         return None
 
+    # Use package_args if provided, otherwise use the keys from requested_packages
+    package_names = (
+        package_args
+        if package_args
+        else list(requested_packages[pipfile_category].keys())
+    )
     err.print(
-        f"[bold][green]Upgrading[/bold][/green] {', '.join(package_args)} in [{category}] dependencies."
+        f"[bold][green]Upgrading[/bold][/green] {', '.join(package_names)} in [{category}] dependencies."
     )
 
     # Resolve package to generate constraints of new package data
