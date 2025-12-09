@@ -412,6 +412,7 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=subcommand_context_no_interspersion,
 )
+@system_option
 @common_options
 @argument("command")
 @argument("args", nargs=-1)
@@ -426,6 +427,7 @@ def run(state, command, args):
         args=args,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
+        system=state.system,
     )
 
 

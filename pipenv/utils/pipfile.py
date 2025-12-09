@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from pipenv import environments, exceptions
+from pipenv import environments
 from pipenv.utils import console, err
 from pipenv.utils.internet import get_url_name
 from pipenv.utils.markers import RequirementError
@@ -83,13 +83,6 @@ def ensure_pipfile(
         else None
     )
     if project.pipfile_is_empty:
-        # Show an error message and exit if system is passed and no pipfile exists
-        if system and not project.s.PIPENV_VIRTUALENV:
-            raise exceptions.PipenvOptionsError(
-                "--system",
-                "--system is intended to be used for pre-existing Pipfile "
-                "installation, not installation of specific packages. Aborting.",
-            )
         # If there's a requirements file, but no Pipfile...
         if project.requirements_exists and not skip_requirements:
             # Get the directory containing the requirements file

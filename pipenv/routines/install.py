@@ -315,7 +315,7 @@ def do_install(
         categories=pipfile_categories,
     )
 
-    if not (deploy or system):
+    if not deploy:
         new_packages, _ = handle_new_packages(
             project,
             packages,
@@ -383,9 +383,6 @@ def do_install_validations(
         raise exceptions.PipenvUsageError(
             message="Cannot install to category `develop`-- did you mean `dev-packages`?"
         )
-    # Warn and exit if --system is used without a pipfile.
-    if (system and package_args) and not project.s.PIPENV_VIRTUALENV:
-        raise exceptions.SystemUsageError
     # Automatically use an activated virtualenv.
     if project.s.PIPENV_USE_SYSTEM:
         system = True
