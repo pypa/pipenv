@@ -770,7 +770,6 @@ wheels = [
 
 [[packages]]
 name = "legacy-cgi"
-version = "*"
 marker = "dependency_groups in ('dev', 'test') and (python_version >= '3.13')"
 
 
@@ -1592,4 +1591,4 @@ wheels = [
 
 [tool.pipenv]
 generated_from = "Pipfile.lock"
-generation_date = "2025-12-09T11:05:44.511058+00:00"
+generation_date = "2025-12-09T11:19:36.437635+00:00"
