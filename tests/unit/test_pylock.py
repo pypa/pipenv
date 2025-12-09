@@ -231,6 +231,68 @@ def test_from_lockfile(tmp_path):
     assert pylock.tool["pipenv"]["generated_from"] == "Pipfile.lock"
 
 
+def test_wildcard_version_handling(tmp_path):
+    """Test that wildcard versions are handled correctly.
+
+    When converting from Pipfile.lock to pylock.toml, wildcard versions should be skipped.
+    When converting back, packages without versions should get wildcard version.
+    """
+    # Create a Pipfile.lock with a wildcard version
+    lockfile_content = """
+{
+    "_meta": {
+        "hash": {"sha256": "test"},
+        "pipfile-spec": 6,
+        "requires": {"python_version": "3.10"},
+        "sources": []
+    },
+    "default": {
+        "legacy-cgi": {
+            "markers": "python_version >= '3.13'",
+            "version": "*"
+        },
+        "requests": {
+            "version": "==2.28.1"
+        }
+    },
+    "develop": {}
+}
+"""
+    lockfile_path = tmp_path / "Pipfile.lock"
+    pylock_path = tmp_path / "pylock.toml"
+
+    with open(lockfile_path, "w") as f:
+        f.write(lockfile_content)
+
+    # Create a PylockFile from the Pipfile.lock
+    pylock = PylockFile.from_lockfile(lockfile_path, pylock_path)
+
+    # Check that legacy-cgi has no version (wildcard was skipped)
+    legacy_cgi_pkg = next((p for p in pylock.packages if p["name"] == "legacy-cgi"), None)
+    assert legacy_cgi_pkg is not None
+    assert "version" not in legacy_cgi_pkg  # Wildcard version should not be stored
+
+    # Check that requests has a version
+    requests_pkg = next((p for p in pylock.packages if p["name"] == "requests"), None)
+    assert requests_pkg is not None
+    assert requests_pkg["version"] == "2.28.1"
+
+    # Now write and reload the pylock.toml
+    pylock.write()
+    loaded_pylock = PylockFile.from_path(pylock_path)
+
+    # Convert back to Pipfile.lock format
+    converted_lockfile = loaded_pylock.convert_to_pipenv_lockfile()
+
+    # Check that legacy-cgi gets wildcard version back
+    assert "legacy-cgi" in converted_lockfile["default"]
+    assert converted_lockfile["default"]["legacy-cgi"]["version"] == "*"
+
+    # Check that requests keeps its pinned version
+    assert "requests" in converted_lockfile["default"]
+    assert converted_lockfile["default"]["requests"]["version"] == "==2.28.1"
+
+
 def test_write_method(tmp_path):
     """Test writing a PylockFile to disk."""
     # Create a simple PylockFile
