@@ -1179,9 +1179,16 @@ class Project:
 
     def remove_package_from_pipfile(self, package_name, category):
         # Read and append Pipfile.
-        name = self.get_package_name_in_pipfile(package_name, category=category)
         p = self.parsed_pipfile
-        if name:
+        section = p.get(category, {})
+        # Find the actual key in the section that matches the normalized name
+        normalized_name = pep423_name(package_name)
+        name = None
+        for key in section:
+            if pep423_name(key) == normalized_name:
+                name = key
+                break
+        if name and name in section:
             del p[category][name]
             if self.settings.get("sort_pipfile"):
                 p[category] = self._sort_category(p[category])
@@ -1208,7 +1215,8 @@ class Project:
             to_remove = packages & pipfile_packages
             for pkg in to_remove:
                 pkg_name = self.get_package_name_in_pipfile(pkg, category=category)
-                del parsed[category][pkg_name]
+                if pkg_name:
+                    del parsed[category][pkg_name]
         self.write_toml(parsed)
 
     def generate_package_pipfile_entry(
