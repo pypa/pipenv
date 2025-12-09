@@ -408,10 +408,13 @@ class PylockFile:
         Returns:
             List of package dictionaries that should be installed
         """
-        if extras is None:
-            extras = set()
-        if dependency_groups is None:
-            dependency_groups = set(self.default_groups)
+        # These variables are set up for future marker evaluation implementation
+        _extras = extras if extras is not None else set()  # noqa: F841
+        _dependency_groups = (  # noqa: F841
+            dependency_groups
+            if dependency_groups is not None
+            else set(self.default_groups)
+        )
 
         result = []
 
@@ -419,7 +422,7 @@ class PylockFile:
             # Check if the package has a marker
             marker = package.get("marker")
             if marker:
-                # TODO: Implement proper marker evaluation with extras and dependency_groups
+                # TODO: Implement proper marker evaluation using _extras and _dependency_groups
                 # For now, we'll just include packages without markers or with simple markers
                 if "extras" in marker or "dependency_groups" in marker:
                     # Skip packages with extras or dependency_groups markers for now
