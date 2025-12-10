@@ -126,27 +126,25 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
 def do_run_posix(project, script, command, env):
     path = env.get("PATH")
     command_path = system_which(script.command, path=path)
-    if not command_path:
-        if project.has_script(command):
-            err.print(
-                f"[bold red]Error[/bold red]: the command [yellow]{script.command}[/yellow] "
-                f"(from [bold]{command}[/bold]) could not be found within [bold]PATH[/bold]."
-            )
-        else:
-            err.print(
-                f"[bold red]Error[/bold red]: the command [yellow]{command}[/yellow] "
-                f"could not be found within [bold]PATH[/bold] or Pipfile's [bold][scripts][/bold]."
-            )
-        sys.exit(1)
 
     # Ensure all environment variables are strings
     string_env = {k: str(v) for k, v in env.items() if v is not None}
 
-    os.execve(
-        command_path,
-        [command_path, *(expandvars(arg) for arg in script.args)],
-        string_env,
-    )
+    if command_path:
+        # Command found in PATH, use os.execve for direct execution
+        os.execve(
+            command_path,
+            [command_path, *(expandvars(arg) for arg in script.args)],
+            string_env,
+        )
+    else:
+        # Command not found in PATH, maybe it's a shell builtin (cd, echo, export, etc.)
+        # Fall back to running through the shell, similar to Windows behavior.
+        # See: https://github.com/pypa/pipenv/issues/6186
+        cmd_args = [script.command] + [expandvars(arg) for arg in script.args]
+        cmd_string = cmd_list_to_shell(cmd_args)
+        result = subprocess.run(cmd_string, shell=True, env=string_env, check=False)
+        sys.exit(result.returncode)
 
 
 def do_run_nt(project, script, env):
