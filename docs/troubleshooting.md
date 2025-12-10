@@ -246,6 +246,30 @@ This guide provides solutions for common issues you might encounter when using P
    $ pipenv install package-name --verbose
    ```
 
+### Package Names with Dots or Special Characters
+
+**Problem**: Installing packages with dots in their names (e.g., `mach.py`, `zope.interface`) fails with resolution errors.
+
+**Cause**: The shell may interpret the dot as a path separator or file extension before passing the argument to pipenv.
+
+**Solution**: Enclose package names containing dots or special characters in quotes:
+
+```bash
+# This may fail:
+$ pipenv install mach.py
+
+# Use quotes instead:
+$ pipenv install "mach.py"
+```
+
+In your Pipfile, package names with dots should also be quoted:
+
+```toml
+[packages]
+"mach.py" = "*"
+"zope.interface" = ">=5.0"
+```
+
 ### Dependency Resolution Conflicts
 
 **Problem**: Pipenv can't resolve dependencies due to conflicts.
