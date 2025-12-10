@@ -1,5 +1,7 @@
 from pipenv.utils.dependencies import clean_resolved_dep
 from pipenv.vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator
+from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 
 
 def test_clean_resolved_dep_with_vcs_url():
@@ -131,3 +133,158 @@ class TestPrereleaseFiltering:
         assert "4.5.0" in filtered_false
         assert "5.0.0" in filtered_false
         assert "5.2.0" in filtered_false
+
+    def test_prerelease_only_package_with_none_fallback(self):
+        """Verify that prereleases=None allows prereleases when no stable versions exist.
+
+        This is the PEP 440 behavior that we need to preserve for packages like
+        opentelemetry-semantic-conventions that only have prerelease versions.
+        See: https://github.com/pypa/pipenv/issues/6485
+        """
+        spec = SpecifierSet("")
+        prerelease_only_versions = ["0.20b0", "0.21b0", "0.60b0"]
+
+        # With prereleases=False, no versions should be returned
+        filtered_false = list(spec.filter(prerelease_only_versions, prereleases=False))
+        assert filtered_false == []
+
+        # With prereleases=None, the PEP 440 fallback kicks in and returns prereleases
+        filtered_none = list(spec.filter(prerelease_only_versions, prereleases=None))
+        assert "0.20b0" in filtered_none
+        assert "0.21b0" in filtered_none
+        assert "0.60b0" in filtered_none
+
+    def test_issue_6485_prerelease_only_package(self):
+        """Test the exact scenario from issue #6485.
+
+        The package opentelemetry-semantic-conventions only has prerelease versions
+        (all versions are beta like 0.60b0). When prereleases=False is used, the
+        package cannot be resolved. The fix is to fall back to prereleases=None
+        when no stable versions match, which allows PEP 440's fallback behavior
+        to accept prereleases when they are the only versions available.
+        """
+        spec = SpecifierSet("")
+        versions = ["0.20b0", "0.21b0", "0.60b0"]
+
+        # This simulates what get_applicable_candidates should do:
+        # 1. First try with prereleases=False
+        filtered_strict = list(spec.filter(versions, prereleases=False))
+        assert filtered_strict == []  # No stable versions
+
+        # 2. If no matches and candidates exist, try with prereleases=None
+        if not filtered_strict and versions:
+            filtered_fallback = list(spec.filter(versions, prereleases=None))
+            assert len(filtered_fallback) == 3  # All prereleases are returned
+            assert "0.60b0" in filtered_fallback
+
+    def test_mixed_versions_no_fallback_to_prereleases(self):
+        """Verify that when stable versions exist, prereleases are not selected.
+
+        This ensures the fix for #6485 doesn't regress #6395 behavior.
+        """
+        spec = SpecifierSet(">=1.0.0")
+        mixed_versions = ["1.0.0", "1.1.0", "2.0.0b1", "2.0.0"]
+
+        # With prereleases=False, only stable versions should be returned
+        filtered = list(spec.filter(mixed_versions, prereleases=False))
+        assert "2.0.0b1" not in filtered
+        assert "1.0.0" in filtered
+        assert "1.1.0" in filtered
+        assert "2.0.0" in filtered
+
+
+class TestCandidateEvaluatorPrereleases:
+    """Tests for CandidateEvaluator.get_applicable_candidates prerelease handling.
+
+    These tests verify the fix for https://github.com/pypa/pipenv/issues/6485
+    where packages with only prerelease versions could not be installed.
+    """
+
+    def _make_candidate(self, name, version):
+        """Create a mock InstallationCandidate."""
+        from pipenv.patched.pip._internal.models.link import Link
+        link = Link(f"https://example.com/{name}-{version}.tar.gz")
+        # InstallationCandidate expects a string version, not a parsed version
+        return InstallationCandidate(name, version, link)
+
+    def _make_evaluator(self, specifier="", allow_prereleases=False):
+        """Create a CandidateEvaluator for testing."""
+        return CandidateEvaluator.create(
+            project_name="test-package",
+            target_python=None,
+            allow_all_prereleases=allow_prereleases,
+            specifier=SpecifierSet(specifier),
+        )
+
+    def test_prerelease_only_package_allowed(self):
+        """Test that packages with only prereleases are allowed.
+
+        This is the fix for issue #6485 - opentelemetry-semantic-conventions
+        only has prerelease versions, so they should be allowed.
+        """
+        candidates = [
+            self._make_candidate("test-package", "0.20b0"),
+            self._make_candidate("test-package", "0.21b0"),
+            self._make_candidate("test-package", "0.60b0"),
+        ]
+        evaluator = self._make_evaluator(allow_prereleases=False)
+
+        applicable = evaluator.get_applicable_candidates(candidates)
+
+        # All prereleases should be returned since there are no stable versions
+        assert len(applicable) == 3
+        versions = [str(c.version) for c in applicable]
+        assert "0.60b0" in versions
+
+    def test_mixed_versions_excludes_prereleases(self):
+        """Test that prereleases are excluded when stable versions exist.
+
+        This ensures the fix for #6485 doesn't regress #6395.
+        """
+        candidates = [
+            self._make_candidate("test-package", "1.0.0"),
+            self._make_candidate("test-package", "1.1.0"),
+            self._make_candidate("test-package", "2.0.0b1"),
+            self._make_candidate("test-package", "2.0.0"),
+        ]
+        evaluator = self._make_evaluator(allow_prereleases=False)
+
+        applicable = evaluator.get_applicable_candidates(candidates)
+
+        # Only stable versions should be returned
+        versions = [str(c.version) for c in applicable]
+        assert "2.0.0b1" not in versions
+        assert "1.0.0" in versions
+        assert "1.1.0" in versions
+        assert "2.0.0" in versions
+
+    def test_allow_prereleases_flag_includes_all(self):
+        """Test that allow_prereleases=True includes all versions."""
+        candidates = [
+            self._make_candidate("test-package", "1.0.0"),
+            self._make_candidate("test-package", "2.0.0b1"),
+        ]
+        evaluator = self._make_evaluator(allow_prereleases=True)
+
+        applicable = evaluator.get_applicable_candidates(candidates)
+
+        versions = [str(c.version) for c in applicable]
+        assert "1.0.0" in versions
+        assert "2.0.0b1" in versions
+
+    def test_specifier_constraint_with_prerelease_only(self):
+        """Test that specifier constraints work with prerelease-only packages."""
+        candidates = [
+            self._make_candidate("test-package", "0.20b0"),
+            self._make_candidate("test-package", "0.50b0"),
+            self._make_candidate("test-package", "0.60b0"),
+        ]
+        evaluator = self._make_evaluator(specifier=">=0.50b0", allow_prereleases=False)
+
+        applicable = evaluator.get_applicable_candidates(candidates)
+
+        # Only prereleases matching the constraint should be returned
+        versions = [str(c.version) for c in applicable]
+        assert "0.20b0" not in versions
+        assert "0.50b0" in versions
+        assert "0.60b0" in versions
