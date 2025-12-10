@@ -166,6 +166,12 @@ class Shell:
         # dimensions of pexpect.
         dims = get_terminal_size()
         with temp_environ():
+            # Unset COLUMNS and LINES so the spawned shell can manage them.
+            # When these are exported, Bash treats them as read-only inherited
+            # values and doesn't update them on terminal resize, even with
+            # checkwinsize enabled. See: https://github.com/pypa/pipenv/issues/6169
+            os.environ.pop("COLUMNS", None)
+            os.environ.pop("LINES", None)
             c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
         c.sendline(_get_activate_script(self.cmd, venv))
 
