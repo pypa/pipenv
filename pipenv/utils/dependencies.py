@@ -519,6 +519,10 @@ def convert_deps_to_pip(
     if indexes is None:
         indexes = []
     for dep_name, dep in deps.items():
+        # Translate platform-specific keys (sys_platform, platform_machine, etc.)
+        # to the unified 'markers' key before conversion
+        if isinstance(dep, dict):
+            dep = translate_markers(dep)
         req = dependency_as_pip_install_line(
             dep_name, dep, include_hashes, include_markers, include_index, indexes
         )

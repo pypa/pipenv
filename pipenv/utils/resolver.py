@@ -217,6 +217,12 @@ class Resolver:
                     ]
             if install_req.markers:
                 markers_lookup[package_name] = install_req.markers
+                # Skip adding constraint if markers don't evaluate on current platform
+                # This prevents resolution errors for platform-specific packages
+                # See: https://github.com/pypa/pipenv/issues/6028
+                if not install_req.markers.evaluate():
+                    is_constraint = False
+                    skipped[package_name] = dep
             if is_constraint:
                 constraints.add(dep)
         lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
