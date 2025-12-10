@@ -1296,6 +1296,10 @@ class Project:
         elif hasattr(package, "index"):
             entry["index"] = package.index
 
+        # Include markers (e.g., sys_platform == 'win32') if present
+        if package.markers:
+            entry["markers"] = str(package.markers)
+
         if len(entry) == 1 and "version" in entry:
             return name, normalized_name, specifier
         else:
