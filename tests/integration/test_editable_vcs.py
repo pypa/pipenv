@@ -39,7 +39,7 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         assert any(src_dir.iterdir()), "src directory is empty"
 
         # Import the package to verify it's installed correctly
-        c = p.pipenv("run python -c 'import gunicorn'")
+        c = p.pipenv('run python -c "import gunicorn"')
         assert c.returncode == 0, f"Failed to import gunicorn: {c.stderr}"
 
         # Remove the src directory to simulate the issue
@@ -62,5 +62,5 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         assert any(src_dir.iterdir()), "recreated src directory is empty"
 
         # Import the package again to verify it's reinstalled correctly
-        c = p.pipenv("run python -c 'import gunicorn'")
+        c = p.pipenv('run python -c "import gunicorn"')
         assert c.returncode == 0, f"Failed to import gunicorn after reinstall: {c.stderr}"
