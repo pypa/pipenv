@@ -1,0 +1,1 @@
+Add ``PIPENV_PYENV_AUTO_INSTALL`` environment variable to automatically install missing Python versions via pyenv or asdf without prompting the user.

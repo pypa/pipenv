@@ -320,11 +320,13 @@ def ensure_python(project, python=None):
             )
 
             # Prompt the user to continue...
+            # PIPENV_PYENV_AUTO_INSTALL allows automatic installation without prompting
+            auto_install = project.s.PIPENV_YES or project.s.PIPENV_PYENV_AUTO_INSTALL
             if environments.SESSION_IS_INTERACTIVE:
-                if not (project.s.PIPENV_YES or Confirm.ask("".join(s), default=True)):
+                if not (auto_install or Confirm.ask("".join(s), default=True)):
                     abort()
-            elif not project.s.PIPENV_YES:
-                # Non-interactive session without PIPENV_YES, aborting installation
+            elif not auto_install:
+                # Non-interactive session without auto-install enabled, aborting
                 abort()
 
             # Tell the user we're installing Python.
