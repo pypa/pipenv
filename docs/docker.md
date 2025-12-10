@@ -55,6 +55,30 @@ This approach:
 - `--deploy`: Ensures the Pipfile.lock is up-to-date and fails if it isn't
 - `--ignore-pipfile`: Uses only the lock file for installation, ignoring the Pipfile
 
+### System Installation vs. Virtual Environments in Docker
+
+Docker containers provide isolated environments, which raises the question: should you use `--system` to install packages globally, or create a virtual environment inside the container?
+
+**Using `--system` (Recommended for most Docker use cases)**
+
+- Simpler setup with no nested isolation
+- Smaller image size (no virtualenv overhead)
+- Packages are directly accessible without activation
+- Works well with `pipenv run` for executing scripts defined in Pipfile
+- Best for single-application containers following the "one process per container" principle
+
+**Using a Virtual Environment**
+
+- Provides an extra layer of isolation from system Python packages
+- Useful if your container runs multiple Python applications or system tools that depend on Python
+- Preferred when extending base images that have Python-based system utilities (e.g., `add-apt-repository` in Ubuntu)
+- Consider this approach if you use `apt-get install python3-*` packages alongside your application
+
+For most production containers that run a single Python application, `--system` is the simpler and more efficient choice. The concerns about breaking system Python tools (raised in older guidance) are less relevant when:
+- Your container runs only your application
+- You're using slim/minimal base images
+- You're not installing Python-based system packages via apt/yum
+
 ## Optimized Docker Builds
 
 ### Multi-Stage Builds
@@ -591,7 +615,7 @@ RUN pipenv install --deploy --system --extra-pip-args="--use-feature=fast-deps"
 
 4. **Use `--deploy` flag** to ensure Pipfile.lock is up-to-date
 
-5. **Install dependencies system-wide** with `--system` to avoid unnecessary virtual environments
+5. **Use `--system` for single-application containers** to install dependencies system-wide, or use a virtual environment if your container runs multiple Python applications
 
 6. **Include only necessary files** in your Docker image
 
