@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from importlib import import_module
 from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING, Iterator
+from typing import TYPE_CHECKING
 
 from pipenv.vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.vendor.packaging.utils import canonicalize_name
@@ -12,6 +12,7 @@ from pipenv.vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.pipdeptree._freeze import dist_to_frozen_repr
 
 if TYPE_CHECKING:
+    from collections.abc import Iterator
     from importlib.metadata import Distribution
 
 
@@ -38,19 +39,21 @@ class Package(ABC):
         except PackageNotFoundError:
             return self.UNKNOWN_LICENSE_STR
 
+        if license_str := dist_metadata[("License-Expression")]:
+            return f"({license_str})"
+
         license_strs: list[str] = []
         classifiers = dist_metadata.get_all("Classifier", [])
-
         for classifier in classifiers:
             line = str(classifier)
             if line.startswith("License"):
-                license_str = line.split(":: ")[-1]
+                license_str = line.rsplit(":: ", 1)[-1]
                 license_strs.append(license_str)
 
         if len(license_strs) == 0:
             return self.UNKNOWN_LICENSE_STR
 
-        return f'({", ".join(license_strs)})'
+        return f"({', '.join(license_strs)})"
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:

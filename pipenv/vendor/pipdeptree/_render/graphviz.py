@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pipenv.vendor.pipdeptree._models import PackageDAG
 
 
-def dump_graphviz(  # noqa: C901, PLR0912
+def dump_graphviz(  # noqa: C901
     tree: PackageDAG,
     output_format: str = "dot",
     is_reverse: bool = False,  # noqa: FBT001, FBT002
@@ -23,7 +23,6 @@ def dump_graphviz(  # noqa: C901, PLR0912
     :param bool is_reverse: reverse or not
     :returns: representation of tree in the specified output format
     :rtype: str or binary representation depending on the output format
-
     """
     try:
         from graphviz import Digraph  # noqa: PLC0415
@@ -34,19 +33,9 @@ def dump_graphviz(  # noqa: C901, PLR0912
         )
         raise SystemExit(1) from exc
 
-    try:
-        from graphviz import parameters  # noqa: PLC0415
-    except ImportError:
-        from graphviz import backend  # noqa: PLC0415 # pragma: no cover
+    from graphviz import parameters  # noqa: PLC0415
 
-        valid_formats = backend.FORMATS
-        print(  # noqa: T201
-            "Deprecation warning! Please upgrade graphviz to version >=0.18.0 "
-            "Support for older versions will be removed in upcoming release",
-            file=sys.stderr,
-        )
-    else:
-        valid_formats = parameters.FORMATS
+    valid_formats = parameters.FORMATS
 
     if output_format not in valid_formats:
         print(f"{output_format} is not a supported output format.", file=sys.stderr)  # noqa: T201

@@ -5,7 +5,10 @@ import platform
 import subprocess  # noqa: S404
 import sys
 from pathlib import Path
-from typing import Callable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 def detect_active_interpreter() -> str:
@@ -72,7 +75,7 @@ def detect_poetry_env_interpreter() -> Path | None:
     # active interpreter.
     # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information.
     try:
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             ("poetry", "env", "info", "--executable"),
             check=True,
             text=True,

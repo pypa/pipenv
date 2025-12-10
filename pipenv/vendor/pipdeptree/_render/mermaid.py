@@ -34,7 +34,7 @@ _RESERVED_IDS: Final[frozenset[str]] = frozenset(
 )
 
 
-def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
+def render_mermaid(tree: PackageDAG) -> None:  # noqa: C901
     """
     Produce a Mermaid flowchart from the dependency graph.
 
@@ -105,7 +105,7 @@ def render_mermaid(tree: PackageDAG) -> str:  # noqa: C901
         *sorted(nodes),
         *sorted(edges),
     ]
-    return "".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines))
+    print("".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines)))  # noqa: T201
 
 
 __all__ = [
