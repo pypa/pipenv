@@ -391,11 +391,14 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
             )
             sys.exit(1)
 
-    # Use fancy mode for Windows or pwsh on *nix.
+    # Use fancy mode for Windows, pwsh, or when Oh My Posh is detected.
+    # Oh My Posh interferes with the VIRTUAL_ENV variable when using the
+    # pexpect-based compat mode. See: https://github.com/pypa/pipenv/issues/6226
     if (
         os.name == "nt"
         or Path(os.environ.get("PIPENV_SHELL") or "").name == "pwsh"
         or Path(os.environ.get("SHELL") or "").name == "pwsh"
+        or os.environ.get("POSH_THEME")  # Oh My Posh detected
     ):
         fancy = True
     do_shell(
