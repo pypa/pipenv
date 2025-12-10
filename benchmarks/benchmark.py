@@ -19,6 +19,10 @@ def subprocess_env():
     # Ensure pipenv doesn't wait for user input
     env["PIPENV_YES"] = "1"
     env["PIPENV_NOSPIN"] = "1"
+    # Force pipenv to create its own venv, not use any existing one
+    env["PIPENV_IGNORE_VIRTUALENVS"] = "1"
+    # Suppress courtesy notices
+    env["PIPENV_VERBOSITY"] = "-1"
     return env
 
 
@@ -38,25 +42,39 @@ class PipenvBenchmark:
             cwd = self.benchmark_dir
 
         # Set environment to prevent interactive prompts
-        env = {
-            **subprocess_env(),
-            "PIPENV_YES": "1",  # Auto-confirm prompts
-            "PIPENV_NOSPIN": "1",  # Disable spinner for cleaner output
-        }
+        env = subprocess_env()
 
         print(f"  Running: {' '.join(command)}", flush=True)
         start_time = time.time()
+
+        # Use Popen with communicate() to avoid pipe buffer deadlock
+        # that can occur with capture_output=True on commands with lots of output
+        process = subprocess.Popen(
+            command,
+            cwd=cwd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=env,
+        )
+
         try:
-            result = subprocess.run(
-                command,
-                cwd=cwd,
-                capture_output=True,
-                text=True,
-                check=True,
-                timeout=timeout,
-                env=env,
-            )
+            stdout, stderr = process.communicate(timeout=timeout)
             elapsed = time.time() - start_time
+            returncode = process.returncode
+
+            if returncode != 0:
+                print(f"  ✗ Command failed after {elapsed:.3f}s: {' '.join(command)}")
+                print(f"  Return code: {returncode}")
+                if stderr and stderr.strip():
+                    print("  Error output:")
+                    for line in stderr.strip().split("\n")[:5]:
+                        print(f"    {line}")
+                if stdout and stdout.strip():
+                    print("  Stdout:")
+                    for line in stdout.strip().split("\n")[:3]:
+                        print(f"    {line}")
+                raise subprocess.CalledProcessError(returncode, command, stdout, stderr)
 
             # Write timing info (simplified format for cross-platform compatibility)
             timing_path = self.timings_dir / timing_file
@@ -66,41 +84,29 @@ class PipenvBenchmark:
                 )  # elapsed,system,user,cpu%,maxrss,inputs,outputs
 
             print(f"  ✓ Completed in {elapsed:.3f}s")
-            if result.stdout.strip():
+            if stdout and stdout.strip():
                 # Show first few lines of output
-                output_lines = result.stdout.strip().split("\n")[:3]
+                output_lines = stdout.strip().split("\n")[:3]
                 for line in output_lines:
                     print(f"    {line[:100]}")
-                if len(result.stdout.strip().split("\n")) > 3:
+                if len(stdout.strip().split("\n")) > 3:
                     print("    ...")
 
-            return elapsed, result.returncode
-        except subprocess.TimeoutExpired as e:
+            return elapsed, returncode
+
+        except subprocess.TimeoutExpired:
+            process.kill()
+            stdout, stderr = process.communicate()
             elapsed = time.time() - start_time
             print(f"  ✗ Command timed out after {elapsed:.3f}s: {' '.join(command)}")
             print(f"  Timeout was set to {timeout}s")
-            if e.stdout:
-                stdout = e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout
+            if stdout and stdout.strip():
                 print("  Stdout before timeout:")
                 for line in stdout.strip().split("\n")[-10:]:
                     print(f"    {line}")
-            if e.stderr:
-                stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
+            if stderr and stderr.strip():
                 print("  Stderr before timeout:")
                 for line in stderr.strip().split("\n")[-5:]:
-                    print(f"    {line}")
-            raise
-        except subprocess.CalledProcessError as e:
-            elapsed = time.time() - start_time
-            print(f"  ✗ Command failed after {elapsed:.3f}s: {' '.join(command)}")
-            print(f"  Return code: {e.returncode}")
-            if e.stderr.strip():
-                print("  Error output:")
-                for line in e.stderr.strip().split("\n")[:5]:
-                    print(f"    {line}")
-            if e.stdout.strip():
-                print("  Stdout:")
-                for line in e.stdout.strip().split("\n")[:3]:
                     print(f"    {line}")
             raise
 
@@ -285,41 +291,25 @@ class PipenvBenchmark:
         print("Starting pipenv benchmark suite...")
         print("=" * 60)
 
-        steps = [
-            ("Setup", "setup_requirements"),
-            ("Tooling", "benchmark_tooling"),
-            ("Import", "benchmark_import"),
-            ("Lock (cold)", "lock_cold"),
-            ("Lock (warm)", "lock_warm"),
-            ("Install (cold)", "install_cold"),
-            ("Install (warm)", "install_warm"),
-            ("Update (cold)", "update_cold"),
-            ("Update (warm)", "update_warm"),
-            ("Add package", "benchmark_add_package"),
-            ("Generate stats", "generate_stats"),
-        ]
-
-        for i, (step_name, _) in enumerate(steps, 1):
-            print(f"\n[{i}/{len(steps)}] {step_name}")
-            print("-" * 40)
+        total_steps = 11
 
         # Setup
-        print(f"\n[1/{len(steps)}] Setup")
+        print(f"\n[1/{total_steps}] Setup")
         print("-" * 40)
         self.setup_requirements()
 
         # Tooling
-        print(f"\n[2/{len(steps)}] Tooling")
+        print(f"\n[2/{total_steps}] Tooling")
         print("-" * 40)
         self.benchmark_tooling()
 
         # Import
-        print(f"\n[3/{len(steps)}] Import")
+        print(f"\n[3/{total_steps}] Import")
         print("-" * 40)
         self.benchmark_import()
 
         # Lock cold
-        print(f"\n[4/{len(steps)}] Lock (cold)")
+        print(f"\n[4/{total_steps}] Lock (cold)")
         print("-" * 40)
         self.clean_cache()
         self.clean_venv()
@@ -327,42 +317,42 @@ class PipenvBenchmark:
         self.benchmark_lock("lock-cold.txt")
 
         # Lock warm
-        print(f"\n[5/{len(steps)}] Lock (warm)")
+        print(f"\n[5/{total_steps}] Lock (warm)")
         print("-" * 40)
         self.clean_lock()
         self.benchmark_lock("lock-warm.txt")
 
         # Install cold
-        print(f"\n[6/{len(steps)}] Install (cold)")
+        print(f"\n[6/{total_steps}] Install (cold)")
         print("-" * 40)
         self.clean_cache()
         self.clean_venv()
         self.benchmark_install("install-cold.txt")
 
         # Install warm
-        print(f"\n[7/{len(steps)}] Install (warm)")
+        print(f"\n[7/{total_steps}] Install (warm)")
         print("-" * 40)
         self.clean_venv()
         self.benchmark_install("install-warm.txt")
 
         # Update cold
-        print(f"\n[8/{len(steps)}] Update (cold)")
+        print(f"\n[8/{total_steps}] Update (cold)")
         print("-" * 40)
         self.clean_cache()
         self.benchmark_update("update-cold.txt")
 
         # Update warm
-        print(f"\n[9/{len(steps)}] Update (warm)")
+        print(f"\n[9/{total_steps}] Update (warm)")
         print("-" * 40)
         self.benchmark_update("update-warm.txt")
 
         # Add package
-        print(f"\n[10/{len(steps)}] Add package")
+        print(f"\n[10/{total_steps}] Add package")
         print("-" * 40)
         self.benchmark_add_package()
 
         # Generate stats
-        print(f"\n[11/{len(steps)}] Generate stats")
+        print(f"\n[11/{total_steps}] Generate stats")
         print("-" * 40)
         self.generate_stats()
 
