@@ -437,8 +437,15 @@ def handle_remove_readonly(func, path, exc):
     attempts to set them as writeable and then proceed with deletion."""
     # Check for read-only attribute
     default_warning_message = "Unable to remove file due to permissions restriction: {!r}"
-    # split the initial exception out into its type, exception, and traceback
-    exc_type, exc_exception, exc_tb = exc
+
+    # Handle both Python 3.12+ (onexc with exception) and earlier (onerror with tuple)
+    if isinstance(exc, tuple):
+        # Python 3.11 and earlier: exc is (exc_type, exc_value, exc_tb)
+        exc_exception = exc[1]
+    else:
+        # Python 3.12+: exc is the exception instance directly
+        exc_exception = exc
+
     if is_readonly_path(path):
         # Apply write permission and call original function
         set_write_bit(path)
@@ -455,7 +462,7 @@ def handle_remove_readonly(func, path, exc):
         warnings.warn(default_warning_message.format(path), ResourceWarning, stacklevel=1)
         return
 
-    raise exc
+    raise exc_exception
 
 
 def style_no_color(text, fg=None, bg=None, **kwargs) -> str:
