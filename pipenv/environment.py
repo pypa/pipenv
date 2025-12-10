@@ -734,6 +734,24 @@ class Environment:
             None,
         )
         if match is not None:
+            # For editable VCS dependencies, check if the source directory exists first
+            # This ensures we reinstall if the source checkout is missing
+            if req.editable and req.link and req.link.is_vcs:
+                # Use the environment's prefix to get the src directory
+                # (get_src_prefix() uses sys.prefix which is pipenv's venv, not the project's)
+                src_dir = os.path.join(str(self.prefix), "src")
+
+                # If the src directory doesn't exist, the requirement is not satisfied
+                if not os.path.exists(src_dir):
+                    return False
+
+                # If we have a specific package directory, check that too
+                if req.name:
+                    pkg_dir = os.path.join(src_dir, req.name)
+                    if not os.path.exists(pkg_dir):
+                        return False
+
+                return True
             if req.specifier is not None:
                 return SpecifierSet(str(req.specifier)).contains(
                     match.version, prereleases=True

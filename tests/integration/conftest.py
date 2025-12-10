@@ -272,6 +272,14 @@ class _PipenvInstance:
     def lockfile_path(self):
         return Path(os.sep.join([self.path, "Pipfile.lock"]))
 
+    @property
+    def virtualenv_location(self):
+        """Get the virtualenv location for this instance."""
+        c = self.pipenv("--venv")
+        if c.returncode == 0:
+            return c.stdout.strip()
+        return None
+
 
 if sys.version_info[:2] <= (3, 8):
     # Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
