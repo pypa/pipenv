@@ -127,12 +127,50 @@ def test_load_dot_env_shows_message_without_quiet(monkeypatch, capsys, project):
         project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
         # Ensure verbosity is at default (0)
         project.s.PIPENV_VERBOSITY = 0
+        # Ensure PIPENV_ACTIVE is not set
+        os.environ.pop("PIPENV_ACTIVE", None)
         load_dot_env(project)
         output, err = capsys.readouterr()
         # The .env file should be loaded
         assert os.environ[key] == val
         # And the "Loading .env" message should be shown
         assert "Loading .env" in err
+
+
+@pytest.mark.core
+def test_load_dot_env_suppresses_message_when_pipenv_active(monkeypatch, capsys, project):
+    """Test that the .env loading message is suppressed when PIPENV_ACTIVE is set.
+
+    This handles nested pipenv invocations (e.g., `pipenv run` executing a script
+    that itself runs pipenv commands). The .env should still be loaded, but the
+    message should not be printed again.
+
+    Fixes #6328
+    """
+    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+        prefix="pipenv-", suffix=""
+    ) as tempdir:
+        if os.name == "nt":
+            from pipenv.vendor import click
+
+            is_console = False
+            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
+        dotenv_path = os.path.join(tempdir, "test.env")
+        key, val = "NESTED_KEY", "nested_value"
+        with open(dotenv_path, "w") as f:
+            f.write(f"{key}={val}")
+
+        project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
+        # Ensure verbosity is at default (0) - message would normally show
+        project.s.PIPENV_VERBOSITY = 0
+        # Set PIPENV_ACTIVE to simulate nested pipenv invocation
+        os.environ["PIPENV_ACTIVE"] = "1"
+        load_dot_env(project)
+        output, err = capsys.readouterr()
+        # The .env file should still be loaded
+        assert os.environ[key] == val
+        # But the "Loading .env" message should be suppressed
+        assert "Loading .env" not in err
 
 
 @pytest.mark.core

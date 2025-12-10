@@ -29,7 +29,12 @@ def load_dot_env(project, as_dict=False, quiet=False):
         if as_dict:
             return dotenv.dotenv_values(str(dotenv_file))
         elif dotenv_file.is_file():
-            if not quiet and not project.s.is_quiet():
+            # Skip message if already in a pipenv environment (nested invocation)
+            if (
+                not quiet
+                and not project.s.is_quiet()
+                and not os.environ.get("PIPENV_ACTIVE")
+            ):
                 err.print("[bold]Loading .env environment variables...[/bold]")
 
             dotenv.load_dotenv(str(dotenv_file), override=True)
