@@ -175,3 +175,30 @@ requests = "==2.14.0"
             c = p.pipenv("run pip freeze")
         assert c.returncode == 0
         assert "requests==2.14.0" in c.stdout
+
+
+@pytest.mark.run
+@pytest.mark.skip_windows
+def test_run_shell_builtins(pipenv_instance_pypi):
+    """Test that shell builtins work with pipenv run.
+
+    Shell builtins like 'echo', 'cd', 'pwd' don't have a path in the filesystem.
+    They should still work with pipenv run by falling back to shell execution.
+    See: https://github.com/pypa/pipenv/issues/6186
+    """
+    with pipenv_instance_pypi() as p:
+        p.pipenv("install")
+
+        # Test 'echo' builtin
+        c = p.pipenv('run echo "Hello World"')
+        assert c.returncode == 0
+        assert "Hello World" in c.stdout
+
+        # Test 'pwd' builtin
+        c = p.pipenv("run pwd")
+        assert c.returncode == 0
+        assert p.path in c.stdout
+
+        # Test 'cd' builtin (should succeed even though it doesn't change parent dir)
+        c = p.pipenv("run cd /tmp")
+        assert c.returncode == 0
