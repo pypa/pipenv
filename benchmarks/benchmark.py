@@ -3,6 +3,7 @@
 Pipenv benchmark runner based on python-package-manager-shootout.
 """
 import csv
+import os
 import shutil
 import subprocess
 import sys
@@ -10,6 +11,15 @@ import time
 import urllib.request
 from pathlib import Path
 from typing import List, Tuple
+
+
+def subprocess_env():
+    """Get environment variables for subprocess calls with CI-friendly settings."""
+    env = os.environ.copy()
+    # Ensure pipenv doesn't wait for user input
+    env["PIPENV_YES"] = "1"
+    env["PIPENV_NOSPIN"] = "1"
+    return env
 
 
 class PipenvBenchmark:
@@ -21,17 +31,30 @@ class PipenvBenchmark:
         self.test_package = "goodconf"
 
     def run_timed_command(
-        self, command: List[str], timing_file: str, cwd: Path = None
+        self, command: List[str], timing_file: str, cwd: Path = None, timeout: int = 600
     ) -> Tuple[float, int]:
         """Run a command and measure execution time."""
         if cwd is None:
             cwd = self.benchmark_dir
 
+        # Set environment to prevent interactive prompts
+        env = {
+            **subprocess_env(),
+            "PIPENV_YES": "1",  # Auto-confirm prompts
+            "PIPENV_NOSPIN": "1",  # Disable spinner for cleaner output
+        }
+
         print(f"  Running: {' '.join(command)}", flush=True)
         start_time = time.time()
         try:
             result = subprocess.run(
-                command, cwd=cwd, capture_output=True, text=True, check=True
+                command,
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=timeout,
+                env=env,
             )
             elapsed = time.time() - start_time
 
@@ -52,6 +75,21 @@ class PipenvBenchmark:
                     print("    ...")
 
             return elapsed, result.returncode
+        except subprocess.TimeoutExpired as e:
+            elapsed = time.time() - start_time
+            print(f"  ✗ Command timed out after {elapsed:.3f}s: {' '.join(command)}")
+            print(f"  Timeout was set to {timeout}s")
+            if e.stdout:
+                stdout = e.stdout.decode() if isinstance(e.stdout, bytes) else e.stdout
+                print("  Stdout before timeout:")
+                for line in stdout.strip().split("\n")[-10:]:
+                    print(f"    {line}")
+            if e.stderr:
+                stderr = e.stderr.decode() if isinstance(e.stderr, bytes) else e.stderr
+                print("  Stderr before timeout:")
+                for line in stderr.strip().split("\n")[-5:]:
+                    print(f"    {line}")
+            raise
         except subprocess.CalledProcessError as e:
             elapsed = time.time() - start_time
             print(f"  ✗ Command failed after {elapsed:.3f}s: {' '.join(command)}")
@@ -111,6 +149,8 @@ class PipenvBenchmark:
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=30,
+                env=subprocess_env(),
             )
             if result.returncode == 0:
                 venv_path = Path(result.stdout.strip())
@@ -119,6 +159,8 @@ class PipenvBenchmark:
                     shutil.rmtree(venv_path, ignore_errors=True)
             else:
                 print("  No virtual environment found")
+        except subprocess.TimeoutExpired:
+            print("  Warning: pipenv --venv timed out")
         except Exception as e:
             print(f"  Warning: Could not clean venv: {e}")
             pass  # Ignore errors if venv doesn't exist
@@ -178,7 +220,12 @@ class PipenvBenchmark:
         """Get pipenv version."""
         try:
             result = subprocess.run(
-                ["pipenv", "--version"], capture_output=True, text=True, check=True
+                ["pipenv", "--version"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=30,
+                env=subprocess_env(),
             )
             # Extract version from "pipenv, version X.X.X"
             return result.stdout.split()[-1]
