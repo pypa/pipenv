@@ -698,9 +698,14 @@ def find_package_name_from_directory(directory):
         if directory_str.startswith("\\\\"):
             directory_path = Path(directory_str[1:])
 
+    # Metadata files that can be found in .egg-info or .dist-info directories
+    # Note: setup.py, setup.cfg, and pyproject.toml are only checked in the root
+    # directory (via RELEVANT_PROJECT_FILES). We only recurse into .egg-info and
+    # .dist-info directories for METADATA/PKG-INFO files.
+    metadata_files = ("METADATA", "PKG-INFO")
+
     try:
-        # Sort contents - files first, then directories to search parent
-        # directories before leaf directories.
+        # Sort contents - files first, then directories
         directory_contents = sorted(
             directory_path.iterdir(), key=lambda x: (x.is_dir(), x.name)
         )
@@ -713,9 +718,21 @@ def find_package_name_from_directory(directory):
                         if possible_name:
                             return possible_name
             elif path.is_dir():
-                possible_name = find_package_name_from_directory(str(path))
-                if possible_name:
-                    return possible_name
+                # Only recurse into .egg-info or .dist-info directories for metadata
+                # Do NOT recurse into other directories (e.g., tests/, src/) to avoid
+                # picking up setup() calls from test files or other non-project files
+                if path.name.endswith((".egg-info", ".dist-info")):
+                    for metadata_path in path.iterdir():
+                        if (
+                            metadata_path.is_file()
+                            and metadata_path.name in metadata_files
+                        ):
+                            with metadata_path.open("rb") as file:
+                                possible_name = find_package_name_from_filename(
+                                    metadata_path.name, file
+                                )
+                                if possible_name:
+                                    return possible_name
     except (FileNotFoundError, PermissionError):
         # Handle cases where the directory doesn't exist or isn't accessible
         pass

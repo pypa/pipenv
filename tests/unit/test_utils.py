@@ -598,3 +598,54 @@ twine = "*"
     @pytest.mark.skipif(os.name == "nt" and "GCC" not in sys.version, reason="POSIX test only")
     def test_virtualenv_scripts_dir_posix(self):
         assert str(virtualenv.virtualenv_scripts_dir('foobar')) == 'foobar/bin'
+
+    @pytest.mark.utils
+    def test_find_package_name_from_directory_ignores_subdirectory_setup(self, tmp_path):
+        """Test that find_package_name_from_directory ignores setup() calls in subdirectories.
+
+        This tests the fix for issue #6409 where a test file containing setup(name='foo')
+        in a subdirectory would incorrectly be used as the package name instead of the
+        actual setup.py in the root directory.
+        """
+        # Create a package directory structure
+        package_dir = tmp_path / "mypackage"
+        package_dir.mkdir()
+
+        # Create a proper setup.py in the root with a parseable name
+        setup_py = package_dir / "setup.py"
+        setup_py.write_text(
+            "from setuptools import setup\nsetup(name='mypackage', version='1.0')\n"
+        )
+
+        # Create a tests subdirectory with a file that has a setup() call
+        tests_dir = package_dir / "mypackage" / "tests"
+        tests_dir.mkdir(parents=True)
+        test_file = tests_dir / "test_setup.py"
+        test_file.write_text(
+            "import unittest\n"
+            "class TestNothing(unittest.TestCase):\n"
+            "    def test_nada(self):\n"
+            "        # This setup call should NOT be picked up as the package name\n"
+            "        setup(name='wrongname')\n"
+        )
+
+        # The function should return 'mypackage' from the root setup.py
+        # and NOT 'wrongname' from the test file
+        result = dependencies.find_package_name_from_directory(str(package_dir))
+        assert result == "mypackage"
+
+    @pytest.mark.utils
+    def test_find_package_name_from_directory_finds_egg_info_metadata(self, tmp_path):
+        """Test that find_package_name_from_directory can find package name from .egg-info."""
+        # Create a package directory structure
+        package_dir = tmp_path / "mypackage"
+        package_dir.mkdir()
+
+        # Create a .egg-info directory with PKG-INFO
+        egg_info_dir = package_dir / "mypackage.egg-info"
+        egg_info_dir.mkdir()
+        pkg_info = egg_info_dir / "PKG-INFO"
+        pkg_info.write_text("Metadata-Version: 1.0\nName: mypackage\nVersion: 1.0\n")
+
+        result = dependencies.find_package_name_from_directory(str(package_dir))
+        assert result == "mypackage"
