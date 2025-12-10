@@ -254,3 +254,136 @@ def requirements_from_lockfile(deps, include_hashes=True, include_markers=True):
 
     # pip_packages contains the pip-installable lines
     return pip_packages
+
+
+def requirement_from_pipfile(package_name, package_spec, include_markers=True):
+    """Convert a Pipfile package entry to a pip requirements line.
+
+    Uses the version specifiers from the Pipfile (like "*", ">=1.0") rather than
+    locked versions. This is useful for generating requirements for libraries
+    that need more flexible version constraints.
+
+    Args:
+        package_name: The package name
+        package_spec: The package specification from Pipfile (str or dict)
+        include_markers: Whether to include environment markers
+
+    Returns:
+        A pip-installable requirement line
+    """
+    from pipenv.utils.dependencies import is_editable_path, is_star
+
+    # Handle simple string specifications like "*", ">=1.0", "==1.0"
+    if isinstance(package_spec, str):
+        if is_star(package_spec):
+            return package_name
+        elif package_spec.startswith(("==", ">=", "<=", ">", "<", "~=", "!=")):
+            return f"{package_name}{package_spec}"
+        else:
+            # Assume it's a version without operator, default to ==
+            return f"{package_name}=={package_spec}"
+
+    # Handle dict specifications
+    if not isinstance(package_spec, dict):
+        return package_name
+
+    # Handle VCS dependencies
+    for vcs_type in ["git", "hg", "svn", "bzr"]:
+        if vcs_type in package_spec:
+            vcs_url = package_spec[vcs_type]
+            ref = package_spec.get("ref", "")
+            subdirectory = package_spec.get("subdirectory", "")
+            extras = (
+                "[{}]".format(",".join(package_spec.get("extras", [])))
+                if "extras" in package_spec
+                else ""
+            )
+
+            # Build the VCS URL
+            ref_str = f"@{ref}" if ref and f"@{ref}" not in vcs_url else ""
+            egg_fragment = f"#egg={package_name}" if "#egg=" not in vcs_url else ""
+
+            if (
+                is_editable_path(vcs_url)
+                or "file://" in vcs_url
+                or package_spec.get("editable", False)
+            ):
+                line = f"-e {vcs_type}+{vcs_url}{ref_str}{egg_fragment}{extras}"
+                if subdirectory:
+                    line += f"&subdirectory={subdirectory}"
+            else:
+                line = f"{package_name}{extras} @ {vcs_type}+{vcs_url}{ref_str}"
+                if subdirectory:
+                    line += f"#subdirectory={subdirectory}"
+            return line
+
+    # Handle file/path dependencies
+    for key in ["file", "path"]:
+        if key in package_spec:
+            path = package_spec[key]
+            parts = []
+            if package_spec.get("editable") and is_editable_path(path):
+                parts.append("-e")
+            parts.append(path)
+
+            if include_markers:
+                if "markers" in package_spec and package_spec["markers"]:
+                    parts.append(f"; {package_spec['markers']}")
+            return " ".join(parts)
+
+    # Handle standard version specifications
+    version = package_spec.get("version", "")
+    extras = (
+        "[{}]".format(",".join(package_spec.get("extras", [])))
+        if "extras" in package_spec
+        else ""
+    )
+
+    # Process version
+    if is_star(version):
+        version_str = ""
+    elif version.startswith(("==", ">=", "<=", ">", "<", "~=", "!=")):
+        version_str = version
+    elif version:
+        version_str = f"=={version}"
+    else:
+        version_str = ""
+
+    # Process markers
+    markers = ""
+    if include_markers:
+        # Handle sys_platform and other common markers
+        marker_parts = []
+        if "markers" in package_spec and package_spec["markers"]:
+            marker_parts.append(package_spec["markers"])
+        if "sys_platform" in package_spec and package_spec["sys_platform"]:
+            marker_parts.append(f"sys_platform {package_spec['sys_platform']}")
+
+        if marker_parts:
+            markers = "; " + " and ".join(marker_parts)
+
+    return f"{package_name}{extras}{version_str}{markers}"
+
+
+def requirements_from_pipfile(deps, include_markers=True):
+    """Convert Pipfile dependencies to pip requirements lines.
+
+    Uses the version specifiers from the Pipfile rather than locked versions.
+
+    Args:
+        deps: Dictionary of package names to specifications from Pipfile
+        include_markers: Whether to include environment markers
+
+    Returns:
+        List of pip-installable requirement lines
+    """
+    pip_packages = []
+
+    for package_name, package_spec in deps.items():
+        pip_package = requirement_from_pipfile(
+            package_name, package_spec, include_markers
+        )
+        if pip_package:
+            pip_packages.append(pip_package)
+
+    return pip_packages
