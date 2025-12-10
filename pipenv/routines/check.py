@@ -101,13 +101,18 @@ def get_requirements(project, use_installed, categories):
             _cmd + ["-m", "pip", "list", "--format=freeze"],
             is_verbose=project.s.is_verbose(),
         )
+    # Use sys.executable -m pipenv to ensure pipenv is found even if not on PATH
+    # See: https://github.com/pypa/pipenv/issues/6042
     elif categories:
         return run_command(
-            ["pipenv", "requirements", "--categories", categories],
+            [sys.executable, "-m", "pipenv", "requirements", "--categories", categories],
             is_verbose=project.s.is_verbose(),
         )
     else:
-        return run_command(["pipenv", "requirements"], is_verbose=project.s.is_verbose())
+        return run_command(
+            [sys.executable, "-m", "pipenv", "requirements"],
+            is_verbose=project.s.is_verbose(),
+        )
 
 
 def create_temp_requirements(project, requirements, quiet=False):
