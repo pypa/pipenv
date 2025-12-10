@@ -1,7 +1,7 @@
-from pipenv.utils.dependencies import clean_resolved_dep
-from pipenv.vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator
 from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
+from pipenv.utils.dependencies import clean_resolved_dep
+from pipenv.vendor.packaging.specifiers import SpecifierSet
 
 
 def test_clean_resolved_dep_with_vcs_url():
