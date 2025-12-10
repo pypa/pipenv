@@ -412,6 +412,66 @@ def shell(state, fancy=False, shell_args=None, anyway=False, quiet=False):
 
 
 @cli.command(
+    short_help="Outputs the activation command for the virtualenv.",
+    context_settings=CONTEXT_SETTINGS,
+)
+@pypi_mirror_option
+@python_option
+@pass_state
+def activate(state):
+    """Outputs the shell command to activate the virtualenv.
+
+    Unlike 'pipenv shell' which spawns a subshell, this command prints
+    the activation command that can be evaluated in your current shell.
+
+    \b
+    Usage examples:
+        $ eval $(pipenv activate)          # Bash/Zsh
+        $ eval (pipenv activate)           # Fish
+        $ Invoke-Expression (pipenv activate)  # PowerShell
+
+    \b
+    You can create a shell alias for convenience:
+        alias penv='eval $(pipenv activate)'
+
+    This approach is similar to Poetry's 'poetry env activate' command.
+    """
+    from pipenv.shells import ShellDetectionFailure, _get_activate_script, detect_info
+    from pipenv.utils.project import ensure_project
+
+    # Ensure virtualenv exists
+    ensure_project(
+        state.project,
+        python=state.python,
+        validate=False,
+        pypi_mirror=state.pypi_mirror,
+    )
+
+    if not state.project.virtualenv_exists:
+        err.print(
+            "No virtualenv has been created for this project yet!\n"
+            "Run [green bold]pipenv install[/green bold] to create one.",
+            style="red bold",
+        )
+        sys.exit(1)
+
+    try:
+        shell_type, shell_cmd = detect_info(state.project)
+    except ShellDetectionFailure:
+        err.print(
+            "Unable to detect shell. Set PIPENV_SHELL environment variable.",
+            style="red bold",
+        )
+        sys.exit(1)
+
+    venv_path = state.project.virtualenv_location
+    activate_cmd = _get_activate_script(shell_cmd, venv_path)
+
+    # Output to stdout (strip leading space used for history hiding in shell command)
+    print(activate_cmd.strip())
+
+
+@cli.command(
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=subcommand_context_no_interspersion,
 )
