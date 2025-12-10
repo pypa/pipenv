@@ -43,6 +43,7 @@ gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editabl
         assert c.returncode == 0, f"Failed to import gunicorn: {c.stderr}"
 
         # Remove the src directory to simulate the issue
+        # Note: shutil.rmtree is patched by the fixture to handle Windows read-only files
         shutil.rmtree(src_dir)
         assert not src_dir.exists(), "Failed to remove src directory"
 

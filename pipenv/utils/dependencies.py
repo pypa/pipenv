@@ -681,14 +681,22 @@ def find_package_name_from_zipfile(zip_filepath):
 
 def find_package_name_from_directory(directory):
     parsed_url = urlparse(directory)
-    directory_path = Path(parsed_url.path) if parsed_url.scheme else Path(directory)
+    # On Windows, urlparse interprets 'C:\path' as scheme='c', path='\path'
+    # We need to detect this case and use the original directory string
+    if parsed_url.scheme and len(parsed_url.scheme) == 1 and os.name == "nt":
+        # Single-letter scheme on Windows is likely a drive letter (C:, D:, etc.)
+        directory_path = Path(directory)
+    elif parsed_url.scheme:
+        directory_path = Path(parsed_url.path)
+    else:
+        directory_path = Path(directory)
 
     # Handle egg fragment for direct dependencies
     if "#egg=" in str(directory_path):
         expected_name = str(directory_path).split("#egg=")[1]
         return expected_name
 
-    # Windows path normalization
+    # Windows path normalization for file:// URLs
     directory_str = str(directory_path)
     if os.name == "nt":
         if directory_str.startswith("\\") and (

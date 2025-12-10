@@ -1449,7 +1449,12 @@ class Project:
         """
         Adds a given index to the Pipfile if it doesn't already exist.
         Returns the source name regardless of whether it was newly added or already existed.
+
+        Raises PipenvUsageError if the index is not a valid URL and doesn't exist
+        as a named source in the Pipfile.
         """
+        from pipenv.exceptions import PipenvUsageError
+
         # Read and append Pipfile.
         p = self.parsed_pipfile
         source = None
@@ -1471,7 +1476,18 @@ class Project:
                 if existing_source.get("url") == index:
                     return existing_source.get("name")
 
-        # If we reach here, the source doesn't exist, so create and add it
+        # If we reach here, the source doesn't exist - validate it's a valid URL
+        if not is_valid_url(index):
+            available_sources = ", ".join(
+                f"'{s.get('name')}'" for s in self.sources if s.get("name")
+            )
+            raise PipenvUsageError(
+                f"Index '{index}' was not found in Pipfile sources and is not a valid URL.\n"
+                f"Available sources: {available_sources or 'none'}\n"
+                f"Hint: Use a valid URL or add the index to your Pipfile [[source]] section."
+            )
+
+        # Create and add the new source
         source = {
             "url": index,
             "verify_ssl": verify_ssl,
