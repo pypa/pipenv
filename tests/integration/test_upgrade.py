@@ -82,7 +82,7 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
             pipfile.write(updated_pipfile_content)
 
         # Step 3: Update protobuf to an incompatible version
-        cli_runner = CliRunner(mix_stderr=False)
+        cli_runner = CliRunner()
         c = cli_runner.invoke(cli, "update protobuf==5.27.5")
         assert c.exit_code == 0, f"Failed to update protobuf: {c.stderr}"
 

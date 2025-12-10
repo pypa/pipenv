@@ -18,7 +18,7 @@ def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
         os.environ["GIT_HOST"] = "github.com"
-        cli_runner = CliRunner(mix_stderr=False)
+        cli_runner = CliRunner()
         c = cli_runner.invoke(
             cli, "install -v git+https://${GIT_HOST}/benjaminp/six.git@1.11.0 gitdb2"
         )
