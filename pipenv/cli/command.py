@@ -532,10 +532,10 @@ def check(
 ):
     """DEPRECATED: Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile.
 
-    This command has been deprecated and will be replaced beyond 01 June 2025.
+    This command is deprecated. Please use 'pipenv audit' instead, which uses pip-audit
+    for vulnerability scanning and requires no API key.
 
-    Use the --scan option to run the new scan command instead of the deprecated check command.
-    In future versions, the check command will run the scan command by default.
+    Alternatively, use --scan to use Safety's scan command (requires API key).
     """
 
     from pipenv.routines.check import do_check
@@ -560,6 +560,160 @@ def check(
         categories=categories,
         auto_install=auto_install,
         scan=scan,
+    )
+
+
+@cli.command(
+    short_help="Audits packages for security vulnerabilities using pip-audit.",
+    context_settings=subcommand_context,
+)
+@option(
+    "--output",
+    "-f",
+    type=Choice(["columns", "json", "cyclonedx-json", "cyclonedx-xml", "markdown"]),
+    default="columns",
+    help="Output format for audit results.",
+)
+@option(
+    "--vulnerability-service",
+    "-s",
+    type=Choice(["pypi", "osv"]),
+    default="pypi",
+    help="Vulnerability service to query (pypi or osv).",
+)
+@option(
+    "--ignore",
+    "-i",
+    multiple=True,
+    help="Ignore a specific vulnerability by ID (can be used multiple times).",
+)
+@option(
+    "--fix",
+    is_flag=True,
+    default=False,
+    help="Automatically upgrade packages with known vulnerabilities.",
+)
+@option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Collect dependencies but do not audit (or with --fix: audit but do not fix).",
+)
+@option(
+    "--strict",
+    is_flag=True,
+    default=False,
+    help="Fail if dependency collection fails on any dependency.",
+)
+@option(
+    "--skip-editable",
+    is_flag=True,
+    default=False,
+    help="Skip auditing editable packages.",
+)
+@option(
+    "--no-deps",
+    is_flag=True,
+    default=False,
+    help="Don't perform dependency resolution (requires pinned requirements).",
+)
+@option(
+    "--local",
+    is_flag=True,
+    default=False,
+    help="Only audit packages in the local environment.",
+)
+@option(
+    "--desc",
+    is_flag=True,
+    default=False,
+    help="Include descriptions for each vulnerability.",
+)
+@option(
+    "--aliases",
+    is_flag=True,
+    default=False,
+    help="Include alias IDs (CVE, GHSA) for each vulnerability.",
+)
+@option(
+    "--output-file",
+    "-o",
+    default=None,
+    help="Output results to the given file.",
+)
+@option(
+    "--quiet",
+    is_flag=True,
+    default=False,
+    help="Quiet mode - minimal output.",
+)
+@option(
+    "--locked",
+    is_flag=True,
+    default=False,
+    help="Audit lockfiles (pyproject.toml/pylock.toml) instead of the environment.",
+)
+@common_options
+@system_option
+@pass_state
+def audit(
+    state,
+    output="columns",
+    vulnerability_service="pypi",
+    ignore=None,
+    fix=False,
+    dry_run=False,
+    strict=False,
+    skip_editable=False,
+    no_deps=False,
+    local=False,
+    desc=False,
+    aliases=False,
+    output_file=None,
+    quiet=False,
+    locked=False,
+    **kwargs,
+):
+    """Audit packages for known security vulnerabilities using pip-audit.
+
+    This command scans your environment for packages with known vulnerabilities
+    using the Python Packaging Advisory Database (PyPI) or Open Source
+    Vulnerabilities (OSV) database.
+
+    Examples:
+
+        pipenv audit
+
+        pipenv audit --fix
+
+        pipenv audit -f json
+
+        pipenv audit --ignore PYSEC-2021-123
+
+        pipenv audit --locked  # Audit pyproject.toml/pylock.toml
+    """
+    from pipenv.routines.audit import do_audit
+
+    do_audit(
+        state.project,
+        python=state.python,
+        system=state.system,
+        output=output,
+        quiet=quiet,
+        verbose=state.verbose,
+        strict=strict,
+        ignore=ignore,
+        fix=fix,
+        dry_run=dry_run,
+        skip_editable=skip_editable,
+        no_deps=no_deps,
+        local_only=local,
+        vulnerability_service=vulnerability_service,
+        descriptions=desc,
+        aliases=aliases,
+        output_file=output_file,
+        pypi_mirror=state.pypi_mirror,
+        use_lockfile=locked,
     )
 
 
