@@ -313,3 +313,27 @@ def test_normalize_vcs_url_with_env_vars():
     # Environment variables should be preserved
     assert '${GIT_ORG}' in normalized_url
     assert ref == "main"
+
+
+@pytest.mark.parametrize("url_input,expected_url,expected_ref", [
+    # SSH URL without branch ref - the @ in git@github.com should NOT be treated as a ref separator
+    ("git+ssh://git@github.com/user/repo.git", "git+ssh://git@github.com/user/repo.git", ""),
+    # SSH URL with branch ref - should correctly extract the ref
+    ("git+ssh://git@github.com/user/repo.git@main", "git+ssh://git@github.com/user/repo.git", "main"),
+    # SSH URL with branch ref containing special chars
+    ("git+ssh://git@github.com/user/repo.git@feature/test", "git+ssh://git@github.com/user/repo.git", "feature/test"),
+    # HTTPS URL without ref
+    ("https://github.com/user/repo.git", "https://github.com/user/repo.git", ""),
+    # HTTPS URL with ref
+    ("https://github.com/user/repo.git@v1.0.0", "https://github.com/user/repo.git", "v1.0.0"),
+])
+def test_normalize_vcs_url_ssh_handling(url_input, expected_url, expected_ref):
+    """Test that SSH URLs with @ in netloc are handled correctly.
+
+    This is a regression test for issue #6076 where git+ssh://git@github.com URLs
+    were being incorrectly parsed, with the @ in git@github.com being treated as
+    a branch/ref separator, resulting in corrupted URLs like git+ssh://git.
+    """
+    normalized_url, ref = normalize_vcs_url(url_input)
+    assert normalized_url == expected_url
+    assert ref == expected_ref

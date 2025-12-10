@@ -1277,10 +1277,16 @@ class Project:
                         vcs_part = pip_line.split("@ ", 1)[1]
                     else:
                         vcs_part = pip_line
-                    vcs_parts = vcs_part.rsplit("@", 1)
-                    if len(vcs_parts) > 1:
+                    # Only split on @ if it's in the path part of the URL
+                    # (i.e., it's a branch/ref), not if it's in the netloc
+                    # (e.g., git@github.com in SSH URLs)
+                    parsed_vcs = urllib.parse.urlparse(vcs_part)
+                    if "@" in parsed_vcs.path:
+                        vcs_parts = vcs_part.rsplit("@", 1)
                         entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
-                    vcs_url = vcs_parts[0].strip()
+                        vcs_url = vcs_parts[0].strip()
+                    else:
+                        vcs_url = vcs_part.strip()
                     vcs_url = extract_vcs_url(vcs_url)
                     entry[vcs] = vcs_url
 
