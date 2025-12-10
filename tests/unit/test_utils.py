@@ -683,8 +683,6 @@ class TestPipConfigurationParsing:
         This is a regression test for issue #6478 where index-url in pip.conf
         was not being honored after the pip 25.3 update.
         """
-        from pipenv.patched.pip._internal.configuration import Configuration
-
         # Create a mock configuration that returns index-url
         mock_index_url = "https://my-private-pypi.example.com/simple"
 
