@@ -30,19 +30,57 @@ If pip is not installed, you can install it following the [pip installation guid
 
 ## Installation Methods
 
-### Recommended: User Installation
+### Recommended: Isolated Virtual Environment Installation
 
-The recommended approach is to install Pipenv for your user account. This avoids permission issues and prevents conflicts with system packages:
+Modern Python installations (Python 3.11+ on recent Linux distributions like Ubuntu 24.04, Fedora 38+) enforce [PEP 668](https://peps.python.org/pep-0668/), which prevents installing packages with `pip install --user`. The recommended approach is to install Pipenv in its own isolated virtual environment.
+
+#### Option 1: Dedicated Pipenv Virtual Environment (Recommended)
+
+Create a dedicated virtual environment for pipenv that auto-activates in your shell:
+
+```bash
+# Create a dedicated venv for pipenv
+$ python3 -m venv ~/.pipenv-venv
+
+# Install pipenv in this venv
+$ ~/.pipenv-venv/bin/pip install pipenv
+
+# Add to your shell configuration (~/.bashrc, ~/.zshrc, or ~/.profile)
+$ echo 'export PIPENV_IGNORE_VIRTUALENVS=1' >> ~/.bashrc
+$ echo 'export PATH="$HOME/.pipenv-venv/bin:$PATH"' >> ~/.bashrc
+
+# Reload your shell
+$ source ~/.bashrc
+```
+
+The `PIPENV_IGNORE_VIRTUALENVS=1` setting ensures pipenv still creates and manages separate virtual environments for your projects.
+
+#### Option 2: Per-Project Bootstrap
+
+For CI/CD or when you want pipenv isolated per-project:
+
+```bash
+$ python3 -m venv .venv
+$ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+$ pip install pipenv
+$ pipenv install
+```
+
+### Legacy: User Installation
+
+On older systems that don't enforce PEP 668, you can still use user installation:
 
 ```bash
 $ pip install --user pipenv
 ```
 
-This installs Pipenv in your user site-packages directory.
+```{warning}
+This method no longer works on modern Linux distributions (Ubuntu 24.04+, Fedora 38+) due to PEP 668. Use the isolated virtual environment approach above instead.
+```
 
 ### Adding Pipenv to PATH
 
-After installing with `--user`, you may need to add the user site-packages binary directory to your PATH.
+If you used the legacy `--user` installation, you may need to add the user site-packages binary directory to your PATH.
 
 #### On Linux and macOS
 
@@ -327,11 +365,11 @@ If pip is not found:
 
 ## Best Practices
 
-1. **Use user installation** (`--user`) to avoid permission issues and system conflicts.
+1. **Use isolated virtual environment installation** on modern systems to avoid PEP 668 restrictions.
 
 2. **Keep Pipenv updated** to benefit from the latest features and bug fixes.
 
-3. **Consider pipx** for a cleaner, isolated installation if you use multiple Python command-line tools.
+3. **Set `PIPENV_IGNORE_VIRTUALENVS=1`** if you install pipenv in a dedicated venv, so it still manages project-specific environments.
 
 4. **Add Pipenv to your project's development setup instructions** to ensure all developers use the same environment.
 
@@ -343,7 +381,9 @@ Now that you have Pipenv installed, you can:
 
 1. Create a new project: `pipenv --python 3.10`
 2. Install packages: `pipenv install requests`
-3. Activate the environment: `pipenv shell`
+3. Activate the environment:
+   - Spawn a subshell: `pipenv shell`
+   - Or activate in current shell: `eval $(pipenv activate)`
 4. Run commands: `pipenv run python script.py`
 
 For more detailed usage instructions, see the [Quick Start Guide](quick_start.md) and [Commands Reference](commands.md).
