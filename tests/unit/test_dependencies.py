@@ -1,5 +1,3 @@
-import pytest
-
 from pipenv.utils.dependencies import clean_resolved_dep
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
