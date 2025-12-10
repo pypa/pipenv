@@ -1,0 +1,2 @@
+Fix SSH ``git`` username being incorrectly redacted to ``****`` when importing
+from requirements.txt, which caused lockfile generation to fail.

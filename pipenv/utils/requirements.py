@@ -23,13 +23,17 @@ def redact_netloc(netloc: str) -> str:
         - "user:pass@example.com" returns "user:****@example.com"
         - "accesstoken@example.com" returns "****@example.com"
         - "${ENV_VAR}:pass@example.com" returns "${ENV_VAR}:****@example.com" if ${ENV_VAR} is an environment variable
+        - "git@github.com" returns "git@github.com" (standard SSH username preserved)
     """
+    # Standard SSH usernames that should not be redacted
+    STANDARD_SSH_USERNAMES = ("git",)
+
     netloc, (user, password) = split_auth_from_netloc(netloc)
     if user is None:
         return netloc
     if password is None:
-        # Check if user is an environment variable
-        if not re.match(r"\$\{\w+\}", user):
+        # Check if user is an environment variable or a standard SSH username
+        if not re.match(r"\$\{\w+\}", user) and user not in STANDARD_SSH_USERNAMES:
             # If not, redact the user
             user = "****"
         password = ""
