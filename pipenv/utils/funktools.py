@@ -361,7 +361,7 @@ def set_write_bit(fn: str) -> None:
                 encoding=locale.getpreferredencoding(),
                 check=False,
             )
-            if not c.err and c.returncode == 0:
+            if not c.stderr and c.returncode == 0:
                 return
 
     if not path.is_dir():
