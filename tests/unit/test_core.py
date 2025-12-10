@@ -82,6 +82,60 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
 
 
 @pytest.mark.core
+def test_load_dot_env_quiet_with_verbosity(monkeypatch, capsys, project):
+    """Test that PIPENV_VERBOSITY=-1 suppresses the .env loading message."""
+    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+        prefix="pipenv-", suffix=""
+    ) as tempdir:
+        if os.name == "nt":
+            from pipenv.vendor import click
+
+            is_console = False
+            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
+        dotenv_path = os.path.join(tempdir, "test.env")
+        key, val = "SOME_KEY", "some_value"
+        with open(dotenv_path, "w") as f:
+            f.write(f"{key}={val}")
+
+        project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
+        # Set verbosity to -1 (quiet mode via environment variable)
+        project.s.PIPENV_VERBOSITY = -1
+        load_dot_env(project)
+        output, err = capsys.readouterr()
+        # The .env file should still be loaded
+        assert os.environ[key] == val
+        # But the "Loading .env" message should be suppressed
+        assert "Loading .env" not in err
+
+
+@pytest.mark.core
+def test_load_dot_env_shows_message_without_quiet(monkeypatch, capsys, project):
+    """Test that the .env loading message is shown when not in quiet mode."""
+    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+        prefix="pipenv-", suffix=""
+    ) as tempdir:
+        if os.name == "nt":
+            from pipenv.vendor import click
+
+            is_console = False
+            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
+        dotenv_path = os.path.join(tempdir, "test.env")
+        key, val = "ANOTHER_KEY", "another_value"
+        with open(dotenv_path, "w") as f:
+            f.write(f"{key}={val}")
+
+        project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
+        # Ensure verbosity is at default (0)
+        project.s.PIPENV_VERBOSITY = 0
+        load_dot_env(project)
+        output, err = capsys.readouterr()
+        # The .env file should be loaded
+        assert os.environ[key] == val
+        # And the "Loading .env" message should be shown
+        assert "Loading .env" in err
+
+
+@pytest.mark.core
 def test_deactivate_wrapper_script_includes_unset_pipenv_active():
     """Test that deactivate wrapper scripts include 'unset PIPENV_ACTIVE' or equivalent."""
     # Test bash/zsh - should use 'unset PIPENV_ACTIVE'
