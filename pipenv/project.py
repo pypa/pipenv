@@ -16,6 +16,7 @@ from urllib.parse import unquote, urljoin
 
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import extract_vcs_url, normalize_editable_path_for_pip
+from pipenv.utils.exceptions import LockfileCorruptException
 from pipenv.vendor.tomlkit.items import SingleKey, Table
 
 try:
@@ -769,6 +770,8 @@ class Project:
             try:
                 lockfile = self.load_lockfile(expand_env_vars=False)
                 lockfile_loaded = True
+            except LockfileCorruptException:
+                raise
             except Exception:
                 pass
         if not lockfile_loaded:
@@ -1502,11 +1505,8 @@ class Project:
                 try:
                     j = json.load(lock)
                     self._lockfile_newlines = preferred_newlines(lock)
-                except JSONDecodeError:
-                    err.print(
-                        "[bold yellow]Pipfile.lock is corrupted; ignoring contents.[/bold yellow]"
-                    )
-                    j = {}
+                except JSONDecodeError as e:
+                    raise LockfileCorruptException(str(lockfile_path)) from e
         except FileNotFoundError:
             j = {}
 
@@ -1546,7 +1546,7 @@ class Project:
 
         try:
             lockfile = self.load_lockfile(expand_env_vars=False)
-        except ValueError:
+        except LockfileCorruptException:
             # Lockfile corrupted
             return ""
         if "_meta" in lockfile and hasattr(lockfile, "keys"):

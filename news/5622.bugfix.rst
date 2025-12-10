@@ -1,0 +1,2 @@
+Fix malformed ``Pipfile.lock`` causing command to exit successfully with code 0.
+Now raises ``LockfileCorruptException`` which properly propagates as an error.
