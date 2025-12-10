@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Dec 10, 2025" "2026.0.1" "pipenv"
+.TH "PIPENV" "1" "Dec 10, 2025" "2026.0.2" "pipenv"
 .sp
 This guide provides comprehensive instructions for installing Pipenv on various platforms and environments. Follow the approach that best suits your system and requirements.
 .SH PREREQUISITES
@@ -64,9 +64,52 @@ pip 22.1.2
 .sp
 If pip is not installed, you can install it following the \X'tty: link https://pip.pypa.io/en/stable/installation/'\fI\%pip installation guide\fP\X'tty: link'\&.
 .SH INSTALLATION METHODS
-.SS Recommended: User Installation
+.SS Recommended: Isolated Virtual Environment Installation
 .sp
-The recommended approach is to install Pipenv for your user account. This avoids permission issues and prevents conflicts with system packages:
+Modern Python installations (Python 3.11+ on recent Linux distributions like Ubuntu 24.04, Fedora 38+) enforce \X'tty: link https://peps.python.org/pep-0668/'\fI\%PEP 668\fP\X'tty: link', which prevents installing packages with \fBpip install \-\-user\fP\&. The recommended approach is to install Pipenv in its own isolated virtual environment.
+.SS Option 1: Dedicated Pipenv Virtual Environment (Recommended)
+.sp
+Create a dedicated virtual environment for pipenv that auto\-activates in your shell:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+# Create a dedicated venv for pipenv
+$ python3 \-m venv ~/.pipenv\-venv
+
+# Install pipenv in this venv
+$ ~/.pipenv\-venv/bin/pip install pipenv
+
+# Add to your shell configuration (~/.bashrc, ~/.zshrc, or ~/.profile)
+$ echo \(aqexport PIPENV_IGNORE_VIRTUALENVS=1\(aq >> ~/.bashrc
+$ echo \(aqexport PATH=\(dq$HOME/.pipenv\-venv/bin:$PATH\(dq\(aq >> ~/.bashrc
+
+# Reload your shell
+$ source ~/.bashrc
+
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+The \fBPIPENV_IGNORE_VIRTUALENVS=1\fP setting ensures pipenv still creates and manages separate virtual environments for your projects.
+.SS Option 2: Per\-Project Bootstrap
+.sp
+For CI/CD or when you want pipenv isolated per\-project:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+$ python3 \-m venv .venv
+$ source .venv/bin/activate  # On Windows: .venv\eScripts\eactivate
+$ pip install pipenv
+$ pipenv install
+
+.EE
+.UNINDENT
+.UNINDENT
+.SS Legacy: User Installation
+.sp
+On older systems that don’t enforce PEP 668, you can still use user installation:
 .INDENT 0.0
 .INDENT 3.5
 .sp
@@ -77,10 +120,15 @@ $ pip install \-\-user pipenv
 .UNINDENT
 .UNINDENT
 .sp
-This installs Pipenv in your user site\-packages directory.
+\fBWARNING:\fP
+.INDENT 0.0
+.INDENT 3.5
+This method no longer works on modern Linux distributions (Ubuntu 24.04+, Fedora 38+) due to PEP 668. Use the isolated virtual environment approach above instead.
+.UNINDENT
+.UNINDENT
 .SS Adding Pipenv to PATH
 .sp
-After installing with \fB\-\-user\fP, you may need to add the user site\-packages binary directory to your PATH.
+If you used the legacy \fB\-\-user\fP installation, you may need to add the user site\-packages binary directory to your PATH.
 .SS On Linux and macOS
 .sp
 Find the user base binary directory:
@@ -480,11 +528,11 @@ Ensure pip is in your PATH.
 .SH BEST PRACTICES
 .INDENT 0.0
 .IP 1. 3
-\fBUse user installation\fP (\fB\-\-user\fP) to avoid permission issues and system conflicts.
+\fBUse isolated virtual environment installation\fP on modern systems to avoid PEP 668 restrictions.
 .IP 2. 3
 \fBKeep Pipenv updated\fP to benefit from the latest features and bug fixes.
 .IP 3. 3
-\fBConsider pipx\fP for a cleaner, isolated installation if you use multiple Python command\-line tools.
+\fBSet \fP\fBPIPENV_IGNORE_VIRTUALENVS=1\fP if you install pipenv in a dedicated venv, so it still manages project\-specific environments.
 .IP 4. 3
 \fBAdd Pipenv to your project’s development setup instructions\fP to ensure all developers use the same environment.
 .IP 5. 3
@@ -499,7 +547,13 @@ Create a new project: \fBpipenv \-\-python 3.10\fP
 .IP 2. 3
 Install packages: \fBpipenv install requests\fP
 .IP 3. 3
-Activate the environment: \fBpipenv shell\fP
+Activate the environment:
+.INDENT 3.0
+.IP \(bu 2
+Spawn a subshell: \fBpipenv shell\fP
+.IP \(bu 2
+Or activate in current shell: \fBeval $(pipenv activate)\fP
+.UNINDENT
 .IP 4. 3
 Run commands: \fBpipenv run python script.py\fP
 .UNINDENT
