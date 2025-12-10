@@ -49,7 +49,9 @@ multicommand = "bash -c \"cd docs && make html\""
         assert c.returncode != 0
         assert c.stdout == ""
         if os.name != "nt":
-            assert "could not be found" in c.stderr
+            # After the shell builtins fix (#6186), commands not found in PATH
+            # are passed to the shell, which produces its own error message
+            assert "not found" in c.stderr
 
         project = Project()
 
