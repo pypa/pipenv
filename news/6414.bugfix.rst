@@ -1,0 +1,5 @@
+Fix ``pipenv check --quiet`` not working properly. The ``--quiet`` flag now
+correctly suppresses informational output and forces JSON output format for
+safety so that results can be parsed correctly.
+
+Fixes #6414
