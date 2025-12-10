@@ -325,13 +325,23 @@ class TestUtils:
         assert internet.is_valid_url(not_url) is False
 
     @pytest.mark.utils
-    @pytest.mark.needs_internet
-    def test_download_file(self):
-        url = "https://github.com/pypa/pipenv/blob/master/README.md"
-        output = "test_download.md"
-        internet.download_file(url, output)
-        assert os.path.exists(output)
-        os.remove(output)
+    def test_download_file(self, tmp_path):
+        url = "https://example.com/test.md"
+        output = tmp_path / "test_download.md"
+
+        # Mock the requests session to avoid external network calls
+        mock_response = mock.MagicMock()
+        mock_response.ok = True
+        mock_response.content = b"# Test Content\n"
+
+        mock_session = mock.MagicMock()
+        mock_session.get.return_value = mock_response
+
+        with mock.patch.object(internet, "get_requests_session", return_value=mock_session):
+            internet.download_file(url, str(output))
+
+        assert output.exists()
+        assert output.read_bytes() == b"# Test Content\n"
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
