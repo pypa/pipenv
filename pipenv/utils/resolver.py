@@ -422,7 +422,7 @@ class Resolver:
         for c in possible_constraints_list:
             constraints_list.add(c)
 
-        # Only use default_constraints when installing dev-packages and setting allows
+        # Always use default_constraints when installing dev-packages
         if self.category != "default" and self.project.settings.get(
             "use_default_constraints", True
         ):
@@ -949,6 +949,7 @@ def venv_resolve_deps(
             deps = convert_deps_to_pip(
                 deps, project.pipfile_sources(), include_index=True
             )
+
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
@@ -997,8 +998,10 @@ def venv_resolve_deps(
                 with tempfile.NamedTemporaryFile(
                     mode="w+", prefix="pipenv", suffix="constraints.txt", delete=False
                 ) as constraints_file:
+                    # Write the current category dependencies
                     for dep_name, pip_line in deps.items():
                         constraints_file.write(f"{dep_name}, {pip_line}\n")
+
                 cmd.append("--constraints-file")
                 cmd.append(constraints_file.name)
                 st.console.print("Resolving dependencies...")

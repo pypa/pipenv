@@ -18,6 +18,8 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi)
             {packages[0]}= "=={packages[1]}"
             [dev-packages]
             {dev_packages[0]}= "=={dev_packages[1]}"
+            [pipenv]
+            use_default_constraints = false
             """.strip()
             f.write(contents)
         p.pipenv("lock")
@@ -101,6 +103,8 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(
             {test_packages[0]}= "=={test_packages[1]}"
             [doc]
             {doc_packages[0]}= "=={doc_packages[1]}"
+            [pipenv]
+            use_default_constraints = false
             """.strip()
             f.write(contents)
         result = p.pipenv("lock")
@@ -122,7 +126,7 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_with_from_pipfile(pipenv_instance_pypi):
+def test_requirements_generates_requirements_from_pipfile(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         packages = ("requests", "2.31.0")
         sub_packages = (
@@ -137,6 +141,8 @@ def test_requirements_generates_requirements_with_from_pipfile(pipenv_instance_p
             {packages[0]} = "=={packages[1]}"
             [dev-packages]
             {dev_packages[0]} = "=={dev_packages[1]}"
+            [pipenv]
+            use_default_constraints = false
             """.strip()
             f.write(contents)
         p.pipenv("lock")
