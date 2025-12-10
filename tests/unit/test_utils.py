@@ -159,6 +159,42 @@ def test_convert_deps_to_pip_one_way_uvicorn():
 
 
 @pytest.mark.utils
+def test_convert_deps_to_pip_vcs_with_markers():
+    """Test that VCS dependencies with markers work correctly.
+
+    PEP 508 format (remote VCS) should include markers inline.
+    Legacy format (local file:// editable) cannot have inline markers.
+    """
+    # Remote VCS with markers - PEP 508 format supports inline markers
+    deps = {
+        "requests": {
+            "git": "https://github.com/psf/requests.git",
+            "ref": "v2.28.0",
+            "markers": "python_version >= '3.6'",
+        }
+    }
+    result = dependencies.convert_deps_to_pip(deps)
+    assert "requests" in result
+    assert "python_version >= '3.6'" in result["requests"]
+    assert "git+https://github.com/psf/requests.git@v2.28.0" in result["requests"]
+
+    # Local file:// editable VCS - legacy format cannot have inline markers
+    # Markers will be preserved separately in the lockfile via pipfile_entries
+    deps_local = {
+        "six": {
+            "git": "file:///tmp/git/six",
+            "editable": True,
+            "markers": "python_version >= '2.7'",
+        }
+    }
+    result_local = dependencies.convert_deps_to_pip(deps_local)
+    assert "six" in result_local
+    # Legacy -e format should NOT have inline markers (they're handled separately)
+    assert "python_version" not in result_local["six"]
+    assert "-e git+file:///tmp/git/six#egg=six" == result_local["six"]
+
+
+@pytest.mark.utils
 @pytest.mark.parametrize(
     "deps, expected",
     [

@@ -486,16 +486,17 @@ def dependency_as_pip_install_line(
                 git_req = f"-e {include_vcs}{dep[vcs]}{ref}"
             if "subdirectory" in dep:
                 git_req += f"&subdirectory={dep['subdirectory']}"
+            # Note: Legacy -e format doesn't support inline markers
+            # Markers are handled separately in the resolution process
         else:
             if "#egg=" in vcs_url:
                 vcs_url = vcs_url.split("#egg=")[0]
             git_req = f"{dep_name}{extras} @ {include_vcs}{vcs_url}{ref}"
             if "subdirectory" in dep:
                 git_req += f"#subdirectory={dep['subdirectory']}"
-
-        # Add markers for VCS dependencies
-        if include_markers and dep.get("markers"):
-            git_req = f'{git_req}; {dep["markers"]}'
+            # Add markers for VCS dependencies (PEP 508 format supports this)
+            if include_markers and dep.get("markers"):
+                git_req = f'{git_req}; {dep["markers"]}'
 
         line.append(git_req)
 
