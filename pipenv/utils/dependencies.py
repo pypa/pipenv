@@ -436,9 +436,13 @@ def dependency_as_pip_install_line(
                     extras = f"[{','.join(dep['extras'])}]"
                 location = dep["file"] if "file" in dep else dep["path"]
                 if location.startswith(("http:", "https:")):
-                    line.append(f"{dep_name}{extras} @ {location}")
+                    req_str = f"{dep_name}{extras} @ {location}"
                 else:
-                    line.append(f"{location}{extras}")
+                    req_str = f"{location}{extras}"
+                # Add markers for file/path dependencies
+                if include_markers and dep.get("markers"):
+                    req_str = f'{req_str}; {dep["markers"]}'
+                line.append(req_str)
                 break
         else:
             # Normal/Named Requirements
@@ -482,12 +486,17 @@ def dependency_as_pip_install_line(
                 git_req = f"-e {include_vcs}{dep[vcs]}{ref}"
             if "subdirectory" in dep:
                 git_req += f"&subdirectory={dep['subdirectory']}"
+            # Note: Legacy -e format doesn't support inline markers
+            # Markers are handled separately in the resolution process
         else:
             if "#egg=" in vcs_url:
                 vcs_url = vcs_url.split("#egg=")[0]
             git_req = f"{dep_name}{extras} @ {include_vcs}{vcs_url}{ref}"
             if "subdirectory" in dep:
                 git_req += f"#subdirectory={dep['subdirectory']}"
+            # Add markers for VCS dependencies (PEP 508 format supports this)
+            if include_markers and dep.get("markers"):
+                git_req = f'{git_req}; {dep["markers"]}'
 
         line.append(git_req)
 
@@ -1008,7 +1017,10 @@ def expansive_install_req_from_line(
     :return: A tuple of the InstallRequirement and the name of the package (if determined).
     """
     name = None
-    pip_line = pip_line.strip("'").lstrip(" ")
+    # Only strip outer quotes if the entire line is quoted, not internal quotes
+    pip_line = pip_line.lstrip(" ")
+    if pip_line.startswith("'") and pip_line.endswith("'") and pip_line.count("'") == 2:
+        pip_line = pip_line[1:-1]
 
     # Handle paths with escaped spaces
     if os.path.exists(os.path.expanduser(pip_line.replace("\\ ", " "))):
@@ -1027,13 +1039,22 @@ def expansive_install_req_from_line(
         pip_line = expand_env_variables(pip_line)
 
     vcs_part = pip_line
+    vcs_markers = None
     for vcs in VCS_LIST:
         if vcs_part.startswith(f"{vcs}+"):
+            # Extract markers from VCS line if present (e.g., "git+https://...@ref; sys_platform == 'win32'")
+            if "; " in vcs_part:
+                vcs_url, markers_str = vcs_part.split("; ", 1)
+                from pipenv.patched.pip._vendor.packaging.markers import Marker
+
+                vcs_markers = Marker(markers_str.strip())
+                vcs_part = vcs_url
             link = get_link_from_line(vcs_part)
             install_req = InstallRequirement(
                 None,
                 comes_from,
                 link=link,
+                markers=vcs_markers,
                 isolated=isolated,
                 hash_options=hash_options,
                 constraint=constraint,
