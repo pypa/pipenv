@@ -458,9 +458,8 @@ def test_lockfile_corrupted(pipenv_instance_pypi):
         with open(p.lockfile_path, "w") as f:
             f.write("{corrupted}")
         c = p.pipenv("install")
-        assert c.returncode == 0
-        assert "Pipfile.lock is corrupted" in c.stderr
-        assert p.lockfile["_meta"]
+        assert c.returncode != 0
+        assert "Pipfile.lock is corrupt" in c.stderr
 
 
 @pytest.mark.lock
