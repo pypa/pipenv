@@ -1,0 +1,1 @@
+Fix ``--lock-only`` flag for ``pipenv upgrade`` command to properly skip adding package specifiers to Pipfile when set.

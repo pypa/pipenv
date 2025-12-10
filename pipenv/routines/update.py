@@ -391,6 +391,7 @@ def _process_package_args(
     category,
     has_package_args,
     requested_packages,
+    lock_only=False,
 ):
     """Process package arguments and update requested_packages."""
     for package in package_args[:]:
@@ -401,9 +402,14 @@ def _process_package_args(
         )
 
         # Only add to Pipfile if this category was explicitly requested for this package
-        if has_package_args and (
-            normalized_name not in explicitly_requested
-            or category in explicitly_requested.get(normalized_name, [])
+        # and lock_only is not set
+        if (
+            not lock_only
+            and has_package_args
+            and (
+                normalized_name not in explicitly_requested
+                or category in explicitly_requested.get(normalized_name, [])
+            )
         ):
             project.add_pipfile_entry_to_pipfile(
                 name, normalized_name, pipfile_entry, category=pipfile_category
@@ -615,6 +621,7 @@ def upgrade(
                 category,
                 has_package_args,
                 requested_packages,
+                lock_only=lock_only,
             )
 
         # Resolve dependencies and update lockfile
