@@ -1,0 +1,1 @@
+Fix typo in ``get_constraints_from_deps`` where version string was incorrectly formatted using the entire dependency dict instead of the version string.

@@ -1343,7 +1343,7 @@ def get_constraints_from_deps(deps):
             version = dep_version.get("version", None)
             if version and not is_star(version):
                 if COMPARE_OP.match(version) is None:
-                    version = f"=={dep_version}"
+                    version = f"=={version}"
                 c = f"{canonicalize_name(dep_name)}{version}"
             else:
                 c = canonicalize_name(dep_name)
