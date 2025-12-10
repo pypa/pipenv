@@ -461,10 +461,12 @@ class CandidateEvaluator:
         # Pipenv patch: Use explicit False instead of None when prereleases
         # are not requested. This prevents transitive dependencies with
         # prerelease specifiers (e.g., ">=4.2.0rc1") from enabling prereleases
-        # for all packages. When prereleases=False, if no stable versions
-        # satisfy the constraints, the resolver will fail rather than silently
-        # selecting a prerelease.
+        # for all packages.
         # See: https://github.com/pypa/pipenv/issues/6395
+        #
+        # However, if a package has ONLY prerelease versions available,
+        # we should still allow them per PEP 440 semantics.
+        # See: https://github.com/pypa/pipenv/issues/6485
         allow_prereleases = True if self._allow_all_prereleases else False
         specifier = self._specifier
 
@@ -482,6 +484,16 @@ class CandidateEvaluator:
                 prereleases=allow_prereleases,
             )
         )
+
+        # If no stable versions match but we have candidates, check if the package
+        # only has prereleases. If so, allow them (PEP 440 fallback behavior).
+        if not versions and candidates_and_versions and not allow_prereleases:
+            versions = set(
+                specifier.filter(
+                    (v for _, v in candidates_and_versions),
+                    prereleases=None,  # Let PEP 440 decide
+                )
+            )
 
         applicable_candidates = [c for c, v in candidates_and_versions if v in versions]
         filtered_applicable_candidates = filter_unallowed_hashes(
