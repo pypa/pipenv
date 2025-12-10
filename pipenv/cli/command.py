@@ -988,7 +988,14 @@ def verify(state):
     "--from-pipfile",
     is_flag=True,
     default=False,
-    help="Only include dependencies from Pipfile.",
+    help="Only include dependencies from Pipfile (excludes transitive deps).",
+)
+@option(
+    "--no-lock",
+    is_flag=True,
+    default=False,
+    help="Use version specifiers from Pipfile instead of locked versions. "
+    "Useful for generating flexible requirements for libraries.",
 )
 @pass_state
 def requirements(
@@ -999,8 +1006,13 @@ def requirements(
     exclude_markers=False,
     categories="",
     from_pipfile=False,
+    no_lock=False,
 ):
     from pipenv.routines.requirements import generate_requirements
+
+    # --no-lock implies --from-pipfile (only direct deps make sense without lock)
+    if no_lock:
+        from_pipfile = True
 
     generate_requirements(
         project=state.project,
@@ -1010,6 +1022,7 @@ def requirements(
         include_markers=not exclude_markers,
         categories=categories,
         from_pipfile=from_pipfile,
+        no_lock=no_lock,
     )
 
 
