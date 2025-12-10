@@ -1,0 +1,3 @@
+Fix ``pipenv-resolver`` CLI not working. The command now properly handles
+package arguments from the command line, sets a default category of "default",
+and correctly loads the pipenv module with all submodules.
