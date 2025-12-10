@@ -8,6 +8,7 @@ from typing import Dict, Set, Tuple
 from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
+from pipenv.routines.lock import overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
 from pipenv.utils import err
@@ -652,6 +653,16 @@ def upgrade(
         # Reset package args for next category if needed
         if not has_package_args:
             package_args = []
+
+    # Overwrite any non-default category packages with default packages (if present)
+    # This ensures transitive dependencies in develop match the versions from default
+    for category in categories:
+        if category == "default":
+            continue
+        if lockfile.get(category):
+            lockfile[category].update(
+                overwrite_with_default(lockfile.get("default", {}), lockfile[category])
+            )
 
     # Update and write lockfile
     lockfile.update({"_meta": project.get_lockfile_meta()})
