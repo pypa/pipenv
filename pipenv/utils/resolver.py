@@ -822,21 +822,52 @@ def actually_resolve_deps(
 
 
 def resolve(cmd, st, project):
+    import threading
+
     from pipenv.cmdparse import Script
 
     c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
-    errors = ""
-    for line in iter(c.stderr.readline, ""):
-        if not line.rstrip():
-            continue
-        errors += line
-        if is_verbose:
-            st.console.print(line.rstrip())
+
+    # Use threading to read from both stdout and stderr concurrently.
+    # This prevents deadlocks when the subprocess writes a lot of data to stdout,
+    # which would fill the pipe buffer and block if we only read stderr first.
+    # Threading works reliably on all platforms (Windows, Linux, macOS).
+    stdout_chunks = []
+    stderr_lines = []
+
+    def read_stdout():
+        """Read all stdout data in chunks."""
+        while True:
+            chunk = c.stdout.read(4096)
+            if not chunk:
+                break
+            stdout_chunks.append(chunk)
+
+    def read_stderr():
+        """Read stderr line by line, optionally printing in verbose mode."""
+        for line in iter(c.stderr.readline, ""):
+            if line.rstrip():
+                stderr_lines.append(line)
+                if is_verbose:
+                    st.console.print(line.rstrip())
+
+    # Start reader threads
+    stdout_thread = threading.Thread(target=read_stdout, daemon=True)
+    stderr_thread = threading.Thread(target=read_stderr, daemon=True)
+    stdout_thread.start()
+    stderr_thread.start()
+
+    # Wait for both threads to complete
+    stdout_thread.join()
+    stderr_thread.join()
 
     c.wait()
     returncode = c.poll()
-    out = c.stdout.read()
+
+    out = "".join(stdout_chunks)
+    errors = "".join(stderr_lines)
+
     if returncode != 0:
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         if not is_verbose:
