@@ -309,6 +309,7 @@ def do_install(
         package_args,
         system=system,
         allow_global=system,
+        ignore_pipfile=ignore_pipfile,
         deploy=deploy,
         pypi_mirror=pypi_mirror,
         skip_lock=skip_lock,
