@@ -394,7 +394,8 @@ def handle_remove_readonly(func, path, exc):
 
     :param function func: The caller function
     :param path: The target path for removal (string or Path)
-    :param Exception exc: The raised exception
+    :param Exception exc: The raised exception (Python 3.12+ onexc) or
+        tuple of (exc_type, exc_value, exc_tb) (Python 3.11- onerror)
 
     This function will call check :func:`is_readonly_path` before attempting to call
     :func:`set_write_bit` on the target path and try again.
@@ -405,8 +406,13 @@ def handle_remove_readonly(func, path, exc):
     # Convert to Path object for consistent handling
     path_obj = Path(path)
 
-    # Split the initial exception out into its type, exception, and traceback
-    exc_type, exc_exception, exc_tb = exc
+    # Handle both Python 3.12+ (onexc with exception) and earlier (onerror with tuple)
+    if isinstance(exc, tuple):
+        # Python 3.11 and earlier: exc is (exc_type, exc_value, exc_tb)
+        exc_exception = exc[1]
+    else:
+        # Python 3.12+: exc is the exception instance directly
+        exc_exception = exc
 
     if is_readonly_path(path_obj):
         # Apply to write permission and call original function

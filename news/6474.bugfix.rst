@@ -1,0 +1,4 @@
+Fix ``TypeError: cannot unpack non-iterable PermissionError object`` on Windows with Python 3.12+
+when removing read-only files (e.g., git pack files). The ``handle_remove_readonly`` error handler
+now properly handles both the deprecated ``onerror`` callback signature (tuple) and the new
+``onexc`` callback signature (exception instance) introduced in Python 3.12.
