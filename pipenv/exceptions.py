@@ -40,9 +40,17 @@ KNOWN_EXCEPTIONS = [
 def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
     from pipenv import environments
 
-    if environments.Setting().is_verbose() or not issubclass(exc_type, ClickException):
+    is_verbose = environments.Setting().is_verbose()
+
+    if is_verbose or not issubclass(exc_type, ClickException):
         hook(exc_type, exception, traceback)
+    elif issubclass(exc_type, PipenvException):
+        # For PipenvException and subclasses (ResolutionFailure, etc.),
+        # just show the clean error message without any traceback.
+        # The exception's show() method provides user-friendly output.
+        exception.show()
     else:
+        # For other ClickExceptions, show a minimal traceback
         tb = format_tb(traceback, limit=-6)
         lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
         formatted_lines = []

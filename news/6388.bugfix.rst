@@ -1,0 +1,1 @@
+Resolver errors now display clean, user-friendly messages instead of confusing stacktraces in non-verbose mode.
