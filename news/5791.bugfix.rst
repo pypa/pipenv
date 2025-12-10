@@ -1,0 +1,3 @@
+Fix VCS dependencies (git, etc.) not being reinstalled when the ref/commit changes in the lockfile.
+Previously, ``pipenv update`` would update the lockfile with the new commit hash but the installed
+package in the virtualenv would remain unchanged, requiring ``pipenv --rm`` to force a reinstall.
