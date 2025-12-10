@@ -1062,6 +1062,17 @@ def venv_resolve_deps(
                     )
                     err.print(f"Output: {c.stdout.strip()}")
                     err.print(f"Error: {c.stderr.strip()}")
+                    # Provide helpful hints for common build errors
+                    # See: https://github.com/pypa/pipenv/issues/6058
+                    combined_output = (c.stdout + c.stderr).lower()
+                    if "getting requirements to build wheel" in combined_output:
+                        err.print(
+                            "\n[cyan]Hint:[/cyan] The error 'Getting requirements to build wheel' often indicates:\n"
+                            "  • Invalid pyproject.toml syntax or configuration\n"
+                            "  • Encoding issues in files referenced by pyproject.toml (e.g., README.md with special characters)\n"
+                            "  • Missing or incompatible build dependencies\n"
+                            "Try running [yellow]$ pip install . -v[/yellow] in your project directory for more detailed error output."
+                        )
 
     # Cache the results for future use
     if results:

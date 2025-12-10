@@ -323,10 +323,21 @@ class ResolutionFailure(PipenvException):
             "[yellow]$ pipenv graph[/yellow] to inspect the versions actually installed in the virtualenv.\n"
             "Hint: try [yellow]$ pipenv lock --pre[/yellow] if it is a pre-release dependency."
         )
-        if "no version found at all" in str(message):
+        message_str = str(message)
+        if "no version found at all" in message_str:
             message += (
                 "[cyan]Please check your version specifier and version number. "
                 "See PEP440 for more information.[/cyan]"
+            )
+        # Detect build wheel failures and provide more helpful hints
+        # See: https://github.com/pypa/pipenv/issues/6058
+        if "getting requirements to build wheel" in message_str.lower():
+            extra += (
+                "\n\n[cyan]Hint:[/cyan] The error 'Getting requirements to build wheel' often indicates:\n"
+                "  • Invalid pyproject.toml syntax or configuration\n"
+                "  • Encoding issues in files referenced by pyproject.toml (e.g., README.md with special characters)\n"
+                "  • Missing or incompatible build dependencies\n"
+                "Try running [yellow]$ pip install . -v[/yellow] for more detailed error output."
             )
         PipenvException.__init__(self, message, extra=extra)
 
