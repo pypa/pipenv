@@ -1,0 +1,1 @@
+Fix ``PIPENV_ACTIVE`` environment variable not being unset when running ``deactivate`` in a pipenv shell, which caused "Shell for UNKNOWN_VIRTUAL_ENVIRONMENT already activated" errors on subsequent ``pipenv shell`` commands.
