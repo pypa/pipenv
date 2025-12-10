@@ -23,6 +23,12 @@ recursive-include docs/_templates *.html
 recursive-include docs/_static *.js *.css *.png
 recursive-exclude tests/test_artifacts *.pyd *.so *.pyc *.egg-info PKG-INFO
 
+# Include unit tests in sdist for downstream distribution testing
+# See: https://github.com/pypa/pipenv/issues/6294
+include tests/__init__.py
+include tests/conftest.py
+recursive-include tests/unit *.py
+
 prune .azure-pipelines
 prune .github
 prune pipenv/vendor/importlib_metadata/tests
