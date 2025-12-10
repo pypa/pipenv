@@ -150,6 +150,13 @@ class Setting:
         Default is to install Python automatically via asdf when needed, if possible.
         """
 
+        self.PIPENV_PYENV_AUTO_INSTALL = bool(get_from_env("PYENV_AUTO_INSTALL"))
+        """If set, Pipenv automatically installs missing Python versions via pyenv/asdf
+        without prompting the user.
+
+        Default is to prompt the user for confirmation before installing Python.
+        """
+
         self.PIPENV_DOTENV_LOCATION = get_from_env(
             "DOTENV_LOCATION", check_for_negation=False
         )
