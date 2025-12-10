@@ -1,0 +1,9 @@
+Fix editable package name being incorrectly parsed from test files in subdirectories.
+Previously, when installing an editable local package, pipenv would recursively search
+all subdirectories for ``setup.py`` files. This could cause a test file with a
+``setup(name='foo')`` call to be incorrectly used as the package name. Now, ``setup.py``,
+``setup.cfg``, and ``pyproject.toml`` are only checked in the root directory. Metadata
+files (``PKG-INFO``, ``METADATA``) are still searched in ``.egg-info`` and ``.dist-info``
+directories.
+
+Fixes #6409
