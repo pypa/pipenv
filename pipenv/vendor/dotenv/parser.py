@@ -1,7 +1,14 @@
 import codecs
 import re
-from typing import (IO, Iterator, Match, NamedTuple, Optional,  # noqa:F401
-                    Pattern, Sequence, Tuple)
+from typing import (
+    IO,
+    Iterator,
+    Match,
+    NamedTuple,
+    Optional,
+    Pattern,
+    Sequence,
+)
 
 
 def make_regex(string: str, extra_flags: int = 0) -> Pattern[str]:
@@ -73,15 +80,15 @@ class Reader:
 
     def get_marked(self) -> Original:
         return Original(
-            string=self.string[self.mark.chars:self.position.chars],
+            string=self.string[self.mark.chars : self.position.chars],
             line=self.mark.line,
         )
 
     def peek(self, count: int) -> str:
-        return self.string[self.position.chars:self.position.chars + count]
+        return self.string[self.position.chars : self.position.chars + count]
 
     def read(self, count: int) -> str:
-        result = self.string[self.position.chars:self.position.chars + count]
+        result = self.string[self.position.chars : self.position.chars + count]
         if len(result) < count:
             raise Error("read: End of string")
         self.position.advance(result)
@@ -91,13 +98,13 @@ class Reader:
         match = regex.match(self.string, self.position.chars)
         if match is None:
             raise Error("read_regex: Pattern not found")
-        self.position.advance(self.string[match.start():match.end()])
+        self.position.advance(self.string[match.start() : match.end()])
         return match.groups()
 
 
 def decode_escapes(regex: Pattern[str], string: str) -> str:
     def decode_match(match: Match[str]) -> str:
-        return codecs.decode(match.group(0), 'unicode-escape')  # type: ignore
+        return codecs.decode(match.group(0), "unicode-escape")  # type: ignore
 
     return regex.sub(decode_match, string)
 
@@ -120,14 +127,14 @@ def parse_unquoted_value(reader: Reader) -> str:
 
 def parse_value(reader: Reader) -> str:
     char = reader.peek(1)
-    if char == u"'":
+    if char == "'":
         (value,) = reader.read_regex(_single_quoted_value)
         return decode_escapes(_single_quote_escapes, value)
-    elif char == u'"':
+    elif char == '"':
         (value,) = reader.read_regex(_double_quoted_value)
         return decode_escapes(_double_quote_escapes, value)
-    elif char in (u"", u"\n", u"\r"):
-        return u""
+    elif char in ("", "\n", "\r"):
+        return ""
     else:
         return parse_unquoted_value(reader)
 
