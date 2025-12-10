@@ -165,25 +165,28 @@ class Project:
         self.configuration = Configuration(isolated=False, load_only=None)
         self.configuration.load()
         pip_conf_indexes = []
-        for section_key, value in self.configuration.items():
-            key_parts = section_key.split(".", 1)
-            if len(key_parts) > 1 and key_parts[1] == "index-url":
-                try:
-                    trusted_hosts = self.configuration.get_value(
-                        f"{key_parts[0]}.trusted-host"
-                    )
-                except ConfigurationError:
-                    trusted_hosts = []
-                pip_conf_indexes.append(
-                    {
-                        "url": value,
-                        "verify_ssl": not any(
-                            trusted_host in value for trusted_host in trusted_hosts
+        # In pip 25.3+, _dictionary is a dict of {filename: config_dict} pairs
+        # where config_dict contains the actual key-value pairs like {"global.index-url": "..."}
+        for config_dict in self.configuration._dictionary.values():
+            for section_key, value in config_dict.items():
+                key_parts = section_key.split(".", 1)
+                if len(key_parts) > 1 and key_parts[1] == "index-url":
+                    try:
+                        trusted_hosts = self.configuration.get_value(
+                            f"{key_parts[0]}.trusted-host"
                         )
-                        and "https://" in value,
-                        "name": f"pip_conf_index_{key_parts[0]}",
-                    }
-                )
+                    except ConfigurationError:
+                        trusted_hosts = []
+                    pip_conf_indexes.append(
+                        {
+                            "url": value,
+                            "verify_ssl": not any(
+                                trusted_host in value for trusted_host in trusted_hosts
+                            )
+                            and "https://" in value,
+                            "name": f"pip_conf_index_{key_parts[0]}",
+                        }
+                    )
 
         if pip_conf_indexes:
             self.default_source = None

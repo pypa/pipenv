@@ -649,3 +649,124 @@ twine = "*"
 
         result = dependencies.find_package_name_from_directory(str(package_dir))
         assert result == "mypackage"
+
+
+@pytest.mark.utils
+class TestPipConfigurationParsing:
+    """Test pip configuration parsing in Project class.
+
+    These tests verify that pipenv correctly reads index-url from pip
+    configuration files (pip.conf) after the pip 25.3 update which changed
+    the Configuration.items() return format.
+    """
+
+    def test_pip_configuration_dictionary_format(self):
+        """Test that pip Configuration._dictionary returns the expected format.
+
+        In pip 25.3+, _dictionary is a dict of {filename: config_dict} pairs where
+        config_dict contains the actual key-value pairs like {"global.index-url": "..."}.
+        """
+        from pipenv.patched.pip._internal.configuration import Configuration
+
+        conf = Configuration(isolated=False, load_only=None)
+        conf.load()
+
+        # Verify the structure of _dictionary
+        assert isinstance(conf._dictionary, dict), "_dictionary should be a dict"
+        for filename, config_dict in conf._dictionary.items():
+            assert isinstance(filename, str), "Key should be filename string"
+            assert isinstance(config_dict, dict), "Value should be config dict"
+
+    def test_project_parses_pip_conf_index_url(self, monkeypatch, tmp_path):
+        """Test that Project correctly parses index-url from pip configuration.
+
+        This is a regression test for issue #6478 where index-url in pip.conf
+        was not being honored after the pip 25.3 update.
+        """
+        from pipenv.patched.pip._internal.configuration import Configuration
+
+        # Create a mock configuration that returns index-url
+        mock_index_url = "https://my-private-pypi.example.com/simple"
+
+        class MockConfiguration:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def load(self):
+                pass
+
+            @property
+            def _dictionary(self):
+                # Simulate pip 25.3+ format: {filename: config_dict} dict
+                return {
+                    "/etc/pip.conf": {"global.index-url": mock_index_url},
+                }
+
+            def get_value(self, key):
+                from pipenv.patched.pip._internal.exceptions import ConfigurationError
+
+                raise ConfigurationError(f"No such key - {key}")
+
+        # Patch the Configuration class
+        monkeypatch.setattr(
+            "pipenv.project.Configuration",
+            MockConfiguration,
+        )
+
+        # Change to temp directory to avoid affecting real Pipfile
+        original_dir = os.getcwd()
+        os.chdir(tmp_path)
+        try:
+            from pipenv.project import Project
+
+            project = Project(chdir=False)
+
+            # Verify that the default_source was set from pip.conf
+            assert project.default_source is not None
+            assert project.default_source["url"] == mock_index_url
+            assert "pip_conf_index_global" in project.default_source["name"]
+        finally:
+            os.chdir(original_dir)
+
+    def test_project_parses_multiple_pip_conf_indexes(self, monkeypatch, tmp_path):
+        """Test that Project correctly parses multiple index-urls from pip configuration."""
+        primary_index = "https://primary-pypi.example.com/simple"
+        extra_index = "https://extra-pypi.example.com/simple"
+
+        class MockConfiguration:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            def load(self):
+                pass
+
+            @property
+            def _dictionary(self):
+                # Simulate multiple configuration files with different indexes
+                return {
+                    "/etc/pip.conf": {"global.index-url": primary_index},
+                    "~/.pip/pip.conf": {"global.index-url": extra_index},
+                }
+
+            def get_value(self, key):
+                from pipenv.patched.pip._internal.exceptions import ConfigurationError
+
+                raise ConfigurationError(f"No such key - {key}")
+
+        monkeypatch.setattr(
+            "pipenv.project.Configuration",
+            MockConfiguration,
+        )
+
+        original_dir = os.getcwd()
+        os.chdir(tmp_path)
+        try:
+            from pipenv.project import Project
+
+            project = Project(chdir=False)
+
+            # Verify that at least one index was picked up
+            assert project.default_source is not None
+            assert project.default_source["url"] in [primary_index, extra_index]
+        finally:
+            os.chdir(original_dir)
