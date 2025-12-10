@@ -41,6 +41,11 @@ def do_shell(
     # otherwise its value will be changed
     os.environ["PIPENV_ACTIVE"] = "1"
 
+    # Set PIPENV_PROJECT_DIR to the project root directory.
+    # This allows scripts to reference project-relative paths regardless of
+    # the current working directory. See: https://github.com/pypa/pipenv/issues/2241
+    os.environ["PIPENV_PROJECT_DIR"] = str(project.project_directory)
+
     if fancy:
         shell.fork(*fork_args)
         return
@@ -105,6 +110,11 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
     # such as in inline_activate_virtual_environment
     # otherwise its value will be changed
     env["PIPENV_ACTIVE"] = "1"
+
+    # Set PIPENV_PROJECT_DIR to the project root directory.
+    # This allows scripts to reference project-relative paths regardless of
+    # the current working directory. See: https://github.com/pypa/pipenv/issues/2241
+    env["PIPENV_PROJECT_DIR"] = str(project.project_directory)
 
     try:
         script = project.build_script(command, args)
