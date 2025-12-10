@@ -139,3 +139,38 @@ def test_import_requirements_with_path_object(pipenv_instance_pypi):
                 os.unlink(req_file_path)
             if os.path.exists("Pipfile"):
                 os.unlink("Pipfile")
+
+
+@pytest.mark.integration
+def test_import_requirements_preserves_markers(pipenv_instance_pypi):
+    """Test that import_requirements preserves environment markers like sys_platform.
+
+    Fixes: https://github.com/pypa/pipenv/issues/6101
+    """
+    with pipenv_instance_pypi() as p:
+        req_file_path = Path(p.path) / "requirements.txt"
+        # Create requirements with environment markers
+        with open(req_file_path, "w") as f:
+            f.write("six; sys_platform == 'win32'\n")
+
+        try:
+            # Create a Project instance
+            project = Project()
+
+            # Call import_requirements
+            import_requirements(project, r=req_file_path)
+
+            # Verify that the package was added with markers
+            assert "six" in p.pipfile["packages"]
+            pkg_entry = p.pipfile["packages"]["six"]
+            # The entry should be a dict with markers
+            assert isinstance(pkg_entry, dict)
+            assert "markers" in pkg_entry
+            assert "sys_platform" in pkg_entry["markers"]
+            assert "win32" in pkg_entry["markers"]
+        finally:
+            # Clean up
+            if os.path.exists(req_file_path):
+                os.unlink(req_file_path)
+            if os.path.exists("Pipfile"):
+                os.unlink("Pipfile")
