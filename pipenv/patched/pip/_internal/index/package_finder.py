@@ -458,13 +458,8 @@ class CandidateEvaluator:
         """
         Return the applicable candidates from a list of candidates.
         """
-        # Pipenv patch: When allow_all_prereleases is False, explicitly pass False
-        # to prevent prereleases from being selected even when a dependency's
-        # specifier contains a prerelease version (e.g., >=4.2.0rc1).
-        # This ensures users don't get prerelease versions unless they explicitly
-        # request them with --pre or allow_prereleases = true in Pipfile.
-        # Original pip behavior uses None to infer from the specifier.
-        allow_prereleases = self._allow_all_prereleases
+        # Using None infers from the specifier instead.
+        allow_prereleases = self._allow_all_prereleases or None
         specifier = self._specifier
 
         # We turn the version object into a str here because otherwise
