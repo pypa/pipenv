@@ -97,6 +97,25 @@ To disable a boolean option, set it to a false value: `"0"`, `"false"`, `"no"`, 
 |----------|-------------|---------|
 | `PIPENV_PYUP_API_KEY` | PyUp.io API key for security checks | None |
 
+#### Runtime Environment Variables
+
+These variables are automatically set by Pipenv when running `pipenv run` or `pipenv shell`:
+
+| Variable | Description |
+|----------|-------------|
+| `PIPENV_ACTIVE` | Set to `1` when inside a Pipenv-managed environment |
+| `PIPENV_PROJECT_DIR` | Path to the project root directory (where Pipfile is located) |
+| `VIRTUAL_ENV` | Path to the virtualenv directory |
+
+The `PIPENV_PROJECT_DIR` variable is particularly useful for scripts that need to reference project-relative paths regardless of the current working directory:
+
+```toml
+# Pipfile
+[scripts]
+test = "pytest $PIPENV_PROJECT_DIR/tests"
+mypy = "mypy --config-file=$PIPENV_PROJECT_DIR/mypy.ini $PIPENV_PROJECT_DIR/src"
+```
+
 ### Examples
 
 #### Store virtualenvs in the project directory
