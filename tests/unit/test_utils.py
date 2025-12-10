@@ -328,11 +328,12 @@ class TestUtils:
     def test_download_file(self, tmp_path):
         url = "https://example.com/test.md"
         output = tmp_path / "test_download.md"
+        expected_content = b"# Test Content\n"
 
         # Mock the requests session to avoid external network calls
         mock_response = mock.MagicMock()
         mock_response.ok = True
-        mock_response.content = b"# Test Content\n"
+        mock_response.content = expected_content
 
         mock_session = mock.MagicMock()
         mock_session.get.return_value = mock_response
@@ -341,7 +342,7 @@ class TestUtils:
             internet.download_file(url, str(output))
 
         assert output.exists()
-        assert output.read_bytes() == b"# Test Content\n"
+        assert output.read_bytes() == expected_content
 
     @pytest.mark.utils
     @pytest.mark.parametrize(
