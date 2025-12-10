@@ -1,1 +1,0 @@
-Fix reading of ``index-url`` from pip configuration files (``/etc/pip.conf``, ``~/.pip/pip.conf``, etc.) which was broken after vendoring pip 25.3 due to a change in pip's Configuration.items() return format.

@@ -1,3 +1,13 @@
+2026.0.1 (2025-12-10)
+=====================
+pipenv 2026.0.1 (2025-12-10)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix reading of ``index-url`` from pip configuration files (``/etc/pip.conf``, ``~/.pip/pip.conf``, etc.) which was broken after vendoring pip 25.3 due to a change in pip's Configuration.items() return format.  `#6478 <https://github.com/pypa/pipenv/issues/6478>`_
 2026.0.0 (2025-12-10)
 =====================
 pipenv 2026.0.0 (2025-12-10)
