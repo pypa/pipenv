@@ -56,6 +56,10 @@ $ pipenv install
 
 This creates a `.venv` directory in your project, making it easier to find and manage.
 
+```{note}
+**Automatic .venv Detection**: If a `.venv` directory already exists in your project directory, Pipenv will automatically use it as the virtual environment location, even if `PIPENV_VENV_IN_PROJECT` is not set. This allows for seamless integration with projects that already have a `.venv` directory created by other tools (like `python -m venv .venv`).
+```
+
 Benefits of project-local virtual environments:
 - Easier to locate and manage
 - Self-contained project directory

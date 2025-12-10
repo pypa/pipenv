@@ -89,12 +89,65 @@ build_and_run_win = "npm run build & python app.py"
 
 ### Environment-Specific Scripts
 
-You can define scripts that set environment variables:
+You can define scripts that set environment variables using standard shell syntax:
 
 ```toml
 [scripts]
 dev = "FLASK_ENV=development FLASK_DEBUG=1 flask run"
 prod = "FLASK_ENV=production gunicorn app:app"
+```
+
+```{note}
+**Important Limitation**: Inline environment variable assignment (like `VAR=value command`) works because the entire command string is passed to the shell. However, more complex shell features like command substitution (`$(command)`) or environment variable expansion within the script definition may not work as expected.
+
+This is because Pipenv parses the script command and executes it directly, rather than always passing it through a full shell interpreter.
+```
+
+### Setting Environment Variables for Scripts
+
+For more reliable environment variable handling, use one of these approaches:
+
+#### Using .env Files (Recommended)
+
+Create a `.env` file in your project directory:
+
+```
+# .env
+PROJECT_DIR=/path/to/project
+FLASK_ENV=development
+```
+
+Pipenv automatically loads these variables before running scripts:
+
+```toml
+[scripts]
+dev = "flask run"
+```
+
+#### Using Extended Script Syntax with env
+
+You can also define environment variables directly in the script definition using the extended table syntax. However, note that these values are static and cannot use shell expansion:
+
+```toml
+[scripts.dev]
+cmd = "flask run"
+env = {FLASK_ENV = "development", DEBUG = "1"}
+```
+
+#### Calling Shell Scripts
+
+For complex scripts that require shell features, call an external shell script:
+
+```toml
+[scripts]
+dev = "bash scripts/dev.sh"
+```
+
+Then in `scripts/dev.sh`:
+```bash
+#!/bin/bash
+export PROJECT_DIR="$(pipenv --where)"
+python "$PROJECT_DIR/src/main.py"
 ```
 
 ## Listing Available Scripts
