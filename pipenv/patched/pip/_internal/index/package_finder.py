@@ -458,8 +458,14 @@ class CandidateEvaluator:
         """
         Return the applicable candidates from a list of candidates.
         """
-        # Using None infers from the specifier instead.
-        allow_prereleases = self._allow_all_prereleases or None
+        # Pipenv patch: Use explicit False instead of None when prereleases
+        # are not requested. This prevents transitive dependencies with
+        # prerelease specifiers (e.g., ">=4.2.0rc1") from enabling prereleases
+        # for all packages. When prereleases=False, if no stable versions
+        # satisfy the constraints, the resolver will fail rather than silently
+        # selecting a prerelease.
+        # See: https://github.com/pypa/pipenv/issues/6395
+        allow_prereleases = True if self._allow_all_prereleases else False
         specifier = self._specifier
 
         # We turn the version object into a str here because otherwise
