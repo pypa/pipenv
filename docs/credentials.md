@@ -112,13 +112,65 @@ It's important to understand that environment variables are expanded at runtime,
 2. You need to have the environment variables set every time you run Pipenv commands
 3. Different environments (development, CI/CD, production) can use different credentials
 
-## Keychain Integration
+## Keyring Integration
 
-For certain cloud providers, Pipenv supports keychain integration for authentication to private registries.
+Pipenv supports keyring integration for authentication to private registries. With pip 23.1+, there are two approaches to configure keyring authentication.
+
+### Modern Approach: System-Wide Keyring (pip >= 23.1)
+
+Starting with pip 23.1, you can install keyring system-wide (outside of your project virtualenv) and configure pip to use it via the subprocess provider. This is the recommended approach as it doesn't require installing keyring in every project.
+
+#### Setup Steps
+
+1. **Install keyring globally** (using pip, pipx, or your system package manager):
+   ```bash
+   # Using pip (user install)
+   $ pip install --user keyring keyrings.google-artifactregistry-auth
+
+   # Or using pipx (recommended for CLI tools)
+   $ pipx install keyring
+   $ pipx inject keyring keyrings.google-artifactregistry-auth
+   ```
+
+2. **Ensure keyring is on your PATH**:
+   ```bash
+   $ which keyring
+   /home/user/.local/bin/keyring
+   ```
+
+3. **Ensure virtualenv seeds pip >= 23.1** (one-time setup):
+   ```bash
+   $ virtualenv --upgrade-embed-wheels
+   ```
+
+4. **Configure pip to use the subprocess keyring provider**:
+   ```bash
+   # Global configuration (recommended)
+   $ pip config set --global keyring-provider subprocess
+
+   # Or user-level configuration
+   $ pip config set --user keyring-provider subprocess
+   ```
+
+5. **Configure your index URL with the appropriate username**:
+   - For Google Artifact Registry: use `oauth2accesstoken` as username
+   - For Azure Artifacts: use `VssSessionToken` as username
+
+   ```toml
+   # Pipfile
+   [[source]]
+   url = "https://oauth2accesstoken@europe-python.pkg.dev/my-project/python/simple/"
+   verify_ssl = true
+   name = "private-gcp"
+   ```
+
+### Legacy Approach: Keyring in Project Virtualenv
+
+Alternatively, you can install keyring directly in your project's virtual environment. This approach works with all pip versions but requires installing keyring in every project.
 
 ### Google Cloud Artifact Registry
 
-Google Cloud Artifact Registry supports authentication via keychain:
+Google Cloud Artifact Registry supports authentication via keyring:
 
 1. Install the required packages:
    ```bash
@@ -142,7 +194,7 @@ Google Cloud Artifact Registry supports authentication via keychain:
    private-test-package = {version = "*", index = "private-gcp"}
    ```
 
-3. If the keychain might ask for user input, you may need to disable input enforcement:
+3. If the keyring might ask for user input, you may need to disable input enforcement:
    ```toml
    [pipenv]
    disable_pip_input = false
@@ -154,10 +206,10 @@ For Azure Artifact Registry:
 
 1. Install the required packages:
    ```bash
-   $ pipenv run pip install keyring keyrings.azureartifacts
+   $ pipenv run pip install keyring artifacts-keyring
    ```
 
-2. Configure your `Pipfile` similar to the Google Cloud example above.
+2. Configure your `Pipfile` similar to the Google Cloud example above, using `VssSessionToken` as the username in your index URL.
 
 ### AWS CodeArtifact
 
@@ -165,7 +217,7 @@ For AWS CodeArtifact:
 
 1. Install the required packages:
    ```bash
-   $ pipenv run pip install keyring keyrings.aws-codeartifact
+   $ pipenv run pip install keyring keyrings.codeartifact
    ```
 
 2. Configure your `Pipfile` with the appropriate AWS CodeArtifact URL.

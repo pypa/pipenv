@@ -85,6 +85,27 @@ $ pipenv install -r requirements.txt
 
 Prior to Pipenv 2024, the `install` command would relock the lock file every time it was run. Based on user feedback, this behavior was changed so that `install` only updates the lock when adding or changing a package. To relock the entire set of Pipfile specifiers, use `pipenv lock`.
 
+### --ignore-pipfile vs sync
+
+The `--ignore-pipfile` flag is similar to `pipenv sync`, but with an important difference:
+
+- **`pipenv install --ignore-pipfile`**: Installs packages from `Pipfile.lock`, ignoring the `Pipfile`. However, it may still attempt to re-lock your dependencies unless you also use the `--deploy` flag.
+
+- **`pipenv sync`**: Installs packages exactly as specified in `Pipfile.lock` without ever attempting to re-lock. This is considered an atomic operation.
+
+**For deployment scenarios, `pipenv sync` is the recommended command** because it guarantees that no modifications will be made to your lock file.
+
+```bash
+# Development: may re-lock if needed
+$ pipenv install --ignore-pipfile
+
+# Production: never re-locks, fails if lock is out of date
+$ pipenv install --ignore-pipfile --deploy
+
+# Production (recommended): atomic install from lock file
+$ pipenv sync
+```
+
 ## sync
 
 The `sync` command installs dependencies from the Pipfile.lock without making any changes to the lockfile. This is useful for deployment scenarios where you want to ensure exact package versions are installed.

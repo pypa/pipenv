@@ -42,6 +42,40 @@ $ pipenv install --extra-pip-args="--platform=win_amd64 --only-binary=:all:"
 $ pipenv install pycurl --extra-pip-args="--global-option=--with-openssl-dir=/usr/local/opt/openssl"
 ```
 
+### Using Environment Variables During Installation
+
+Some packages require environment variables to be set during installation for proper compilation or configuration. You can set these variables before running `pipenv install`:
+
+#### Example: Installing CUDA-enabled Packages
+
+For packages that need CMake arguments, such as `llama-cpp-python` with CUDA support:
+
+```bash
+# Unix/Linux/macOS
+$ CMAKE_ARGS="-DGGML_CUDA=on" pipenv install llama-cpp-python
+
+# Or export for multiple commands
+$ export CMAKE_ARGS="-DGGML_CUDA=on"
+$ pipenv install llama-cpp-python
+```
+
+#### Example: Other Build Environment Variables
+
+```bash
+# For packages that need specific compiler flags
+$ CFLAGS="-O3" CXXFLAGS="-O3" pipenv install some-package
+
+# For packages using meson build system
+$ MESON_ARGS="-Dfeature=enabled" pipenv install some-package
+
+# For packages requiring specific library paths
+$ LDFLAGS="-L/usr/local/lib" CPPFLAGS="-I/usr/local/include" pipenv install some-package
+```
+
+```{note}
+These environment variables are passed to pip and subsequently to the package's build system (setuptools, CMake, meson, etc.). The specific variables needed depend on the package being installed.
+```
+
 ## Deployment Strategies
 
 Pipenv provides several approaches for deploying applications in production environments.
@@ -132,19 +166,75 @@ This is useful when you have multiple Python versions installed or need to use a
 
 ### Anaconda/Conda Integration
 
-To use Pipenv with Anaconda:
+Pipenv can work with Anaconda/Conda Python installations, though there are some important considerations.
+
+#### Basic Usage
+
+To use Pipenv with Anaconda, specify the full path to the Conda Python interpreter:
 
 ```bash
 $ pipenv --python /path/to/anaconda/bin/python
 ```
 
-To reuse Conda-installed packages:
+**Important**: You must provide the complete path to the Python executable. A partial version number like `--python 3.10` may not work if Pipenv cannot find the Conda installation in its search paths.
+
+To find your Conda Python path:
+
+```bash
+# With conda environment activated
+$ which python
+/home/user/anaconda3/envs/myenv/bin/python
+
+# Or check conda info
+$ conda info --envs
+```
+
+#### Reusing Conda-Installed Packages
+
+To allow the Pipenv virtualenv to access packages installed in Conda:
 
 ```bash
 $ pipenv --python /path/to/anaconda/bin/python --site-packages
 ```
 
-The `--site-packages` flag allows the virtual environment to access packages installed in the system Python.
+The `--site-packages` flag allows the virtual environment to access packages installed in the parent Python installation.
+
+#### Troubleshooting Conda Issues
+
+**Virtualenv Creation Fails with Import Errors**
+
+If you encounter errors like `ImportError: cannot import name '_io'` or similar during virtualenv creation, this is typically due to outdated packages in your Conda installation:
+
+```bash
+# Update conda's virtualenv and Python packages
+$ conda update python virtualenv
+```
+
+**Python Version Not Found**
+
+If Pipenv reports that a Python version was not found:
+
+1. Verify the Python version is installed in Conda:
+   ```bash
+   $ conda search python
+   ```
+
+2. Use the full path instead of just the version number:
+   ```bash
+   # Instead of this:
+   $ pipenv --python 3.10
+
+   # Use the full path:
+   $ pipenv --python ~/anaconda3/envs/py310/bin/python
+   ```
+
+**Mixing Conda and Pipenv**
+
+While Pipenv can work with Conda Python, be aware that:
+
+- Pipenv creates its own virtualenv separate from Conda environments
+- Package installations via Pipenv are isolated from Conda
+- For best results, choose either Conda or Pipenv for dependency management in a project, not both
 
 ### pyenv Integration
 
