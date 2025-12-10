@@ -1,0 +1,1 @@
+Add support for ``--dev`` flag in ``pipenv uninstall`` command to remove packages from ``dev-packages`` section directly.

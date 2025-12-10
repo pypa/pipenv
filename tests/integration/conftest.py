@@ -224,7 +224,7 @@ class _PipenvInstance:
         self._path = None
 
     def run_command(self, cmd):
-        result = subprocess.run(cmd, shell=True, capture_output=True, check=False)
+        result = subprocess.run(cmd, shell=True, capture_output=True, check=False, cwd=self.path)
         try:
             std_out_decoded = result.stdout.decode("utf-8")
         except UnicodeDecodeError:
