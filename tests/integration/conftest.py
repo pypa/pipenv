@@ -281,18 +281,32 @@ class _PipenvInstance:
         return None
 
 
-if sys.version_info[:2] <= (3, 8):
-    # Windows python3.8 fails without this patch.  Additional details: https://bugs.python.org/issue42796
-    def _rmtree_func(path, ignore_errors=True, onerror=None):
-        shutil_rmtree = _rmtree
-        if onerror is None:
-            onerror = handle_remove_readonly
-        try:
-            shutil_rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
-        except (OSError, FileNotFoundError, PermissionError) as exc:
-            # Ignore removal failures where the file doesn't exist
-            if exc.errno != errno.ENOENT:
-                raise
+if os.name == "nt":
+    # Windows needs special handling for read-only files (e.g., git pack files)
+    # Use onexc for Python 3.12+ or onerror for older versions
+    if sys.version_info >= (3, 12):
+
+        def _rmtree_func(path, ignore_errors=False, onexc=None):
+            if onexc is None:
+                onexc = handle_remove_readonly
+            try:
+                _rmtree(path, ignore_errors=ignore_errors, onexc=onexc)
+            except (OSError, FileNotFoundError, PermissionError) as exc:
+                # Ignore removal failures where the file doesn't exist
+                if exc.errno != errno.ENOENT:
+                    raise
+
+    else:
+
+        def _rmtree_func(path, ignore_errors=False, onerror=None):
+            if onerror is None:
+                onerror = handle_remove_readonly
+            try:
+                _rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
+            except (OSError, FileNotFoundError, PermissionError) as exc:
+                # Ignore removal failures where the file doesn't exist
+                if exc.errno != errno.ENOENT:
+                    raise
 
 else:
     _rmtree_func = _rmtree

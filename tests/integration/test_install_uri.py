@@ -156,6 +156,35 @@ six = "*"
 @pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
+def test_install_invalid_index_name(pipenv_instance_pypi):
+    """Test that pipenv install --index with an invalid index name raises an error.
+
+    This test verifies the fix for issue #6168 where using --index with a name
+    that doesn't exist in sources and isn't a valid URL would create a malformed
+    source entry instead of raising an error.
+    """
+    with pipenv_instance_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
+[packages]
+            """.strip()
+            f.write(contents)
+
+        # Try to install with an invalid index name that doesn't exist
+        c = p.pipenv("install six --index nonexistent-index")
+        assert c.returncode != 0
+        assert "nonexistent-index" in c.stderr
+        assert "not found" in c.stderr.lower() or "not a valid url" in c.stderr.lower()
+
+
+@pytest.mark.urls
+@pytest.mark.index
+@pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_specifying_index_url(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:

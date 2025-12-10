@@ -50,6 +50,7 @@ def get_project_index(
     trusted_hosts: list[str] | None = None,
 ) -> TSource:
     from pipenv.project import SourceNotFound
+    from pipenv.utils.internet import is_valid_url
 
     if trusted_hosts is None:
         trusted_hosts = []
@@ -58,6 +59,16 @@ def get_project_index(
     try:
         source = project.find_source(index)
     except SourceNotFound:
+        # If the index is not found and it's not a valid URL, raise an error
+        if not is_valid_url(index):
+            available_sources = ", ".join(
+                f"'{s.get('name')}'" for s in project.sources if s.get("name")
+            )
+            raise PipenvUsageError(
+                f"Index '{index}' was not found in Pipfile sources and is not a valid URL.\n"
+                f"Available sources: {available_sources or 'none'}\n"
+                f"Hint: Use a valid URL or add the index to your Pipfile [[source]] section."
+            )
         index_url = parse_url(index)
         src_name = project.src_name_from_url(index)
         verify_ssl = index_url.host not in trusted_hosts

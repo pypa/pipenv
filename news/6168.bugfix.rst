@@ -1,0 +1,1 @@
+Fixed ``pipenv install --index=xxx`` where ``xxx`` is not a valid URL or known index name now raises a clear error instead of creating a malformed source entry in the Pipfile.
