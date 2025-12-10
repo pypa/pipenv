@@ -3,6 +3,7 @@ import sys
 from pathlib import Path
 
 from pipenv import exceptions
+from pipenv.patched.pip._vendor.rich.markup import escape as rich_escape
 from pipenv.utils import console, err
 from pipenv.utils.processes import run_command
 from pipenv.utils.requirements import BAD_PACKAGES
@@ -92,13 +93,15 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                     continue
 
                 # Bold top-level packages.
+                # Escape brackets to prevent Rich from interpreting them as markup
+                escaped_line = rich_escape(line)
                 if not line.startswith(" "):
-                    console.print(f"[bold]{line}[/bold]")
+                    console.print(f"[bold]{escaped_line}[/bold]")
                 # Echo the rest.
                 else:
-                    console.print(line)
+                    console.print(escaped_line)
     else:
-        console.print(c.stdout)
+        console.print(rich_escape(c.stdout))
 
     if c.returncode != 0:
         err.print(
