@@ -42,10 +42,13 @@ def build_safety_check_options(
         options.append("--disable-audit-and-monitor")
 
     # Map output formats to safety CLI options
+    # "minimal" maps to --short-report for concise output
     if output == "full-report":
         options.append("--full-report")
-    elif output in ["json", "minimal"]:
+    elif output == "json":
         options.append("--json")
+    elif output == "minimal":
+        options.append("--short-report")
     elif output not in ["screen", "default"]:
         options.append(f"--output={output}")
 

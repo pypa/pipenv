@@ -25,7 +25,9 @@ def build_safety_options(
         "--audit-and-monitor" if audit_and_monitor else "--disable-audit-and-monitor",
         "--exit-code" if exit_code else "--continue-on-error",
     ]
-    formats = {"full-report": "--full-report", "minimal": "--json"}
+    # Map output formats to safety CLI options
+    # "minimal" maps to --short-report for concise output
+    formats = {"full-report": "--full-report", "minimal": "--short-report"}
 
     if output in formats:
         options.append(formats.get(output, ""))
@@ -292,10 +294,10 @@ def do_check(  # noqa: PLR0913
     elif not quiet and not project.s.is_quiet():
         err.print(
             "[yellow bold]DEPRECATION WARNING:[/yellow bold] "
-            "The 'check' command is deprecated and will be unsupported beyond 01 June 2025.\n"
-            "In future versions, 'check' will run the 'scan' command by default.\n"
-            "Use [green]--scan[/green] option to run the new scan command now, or switch to [green]pipenv scan[/green].\n"
-            "The scan command requires an API key which you can obtain from https://pyup.io"
+            "The 'check' command using Safety is deprecated and will be removed in a future release.\n"
+            "Please migrate to [green]pipenv audit[/green] which uses pip-audit for vulnerability scanning.\n"
+            "pip-audit uses the Python Packaging Advisory Database and requires no API key.\n"
+            "Alternatively, use [green]--scan[/green] to use Safety's scan command (requires API key from https://pyup.io)"
         )
 
     if not system:
