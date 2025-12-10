@@ -107,7 +107,7 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
         c = p.pipenv("install tablib==0.13.0")
         assert c.returncode == 0
 
-        cli_runner = CliRunner(mix_stderr=False)
+        cli_runner = CliRunner()
         c = cli_runner.invoke(cli, "graph --reverse --json-tree")
         assert c.exit_code == 0
 

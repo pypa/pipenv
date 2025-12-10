@@ -48,8 +48,8 @@ class ELFFile:
 
         try:
             ident = self._read("16B")
-        except struct.error:
-            raise ELFInvalid("unable to parse identification")
+        except struct.error as e:
+            raise ELFInvalid("unable to parse identification") from e
         magic = bytes(ident[:4])
         if magic != b"\x7fELF":
             raise ELFInvalid(f"invalid magic: {magic!r}")
@@ -67,11 +67,10 @@ class ELFFile:
                 (2, 1): ("<HHIQQQIHHH", "<IIQQQQQQ", (0, 2, 5)),  # 64-bit LSB.
                 (2, 2): (">HHIQQQIHHH", ">IIQQQQQQ", (0, 2, 5)),  # 64-bit MSB.
             }[(self.capacity, self.encoding)]
-        except KeyError:
+        except KeyError as e:
             raise ELFInvalid(
-                f"unrecognized capacity ({self.capacity}) or "
-                f"encoding ({self.encoding})"
-            )
+                f"unrecognized capacity ({self.capacity}) or encoding ({self.encoding})"
+            ) from e
 
         try:
             (

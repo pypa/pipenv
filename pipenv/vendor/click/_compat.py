@@ -1,21 +1,25 @@
+from __future__ import annotations
+
 import codecs
+import collections.abc as cabc
 import io
 import os
 import re
 import sys
 import typing as t
+from types import TracebackType
 from weakref import WeakKeyDictionary
 
 CYGWIN = sys.platform.startswith("cygwin")
 WIN = sys.platform.startswith("win")
-auto_wrap_for_ansi: t.Optional[t.Callable[[t.TextIO], t.TextIO]] = None
+auto_wrap_for_ansi: t.Callable[[t.TextIO], t.TextIO] | None = None
 _ansi_re = re.compile(r"\033\[[;?0-9]*[a-zA-Z]")
 
 
 def _make_text_stream(
     stream: t.BinaryIO,
-    encoding: t.Optional[str],
-    errors: t.Optional[str],
+    encoding: str | None,
+    errors: str | None,
     force_readable: bool = False,
     force_writable: bool = False,
 ) -> t.TextIO:
@@ -53,8 +57,8 @@ class _NonClosingTextIOWrapper(io.TextIOWrapper):
     def __init__(
         self,
         stream: t.BinaryIO,
-        encoding: t.Optional[str],
-        errors: t.Optional[str],
+        encoding: str | None,
+        errors: str | None,
         force_readable: bool = False,
         force_writable: bool = False,
         **extra: t.Any,
@@ -125,7 +129,7 @@ class _FixupStream:
         if x is not None:
             return t.cast(bool, x())
         try:
-            self._stream.write("")  # type: ignore
+            self._stream.write(b"")
         except Exception:
             try:
                 self._stream.write(b"")
@@ -166,7 +170,7 @@ def _is_binary_writer(stream: t.IO[t.Any], default: bool = False) -> bool:
     return True
 
 
-def _find_binary_reader(stream: t.IO[t.Any]) -> t.Optional[t.BinaryIO]:
+def _find_binary_reader(stream: t.IO[t.Any]) -> t.BinaryIO | None:
     # We need to figure out if the given stream is already binary.
     # This can happen because the official docs recommend detaching
     # the streams to get binary streams.  Some code might do this, so
@@ -184,7 +188,7 @@ def _find_binary_reader(stream: t.IO[t.Any]) -> t.Optional[t.BinaryIO]:
     return None
 
 
-def _find_binary_writer(stream: t.IO[t.Any]) -> t.Optional[t.BinaryIO]:
+def _find_binary_writer(stream: t.IO[t.Any]) -> t.BinaryIO | None:
     # We need to figure out if the given stream is already binary.
     # This can happen because the official docs recommend detaching
     # the streams to get binary streams.  Some code might do this, so
@@ -211,7 +215,7 @@ def _stream_is_misconfigured(stream: t.TextIO) -> bool:
     return is_ascii_encoding(getattr(stream, "encoding", None) or "ascii")
 
 
-def _is_compat_stream_attr(stream: t.TextIO, attr: str, value: t.Optional[str]) -> bool:
+def _is_compat_stream_attr(stream: t.TextIO, attr: str, value: str | None) -> bool:
     """A stream attribute is compatible if it is equal to the
     desired value or the desired value is unset and the attribute
     has a value.
@@ -221,7 +225,7 @@ def _is_compat_stream_attr(stream: t.TextIO, attr: str, value: t.Optional[str]) 
 
 
 def _is_compatible_text_stream(
-    stream: t.TextIO, encoding: t.Optional[str], errors: t.Optional[str]
+    stream: t.TextIO, encoding: str | None, errors: str | None
 ) -> bool:
     """Check if a stream's encoding and errors attributes are
     compatible with the desired values.
@@ -233,10 +237,10 @@ def _is_compatible_text_stream(
 
 def _force_correct_text_stream(
     text_stream: t.IO[t.Any],
-    encoding: t.Optional[str],
-    errors: t.Optional[str],
+    encoding: str | None,
+    errors: str | None,
     is_binary: t.Callable[[t.IO[t.Any], bool], bool],
-    find_binary: t.Callable[[t.IO[t.Any]], t.Optional[t.BinaryIO]],
+    find_binary: t.Callable[[t.IO[t.Any]], t.BinaryIO | None],
     force_readable: bool = False,
     force_writable: bool = False,
 ) -> t.TextIO:
@@ -279,8 +283,8 @@ def _force_correct_text_stream(
 
 def _force_correct_text_reader(
     text_reader: t.IO[t.Any],
-    encoding: t.Optional[str],
-    errors: t.Optional[str],
+    encoding: str | None,
+    errors: str | None,
     force_readable: bool = False,
 ) -> t.TextIO:
     return _force_correct_text_stream(
@@ -295,8 +299,8 @@ def _force_correct_text_reader(
 
 def _force_correct_text_writer(
     text_writer: t.IO[t.Any],
-    encoding: t.Optional[str],
-    errors: t.Optional[str],
+    encoding: str | None,
+    errors: str | None,
     force_writable: bool = False,
 ) -> t.TextIO:
     return _force_correct_text_stream(
@@ -330,27 +334,21 @@ def get_binary_stderr() -> t.BinaryIO:
     return writer
 
 
-def get_text_stdin(
-    encoding: t.Optional[str] = None, errors: t.Optional[str] = None
-) -> t.TextIO:
+def get_text_stdin(encoding: str | None = None, errors: str | None = None) -> t.TextIO:
     rv = _get_windows_console_stream(sys.stdin, encoding, errors)
     if rv is not None:
         return rv
     return _force_correct_text_reader(sys.stdin, encoding, errors, force_readable=True)
 
 
-def get_text_stdout(
-    encoding: t.Optional[str] = None, errors: t.Optional[str] = None
-) -> t.TextIO:
+def get_text_stdout(encoding: str | None = None, errors: str | None = None) -> t.TextIO:
     rv = _get_windows_console_stream(sys.stdout, encoding, errors)
     if rv is not None:
         return rv
     return _force_correct_text_writer(sys.stdout, encoding, errors, force_writable=True)
 
 
-def get_text_stderr(
-    encoding: t.Optional[str] = None, errors: t.Optional[str] = None
-) -> t.TextIO:
+def get_text_stderr(encoding: str | None = None, errors: str | None = None) -> t.TextIO:
     rv = _get_windows_console_stream(sys.stderr, encoding, errors)
     if rv is not None:
         return rv
@@ -358,10 +356,10 @@ def get_text_stderr(
 
 
 def _wrap_io_open(
-    file: t.Union[str, "os.PathLike[str]", int],
+    file: str | os.PathLike[str] | int,
     mode: str,
-    encoding: t.Optional[str],
-    errors: t.Optional[str],
+    encoding: str | None,
+    errors: str | None,
 ) -> t.IO[t.Any]:
     """Handles not passing ``encoding`` and ``errors`` in binary mode."""
     if "b" in mode:
@@ -371,12 +369,12 @@ def _wrap_io_open(
 
 
 def open_stream(
-    filename: "t.Union[str, os.PathLike[str]]",
+    filename: str | os.PathLike[str],
     mode: str = "r",
-    encoding: t.Optional[str] = None,
-    errors: t.Optional[str] = "strict",
+    encoding: str | None = None,
+    errors: str | None = "strict",
     atomic: bool = False,
-) -> t.Tuple[t.IO[t.Any], bool]:
+) -> tuple[t.IO[t.Any], bool]:
     binary = "b" in mode
     filename = os.fspath(filename)
 
@@ -416,7 +414,7 @@ def open_stream(
     import random
 
     try:
-        perm: t.Optional[int] = os.stat(filename).st_mode
+        perm: int | None = os.stat(filename).st_mode
     except OSError:
         perm = None
 
@@ -472,10 +470,15 @@ class _AtomicFile:
     def __getattr__(self, name: str) -> t.Any:
         return getattr(self._f, name)
 
-    def __enter__(self) -> "_AtomicFile":
+    def __enter__(self) -> _AtomicFile:
         return self
 
-    def __exit__(self, exc_type: t.Optional[t.Type[BaseException]], *_: t.Any) -> None:
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        tb: TracebackType | None,
+    ) -> None:
         self.close(delete=exc_type is not None)
 
     def __repr__(self) -> str:
@@ -494,7 +497,7 @@ def _is_jupyter_kernel_output(stream: t.IO[t.Any]) -> bool:
 
 
 def should_strip_ansi(
-    stream: t.Optional[t.IO[t.Any]] = None, color: t.Optional[bool] = None
+    stream: t.IO[t.Any] | None = None, color: bool | None = None
 ) -> bool:
     if color is None:
         if stream is None:
@@ -514,11 +517,9 @@ if sys.platform.startswith("win") and WIN:
 
         return locale.getpreferredencoding()
 
-    _ansi_stream_wrappers: t.MutableMapping[t.TextIO, t.TextIO] = WeakKeyDictionary()
+    _ansi_stream_wrappers: cabc.MutableMapping[t.TextIO, t.TextIO] = WeakKeyDictionary()
 
-    def auto_wrap_for_ansi(  # noqa: F811
-        stream: t.TextIO, color: t.Optional[bool] = None
-    ) -> t.TextIO:
+    def auto_wrap_for_ansi(stream: t.TextIO, color: bool | None = None) -> t.TextIO:
         """Support ANSI color and style codes on Windows by wrapping a
         stream with colorama.
         """
@@ -537,14 +538,14 @@ if sys.platform.startswith("win") and WIN:
         rv = t.cast(t.TextIO, ansi_wrapper.stream)
         _write = rv.write
 
-        def _safe_write(s):
+        def _safe_write(s: str) -> int:
             try:
                 return _write(s)
             except BaseException:
                 ansi_wrapper.reset_all()
                 raise
 
-        rv.write = _safe_write
+        rv.write = _safe_write  # type: ignore[method-assign]
 
         try:
             _ansi_stream_wrappers[stream] = rv
@@ -559,8 +560,8 @@ else:
         return getattr(sys.stdin, "encoding", None) or sys.getfilesystemencoding()
 
     def _get_windows_console_stream(
-        f: t.TextIO, encoding: t.Optional[str], errors: t.Optional[str]
-    ) -> t.Optional[t.TextIO]:
+        f: t.TextIO, encoding: str | None, errors: str | None
+    ) -> t.TextIO | None:
         return None
 
 
@@ -576,12 +577,12 @@ def isatty(stream: t.IO[t.Any]) -> bool:
 
 
 def _make_cached_stream_func(
-    src_func: t.Callable[[], t.Optional[t.TextIO]],
+    src_func: t.Callable[[], t.TextIO | None],
     wrapper_func: t.Callable[[], t.TextIO],
-) -> t.Callable[[], t.Optional[t.TextIO]]:
-    cache: t.MutableMapping[t.TextIO, t.TextIO] = WeakKeyDictionary()
+) -> t.Callable[[], t.TextIO | None]:
+    cache: cabc.MutableMapping[t.TextIO, t.TextIO] = WeakKeyDictionary()
 
-    def func() -> t.Optional[t.TextIO]:
+    def func() -> t.TextIO | None:
         stream = src_func()
 
         if stream is None:
@@ -608,15 +609,13 @@ _default_text_stdout = _make_cached_stream_func(lambda: sys.stdout, get_text_std
 _default_text_stderr = _make_cached_stream_func(lambda: sys.stderr, get_text_stderr)
 
 
-binary_streams: t.Mapping[str, t.Callable[[], t.BinaryIO]] = {
+binary_streams: cabc.Mapping[str, t.Callable[[], t.BinaryIO]] = {
     "stdin": get_binary_stdin,
     "stdout": get_binary_stdout,
     "stderr": get_binary_stderr,
 }
 
-text_streams: t.Mapping[
-    str, t.Callable[[t.Optional[str], t.Optional[str]], t.TextIO]
-] = {
+text_streams: cabc.Mapping[str, t.Callable[[str | None, str | None], t.TextIO]] = {
     "stdin": get_text_stdin,
     "stdout": get_text_stdout,
     "stderr": get_text_stderr,

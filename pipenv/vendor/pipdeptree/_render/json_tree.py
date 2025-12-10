@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pipenv.vendor.pipdeptree._models import DistPackage, PackageDAG
 
 
-def render_json_tree(tree: PackageDAG) -> str:
+def render_json_tree(tree: PackageDAG) -> None:
     """
     Convert the tree into a nested json representation.
 
@@ -52,7 +52,7 @@ def render_json_tree(tree: PackageDAG) -> str:
 
         return d
 
-    return json.dumps([aux(p) for p in nodes], indent=4)
+    print(json.dumps([aux(p) for p in nodes], indent=4))  # noqa: T201
 
 
 __all__ = [

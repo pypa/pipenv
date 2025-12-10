@@ -4,13 +4,14 @@ writing command line scripts fun. Unlike other modules, it's based
 around a simple API that does not come with too much magic and is
 composable.
 """
+
+from __future__ import annotations
+
 from .core import Argument as Argument
-from .core import BaseCommand as BaseCommand
 from .core import Command as Command
 from .core import CommandCollection as CommandCollection
 from .core import Context as Context
 from .core import Group as Group
-from .core import MultiCommand as MultiCommand
 from .core import Option as Option
 from .core import Parameter as Parameter
 from .decorators import argument as argument
@@ -36,7 +37,6 @@ from .exceptions import UsageError as UsageError
 from .formatting import HelpFormatter as HelpFormatter
 from .formatting import wrap_text as wrap_text
 from .globals import get_current_context as get_current_context
-from .parser import OptionParser as OptionParser
 from .termui import clear as clear
 from .termui import confirm as confirm
 from .termui import echo_via_pager as echo_via_pager
@@ -70,4 +70,54 @@ from .utils import get_binary_stream as get_binary_stream
 from .utils import get_text_stream as get_text_stream
 from .utils import open_file as open_file
 
-__version__ = "8.1.7"
+
+def __getattr__(name: str) -> object:
+    import warnings
+
+    if name == "BaseCommand":
+        from .core import _BaseCommand
+
+        warnings.warn(
+            "'BaseCommand' is deprecated and will be removed in Click 9.0. Use"
+            " 'Command' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _BaseCommand
+
+    if name == "MultiCommand":
+        from .core import _MultiCommand
+
+        warnings.warn(
+            "'MultiCommand' is deprecated and will be removed in Click 9.0. Use"
+            " 'Group' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _MultiCommand
+
+    if name == "OptionParser":
+        from .parser import _OptionParser
+
+        warnings.warn(
+            "'OptionParser' is deprecated and will be removed in Click 9.0. The"
+            " old parser is available in 'optparse'.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return _OptionParser
+
+    if name == "__version__":
+        import importlib.metadata
+        import warnings
+
+        warnings.warn(
+            "The '__version__' attribute is deprecated and will be removed in"
+            " Click 9.1. Use feature detection or"
+            " 'importlib.metadata.version(\"click\")' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return importlib.metadata.version("click")
+
+    raise AttributeError(name)

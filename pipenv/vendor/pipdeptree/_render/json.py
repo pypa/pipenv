@@ -7,7 +7,7 @@ if TYPE_CHECKING:
     from pipenv.vendor.pipdeptree._models import PackageDAG
 
 
-def render_json(tree: PackageDAG) -> str:
+def render_json(tree: PackageDAG) -> None:
     """
     Convert the tree into a flat json representation.
 
@@ -20,10 +20,11 @@ def render_json(tree: PackageDAG) -> str:
 
     """
     tree = tree.sort()
-    return json.dumps(
+    output = json.dumps(
         [{"package": k.as_dict(), "dependencies": [v.as_dict() for v in vs]} for k, vs in tree.items()],
         indent=4,
     )
+    print(output)  # noqa: T201
 
 
 __all__ = [

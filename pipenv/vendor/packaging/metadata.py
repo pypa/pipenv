@@ -5,6 +5,8 @@ import email.header
 import email.message
 import email.parser
 import email.policy
+import pathlib
+import sys
 import typing
 from typing import (
     Any,
@@ -15,15 +17,16 @@ from typing import (
     cast,
 )
 
-from . import requirements, specifiers, utils
+from . import licenses, requirements, specifiers, utils
 from . import version as version_module
+from .licenses import NormalizedLicenseExpression
 
 T = typing.TypeVar("T")
 
 
-try:
-    ExceptionGroup
-except NameError:  # pragma: no cover
+if sys.version_info >= (3, 11):  # pragma: no cover
+    ExceptionGroup = ExceptionGroup
+else:  # pragma: no cover
 
     class ExceptionGroup(Exception):
         """A minimal implementation of :external:exc:`ExceptionGroup` from Python 3.11.
@@ -41,9 +44,6 @@ except NameError:  # pragma: no cover
 
         def __repr__(self) -> str:
             return f"{self.__class__.__name__}({self.message!r}, {self.exceptions!r})"
-
-else:  # pragma: no cover
-    ExceptionGroup = ExceptionGroup
 
 
 class InvalidMetadata(ValueError):
@@ -128,6 +128,10 @@ class RawMetadata(TypedDict, total=False):
     # No new fields were added in PEP 685, just some edge case were
     # tightened up to provide better interoptability.
 
+    # Metadata 2.4 - PEP 639
+    license_expression: str
+    license_files: list[str]
+
 
 _STRING_FIELDS = {
     "author",
@@ -137,6 +141,7 @@ _STRING_FIELDS = {
     "download_url",
     "home_page",
     "license",
+    "license_expression",
     "maintainer",
     "maintainer_email",
     "metadata_version",
@@ -149,6 +154,7 @@ _STRING_FIELDS = {
 _LIST_FIELDS = {
     "classifiers",
     "dynamic",
+    "license_files",
     "obsoletes",
     "obsoletes_dist",
     "platforms",
@@ -167,7 +173,7 @@ _DICT_FIELDS = {
 
 
 def _parse_keywords(data: str) -> list[str]:
-    """Split a string of comma-separate keyboards into a list of keywords."""
+    """Split a string of comma-separated keywords into a list of keywords."""
     return [k.strip() for k in data.split(",")]
 
 
@@ -216,16 +222,18 @@ def _get_payload(msg: email.message.Message, source: bytes | str) -> str:
     # If our source is a str, then our caller has managed encodings for us,
     # and we don't need to deal with it.
     if isinstance(source, str):
-        payload: str = msg.get_payload()
+        payload = msg.get_payload()
+        assert isinstance(payload, str)
         return payload
     # If our source is a bytes, then we're managing the encoding and we need
     # to deal with it.
     else:
-        bpayload: bytes = msg.get_payload(decode=True)
+        bpayload = msg.get_payload(decode=True)
+        assert isinstance(bpayload, bytes)
         try:
             return bpayload.decode("utf8", "strict")
-        except UnicodeDecodeError:
-            raise ValueError("payload in an invalid encoding")
+        except UnicodeDecodeError as exc:
+            raise ValueError("payload in an invalid encoding") from exc
 
 
 # The various parse_FORMAT functions here are intended to be as lenient as
@@ -251,6 +259,8 @@ _EMAIL_TO_RAW_MAPPING = {
     "home-page": "home_page",
     "keywords": "keywords",
     "license": "license",
+    "license-expression": "license_expression",
+    "license-file": "license_files",
     "maintainer": "maintainer",
     "maintainer-email": "maintainer_email",
     "metadata-version": "metadata_version",
@@ -426,7 +436,7 @@ def parse_email(data: bytes | str) -> tuple[RawMetadata, dict[str, list[str]]]:
         payload = _get_payload(parsed, data)
     except ValueError:
         unparsed.setdefault("description", []).append(
-            parsed.get_payload(decode=isinstance(data, bytes))
+            parsed.get_payload(decode=isinstance(data, bytes))  # type: ignore[call-overload]
         )
     else:
         if payload:
@@ -453,8 +463,8 @@ _NOT_FOUND = object()
 
 
 # Keep the two values in sync.
-_VALID_METADATA_VERSIONS = ["1.0", "1.1", "1.2", "2.1", "2.2", "2.3"]
-_MetadataVersion = Literal["1.0", "1.1", "1.2", "2.1", "2.2", "2.3"]
+_VALID_METADATA_VERSIONS = ["1.0", "1.1", "1.2", "2.1", "2.2", "2.3", "2.4"]
+_MetadataVersion = Literal["1.0", "1.1", "1.2", "2.1", "2.2", "2.3", "2.4"]
 
 _REQUIRED_ATTRS = frozenset(["metadata_version", "name", "version"])
 
@@ -535,7 +545,7 @@ class _Validator(Generic[T]):
         except utils.InvalidName as exc:
             raise self._invalid_metadata(
                 f"{value!r} is invalid for {{field}}", cause=exc
-            )
+            ) from exc
         else:
             return value
 
@@ -547,7 +557,7 @@ class _Validator(Generic[T]):
         except version_module.InvalidVersion as exc:
             raise self._invalid_metadata(
                 f"{value!r} is invalid for {{field}}", cause=exc
-            )
+            ) from exc
 
     def _process_summary(self, value: str) -> str:
         """Check the field contains no newlines."""
@@ -591,10 +601,12 @@ class _Validator(Generic[T]):
         for dynamic_field in map(str.lower, value):
             if dynamic_field in {"name", "version", "metadata-version"}:
                 raise self._invalid_metadata(
-                    f"{value!r} is not allowed as a dynamic field"
+                    f"{dynamic_field!r} is not allowed as a dynamic field"
                 )
             elif dynamic_field not in _EMAIL_TO_RAW_MAPPING:
-                raise self._invalid_metadata(f"{value!r} is not a valid dynamic field")
+                raise self._invalid_metadata(
+                    f"{dynamic_field!r} is not a valid dynamic field"
+                )
         return list(map(str.lower, value))
 
     def _process_provides_extra(
@@ -608,7 +620,7 @@ class _Validator(Generic[T]):
         except utils.InvalidName as exc:
             raise self._invalid_metadata(
                 f"{name!r} is invalid for {{field}}", cause=exc
-            )
+            ) from exc
         else:
             return normalized_names
 
@@ -618,7 +630,7 @@ class _Validator(Generic[T]):
         except specifiers.InvalidSpecifier as exc:
             raise self._invalid_metadata(
                 f"{value!r} is invalid for {{field}}", cause=exc
-            )
+            ) from exc
 
     def _process_requires_dist(
         self,
@@ -629,9 +641,47 @@ class _Validator(Generic[T]):
             for req in value:
                 reqs.append(requirements.Requirement(req))
         except requirements.InvalidRequirement as exc:
-            raise self._invalid_metadata(f"{req!r} is invalid for {{field}}", cause=exc)
+            raise self._invalid_metadata(
+                f"{req!r} is invalid for {{field}}", cause=exc
+            ) from exc
         else:
             return reqs
+
+    def _process_license_expression(
+        self, value: str
+    ) -> NormalizedLicenseExpression | None:
+        try:
+            return licenses.canonicalize_license_expression(value)
+        except ValueError as exc:
+            raise self._invalid_metadata(
+                f"{value!r} is invalid for {{field}}", cause=exc
+            ) from exc
+
+    def _process_license_files(self, value: list[str]) -> list[str]:
+        paths = []
+        for path in value:
+            if ".." in path:
+                raise self._invalid_metadata(
+                    f"{path!r} is invalid for {{field}}, "
+                    "parent directory indicators are not allowed"
+                )
+            if "*" in path:
+                raise self._invalid_metadata(
+                    f"{path!r} is invalid for {{field}}, paths must be resolved"
+                )
+            if (
+                pathlib.PurePosixPath(path).is_absolute()
+                or pathlib.PureWindowsPath(path).is_absolute()
+            ):
+                raise self._invalid_metadata(
+                    f"{path!r} is invalid for {{field}}, paths must be relative"
+                )
+            if pathlib.PureWindowsPath(path).as_posix() != path:
+                raise self._invalid_metadata(
+                    f"{path!r} is invalid for {{field}}, paths must use '/' delimiter"
+                )
+            paths.append(path)
+        return paths
 
 
 class Metadata:
@@ -688,8 +738,8 @@ class Metadata:
                             field = _RAW_TO_EMAIL_MAPPING[key]
                             exc = InvalidMetadata(
                                 field,
-                                "{field} introduced in metadata version "
-                                "{field_metadata_version}, not {metadata_version}",
+                                f"{field} introduced in metadata version "
+                                f"{field_metadata_version}, not {metadata_version}",
                             )
                             exceptions.append(exc)
                             continue
@@ -733,6 +783,8 @@ class Metadata:
     metadata_version: _Validator[_MetadataVersion] = _Validator()
     """:external:ref:`core-metadata-metadata-version`
     (required; validated to be a valid metadata version)"""
+    # `name` is not normalized/typed to NormalizedName so as to provide access to
+    # the original/raw name.
     name: _Validator[str] = _Validator()
     """:external:ref:`core-metadata-name`
     (required; validated using :func:`~packaging.utils.canonicalize_name` and its
@@ -770,6 +822,12 @@ class Metadata:
     """:external:ref:`core-metadata-maintainer-email`"""
     license: _Validator[str | None] = _Validator()
     """:external:ref:`core-metadata-license`"""
+    license_expression: _Validator[NormalizedLicenseExpression | None] = _Validator(
+        added="2.4"
+    )
+    """:external:ref:`core-metadata-license-expression`"""
+    license_files: _Validator[list[str] | None] = _Validator(added="2.4")
+    """:external:ref:`core-metadata-license-file`"""
     classifiers: _Validator[list[str] | None] = _Validator(added="1.1")
     """:external:ref:`core-metadata-classifier`"""
     requires_dist: _Validator[list[requirements.Requirement] | None] = _Validator(

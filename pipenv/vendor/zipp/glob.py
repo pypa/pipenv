@@ -1,6 +1,7 @@
 import os
 import re
 
+from .compat.py313 import legacy_end_marker
 
 _default_seps = os.sep + str(os.altsep) * bool(os.altsep)
 
@@ -30,6 +31,7 @@ class Translator:
         """
         return self.extend(self.match_dirs(self.translate_core(pattern)))
 
+    @legacy_end_marker
     def extend(self, pattern):
         r"""
         Extend regex for pattern-wide concerns.
@@ -37,9 +39,9 @@ class Translator:
         Apply '(?s:)' to create a non-matching group that
         matches newlines (valid on Unix).
 
-        Append '\Z' to imply fullmatch even when match is used.
+        Append '\z' to imply fullmatch even when match is used.
         """
-        return rf'(?s:{pattern})\Z'
+        return rf'(?s:{pattern})\z'
 
     def match_dirs(self, pattern):
         """

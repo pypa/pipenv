@@ -1,15 +1,14 @@
 click-didyoumean==0.3.1
-click==8.1.7
+click==8.3.1
 colorama==0.4.6
-importlib-metadata==8.5.0
-  zipp==3.20.2
-packaging==24.1
+importlib-metadata==8.7.0
+  zipp==3.23.0
+packaging==25.0
 pexpect==4.9.0
-pipdeptree==2.23.4
+pipdeptree==2.30.0
 plette==2.1.0
 ptyprocess==0.7.0
-python-dotenv==1.0.1
+python-dotenv==1.2.1
 pythonfinder==3.0.0
 shellingham==1.5.4
 tomlkit==0.13.2
-pip

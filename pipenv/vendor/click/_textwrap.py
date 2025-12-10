@@ -1,13 +1,15 @@
+from __future__ import annotations
+
+import collections.abc as cabc
 import textwrap
-import typing as t
 from contextlib import contextmanager
 
 
 class TextWrapper(textwrap.TextWrapper):
     def _handle_long_word(
         self,
-        reversed_chunks: t.List[str],
-        cur_line: t.List[str],
+        reversed_chunks: list[str],
+        cur_line: list[str],
         cur_len: int,
         width: int,
     ) -> None:
@@ -23,7 +25,7 @@ class TextWrapper(textwrap.TextWrapper):
             cur_line.append(reversed_chunks.pop())
 
     @contextmanager
-    def extra_indent(self, indent: str) -> t.Iterator[None]:
+    def extra_indent(self, indent: str) -> cabc.Iterator[None]:
         old_initial_indent = self.initial_indent
         old_subsequent_indent = self.subsequent_indent
         self.initial_indent += indent
