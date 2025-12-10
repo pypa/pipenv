@@ -1,1 +1,0 @@
-Fix subprocess deadlock in resolver that could cause ``pipenv lock`` to hang indefinitely when the resolver subprocess writes large amounts of data to stdout. The fix reads stdout and stderr concurrently using threads, preventing pipe buffer deadlocks.

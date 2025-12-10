@@ -1,2 +1,0 @@
-Make ``--quiet`` flag actually suppress output during ``pipenv install`` and ``pipenv sync``.
-Previously, messages like "Installing dependencies from Pipfile.lock" and "All dependencies are now up-to-date!" were shown even with ``--quiet``.

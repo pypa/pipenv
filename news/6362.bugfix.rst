@@ -1,1 +1,0 @@
-Fix for PEP660 editable VCS dependencies not reinstalled correctly.

@@ -1,3 +1,96 @@
+2026.0.0 (2025-12-10)
+=====================
+pipenv 2026.0.0 (2025-12-10)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Add ``--system`` flag to ``pipenv run`` command. This allows running scripts
+  defined in Pipfile's ``[scripts]`` section without creating a virtualenv,
+  which is useful in Docker environments where packages are installed with
+  ``pipenv install --system``.  `#2692 <https://github.com/pypa/pipenv/issues/2692>`_
+- Allow ``pipenv install --system <package>`` to install specific packages to the
+  system Python. Previously this was blocked with an error message. This enables
+  Docker workflows where users want to interactively add packages to a project
+  that uses system-level installation.  `#4086 <https://github.com/pypa/pipenv/issues/4086>`_
+- Added support for PEP 751 pylock.toml files:
+
+  - Reading: When both a Pipfile.lock and a pylock.toml file exist, Pipenv will prioritize the pylock.toml file.
+  - Writing: Add ``use_pylock = true`` to the ``[pipenv]`` section of your Pipfile to generate pylock.toml files alongside Pipfile.lock.
+  - Customization: Use ``pylock_name = "name"`` in the ``[pipenv]`` section to generate named pylock files (e.g., pylock.name.toml).  `#6391 <https://github.com/pypa/pipenv/issues/6391>`_
+- Add support for ``--dev`` flag in ``pipenv uninstall`` command to remove packages from ``dev-packages`` section directly.  `#6392 <https://github.com/pypa/pipenv/issues/6392>`_
+- Add ``PIPENV_PYENV_AUTO_INSTALL`` environment variable to automatically install missing Python versions via pyenv or asdf without prompting the user.  `#6408 <https://github.com/pypa/pipenv/issues/6408>`_
+
+Bug Fixes
+---------
+
+- Fix ``--system`` and ``--python`` flags to work together correctly. Previously,
+  using both flags would still create a virtualenv. Now when ``--system`` is used
+  with ``--python``, pipenv validates that the specified Python version exists
+  on the system and raises a clear error if not found.  `#4973 <https://github.com/pypa/pipenv/issues/4973>`_
+- Make ``--quiet`` flag actually suppress output during ``pipenv install`` and ``pipenv sync``.
+  Previously, messages like "Installing dependencies from Pipfile.lock" and "All dependencies are now up-to-date!" were shown even with ``--quiet``.  `#5037 <https://github.com/pypa/pipenv/issues/5037>`_
+- Fix SSH ``git`` username being incorrectly redacted to ``****`` when importing
+  from requirements.txt, which caused lockfile generation to fail.  `#5599 <https://github.com/pypa/pipenv/issues/5599>`_
+- Fix malformed ``Pipfile.lock`` causing command to exit successfully with code 0.
+  Now raises ``LockfileCorruptException`` which properly propagates as an error.  `#5622 <https://github.com/pypa/pipenv/issues/5622>`_
+- Fix VCS dependencies (git, etc.) not being reinstalled when the ref/commit changes in the lockfile.
+  Previously, ``pipenv update`` would update the lockfile with the new commit hash but the installed
+  package in the virtualenv would remain unchanged, requiring ``pipenv --rm`` to force a reinstall.  `#5791 <https://github.com/pypa/pipenv/issues/5791>`_
+- Fix ``pipenv-resolver`` CLI not working. The command now properly handles
+  package arguments from the command line, sets a default category of "default",
+  and correctly loads the pipenv module with all submodules.  `#5862 <https://github.com/pypa/pipenv/issues/5862>`_
+- Fix ``--lock-only`` flag for ``pipenv upgrade`` command to properly skip adding package specifiers to Pipfile when set.  `#6131 <https://github.com/pypa/pipenv/issues/6131>`_
+- Improve error handling in ``do_lock`` by properly catching and handling exceptions from ``venv_resolve_deps``.
+  RuntimeError now exits cleanly, and other exceptions display a full traceback for debugging.  `#6166 <https://github.com/pypa/pipenv/issues/6166>`_
+- Fixed ``pipenv install --index=xxx`` where ``xxx`` is not a valid URL or known index name now raises a clear error instead of creating a malformed source entry in the Pipfile.  `#6168 <https://github.com/pypa/pipenv/issues/6168>`_
+- Fix ``PIPENV_ACTIVE`` environment variable not being unset when running ``deactivate`` in a pipenv shell, which caused "Shell for UNKNOWN_VIRTUAL_ENVIRONMENT already activated" errors on subsequent ``pipenv shell`` commands.  `#6220 <https://github.com/pypa/pipenv/issues/6220>`_
+- Fix ``pipenv lock`` to properly apply default package version constraints when resolving dev-packages and other categories. When a package is constrained in the ``[packages]`` section (e.g., ``httpx = "==0.24.1"``), dev-packages that depend on it will now be constrained to compatible versions.  `#6347 <https://github.com/pypa/pipenv/issues/6347>`_
+- Fix typo in ``get_constraints_from_deps`` where version string was incorrectly formatted using the entire dependency dict instead of the version string.  `#6354 <https://github.com/pypa/pipenv/issues/6354>`_
+- Fix for PEP660 editable VCS dependencies not reinstalled correctly.  `#6362 <https://github.com/pypa/pipenv/issues/6362>`_
+- Resolver errors now display clean, user-friendly messages instead of confusing stacktraces in non-verbose mode.  `#6388 <https://github.com/pypa/pipenv/issues/6388>`_
+- Validate Python version when using ``--system`` flag.
+  Previously, ``pipenv install --system --deploy`` would silently proceed even if the system Python version didn't match the ``python_version`` specified in Pipfile/Pipfile.lock.
+  Now it properly raises a DeployException when the versions don't match.  `#6403 <https://github.com/pypa/pipenv/issues/6403>`_
+- Fix editable package name being incorrectly parsed from test files in subdirectories.
+  Previously, when installing an editable local package, pipenv would recursively search
+  all subdirectories for ``setup.py`` files. This could cause a test file with a
+  ``setup(name='foo')`` call to be incorrectly used as the package name. Now, ``setup.py``,
+  ``setup.cfg``, and ``pyproject.toml`` are only checked in the root directory. Metadata
+  files (``PKG-INFO``, ``METADATA``) are still searched in ``.egg-info`` and ``.dist-info``
+  directories.
+
+  Fixes #6409  `#6409 <https://github.com/pypa/pipenv/issues/6409>`_
+- Fix ``pipenv check --quiet`` not working properly. The ``--quiet`` flag now
+  correctly suppresses informational output and forces JSON output format for
+  safety so that results can be parsed correctly.
+
+  Fixes #6414  `#6414 <https://github.com/pypa/pipenv/issues/6414>`_
+- Fix ``pipenv update --dev`` (and ``pipenv update --categories develop``) updating
+  transitive dependencies in the ``develop`` section independently from the ``default``
+  section. Now, any packages that appear in both ``default`` and ``develop`` will use
+  the version from ``default``, ensuring consistent dependency versions between
+  production and development environments.
+
+  Fixes #6420  `#6420 <https://github.com/pypa/pipenv/issues/6420>`_
+- Fix markers not being respected for file-based and VCS dependencies during resolution.
+  Markers are now correctly included in the pip install line, allowing pipenv to skip
+  resolution for dependencies whose markers don't match the current environment.  `#6431 <https://github.com/pypa/pipenv/issues/6431>`_
+- Fix ``pipenv requirements --dev-only --from-pipfile`` to only include packages explicitly listed in ``dev-packages``, not packages from other categories that happen to also be transitive dependencies of dev packages.  `#6440 <https://github.com/pypa/pipenv/issues/6440>`_
+- Fix ``pipenv update`` incorrectly marking all packages as modified when Pipfile contains version ranges (e.g., ``>=2.25.1``) instead of exact versions. The comparison now properly checks if the locked version satisfies the Pipfile specifier, rather than doing a string comparison. This significantly improves performance of ``pipenv update`` when no packages have actually been modified.  `#6454 <https://github.com/pypa/pipenv/issues/6454>`_
+- Fix ``TypeError: cannot unpack non-iterable PermissionError object`` on Windows with Python 3.12+
+  when removing read-only files (e.g., git pack files). The ``handle_remove_readonly`` error handler
+  now properly handles both the deprecated ``onerror`` callback signature (tuple) and the new
+  ``onexc`` callback signature (exception instance) introduced in Python 3.12.  `#6474 <https://github.com/pypa/pipenv/issues/6474>`_
+- Fix benchmark CI job hanging by adding timeout and ``PIPENV_YES=1`` environment variable to prevent interactive prompts.  `#6477 <https://github.com/pypa/pipenv/issues/6477>`_
+- Fix subprocess deadlock in resolver that could cause ``pipenv lock`` to hang indefinitely when the resolver subprocess writes large amounts of data to stdout. The fix reads stdout and stderr concurrently using threads, preventing pipe buffer deadlocks.  `#benchmark <https://github.com/pypa/pipenv/issues/benchmark>`_
+
+Improved Documentation
+----------------------
+
+- Fix documentation that incorrectly referenced ``pipenv scan`` as a standalone command. The correct usage is ``pipenv check --scan``.  `#6396 <https://github.com/pypa/pipenv/issues/6396>`_
 2025.1.3 (2025-12-09)
 =====================
 pipenv 2025.1.3 (2025-12-09)

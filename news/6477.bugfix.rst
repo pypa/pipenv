@@ -1,1 +1,0 @@
-Fix benchmark CI job hanging by adding timeout and ``PIPENV_YES=1`` environment variable to prevent interactive prompts.

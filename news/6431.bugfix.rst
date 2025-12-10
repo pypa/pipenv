@@ -1,3 +1,0 @@
-Fix markers not being respected for file-based and VCS dependencies during resolution.
-Markers are now correctly included in the pip install line, allowing pipenv to skip
-resolution for dependencies whose markers don't match the current environment.

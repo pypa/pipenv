@@ -1,1 +1,0 @@
-Fix ``pipenv lock`` to properly apply default package version constraints when resolving dev-packages and other categories. When a package is constrained in the ``[packages]`` section (e.g., ``httpx = "==0.24.1"``), dev-packages that depend on it will now be constrained to compatible versions.

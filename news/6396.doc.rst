@@ -1,1 +1,0 @@
-Fix documentation that incorrectly referenced ``pipenv scan`` as a standalone command. The correct usage is ``pipenv check --scan``.

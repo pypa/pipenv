@@ -1,2 +1,0 @@
-Improve error handling in ``do_lock`` by properly catching and handling exceptions from ``venv_resolve_deps``.
-RuntimeError now exits cleanly, and other exceptions display a full traceback for debugging.

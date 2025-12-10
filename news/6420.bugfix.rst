@@ -1,7 +1,0 @@
-Fix ``pipenv update --dev`` (and ``pipenv update --categories develop``) updating
-transitive dependencies in the ``develop`` section independently from the ``default``
-section. Now, any packages that appear in both ``default`` and ``develop`` will use
-the version from ``default``, ensuring consistent dependency versions between
-production and development environments.
-
-Fixes #6420
