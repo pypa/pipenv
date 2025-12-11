@@ -27,6 +27,9 @@ def do_shell(
     from pipenv.shells import choose_shell
 
     shell = choose_shell(project)
+    # Respect both --quiet flag and PIPENV_QUIET environment variable
+    # See: https://github.com/pypa/pipenv/issues/5954
+    quiet = quiet or project.s.is_quiet()
     if not quiet:
         err.print("Launching subshell in virtual environment...")
 
@@ -51,7 +54,7 @@ def do_shell(
         return
 
     try:
-        shell.fork_compat(*fork_args)
+        shell.fork_compat(*fork_args, quiet=quiet)
     except (AttributeError, ImportError):
         err.print(
             "Compatibility mode not supported. "
