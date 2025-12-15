@@ -24,6 +24,23 @@ log = logging.getLogger(__name__)
 warnings.simplefilter("default", category=ResourceWarning)
 
 
+def pytest_addoption(parser):
+    """Add --use-uv option to pytest command line."""
+    parser.addoption(
+        "--use-uv",
+        action="store_true",
+        default=False,
+        help="Run tests with UV backend instead of pip resolver",
+    )
+
+
+def pytest_configure(config):
+    """Register the 'uv' marker."""
+    config.addinivalue_line(
+        "markers", "uv: tests specific to UV backend behavior"
+    )
+
+
 DEFAULT_PRIVATE_PYPI_SERVER = os.environ.get(
     "PIPENV_PYPI_SERVER", "http://localhost:8080/simple"
 )
@@ -263,14 +280,65 @@ class _PipenvInstance:
             return tomlkit.loads(f.read())
 
     @property
+    def use_uv(self):
+        """Check if UV backend is enabled."""
+        return os.environ.get("PIPENV_USE_UV", "").lower() in ("1", "true", "yes")
+
+    @property
     def lockfile(self):
+        """Return lockfile content.
+
+        For UV backend: reads pylock.toml and converts to lockfile-like structure.
+        For pip backend: reads Pipfile.lock directly.
+        """
+        if self.use_uv:
+            return self._pylock_as_lockfile()
         p_path = self.lockfile_path
         with open(p_path) as f:
             return json.loads(f.read())
 
+    def _pylock_as_lockfile(self):
+        """Convert pylock.toml to a Pipfile.lock-like dict for test compatibility."""
+        pylock_path = self.pylock_path
+        with open(pylock_path) as f:
+            pylock_data = tomlkit.loads(f.read())
+
+        # Convert pylock.toml structure to lockfile-like structure
+        lockfile = {
+            "_meta": {
+                "sources": [],
+            },
+            "default": {},
+            "develop": {},
+        }
+
+        for pkg in pylock_data.get("packages", []):
+            pkg_name = pkg.get("name", "").lower().replace("_", "-")
+            version = pkg.get("version", "")
+            groups = pkg.get("groups", [])
+
+            entry = {"version": f"=={version}"} if version else {}
+
+            if "dev" in groups:
+                lockfile["develop"][pkg_name] = entry
+            else:
+                lockfile["default"][pkg_name] = entry
+
+        return lockfile
+
+    @property
+    def pylock(self):
+        """Return parsed pylock.toml content."""
+        with open(self.pylock_path) as f:
+            return tomlkit.loads(f.read())
+
     @property
     def lockfile_path(self):
         return Path(os.sep.join([self.path, "Pipfile.lock"]))
+
+    @property
+    def pylock_path(self):
+        return Path(os.sep.join([self.path, "pylock.toml"]))
 
     @property
     def virtualenv_location(self):
@@ -313,13 +381,16 @@ else:
 
 
 @pytest.fixture()
-def pipenv_instance_pypi(capfdbinary, monkeypatch):
+def pipenv_instance_pypi(capfdbinary, monkeypatch, request):
+    use_uv = request.config.getoption("--use-uv")
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
         os.environ["PIPENV_DONT_USE_PYENV"] = "1"
+        if use_uv:
+            os.environ["PIPENV_USE_UV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings(
             "ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>"
@@ -333,13 +404,16 @@ def pipenv_instance_pypi(capfdbinary, monkeypatch):
 
 
 @pytest.fixture()
-def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
+def pipenv_instance_private_pypi(capfdbinary, monkeypatch, request):
+    use_uv = request.config.getoption("--use-uv")
     with temp_environ(), monkeypatch.context() as m:
         m.setattr(shutil, "rmtree", _rmtree_func)
         original_umask = os.umask(0o007)
         os.environ["PIPENV_NOSPIN"] = "1"
         os.environ["CI"] = "1"
         os.environ["PIPENV_DONT_USE_PYENV"] = "1"
+        if use_uv:
+            os.environ["PIPENV_USE_UV"] = "1"
         warnings.simplefilter("ignore", category=ResourceWarning)
         warnings.filterwarnings(
             "ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>"
@@ -355,3 +429,9 @@ def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
 @pytest.fixture()
 def testsroot():
     return TESTS_ROOT
+
+
+@pytest.fixture()
+def use_uv(request):
+    """Fixture that returns True if --use-uv flag was passed."""
+    return request.config.getoption("--use-uv")

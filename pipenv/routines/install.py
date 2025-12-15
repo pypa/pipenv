@@ -25,6 +25,7 @@ from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
+from pipenv.utils.uv import is_uv_available, uv_pip_install_deps
 
 
 def handle_new_packages(
@@ -562,6 +563,7 @@ def batch_install_iteration(
     ignore_hashes=False,
     allow_global=False,
     extra_pip_args=None,
+    index_lookup=None,
 ):
     with temp_environ():
         if not allow_global:
@@ -570,17 +572,35 @@ def batch_install_iteration(
                 del os.environ["PYTHONHOME"]
         if "GIT_CONFIG" in os.environ:
             del os.environ["GIT_CONFIG"]
-        cmds = pip_install_deps(
-            project,
-            deps=deps_to_install,
-            sources=sources,
-            allow_global=allow_global,
-            ignore_hashes=ignore_hashes,
-            no_deps=no_deps,
-            requirements_dir=requirements_dir,
-            use_pep517=True,
-            extra_pip_args=extra_pip_args,
-        )
+
+        # Use UV backend if enabled and available
+        use_uv = project.s.PIPENV_USE_UV and is_uv_available()
+        if use_uv:
+            if project.s.is_verbose():
+                err.print("Using UV backend for installation", style="bold cyan")
+            cmds = uv_pip_install_deps(
+                project,
+                deps=deps_to_install,
+                sources=sources,
+                index_lookup=index_lookup,
+                allow_global=allow_global,
+                ignore_hashes=ignore_hashes,
+                no_deps=no_deps,
+                requirements_dir=requirements_dir,
+                extra_pip_args=extra_pip_args,
+            )
+        else:
+            cmds = pip_install_deps(
+                project,
+                deps=deps_to_install,
+                sources=sources,
+                allow_global=allow_global,
+                ignore_hashes=ignore_hashes,
+                no_deps=no_deps,
+                requirements_dir=requirements_dir,
+                use_pep517=True,
+                extra_pip_args=extra_pip_args,
+            )
 
         for c in cmds:
             procs.put(c)
@@ -617,6 +637,17 @@ def batch_install(
         trusted_hosts=get_trusted_hosts(),
         pypi_mirror=pypi_mirror,
     )
+
+    # Build index_lookup for UV backend: maps package names to their index URLs
+    # This enables UV to enforce per-package index restrictions
+    index_lookup = {}
+    source_map = {s.get("name"): s.get("url") for s in sources if s.get("name")}
+    for pkg_name, pkg_info in lockfile_section.items():
+        if isinstance(pkg_info, dict) and "index" in pkg_info:
+            index_name = pkg_info["index"]
+            if index_name in source_map:
+                index_lookup[pkg_name.lower()] = source_map[index_name]
+
     if search_all_sources:
         dependencies = [pip_line for _, pip_line in deps_to_install]
         batch_install_iteration(
@@ -629,6 +660,7 @@ def batch_install(
             ignore_hashes=ignore_hashes,
             allow_global=allow_global,
             extra_pip_args=extra_pip_args,
+            index_lookup=index_lookup,
         )
     else:
         # Sort the dependencies out by index -- include editable/vcs in the default group
@@ -654,6 +686,7 @@ def batch_install(
                     ignore_hashes=ignore_hashes,
                     allow_global=allow_global,
                     extra_pip_args=extra_pip_args,
+                    index_lookup=index_lookup,
                 )
             except StopIteration:  # noqa: PERF203
                 console.print(

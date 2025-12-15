@@ -374,6 +374,16 @@ class Setting:
 
         self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY", check_for_negation=False)
 
+        self.PIPENV_USE_UV = bool(get_from_env("USE_UV"))
+        """If set, use UV as the installation backend instead of pip.
+
+        UV provides significantly faster package installation while maintaining
+        pipenv's index restriction security model. Requires UV to be installed
+        separately (https://docs.astral.sh/uv/).
+
+        Default is to use pip for installation.
+        """
+
         # Internal, support running in a different Python from sys.executable.
         self.PIPENV_PYTHON = get_from_env("PYTHON", check_for_negation=False)
 

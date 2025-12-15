@@ -246,6 +246,7 @@ markers = [
   "extras",
   "extended",
   "ext: extra non-categorized tests",
+  "uv: tests specific to UV backend behavior",
 ]
 
 [tool.coverage.run]
