@@ -159,7 +159,7 @@ class Shell:
             os.chdir(str(cwd) if isinstance(cwd, Path) else cwd)
             _handover(self.cmd, self.args + list(args))
 
-    def fork_compat(self, venv, cwd, args):
+    def fork_compat(self, venv, cwd, args, quiet=False):
         from .vendor import pexpect
 
         # Grab current terminal dimensions to replace the hardcoded default
@@ -173,6 +173,15 @@ class Shell:
             os.environ.pop("COLUMNS", None)
             os.environ.pop("LINES", None)
             c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
+
+        # In quiet mode, disable echo to suppress activation command output
+        # See: https://github.com/pypa/pipenv/issues/5954
+        if quiet:
+            try:
+                c.setecho(False)
+            except Exception:
+                pass  # setecho may not be supported on all platforms
+
         c.sendline(_get_activate_script(self.cmd, venv))
 
         # Wrap the deactivate function to also unset PIPENV_ACTIVE
@@ -182,6 +191,13 @@ class Shell:
 
         if args:
             c.sendline(" ".join(args))
+
+        # Re-enable echo after sending activation commands
+        if quiet:
+            try:
+                c.setecho(True)
+            except Exception:
+                pass
 
         # Handler for terminal resizing events
         # Must be defined here to have the shell process in its context, since
