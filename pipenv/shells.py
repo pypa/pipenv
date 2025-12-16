@@ -105,8 +105,14 @@ def _get_deactivate_wrapper_script(cmd):
             "function deactivate { & $_pipenv_old_deactivate; "
             "Remove-Item Env:PIPENV_ACTIVE -ErrorAction SilentlyContinue }"
         )
-    elif cmd.endswith(("bash", "zsh")):
-        # Bash and zsh support 'declare -f' to copy function definitions
+    elif cmd.endswith("zsh"):
+        # Zsh uses 'functions -c' to copy function definitions
+        return (
+            "functions -c deactivate _pipenv_old_deactivate; "
+            "deactivate() { _pipenv_old_deactivate; unset PIPENV_ACTIVE; }"
+        )
+    elif cmd.endswith("bash"):
+        # Bash uses 'declare -f' to copy function definitions
         return (
             'eval "_pipenv_old_deactivate() { $(declare -f deactivate | tail -n +2) }"; '
             "deactivate() { _pipenv_old_deactivate; unset PIPENV_ACTIVE; }"

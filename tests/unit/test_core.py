@@ -176,14 +176,19 @@ def test_load_dot_env_suppresses_message_when_pipenv_active(monkeypatch, capsys,
 @pytest.mark.core
 def test_deactivate_wrapper_script_includes_unset_pipenv_active():
     """Test that deactivate wrapper scripts include 'unset PIPENV_ACTIVE' or equivalent."""
-    # Test bash/zsh - should use 'unset PIPENV_ACTIVE'
+    # Test bash - should use 'declare -f' to copy function and 'unset PIPENV_ACTIVE'
     bash_script = _get_deactivate_wrapper_script("bash")
     assert "unset PIPENV_ACTIVE" in bash_script
     assert "_pipenv_old_deactivate" in bash_script
+    assert "declare -f" in bash_script
 
+    # Test zsh - should use 'functions -c' to copy function (not 'declare -f' which fails in zsh)
+    # See: https://github.com/pypa/pipenv/issues/6503
     zsh_script = _get_deactivate_wrapper_script("zsh")
     assert "unset PIPENV_ACTIVE" in zsh_script
     assert "_pipenv_old_deactivate" in zsh_script
+    assert "functions -c" in zsh_script
+    assert "declare -f" not in zsh_script  # zsh doesn't handle this in eval correctly
 
     # Test fish - should use 'set -e PIPENV_ACTIVE'
     fish_script = _get_deactivate_wrapper_script("fish")
