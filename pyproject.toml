@@ -61,7 +61,7 @@ scripts.pipenv-resolver = "pipenv.resolver:main"
 
 [tool.setuptools.packages.find]
 where = [ "." ]
-exclude = [ "tests*", "tests.*", "tasks*", "tasks.*" ]
+exclude = [ "tests*", "tests.*", "tasks*", "tasks.*", "docs*", "docs.*" ]
 
 [tool.setuptools.package-data]
 "*" = [ "LICENSE", "NOTICES" ]
