@@ -779,3 +779,143 @@ class TestPipConfigurationParsing:
             assert project.default_source["url"] in [primary_index, extra_index]
         finally:
             os.chdir(original_dir)
+
+
+class TestFormatRequirementForLockfile:
+    """Tests for format_requirement_for_lockfile in locking.py.
+
+    These tests verify that various requirement types are correctly formatted
+    for the lockfile, including direct URL dependencies (PEP 508 style).
+    """
+
+    def test_direct_url_dependency_https(self):
+        """Test that HTTPS direct URL dependencies are stored in lockfile.
+
+        This is the fix for issue #5967 - when a package has an extra dependency
+        with a direct URL like:
+            my-private-dependency @ https://my-private-artifactory/.../package.whl
+        The URL should be stored in the lockfile entry.
+        """
+        from pipenv.patched.pip._internal.models.link import Link
+        from pipenv.patched.pip._internal.req.constructors import (
+            install_req_from_line,
+        )
+        from pipenv.utils.locking import format_requirement_for_lockfile
+
+        # Create an InstallRequirement with a direct HTTPS URL (PEP 508 style)
+        req_str = "my-private-package @ https://my-artifactory.com/api/pypi/repo/my-private-package/1.0.0/my-private-package-1.0.0-py3-none-any.whl"
+        req = install_req_from_line(req_str)
+
+        # Verify the link properties
+        assert req.link is not None
+        assert req.link.scheme == "https"
+        assert req.link.is_file is False
+        assert req.link.is_vcs is False
+
+        # Format for lockfile
+        name, entry = format_requirement_for_lockfile(
+            req,
+            markers_lookup={},
+            index_lookup={},
+            original_deps={},
+            pipfile_entries={},
+            hashes=None,
+        )
+
+        # Verify the URL is stored in the lockfile entry
+        assert name == "my-private-package"
+        assert "file" in entry, "Direct URL should be stored in 'file' key"
+        assert entry["file"] == "https://my-artifactory.com/api/pypi/repo/my-private-package/1.0.0/my-private-package-1.0.0-py3-none-any.whl"
+        assert "version" not in entry, "URL deps should not have version"
+        assert "index" not in entry, "URL deps should not have index"
+
+    def test_direct_url_dependency_http(self):
+        """Test that HTTP direct URL dependencies are stored in lockfile."""
+        from pipenv.patched.pip._internal.req.constructors import (
+            install_req_from_line,
+        )
+        from pipenv.utils.locking import format_requirement_for_lockfile
+
+        # Create an InstallRequirement with a direct HTTP URL
+        req_str = "example-package @ http://internal-server.local/packages/example-package-2.0.0.tar.gz"
+        req = install_req_from_line(req_str)
+
+        # Verify the link properties
+        assert req.link is not None
+        assert req.link.scheme == "http"
+
+        # Format for lockfile
+        name, entry = format_requirement_for_lockfile(
+            req,
+            markers_lookup={},
+            index_lookup={},
+            original_deps={},
+            pipfile_entries={},
+            hashes=None,
+        )
+
+        # Verify the URL is stored
+        assert name == "example-package"
+        assert "file" in entry
+        assert entry["file"] == "http://internal-server.local/packages/example-package-2.0.0.tar.gz"
+
+    def test_file_url_dependency(self):
+        """Test that local file:// URLs are still handled correctly."""
+        from pipenv.patched.pip._internal.req.constructors import (
+            install_req_from_line,
+        )
+        from pipenv.utils.locking import format_requirement_for_lockfile
+
+        # Create an InstallRequirement with a file:// URL
+        req_str = "local-package @ file:///home/user/packages/local-package-1.0.0.whl"
+        req = install_req_from_line(req_str)
+
+        # Verify the link properties
+        assert req.link is not None
+        assert req.link.scheme == "file"
+        assert req.link.is_file is True
+
+        # Format for lockfile
+        name, entry = format_requirement_for_lockfile(
+            req,
+            markers_lookup={},
+            index_lookup={},
+            original_deps={},
+            pipfile_entries={},
+            hashes=None,
+        )
+
+        # Verify the URL is stored
+        assert name == "local-package"
+        assert "file" in entry
+        assert entry["file"] == "file:///home/user/packages/local-package-1.0.0.whl"
+
+    def test_regular_pypi_dependency(self):
+        """Test that regular PyPI dependencies still work correctly."""
+        from pipenv.patched.pip._internal.req.constructors import (
+            install_req_from_line,
+        )
+        from pipenv.utils.locking import format_requirement_for_lockfile
+
+        # Create a regular PyPI requirement
+        req_str = "requests==2.28.0"
+        req = install_req_from_line(req_str)
+
+        # Regular requirements don't have a link
+        assert req.link is None
+
+        # Format for lockfile
+        name, entry = format_requirement_for_lockfile(
+            req,
+            markers_lookup={},
+            index_lookup={},
+            original_deps={},
+            pipfile_entries={},
+            hashes=None,
+        )
+
+        # Verify version is stored, not URL
+        assert name == "requests"
+        assert "version" in entry
+        assert entry["version"] == "==2.28.0"
+        assert "file" not in entry
