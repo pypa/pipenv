@@ -751,7 +751,7 @@ def _generate_resolution_cache_key(
     ]
 
     key_string = "|".join(key_components)
-    return hashlib.md5(key_string.encode()).hexdigest()
+    return hashlib.md5(key_string.encode(), usedforsecurity=False).hexdigest()
 
 
 def _should_use_resolution_cache(cache_key, clear):
