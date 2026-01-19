@@ -86,7 +86,24 @@ def format_requirement_for_lockfile(
         elif req.specifier:
             entry["version"] = str(req.specifier)
         if req.link and req.link.is_file:
-            entry["file"] = req.link.url
+            # For local file/directory dependencies, use 'path' for directories
+            # and 'file' for archives. Convert file:// URLs to relative paths.
+            # This handles sub-dependencies that are local packages.
+            # See: https://github.com/pypa/pipenv/issues/6119
+            if req.link.is_existing_dir():
+                # Local directory - use 'path' with relative path
+                from pipenv.utils.dependencies import ensure_path_is_relative
+
+                entry["path"] = ensure_path_is_relative(req.link.file_path)
+            else:
+                # Archive file - use 'file' with URL
+                entry["file"] = req.link.url
+            # For file/path dependencies, remove version and index
+            entry.pop("version", None)
+            entry.pop("index", None)
+            # Preserve editable flag if set
+            if req.editable:
+                entry["editable"] = True
     # Add index information
     if name in index_lookup:
         entry["index"] = index_lookup[name]
