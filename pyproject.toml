@@ -47,9 +47,9 @@ optional-dependencies.safety = [
   "safety>=3.0.0",
 ]
 optional-dependencies.tests = [
-  "flaky",
   "mock",
   "pytest>=5",
+  "pytest-rerunfailures",
   "pytest-timeout",
   "pytest-xdist",
 ]

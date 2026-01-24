@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 
 import pytest
-from flaky import flaky
 
 from pipenv.utils.shell import temp_environ
 
@@ -223,7 +222,7 @@ allow_prereleases = true
 @pytest.mark.maya
 @pytest.mark.complex
 @pytest.mark.needs_internet
-@flaky
+@pytest.mark.flaky(reruns=3)
 def test_complex_deps_lock_and_install_properly(pipenv_instance_pypi):
     # This uses the real PyPI because Maya has too many dependencies...
     with pipenv_instance_pypi() as p, open(p.pipfile_path, "w") as f:
@@ -595,7 +594,7 @@ def test_default_lock_overwrite_dev_lock(pipenv_instance_pypi):
         assert p.lockfile["develop"]["click"]["version"] == "==6.7"
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.needs_internet

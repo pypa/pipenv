@@ -2,7 +2,6 @@ import os
 import sys
 
 import pytest
-from flaky import flaky
 
 from pipenv.project import Project
 from pipenv.utils.shell import temp_environ
@@ -38,7 +37,7 @@ dataclass-factory = {}
         assert c.returncode == 1  # dataclass-factory is not installed due to the marker
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.markers
 def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
     """Markers should be converted during locking to help users who input this
@@ -58,7 +57,7 @@ def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
         )
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.alt
 @pytest.mark.markers
 @pytest.mark.install
@@ -79,7 +78,7 @@ six = {version = "*", os_name = "== 'splashwear'"}
         assert c.returncode == 1
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.markers
 def test_top_level_overrides_environment_markers(pipenv_instance_pypi):
     """Top-level environment markers should take precedence."""
@@ -102,7 +101,7 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
         ), p.lockfile["default"]["funcsigs"]
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.markers
 @pytest.mark.install
 def test_global_overrides_environment_markers(pipenv_instance_private_pypi):
@@ -132,7 +131,7 @@ funcsigs = "*"
         assert p.lockfile["default"]["funcsigs"].get("markers", "") == ""
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.markers
 @pytest.mark.complex
 @pytest.mark.skipif(
@@ -178,7 +177,7 @@ def test_install_package_with_invalid_python_version_specifier(pipenv_instance_p
         assert "typedb-driver" in p.lockfile["default"]
 
 
-@flaky
+@pytest.mark.flaky(reruns=3)
 @pytest.mark.project
 @pytest.mark.needs_internet
 def test_environment_variable_value_does_not_change_hash(pipenv_instance_private_pypi):
