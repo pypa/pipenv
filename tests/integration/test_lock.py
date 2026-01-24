@@ -222,7 +222,7 @@ allow_prereleases = true
 @pytest.mark.maya
 @pytest.mark.complex
 @pytest.mark.needs_internet
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=1)
 def test_complex_deps_lock_and_install_properly(pipenv_instance_pypi):
     # This uses the real PyPI because Maya has too many dependencies...
     with pipenv_instance_pypi() as p, open(p.pipfile_path, "w") as f:
@@ -594,7 +594,7 @@ def test_default_lock_overwrite_dev_lock(pipenv_instance_pypi):
         assert p.lockfile["develop"]["click"]["version"] == "==6.7"
 
 
-@pytest.mark.flaky(reruns=3)
+@pytest.mark.flaky(reruns=1)
 @pytest.mark.lock
 @pytest.mark.install
 @pytest.mark.needs_internet
