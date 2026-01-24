@@ -33,6 +33,8 @@ pypiserver = "*"
 tomli = "*"
 bottle = "*"
 legacy-cgi = {version = "*", markers = "python_version >= '3.13'"}
+pytest-rerunfailures = "*"
+
 
 [packages]
 pytz = "*"
