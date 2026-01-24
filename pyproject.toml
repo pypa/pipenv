@@ -222,6 +222,7 @@ filterwarnings = [  ]
 # These are not all the custom markers, but most of the ones with repeat uses
 # `pipenv run pytest --markers` will list all markers including these
 markers = [
+  "flaky: flaky tests that may need reruns (pytest-rerunfailures)",
   "install: tests having to do with `pipenv install`",
   "update: tests having to do with `pipenv update`",
   "needs_internet: integration tests that require internet to pass",
