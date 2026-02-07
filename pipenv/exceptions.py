@@ -309,7 +309,7 @@ class InstallError(PipenvException):
 
             package_message = f"Couldn't install package(s): [bold]{pretty}[/bold]\n"
         message = f"{package_message}[yellow]Package installation failed...[/yellow]"
-        extra = kwargs.pop('extra', [])
+        extra = kwargs.pop("extra", [])
 
         super().__init__(message=message, extra=extra, **kwargs)
 
