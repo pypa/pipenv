@@ -1,5 +1,7 @@
 import queue
+
 import pytest
+
 
 def test_install_error_formats_list():
     """
@@ -22,8 +24,8 @@ def test_cleanup_procs_raises_install_error_with_deps():
     _cleanup_procs() should include the deps context from subprocess result
     in the raised `InstallError` message when the pip subprocess fails.
     """
-    from pipenv.routines.install import _cleanup_procs
     from pipenv.exceptions import InstallError
+    from pipenv.routines.install import _cleanup_procs
 
     class _Settings:
         def is_verbose(self):
