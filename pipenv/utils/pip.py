@@ -100,6 +100,18 @@ def pip_install_deps(
             pip_config.update({"PIP_SRC": src_dir})
         c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
         c.env = pip_config
+        # Attach the deps to this subprocess results
+        # when pip commands fails, `_cleanup_procs()` raises `InstallError`
+        # and tries to include which dependecies/requirements were being installed
+        # `_cleanup_procs()` reads `c.deps`, but previously `c.deps` was never set
+        # so the error message often lacked useful context
+        # This allows us to show clear "Couldn't install package(s): ......." message
+        c.deps = list(deps)
+
+        # Optional: we can do "pretty" msgs for display purposes
+        # (e.g., strip whitespaces)
+        # c.deps_pretty = [d.strip() for d in deps if d and d.strip()]
+
         cmds.append(c)
         if project.s.is_verbose():
             while True:
