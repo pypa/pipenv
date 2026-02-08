@@ -79,7 +79,7 @@ sentry-sdk = {version = ">=1.0.0", extras = ["flask"]}
 flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "master"}
 
 # Local paths
-my-package = {path = "./path/to/local/package", editable = true}
+my-package = { path = "./path/to/local/package" }
 
 # Platform-specific dependencies
 gunicorn = {version = "*", markers = "sys_platform == 'linux'"}
@@ -88,6 +88,28 @@ waitress = {version = "*", markers = "sys_platform == 'win32'"}
 # Index-specific packages
 private-package = {version = "*", index = "private"}
 ```
+
+Local path dependencies use the `path` attribute.
+
+By default, Pipenv performs a standard (non-editable) installation:
+
+```toml
+[packages]
+my-package = { path = "./path/to/local/package" }
+```
+
+To install the package in development (editable) mode:
+
+```toml
+[packages]
+my-package = { path = "./path/to/local/package", editable = true }
+```
+
+Editable installs mirror `pip install -e` behavior and reflect changes to
+the source immediately.
+
+> Note: Older Pipenv versions implicitly treated path dependencies as
+> editable. Newer versions require `editable = true` to be explicit.
 
 ### Development Packages Section
 
@@ -314,18 +336,28 @@ flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "
 custom-package = {git = "https://github.com/user/repo.git", editable = true}
 ```
 
-The `ref` parameter can be a branch name, tag, or commit hash.
-
 ### Local Dependencies
 
 For local development of packages:
 
 ```toml
 [packages]
-my-package = {path = "./path/to/package", editable = true}
+my-package = { path = "./path/to/package" }
+```
+
+This performs a regular (non-editable) installation.
+
+To install in development mode:
+
+```toml
+[packages]
+my-package = { path = "./path/to/package", editable = true }
 ```
 
 The `editable` flag installs the package in development mode, so changes to the source code are immediately reflected.
+
+> If `editable` is omitted, Pipenv will perform a standard installation
+> instead of a development install.
 
 ## Troubleshooting
 
