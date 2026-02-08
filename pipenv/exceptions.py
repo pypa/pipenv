@@ -287,17 +287,31 @@ class UninstallError(PipenvException):
 
 class InstallError(PipenvException):
     def __init__(self, package, **kwargs):
+        # We normalize it into a readable summary so users can immediately see
+        # what pipenv was trying to install when pip failed.
+        # In short we did friendly messages.
         package_message = ""
-        if package is not None:
-            package_message = "Couldn't install package: {}\n".format(
-                f"[bold]{package!s}[/bold]"
-            )
-        message = "{} {}".format(
-            f"{package_message}",
-            "[yellow]Package installation failed...[/yellow]",
-        )
+
+        if package:
+            pretty = package
+
+            if isinstance(package, (list, tuple, set)):
+                items = [str(x) for x in package]
+                pretty = ", ".join(items[:10])
+                if len(items) > 10:
+                    pretty += ", ..."
+
+            elif isinstance(package, dict):
+                keys = [str(k) for k in package.keys()]
+                pretty = ", ".join(keys[:10])
+                if len(keys) > 10:
+                    pretty += ", ..."
+
+            package_message = f"Couldn't install package(s): [bold]{pretty}[/bold]\n"
+        message = f"{package_message}[yellow]Package installation failed...[/yellow]"
         extra = kwargs.pop("extra", [])
-        PipenvException.__init__(self, message=message, extra=extra, **kwargs)
+
+        super().__init__(message=message, extra=extra, **kwargs)
 
 
 class DependencyConflict(PipenvException):
