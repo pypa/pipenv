@@ -164,6 +164,27 @@ def test_resolve_skip_unmatched_requirements(pipenv_instance_pypi):
 
 
 @pytest.mark.lock
+def test_resolve_skip_unmatched_sys_platform(pipenv_instance_pypi):
+    """Test that packages with non-matching sys_platform markers are skipped.
+
+    This tests the sys_platform key syntax (not markers key) which should
+    be properly converted and evaluated before resolution.
+
+    Fixes: https://github.com/pypa/pipenv/issues/6028
+    """
+    with pipenv_instance_pypi() as p:
+        # Use sys_platform key syntax (not markers key)
+        # This should be skipped on non-matching platforms without causing resolution errors
+        p._pipfile.add("missing-package", {"version": "*", "sys_platform": "== 'FakePlatform'"})
+        c = p.pipenv("lock")
+        assert c.returncode == 0
+        assert (
+            'Could not find a matching version of missing-package; sys_platform == "FakePlatform"'
+            in c.stderr
+        )
+
+
+@pytest.mark.lock
 @pytest.mark.complex
 @pytest.mark.needs_internet
 def test_complex_lock_with_vcs_deps(pipenv_instance_private_pypi):
