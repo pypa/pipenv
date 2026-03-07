@@ -86,7 +86,7 @@ def cli(
 
     load_dot_env(state.project, quiet=state.quiet)
 
-    from pipenv.uv import patch as uv_patch
+    from pipenv.uv_lock import patch as uv_patch
 
     uv_patch()
 

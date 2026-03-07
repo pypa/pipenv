@@ -1,0 +1,888 @@
+"""uv lock-based resolver integration for pipenv.
+
+Uses ``uv lock`` (native project-based resolution) instead of ``uv pip compile``
+for dependency resolution, providing richer structured data including per-package
+source registry, structural extras info, and environment markers.
+
+Activated via ``PIPENV_UV=1``.  Does NOT modify ``uv.py`` — this module provides
+its own ``patch()`` that replaces the resolver while reusing the installer from
+``uv.py``.
+
+Environment variables:
+    PIPENV_UV              -- Enable uv integration (default: disabled)
+    PIPENV_UV_NO_RESOLVE   -- Disable uv-based resolution only
+    PIPENV_UV_NO_INSTALL   -- Disable uv-based installation only
+    PIPENV_UV_VERBOSE      -- Enable debug logging for uv commands
+"""
+
+from __future__ import annotations
+
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+import tempfile
+from typing import Any, TypedDict
+from urllib.parse import urlparse
+
+logger = logging.getLogger(__name__)
+
+# Saved references to original functions, set by patch()
+_original_resolve: Any = None
+_original_pip_install_deps: Any = None
+_install_message_shown = False
+
+# ---------------------------------------------------------------------------
+# TypedDicts for uv.lock parsing
+# ---------------------------------------------------------------------------
+
+
+class UvLockSource(TypedDict, total=False):
+    registry: str
+    virtual: str
+    git: str
+    editable: str
+    url: str
+    subdirectory: str
+
+
+UvLockSdist = TypedDict(
+    "UvLockSdist",
+    {
+        "url": str,
+        "hash": str,
+        "size": int,
+        "upload-time": str,
+    },
+    total=False,
+)
+
+UvLockWheel = TypedDict(
+    "UvLockWheel",
+    {
+        "url": str,
+        "hash": str,
+        "size": int,
+        "upload-time": str,
+    },
+    total=False,
+)
+
+
+class UvLockDependency(TypedDict, total=False):
+    name: str
+    version: str
+    marker: str
+    extra: list[str]
+    source: UvLockSource
+
+
+UvLockPackage = TypedDict(
+    "UvLockPackage",
+    {
+        "name": str,
+        "version": str,
+        "source": UvLockSource,
+        "dependencies": list[UvLockDependency],
+        "optional-dependencies": dict[str, list[UvLockDependency]],
+        "sdist": UvLockSdist,
+        "wheels": list[UvLockWheel],
+        "resolution-markers": list[str],
+    },
+    total=False,
+)
+
+UvLock = TypedDict(
+    "UvLock",
+    {
+        "version": int,
+        "revision": int,
+        "requires-python": str,
+        "package": list[UvLockPackage],
+        "resolution-markers": list[str],
+    },
+    total=False,
+)
+
+
+# ---------------------------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------------------------
+
+
+def _url_matches(url1: str, url2: str) -> bool:
+    """Compare two URLs ignoring trailing slashes and scheme differences.
+
+    :param url1: First URL
+    :param url2: Second URL
+    :return: True if the URLs point to the same location
+    """
+    if not url1 or not url2:
+        return False
+    # Normalize: strip trailing slashes, lowercase
+    u1 = url1.rstrip("/").lower()
+    u2 = url2.rstrip("/").lower()
+    if u1 == u2:
+        return True
+    # Try comparing just host+path (ignore scheme http vs https)
+    p1 = urlparse(u1)
+    p2 = urlparse(u2)
+    return p1.netloc == p2.netloc and p1.path.rstrip("/") == p2.path.rstrip("/")
+
+
+def _source_url_to_index_name(
+    registry_url: str, project_sources: list[dict[str, Any]]
+) -> str | None:
+    """Map a uv.lock registry URL to a Pipfile source name.
+
+    :param registry_url: The ``source.registry`` URL from a uv.lock package
+    :param project_sources: Result of ``project.pipfile_sources()``
+    :return: The source name, or None if no match found
+    """
+    for source in project_sources:
+        if _url_matches(source.get("url", ""), registry_url):
+            return source.get("name")
+    return None
+
+
+def _normalize_marker(marker_str: str) -> str:
+    """Normalize ``python_full_version`` to ``python_version`` for simple comparisons.
+
+    UV uses ``python_full_version`` where pip uses ``python_version``.  For
+    simple comparisons like ``>= '3.6'`` (no micro part, no wildcard), the two
+    are semantically equivalent, so we normalize for compatibility.
+
+    :param marker_str: A PEP 508 marker string
+    :return: The normalized marker string
+    """
+    return re.sub(
+        r"python_full_version\s*(>=|<=|>|<|!=)\s*([\"'])(\d+\.\d+)\2",
+        lambda m: f"python_version {m.group(1)} {m.group(2)}{m.group(3)}{m.group(2)}",
+        marker_str,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Pipfile -> pyproject.toml translation
+# ---------------------------------------------------------------------------
+
+
+def _pipfile_entry_to_pep508(name: str, entry: str | dict[str, Any]) -> str:
+    """Convert a single Pipfile entry to a PEP 508 dependency string.
+
+    :param name: Package name
+    :param entry: Pipfile value — either ``"*"`` / ``">=1.0"`` or a dict
+    :return: PEP 508 string suitable for ``[project.dependencies]``
+    """
+    if isinstance(entry, str):
+        if entry == "*":
+            return name
+        return f"{name}{entry}"
+
+    # Dict entry
+    version = entry.get("version", "*")
+    extras = entry.get("extras", [])
+    markers_str = entry.get("markers", "")
+
+    # Build extras portion
+    extras_part = ""
+    if extras:
+        extras_part = "[" + ",".join(extras) + "]"
+
+    # Build version portion
+    version_part = ""
+    if version and version != "*":
+        version_part = version
+
+    # Build markers from individual marker keys
+    marker_keys = {
+        "os_name",
+        "sys_platform",
+        "platform_machine",
+        "platform_python_implementation",
+        "platform_release",
+        "platform_system",
+        "platform_version",
+        "python_version",
+        "python_full_version",
+        "implementation_name",
+        "implementation_version",
+    }
+    marker_parts = []
+    for key in sorted(marker_keys):
+        if key in entry:
+            val = entry[key]
+            marker_parts.append(f"{key} {val}")
+    if markers_str:
+        marker_parts.append(markers_str)
+
+    marker_combined = ""
+    if marker_parts:
+        marker_combined = " and ".join(marker_parts)
+
+    # Assemble PEP 508 string
+    result = f"{name}{extras_part}{version_part}"
+    if marker_combined:
+        result += f"; {marker_combined}"
+
+    return result
+
+
+def _pipfile_entry_to_uv_source(
+    name: str, entry: str | dict[str, Any]
+) -> dict[str, Any] | None:
+    """Convert a Pipfile entry to a ``[tool.uv.sources]`` entry if needed.
+
+    :param name: Package name
+    :param entry: Pipfile value
+    :return: A dict for ``[tool.uv.sources.<name>]``, or None if not needed
+    """
+    if isinstance(entry, str):
+        return None
+
+    # Index-restricted package
+    if entry.get("index"):
+        return {"index": entry["index"]}
+
+    # Git dependency
+    if entry.get("git"):
+        source: dict[str, Any] = {"git": entry["git"]}
+        if entry.get("ref"):
+            source["rev"] = entry["ref"]
+        if entry.get("subdirectory"):
+            source["subdirectory"] = entry["subdirectory"]
+        return source
+
+    # Path / editable dependency
+    if entry.get("path"):
+        source = {"path": entry["path"]}
+        if entry.get("editable"):
+            source["editable"] = True
+        return source
+
+    # File / URL dependency
+    if entry.get("file"):
+        url = entry["file"]
+        if url.startswith(("http://", "https://")):
+            return {"url": url}
+        # Local file path
+        return {"path": url}
+
+    return None
+
+
+def _build_pyproject_toml(
+    project: Any,
+    category: str,
+    pre: bool = False,
+) -> str:
+    """Build a temporary ``pyproject.toml`` for ``uv lock`` resolution.
+
+    :param project: The pipenv Project instance
+    :param category: The Pipfile category being resolved (e.g. "default", "develop")
+    :param pre: Whether to allow pre-release versions
+    :return: The pyproject.toml content as a string
+    """
+    # Get dependencies for the target category
+    if category == "default":
+        deps = project.packages
+    elif category == "develop":
+        deps = project.dev_packages
+    else:
+        deps = project.parsed_pipfile.get(category, {})
+
+    # Build PEP 508 dependency strings and uv sources
+    pep508_deps: list[str] = []
+    uv_sources: dict[str, dict[str, Any]] = {}
+
+    for name, entry in deps.items():
+        pep508_deps.append(_pipfile_entry_to_pep508(name, entry))
+        uv_source = _pipfile_entry_to_uv_source(name, entry)
+        if uv_source:
+            uv_sources[name] = uv_source
+
+    # Get requires-python from Pipfile
+    requires_python = project.required_python_version or ""
+    if requires_python and not any(
+        op in requires_python for op in (">=", "<=", "==", "!=", ">", "<", "~=")
+    ):
+        # Bare version like "3.10" — convert to ">= 3.10"
+        requires_python = f">= {requires_python}"
+
+    # Get cross-category constraints for non-default categories
+    constraint_deps: list[str] = []
+    if category != "default" and project.settings.get("use_default_constraints", True):
+        from pipenv.utils.dependencies import get_constraints_from_deps
+
+        constraints = get_constraints_from_deps(project.packages)
+        constraint_deps = sorted(constraints)
+
+    # Get sources
+    sources = project.pipfile_sources()
+
+    # Build TOML content manually (avoid toml dependency)
+    lines: list[str] = []
+    lines.append("[project]")
+    lines.append('name = "pipenv-resolver"')
+    lines.append('version = "0.0.0"')
+    if requires_python:
+        lines.append(f'requires-python = "{requires_python}"')
+    lines.append("")
+
+    # For default category: packages go in [project.dependencies]
+    # For other categories: packages go in [project.dependencies], default as constraints
+    lines.append("dependencies = [")
+    for dep in pep508_deps:
+        lines.append(f'    "{dep}",')
+    lines.append("]")
+    lines.append("")
+
+    # Cross-category constraints
+    if constraint_deps:
+        lines.append("[tool.uv]")
+        lines.append("constraint-dependencies = [")
+        for c in constraint_deps:
+            lines.append(f'    "{c}",')
+        lines.append("]")
+        lines.append("")
+
+    # Pre-release settings
+    if pre:
+        if not constraint_deps:
+            lines.append("[tool.uv]")
+        lines.append('prerelease = "allow"')
+        lines.append("")
+
+    # UV sources
+    if uv_sources:
+        lines.append("[tool.uv.sources]")
+        for pkg_name, src in uv_sources.items():
+            parts: list[str] = []
+            for k, v in src.items():
+                if isinstance(v, bool):
+                    parts.append(f"{k} = {'true' if v else 'false'}")
+                else:
+                    parts.append(f'{k} = "{v}"')
+            lines.append(f"{pkg_name} = {{ {', '.join(parts)} }}")
+        lines.append("")
+
+    # UV indexes
+    for i, source in enumerate(sources):
+        lines.append("[[tool.uv.index]]")
+        lines.append(f'name = "{source.get("name", "source-" + str(i))}"')
+        lines.append(f'url = "{source["url"]}"')
+        if i == 0:
+            lines.append("default = true")
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+def _build_uv_lock_cmd(
+    project: Any,
+    pyproject_dir: str,
+    pre: bool = False,
+) -> list[str]:
+    """Build the ``uv lock`` command line.
+
+    :param project: The pipenv Project instance
+    :param pyproject_dir: Path to the temp directory containing pyproject.toml
+    :param pre: Whether to allow pre-release versions
+    :return: Command list suitable for subprocess
+    """
+    from pipenv.uv import find_uv_bin
+
+    uv_bin = find_uv_bin()
+
+    cmd = [
+        uv_bin,
+        "lock",
+        f"--project={pyproject_dir}",
+        "--index-strategy=unsafe-best-match",
+    ]
+
+    if pre:
+        cmd.append("--prerelease=allow")
+
+    # Add --allow-insecure-host for sources with verify_ssl: false
+    sources = project.pipfile_sources()
+    for source in sources:
+        if not source.get("verify_ssl", True):
+            parsed_url = urlparse(source["url"])
+            host = parsed_url.hostname or ""
+            port = parsed_url.port
+            if port:
+                cmd.append(f"--allow-insecure-host={host}:{port}")
+            else:
+                cmd.append(f"--allow-insecure-host={host}")
+
+    return cmd
+
+
+# ---------------------------------------------------------------------------
+# uv.lock parsing
+# ---------------------------------------------------------------------------
+
+
+def _collect_hashes(pkg: UvLockPackage) -> list[str]:
+    """Extract and sort hashes from a uv.lock package entry.
+
+    :param pkg: A package entry from uv.lock
+    :return: Sorted list of hash strings like ``"sha256:abcdef..."``
+    """
+    hashes: set[str] = set()
+
+    sdist = pkg.get("sdist")
+    if sdist and sdist.get("hash"):
+        hashes.add(sdist["hash"])
+
+    for wheel in pkg.get("wheels", []):
+        if wheel.get("hash"):
+            hashes.add(wheel["hash"])
+
+    return sorted(hashes)
+
+
+def _find_extras_deps(
+    packages: list[UvLockPackage],
+) -> dict[str, dict[str, list[str]]]:
+    """Build a map of extras-only dependencies from uv.lock packages.
+
+    Examines ``[package.optional-dependencies]`` sections to find packages
+    that are transitive dependencies of extras.
+
+    :param packages: The list of ``[[package]]`` entries from uv.lock
+    :return: Dict of ``{parent_canonical_name: {extra_name: [dep_canonical_names]}}``
+    """
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
+    result: dict[str, dict[str, list[str]]] = {}
+    for pkg in packages:
+        opt_deps = pkg.get("optional-dependencies")
+        if not opt_deps:
+            continue
+        parent = canonicalize_name(pkg["name"])
+        result[parent] = {}
+        for extra_name, dep_list in opt_deps.items():
+            result[parent][extra_name] = [canonicalize_name(d["name"]) for d in dep_list]
+    return result
+
+
+def _get_root_dep_markers(
+    packages: list[UvLockPackage],
+) -> dict[str, str]:
+    """Extract markers from the root (virtual) package's dependency references.
+
+    These are the combined markers (user markers + metadata markers) that UV
+    produces for top-level dependencies.
+
+    :param packages: The list of ``[[package]]`` entries from uv.lock
+    :return: Dict of ``{canonical_dep_name: marker_string}``
+    """
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
+    for pkg in packages:
+        source = pkg.get("source", {})
+        if source.get("virtual") == ".":
+            markers: dict[str, str] = {}
+            for dep in pkg.get("dependencies", []):
+                marker = dep.get("marker", "")
+                if marker:
+                    cn = canonicalize_name(dep["name"])
+                    markers[cn] = marker
+            return markers
+    return {}
+
+
+def _get_root_dep_extras(
+    packages: list[UvLockPackage],
+) -> dict[str, list[str]]:
+    """Extract extras from the root (virtual) package's dependency references.
+
+    :param packages: The list of ``[[package]]`` entries from uv.lock
+    :return: Dict of ``{canonical_dep_name: [extra_names]}``
+    """
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
+    for pkg in packages:
+        source = pkg.get("source", {})
+        if source.get("virtual") == ".":
+            extras_map: dict[str, list[str]] = {}
+            for dep in pkg.get("dependencies", []):
+                extras = dep.get("extra")
+                if extras:
+                    cn = canonicalize_name(dep["name"])
+                    extras_map[cn] = extras
+            return extras_map
+    return {}
+
+
+def _parse_uv_lock(
+    lock_path: str,
+    project: Any,
+    category: str,
+) -> list[dict[str, Any]]:
+    """Parse a ``uv.lock`` file into the JSON format expected by ``prepare_lockfile``.
+
+    :param lock_path: Path to the ``uv.lock`` file
+    :param project: The pipenv Project instance
+    :param category: The Pipfile category being resolved
+    :return: A list of dicts, each representing a resolved package
+    """
+    if sys.version_info < (3, 11):
+        import tomli as tomllib
+    else:
+        import tomllib
+
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+    from pipenv.uv import _get_pipfile_index_for_deps, _get_pipfile_markers
+
+    with open(lock_path, "rb") as f:
+        lock_data: UvLock = tomllib.load(f)  # type: ignore[assignment]
+
+    packages: list[UvLockPackage] = lock_data.get("package", [])
+    sources = project.pipfile_sources()
+
+    # Build extras dependency map
+    extras_deps = _find_extras_deps(packages)
+    # Get root dependency markers and extras
+    root_dep_markers = _get_root_dep_markers(packages)
+    root_dep_extras = _get_root_dep_extras(packages)
+    # Get user-specified markers from Pipfile
+    pipfile_markers = _get_pipfile_markers(project, category)
+    # Get index assignments from Pipfile
+    pipfile_indexes = _get_pipfile_index_for_deps(project, category)
+
+    # Determine which packages are *only* needed via extras
+    # These are packages that appear in optional-dependencies but NOT in
+    # regular dependencies of any package requested with that extra
+    extras_only_pkgs: dict[str, str] = {}  # {canonical_name: extra_name}
+    for parent_name, extra_map in extras_deps.items():
+        # Check if the root requested this parent with extras
+        root_extras = root_dep_extras.get(parent_name, [])
+        for extra_name, dep_names in extra_map.items():
+            if extra_name in root_extras:
+                for dep_name in dep_names:
+                    extras_only_pkgs[dep_name] = extra_name
+
+    # Collect all regular (non-extras) transitive dependencies
+    # to exclude them from extras_only_pkgs
+    regular_deps: set[str] = set()
+    for pkg in packages:
+        source = pkg.get("source", {})
+        if source.get("virtual") == ".":
+            # Root package — its regular deps are in dependencies (not optional)
+            for dep in pkg.get("dependencies", []):
+                regular_deps.add(canonicalize_name(dep["name"]))
+        else:
+            # Non-root — all its dependencies are regular
+            for dep in pkg.get("dependencies", []):
+                regular_deps.add(canonicalize_name(dep["name"]))
+
+    results: list[dict[str, Any]] = []
+
+    for pkg in packages:
+        source = pkg.get("source", {})
+
+        # Skip root virtual package
+        if source.get("virtual") == ".":
+            continue
+
+        cn = canonicalize_name(pkg["name"])
+        entry: dict[str, Any] = {"name": pkg["name"]}
+
+        # Version
+        version = pkg.get("version", "")
+        if version:
+            entry["version"] = f"=={version}"
+
+        # Hashes
+        hashes = _collect_hashes(pkg)
+        if hashes:
+            entry["hashes"] = hashes
+
+        # Source -> index name
+        registry_url = source.get("registry")
+        if registry_url:
+            index_name = _source_url_to_index_name(registry_url, sources)
+            if index_name:
+                entry["index"] = index_name
+        elif source.get("git"):
+            entry["git"] = source["git"]
+            # Parse ref from the git URL or separate field
+            # uv.lock format: source = { git = "https://...", rev = "abc123" }
+            # or the ref may be embedded differently
+            if "rev" in source:
+                entry["ref"] = source["rev"]
+            if source.get("subdirectory"):
+                entry["subdirectory"] = source["subdirectory"]
+        elif source.get("editable"):
+            entry["editable"] = True
+            entry["path"] = source["editable"]
+        elif source.get("url"):
+            entry["file"] = source["url"]
+
+        # Override index from Pipfile if explicitly specified
+        if cn in pipfile_indexes:
+            entry["index"] = pipfile_indexes[cn]
+
+        # Markers: prefer root dependency markers (combined metadata + user markers)
+        marker = root_dep_markers.get(cn, "")
+        if marker:
+            # Normalize python_full_version -> python_version
+            marker = _normalize_marker(marker)
+        elif cn in pipfile_markers:
+            marker = pipfile_markers[cn]
+
+        # Extras-only markers
+        if cn in extras_only_pkgs and cn not in regular_deps:
+            extra_name = extras_only_pkgs[cn]
+            extra_marker = f'extra == "{extra_name}"'
+            if marker:
+                marker = f"{marker} and {extra_marker}"
+            else:
+                marker = extra_marker
+
+        if marker:
+            entry["markers"] = marker
+
+        # Extras from root dependency
+        if cn in root_dep_extras:
+            entry["extras"] = sorted(root_dep_extras[cn])
+
+        results.append(entry)
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Main resolver function
+# ---------------------------------------------------------------------------
+
+
+def uv_lock_resolve(
+    cmd: list[str],
+    st: Any,
+    project: Any,
+) -> subprocess.CompletedProcess:
+    """Replacement for ``pipenv.utils.resolver.resolve`` using ``uv lock``.
+
+    Creates a temporary project directory with a ``pyproject.toml`` translated
+    from the Pipfile, runs ``uv lock``, parses the resulting ``uv.lock``, and
+    writes the result as JSON.  Falls back to the original resolver on failure.
+
+    :param cmd: Command list (the resolver subprocess command)
+    :param st: Rich Status spinner object
+    :param project: The pipenv Project instance
+    :return: ``subprocess.CompletedProcess``
+    """
+    if _original_resolve is None:
+        raise RuntimeError("Original resolve function is not available")
+
+    from pipenv.resolver import get_parser
+    from pipenv.uv import (
+        _has_env_var_in_constraints,
+        _has_local_path_constraint,
+    )
+
+    parsed, _remaining = get_parser().parse_known_args(cmd[2:])
+    constraints_file = parsed.constraints_file
+    write = parsed.write or "/dev/stdout"
+    category = parsed.category or "default"
+    pre = parsed.pre
+
+    if not constraints_file:
+        logger.warning("No constraints file provided, falling back to pip resolver")
+        return _original_resolve(cmd, st, project)
+
+    # Read constraints to check for fallback conditions
+    constraints: dict[str, str] = {}
+    with open(constraints_file) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            left, right = line.split(", ", maxsplit=1)
+            constraints[left] = right.strip().split(" -i ", maxsplit=1)[0].strip()
+
+    if not constraints:
+        logger.warning("No constraints found, falling back to pip resolver")
+        return _original_resolve(cmd, st, project)
+
+    # Fall back for local paths, env vars, editable VCS
+    if _has_local_path_constraint(constraints):
+        logger.info(
+            "Local path/file:// constraint detected, falling back to pip resolver"
+        )
+        return _original_resolve(cmd, st, project)
+    if _has_env_var_in_constraints(constraints):
+        logger.info(
+            "Environment variable in constraint detected, falling back to pip resolver"
+        )
+        return _original_resolve(cmd, st, project)
+    for pip_line in constraints.values():
+        stripped = pip_line.strip()
+        if stripped.startswith("-e ") and "git+" in stripped:
+            logger.info("Editable VCS constraint detected, falling back to pip resolver")
+            return _original_resolve(cmd, st, project)
+
+    if os.environ.get("PIPENV_UV_VERBOSE"):
+        data = {"constraints": constraints, "cmd": cmd, "category": category}
+        logger.info(
+            "\nRunning uv lock resolve with data: %s",
+            json.dumps(data, default=str, indent=2),
+        )
+
+    # Build pyproject.toml in a temporary directory
+    pyproject_content = _build_pyproject_toml(project, category, pre=pre)
+
+    tmpdir = tempfile.mkdtemp(prefix="pipenv-uv-lock-")
+    pyproject_path = os.path.join(tmpdir, "pyproject.toml")
+    with open(pyproject_path, "w") as f:
+        f.write(pyproject_content)
+
+    if os.environ.get("PIPENV_UV_VERBOSE"):
+        logger.info("\npyproject.toml content:\n%s", pyproject_content)
+
+    # Run uv lock
+    uv_cmd = _build_uv_lock_cmd(project, tmpdir, pre=pre)
+
+    if os.environ.get("PIPENV_UV_VERBOSE"):
+        logger.info("\nRunning command: %s", " ".join(uv_cmd))
+
+    try:
+        result = subprocess.run(
+            uv_cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=600,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        logger.warning("uv lock failed with %s, falling back to pip resolver", exc)
+        return _original_resolve(cmd, st, project)
+
+    if result.returncode != 0:
+        logger.warning(
+            "uv lock returned non-zero exit code %d:\nstdout: %s\nstderr: %s",
+            result.returncode,
+            result.stdout,
+            result.stderr,
+        )
+        # Fall back to original resolver
+        return _original_resolve(cmd, st, project)
+
+    # Parse uv.lock
+    lock_path = os.path.join(tmpdir, "uv.lock")
+    if not os.path.exists(lock_path):
+        logger.warning("uv.lock not found at %s, falling back to pip resolver", lock_path)
+        return _original_resolve(cmd, st, project)
+
+    try:
+        resolved = _parse_uv_lock(lock_path, project, category)
+    except Exception as exc:
+        logger.warning("Failed to parse uv.lock: %s, falling back to pip resolver", exc)
+        return _original_resolve(cmd, st, project)
+
+    if os.environ.get("PIPENV_UV_VERBOSE"):
+        logger.info(
+            "\nResolved %d packages:\n%s",
+            len(resolved),
+            json.dumps(resolved, indent=2),
+        )
+
+    # Write results to the target file
+    with open(write, "w") as f:
+        json.dump(resolved, f)
+
+    # Clean up temp directory
+    import shutil
+
+    try:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+    except Exception:
+        pass
+
+    return subprocess.CompletedProcess(
+        args=uv_cmd,
+        returncode=0,
+        stdout=result.stdout,
+        stderr=result.stderr,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Patching
+# ---------------------------------------------------------------------------
+
+
+def patch() -> None:
+    """Apply uv monkey-patches to pipenv's resolver and installer.
+
+    This replaces the ``uv pip compile``-based resolver from ``uv.py`` with
+    the ``uv lock``-based resolver from this module, while reusing the
+    installer from ``uv.py``.
+
+    This is a no-op if:
+    - Already patched
+    - ``PIPENV_UV`` is not set / falsy
+    - The uv binary cannot be found
+
+    Individual patches can be disabled via:
+    - ``PIPENV_UV_NO_RESOLVE`` -- skip resolution patch
+    - ``PIPENV_UV_NO_INSTALL`` -- skip installation patch
+    """
+    global _original_resolve, _original_pip_install_deps
+
+    # Idempotent
+    if _original_resolve is not None or _original_pip_install_deps is not None:
+        return
+
+    # Check master switch
+    from pipenv.utils.shell import env_to_bool
+
+    uv_enabled = os.environ.get("PIPENV_UV", "")
+    if not uv_enabled:
+        return
+    try:
+        if not env_to_bool(uv_enabled):
+            return
+    except ValueError:
+        # Non-boolean string value — treat as truthy
+        pass
+
+    # Verify uv is available before patching
+    from pipenv.uv import find_uv_bin
+
+    try:
+        uv_path = find_uv_bin()
+        logger.debug("Found uv at: %s", uv_path)
+    except FileNotFoundError:
+        logger.warning(
+            "PIPENV_UV is set but uv binary was not found. Install uv via 'pip install uv' or ensure it is on PATH."
+        )
+        return
+
+    # Patch resolver
+    if not os.environ.get("PIPENV_UV_NO_RESOLVE"):
+        from pipenv.utils import resolver
+
+        _original_resolve = resolver.resolve
+        resolver.resolve = uv_lock_resolve  # type: ignore[assignment]
+        logger.debug("Patched pipenv.utils.resolver.resolve with uv_lock_resolve")
+
+    # Patch installer — reuse uv.py's install-side functions
+    if not os.environ.get("PIPENV_UV_NO_INSTALL"):
+        import pipenv.uv as _uv_mod
+        from pipenv.utils import pip
+        from pipenv.uv import uv_pip_install_deps
+
+        _original_pip_install_deps = pip.pip_install_deps
+        # uv_pip_install_deps reads uv._original_pip_install_deps internally,
+        # so we must set it there as well.
+        _uv_mod._original_pip_install_deps = _original_pip_install_deps
+        pip.pip_install_deps = uv_pip_install_deps  # type: ignore[assignment]
+        logger.debug("Patched pipenv.utils.pip.pip_install_deps with uv_pip_install_deps")
