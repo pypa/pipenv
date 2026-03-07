@@ -27,6 +27,28 @@ def get_pipenv_diagnostics(project):
     except ImportError:
         pass
 
+    # uv integration status
+    uv_enabled = os.environ.get("PIPENV_UV", "")
+    if uv_enabled:
+        print(f"uv integration: `enabled` (PIPENV_UV={uv_enabled!r})")
+        try:
+            from pipenv.uv import find_uv_bin
+
+            uv_bin = find_uv_bin()
+            import subprocess
+
+            uv_version_result = subprocess.run(
+                [uv_bin, "--version"], capture_output=True, text=True, check=False
+            )
+            uv_version = uv_version_result.stdout.strip() or "unknown"
+            print(f"uv binary: `{uv_bin!r}`")
+            print(f"uv version: `{uv_version!r}`")
+        except FileNotFoundError:
+            print("uv binary: `not found`")
+    else:
+        print("uv integration: `disabled` (set PIPENV_UV=1 to enable)")
+    print("")
+
     print("user Python installations found:")
     print("")
     finder = pythonfinder.Finder(system=False, global_search=True)

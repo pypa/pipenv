@@ -53,6 +53,9 @@ optional-dependencies.tests = [
   "pytest-timeout",
   "pytest-xdist",
 ]
+optional-dependencies.uv = [
+  "uv>=0.9.17",
+]
 urls.Documentation = "https://pipenv.pypa.io/en/latest/"
 urls.Homepage = "https://github.com/pypa/pipenv"
 urls.Source = "https://github.com/pypa/pipenv.git"
