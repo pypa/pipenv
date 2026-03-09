@@ -1,42 +1,38 @@
 diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/index/package_finder.py
-index ae6f896..76cb3c6 100644
+index ebeb118cc..9122946d4 100644
 --- a/pipenv/patched/pip/_internal/index/package_finder.py
 +++ b/pipenv/patched/pip/_internal/index/package_finder.py
-@@ -503,12 +503,22 @@ class CandidateEvaluator:
+@@ -503,13 +503,20 @@ class CandidateEvaluator:
          """
          Return the applicable candidates from a list of candidates.
          """
 -        # Using None infers from the specifier instead.
-+        # Pipenv patch: Use explicit False instead of None when prereleases
-+        # are not requested. This prevents transitive dependencies with
-+        # prerelease specifiers (e.g., ">=4.2.0rc1") from enabling prereleases
-+        # for all packages.
-+        # See: https://github.com/pypa/pipenv/issues/6395
-+        #
-+        # However, if a package has ONLY prerelease versions available,
-+        # we should still allow them per PEP 440 semantics.
-+        # See: https://github.com/pypa/pipenv/issues/6485
++        # By default, do not allow prereleases solely because a specifier
++        # mentions one (for example, a transitive dependency like
++        # ">=4.2.0rc1"). However, preserve PEP 440 fallback behavior and allow
++        # prereleases when no final releases match, as long as prereleases were
++        # not explicitly disabled via release control.
          if self._release_control is not None:
              allow_prereleases = self._release_control.allows_prereleases(
                  canonicalize_name(self._project_name)
              )
          else:
--            allow_prereleases = None
+             allow_prereleases = None
++        use_prerelease_fallback = allow_prereleases is None
++        if allow_prereleases is None:
 +            allow_prereleases = False
          specifier = self._specifier
-
+ 
          # When using the pkg_resources backend we turn the version object into
-@@ -528,6 +538,16 @@ class CandidateEvaluator:
+@@ -532,6 +539,14 @@ class CandidateEvaluator:
              )
          )
-
-+        # If no stable versions match but we have candidates, check if the package
-+        # only has prereleases. If so, allow them (PEP 440 fallback behavior).
-+        if not versions and candidates_and_versions and not allow_prereleases:
+ 
++        if not versions and candidates_and_versions and use_prerelease_fallback:
 +            versions = set(
 +                specifier.filter(
 +                    (v for _, v in candidates_and_versions),
-+                    prereleases=None,  # Let PEP 440 decide
++                    prereleases=None,
 +                )
 +            )
 +
