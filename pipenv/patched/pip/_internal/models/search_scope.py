@@ -3,7 +3,7 @@ import logging
 import os
 import posixpath
 import urllib.parse
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
@@ -14,25 +14,17 @@ from pipenv.patched.pip._internal.utils.misc import normalize_path, redact_auth_
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class SearchScope:
     """
     Encapsulates the locations that pip is configured to search.
     """
 
-    __slots__ = [
-        "find_links",
-        "index_urls",
-        "no_index",
-        "index_lookup",
-        "index_restricted",
-    ]
-
     find_links: list[str]
     index_urls: list[str]
     no_index: bool
-    index_lookup: dict[str, list[str]] | None = field(default=None)
-    index_restricted: bool = field(default=False)
+    index_lookup: dict[str, list[str]] | None = None
+    index_restricted: bool = False
 
     @classmethod
     def create(
