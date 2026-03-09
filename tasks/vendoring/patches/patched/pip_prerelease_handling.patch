@@ -2,12 +2,11 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
 index ae6f896..76cb3c6 100644
 --- a/pipenv/patched/pip/_internal/index/package_finder.py
 +++ b/pipenv/patched/pip/_internal/index/package_finder.py
-@@ -454,8 +454,16 @@ class CandidateEvaluator:
+@@ -503,12 +503,22 @@ class CandidateEvaluator:
          """
          Return the applicable candidates from a list of candidates.
          """
 -        # Using None infers from the specifier instead.
--        allow_prereleases = self._allow_all_prereleases or None
 +        # Pipenv patch: Use explicit False instead of None when prereleases
 +        # are not requested. This prevents transitive dependencies with
 +        # prerelease specifiers (e.g., ">=4.2.0rc1") from enabling prereleases
@@ -17,14 +16,20 @@ index ae6f896..76cb3c6 100644
 +        # However, if a package has ONLY prerelease versions available,
 +        # we should still allow them per PEP 440 semantics.
 +        # See: https://github.com/pypa/pipenv/issues/6485
-+        allow_prereleases = True if self._allow_all_prereleases else False
+         if self._release_control is not None:
+             allow_prereleases = self._release_control.allows_prereleases(
+                 canonicalize_name(self._project_name)
+             )
+         else:
+-            allow_prereleases = None
++            allow_prereleases = False
          specifier = self._specifier
- 
-         # We turn the version object into a str here because otherwise
-@@ -473,6 +481,16 @@ class CandidateEvaluator:
+
+         # When using the pkg_resources backend we turn the version object into
+@@ -528,6 +538,16 @@ class CandidateEvaluator:
              )
          )
- 
+
 +        # If no stable versions match but we have candidates, check if the package
 +        # only has prereleases. If so, allow them (PEP 440 fallback behavior).
 +        if not versions and candidates_and_versions and not allow_prereleases:
