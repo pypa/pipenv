@@ -3,7 +3,7 @@ import logging
 import os
 import posixpath
 import urllib.parse
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
@@ -31,8 +31,8 @@ class SearchScope:
     find_links: list[str]
     index_urls: list[str]
     no_index: bool
-    index_lookup: dict[str, list[str]] | None = None
-    index_restricted: bool = False
+    index_lookup: dict[str, list[str]] | None = field(default=None)
+    index_restricted: bool = field(default=False)
 
     @classmethod
     def create(

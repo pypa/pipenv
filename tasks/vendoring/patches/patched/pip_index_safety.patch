@@ -39,10 +39,20 @@ diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patche
 index 136163ca0..a41193a6e 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
+@@ -1,6 +1,6 @@
+ import itertools
+ import logging
+ import os
+ import posixpath
+ import urllib.parse
+-from dataclasses import dataclass
++from dataclasses import dataclass, field
+
+ from pip._vendor.packaging.utils import canonicalize_name
 @@ -20,11 +20,19 @@ class SearchScope:
      Encapsulates the locations that pip is configured to search.
      """
- 
+
 -    __slots__ = ["find_links", "index_urls", "no_index"]
 +    __slots__ = [
 +        "find_links",
@@ -51,13 +61,13 @@ index 136163ca0..a41193a6e 100644
 +        "index_lookup",
 +        "index_restricted",
 +    ]
- 
+
      find_links: list[str]
      index_urls: list[str]
      no_index: bool
-+    index_lookup: dict[str, list[str]] | None = None
-+    index_restricted: bool = False
- 
++    index_lookup: dict[str, list[str]] | None = field(default=None)
++    index_restricted: bool = field(default=False)
+
      @classmethod
      def create(
 @@ -32,6 +40,8 @@ class SearchScope:
