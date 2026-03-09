@@ -6,11 +6,7 @@ from pipenv.vendor.packaging.specifiers import SpecifierSet
 
 def test_clean_resolved_dep_with_vcs_url():
     project = {}  # Mock project object, adjust as needed
-    dep = {
-        "name": "example-package",
-        "git": "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git",
-        "ref": "main"
-    }
+    dep = {"name": "example-package", "git": "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git", "ref": "main"}
 
     result = clean_resolved_dep(project, dep)
 
@@ -18,12 +14,13 @@ def test_clean_resolved_dep_with_vcs_url():
     assert result["example-package"]["git"] == "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git"
     assert result["example-package"]["ref"] == "main"
 
+
 def test_clean_resolved_dep_with_vcs_url_and_extras():
     project = {}  # Mock project object, adjust as needed
     dep = {
         "name": "example-package",
         "git": "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git[extra1,extra2]",
-        "ref": "main"
+        "ref": "main",
     }
 
     result = clean_resolved_dep(project, dep)
@@ -203,6 +200,7 @@ class TestCandidateEvaluatorPrereleases:
     def _make_candidate(self, name, version):
         """Create a mock InstallationCandidate."""
         from pipenv.patched.pip._internal.models.link import Link
+
         link = Link(f"https://example.com/{name}-{version}.tar.gz")
         # InstallationCandidate expects a string version, not a parsed version
         return InstallationCandidate(name, version, link)
@@ -288,3 +286,72 @@ class TestCandidateEvaluatorPrereleases:
         assert "0.20b0" not in versions
         assert "0.50b0" in versions
         assert "0.60b0" in versions
+
+
+class TestTranslateMarkers:
+    """Tests for translate_markers() preserving extra == markers.
+
+    Regression tests for a bug where translate_markers() would strip
+    ``extra == 'name'`` markers entirely, breaking extras-conditional
+    dependencies in Pipfile.lock.
+    """
+
+    def test_preserves_extra_marker(self):
+        """extra == markers should be preserved in the output."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "extra == 'socks'",
+        }
+        result = translate_markers(entry)
+        assert "extra ==" in result.get("markers", ""), f"extra marker was stripped: {result}"
+        assert "socks" in result["markers"]
+
+    def test_preserves_extra_with_other_markers(self):
+        """extra == should be preserved alongside other markers."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "extra == 'socks' and python_version >= '3.8'",
+        }
+        result = translate_markers(entry)
+        markers = result.get("markers", "")
+        assert "extra ==" in markers, f"extra marker was stripped: {result}"
+        assert "socks" in markers
+        assert "python_version" in markers
+
+    def test_no_extra_marker_unchanged(self):
+        """Entries without extra markers should work as before."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "sys_platform == 'win32'",
+        }
+        result = translate_markers(entry)
+        markers = result.get("markers", "")
+        assert "win32" in markers
+        assert "extra" not in markers
+
+    def test_multiple_extras_preserved(self):
+        """Multiple extra markers should all be preserved."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {
+            "version": "==1.0",
+            "markers": "extra == 'socks' and extra == 'security'",
+        }
+        result = translate_markers(entry)
+        markers = result.get("markers", "")
+        assert "socks" in markers
+        assert "security" in markers
+
+    def test_no_markers_entry(self):
+        """Entries without any markers should pass through."""
+        from pipenv.utils.dependencies import translate_markers
+
+        entry = {"version": "==1.0"}
+        result = translate_markers(entry)
+        assert "markers" not in result or result.get("markers", "") == ""

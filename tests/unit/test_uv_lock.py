@@ -183,13 +183,15 @@ class TestPipfileEntryToPep508:
         from pipenv.uv_lock import _pipfile_entry_to_pep508
 
         result = _pipfile_entry_to_pep508("requests", {"version": "*", "extras": ["socks", "security"]})
-        assert result == "requests[socks,security]"
+        # packaging.Requirement alphabetizes extras
+        assert result == "requests[security,socks]"
 
     def test_dict_with_markers(self):
         from pipenv.uv_lock import _pipfile_entry_to_pep508
 
         result = _pipfile_entry_to_pep508("pywin32", {"version": "*", "markers": "sys_platform == 'win32'"})
-        assert result == "pywin32; sys_platform == 'win32'"
+        # packaging.Requirement normalizes to double quotes
+        assert result == 'pywin32; sys_platform == "win32"'
 
     def test_dict_with_version_and_markers(self):
         from pipenv.uv_lock import _pipfile_entry_to_pep508
@@ -198,7 +200,8 @@ class TestPipfileEntryToPep508:
             "pywin32",
             {"version": ">=300", "markers": "sys_platform == 'win32'"},
         )
-        assert result == "pywin32>=300; sys_platform == 'win32'"
+        # packaging.Requirement normalizes to double quotes
+        assert result == 'pywin32>=300; sys_platform == "win32"'
 
     def test_dict_with_marker_keys(self):
         from pipenv.uv_lock import _pipfile_entry_to_pep508
@@ -207,9 +210,9 @@ class TestPipfileEntryToPep508:
             "pkg",
             {"version": "*", "os_name": "== 'posix'", "sys_platform": "== 'linux'"},
         )
-        # Marker keys are sorted alphabetically
-        assert "os_name == 'posix'" in result
-        assert "sys_platform == 'linux'" in result
+        # packaging.Requirement normalizes to double quotes and alphabetizes
+        assert 'os_name == "posix"' in result
+        assert 'sys_platform == "linux"' in result
 
     def test_dict_git_no_version(self):
         """Git entries typically have no version; PEP 508 should just be the name."""
@@ -366,7 +369,7 @@ class TestBuildPyprojectToml:
         )
         toml = _build_pyproject_toml(project, "default")
         assert "[tool.uv.sources]" in toml
-        assert 'private-pkg = { index = "local" }' in toml
+        assert 'private-pkg = {index = "local"}' in toml
 
     def test_pre_release_flag(self):
         from pipenv.uv_lock import _build_pyproject_toml

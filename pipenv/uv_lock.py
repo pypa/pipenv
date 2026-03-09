@@ -172,14 +172,20 @@ def _normalize_marker(marker_str: str) -> str:
 def _pipfile_entry_to_pep508(name: str, entry: str | dict[str, Any]) -> str:
     """Convert a single Pipfile entry to a PEP 508 dependency string.
 
+    Uses :class:`packaging.requirements.Requirement` for normalization,
+    ensuring valid PEP 508 output with consistent extras ordering and
+    marker quoting.
+
     :param name: Package name
     :param entry: Pipfile value — either ``"*"`` / ``">=1.0"`` or a dict
-    :return: PEP 508 string suitable for ``[project.dependencies]``
+    :return: Normalized PEP 508 string suitable for ``[project.dependencies]``
     """
+    from pipenv.patched.pip._vendor.packaging.requirements import Requirement
+
     if isinstance(entry, str):
         if entry == "*":
-            return name
-        return f"{name}{entry}"
+            return str(Requirement(name))
+        return str(Requirement(f"{name}{entry}"))
 
     # Dict entry
     version = entry.get("version", "*")
@@ -187,17 +193,13 @@ def _pipfile_entry_to_pep508(name: str, entry: str | dict[str, Any]) -> str:
     markers_str = entry.get("markers", "")
 
     # Build extras portion
-    extras_part = ""
-    if extras:
-        extras_part = "[" + ",".join(extras) + "]"
+    extras_str = f"[{','.join(extras)}]" if extras else ""
 
     # Build version portion
-    version_part = ""
-    if version and version != "*":
-        version_part = version
+    version_str = version if version and version != "*" else ""
 
-    # Build markers from individual marker keys
-    marker_keys = {
+    # Build markers from individual marker keys (PEP 508 environment markers)
+    _marker_keys = {
         "os_name",
         "sys_platform",
         "platform_machine",
@@ -210,24 +212,21 @@ def _pipfile_entry_to_pep508(name: str, entry: str | dict[str, Any]) -> str:
         "implementation_name",
         "implementation_version",
     }
-    marker_parts = []
-    for key in sorted(marker_keys):
+    marker_parts: list[str] = []
+    for key in sorted(_marker_keys):
         if key in entry:
-            val = entry[key]
-            marker_parts.append(f"{key} {val}")
+            marker_parts.append(f"{key} {entry[key]}")
     if markers_str:
         marker_parts.append(markers_str)
 
-    marker_combined = ""
-    if marker_parts:
-        marker_combined = " and ".join(marker_parts)
+    marker_combined = " and ".join(marker_parts) if marker_parts else ""
 
-    # Assemble PEP 508 string
-    result = f"{name}{extras_part}{version_part}"
+    # Assemble and normalize through packaging.Requirement
+    req_str = f"{name}{extras_str}{version_str}"
     if marker_combined:
-        result += f"; {marker_combined}"
+        req_str += f"; {marker_combined}"
 
-    return result
+    return str(Requirement(req_str))
 
 
 def _pipfile_entry_to_uv_source(
@@ -280,11 +279,17 @@ def _build_pyproject_toml(
 ) -> str:
     """Build a temporary ``pyproject.toml`` for ``uv lock`` resolution.
 
+    Uses :mod:`tomlkit` for proper TOML generation with escaping, inline
+    tables for ``[tool.uv.sources]`` entries, and array-of-tables for
+    ``[[tool.uv.index]]``.
+
     :param project: The pipenv Project instance
     :param category: The Pipfile category being resolved (e.g. "default", "develop")
     :param pre: Whether to allow pre-release versions
     :return: The pyproject.toml content as a string
     """
+    from pipenv.vendor import tomlkit
+
     # Get dependencies for the target category
     if category == "default":
         deps = project.packages
@@ -295,13 +300,13 @@ def _build_pyproject_toml(
 
     # Build PEP 508 dependency strings and uv sources
     pep508_deps: list[str] = []
-    uv_sources: dict[str, dict[str, Any]] = {}
+    uv_sources_dict: dict[str, dict[str, Any]] = {}
 
     for name, entry in deps.items():
         pep508_deps.append(_pipfile_entry_to_pep508(name, entry))
         uv_source = _pipfile_entry_to_uv_source(name, entry)
         if uv_source:
-            uv_sources[name] = uv_source
+            uv_sources_dict[name] = uv_source
 
     # Get requires-python from Pipfile
     requires_python = project.required_python_version or ""
@@ -322,62 +327,68 @@ def _build_pyproject_toml(
     # Get sources
     sources = project.pipfile_sources()
 
-    # Build TOML content manually (avoid toml dependency)
-    lines: list[str] = []
-    lines.append("[project]")
-    lines.append('name = "pipenv-resolver"')
-    lines.append('version = "0.0.0"')
+    # -- Build TOML document with tomlkit --
+    doc = tomlkit.document()
+
+    # [project]
+    proj_table = tomlkit.table()
+    proj_table.add("name", "pipenv-resolver")
+    proj_table.add("version", "0.0.0")
     if requires_python:
-        lines.append(f'requires-python = "{requires_python}"')
-    lines.append("")
+        proj_table.add("requires-python", requires_python)
+    dep_array = tomlkit.array()
+    dep_array.multiline(True)
+    for d in pep508_deps:
+        dep_array.append(d)
+    proj_table.add("dependencies", dep_array)
+    doc.add("project", proj_table)
 
-    # For default category: packages go in [project.dependencies]
-    # For other categories: packages go in [project.dependencies], default as constraints
-    lines.append("dependencies = [")
-    for dep in pep508_deps:
-        lines.append(f'    "{dep}",')
-    lines.append("]")
-    lines.append("")
+    # [tool.uv] — may contain constraint-dependencies, prerelease, sources, indexes
+    tool = tomlkit.table(is_super_table=True)
+    uv_table = tomlkit.table()
+    has_uv = False
 
-    # Cross-category constraints
     if constraint_deps:
-        lines.append("[tool.uv]")
-        lines.append("constraint-dependencies = [")
+        c_array = tomlkit.array()
+        c_array.multiline(True)
         for c in constraint_deps:
-            lines.append(f'    "{c}",')
-        lines.append("]")
-        lines.append("")
+            c_array.append(c)
+        uv_table.add("constraint-dependencies", c_array)
+        has_uv = True
 
-    # Pre-release settings
     if pre:
-        if not constraint_deps:
-            lines.append("[tool.uv]")
-        lines.append('prerelease = "allow"')
-        lines.append("")
+        uv_table.add("prerelease", "allow")
+        has_uv = True
 
-    # UV sources
-    if uv_sources:
-        lines.append("[tool.uv.sources]")
-        for pkg_name, src in uv_sources.items():
-            parts: list[str] = []
+    # [tool.uv.sources] — values must be inline tables
+    if uv_sources_dict:
+        sources_table = tomlkit.table()
+        for pkg_name, src in uv_sources_dict.items():
+            it = tomlkit.inline_table()
             for k, v in src.items():
-                if isinstance(v, bool):
-                    parts.append(f"{k} = {'true' if v else 'false'}")
-                else:
-                    parts.append(f'{k} = "{v}"')
-            lines.append(f"{pkg_name} = {{ {', '.join(parts)} }}")
-        lines.append("")
+                it.append(k, v)
+            sources_table.append(pkg_name, it)
+        uv_table.add("sources", sources_table)
+        has_uv = True
 
-    # UV indexes
-    for i, source in enumerate(sources):
-        lines.append("[[tool.uv.index]]")
-        lines.append(f'name = "{source.get("name", "source-" + str(i))}"')
-        lines.append(f'url = "{source["url"]}"')
-        if i == 0:
-            lines.append("default = true")
-        lines.append("")
+    # [[tool.uv.index]]
+    if sources:
+        indexes = tomlkit.aot()
+        for i, source in enumerate(sources):
+            idx = tomlkit.table()
+            idx.add("name", source.get("name", f"source-{i}"))
+            idx.add("url", source["url"])
+            if i == 0:
+                idx.add("default", True)
+            indexes.append(idx)
+        uv_table.add("index", indexes)
+        has_uv = True
 
-    return "\n".join(lines)
+    if has_uv:
+        tool.add("uv", uv_table)
+        doc.add("tool", tool)
+
+    return tomlkit.dumps(doc)
 
 
 def _build_uv_lock_cmd(

@@ -65,11 +65,14 @@ def _is_local_path_or_file_uri(pip_line):
     return False
 
 
-def _has_local_path_requirement(args):
-    """Check if any requirements file in the args contains local path packages.
+def _extract_requirements_files(args):
+    """Extract requirements file paths from a command argument list.
 
-    :param args: Command argument list (may contain ``-r <file>`` pairs)
-    :return: True if any requirements file contains local path lines
+    Handles both ``-r <file>`` (space-separated) and ``-r<file>``
+    (concatenated) forms.
+
+    :param args: Command argument list
+    :return: List of requirements file paths
     """
     req_files = []
     it = iter(args)
@@ -81,8 +84,16 @@ def _has_local_path_requirement(args):
                 break
         elif arg.startswith("-r"):
             req_files.append(arg[2:])
+    return req_files
 
-    for req_file in req_files:
+
+def _has_local_path_requirement(args):
+    """Check if any requirements file in the args contains local path packages.
+
+    :param args: Command argument list (may contain ``-r <file>`` pairs)
+    :return: True if any requirements file contains local path lines
+    """
+    for req_file in _extract_requirements_files(args):
         try:
             with open(req_file) as f:
                 for line in f:
@@ -124,6 +135,26 @@ def find_uv_bin():
     )
 
 
+def _split_name_extras(name):
+    """Split a package name that may contain extras into (name, extras_str).
+
+    :param name: Package name, possibly with extras like ``"requests[socks,security]"``
+    :return: Tuple of ``(clean_name, extras_str)`` where ``extras_str`` is
+        the comma-separated extras without brackets, or ``""`` if no extras.
+
+    Example::
+
+        >>> _split_name_extras("requests[socks,security]")
+        ('requests', 'socks,security')
+        >>> _split_name_extras("requests")
+        ('requests', '')
+    """
+    if "[" in name:
+        clean_name, extras_str = name.strip("]").split("[", maxsplit=1)
+        return clean_name, extras_str
+    return name, ""
+
+
 def parse_requirements_lines(lines):
     """Parse ``uv pip compile`` output into a dict of package entries.
 
@@ -137,7 +168,6 @@ def parse_requirements_lines(lines):
     :return: Tuple of (packages dict, index url str, index_annotations dict)
         where ``index_annotations`` maps canonical package names to source URLs.
     """
-    import re
 
     ret = {}
     _index = ""
@@ -184,13 +214,18 @@ def parse_requirements_lines(lines):
             pyproject_path = os.path.join(project_dir, "pyproject.toml")
             name = os.path.basename(project_dir)
             if os.path.exists(pyproject_path):
-                pattern = re.compile(r'name\s*=\s*["\']([^"\']+)["\']')
-                with open(pyproject_path) as pf:
-                    for mline in pf:
-                        match = pattern.search(mline)
-                        if match:
-                            name = match.group(1)
-                            break
+                import sys
+
+                if sys.version_info >= (3, 11):
+                    import tomllib
+                else:
+                    from pipenv.patched.pip._vendor import tomli as tomllib
+                try:
+                    with open(pyproject_path, "rb") as pf:
+                        pyproject_data = tomllib.load(pf)
+                    name = pyproject_data.get("project", {}).get("name", name)
+                except Exception:
+                    pass
             pkg = {
                 "editable": True,
                 "file": line.split("-e ")[-1],
@@ -204,8 +239,7 @@ def parse_requirements_lines(lines):
                 name = name.strip()
             else:
                 name, _, git_url_with_ref = package.partition("@")
-            if "[" in name:
-                name, extras = name.strip("]").split("[", maxsplit=1)
+            name, extras = _split_name_extras(name)
             # git_url_with_ref = "git+https://host/repo@ref"
             # Split on last @ to separate URL from ref
             at_idx = git_url_with_ref.rfind("@")
@@ -233,17 +267,14 @@ def parse_requirements_lines(lines):
             name, _, url = package.partition(" @ ")
             name = name.strip()
             url = url.strip()
-            if "[" in name:
-                name, extras = name.strip("]").split("[", maxsplit=1)
+            name, extras = _split_name_extras(name)
             pkg = {
                 "file": url,
                 "hashes": hashes,
             }
         else:
             name, _, version = package.partition("==")
-            extras = ""
-            if "[" in name:
-                name, extras = name.strip("]").split("[", maxsplit=1)
+            name, extras = _split_name_extras(name)
             if name not in ret:
                 hashes = []
             pkg = {
@@ -694,18 +725,7 @@ def _should_fall_back_to_pip(args):
     :param args: Command argument list (may contain ``-r <file>`` pairs)
     :return: True if any requirements file contains unsupported lines
     """
-    req_files = []
-    it = iter(args)
-    for arg in it:
-        if arg == "-r":
-            try:
-                req_files.append(next(it))
-            except StopIteration:
-                break
-        elif arg.startswith("-r"):
-            req_files.append(arg[2:])
-
-    for req_file in req_files:
+    for req_file in _extract_requirements_files(args):
         try:
             with open(req_file) as f:
                 for line in f:
