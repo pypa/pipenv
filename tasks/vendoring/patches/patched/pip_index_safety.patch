@@ -39,16 +39,17 @@ diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patche
 index 136163ca0..a41193a6e 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -17,14 +17,13 @@ logger = logging.getLogger(__name__)
-
-
+@@ -14,15 +14,13 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
+ logger = logging.getLogger(__name__)
+ 
+ 
 -@dataclass(frozen=True)
 +@dataclass(frozen=True, slots=True)
  class SearchScope:
      """
      Encapsulates the locations that pip is configured to search.
      """
-
+ 
 -    __slots__ = ["find_links", "index_urls", "no_index"]
 -
      find_links: list[str]
@@ -56,10 +57,11 @@ index 136163ca0..a41193a6e 100644
      no_index: bool
 +    index_lookup: dict[str, list[str]] | None = None
 +    index_restricted: bool = False
-
+ 
      @classmethod
      def create(
-@@ -32,6 +40,8 @@ class SearchScope:
+@@ -30,6 +28,8 @@ class SearchScope:
+         cls,
          find_links: list[str],
          index_urls: list[str],
          no_index: bool,
@@ -68,7 +70,7 @@ index 136163ca0..a41193a6e 100644
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -66,6 +76,8 @@ class SearchScope:
+@@ -62,6 +62,8 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
@@ -77,7 +79,7 @@ index 136163ca0..a41193a6e 100644
          )
  
      def get_formatted_locations(self) -> str:
-@@ -123,4 +135,17 @@ class SearchScope:
+@@ -119,4 +121,17 @@ class SearchScope:
                  loc = loc + "/"
              return loc
  
