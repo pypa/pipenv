@@ -1,4 +1,3 @@
-import os
 from unittest import mock
 
 import pytest
@@ -240,102 +239,6 @@ class TestFindUvBin:
             with mock.patch("shutil.which", return_value=None):
                 with pytest.raises(FileNotFoundError, match="uv binary not found"):
                     find_uv_bin()
-
-
-class TestPatch:
-    """Tests for pipenv.uv.patch."""
-
-    def _reset_patch_state(self):
-        """Reset module globals so patch() can run fresh."""
-        import pipenv.uv
-
-        pipenv.uv._original_resolve = None
-        pipenv.uv._original_pip_install_deps = None
-
-    def test_noop_when_env_var_not_set(self):
-        import pipenv.uv
-
-        self._reset_patch_state()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("PIPENV_UV")}
-        with mock.patch.dict(os.environ, env, clear=True):
-            pipenv.uv.patch()
-            assert pipenv.uv._original_resolve is None
-            assert pipenv.uv._original_pip_install_deps is None
-
-    def test_patches_when_enabled(self):
-        import pipenv.uv
-
-        self._reset_patch_state()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("PIPENV_UV")}
-        env["PIPENV_UV"] = "1"
-        with mock.patch.dict(os.environ, env, clear=True):
-            with mock.patch.object(pipenv.uv, "find_uv_bin", return_value="/fake/uv"):
-                pipenv.uv.patch()
-                assert pipenv.uv._original_resolve is not None
-                assert pipenv.uv._original_pip_install_deps is not None
-        self._reset_patch_state()
-
-    def test_idempotent(self):
-        import pipenv.uv
-
-        self._reset_patch_state()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("PIPENV_UV")}
-        env["PIPENV_UV"] = "1"
-        with mock.patch.dict(os.environ, env, clear=True):
-            with mock.patch.object(pipenv.uv, "find_uv_bin", return_value="/fake/uv"):
-                pipenv.uv.patch()
-                first_resolve = pipenv.uv._original_resolve
-                first_install = pipenv.uv._original_pip_install_deps
-
-                # Second call should be a no-op
-                pipenv.uv.patch()
-                assert pipenv.uv._original_resolve is first_resolve
-                assert pipenv.uv._original_pip_install_deps is first_install
-        self._reset_patch_state()
-
-    def test_noop_when_uv_not_found(self):
-        import pipenv.uv
-
-        self._reset_patch_state()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("PIPENV_UV")}
-        env["PIPENV_UV"] = "1"
-        with mock.patch.dict(os.environ, env, clear=True):
-            with mock.patch.object(pipenv.uv, "find_uv_bin", side_effect=FileNotFoundError("not found")):
-                pipenv.uv.patch()
-                assert pipenv.uv._original_resolve is None
-                assert pipenv.uv._original_pip_install_deps is None
-
-    def test_no_resolve_flag(self):
-        import pipenv.uv
-
-        self._reset_patch_state()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("PIPENV_UV")}
-        env["PIPENV_UV"] = "1"
-        env["PIPENV_UV_NO_RESOLVE"] = "1"
-        with mock.patch.dict(os.environ, env, clear=True):
-            with mock.patch.object(pipenv.uv, "find_uv_bin", return_value="/fake/uv"):
-                pipenv.uv.patch()
-                # Resolve should NOT be patched
-                assert pipenv.uv._original_resolve is None
-                # Install should still be patched
-                assert pipenv.uv._original_pip_install_deps is not None
-        self._reset_patch_state()
-
-    def test_no_install_flag(self):
-        import pipenv.uv
-
-        self._reset_patch_state()
-        env = {k: v for k, v in os.environ.items() if not k.startswith("PIPENV_UV")}
-        env["PIPENV_UV"] = "1"
-        env["PIPENV_UV_NO_INSTALL"] = "1"
-        with mock.patch.dict(os.environ, env, clear=True):
-            with mock.patch.object(pipenv.uv, "find_uv_bin", return_value="/fake/uv"):
-                pipenv.uv.patch()
-                # Resolve should still be patched
-                assert pipenv.uv._original_resolve is not None
-                # Install should NOT be patched
-                assert pipenv.uv._original_pip_install_deps is None
-        self._reset_patch_state()
 
 
 class TestShouldFallBackToPip:

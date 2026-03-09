@@ -22,6 +22,54 @@ def pip_install_deps(
     use_pep517=True,
     extra_pip_args: Optional[List] = None,
 ):
+    """Dispatcher that delegates to the appropriate installer based on PIPENV_RESOLVER.
+
+    Reads ``os.environ.get("PIPENV_RESOLVER", "pip")`` and calls:
+      - ``"pip"`` → :func:`_pip_install_deps` (default pip installer)
+      - ``"uv-pip-compile"`` or ``"uv-lock"`` → :func:`pipenv.uv.uv_pip_install_deps`
+
+    All backends share the same function signature.
+    """
+    resolver_name = os.environ.get("PIPENV_RESOLVER", "pip")
+    if resolver_name in ("uv-pip-compile", "uv-lock"):
+        from pipenv.uv import uv_pip_install_deps
+
+        return uv_pip_install_deps(
+            project,
+            deps,
+            sources,
+            allow_global=allow_global,
+            ignore_hashes=ignore_hashes,
+            no_deps=no_deps,
+            requirements_dir=requirements_dir,
+            use_pep517=use_pep517,
+            extra_pip_args=extra_pip_args,
+        )
+    return _pip_install_deps(
+        project,
+        deps,
+        sources,
+        allow_global=allow_global,
+        ignore_hashes=ignore_hashes,
+        no_deps=no_deps,
+        requirements_dir=requirements_dir,
+        use_pep517=use_pep517,
+        extra_pip_args=extra_pip_args,
+    )
+
+
+def _pip_install_deps(
+    project,
+    deps,
+    sources,
+    allow_global=False,
+    ignore_hashes=False,
+    no_deps=False,
+    requirements_dir=None,
+    use_pep517=True,
+    extra_pip_args: Optional[List] = None,
+):
+    """The default pip-based dependency installer."""
     if not allow_global:
         src_dir = os.getenv(
             "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)

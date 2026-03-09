@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-import json
-import os
 import textwrap
 from unittest import mock
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # _url_matches
@@ -926,92 +921,68 @@ class TestUvLockResolve:
     """Tests for pipenv.uv_lock.uv_lock_resolve."""
 
     def test_falls_back_when_no_constraints_file(self):
-        import pipenv.uv_lock as uv_lock_mod
+        """When no constraints file is found in the command, fall back to _pip_resolve."""
+        from pipenv.uv_lock import uv_lock_resolve
 
-        original_resolve = mock.MagicMock(return_value=mock.MagicMock(returncode=0))
-        uv_lock_mod._original_resolve = original_resolve
+        pip_resolve_result = mock.MagicMock(returncode=0)
 
         cmd = ["python", "resolver.py", "--write", "/tmp/out.json"]
-        result = uv_lock_mod.uv_lock_resolve(cmd, mock.MagicMock(), mock.MagicMock())
+        with mock.patch(
+            "pipenv.utils.resolver._pip_resolve",
+            return_value=pip_resolve_result,
+        ) as mock_pip:
+            result = uv_lock_resolve(cmd, mock.MagicMock(), mock.MagicMock())
 
-        original_resolve.assert_called_once()
-        uv_lock_mod._original_resolve = None  # cleanup
+        mock_pip.assert_called_once()
+        assert result is pip_resolve_result
 
-    def test_raises_if_no_original_resolve(self):
-        import pipenv.uv_lock as uv_lock_mod
+    def test_falls_back_when_local_path_constraint(self, tmp_path):
+        """When constraints contain a local path, fall back to _pip_resolve."""
+        from pipenv.uv_lock import uv_lock_resolve
 
-        uv_lock_mod._original_resolve = None
-        cmd = ["python", "resolver.py"]
-        with pytest.raises(RuntimeError, match="Original resolve"):
-            uv_lock_mod.uv_lock_resolve(cmd, mock.MagicMock(), mock.MagicMock())
+        # Create a constraints file with a local path
+        constraints = tmp_path / "constraints.txt"
+        constraints.write_text("mylib, ./libs/mylib\n")
 
+        pip_resolve_result = mock.MagicMock(returncode=0)
+        cmd = [
+            "python",
+            "resolver.py",
+            "--constraints-file",
+            str(constraints),
+            "--write",
+            str(tmp_path / "out.json"),
+        ]
+        with mock.patch(
+            "pipenv.utils.resolver._pip_resolve",
+            return_value=pip_resolve_result,
+        ) as mock_pip:
+            result = uv_lock_resolve(cmd, mock.MagicMock(), mock.MagicMock())
 
-# ---------------------------------------------------------------------------
-# patch()
-# ---------------------------------------------------------------------------
+        mock_pip.assert_called_once()
+        assert result is pip_resolve_result
 
+    def test_falls_back_when_env_var_in_constraints(self, tmp_path):
+        """When constraints contain environment variables, fall back to _pip_resolve."""
+        from pipenv.uv_lock import uv_lock_resolve
 
-class TestPatch:
-    """Tests for pipenv.uv_lock.patch."""
+        constraints = tmp_path / "constraints.txt"
+        constraints.write_text("mylib, git+https://${GIT_HOST}/user/mylib@1.0\n")
 
-    def test_patch_noop_when_uv_not_set(self):
-        import pipenv.uv_lock as uv_lock_mod
+        pip_resolve_result = mock.MagicMock(returncode=0)
+        cmd = [
+            "python",
+            "resolver.py",
+            "--constraints-file",
+            str(constraints),
+            "--write",
+            str(tmp_path / "out.json"),
+        ]
+        with mock.patch(
+            "pipenv.utils.resolver._pip_resolve",
+            return_value=pip_resolve_result,
+        ) as mock_pip:
+            result = uv_lock_resolve(cmd, mock.MagicMock(), mock.MagicMock())
 
-        # Reset state
-        uv_lock_mod._original_resolve = None
-        uv_lock_mod._original_pip_install_deps = None
-
-        with mock.patch.dict(os.environ, {}, clear=True):
-            uv_lock_mod.patch()
-
-        assert uv_lock_mod._original_resolve is None
-        assert uv_lock_mod._original_pip_install_deps is None
-
-    def test_patch_noop_when_uv_false(self):
-        import pipenv.uv_lock as uv_lock_mod
-
-        uv_lock_mod._original_resolve = None
-        uv_lock_mod._original_pip_install_deps = None
-
-        with mock.patch.dict(os.environ, {"PIPENV_UV": "0"}, clear=True):
-            uv_lock_mod.patch()
-
-        assert uv_lock_mod._original_resolve is None
-
-    def test_patch_applies_when_uv_set(self):
-        import pipenv.uv_lock as uv_lock_mod
-
-        uv_lock_mod._original_resolve = None
-        uv_lock_mod._original_pip_install_deps = None
-
-        original_resolver_resolve = mock.MagicMock()
-        original_pip_install = mock.MagicMock()
-
-        with (
-            mock.patch.dict(os.environ, {"PIPENV_UV": "1"}, clear=True),
-            mock.patch("pipenv.uv.find_uv_bin", return_value="/usr/bin/uv"),
-            mock.patch("pipenv.utils.resolver.resolve", original_resolver_resolve),
-            mock.patch("pipenv.utils.pip.pip_install_deps", original_pip_install),
-        ):
-            uv_lock_mod.patch()
-
-            # The originals should now be saved
-            assert uv_lock_mod._original_resolve is original_resolver_resolve
-            assert uv_lock_mod._original_pip_install_deps is original_pip_install
-
-        # Cleanup
-        uv_lock_mod._original_resolve = None
-        uv_lock_mod._original_pip_install_deps = None
-
-    def test_patch_idempotent(self):
-        import pipenv.uv_lock as uv_lock_mod
-
-        # Simulate already patched
-        uv_lock_mod._original_resolve = mock.MagicMock()
-        uv_lock_mod._original_pip_install_deps = None
-
-        # Should return early without any patches
-        uv_lock_mod.patch()
-
-        # Cleanup
-        uv_lock_mod._original_resolve = None
+        mock_pip.assert_called_once()
+        assert result is pip_resolve_result

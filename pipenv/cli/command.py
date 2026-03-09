@@ -86,10 +86,6 @@ def cli(
 
     load_dot_env(state.project, quiet=state.quiet)
 
-    from pipenv.uv_lock import patch as uv_patch
-
-    uv_patch()
-
     from pipenv.routines.clear import do_clear
     from pipenv.utils.display import format_help
     from pipenv.utils.project import ensure_project

@@ -383,11 +383,9 @@ class Setting:
         # Internal, for testing the resolver without using subprocess
         self.PIPENV_RESOLVER_PARENT_PYTHON = get_from_env("RESOLVER_PARENT_PYTHON")
 
-        # Use uv as the underlying resolver/installer (opt-in).
-        self.PIPENV_UV = get_from_env("UV")
-        self.PIPENV_UV_NO_RESOLVE = get_from_env("UV_NO_RESOLVE")
-        self.PIPENV_UV_NO_INSTALL = get_from_env("UV_NO_INSTALL")
-        self.PIPENV_UV_VERBOSE = get_from_env("UV_VERBOSE")
+        # Resolver backend selection: "pip" (default), "uv-pip-compile", or "uv-lock".
+        # Read via PIPENV_RESOLVER environment variable.
+        self.PIPENV_RESOLVER = get_from_env("RESOLVER", check_for_negation=False)
 
         # Internal, tells Pipenv about the surrounding environment.
         self.PIPENV_USE_SYSTEM = False

@@ -1,14 +1,12 @@
 """Integration with uv for fast dependency resolution and installation.
 
-When enabled via PIPENV_UV=1, this module monkey-patches pipenv's resolver
-and installer to use uv instead of pip, providing significantly faster
-lock and install operations.
+When ``PIPENV_RESOLVER`` is set to ``uv-pip-compile``, this module provides
+the resolver and installer backends that use ``uv pip compile`` and
+``uv pip install`` instead of pip, providing significantly faster lock
+and install operations.
 
-Environment variables:
-    PIPENV_UV              -- Enable uv integration (default: disabled)
-    PIPENV_UV_NO_RESOLVE   -- Disable uv-based resolution only
-    PIPENV_UV_NO_INSTALL   -- Disable uv-based installation only
-    PIPENV_UV_VERBOSE      -- Enable debug logging for uv commands
+The dispatcher functions in ``pipenv.utils.resolver`` and ``pipenv.utils.pip``
+call into this module based on the ``PIPENV_RESOLVER`` environment variable.
 """
 
 import logging
@@ -17,11 +15,6 @@ import re
 import subprocess
 
 logger = logging.getLogger(__name__)
-
-# Saved references to original functions, set by patch()
-_original_resolve = None
-_original_pip_install_deps = None
-_install_message_shown = False
 
 
 def _is_local_path_or_file_uri(pip_line):
@@ -391,10 +384,10 @@ def _get_pipfile_index_for_deps(project, category):
 
 
 def uv_resolve(cmd, st, project):
-    """Replacement for ``pipenv.utils.resolver.resolve`` that uses uv.
+    """Resolver backend that uses ``uv pip compile``.
 
     Runs ``uv pip compile`` to resolve dependencies, parses the output,
-    and writes the result as JSON.  Falls back to the original resolver
+    and writes the result as JSON.  Falls back to the default pip resolver
     on failure.
 
     :param cmd: Command list (the resolver subprocess command)
@@ -402,10 +395,8 @@ def uv_resolve(cmd, st, project):
     :param project: The pipenv Project instance
     :return: ``subprocess.CompletedProcess``
     """
-    if _original_resolve is None:
-        raise RuntimeError("Original resolve function is not available")
-
     from pipenv.resolver import get_parser
+    from pipenv.utils.resolver import _pip_resolve
 
     parsed, _remaining = get_parser().parse_known_args(cmd[2:])
     constraints_file = parsed.constraints_file
@@ -413,7 +404,7 @@ def uv_resolve(cmd, st, project):
 
     if not constraints_file:
         logger.warning("No constraints file provided, falling back to pip resolver")
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     constraints = {}
     with open(constraints_file) as f:
@@ -424,7 +415,7 @@ def uv_resolve(cmd, st, project):
 
     if not constraints:
         logger.warning("No constraints found, falling back to pip resolver")
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     # Fall back to pip if constraints contain local paths, file:// URIs,
     # unexpanded environment variables, or editable VCS packages — all of
@@ -433,24 +424,24 @@ def uv_resolve(cmd, st, project):
         logger.info(
             "Local path/file:// constraint detected, falling back to pip resolver"
         )
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
     if _has_env_var_in_constraints(constraints):
         logger.info(
             "Environment variable in constraint detected, falling back to pip resolver"
         )
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
     for pip_line in constraints.values():
         stripped = pip_line.strip()
         if stripped.startswith("-e ") and "git+" in stripped:
             logger.info("Editable VCS constraint detected, falling back to pip resolver")
-            return _original_resolve(cmd, st, project)
+            return _pip_resolve(cmd, st, project)
 
-    if os.environ.get("PIPENV_UV_VERBOSE"):
+    if logger.isEnabledFor(logging.DEBUG):
         import json
 
         data = {"constraints": constraints, "cmd": cmd}
-        logger.info(
-            "\nRunning uv pip compile with data: %s",
+        logger.debug(
+            "Running uv pip compile with data: %s",
             json.dumps(data, default=str, indent=2),
         )
 
@@ -519,8 +510,7 @@ def uv_resolve(cmd, st, project):
         "-",
     ]
 
-    if os.environ.get("PIPENV_UV_VERBOSE"):
-        logger.info("\nRunning command: %s", " ".join(uv_cmd))
+    logger.debug("Running command: %s", " ".join(uv_cmd))
 
     st.console.print("[bold green]Using uv for dependency resolution[/bold green]")
     result = subprocess.run(
@@ -542,7 +532,7 @@ def uv_resolve(cmd, st, project):
                 os.unlink(default_constraint_tmpfile.name)
             except OSError:
                 pass
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     packages, _index, index_annotations = parse_requirements_lines(
         result.stdout.splitlines()
@@ -580,14 +570,13 @@ def uv_resolve(cmd, st, project):
             capture_output=True,
             check=False,
         )
-        if os.environ.get("PIPENV_UV_VERBOSE"):
-            logger.info(
-                "Extras detection: extras_constraints=%s, non_extras_lines=%s, no_extras_rc=%d, no_extras_stderr=%s",
-                extras_constraints,
-                non_extras_lines,
-                no_extras_result.returncode,
-                no_extras_result.stderr[:500] if no_extras_result.stderr else "",
-            )
+        logger.debug(
+            "Extras detection: extras_constraints=%s, non_extras_lines=%s, no_extras_rc=%d, no_extras_stderr=%s",
+            extras_constraints,
+            non_extras_lines,
+            no_extras_result.returncode,
+            no_extras_result.stderr[:500] if no_extras_result.stderr else "",
+        )
         if no_extras_result.returncode == 0:
             base_packages, _, _ = parse_requirements_lines(
                 no_extras_result.stdout.splitlines()
@@ -595,13 +584,12 @@ def uv_resolve(cmd, st, project):
             base_canonical = {canonicalize_name(n) for n in base_packages}
             all_canonical = {canonicalize_name(n) for n in packages}
             extras_only_packages = all_canonical - base_canonical
-            if os.environ.get("PIPENV_UV_VERBOSE"):
-                logger.info(
-                    "Extras detection: base_pkgs=%s, all_pkgs=%s, extras_only=%s",
-                    base_canonical,
-                    all_canonical,
-                    extras_only_packages,
-                )
+            logger.debug(
+                "Extras detection: base_pkgs=%s, all_pkgs=%s, extras_only=%s",
+                base_canonical,
+                all_canonical,
+                extras_only_packages,
+            )
 
     # Clean up temporary constraint file (after the second resolve above)
     if default_constraint_tmpfile is not None:
@@ -616,13 +604,12 @@ def uv_resolve(cmd, st, project):
         for _pkg, elist in extras_constraints.items():
             all_extras.extend(elist)
 
-        if os.environ.get("PIPENV_UV_VERBOSE"):
-            logger.info(
-                "Applying extras markers: extras_only=%s, all_extras=%s, packages_keys=%s",
-                extras_only_packages,
-                all_extras,
-                list(packages.keys()),
-            )
+        logger.debug(
+            "Applying extras markers: extras_only=%s, all_extras=%s, packages_keys=%s",
+            extras_only_packages,
+            all_extras,
+            list(packages.keys()),
+        )
 
         for pkg_name, pkg_entry in packages.items():
             canonical = canonicalize_name(pkg_name)
@@ -701,12 +688,11 @@ def uv_resolve(cmd, st, project):
     import json
 
     output_data = [{"name": k, **v} for k, v in packages.items()]
-    if os.environ.get("PIPENV_UV_VERBOSE"):
-        logger.info(
-            "Writing resolved packages to %s: %s",
-            write,
-            json.dumps(output_data, indent=2),
-        )
+    logger.debug(
+        "Writing resolved packages to %s: %s",
+        write,
+        json.dumps(output_data, indent=2),
+    )
 
     with open(write, "w") as f:
         f.write(json.dumps(output_data))
@@ -864,8 +850,7 @@ def _make_uv_subprocess_run(project):
             *cleaned_rest,
         ]
 
-        if os.environ.get("PIPENV_UV_VERBOSE"):
-            logger.info("\nRunning command: %s", " ".join(uv_args))
+        logger.debug("Running command: %s", " ".join(uv_args))
 
         return subprocess.Popen(
             uv_args,
@@ -888,29 +873,23 @@ def uv_pip_install_deps(
     use_pep517=True,
     extra_pip_args=None,
 ):
-    """Replacement for ``pipenv.utils.pip.pip_install_deps`` that uses uv.
+    """Installer backend that uses uv for package installation.
 
-    Wraps the original function, temporarily patching ``subprocess_run``
+    Wraps the default pip installer, temporarily patching ``subprocess_run``
     in ``pipenv.utils.pip`` to redirect pip install commands to uv.
     """
-    if _original_pip_install_deps is None:
-        raise RuntimeError("Original pip_install_deps function is not available")
-
-    global _install_message_shown
-    if not _install_message_shown:
-        import sys
-
-        print("Using uv for package installation", file=sys.stderr)
-        _install_message_shown = True
-
-    from unittest.mock import patch
+    import sys
+    from unittest.mock import patch as mock_patch
 
     import pipenv.utils.pip
+    from pipenv.utils.pip import _pip_install_deps
+
+    print("Using uv for package installation", file=sys.stderr)
 
     _uv_subprocess_run = _make_uv_subprocess_run(project)
 
-    with patch.object(pipenv.utils.pip, "subprocess_run", _uv_subprocess_run):
-        return _original_pip_install_deps(
+    with mock_patch.object(pipenv.utils.pip, "subprocess_run", _uv_subprocess_run):
+        return _pip_install_deps(
             project=project,
             deps=deps,
             sources=sources,
@@ -921,61 +900,3 @@ def uv_pip_install_deps(
             use_pep517=use_pep517,
             extra_pip_args=extra_pip_args,
         )
-
-
-def patch():
-    """Apply uv monkey-patches to pipenv's resolver and installer.
-
-    This is a no-op if:
-    - Already patched
-    - ``PIPENV_UV`` is not set / falsy
-    - The uv binary cannot be found
-
-    Individual patches can be disabled via:
-    - ``PIPENV_UV_NO_RESOLVE`` -- skip resolution patch
-    - ``PIPENV_UV_NO_INSTALL`` -- skip installation patch
-    """
-    global _original_resolve, _original_pip_install_deps
-
-    # Idempotent
-    if _original_resolve is not None or _original_pip_install_deps is not None:
-        return
-
-    # Check master switch
-    from pipenv.utils.shell import env_to_bool
-
-    uv_enabled = os.environ.get("PIPENV_UV", "")
-    if not uv_enabled:
-        return
-    try:
-        if not env_to_bool(uv_enabled):
-            return
-    except ValueError:
-        # Non-boolean string value — treat as truthy
-        pass
-
-    # Verify uv is available before patching
-    try:
-        uv_path = find_uv_bin()
-        logger.debug("Found uv at: %s", uv_path)
-    except FileNotFoundError:
-        logger.warning(
-            "PIPENV_UV is set but uv binary was not found. Install uv via 'pip install uv' or ensure it is on PATH."
-        )
-        return
-
-    # Patch resolver
-    if not os.environ.get("PIPENV_UV_NO_RESOLVE"):
-        from pipenv.utils import resolver
-
-        _original_resolve = resolver.resolve
-        resolver.resolve = uv_resolve
-        logger.debug("Patched pipenv.utils.resolver.resolve with uv_resolve")
-
-    # Patch installer
-    if not os.environ.get("PIPENV_UV_NO_INSTALL"):
-        from pipenv.utils import pip
-
-        _original_pip_install_deps = pip.pip_install_deps
-        pip.pip_install_deps = uv_pip_install_deps
-        logger.debug("Patched pipenv.utils.pip.pip_install_deps with uv_pip_install_deps")

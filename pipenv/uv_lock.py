@@ -4,15 +4,10 @@ Uses ``uv lock`` (native project-based resolution) instead of ``uv pip compile``
 for dependency resolution, providing richer structured data including per-package
 source registry, structural extras info, and environment markers.
 
-Activated via ``PIPENV_UV=1``.  Does NOT modify ``uv.py`` — this module provides
-its own ``patch()`` that replaces the resolver while reusing the installer from
-``uv.py``.
-
-Environment variables:
-    PIPENV_UV              -- Enable uv integration (default: disabled)
-    PIPENV_UV_NO_RESOLVE   -- Disable uv-based resolution only
-    PIPENV_UV_NO_INSTALL   -- Disable uv-based installation only
-    PIPENV_UV_VERBOSE      -- Enable debug logging for uv commands
+Activated via ``PIPENV_RESOLVER=uv-lock``.  The dispatcher functions in
+``pipenv.utils.resolver`` and ``pipenv.utils.pip`` call into this module
+based on the ``PIPENV_RESOLVER`` environment variable.  The installer side
+is handled by ``pipenv.uv.uv_pip_install_deps``.
 """
 
 from __future__ import annotations
@@ -29,10 +24,6 @@ from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
-# Saved references to original functions, set by patch()
-_original_resolve: Any = None
-_original_pip_install_deps: Any = None
-_install_message_shown = False
 
 # ---------------------------------------------------------------------------
 # TypedDicts for uv.lock parsing
@@ -678,21 +669,19 @@ def uv_lock_resolve(
     st: Any,
     project: Any,
 ) -> subprocess.CompletedProcess:
-    """Replacement for ``pipenv.utils.resolver.resolve`` using ``uv lock``.
+    """Resolver backend that uses ``uv lock``.
 
     Creates a temporary project directory with a ``pyproject.toml`` translated
     from the Pipfile, runs ``uv lock``, parses the resulting ``uv.lock``, and
-    writes the result as JSON.  Falls back to the original resolver on failure.
+    writes the result as JSON.  Falls back to the default pip resolver on failure.
 
     :param cmd: Command list (the resolver subprocess command)
     :param st: Rich Status spinner object
     :param project: The pipenv Project instance
     :return: ``subprocess.CompletedProcess``
     """
-    if _original_resolve is None:
-        raise RuntimeError("Original resolve function is not available")
-
     from pipenv.resolver import get_parser
+    from pipenv.utils.resolver import _pip_resolve
     from pipenv.uv import (
         _has_env_var_in_constraints,
         _has_local_path_constraint,
@@ -706,7 +695,7 @@ def uv_lock_resolve(
 
     if not constraints_file:
         logger.warning("No constraints file provided, falling back to pip resolver")
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     # Read constraints to check for fallback conditions
     constraints: dict[str, str] = {}
@@ -720,31 +709,33 @@ def uv_lock_resolve(
 
     if not constraints:
         logger.warning("No constraints found, falling back to pip resolver")
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     # Fall back for local paths, env vars, editable VCS
     if _has_local_path_constraint(constraints):
         logger.info(
             "Local path/file:// constraint detected, falling back to pip resolver"
         )
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
     if _has_env_var_in_constraints(constraints):
         logger.info(
             "Environment variable in constraint detected, falling back to pip resolver"
         )
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
     for pip_line in constraints.values():
         stripped = pip_line.strip()
         if stripped.startswith("-e ") and "git+" in stripped:
             logger.info("Editable VCS constraint detected, falling back to pip resolver")
-            return _original_resolve(cmd, st, project)
+            return _pip_resolve(cmd, st, project)
 
-    if os.environ.get("PIPENV_UV_VERBOSE"):
-        data = {"constraints": constraints, "cmd": cmd, "category": category}
-        logger.info(
-            "\nRunning uv lock resolve with data: %s",
-            json.dumps(data, default=str, indent=2),
-        )
+    logger.debug(
+        "Running uv lock resolve with data: %s",
+        json.dumps(
+            {"constraints": constraints, "cmd": cmd, "category": category},
+            default=str,
+            indent=2,
+        ),
+    )
 
     # Build pyproject.toml in a temporary directory
     pyproject_content = _build_pyproject_toml(project, category, pre=pre)
@@ -754,14 +745,12 @@ def uv_lock_resolve(
     with open(pyproject_path, "w") as f:
         f.write(pyproject_content)
 
-    if os.environ.get("PIPENV_UV_VERBOSE"):
-        logger.info("\npyproject.toml content:\n%s", pyproject_content)
+    logger.debug("pyproject.toml content:\n%s", pyproject_content)
 
     # Run uv lock
     uv_cmd = _build_uv_lock_cmd(project, tmpdir, pre=pre)
 
-    if os.environ.get("PIPENV_UV_VERBOSE"):
-        logger.info("\nRunning command: %s", " ".join(uv_cmd))
+    logger.debug("Running command: %s", " ".join(uv_cmd))
 
     try:
         result = subprocess.run(
@@ -774,7 +763,7 @@ def uv_lock_resolve(
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         logger.warning("uv lock failed with %s, falling back to pip resolver", exc)
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     if result.returncode != 0:
         logger.warning(
@@ -784,26 +773,25 @@ def uv_lock_resolve(
             result.stderr,
         )
         # Fall back to original resolver
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     # Parse uv.lock
     lock_path = os.path.join(tmpdir, "uv.lock")
     if not os.path.exists(lock_path):
         logger.warning("uv.lock not found at %s, falling back to pip resolver", lock_path)
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
     try:
         resolved = _parse_uv_lock(lock_path, project, category)
     except Exception as exc:
         logger.warning("Failed to parse uv.lock: %s, falling back to pip resolver", exc)
-        return _original_resolve(cmd, st, project)
+        return _pip_resolve(cmd, st, project)
 
-    if os.environ.get("PIPENV_UV_VERBOSE"):
-        logger.info(
-            "\nResolved %d packages:\n%s",
-            len(resolved),
-            json.dumps(resolved, indent=2),
-        )
+    logger.debug(
+        "Resolved %d packages:\n%s",
+        len(resolved),
+        json.dumps(resolved, indent=2),
+    )
 
     # Write results to the target file
     with open(write, "w") as f:
@@ -823,77 +811,3 @@ def uv_lock_resolve(
         stdout=result.stdout,
         stderr=result.stderr,
     )
-
-
-# ---------------------------------------------------------------------------
-# Patching
-# ---------------------------------------------------------------------------
-
-
-def patch() -> None:
-    """Apply uv monkey-patches to pipenv's resolver and installer.
-
-    This replaces the ``uv pip compile``-based resolver from ``uv.py`` with
-    the ``uv lock``-based resolver from this module, while reusing the
-    installer from ``uv.py``.
-
-    This is a no-op if:
-    - Already patched
-    - ``PIPENV_UV`` is not set / falsy
-    - The uv binary cannot be found
-
-    Individual patches can be disabled via:
-    - ``PIPENV_UV_NO_RESOLVE`` -- skip resolution patch
-    - ``PIPENV_UV_NO_INSTALL`` -- skip installation patch
-    """
-    global _original_resolve, _original_pip_install_deps
-
-    # Idempotent
-    if _original_resolve is not None or _original_pip_install_deps is not None:
-        return
-
-    # Check master switch
-    from pipenv.utils.shell import env_to_bool
-
-    uv_enabled = os.environ.get("PIPENV_UV", "")
-    if not uv_enabled:
-        return
-    try:
-        if not env_to_bool(uv_enabled):
-            return
-    except ValueError:
-        # Non-boolean string value — treat as truthy
-        pass
-
-    # Verify uv is available before patching
-    from pipenv.uv import find_uv_bin
-
-    try:
-        uv_path = find_uv_bin()
-        logger.debug("Found uv at: %s", uv_path)
-    except FileNotFoundError:
-        logger.warning(
-            "PIPENV_UV is set but uv binary was not found. Install uv via 'pip install uv' or ensure it is on PATH."
-        )
-        return
-
-    # Patch resolver
-    if not os.environ.get("PIPENV_UV_NO_RESOLVE"):
-        from pipenv.utils import resolver
-
-        _original_resolve = resolver.resolve
-        resolver.resolve = uv_lock_resolve  # type: ignore[assignment]
-        logger.debug("Patched pipenv.utils.resolver.resolve with uv_lock_resolve")
-
-    # Patch installer — reuse uv.py's install-side functions
-    if not os.environ.get("PIPENV_UV_NO_INSTALL"):
-        import pipenv.uv as _uv_mod
-        from pipenv.utils import pip
-        from pipenv.uv import uv_pip_install_deps
-
-        _original_pip_install_deps = pip.pip_install_deps
-        # uv_pip_install_deps reads uv._original_pip_install_deps internally,
-        # so we must set it there as well.
-        _uv_mod._original_pip_install_deps = _original_pip_install_deps
-        pip.pip_install_deps = uv_pip_install_deps  # type: ignore[assignment]
-        logger.debug("Patched pipenv.utils.pip.pip_install_deps with uv_pip_install_deps")

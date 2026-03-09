@@ -421,7 +421,6 @@ class Project:
         scripts_dir = self.virtualenv_scripts_location
 
         if venv_path.exists():
-
             # existence of active.bat is dependent on the platform path prefix
             # scheme, not platform itself. This handles special cases such as
             # Cygwin/MinGW identifying as 'nt' platform, yet preferring a
