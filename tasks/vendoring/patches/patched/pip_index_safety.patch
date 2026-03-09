@@ -1,8 +1,8 @@
 diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
-index 00d66daa3..3cc20b1aa 100644
+index a9a8dde8b..25e7767d2 100644
 --- a/pipenv/patched/pip/_internal/index/collector.py
 +++ b/pipenv/patched/pip/_internal/index/collector.py
-@@ -394,9 +394,11 @@ class LinkCollector:
+@@ -393,9 +393,11 @@ class LinkCollector:
          self,
          session: PipSession,
          search_scope: SearchScope,
@@ -10,11 +10,11 @@ index 00d66daa3..3cc20b1aa 100644
      ) -> None:
          self.search_scope = search_scope
          self.session = session
-+        self.index_lookup = index_lookup if index_lookup else {}
-
++        self.index_lookup = index_lookup or {}
+ 
      @classmethod
      def create(
-@@ -404,6 +406,7 @@ class LinkCollector:
+@@ -403,6 +405,7 @@ class LinkCollector:
          session: PipSession,
          options: Values,
          suppress_no_index: bool = False,
@@ -22,7 +22,7 @@ index 00d66daa3..3cc20b1aa 100644
      ) -> LinkCollector:
          """
          :param session: The Session to use to make requests.
-@@ -425,10 +428,12 @@ class LinkCollector:
+@@ -424,10 +427,12 @@ class LinkCollector:
              find_links=find_links,
              index_urls=index_urls,
              no_index=options.no_index,
@@ -34,33 +34,33 @@ index 00d66daa3..3cc20b1aa 100644
 +            index_lookup=index_lookup,
          )
          return link_collector
-
+ 
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index 136163ca0..0101dd386 100644
+index 136163ca0..a41193a6e 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -14,17 +14,17 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
- logger = logging.getLogger(__name__)
-
-
--@dataclass(frozen=True)
-+@dataclass(frozen=False)
- class SearchScope:
-     """
+@@ -20,11 +20,19 @@ class SearchScope:
      Encapsulates the locations that pip is configured to search.
      """
-
+ 
 -    __slots__ = ["find_links", "index_urls", "no_index"]
--
++    __slots__ = [
++        "find_links",
++        "index_urls",
++        "no_index",
++        "index_lookup",
++        "index_restricted",
++    ]
+ 
      find_links: list[str]
      index_urls: list[str]
      no_index: bool
-+    index_lookup: dict[str, str] | None = None
-+    index_restricted: bool | None = None
-
++    index_lookup: dict[str, list[str]] | None = None
++    index_restricted: bool = False
+ 
      @classmethod
      def create(
-@@ -32,6 +32,8 @@ class SearchScope:
+@@ -32,6 +40,8 @@ class SearchScope:
          find_links: list[str],
          index_urls: list[str],
          no_index: bool,
@@ -69,23 +69,31 @@ index 136163ca0..0101dd386 100644
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -66,6 +68,8 @@ class SearchScope:
+@@ -66,6 +76,8 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
 +            index_lookup=index_lookup or {},
 +            index_restricted=index_restricted,
          )
-
+ 
      def get_formatted_locations(self) -> str:
-@@ -123,4 +127,9 @@ class SearchScope:
+@@ -123,4 +135,17 @@ class SearchScope:
                  loc = loc + "/"
              return loc
-
+ 
 -        return [mkurl_pypi_url(url) for url in self.index_urls]
 +        index_urls = self.index_urls
-+        if project_name in self.index_lookup:
-+            index_urls = [self.index_lookup[project_name]]
++        canonical_name = canonicalize_name(project_name)
++        project_index_urls = None
++        if self.index_lookup:
++            project_index_urls = self.index_lookup.get(canonical_name)
++            if project_index_urls is None:
++                project_index_urls = self.index_lookup.get(project_name)
++
++        if project_index_urls is not None:
++            index_urls = project_index_urls
 +        elif self.index_restricted and self.index_urls:
 +            index_urls = [self.index_urls[0]]
++
 +        return [mkurl_pypi_url(url) for url in index_urls]
