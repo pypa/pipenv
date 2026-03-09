@@ -13,12 +13,21 @@ from functools import partial
 from optparse import Values
 from typing import Any, Callable, TypeVar
 
-from pipenv.patched.pip._internal.build_env import SubprocessBuildEnvironmentInstaller
+from pipenv.patched.pip._internal.build_env import (
+    BuildEnvironmentInstaller,
+    InprocessBuildEnvironmentInstaller,
+    SubprocessBuildEnvironmentInstaller,
+)
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.cli import cmdoptions
+from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
 from pipenv.patched.pip._internal.cli.index_command import IndexGroupCommand
 from pipenv.patched.pip._internal.cli.index_command import SessionCommandMixin as SessionCommandMixin
-from pipenv.patched.pip._internal.exceptions import CommandError, PreviousBuildDirError
+from pipenv.patched.pip._internal.exceptions import (
+    CommandError,
+    PreviousBuildDirError,
+    UnsupportedPythonVersion,
+)
 from pipenv.patched.pip._internal.index.collector import LinkCollector
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
@@ -32,10 +41,12 @@ from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_parsed_requirement,
     install_req_from_req_string,
 )
+from pipenv.patched.pip._internal.req.pep723 import PEP723Exception, pep723_metadata
 from pipenv.patched.pip._internal.req.req_dependency_group import parse_dependency_groups
 from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.resolution.base import BaseResolver
+from pipenv.patched.pip._internal.utils.packaging import check_requires_python
 from pipenv.patched.pip._internal.utils.temp_dir import (
     TempDirectory,
     TempDirectoryTypeRegistry,
@@ -91,6 +102,31 @@ def with_cleanup(
             raise
 
     return wrapper
+
+
+def parse_constraint_files(
+    constraint_files: list[str],
+    finder: PackageFinder,
+    options: Values,
+    session: PipSession,
+) -> list[InstallRequirement]:
+    requirements = []
+    for filename in constraint_files:
+        for parsed_req in parse_requirements(
+            filename,
+            constraint=True,
+            finder=finder,
+            options=options,
+            session=session,
+        ):
+            req_to_add = install_req_from_parsed_requirement(
+                parsed_req,
+                isolated=options.isolated_mode,
+                user_supplied=False,
+            )
+            requirements.append(req_to_add)
+
+    return requirements
 
 
 class RequirementCommand(IndexGroupCommand):
@@ -152,16 +188,31 @@ class RequirementCommand(IndexGroupCommand):
             "build-constraint" in options.features_enabled
         )
 
+        env_installer: BuildEnvironmentInstaller
+        if "inprocess-build-deps" in options.features_enabled:
+            build_constraint_reqs = parse_constraint_files(
+                build_constraints, finder, options, session
+            )
+            env_installer = InprocessBuildEnvironmentInstaller(
+                finder=finder,
+                build_tracker=build_tracker,
+                build_constraints=build_constraint_reqs,
+                verbosity=verbosity,
+                wheel_cache=WheelCache(options.cache_dir),
+            )
+        else:
+            env_installer = SubprocessBuildEnvironmentInstaller(
+                finder,
+                build_constraints=build_constraints,
+                build_constraint_feature_enabled=build_constraint_feature_enabled,
+            )
+
         return RequirementPreparer(
             build_dir=temp_build_dir_path,
             src_dir=options.src_dir,
             download_dir=download_dir,
             build_isolation=options.build_isolation,
-            build_isolation_installer=SubprocessBuildEnvironmentInstaller(
-                finder,
-                build_constraints=build_constraints,
-                build_constraint_feature_enabled=build_constraint_feature_enabled,
-            ),
+            build_isolation_installer=env_installer,
             check_build_deps=options.check_build_deps,
             build_tracker=build_tracker,
             session=session,
@@ -172,7 +223,6 @@ class RequirementCommand(IndexGroupCommand):
             lazy_wheel=lazy_wheel,
             verbosity=verbosity,
             legacy_resolver=legacy_resolver,
-            resume_retries=options.resume_retries,
         )
 
     @classmethod
@@ -245,22 +295,14 @@ class RequirementCommand(IndexGroupCommand):
         requirements: list[InstallRequirement] = []
 
         if not should_ignore_regular_constraints(options):
-            for filename in options.constraints:
-                for parsed_req in parse_requirements(
-                    filename,
-                    constraint=True,
-                    finder=finder,
-                    options=options,
-                    session=session,
-                ):
-                    req_to_add = install_req_from_parsed_requirement(
-                        parsed_req,
-                        isolated=options.isolated_mode,
-                        user_supplied=False,
-                    )
-                    requirements.append(req_to_add)
+            constraints = parse_constraint_files(
+                options.constraints, finder, options, session
+            )
+            requirements.extend(constraints)
 
         for req in args:
+            if not req.strip():
+                continue
             req_to_add = install_req_from_line(
                 req,
                 comes_from=None,
@@ -305,6 +347,38 @@ class RequirementCommand(IndexGroupCommand):
                 )
                 requirements.append(req_to_add)
 
+        if options.requirements_from_scripts:
+            if len(options.requirements_from_scripts) > 1:
+                raise CommandError("--requirements-from-script can only be given once")
+
+            script = options.requirements_from_scripts[0]
+            try:
+                script_metadata = pep723_metadata(script)
+            except PEP723Exception as exc:
+                raise CommandError(exc.msg)
+
+            script_requires_python = script_metadata.get("requires-python", "")
+
+            if script_requires_python and not options.ignore_requires_python:
+                target_python = make_target_python(options)
+
+                if not check_requires_python(
+                    requires_python=script_requires_python,
+                    version_info=target_python.py_version_info,
+                ):
+                    raise UnsupportedPythonVersion(
+                        f"Script {script!r} requires a different Python: "
+                        f"{target_python.py_version} not in {script_requires_python!r}"
+                    )
+
+            for req in script_metadata.get("dependencies", []):
+                req_to_add = install_req_from_req_string(
+                    req,
+                    isolated=options.isolated_mode,
+                    user_supplied=True,
+                )
+                requirements.append(req_to_add)
+
         # If any requirement has hash options, enable hash checking.
         if any(req.has_hash_options for req in requirements):
             options.require_hashes = True
@@ -314,6 +388,7 @@ class RequirementCommand(IndexGroupCommand):
             or options.editables
             or options.requirements
             or options.dependency_groups
+            or options.requirements_from_scripts
         ):
             opts = {"name": self.name}
             if options.find_links:
@@ -359,7 +434,7 @@ class RequirementCommand(IndexGroupCommand):
         selection_prefs = SelectionPreferences(
             allow_yanked=True,
             format_control=options.format_control,
-            allow_all_prereleases=options.pre,
+            release_control=options.release_control,
             prefer_binary=options.prefer_binary,
             ignore_requires_python=ignore_requires_python,
         )
@@ -368,4 +443,5 @@ class RequirementCommand(IndexGroupCommand):
             link_collector=link_collector,
             selection_prefs=selection_prefs,
             target_python=target_python,
+            uploaded_prior_to=options.uploaded_prior_to,
         )

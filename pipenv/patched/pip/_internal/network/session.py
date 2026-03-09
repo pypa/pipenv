@@ -50,8 +50,8 @@ from pipenv.patched.pip._internal.utils.urls import url_to_path
 if TYPE_CHECKING:
     from ssl import SSLContext
 
+    from pipenv.patched.pip._vendor.urllib3 import ProxyManager
     from pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager
-    from pipenv.patched.pip._vendor.urllib3.proxymanager import ProxyManager
 
 
 logger = logging.getLogger(__name__)
@@ -212,11 +212,12 @@ class LocalFSAdapter(BaseAdapter):
         self,
         request: PreparedRequest,
         stream: bool = False,
-        timeout: float | tuple[float, float] | None = None,
+        timeout: float | tuple[float, float] | tuple[float, None] | None = None,
         verify: bool | str = True,
-        cert: str | tuple[str, str] | None = None,
+        cert: bytes | str | tuple[bytes | str, bytes | str] | None = None,
         proxies: Mapping[str, str] | None = None,
     ) -> Response:
+        assert request.url is not None
         pathname = url_to_path(request.url)
 
         resp = Response()
@@ -237,13 +238,13 @@ class LocalFSAdapter(BaseAdapter):
             resp.headers = CaseInsensitiveDict(
                 {
                     "Content-Type": content_type,
-                    "Content-Length": stats.st_size,
+                    "Content-Length": str(stats.st_size),
                     "Last-Modified": modified,
                 }
             )
 
             resp.raw = open(pathname, "rb")
-            resp.close = resp.raw.close
+            resp.close = resp.raw.close  # type: ignore[method-assign]
 
         return resp
 
@@ -277,7 +278,7 @@ class _SSLContextAdapterMixin:
     ) -> PoolManager:
         if self._ssl_context is not None:
             pool_kwargs.setdefault("ssl_context", self._ssl_context)
-        return super().init_poolmanager(  # type: ignore[misc]
+        return super().init_poolmanager(  # type: ignore[misc, no-any-return]
             connections=connections,
             maxsize=maxsize,
             block=block,
@@ -289,7 +290,7 @@ class _SSLContextAdapterMixin:
         # context here too. https://github.com/pypa/pip/issues/13288
         if self._ssl_context is not None:
             proxy_kwargs.setdefault("ssl_context", self._ssl_context)
-        return super().proxy_manager_for(proxy, **proxy_kwargs)  # type: ignore[misc]
+        return super().proxy_manager_for(proxy, **proxy_kwargs)  # type: ignore[misc, no-any-return]
 
 
 class HTTPAdapter(_SSLContextAdapterMixin, _BaseHTTPAdapter):
@@ -329,6 +330,7 @@ class PipSession(requests.Session):
         self,
         *args: Any,
         retries: int = 0,
+        resume_retries: int = 0,
         cache: str | None = None,
         trusted_hosts: Sequence[str] = (),
         index_urls: list[str] | None = None,
@@ -350,7 +352,7 @@ class PipSession(requests.Session):
         self.headers["User-Agent"] = user_agent()
 
         # Attach our Authentication handler to the session
-        self.auth = MultiDomainBasicAuth(index_urls=index_urls)
+        self.auth: MultiDomainBasicAuth = MultiDomainBasicAuth(index_urls=index_urls)
 
         # Create our urllib3.Retry instance which will allow us to customize
         # how we handle retries.
@@ -370,6 +372,7 @@ class PipSession(requests.Session):
             # order to prevent hammering the service.
             backoff_factor=0.25,
         )  # type: ignore
+        self.resume_retries = resume_retries
 
         # Our Insecure HTTPAdapter disables HTTPS validation. It does not
         # support caching so we'll use it for all http:// URLs.
@@ -383,8 +386,9 @@ class PipSession(requests.Session):
         # we can't validate the response of an insecurely/untrusted fetched
         # origin, and we don't want someone to be able to poison the cache and
         # require manual eviction from the cache to fix it.
+        self._trusted_host_adapter: InsecureCacheControlAdapter | InsecureHTTPAdapter
         if cache:
-            secure_adapter = CacheControlAdapter(
+            secure_adapter: _BaseHTTPAdapter = CacheControlAdapter(
                 cache=SafeFileCache(cache),
                 max_retries=retries,
                 ssl_context=ssl_context,
@@ -518,7 +522,7 @@ class PipSession(requests.Session):
 
         return False
 
-    def request(self, method: str, url: str, *args: Any, **kwargs: Any) -> Response:
+    def request(self, method: str, url: str, *args: Any, **kwargs: Any) -> Response:  # type: ignore[override]
         # Allow setting a default timeout on a session
         kwargs.setdefault("timeout", self.timeout)
         # Allow setting a default proxies on a session

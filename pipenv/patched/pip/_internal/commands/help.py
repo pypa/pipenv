@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from optparse import Values
 
 from pipenv.patched.pip._internal.cli.base_command import Command

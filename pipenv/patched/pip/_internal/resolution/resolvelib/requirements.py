@@ -164,6 +164,12 @@ class RequiresPythonRequirement(Requirement):
         self._hash: int | None = None
         self._candidate = match
 
+        # Pre-compute candidate lookup to avoid repeated specifier checks
+        if specifier.contains(match.version, prereleases=True):
+            self._candidate_lookup: CandidateLookup = (match, None)
+        else:
+            self._candidate_lookup = (None, None)
+
     def __str__(self) -> str:
         return f"Python {self.specifier}"
 
@@ -197,9 +203,7 @@ class RequiresPythonRequirement(Requirement):
         return str(self)
 
     def get_candidate_lookup(self) -> CandidateLookup:
-        if self.specifier.contains(self._candidate.version, prereleases=True):
-            return self._candidate, None
-        return None, None
+        return self._candidate_lookup
 
     def is_satisfied_by(self, candidate: Candidate) -> bool:
         assert candidate.name == self._candidate.name, "Not Python candidate"

@@ -235,6 +235,17 @@ class Command(CommandContextMixIn):
                 )
                 options.cache_dir = None
 
+        if (
+            "inprocess-build-deps" in options.features_enabled
+            and os.environ.get("PIP_CONSTRAINT", "")
+            and "build-constraint" not in options.features_enabled
+        ):
+            logger.warning(
+                "In-process build dependencies are enabled, "
+                "PIP_CONSTRAINT will have no effect for build dependencies"
+            )
+            options.features_enabled.append("build-constraint")
+
         return self._run_wrapper(level_number, options, args)
 
     def handler_map(self) -> dict[str, Callable[[Values, list[str]], None]]:

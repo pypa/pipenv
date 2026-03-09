@@ -2,8 +2,13 @@
 # 2.0, and the BSD License. See the LICENSE file in the root of this repository
 # for complete details.
 
+import typing
 
+
+@typing.final
 class InfinityType:
+    __slots__ = ()
+
     def __repr__(self) -> str:
         return "Infinity"
 
@@ -32,7 +37,10 @@ class InfinityType:
 Infinity = InfinityType()
 
 
+@typing.final
 class NegativeInfinityType:
+    __slots__ = ()
+
     def __repr__(self) -> str:
         return "-Infinity"
 

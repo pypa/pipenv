@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
+    from collections.abc import Buffer
     from http.client import HTTPResponse
 
 
@@ -31,7 +32,7 @@ class CallbackFileWrapper:
     """
 
     def __init__(
-        self, fp: HTTPResponse, callback: Callable[[bytes], None] | None
+        self, fp: HTTPResponse, callback: Callable[[Buffer], None] | None
     ) -> None:
         self.__buf = NamedTemporaryFile("rb+", delete=True)
         self.__fp = fp
@@ -68,6 +69,7 @@ class CallbackFileWrapper:
         return False
 
     def _close(self) -> None:
+        result: Buffer
         if self.__callback:
             if self.__buf.tell() == 0:
                 # Empty file:

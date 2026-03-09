@@ -1,8 +1,9 @@
-from __future__ import annotations
-
 import sys
 from optparse import Values
 from pathlib import Path
+
+from pipenv.patched.pip._vendor import tomli_w
+from pipenv.patched.pip._vendor.packaging.pylock import is_valid_pylock_path
 
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.cli import cmdoptions
@@ -11,12 +12,12 @@ from pipenv.patched.pip._internal.cli.req_command import (
     with_cleanup,
 )
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
-from pipenv.patched.pip._internal.models.pylock import Pylock, is_valid_pylock_file_name
 from pipenv.patched.pip._internal.operations.build.build_tracker import get_build_tracker
 from pipenv.patched.pip._internal.utils.logging import getLogger
 from pipenv.patched.pip._internal.utils.misc import (
     get_pip_version,
 )
+from pipenv.patched.pip._internal.utils.pylock import pylock_from_install_requirements
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 
 logger = getLogger(__name__)
@@ -57,10 +58,10 @@ class LockCommand(RequirementCommand):
             )
         )
         self.cmd_opts.add_option(cmdoptions.requirements())
+        self.cmd_opts.add_option(cmdoptions.requirements_from_scripts())
         self.cmd_opts.add_option(cmdoptions.constraints())
         self.cmd_opts.add_option(cmdoptions.build_constraints())
         self.cmd_opts.add_option(cmdoptions.no_deps())
-        self.cmd_opts.add_option(cmdoptions.pre())
 
         self.cmd_opts.add_option(cmdoptions.editable())
 
@@ -73,9 +74,6 @@ class LockCommand(RequirementCommand):
 
         self.cmd_opts.add_option(cmdoptions.config_settings())
 
-        self.cmd_opts.add_option(cmdoptions.no_binary())
-        self.cmd_opts.add_option(cmdoptions.only_binary())
-        self.cmd_opts.add_option(cmdoptions.prefer_binary())
         self.cmd_opts.add_option(cmdoptions.require_hashes())
         self.cmd_opts.add_option(cmdoptions.progress_bar())
 
@@ -84,7 +82,13 @@ class LockCommand(RequirementCommand):
             self.parser,
         )
 
+        selection_opts = cmdoptions.make_option_group(
+            cmdoptions.package_selection_group,
+            self.parser,
+        )
+
         self.parser.insert_option_group(0, index_opts)
+        self.parser.insert_option_group(0, selection_opts)
         self.parser.insert_option_group(0, self.cmd_opts)
 
     @with_cleanup
@@ -98,6 +102,7 @@ class LockCommand(RequirementCommand):
         )
 
         cmdoptions.check_build_constraints(options)
+        cmdoptions.check_release_control_exclusive(options)
 
         session = self.get_default_session(options)
 
@@ -152,15 +157,16 @@ class LockCommand(RequirementCommand):
             base_dir = Path.cwd()
         else:
             output_file_path = Path(options.output_file)
-            if not is_valid_pylock_file_name(output_file_path):
+            if not is_valid_pylock_path(output_file_path):
                 logger.warning(
                     "%s is not a valid lock file name.",
                     output_file_path,
                 )
             base_dir = output_file_path.parent
-        pylock_toml = Pylock.from_install_requirements(
+        pylock = pylock_from_install_requirements(
             requirement_set.requirements.values(), base_dir=base_dir
-        ).as_toml()
+        )
+        pylock_toml = tomli_w.dumps(pylock.to_dict())
         if options.output_file == "-":
             sys.stdout.write(pylock_toml)
         else:

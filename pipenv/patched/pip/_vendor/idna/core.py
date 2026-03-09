@@ -308,7 +308,7 @@ def ulabel(label: Union[str, bytes, bytearray]) -> str:
             check_label(label)
             return label
     else:
-        label_bytes = label
+        label_bytes = bytes(label)
 
     label_bytes = label_bytes.lower()
     if label_bytes.startswith(_alabel_prefix):

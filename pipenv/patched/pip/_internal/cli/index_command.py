@@ -23,6 +23,8 @@ from pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
 if TYPE_CHECKING:
     from ssl import SSLContext
 
+    from pipenv.patched.pip._vendor.packaging.utils import NormalizedName
+
     from pipenv.patched.pip._internal.network.session import PipSession
 
 logger = logging.getLogger(__name__)
@@ -103,6 +105,7 @@ class SessionCommandMixin(CommandContextMixIn):
         session = PipSession(
             cache=os.path.join(cache_dir, "http-v2") if cache_dir else None,
             retries=retries if retries is not None else options.retries,
+            resume_retries=options.resume_retries,
             trusted_hosts=options.trusted_hosts,
             index_urls=self._get_index_urls(options),
             ssl_context=ssl_context,
@@ -148,6 +151,23 @@ class IndexGroupCommand(Command, SessionCommandMixin):
 
     This also corresponds to the commands that permit the pip version check.
     """
+
+    def should_exclude_prerelease(
+        self, options: Values, package_name: NormalizedName
+    ) -> bool:
+        """
+        Determine if pre-releases should be excluded for a package.
+        """
+        # Check per-package release control settings
+        if options.release_control:
+            allow_prereleases = options.release_control.allows_prereleases(package_name)
+            if allow_prereleases is True:
+                return False  # Include pre-releases
+            elif allow_prereleases is False:
+                return True  # Exclude pre-releases
+
+        # No specific setting: exclude prereleases by default
+        return True
 
     def handle_pip_version_check(self, options: Values) -> None:
         """

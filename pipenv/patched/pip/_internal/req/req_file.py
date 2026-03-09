@@ -25,6 +25,7 @@ from typing import (
 
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.exceptions import InstallationError, RequirementsFileParseError
+from pipenv.patched.pip._internal.models.release_control import ReleaseControl
 from pipenv.patched.pip._internal.models.search_scope import SearchScope
 
 if TYPE_CHECKING:
@@ -59,6 +60,8 @@ SUPPORTED_OPTIONS: list[Callable[..., optparse.Option]] = [
     cmdoptions.prefer_binary,
     cmdoptions.require_hashes,
     cmdoptions.pre,
+    cmdoptions.all_releases,
+    cmdoptions.only_final,
     cmdoptions.trusted_host,
     cmdoptions.use_new_feature,
 ]
@@ -273,8 +276,16 @@ def handle_option_line(
         )
         finder.search_scope = search_scope
 
+        # Transform --pre into --all-releases :all:
         if opts.pre:
-            finder.set_allow_all_prereleases()
+            if not opts.release_control:
+                opts.release_control = ReleaseControl()
+            opts.release_control.all_releases.add(":all:")
+
+        if opts.release_control:
+            if not finder.release_control:
+                # First time seeing release_control, set it on finder
+                finder.set_release_control(opts.release_control)
 
         if opts.prefer_binary:
             finder.set_prefer_binary()
@@ -431,6 +442,7 @@ def get_line_parser(finder: PackageFinder | None) -> LineParser:
         defaults.index_url = None
         if finder:
             defaults.format_control = finder.format_control
+            defaults.release_control = finder.release_control
 
         args_str, options_str = break_args_options(line)
 

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import os
 import textwrap
 from optparse import Values
@@ -191,7 +189,31 @@ class CacheCommand(Command):
             bytes_removed += os.stat(filename).st_size
             os.unlink(filename)
             logger.verbose("Removed %s", filename)
+
+        http_dirs = filesystem.subdirs_without_files(self._cache_dir(options, "http"))
+        wheel_dirs = filesystem.subdirs_without_wheels(
+            self._cache_dir(options, "wheels")
+        )
+        dirs = [*http_dirs, *wheel_dirs]
+
+        for subdir in dirs:
+            try:
+                for file in subdir.iterdir():
+                    file.unlink(missing_ok=True)
+                subdir.rmdir()
+            except FileNotFoundError:
+                # If the directory is already gone, that's fine.
+                pass
+            logger.verbose("Removed %s", subdir)
+
+        # selfcheck.json is no longer used by pip.
+        selfcheck_json = self._cache_dir(options, "selfcheck.json")
+        if os.path.isfile(selfcheck_json):
+            os.remove(selfcheck_json)
+            logger.verbose("Removed legacy selfcheck.json file")
+
         logger.info("Files removed: %s (%s)", len(files), format_size(bytes_removed))
+        logger.info("Directories removed: %s", len(dirs))
 
     def purge_cache(self, options: Values, args: list[str]) -> None:
         if args:

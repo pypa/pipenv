@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import datetime
 import enum
 import functools
 import itertools
@@ -18,19 +19,22 @@ from typing import (
 from pipenv.patched.pip._vendor.packaging import specifiers
 from pipenv.patched.pip._vendor.packaging.tags import Tag
 from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
-from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, _BaseVersion
+from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version, _BaseVersion
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
 from pipenv.patched.pip._internal.exceptions import (
     BestVersionAlreadyInstalled,
     DistributionNotFound,
+    InstallationError,
     InvalidWheelFilename,
     UnsupportedWheel,
 )
 from pipenv.patched.pip._internal.index.collector import LinkCollector, parse_links
+from pipenv.patched.pip._internal.metadata import select_backend
 from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.release_control import ReleaseControl
 from pipenv.patched.pip._internal.models.search_scope import SearchScope
 from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
 from pipenv.patched.pip._internal.models.target_python import TargetPython
@@ -111,6 +115,8 @@ class LinkType(enum.Enum):
     format_invalid = enum.auto()
     platform_mismatch = enum.auto()
     requires_python_mismatch = enum.auto()
+    upload_too_late = enum.auto()
+    upload_time_missing = enum.auto()
 
 
 class LinkEvaluator:
@@ -133,6 +139,7 @@ class LinkEvaluator:
         allow_yanked: bool,
         ignore_requires_python: bool | None = None,
         ignore_compatibility: bool | None = None,
+        uploaded_prior_to: datetime.datetime | None = None,
     ) -> None:
         """
         :param project_name: The user supplied package name.
@@ -150,18 +157,23 @@ class LinkEvaluator:
         :param ignore_requires_python: Whether to ignore incompatible
             PEP 503 "data-requires-python" values in HTML links. Defaults
             to False.
-        :param ignore_compatibility: Whether to ignore
-            compatibility of python versions and allow all versions of packages.
+        :param ignore_compatibility: Whether to ignore compatibility checks
+            and allow all package versions.
+        :param uploaded_prior_to: If set, only allow links uploaded prior to
+            the given datetime.
         """
         if ignore_requires_python is None:
             ignore_requires_python = False
+        if ignore_compatibility is None:
+            ignore_compatibility = False
 
         self._allow_yanked = allow_yanked
         self._canonical_name = canonical_name
         self._ignore_requires_python = ignore_requires_python
+        self._ignore_compatibility = ignore_compatibility
         self._formats = formats
         self._target_python = target_python
-        self._ignore_compatibility = ignore_compatibility
+        self._uploaded_prior_to = uploaded_prior_to
 
         self.project_name = project_name
 
@@ -192,10 +204,18 @@ class LinkEvaluator:
                     LinkType.format_unsupported,
                     f"unsupported archive format: {ext}",
                 )
-            if "binary" not in self._formats and ext == WHEEL_EXTENSION and not self._ignore_compatibility:
+            if (
+                "binary" not in self._formats
+                and ext == WHEEL_EXTENSION
+                and not self._ignore_compatibility
+            ):
                 reason = f"No binaries permitted for {self.project_name}"
                 return (LinkType.format_unsupported, reason)
-            if "macosx10" in link.path and ext == ".zip" and not self._ignore_compatibility:
+            if (
+                "macosx10" in link.path
+                and ext == ".zip"
+                and not self._ignore_compatibility
+            ):
                 return (LinkType.format_unsupported, "macosx10 one")
             if ext == WHEEL_EXTENSION:
                 try:
@@ -221,6 +241,27 @@ class LinkEvaluator:
                     return (LinkType.platform_mismatch, reason)
 
                 version = wheel.version
+
+        # Check upload-time filter after verifying the link is a package file.
+        # Skip this check for local files, as --uploaded-prior-to only applies
+        # to packages from indexes.
+        if self._uploaded_prior_to is not None and not link.is_file:
+            if link.upload_time is None:
+                if link.comes_from:
+                    index_info = f"Index {link.comes_from}"
+                else:
+                    index_info = "Index"
+
+                return (
+                    LinkType.upload_time_missing,
+                    f"{index_info} does not provide upload-time metadata.",
+                )
+            elif link.upload_time >= self._uploaded_prior_to:
+                return (
+                    LinkType.upload_too_late,
+                    f"Upload time {link.upload_time} not "
+                    f"prior to {self._uploaded_prior_to}",
+                )
 
         # This should be up by the self.ok_binary check, but see issue 2700.
         if "source" not in self._formats and ext != WHEEL_EXTENSION:
@@ -354,7 +395,7 @@ class CandidatePreferences:
     """
 
     prefer_binary: bool = False
-    allow_all_prereleases: bool = False
+    release_control: ReleaseControl | None = None
 
 
 @dataclass(frozen=True)
@@ -395,9 +436,10 @@ class CandidateEvaluator:
         project_name: str,
         target_python: TargetPython | None = None,
         prefer_binary: bool = False,
-        allow_all_prereleases: bool = False,
+        release_control: ReleaseControl | None = None,
         specifier: specifiers.BaseSpecifier | None = None,
         hashes: Hashes | None = None,
+        ignore_compatibility: bool = False,
     ) -> CandidateEvaluator:
         """Create a CandidateEvaluator object.
 
@@ -421,8 +463,9 @@ class CandidateEvaluator:
             supported_tags=supported_tags,
             specifier=specifier,
             prefer_binary=prefer_binary,
-            allow_all_prereleases=allow_all_prereleases,
+            release_control=release_control,
             hashes=hashes,
+            ignore_compatibility=ignore_compatibility,
         )
 
     def __init__(
@@ -431,15 +474,17 @@ class CandidateEvaluator:
         supported_tags: list[Tag],
         specifier: specifiers.BaseSpecifier,
         prefer_binary: bool = False,
-        allow_all_prereleases: bool = False,
+        release_control: ReleaseControl | None = None,
         hashes: Hashes | None = None,
+        ignore_compatibility: bool = False,
     ) -> None:
         """
         :param supported_tags: The PEP 425 tags supported by the target
             Python in order of preference (most preferred first).
         """
-        self._allow_all_prereleases = allow_all_prereleases
+        self._release_control = release_control
         self._hashes = hashes
+        self._ignore_compatibility = ignore_compatibility
         self._prefer_binary = prefer_binary
         self._project_name = project_name
         self._specifier = specifier
@@ -458,26 +503,35 @@ class CandidateEvaluator:
         """
         Return the applicable candidates from a list of candidates.
         """
-        # Pipenv patch: Use explicit False instead of None when prereleases
-        # are not requested. This prevents transitive dependencies with
-        # prerelease specifiers (e.g., ">=4.2.0rc1") from enabling prereleases
-        # for all packages.
-        # See: https://github.com/pypa/pipenv/issues/6395
-        #
-        # However, if a package has ONLY prerelease versions available,
-        # we should still allow them per PEP 440 semantics.
-        # See: https://github.com/pypa/pipenv/issues/6485
-        allow_prereleases = True if self._allow_all_prereleases else False
+        # By default, do not allow prereleases solely because a specifier
+        # mentions one (for example, a transitive dependency like
+        # ">=4.2.0rc1"). However, preserve PEP 440 fallback behavior and allow
+        # prereleases when no final releases match, as long as prereleases were
+        # not explicitly disabled via release control.
+        if self._release_control is not None:
+            allow_prereleases = self._release_control.allows_prereleases(
+                canonicalize_name(self._project_name)
+            )
+        else:
+            allow_prereleases = None
+        use_prerelease_fallback = allow_prereleases is None
+        if allow_prereleases is None:
+            allow_prereleases = False
         specifier = self._specifier
 
-        # We turn the version object into a str here because otherwise
-        # when we're debundled but setuptools isn't, Python will see
-        # packaging.version.Version and
+        # When using the pkg_resources backend we turn the version object into
+        # a str here because otherwise when we're debundled but setuptools isn't,
+        # Python will see packaging.version.Version and
         # pkg_resources._vendor.packaging.version.Version as different
         # types. This way we'll use a str as a common data interchange
         # format. If we stop using the pkg_resources provided specifier
         # and start using our own, we can drop the cast to str().
-        candidates_and_versions = [(c, str(c.version)) for c in candidates]
+        if select_backend().NAME == "pkg_resources":
+            candidates_and_versions: list[
+                tuple[InstallationCandidate, str | Version]
+            ] = [(c, str(c.version)) for c in candidates]
+        else:
+            candidates_and_versions = [(c, c.version) for c in candidates]
         versions = set(
             specifier.filter(
                 (v for _, v in candidates_and_versions),
@@ -485,13 +539,11 @@ class CandidateEvaluator:
             )
         )
 
-        # If no stable versions match but we have candidates, check if the package
-        # only has prereleases. If so, allow them (PEP 440 fallback behavior).
-        if not versions and candidates_and_versions and not allow_prereleases:
+        if not versions and candidates_and_versions and use_prerelease_fallback:
             versions = set(
                 specifier.filter(
                     (v for _, v in candidates_and_versions),
-                    prereleases=None,  # Let PEP 440 decide
+                    prereleases=None,
                 )
             )
 
@@ -504,11 +556,7 @@ class CandidateEvaluator:
 
         return sorted(filtered_applicable_candidates, key=self._sort_key)
 
-    def _sort_key(
-        self,
-        candidate: InstallationCandidate,
-        ignore_compatibility: bool = True,
-    ) -> CandidateSortingKey:
+    def _sort_key(self, candidate: InstallationCandidate) -> CandidateSortingKey:
         """
         Function to pass as the `key` argument to a call to sorted() to sort
         InstallationCandidates by preference.
@@ -553,7 +601,7 @@ class CandidateEvaluator:
                     )
                 )
             except ValueError:
-                if not ignore_compatibility:
+                if not self._ignore_compatibility:
                     raise UnsupportedWheel(
                         f"{wheel.filename} is not a supported wheel for this platform. It "
                         "can't be sorted."
@@ -621,7 +669,8 @@ class PackageFinder:
         format_control: FormatControl | None = None,
         candidate_prefs: CandidatePreferences | None = None,
         ignore_requires_python: bool | None = None,
-        ignore_compatibility: bool | None = False,
+        ignore_compatibility: bool | None = None,
+        uploaded_prior_to: datetime.datetime | None = None,
     ) -> None:
         """
         This constructor is primarily meant to be used by the create() class
@@ -635,15 +684,18 @@ class PackageFinder:
         """
         if candidate_prefs is None:
             candidate_prefs = CandidatePreferences()
+        if ignore_compatibility is None:
+            ignore_compatibility = False
 
         format_control = format_control or FormatControl(set(), set())
 
         self._allow_yanked = allow_yanked
         self._candidate_prefs = candidate_prefs
         self._ignore_requires_python = ignore_requires_python
+        self._ignore_compatibility = ignore_compatibility
         self._link_collector = link_collector
         self._target_python = target_python
-        self._ignore_compatibility = ignore_compatibility
+        self._uploaded_prior_to = uploaded_prior_to
 
         self.format_control = format_control
 
@@ -667,6 +719,7 @@ class PackageFinder:
         link_collector: LinkCollector,
         selection_prefs: SelectionPreferences,
         target_python: TargetPython | None = None,
+        uploaded_prior_to: datetime.datetime | None = None,
     ) -> PackageFinder:
         """Create a PackageFinder.
 
@@ -675,13 +728,15 @@ class PackageFinder:
         :param target_python: The target Python interpreter to use when
             checking compatibility. If None (the default), a TargetPython
             object will be constructed from the running Python.
+        :param uploaded_prior_to: If set, only find links uploaded prior
+            to the given datetime.
         """
         if target_python is None:
             target_python = TargetPython()
 
         candidate_prefs = CandidatePreferences(
             prefer_binary=selection_prefs.prefer_binary,
-            allow_all_prereleases=selection_prefs.allow_all_prereleases,
+            release_control=selection_prefs.release_control,
         )
 
         return cls(
@@ -691,6 +746,8 @@ class PackageFinder:
             allow_yanked=selection_prefs.allow_yanked,
             format_control=selection_prefs.format_control,
             ignore_requires_python=selection_prefs.ignore_requires_python,
+            ignore_compatibility=selection_prefs.ignore_compatibility,
+            uploaded_prior_to=uploaded_prior_to,
         )
 
     @property
@@ -737,11 +794,11 @@ class PackageFinder:
         return cert
 
     @property
-    def allow_all_prereleases(self) -> bool:
-        return self._candidate_prefs.allow_all_prereleases
+    def release_control(self) -> ReleaseControl | None:
+        return self._candidate_prefs.release_control
 
-    def set_allow_all_prereleases(self) -> None:
-        self._candidate_prefs.allow_all_prereleases = True
+    def set_release_control(self, release_control: ReleaseControl) -> None:
+        self._candidate_prefs.release_control = release_control
 
     @property
     def prefer_binary(self) -> bool:
@@ -749,6 +806,10 @@ class PackageFinder:
 
     def set_prefer_binary(self) -> None:
         self._candidate_prefs.prefer_binary = True
+
+    @property
+    def uploaded_prior_to(self) -> datetime.datetime | None:
+        return self._uploaded_prior_to
 
     def requires_python_skipped_reasons(self) -> list[str]:
         reasons = {
@@ -770,6 +831,7 @@ class PackageFinder:
             allow_yanked=self._allow_yanked,
             ignore_requires_python=self._ignore_requires_python,
             ignore_compatibility=self._ignore_compatibility,
+            uploaded_prior_to=self._uploaded_prior_to,
         )
 
     def _sort_links(self, links: Iterable[Link]) -> list[Link]:
@@ -804,6 +866,10 @@ class PackageFinder:
         InstallationCandidate and return it. Otherwise, return None.
         """
         result, detail = link_evaluator.evaluate_link(link)
+        if result == LinkType.upload_time_missing:
+            # Fail immediately if the index doesn't provide upload-time
+            # when --uploaded-prior-to is specified
+            raise InstallationError(detail)
         if result != LinkType.candidate:
             self._log_skipped_link(link, result, detail)
             return None
@@ -921,9 +987,10 @@ class PackageFinder:
             project_name=project_name,
             target_python=self._target_python,
             prefer_binary=candidate_prefs.prefer_binary,
-            allow_all_prereleases=candidate_prefs.allow_all_prereleases,
+            release_control=candidate_prefs.release_control,
             specifier=specifier,
             hashes=hashes,
+            ignore_compatibility=self._ignore_compatibility,
         )
 
     def find_best_candidate(
@@ -995,9 +1062,19 @@ class PackageFinder:
             )
 
         if installed_version is None and best_candidate is None:
+            # Check if only final releases are allowed for this package
+            version_type = "version"
+            if self.release_control is not None:
+                allows_pre = self.release_control.allows_prereleases(
+                    canonicalize_name(name)
+                )
+                if allows_pre is False:
+                    version_type = "final version"
+
             logger.critical(
-                "Could not find a version that satisfies the requirement %s "
+                "Could not find a %s that satisfies the requirement %s "
                 "(from versions: %s)",
+                version_type,
                 req,
                 _format_versions(best_candidate_result.all_candidates),
             )

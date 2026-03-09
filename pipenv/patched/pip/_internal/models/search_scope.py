@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import itertools
 import logging
 import os
@@ -16,17 +14,25 @@ from pipenv.patched.pip._internal.utils.misc import normalize_path, redact_auth_
 logger = logging.getLogger(__name__)
 
 
-@dataclass(frozen=False)
+@dataclass(frozen=True)
 class SearchScope:
     """
     Encapsulates the locations that pip is configured to search.
     """
 
+    __slots__ = [
+        "find_links",
+        "index_urls",
+        "no_index",
+        "index_lookup",
+        "index_restricted",
+    ]
+
     find_links: list[str]
     index_urls: list[str]
     no_index: bool
-    index_lookup: dict[str, str] | None = None
-    index_restricted: bool | None = None
+    index_lookup: dict[str, list[str]] | None = None
+    index_restricted: bool = False
 
     @classmethod
     def create(
@@ -130,8 +136,16 @@ class SearchScope:
             return loc
 
         index_urls = self.index_urls
-        if project_name in self.index_lookup:
-            index_urls = [self.index_lookup[project_name]]
+        canonical_name = canonicalize_name(project_name)
+        project_index_urls = None
+        if self.index_lookup:
+            project_index_urls = self.index_lookup.get(canonical_name)
+            if project_index_urls is None:
+                project_index_urls = self.index_lookup.get(project_name)
+
+        if project_index_urls is not None:
+            index_urls = project_index_urls
         elif self.index_restricted and self.index_urls:
             index_urls = [self.index_urls[0]]
+
         return [mkurl_pypi_url(url) for url in index_urls]

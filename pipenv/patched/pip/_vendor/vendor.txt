@@ -1,13 +1,13 @@
-CacheControl==0.14.3
+CacheControl==0.14.4
 distlib==0.4.0
 distro==1.9.0
 msgpack==1.1.2
-packaging==25.0
-platformdirs==4.5.0
+packaging==26.0
+platformdirs==4.5.1
 pyproject-hooks==1.2.0
 requests==2.32.5
-    certifi==2025.10.5
-    idna==3.10
+    certifi==2026.1.4
+    idna==3.11
     urllib3==1.26.20
 rich==14.2.0
     pygments==2.19.2
