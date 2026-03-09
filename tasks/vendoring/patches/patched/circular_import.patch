@@ -11,7 +11,7 @@ index 4931c85bc..2ee87b4bb 100644
  
  from pip._vendor.rich.progress import (
      BarColumn,
-@@ -22,13 +22,11 @@ from pip._vendor.rich.progress import (
+@@ -22,11 +22,9 @@ from pip._vendor.rich.progress import (
  from pip._internal.cli.spinners import RateLimiter
  from pip._internal.utils.logging import get_console, get_indentation
  
@@ -24,4 +24,3 @@ index 4931c85bc..2ee87b4bb 100644
  BarType = Literal["on", "off", "raw"]
  
  
- def _rich_download_progress_bar(
