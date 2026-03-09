@@ -167,9 +167,9 @@ index aa7c2ebd4..ebeb118cc 100644
          )
  
      def find_best_candidate(
-diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/models/selection_prefs.py
+diff --git a/pipenv/patched/pip/_internal/models/selection_prefs.py b/pipenv/patched/pip/_internal/models/selection_prefs.py
 index 04ef63ab5..eff71d2ab 100644
---- a/pipenv/patched/pip/internal/models/selection_prefs.py
+--- a/pipenv/patched/pip/_internal/models/selection_prefs.py
 +++ b/pipenv/patched/pip/_internal/models/selection_prefs.py
 @@ -18,6 +18,7 @@ class SelectionPreferences:
          "format_control",
