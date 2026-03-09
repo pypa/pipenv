@@ -39,7 +39,7 @@ diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patche
 index 136163ca0..a41193a6e 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -14,15 +14,13 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
+@@ -14,17 +14,17 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
  logger = logging.getLogger(__name__)
  
  
@@ -60,7 +60,7 @@ index 136163ca0..a41193a6e 100644
  
      @classmethod
      def create(
-@@ -31,6 +29,8 @@ class SearchScope:
+@@ -32,6 +32,8 @@ class SearchScope:
          find_links: list[str],
          index_urls: list[str],
          no_index: bool,
@@ -69,7 +69,7 @@ index 136163ca0..a41193a6e 100644
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -63,6 +63,8 @@ class SearchScope:
+@@ -64,6 +66,8 @@ class SearchScope:
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
@@ -78,7 +78,7 @@ index 136163ca0..a41193a6e 100644
          )
  
      def get_formatted_locations(self) -> str:
-@@ -120,4 +122,17 @@ class SearchScope:
+@@ -121,4 +125,17 @@ class SearchScope:
                  loc = loc + "/"
              return loc
  
