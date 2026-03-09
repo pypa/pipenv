@@ -22,4 +22,5 @@ index 4931c85bc..2ee87b4bb 100644
  ProgressRenderer = Callable[[Iterable[T]], Iterator[T]]
 +InstallRequirement = Any
  BarType = Literal["on", "off", "raw"]
- 
++
++
