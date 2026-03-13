@@ -660,11 +660,11 @@
         },
         "jaraco.context": {
             "hashes": [
-                "sha256:9bae4ea555cf0b14938dc0aee7c9f32ed303aa20a3b73e7dc80111628792d1b3",
-                "sha256:f797fc481b490edb305122c9181830a3a5b76d84ef6d1aef2fb9b47ab956f9e4"
+                "sha256:129a341b0a85a7db7879e22acd66902fda67882db771754574338898b2d5d86f",
+                "sha256:a43b5ed85815223d0d3cfdb6d7ca0d2bc8946f28f30b6f3216bda070f68badda"
             ],
-            "markers": "python_version >= '3.8'",
-            "version": "==6.0.1"
+            "markers": "python_version >= '3.9'",
+            "version": "==6.1.0"
         },
         "jaraco.functools": {
             "hashes": [
