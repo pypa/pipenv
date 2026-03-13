@@ -4,7 +4,6 @@
 
 from __future__ import annotations
 
-import functools
 import re
 from typing import NewType, Tuple, Union, cast
 
@@ -34,28 +33,29 @@ class InvalidSdistFilename(ValueError):
 
 
 # Core metadata spec for `Name`
-_validate_regex = re.compile(
-    r"^([A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9])$", re.IGNORECASE
-)
-_canonicalize_regex = re.compile(r"[-_.]+")
-_normalized_regex = re.compile(r"^([a-z0-9]|[a-z0-9]([a-z0-9-](?!--))*[a-z0-9])$")
+_validate_regex = re.compile(r"[A-Z0-9]|[A-Z0-9][A-Z0-9._-]*[A-Z0-9]", re.IGNORECASE)
+_normalized_regex = re.compile(r"[a-z0-9]|[a-z0-9]([a-z0-9-](?!--))*[a-z0-9]")
 # PEP 427: The build number must start with a digit.
 _build_tag_regex = re.compile(r"(\d+)(.*)")
 
 
 def canonicalize_name(name: str, *, validate: bool = False) -> NormalizedName:
-    if validate and not _validate_regex.match(name):
+    if validate and not _validate_regex.fullmatch(name):
         raise InvalidName(f"name is invalid: {name!r}")
-    # This is taken from PEP 503.
-    value = _canonicalize_regex.sub("-", name).lower()
-    return cast(NormalizedName, value)
+    # Ensure all ``.`` and ``_`` are ``-``
+    # Emulates ``re.sub(r"[-_.]+", "-", name).lower()`` from PEP 503
+    # Much faster than re, and even faster than str.translate
+    value = name.lower().replace("_", "-").replace(".", "-")
+    # Condense repeats (faster than regex)
+    while "--" in value:
+        value = value.replace("--", "-")
+    return cast("NormalizedName", value)
 
 
 def is_normalized_name(name: str) -> bool:
-    return _normalized_regex.match(name) is not None
+    return _normalized_regex.fullmatch(name) is not None
 
 
-@functools.singledispatch
 def canonicalize_version(
     version: Version | str, *, strip_trailing_zero: bool = True
 ) -> str:
@@ -78,17 +78,12 @@ def canonicalize_version(
     >>> canonicalize_version('foo bar baz')
     'foo bar baz'
     """
-    return str(_TrimmedRelease(str(version)) if strip_trailing_zero else version)
-
-
-@canonicalize_version.register
-def _(version: str, *, strip_trailing_zero: bool = True) -> str:
-    try:
-        parsed = Version(version)
-    except InvalidVersion:
-        # Legacy versions cannot be normalized
-        return version
-    return canonicalize_version(parsed, strip_trailing_zero=strip_trailing_zero)
+    if isinstance(version, str):
+        try:
+            version = Version(version)
+        except InvalidVersion:
+            return str(version)
+    return str(_TrimmedRelease(version) if strip_trailing_zero else version)
 
 
 def parse_wheel_filename(
@@ -127,7 +122,7 @@ def parse_wheel_filename(
             raise InvalidWheelFilename(
                 f"Invalid build number: {build_part} in {filename!r}"
             )
-        build = cast(BuildTag, (int(build_match.group(1)), build_match.group(2)))
+        build = cast("BuildTag", (int(build_match.group(1)), build_match.group(2)))
     else:
         build = ()
     tags = parse_tag(parts[-1])

@@ -5,9 +5,9 @@ from json import JSONDecodeError
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from pipenv.patched.pip._internal.models.direct_url import (
-    DirectUrl,  # noqa: PLC2701
-    DirectUrlValidationError,  # noqa: PLC2701
+from pipenv.patched.pip._internal.models.direct_url import (  # noqa: PLC2701
+    DirectUrl,
+    DirectUrlValidationError,
 )
 from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_sys_path  # noqa: PLC2701
 from pipenv.patched.pip._vendor.packaging.version import Version  # noqa: PLC2701

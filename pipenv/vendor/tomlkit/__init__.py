@@ -27,8 +27,9 @@ from pipenv.vendor.tomlkit.api import value
 from pipenv.vendor.tomlkit.api import ws
 
 
-__version__ = "0.13.2"
+__version__ = "0.14.0"
 __all__ = [
+    "TOMLDocument",
     "aot",
     "array",
     "boolean",
@@ -48,12 +49,11 @@ __all__ = [
     "loads",
     "nl",
     "parse",
+    "register_encoder",
     "string",
     "table",
     "time",
-    "TOMLDocument",
+    "unregister_encoder",
     "value",
     "ws",
-    "register_encoder",
-    "unregister_encoder",
 ]

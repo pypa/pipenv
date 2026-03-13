@@ -37,6 +37,7 @@ class TOMLFile:
                 num_win_eol = content.count("\r\n")
                 if num_win_eol == num_newline:
                     self._linesep = "\r\n"
+                    content = content.replace("\r\n", "\n")
                 elif num_win_eol == 0:
                     self._linesep = "\n"
                 else:

@@ -25,7 +25,9 @@ def render(options: Options, tree: PackageDAG) -> None:
     elif output_format == "freeze":
         render_freeze(tree, max_depth=options.depth, list_all=options.all)
     elif output_format.startswith("graphviz-"):
-        render_graphviz(tree, output_format=output_format[len("graphviz-") :], reverse=options.reverse)
+        render_graphviz(
+            tree, output_format=output_format[len("graphviz-") :], reverse=options.reverse, max_depth=options.depth
+        )
     else:
         render_text(
             tree,

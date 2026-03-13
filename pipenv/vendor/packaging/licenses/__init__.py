@@ -34,7 +34,7 @@ from __future__ import annotations
 import re
 from typing import NewType, cast
 
-from pipenv.vendor.packaging.licenses._spdx import EXCEPTIONS, LICENSES
+from ._spdx import EXCEPTIONS, LICENSES
 
 __all__ = [
     "InvalidLicenseExpression",
@@ -80,16 +80,21 @@ def canonicalize_license_expression(
 
     tokens = license_expression.split()
 
-    # Rather than implementing boolean logic, we create an expression that Python can
-    # parse. Everything that is not involved with the grammar itself is treated as
-    # `False` and the expression should evaluate as such.
+    # Rather than implementing a parenthesis/boolean logic parser, create an
+    # expression that Python can parse. Everything that is not involved with the
+    # grammar itself is replaced with the placeholder `False` and the resultant
+    # expression should become a valid Python expression.
     python_tokens = []
     for token in tokens:
         if token not in {"or", "and", "with", "(", ")"}:
             python_tokens.append("False")
         elif token == "with":
             python_tokens.append("or")
-        elif token == "(" and python_tokens and python_tokens[-1] not in {"or", "and"}:
+        elif (
+            token == "("
+            and python_tokens
+            and python_tokens[-1] not in {"or", "and", "("}
+        ) or (token == ")" and python_tokens and python_tokens[-1] == "("):
             message = f"Invalid license expression: {raw_license_expression!r}"
             raise InvalidLicenseExpression(message)
         else:
@@ -97,11 +102,8 @@ def canonicalize_license_expression(
 
     python_expression = " ".join(python_tokens)
     try:
-        invalid = eval(python_expression, globals(), locals())
-    except Exception:
-        invalid = True
-
-    if invalid is not False:
+        compile(python_expression, "", "eval")
+    except SyntaxError:
         message = f"Invalid license expression: {raw_license_expression!r}"
         raise InvalidLicenseExpression(message) from None
 
@@ -140,6 +142,6 @@ def canonicalize_license_expression(
     normalized_expression = " ".join(normalized_tokens)
 
     return cast(
-        NormalizedLicenseExpression,
+        "NormalizedLicenseExpression",
         normalized_expression.replace("( ", "(").replace(" )", ")"),
     )
