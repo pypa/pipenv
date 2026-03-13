@@ -57,10 +57,10 @@ class TestPrereleaseFiltering:
         spec_with_prerelease = SpecifierSet(">=4.2.0rc1")
         assert spec_with_prerelease.prereleases is True
 
-        # A specifier without a prerelease version has prereleases=False
-        # (not None, because SpecifierSet.prereleases returns any(s.prereleases for s in self._specs))
+        # A specifier without a prerelease version has prereleases that is falsy
+        # (None or False depending on the packaging version)
         spec_without_prerelease = SpecifierSet(">=4.2.0")
-        assert spec_without_prerelease.prereleases is False
+        assert not spec_without_prerelease.prereleases
 
     def test_filter_with_explicit_false_excludes_prereleases(self):
         """Verify that filter(prereleases=False) excludes prereleases when stable versions exist."""
