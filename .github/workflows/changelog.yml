@@ -1,0 +1,47 @@
+name: Generate Changelog
+
+on:
+  push:
+    tags:
+      - 'v*'
+      - '*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    outputs:
+      changelog: ${{ steps.generate.outputs.result }}
+      from_tag: ${{ steps.generate.outputs.from_tag }}
+      to_tag: ${{ steps.generate.outputs.to_tag }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Generate Changelog
+        id: generate
+        uses: mistricky/ccc@v0.2.2
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: claude-sonnet-4-6
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## 🤖 AI-Generated Changelog
+
+            ${{ steps.generate.outputs.result }}
+
+            ---
+
+            🔗 **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ steps.generate.outputs.from_tag }}...${{ steps.generate.outputs.to_tag }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
