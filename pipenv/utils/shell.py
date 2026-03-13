@@ -547,7 +547,7 @@ def shorten_path(location, bold=False):
     short_parts.append(path_parts[-1])
     if bold:
         short_parts[-1] = f"[bold]{short_parts[-1]}[/bold]"
-    return os.sep.join(short_parts)
+    return os.path.join(*short_parts)
 
 
 def isatty(stream):
