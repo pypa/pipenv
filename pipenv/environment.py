@@ -578,7 +578,12 @@ class Environment:
             for dist in packages:
                 name = normalized_name(dist)
                 all_candidates = finder.find_all_candidates(name)
-                if not self.pipfile.get("pre", finder.allow_all_prereleases):
+                allow_prereleases = self.pipfile.get("pre", False)
+                if not allow_prereleases and finder.release_control is not None:
+                    allow_prereleases = finder.release_control.allows_prereleases(
+                        canonicalize_name(name)
+                    )
+                if not allow_prereleases:
                     # Remove prereleases
                     all_candidates = [
                         candidate

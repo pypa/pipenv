@@ -319,7 +319,7 @@ class Resolver:
         alt_index_lookup = {}
         for req_name, index in self.index_lookup.items():
             if index_mapping.get(index):
-                alt_index_lookup[req_name] = index_mapping[index]
+                alt_index_lookup[req_name] = [index_mapping[index]]
         return alt_index_lookup
 
     @property
