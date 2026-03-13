@@ -1,5 +1,9 @@
 from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator
 from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
+from pipenv.patched.pip._internal.models.release_control import ReleaseControl
+from pipenv.patched.pip._vendor.packaging.specifiers import (
+    SpecifierSet as PipSpecifierSet,
+)
 from pipenv.utils.dependencies import clean_resolved_dep
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
@@ -209,11 +213,15 @@ class TestCandidateEvaluatorPrereleases:
 
     def _make_evaluator(self, specifier="", allow_prereleases=False):
         """Create a CandidateEvaluator for testing."""
+        # Use ReleaseControl to manage prerelease handling
+        release_control = None
+        if allow_prereleases:
+            release_control = ReleaseControl(all_releases={":all:"})
         return CandidateEvaluator.create(
             project_name="test-package",
             target_python=None,
-            allow_all_prereleases=allow_prereleases,
-            specifier=SpecifierSet(specifier),
+            release_control=release_control,
+            specifier=PipSpecifierSet(specifier),
         )
 
     def test_prerelease_only_package_allowed(self):
