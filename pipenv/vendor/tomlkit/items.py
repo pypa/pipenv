@@ -3,11 +3,14 @@ from __future__ import annotations
 import abc
 import copy
 import dataclasses
-import math
+import inspect
 import re
 import string
-import sys
 
+from collections.abc import Collection
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import Sequence
 from datetime import date
 from datetime import datetime
 from datetime import time
@@ -15,11 +18,6 @@ from datetime import tzinfo
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
-from typing import Collection
-from typing import Iterable
-from typing import Iterator
-from typing import Sequence
 from typing import TypeVar
 from typing import cast
 from typing import overload
@@ -38,11 +36,17 @@ from pipenv.vendor.tomlkit.exceptions import InvalidStringError
 
 
 if TYPE_CHECKING:
+    from typing import Protocol
+
     from pipenv.vendor.tomlkit import container
+
+    class Encoder(Protocol):
+        def __call__(
+            self, __value: Any, _parent: Item | None = None, _sort_keys: bool = False
+        ) -> Item: ...
 
 
 ItemT = TypeVar("ItemT", bound="Item")
-Encoder = Callable[[Any], "Item"]
 CUSTOM_ENCODERS: list[Encoder] = []
 AT = TypeVar("AT", bound="AbstractTable")
 
@@ -199,7 +203,16 @@ def item(value: Any, _parent: Item | None = None, _sort_keys: bool = False) -> I
     else:
         for encoder in CUSTOM_ENCODERS:
             try:
-                rv = encoder(value)
+                # Check if encoder accepts keyword arguments for backward compatibility
+                sig = inspect.signature(encoder)
+                if "_parent" in sig.parameters or any(
+                    p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
+                ):
+                    # New style encoder that can accept additional parameters
+                    rv = encoder(value, _parent=_parent, _sort_keys=_sort_keys)
+                else:
+                    # Old style encoder that only accepts value
+                    rv = encoder(value)
             except ConvertError:
                 pass
             else:
@@ -380,6 +393,9 @@ class SingleKey(Key):
         sep: str | None = None,
         original: str | None = None,
     ) -> None:
+        if not isinstance(k, str):
+            raise TypeError("Keys must be strings")
+
         if t is None:
             if not k or any(
                 c not in string.ascii_letters + string.digits + "-" + "_" for c in k
@@ -737,12 +753,8 @@ class Float(Item, _CustomFloat):
     __truediv__ = wrap_method(float.__truediv__)
     __trunc__ = float.__trunc__
 
-    if sys.version_info >= (3, 9):
-        __ceil__ = float.__ceil__
-        __floor__ = float.__floor__
-    else:
-        __ceil__ = math.ceil
-        __floor__ = math.floor
+    __ceil__ = float.__ceil__
+    __floor__ = float.__floor__
 
 
 class Bool(Item):
@@ -1083,7 +1095,7 @@ class Time(Item, time):
 
 
 class _ArrayItemGroup:
-    __slots__ = ("value", "indent", "comma", "comment")
+    __slots__ = ("comma", "comment", "indent", "value")
 
     def __init__(
         self,
@@ -1138,11 +1150,13 @@ class Array(Item, _CustomList):
         """Group the values into (indent, value, comma, comment) tuples"""
         groups = []
         this_group = _ArrayItemGroup()
+        start_new_group = False
         for item in value:
             if isinstance(item, Whitespace):
-                if "," not in item.s:
+                if "," not in item.s or start_new_group:
                     groups.append(this_group)
                     this_group = _ArrayItemGroup(indent=item)
+                    start_new_group = False
                 else:
                     if this_group.value is None:
                         # when comma is met and no value is provided, add a dummy Null
@@ -1152,6 +1166,8 @@ class Array(Item, _CustomList):
                 if this_group.value is None:
                     this_group.value = Null()
                 this_group.comment = item
+                # Comments are the last item in a group.
+                start_new_group = True
             elif this_group.value is None:
                 this_group.value = item
             else:
@@ -1202,7 +1218,7 @@ class Array(Item, _CustomList):
 
     def as_string(self) -> str:
         if not self._multiline or not self._value:
-            return f'[{"".join(v.as_string() for v in self._iter_items())}]'
+            return f"[{''.join(v.as_string() for v in self._iter_items())}]"
 
         s = "[\n"
         s += "".join(
@@ -1260,7 +1276,7 @@ class Array(Item, _CustomList):
         data_values = []
         for i, el in enumerate(items):
             it = item(el, _parent=self)
-            if isinstance(it, Comment) or add_comma and isinstance(el, Whitespace):
+            if isinstance(it, Comment) or (add_comma and isinstance(el, Whitespace)):
                 raise ValueError(f"item type {type(it)} is not allowed in add_line")
             if not isinstance(it, Whitespace):
                 if whitespace:
@@ -1313,10 +1329,14 @@ class Array(Item, _CustomList):
     def __len__(self) -> int:
         return list.__len__(self)
 
+    def item(self, index: int) -> Item:
+        rv = list.__getitem__(self, index)
+        return cast(Item, rv)
+
     def __getitem__(self, key: int | slice) -> Any:
-        rv = cast(Item, list.__getitem__(self, key))
-        if rv.is_boolean():
-            return bool(rv)
+        rv = list.__getitem__(self, key)
+        if isinstance(rv, Bool):
+            return rv.value
         return rv
 
     def __setitem__(self, key: int | slice, value: Any) -> Any:
@@ -1395,6 +1415,7 @@ class Array(Item, _CustomList):
                 if not isinstance(key, slice):
                     raise IndexError("list index out of range") from e
             else:
+                group_rm = self._value[idx]
                 del self._value[idx]
                 if (
                     idx == 0
@@ -1404,6 +1425,44 @@ class Array(Item, _CustomList):
                 ):
                     # Remove the indentation of the first item if not newline
                     self._value[idx].indent = None
+                comma_in_indent = (
+                    group_rm.indent is not None and "," in group_rm.indent.s
+                )
+                comma_in_comma = group_rm.comma is not None and "," in group_rm.comma.s
+                if comma_in_indent and comma_in_comma:
+                    # Removed group had both commas. Add one to the next group.
+                    group = self._value[idx] if len(self._value) > idx else None
+                    if group is not None:
+                        if group.indent is None:
+                            group.indent = Whitespace(",")
+                        elif "," not in group.indent.s:
+                            # Insert the comma after the newline
+                            try:
+                                newline_index = group.indent.s.index("\n")
+                                group.indent._s = (
+                                    group.indent.s[: newline_index + 1]
+                                    + ","
+                                    + group.indent.s[newline_index + 1 :]
+                                )
+                            except ValueError:
+                                group.indent._s = "," + group.indent.s
+                elif not comma_in_indent and not comma_in_comma:
+                    # Removed group had no commas. Remove the next comma found.
+                    for j in range(idx, len(self._value)):
+                        group = self._value[j]
+                        if group.indent is not None and "," in group.indent.s:
+                            group.indent._s = group.indent.s.replace(",", "", 1)
+                            break
+                if group_rm.indent is not None and "\n" in group_rm.indent.s:
+                    # Restore the removed group's newline onto the next group
+                    # if the next group does not have a newline.
+                    # i.e. the two were on the same line
+                    group = self._value[idx] if len(self._value) > idx else None
+                    if group is not None and (
+                        group.indent is None or "\n" not in group.indent.s
+                    ):
+                        group.indent = group_rm.indent
+
         if len(self._value) > 0:
             v = self._value[-1]
             if not v.is_whitespace():
@@ -1478,6 +1537,9 @@ class AbstractTable(Item, _CustomDict):
             dict.__delitem__(self, key)
 
         return self
+
+    def item(self, key: Key | str) -> Item:
+        return self._value.item(key)
 
     def setdefault(self, key: Key | str, default: Any) -> Any:
         super().setdefault(key, default)
@@ -1743,7 +1805,7 @@ class InlineTable(AbstractTable):
             v_trivia_trail = v.trivia.trail.replace("\n", "")
             buf += (
                 f"{v.trivia.indent}"
-                f'{k.as_string() + ("." if k.is_dotted() else "")}'
+                f"{k.as_string() + ('.' if k.is_dotted() else '')}"
                 f"{k.sep}"
                 f"{v.as_string()}"
                 f"{v.trivia.comment}"
@@ -1798,6 +1860,10 @@ class String(str, Item):
 
     def as_string(self) -> str:
         return f"{self._t.value}{decode(self._original)}{self._t.value}"
+
+    @property
+    def type(self) -> StringType:
+        return self._t
 
     def __add__(self: ItemT, other: str) -> ItemT:
         if not isinstance(other, str):
@@ -1878,7 +1944,7 @@ class AoT(Item, _CustomList):
         return self._body[key]
 
     def __setitem__(self, key: slice | int, value: Any) -> None:
-        raise NotImplementedError
+        self._body[key] = item(value, _parent=self)
 
     def __delitem__(self, key: slice | int) -> None:
         del self._body[key]

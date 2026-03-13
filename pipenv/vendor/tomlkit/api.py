@@ -3,9 +3,10 @@ from __future__ import annotations
 import contextlib
 import datetime as _datetime
 
+from collections.abc import Iterable
 from collections.abc import Mapping
 from typing import IO
-from typing import Iterable
+from typing import TYPE_CHECKING
 from typing import TypeVar
 
 from pipenv.vendor.tomlkit._utils import parse_rfc3339
@@ -19,7 +20,6 @@ from pipenv.vendor.tomlkit.items import Comment
 from pipenv.vendor.tomlkit.items import Date
 from pipenv.vendor.tomlkit.items import DateTime
 from pipenv.vendor.tomlkit.items import DottedKey
-from pipenv.vendor.tomlkit.items import Encoder
 from pipenv.vendor.tomlkit.items import Float
 from pipenv.vendor.tomlkit.items import InlineTable
 from pipenv.vendor.tomlkit.items import Integer
@@ -37,6 +37,12 @@ from pipenv.vendor.tomlkit.parser import Parser
 from pipenv.vendor.tomlkit.toml_document import TOMLDocument
 
 
+if TYPE_CHECKING:
+    from pipenv.vendor.tomlkit.items import Encoder
+
+    E = TypeVar("E", bound=Encoder)
+
+
 def loads(string: str | bytes) -> TOMLDocument:
     """
     Parses a string into a TOMLDocument.
@@ -50,7 +56,9 @@ def dumps(data: Mapping, sort_keys: bool = False) -> str:
     """
     Dumps a TOMLDocument into a string.
     """
-    if not isinstance(data, Container) and isinstance(data, Mapping):
+    if not isinstance(data, (Table, InlineTable, Container)) and isinstance(
+        data, Mapping
+    ):
         data = item(dict(data), _sort_keys=sort_keys)
 
     try:
@@ -58,7 +66,7 @@ def dumps(data: Mapping, sort_keys: bool = False) -> str:
         # for all type safe invocations of this function
         return data.as_string()  # type: ignore[attr-defined]
     except AttributeError as ex:
-        msg = f"Expecting Mapping or TOML Container, {type(data)} given"
+        msg = f"Expecting Mapping or TOML Table or Container, {type(data)} given"
         raise TypeError(msg) from ex
 
 
@@ -109,9 +117,9 @@ def float_(raw: str | float) -> Float:
     return item(float(raw))
 
 
-def boolean(raw: str) -> Bool:
+def boolean(raw: str | bool) -> Bool:
     """Turn `true` or `false` into a boolean item."""
-    return item(raw == "true")
+    return item(raw == "true" if isinstance(raw, str) else raw)
 
 
 def string(
@@ -292,13 +300,22 @@ def comment(string: str) -> Comment:
     return Comment(Trivia(comment_ws="  ", comment="# " + string))
 
 
-E = TypeVar("E", bound=Encoder)
-
-
 def register_encoder(encoder: E) -> E:
     """Add a custom encoder, which should be a function that will be called
-    if the value can't otherwise be converted. It should takes a single value
-    and return a TOMLKit item or raise a ``TypeError``.
+    if the value can't otherwise be converted.
+
+    The encoder should return a TOMLKit item or raise a ``ConvertError``.
+
+    Example:
+        @register_encoder
+        def encode_custom_dict(obj, _parent=None, _sort_keys=False):
+            if isinstance(obj, CustomDict):
+                tbl = table()
+                for key, value in obj.items():
+                    # Pass along parameters when encoding nested values
+                    tbl[key] = item(value, _parent=tbl, _sort_keys=_sort_keys)
+                return tbl
+            raise ConvertError("Not a CustomDict")
     """
     CUSTOM_ENCODERS.append(encoder)
     return encoder

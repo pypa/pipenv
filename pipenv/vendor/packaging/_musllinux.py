@@ -49,7 +49,7 @@ def _get_musl_version(executable: str) -> _MuslVersion | None:
         return None
     if ld is None or "musl" not in ld:
         return None
-    proc = subprocess.run([ld], stderr=subprocess.PIPE, text=True)
+    proc = subprocess.run([ld], check=False, stderr=subprocess.PIPE, text=True)
     return _parse_musl_version(proc.stderr)
 
 

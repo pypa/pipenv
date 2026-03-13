@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Collection
+from collections.abc import Collection
 
 
 class TOMLKitError(Exception):

@@ -121,7 +121,7 @@ def build_parser() -> ArgumentParser:
         "--depth",
         type=lambda x: int(x) if x.isdigit() and (int(x) >= 0) else parser.error("Depth must be a number that is >= 0"),
         default=float("inf"),
-        help="limit the depth of the tree (text and freeze render only)",
+        help="limit the depth of the tree (text, freeze, and graphviz render only)",
         metavar="D",
     )
     render.add_argument(

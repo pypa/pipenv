@@ -7,12 +7,14 @@ the implementation.
 from __future__ import annotations
 
 import ast
-from typing import NamedTuple, Sequence, Tuple, Union
+from typing import List, Literal, NamedTuple, Sequence, Tuple, Union
 
 from ._tokenizer import DEFAULT_RULES, Tokenizer
 
 
 class Node:
+    __slots__ = ("value",)
+
     def __init__(self, value: str) -> None:
         self.value = value
 
@@ -20,31 +22,38 @@ class Node:
         return self.value
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__}('{self}')>"
+        return f"<{self.__class__.__name__}({self.value!r})>"
 
     def serialize(self) -> str:
         raise NotImplementedError
 
 
 class Variable(Node):
+    __slots__ = ()
+
     def serialize(self) -> str:
         return str(self)
 
 
 class Value(Node):
+    __slots__ = ()
+
     def serialize(self) -> str:
         return f'"{self}"'
 
 
 class Op(Node):
+    __slots__ = ()
+
     def serialize(self) -> str:
         return str(self)
 
 
+MarkerLogical = Literal["and", "or"]
 MarkerVar = Union[Variable, Value]
 MarkerItem = Tuple[MarkerVar, Op, MarkerVar]
 MarkerAtom = Union[MarkerItem, Sequence["MarkerAtom"]]
-MarkerList = Sequence[Union["MarkerList", MarkerAtom, str]]
+MarkerList = List[Union["MarkerList", MarkerAtom, MarkerLogical]]
 
 
 class ParsedRequirement(NamedTuple):
@@ -111,7 +120,9 @@ def _parse_requirement_details(
             return (url, specifier, marker)
 
         marker = _parse_requirement_marker(
-            tokenizer, span_start=url_start, after="URL and whitespace"
+            tokenizer,
+            span_start=url_start,
+            expected="semicolon (after URL and whitespace)",
         )
     else:
         specifier_start = tokenizer.position
@@ -124,10 +135,10 @@ def _parse_requirement_details(
         marker = _parse_requirement_marker(
             tokenizer,
             span_start=specifier_start,
-            after=(
-                "version specifier"
+            expected=(
+                "comma (within version specifier), semicolon (after version specifier)"
                 if specifier
-                else "name and no valid version specifier"
+                else "semicolon (after name with no version specifier)"
             ),
         )
 
@@ -135,7 +146,7 @@ def _parse_requirement_details(
 
 
 def _parse_requirement_marker(
-    tokenizer: Tokenizer, *, span_start: int, after: str
+    tokenizer: Tokenizer, *, span_start: int, expected: str
 ) -> MarkerList:
     """
     requirement_marker = SEMICOLON marker WS?
@@ -143,8 +154,9 @@ def _parse_requirement_marker(
 
     if not tokenizer.check("SEMICOLON"):
         tokenizer.raise_syntax_error(
-            f"Expected end or semicolon (after {after})",
+            f"Expected {expected} or end",
             span_start=span_start,
+            span_end=None,
         )
     tokenizer.read()
 
@@ -307,7 +319,7 @@ def _parse_marker_item(tokenizer: Tokenizer) -> MarkerItem:
     return (marker_var_left, marker_op, marker_var_right)
 
 
-def _parse_marker_var(tokenizer: Tokenizer) -> MarkerVar:
+def _parse_marker_var(tokenizer: Tokenizer) -> MarkerVar:  # noqa: RET503
     """
     marker_var = VARIABLE | QUOTED_STRING
     """

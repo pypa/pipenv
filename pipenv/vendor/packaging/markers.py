@@ -8,7 +8,7 @@ import operator
 import os
 import platform
 import sys
-from typing import AbstractSet, Any, Callable, Literal, TypedDict, Union, cast
+from typing import AbstractSet, Callable, Literal, Mapping, TypedDict, Union, cast
 
 from ._parser import MarkerAtom, MarkerList, Op, Value, Variable
 from ._parser import parse_marker as _parse_marker
@@ -17,6 +17,7 @@ from .specifiers import InvalidSpecifier, Specifier
 from .utils import canonicalize_name
 
 __all__ = [
+    "Environment",
     "EvaluateContext",
     "InvalidMarker",
     "Marker",
@@ -28,6 +29,12 @@ __all__ = [
 Operator = Callable[[str, Union[str, AbstractSet[str]]], bool]
 EvaluateContext = Literal["metadata", "lock_file", "requirement"]
 MARKERS_ALLOWING_SET = {"extras", "dependency_groups"}
+MARKERS_REQUIRING_VERSION = {
+    "implementation_version",
+    "platform_release",
+    "python_full_version",
+    "python_version",
+}
 
 
 class InvalidMarker(ValueError):
@@ -121,20 +128,28 @@ class Environment(TypedDict):
     """
 
 
-def _normalize_extra_values(results: Any) -> Any:
+def _normalize_extras(
+    result: MarkerList | MarkerAtom | str,
+) -> MarkerList | MarkerAtom | str:
+    if not isinstance(result, tuple):
+        return result
+
+    lhs, op, rhs = result
+    if isinstance(lhs, Variable) and lhs.value == "extra":
+        normalized_extra = canonicalize_name(rhs.value)
+        rhs = Value(normalized_extra)
+    elif isinstance(rhs, Variable) and rhs.value == "extra":
+        normalized_extra = canonicalize_name(lhs.value)
+        lhs = Value(normalized_extra)
+    return lhs, op, rhs
+
+
+def _normalize_extra_values(results: MarkerList) -> MarkerList:
     """
     Normalize extra values.
     """
-    if isinstance(results[0], tuple):
-        lhs, op, rhs = results[0]
-        if isinstance(lhs, Variable) and lhs.value == "extra":
-            normalized_extra = canonicalize_name(rhs.value)
-            rhs = Value(normalized_extra)
-        elif isinstance(rhs, Variable) and rhs.value == "extra":
-            normalized_extra = canonicalize_name(lhs.value)
-            lhs = Value(normalized_extra)
-        results[0] = lhs, op, rhs
-    return results
+
+    return [_normalize_extras(r) for r in results]
 
 
 def _format_marker(
@@ -168,25 +183,26 @@ def _format_marker(
 _operators: dict[str, Operator] = {
     "in": lambda lhs, rhs: lhs in rhs,
     "not in": lambda lhs, rhs: lhs not in rhs,
-    "<": operator.lt,
-    "<=": operator.le,
+    "<": lambda _lhs, _rhs: False,
+    "<=": operator.eq,
     "==": operator.eq,
     "!=": operator.ne,
-    ">=": operator.ge,
-    ">": operator.gt,
+    ">=": operator.eq,
+    ">": lambda _lhs, _rhs: False,
 }
 
 
-def _eval_op(lhs: str, op: Op, rhs: str | AbstractSet[str]) -> bool:
-    if isinstance(rhs, str):
+def _eval_op(lhs: str, op: Op, rhs: str | AbstractSet[str], *, key: str) -> bool:
+    op_str = op.serialize()
+    if key in MARKERS_REQUIRING_VERSION:
         try:
-            spec = Specifier("".join([op.serialize(), rhs]))
+            spec = Specifier(f"{op_str}{rhs}")
         except InvalidSpecifier:
             pass
         else:
             return spec.contains(lhs, prereleases=True)
 
-    oper: Operator | None = _operators.get(op.serialize())
+    oper: Operator | None = _operators.get(op_str)
     if oper is None:
         raise UndefinedComparison(f"Undefined {op!r} on {lhs!r} and {rhs!r}.")
 
@@ -196,13 +212,14 @@ def _eval_op(lhs: str, op: Op, rhs: str | AbstractSet[str]) -> bool:
 def _normalize(
     lhs: str, rhs: str | AbstractSet[str], key: str
 ) -> tuple[str, str | AbstractSet[str]]:
-    # PEP 685 – Comparison of extra names for optional distribution dependencies
+    # PEP 685 - Comparison of extra names for optional distribution dependencies
     # https://peps.python.org/pep-0685/
     # > When comparing extra names, tools MUST normalize the names being
     # > compared using the semantics outlined in PEP 503 for names
     if key == "extra":
         assert isinstance(rhs, str), "extra value must be a string"
-        return (canonicalize_name(lhs), canonicalize_name(rhs))
+        # Both sides are normalized at this point already
+        return (lhs, rhs)
     if key in MARKERS_ALLOWING_SET:
         if isinstance(rhs, str):  # pragma: no cover
             return (canonicalize_name(lhs), canonicalize_name(rhs))
@@ -219,8 +236,6 @@ def _evaluate_markers(
     groups: list[list[bool]] = [[]]
 
     for marker in markers:
-        assert isinstance(marker, (list, tuple, str))
-
         if isinstance(marker, list):
             groups[-1].append(_evaluate_markers(marker, environment))
         elif isinstance(marker, tuple):
@@ -234,13 +249,16 @@ def _evaluate_markers(
                 lhs_value = lhs.value
                 environment_key = rhs.value
                 rhs_value = environment[environment_key]
+
             assert isinstance(lhs_value, str), "lhs must be a string"
             lhs_value, rhs_value = _normalize(lhs_value, rhs_value, key=environment_key)
-            groups[-1].append(_eval_op(lhs_value, op, rhs_value))
-        else:
-            assert marker in ["and", "or"]
-            if marker == "or":
-                groups.append([])
+            groups[-1].append(_eval_op(lhs_value, op, rhs_value, key=environment_key))
+        elif marker == "or":
+            groups.append([])
+        elif marker == "and":
+            pass
+        else:  # pragma: nocover
+            raise TypeError(f"Unexpected marker {marker!r}")
 
     return any(all(item) for item in groups)
 
@@ -276,6 +294,11 @@ class Marker:
         # Note: We create a Marker object without calling this constructor in
         #       packaging.requirements.Requirement. If any additional logic is
         #       added here, make sure to mirror/adapt Requirement.
+
+        # If this fails and throws an error, the repr still expects _markers to
+        # be defined.
+        self._markers: MarkerList = []
+
         try:
             self._markers = _normalize_extra_values(_parse_marker(marker))
             # The attribute `_markers` can be described in terms of a recursive type:
@@ -301,12 +324,12 @@ class Marker:
         return _format_marker(self._markers)
 
     def __repr__(self) -> str:
-        return f"<Marker('{self}')>"
+        return f"<{self.__class__.__name__}('{self}')>"
 
     def __hash__(self) -> int:
-        return hash((self.__class__.__name__, str(self)))
+        return hash(str(self))
 
-    def __eq__(self, other: Any) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, Marker):
             return NotImplemented
 
@@ -314,7 +337,7 @@ class Marker:
 
     def evaluate(
         self,
-        environment: dict[str, str] | None = None,
+        environment: Mapping[str, str | AbstractSet[str]] | None = None,
         context: EvaluateContext = "metadata",
     ) -> bool:
         """Evaluate a marker.
@@ -337,12 +360,15 @@ class Marker:
             )
         elif context == "metadata":
             current_environment["extra"] = ""
+
         if environment is not None:
             current_environment.update(environment)
-            # The API used to allow setting extra to None. We need to handle this
-            # case for backwards compatibility.
-            if "extra" in current_environment and current_environment["extra"] is None:
-                current_environment["extra"] = ""
+            if "extra" in current_environment:
+                # The API used to allow setting extra to None. We need to handle
+                # this case for backwards compatibility. Also skip running
+                # normalize name if extra is empty.
+                extra = cast("str | None", current_environment["extra"])
+                current_environment["extra"] = canonicalize_name(extra) if extra else ""
 
         return _evaluate_markers(
             self._markers, _repair_python_full_version(current_environment)
@@ -356,7 +382,7 @@ def _repair_python_full_version(
     Work around platform.python_version() returning something that is not PEP 440
     compliant for non-tagged Python builds.
     """
-    python_full_version = cast(str, env["python_full_version"])
+    python_full_version = cast("str", env["python_full_version"])
     if python_full_version.endswith("+"):
         env["python_full_version"] = f"{python_full_version}local"
     return env

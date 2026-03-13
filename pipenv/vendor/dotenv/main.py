@@ -2,7 +2,6 @@ import io
 import logging
 import os
 import pathlib
-import shutil
 import stat
 import sys
 import tempfile
@@ -14,9 +13,7 @@ from .parser import Binding, parse_stream
 from .variables import parse_variables
 
 # A type alias for a string path to be used for the paths in this file.
-# These paths may flow to `open()` and `shutil.move()`; `shutil.move()`
-# only accepts string paths, not byte paths or file descriptors. See
-# https://github.com/python/typeshed/pull/6832.
+# These paths may flow to `open()` and `os.replace()`.
 StrPath = Union[str, "os.PathLike[str]"]
 
 logger = logging.getLogger(__name__)
@@ -142,21 +139,54 @@ def get_key(
 def rewrite(
     path: StrPath,
     encoding: Optional[str],
+    follow_symlinks: bool = False,
 ) -> Iterator[Tuple[IO[str], IO[str]]]:
-    pathlib.Path(path).touch()
+    if follow_symlinks:
+        path = os.path.realpath(path)
 
-    with tempfile.NamedTemporaryFile(mode="w", encoding=encoding, delete=False) as dest:
-        error = None
+    try:
+        source: IO[str] = open(path, encoding=encoding)
         try:
-            with open(path, encoding=encoding) as source:
+            path_stat = os.lstat(path)
+            original_mode: Optional[int] = (
+                stat.S_IMODE(path_stat.st_mode)
+                if stat.S_ISREG(path_stat.st_mode)
+                else None
+            )
+        except BaseException:
+            source.close()
+            raise
+    except FileNotFoundError:
+        source = io.StringIO("")
+        original_mode = None
+
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding=encoding,
+        delete=False,
+        prefix=".tmp_",
+        dir=os.path.dirname(os.path.abspath(path)),
+    ) as dest:
+        dest_path = pathlib.Path(dest.name)
+        error = None
+
+        try:
+            with source:
                 yield (source, dest)
         except BaseException as err:
             error = err
 
     if error is None:
-        shutil.move(dest.name, path)
+        try:
+            if original_mode is not None:
+                os.chmod(dest_path, original_mode)
+
+            os.replace(dest_path, path)
+        except BaseException:
+            dest_path.unlink(missing_ok=True)
+            raise
     else:
-        os.unlink(dest.name)
+        dest_path.unlink(missing_ok=True)
         raise error from None
 
 
@@ -167,12 +197,16 @@ def set_key(
     quote_mode: str = "always",
     export: bool = False,
     encoding: Optional[str] = "utf-8",
+    follow_symlinks: bool = False,
 ) -> Tuple[Optional[bool], str, str]:
     """
     Adds or Updates a key/value to the given .env
 
-    If the .env path given doesn't exist, fails instead of risking creating
-    an orphan .env somewhere in the filesystem
+    The target .env file is created if it doesn't exist.
+
+    This function doesn't follow symlinks by default, to avoid accidentally
+    modifying a file at a potentially untrusted path. If you don't need this
+    protection and need symlinks to be followed, use `follow_symlinks`.
     """
     if quote_mode not in ("always", "auto", "never"):
         raise ValueError(f"Unknown quote_mode: {quote_mode}")
@@ -190,7 +224,10 @@ def set_key(
     else:
         line_out = f"{key_to_set}={value_out}\n"
 
-    with rewrite(dotenv_path, encoding=encoding) as (source, dest):
+    with rewrite(dotenv_path, encoding=encoding, follow_symlinks=follow_symlinks) as (
+        source,
+        dest,
+    ):
         replaced = False
         missing_newline = False
         for mapping in with_warn_for_invalid_lines(parse_stream(source)):
@@ -213,19 +250,27 @@ def unset_key(
     key_to_unset: str,
     quote_mode: str = "always",
     encoding: Optional[str] = "utf-8",
+    follow_symlinks: bool = False,
 ) -> Tuple[Optional[bool], str]:
     """
     Removes a given key from the given `.env` file.
 
     If the .env path given doesn't exist, fails.
     If the given key doesn't exist in the .env, fails.
+
+    This function doesn't follow symlinks by default, to avoid accidentally
+    modifying a file at a potentially untrusted path. If you don't need this
+    protection and need symlinks to be followed, use `follow_symlinks`.
     """
     if not os.path.exists(dotenv_path):
         logger.warning("Can't delete from %s - it doesn't exist.", dotenv_path)
         return None, key_to_unset
 
     removed = False
-    with rewrite(dotenv_path, encoding=encoding) as (source, dest):
+    with rewrite(dotenv_path, encoding=encoding, follow_symlinks=follow_symlinks) as (
+        source,
+        dest,
+    ):
         for mapping in with_warn_for_invalid_lines(parse_stream(source)):
             if mapping.key == key_to_unset:
                 removed = True

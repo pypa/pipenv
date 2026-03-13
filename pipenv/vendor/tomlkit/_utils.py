@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import re
 
+from collections.abc import Collection
 from collections.abc import Mapping
 from datetime import date
 from datetime import datetime
 from datetime import time
 from datetime import timedelta
 from datetime import timezone
-from typing import Collection
 
 from pipenv.vendor.tomlkit._compat import decode
 
