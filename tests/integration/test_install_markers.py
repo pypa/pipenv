@@ -154,8 +154,11 @@ def test_resolver_unique_markers(pipenv_instance_pypi):
         yarl = p.lockfile["default"]["yarl"]
         assert "markers" in yarl
         # Check for a valid Python version marker
-        # yarl >=1.16.0 (Oct 2024) requires Python >=3.9
-        assert yarl["markers"] == "python_version >= '3.9'"
+        # yarl requires a minimum Python version (>=3.9 or >=3.10 depending on version)
+        assert yarl["markers"] in (
+            "python_version >= '3.9'",
+            "python_version >= '3.10'",
+        )
 
 
 @pytest.mark.markers
