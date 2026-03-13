@@ -4,6 +4,7 @@ import logging
 import os
 import sys
 import sysconfig
+from typing import Callable
 
 from pipenv.patched.pip._internal.exceptions import InvalidSchemeCombination, UserInstallationInvalid
 from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
@@ -24,7 +25,9 @@ logger = logging.getLogger(__name__)
 
 _AVAILABLE_SCHEMES = set(sysconfig.get_scheme_names())
 
-_PREFERRED_SCHEME_API = getattr(sysconfig, "get_preferred_scheme", None)
+_PREFERRED_SCHEME_API: Callable[[str], str] | None = getattr(
+    sysconfig, "get_preferred_scheme", None
+)
 
 
 def _should_use_osx_framework_prefix() -> bool:

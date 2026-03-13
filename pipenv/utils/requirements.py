@@ -201,8 +201,11 @@ def requirement_from_lockfile(
                 or "file://" in vcs_url
                 or package_info.get("editable", False)
             ):
-                pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}{extras}"
+                # Extras must not be in the #egg= fragment (pip validates it as
+                # a PEP 508 project name). Append extras after the egg fragment.
+                pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}"
                 pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
+                pip_line += extras
             else:
                 pip_line = f"{package_name}{extras} @ {include_vcs}{vcs_url}{ref_str}"
                 pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
@@ -308,9 +311,12 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
                 or "file://" in vcs_url
                 or package_spec.get("editable", False)
             ):
-                line = f"-e {vcs_type}+{vcs_url}{ref_str}{egg_fragment}{extras}"
+                # Extras must not be in the #egg= fragment (pip validates it as
+                # a PEP 508 project name). Append extras after the egg fragment.
+                line = f"-e {vcs_type}+{vcs_url}{ref_str}{egg_fragment}"
                 if subdirectory:
                     line += f"&subdirectory={subdirectory}"
+                line += extras
             else:
                 line = f"{package_name}{extras} @ {vcs_type}+{vcs_url}{ref_str}"
                 if subdirectory:

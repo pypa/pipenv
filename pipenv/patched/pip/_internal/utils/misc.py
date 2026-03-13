@@ -182,10 +182,12 @@ def rmtree_errorhandler(
 def display_path(path: str) -> str:
     """Gives the display value for a given path, making it relative to cwd
     if possible."""
-    path = os.path.normcase(os.path.abspath(path))
-    if path.startswith(os.getcwd() + os.path.sep):
-        path = "." + path[len(os.getcwd()) :]
-    return path
+    try:
+        relative = Path(path).relative_to(Path.cwd())
+    except ValueError:
+        # If the path isn't relative to the CWD, leave it alone
+        return path
+    return os.path.join(".", relative)
 
 
 def backup_dir(dir: str, ext: str = ".bak") -> str:
@@ -541,14 +543,18 @@ class HiddenText:
     def __str__(self) -> str:
         return self.redacted
 
-    # This is useful for testing.
-    def __eq__(self, other: Any) -> bool:
-        if type(self) is not type(other):
-            return False
+    def __eq__(self, other: object) -> bool:
+        # Equality is particularly useful for testing.
+        if type(self) is type(other):
+            # The string being used for redaction doesn't also have to match,
+            # just the raw, original string.
+            return self.secret == cast(HiddenText, other).secret
+        return NotImplemented
 
-        # The string being used for redaction doesn't also have to match,
-        # just the raw, original string.
-        return self.secret == other.secret
+    # Disable hashing, since we have a custom __eq__ and don't need hash-ability
+    # (yet). The only required property of hashing is that objects which compare
+    # equal have the same hash value.
+    __hash__ = None  # type: ignore[assignment]
 
 
 def hide_value(value: str) -> HiddenText:

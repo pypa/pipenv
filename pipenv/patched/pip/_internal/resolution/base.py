@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Callable, Optional
 
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement

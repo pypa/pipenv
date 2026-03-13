@@ -481,11 +481,14 @@ def dependency_as_pip_install_line(
         # legacy format is the only format supported for editable installs https://github.com/pypa/pip/issues/9106
         if is_editable_path(dep[vcs]) or "file://" in dep[vcs]:
             if "#egg=" not in dep[vcs]:
-                git_req = f"-e {include_vcs}{dep[vcs]}{ref}#egg={dep_name}{extras}"
+                # Extras must not be in the #egg= fragment (pip validates it as
+                # a PEP 508 project name). Append extras after the egg fragment.
+                git_req = f"-e {include_vcs}{dep[vcs]}{ref}#egg={dep_name}"
             else:
                 git_req = f"-e {include_vcs}{dep[vcs]}{ref}"
             if "subdirectory" in dep:
                 git_req += f"&subdirectory={dep['subdirectory']}"
+            git_req += extras
             # Note: Legacy -e format doesn't support inline markers
             # Markers are handled separately in the resolution process
         else:
@@ -838,10 +841,11 @@ def determine_package_name(package: InstallRequirement):
                 cmd = get_pip_command()
                 options, _ = cmd.parser.parse_args([])
                 session = cmd._build_session(options)
+                session.resume_retries = 5
                 local_file = unpack_url(
                     link=package.link,
                     location=td,
-                    download=Downloader(session, "off", resume_retries=5),
+                    download=Downloader(session, "off"),
                     verbosity=1,
                 )
                 if local_file.path.endswith(".whl") or local_file.path.endswith(".zip"):

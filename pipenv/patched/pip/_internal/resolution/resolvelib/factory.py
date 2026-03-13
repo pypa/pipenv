@@ -695,9 +695,20 @@ class Factory:
                 "version: %s",
                 "; ".join(skipped_by_requires_python) or "none",
             )
+
+        # Check if only final releases are allowed for this package
+        version_type = "version"
+        if self._finder.release_control is not None:
+            allows_pre = self._finder.release_control.allows_prereleases(
+                canonicalize_name(req.project_name)
+            )
+            if allows_pre is False:
+                version_type = "final version"
+
         logger.critical(
-            "Could not find a version that satisfies the requirement %s "
+            "Could not find a %s that satisfies the requirement %s "
             "(from versions: %s)",
+            version_type,
             req_disp,
             ", ".join(versions) or "none",
         )

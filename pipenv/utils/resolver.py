@@ -1,4 +1,5 @@
 import contextlib
+import dataclasses
 import hashlib
 import json
 import os
@@ -318,7 +319,7 @@ class Resolver:
         alt_index_lookup = {}
         for req_name, index in self.index_lookup.items():
             if index_mapping.get(index):
-                alt_index_lookup[req_name] = index_mapping[index]
+                alt_index_lookup[req_name] = [index_mapping[index]]
         return alt_index_lookup
 
     @property
@@ -334,8 +335,13 @@ class Resolver:
         finder = self.package_finder
         index_lookup = self.prepare_index_lookup()
         finder._link_collector.index_lookup = index_lookup
-        finder._link_collector.search_scope.index_restricted = True
-        finder._link_collector.search_scope.index_lookup = index_lookup
+        # SearchScope is a frozen dataclass, so we need to use replace() to create
+        # a new instance with the updated fields
+        finder._link_collector.search_scope = dataclasses.replace(
+            finder._link_collector.search_scope,
+            index_restricted=True,
+            index_lookup=index_lookup,
+        )
         finder._ignore_compatibility = ignore_compatibility
         return finder
 

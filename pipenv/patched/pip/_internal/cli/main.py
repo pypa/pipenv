@@ -8,12 +8,6 @@ import os
 import sys
 import warnings
 
-from pipenv.patched.pip._internal.cli.autocompletion import autocomplete
-from pipenv.patched.pip._internal.cli.main_parser import parse_command
-from pipenv.patched.pip._internal.commands import create_command
-from pipenv.patched.pip._internal.exceptions import PipError
-from pipenv.patched.pip._internal.utils import deprecation
-
 logger = logging.getLogger(__name__)
 
 
@@ -45,6 +39,17 @@ logger = logging.getLogger(__name__)
 
 
 def main(args: list[str] | None = None) -> int:
+    # NOTE: Lazy imports to speed up import of this module,
+    # which is imported from the pip console script. This doesn't
+    # speed up normal pip execution, but might be important in the future
+    # if we use ``multiprocessing`` module,
+    # which imports __main__ for each spawned subprocess.
+    from pipenv.patched.pip._internal.cli.autocompletion import autocomplete
+    from pipenv.patched.pip._internal.cli.main_parser import parse_command
+    from pipenv.patched.pip._internal.commands import create_command
+    from pipenv.patched.pip._internal.exceptions import PipError
+    from pipenv.patched.pip._internal.utils import deprecation
+
     if args is None:
         args = sys.argv[1:]
 

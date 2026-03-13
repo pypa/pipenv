@@ -90,15 +90,6 @@ class ListCommand(IndexGroupCommand):
             help="Only output packages installed in user-site.",
         )
         self.cmd_opts.add_option(cmdoptions.list_path())
-        self.cmd_opts.add_option(
-            "--pre",
-            action="store_true",
-            default=False,
-            help=(
-                "Include pre-release and development versions. By default, "
-                "pip only finds stable versions."
-            ),
-        )
 
         self.cmd_opts.add_option(
             "--format",
@@ -135,7 +126,13 @@ class ListCommand(IndexGroupCommand):
         self.cmd_opts.add_option(cmdoptions.list_exclude())
         index_opts = cmdoptions.make_option_group(cmdoptions.index_group, self.parser)
 
+        selection_opts = cmdoptions.make_option_group(
+            cmdoptions.package_selection_group,
+            self.parser,
+        )
+
         self.parser.insert_option_group(0, index_opts)
+        self.parser.insert_option_group(0, selection_opts)
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def handle_pip_version_check(self, options: Values) -> None:
@@ -157,7 +154,7 @@ class ListCommand(IndexGroupCommand):
         # Pass allow_yanked=False to ignore yanked versions.
         selection_prefs = SelectionPreferences(
             allow_yanked=False,
-            allow_all_prereleases=options.pre,
+            release_control=options.release_control,
         )
 
         return PackageFinder.create(
@@ -166,6 +163,8 @@ class ListCommand(IndexGroupCommand):
         )
 
     def run(self, options: Values, args: list[str]) -> int:
+        cmdoptions.check_release_control_exclusive(options)
+
         if options.outdated and options.uptodate:
             raise CommandError("Options --outdated and --uptodate cannot be combined.")
 
@@ -248,8 +247,7 @@ class ListCommand(IndexGroupCommand):
                 dist: _DistWithLatestInfo,
             ) -> _DistWithLatestInfo | None:
                 all_candidates = finder.find_all_candidates(dist.canonical_name)
-                if not options.pre:
-                    # Remove prereleases
+                if self.should_exclude_prerelease(options, dist.canonical_name):
                     all_candidates = [
                         candidate
                         for candidate in all_candidates
@@ -341,14 +339,14 @@ def format_for_columns(
     if has_build_tags:
         header.append("Build")
 
+    has_editables = any(x.editable for x in pkgs)
+    if has_editables:
+        header.append("Editable project location")
+
     if options.verbose >= 1:
         header.append("Location")
     if options.verbose >= 1:
         header.append("Installer")
-
-    has_editables = any(x.editable for x in pkgs)
-    if has_editables:
-        header.append("Editable project location")
 
     data = []
     for i, proj in enumerate(pkgs):

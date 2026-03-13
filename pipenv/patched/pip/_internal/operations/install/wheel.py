@@ -411,8 +411,7 @@ class PipScriptMaker(ScriptMaker):
         import sys
         from %(module)s import %(import_name)s
         if __name__ == '__main__':
-            if sys.argv[0].endswith('.exe'):
-                sys.argv[0] = sys.argv[0][:-4]
+            sys.argv[0] = sys.argv[0].removesuffix('.exe')
             sys.exit(%(func)s())
 """
     )

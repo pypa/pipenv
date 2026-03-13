@@ -1,5 +1,4 @@
 """Filetype information."""
-from __future__ import annotations
 
 from pipenv.patched.pip._internal.utils.misc import splitext
 

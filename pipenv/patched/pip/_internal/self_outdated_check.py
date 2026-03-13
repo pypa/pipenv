@@ -9,7 +9,7 @@ import optparse
 import os.path
 import sys
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Callable
 
 from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
@@ -20,9 +20,11 @@ from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.patched.pip._internal.index.collector import LinkCollector
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import get_default_environment
+from pipenv.patched.pip._internal.models.release_control import ReleaseControl
 from pipenv.patched.pip._internal.models.selection_prefs import SelectionPreferences
 from pipenv.patched.pip._internal.network.session import PipSession
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.datetime import parse_iso_datetime
 from pipenv.patched.pip._internal.utils.entrypoints import (
     get_best_invocation_for_this_pip,
     get_best_invocation_for_this_python,
@@ -50,18 +52,9 @@ def _get_statefile_name(key: str) -> str:
     return name
 
 
-def _convert_date(isodate: str) -> datetime.datetime:
-    """Convert an ISO format string to a date.
-
-    Handles the format 2020-01-22T14:24:01Z (trailing Z)
-    which is not supported by older versions of fromisoformat.
-    """
-    return datetime.datetime.fromisoformat(isodate.replace("Z", "+00:00"))
-
-
 class SelfCheckState:
     def __init__(self, cache_dir: str) -> None:
-        self._state: dict[str, Any] = {}
+        self._state: dict[str, str] = {}
         self._statefile_path = None
 
         # Try to load the existing state
@@ -93,7 +86,7 @@ class SelfCheckState:
             return None
 
         # Determine if we need to refresh the state
-        last_check = _convert_date(self._state["last_check"])
+        last_check = parse_iso_datetime(self._state["last_check"])
         time_since_last_check = current_time - last_check
         if time_since_last_check > _WEEK:
             return None
@@ -187,7 +180,7 @@ def _get_current_remote_pip_version(
     # yanked version.
     selection_prefs = SelectionPreferences(
         allow_yanked=False,
-        allow_all_prereleases=False,  # Explicitly set to False
+        release_control=ReleaseControl(only_final={"pip"}),
     )
 
     finder = PackageFinder.create(

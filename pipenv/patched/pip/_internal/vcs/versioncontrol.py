@@ -62,8 +62,9 @@ def make_vcs_requirement_url(
       repo_url: the remote VCS url, with any needed VCS prefix (e.g. "git+").
       project_name: the (unescaped) project name.
     """
+    quoted_rev = urllib.parse.quote(rev, "/")
     egg_project_name = project_name.replace("-", "_")
-    req = f"{repo_url}@{rev}#egg={egg_project_name}"
+    req = f"{repo_url}@{quoted_rev}#egg={egg_project_name}"
     if subdir:
         req += f"&subdirectory={subdir}"
 
@@ -397,6 +398,7 @@ class VersionControl:
                     "which is not supported. Include a revision after @ "
                     "or remove @ from the URL."
                 )
+            rev = urllib.parse.unquote(rev)
         url = urllib.parse.urlunsplit((scheme, netloc, path, query, ""))
         return url, rev, user_pass
 

@@ -188,6 +188,9 @@ def get_win_folder_from_registry(csidl_name: str) -> str:
     for all CSIDL_* names.
 
     """
+    machine_names = {
+        "CSIDL_COMMON_APPDATA",
+    }
     shell_folder_name = {
         "CSIDL_APPDATA": "AppData",
         "CSIDL_COMMON_APPDATA": "Common AppData",
@@ -205,7 +208,10 @@ def get_win_folder_from_registry(csidl_name: str) -> str:
         raise NotImplementedError
     import winreg  # noqa: PLC0415
 
-    key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
+    # Use HKEY_LOCAL_MACHINE for system-wide folders, HKEY_CURRENT_USER for user-specific folders
+    hkey = winreg.HKEY_LOCAL_MACHINE if csidl_name in machine_names else winreg.HKEY_CURRENT_USER
+
+    key = winreg.OpenKey(hkey, r"Software\Microsoft\Windows\CurrentVersion\Explorer\Shell Folders")
     directory, _ = winreg.QueryValueEx(key, shell_folder_name)
     return str(directory)
 

@@ -27,7 +27,9 @@ from pipenv.patched.pip._internal.exceptions import CommandError
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR, get_src_prefix
 from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.models.index import PyPI
+from pipenv.patched.pip._internal.models.release_control import ReleaseControl
 from pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pip._internal.utils.datetime import parse_iso_datetime
 from pipenv.patched.pip._internal.utils.hashes import STRONG_HASHES
 from pipenv.patched.pip._internal.utils.misc import strtobool
 
@@ -426,6 +428,54 @@ def find_links() -> Option:
     )
 
 
+def _handle_uploaded_prior_to(
+    option: Option, opt: str, value: str, parser: OptionParser
+) -> None:
+    """
+    This is an optparse.Option callback for the --uploaded-prior-to option.
+
+    Parses an ISO 8601 datetime string. If no timezone is specified in the string,
+    local timezone is used.
+
+    Note: This option only works with indexes that provide upload-time metadata
+    as specified in the simple repository API:
+    https://packaging.python.org/en/latest/specifications/simple-repository-api/
+    """
+    if value is None:
+        return None
+
+    try:
+        uploaded_prior_to = parse_iso_datetime(value)
+        # Use local timezone if no offset is given in the ISO string.
+        if uploaded_prior_to.tzinfo is None:
+            uploaded_prior_to = uploaded_prior_to.astimezone()
+        parser.values.uploaded_prior_to = uploaded_prior_to
+    except ValueError as exc:
+        msg = (
+            f"invalid value: {value!r}: {exc}. "
+            f"Expected an ISO 8601 datetime string, "
+            f"e.g '2023-01-01' or '2023-01-01T00:00:00Z'"
+        )
+        raise_option_error(parser, option=option, msg=msg)
+
+
+def uploaded_prior_to() -> Option:
+    return Option(
+        "--uploaded-prior-to",
+        dest="uploaded_prior_to",
+        metavar="datetime",
+        action="callback",
+        callback=_handle_uploaded_prior_to,
+        type="str",
+        help=(
+            "Only consider packages uploaded prior to the given date time. "
+            "Accepts ISO 8601 strings (e.g., '2023-01-01T00:00:00Z'). "
+            "Uses local timezone if none specified. Only effective when "
+            "installing from indexes that provide upload-time metadata."
+        ),
+    )
+
+
 def trusted_host() -> Option:
     return Option(
         "--trusted-host",
@@ -476,6 +526,18 @@ def requirements() -> Option:
         metavar="file",
         help="Install from the given requirements file. "
         "This option can be used multiple times.",
+    )
+
+
+def requirements_from_scripts() -> Option:
+    return Option(
+        "--requirements-from-script",
+        action="append",
+        default=[],
+        dest="requirements_from_scripts",
+        metavar="file",
+        help="Install dependencies of the given script file"
+        "as defined by PEP 723 inline metadata. ",
     )
 
 
@@ -578,6 +640,86 @@ def only_binary() -> Option:
         "without binary distributions will fail to install when this "
         "option is used on them.",
     )
+
+
+def _get_release_control(values: Values, option: Option) -> Any:
+    """Get a release_control object."""
+    return getattr(values, option.dest)
+
+
+def _handle_all_releases(
+    option: Option, opt_str: str, value: str, parser: OptionParser
+) -> None:
+    existing = _get_release_control(parser.values, option)
+    existing.handle_mutual_excludes(
+        value,
+        existing.all_releases,
+        existing.only_final,
+        "all_releases",
+    )
+
+
+def _handle_only_final(
+    option: Option, opt_str: str, value: str, parser: OptionParser
+) -> None:
+    existing = _get_release_control(parser.values, option)
+    existing.handle_mutual_excludes(
+        value,
+        existing.only_final,
+        existing.all_releases,
+        "only_final",
+    )
+
+
+def all_releases() -> Option:
+    release_control = ReleaseControl(set(), set())
+    return Option(
+        "--all-releases",
+        dest="release_control",
+        action="callback",
+        callback=_handle_all_releases,
+        type="str",
+        default=release_control,
+        help="Allow all release types (including pre-releases) for a package. "
+        "Can be supplied multiple times, and each time adds to the existing "
+        'value. Accepts either ":all:" to allow pre-releases for all '
+        'packages, ":none:" to empty the set (notice the colons), or one or '
+        "more package names with commas between them (no colons). Cannot be "
+        "used with --pre.",
+    )
+
+
+def only_final() -> Option:
+    release_control = ReleaseControl(set(), set())
+    return Option(
+        "--only-final",
+        dest="release_control",
+        action="callback",
+        callback=_handle_only_final,
+        type="str",
+        default=release_control,
+        help="Only allow final releases (no pre-releases) for a package. Can be "
+        "supplied multiple times, and each time adds to the existing value. "
+        'Accepts either ":all:" to disable pre-releases for all packages, '
+        '":none:" to empty the set, or one or more package names with commas '
+        "between them. Cannot be used with --pre.",
+    )
+
+
+def check_release_control_exclusive(options: Values) -> None:
+    """
+    Raise an error if --pre is used with --all-releases or --only-final,
+    and transform --pre into --all-releases :all: if used alone.
+    """
+    if not hasattr(options, "pre") or not options.pre:
+        return
+
+    release_control = options.release_control
+    if release_control.all_releases or release_control.only_final:
+        raise CommandError("--pre cannot be used with --all-releases or --only-final.")
+
+    # Transform --pre into --all-releases :all:
+    release_control.all_releases.add(":all:")
 
 
 platforms: Callable[..., Option] = partial(
@@ -832,6 +974,7 @@ ignore_requires_python: Callable[..., Option] = partial(
     help="Ignore the Requires-Python information.",
 )
 
+
 no_build_isolation: Callable[..., Option] = partial(
     Option,
     "--no-build-isolation",
@@ -1044,6 +1187,7 @@ use_new_feature: Callable[..., Option] = partial(
     choices=[
         "fast-deps",
         "build-constraint",
+        "inprocess-build-deps",
     ]
     + ALWAYS_ENABLED_FEATURES,
     help="Enable new functionality, that may be backward incompatible.",
@@ -1106,5 +1250,18 @@ index_group: dict[str, Any] = {
         extra_index_url,
         no_index,
         find_links,
+        uploaded_prior_to,
+    ],
+}
+
+package_selection_group: dict[str, Any] = {
+    "name": "Package Selection Options",
+    "options": [
+        pre,
+        all_releases,
+        only_final,
+        no_binary,
+        only_binary,
+        prefer_binary,
     ],
 }

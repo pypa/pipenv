@@ -167,14 +167,13 @@ class Downloader:
         self,
         session: PipSession,
         progress_bar: BarType,
-        resume_retries: int,
     ) -> None:
-        assert (
-            resume_retries >= 0
-        ), "Number of max resume retries must be bigger or equal to zero"
         self._session = session
         self._progress_bar = progress_bar
-        self._resume_retries = resume_retries
+        self._resume_retries = session.resume_retries
+        assert (
+            self._resume_retries >= 0
+        ), "Number of max resume retries must be bigger or equal to zero"
 
     def batch(
         self, links: Iterable[Link], location: str

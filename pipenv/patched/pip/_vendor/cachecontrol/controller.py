@@ -490,7 +490,7 @@ class CacheController:
         #
         # The server isn't supposed to send headers that would make
         # the cached body invalid. But... just in case, we'll be sure
-        # to strip out ones we know that might be problmatic due to
+        # to strip out ones we know that might be problematic due to
         # typical assumptions.
         excluded_headers = ["content-length"]
 

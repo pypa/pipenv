@@ -6,6 +6,7 @@ from collections.abc import Iterable
 from optparse import Values
 from typing import Any, Callable
 
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import Version
 
 from pipenv.patched.pip._internal.cli import cmdoptions
@@ -40,17 +41,20 @@ class IndexCommand(IndexGroupCommand):
         cmdoptions.add_target_python_options(self.cmd_opts)
 
         self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
-        self.cmd_opts.add_option(cmdoptions.pre())
         self.cmd_opts.add_option(cmdoptions.json())
-        self.cmd_opts.add_option(cmdoptions.no_binary())
-        self.cmd_opts.add_option(cmdoptions.only_binary())
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
             self.parser,
         )
 
+        selection_opts = cmdoptions.make_option_group(
+            cmdoptions.package_selection_group,
+            self.parser,
+        )
+
         self.parser.insert_option_group(0, index_opts)
+        self.parser.insert_option_group(0, selection_opts)
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def handler_map(self) -> dict[str, Callable[[Values, list[str]], None]]:
@@ -59,6 +63,8 @@ class IndexCommand(IndexGroupCommand):
         }
 
     def run(self, options: Values, args: list[str]) -> int:
+        cmdoptions.check_release_control_exclusive(options)
+
         handler_map = self.handler_map()
 
         # Determine action
@@ -95,7 +101,8 @@ class IndexCommand(IndexGroupCommand):
         # Pass allow_yanked=False to ignore yanked versions.
         selection_prefs = SelectionPreferences(
             allow_yanked=False,
-            allow_all_prereleases=options.pre,
+            release_control=options.release_control,
+            format_control=options.format_control,
             ignore_requires_python=ignore_requires_python,
         )
 
@@ -103,6 +110,7 @@ class IndexCommand(IndexGroupCommand):
             link_collector=link_collector,
             selection_prefs=selection_prefs,
             target_python=target_python,
+            uploaded_prior_to=options.uploaded_prior_to,
         )
 
     def get_available_package_versions(self, options: Values, args: list[Any]) -> None:
@@ -124,8 +132,7 @@ class IndexCommand(IndexGroupCommand):
                 candidate.version for candidate in finder.find_all_candidates(query)
             )
 
-            if not options.pre:
-                # Remove prereleases
+            if self.should_exclude_prerelease(options, canonicalize_name(query)):
                 versions = (
                     version for version in versions if not version.is_prerelease
                 )

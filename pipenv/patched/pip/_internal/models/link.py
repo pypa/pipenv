@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import functools
 import itertools
 import logging
@@ -7,15 +8,16 @@ import os
 import posixpath
 import re
 import urllib.parse
+import urllib.request
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import (
-    TYPE_CHECKING,
     Any,
     NamedTuple,
 )
 
-from pipenv.patched.pip._internal.utils.deprecation import deprecated
+from pipenv.patched.pip._internal.exceptions import InvalidEggFragment
+from pipenv.patched.pip._internal.utils.datetime import parse_iso_datetime
 from pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.misc import (
@@ -25,9 +27,6 @@ from pipenv.patched.pip._internal.utils.misc import (
     splitext,
 )
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
-
-if TYPE_CHECKING:
-    from pipenv.patched.pip._internal.index.collector import IndexContent
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +206,7 @@ class Link:
         "requires_python",
         "yanked_reason",
         "metadata_file_data",
+        "upload_time",
         "cache_link_parsing",
         "egg_fragment",
     ]
@@ -214,17 +214,17 @@ class Link:
     def __init__(
         self,
         url: str,
-        comes_from: str | IndexContent | None = None,
+        comes_from: str | None = None,
         requires_python: str | None = None,
         yanked_reason: str | None = None,
         metadata_file_data: MetadataFile | None = None,
+        upload_time: datetime.datetime | None = None,
         cache_link_parsing: bool = True,
         hashes: Mapping[str, str] | None = None,
     ) -> None:
         """
         :param url: url of the resource pointed to (href of the link)
-        :param comes_from: instance of IndexContent where the link was found,
-            or string.
+        :param comes_from: URL or string indicating where the link was found.
         :param requires_python: String containing the `Requires-Python`
             metadata field, specified in PEP 345. This may be specified by
             a data-requires-python attribute in the HTML link tag, as
@@ -239,6 +239,8 @@ class Link:
             no such metadata is provided. This argument, if not None, indicates
             that a separate metadata file exists, and also optionally supplies
             hashes for that file.
+        :param upload_time: upload time of the file, or None if the information
+            is not available from the server.
         :param cache_link_parsing: A flag that is used elsewhere to determine
             whether resources retrieved from this link should be cached. PyPI
             URLs should generally have this set to False, for example.
@@ -272,6 +274,7 @@ class Link:
         self.requires_python = requires_python if requires_python else None
         self.yanked_reason = yanked_reason
         self.metadata_file_data = metadata_file_data
+        self.upload_time = upload_time
 
         self.cache_link_parsing = cache_link_parsing
         self.egg_fragment = self._egg_fragment()
@@ -300,6 +303,11 @@ class Link:
         if metadata_info is None:
             metadata_info = file_data.get("dist-info-metadata")
 
+        if upload_time_data := file_data.get("upload-time"):
+            upload_time = parse_iso_datetime(upload_time_data)
+        else:
+            upload_time = None
+
         # The metadata info value may be a boolean, or a dict of hashes.
         if isinstance(metadata_info, dict):
             # The file exists, and hashes have been supplied
@@ -325,6 +333,7 @@ class Link:
             yanked_reason=yanked_reason,
             hashes=hashes,
             metadata_file_data=metadata_file_data,
+            upload_time=upload_time,
         )
 
     @classmethod
@@ -474,12 +483,7 @@ class Link:
         # an optional extras specifier. Anything else is invalid.
         project_name = match.group(1)
         if not self._project_name_re.match(project_name):
-            deprecated(
-                reason=f"{self} contains an egg fragment with a non-PEP 508 name.",
-                replacement="to use the req @ url syntax, and remove the egg fragment",
-                gone_in="26.0",
-                issue=13157,
-            )
+            raise InvalidEggFragment(self, project_name)
 
         return project_name
 

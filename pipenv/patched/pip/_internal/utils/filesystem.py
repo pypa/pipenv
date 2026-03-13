@@ -7,8 +7,9 @@ import random
 import sys
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, BinaryIO, cast
+from typing import Any, BinaryIO, Callable, cast
 
 from pipenv.patched.pip._internal.utils.compat import get_path_uid
 from pipenv.patched.pip._internal.utils.misc import format_size
@@ -162,3 +163,41 @@ def copy_directory_permissions(directory: str, target_file: BinaryIO) -> None:
         os.chmod(target_file.fileno(), mode)
     elif os.chmod in os.supports_follow_symlinks:
         os.chmod(target_file.name, mode, follow_symlinks=False)
+
+
+def _subdirs_without_generic(
+    path: str, predicate: Callable[[str, list[str]], bool]
+) -> Generator[Path]:
+    """Yields every subdirectory of +path+ that has no files matching the
+    predicate under it."""
+
+    directories = []
+    excluded = set()
+
+    for root_str, _, filenames in os.walk(Path(path).resolve()):
+        root = Path(root_str)
+        if predicate(root_str, filenames):
+            # This directory should be excluded, so exclude it and all of its
+            # parent directories.
+            # The last item in root.parents is ".", so we ignore it.
+            #
+            # Wrapping this in `list()` is only needed for Python 3.9.
+            excluded.update(list(root.parents)[:-1])
+            excluded.add(root)
+        directories.append(root)
+
+    for d in sorted(directories, reverse=True):
+        if d not in excluded:
+            yield d
+
+
+def subdirs_without_files(path: str) -> Generator[Path]:
+    """Yields every subdirectory of +path+ that has no files under it."""
+    return _subdirs_without_generic(path, lambda root, filenames: len(filenames) > 0)
+
+
+def subdirs_without_wheels(path: str) -> Generator[Path]:
+    """Yields every subdirectory of +path+ that has no .whl files under it."""
+    return _subdirs_without_generic(
+        path, lambda root, filenames: any(x.endswith(".whl") for x in filenames)
+    )
