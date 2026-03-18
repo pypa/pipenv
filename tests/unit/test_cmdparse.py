@@ -156,3 +156,89 @@ def test_cmdify_quote_if_carets():
     """Ensure arguments are quoted if they contain carets."""
     script = Script("foo^bar", ["baz^rex"])
     assert script.cmdify() == '"foo^bar" "baz^rex"', script
+
+
+# ---------------------------------------------------------------------------
+# Inline env var extraction — issue #6083
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_no_inline_env_vars_returns_self():
+    """Scripts without a leading KEY=value are returned unchanged."""
+    script = Script.parse("python -c 'print(1)'")
+    new_script, env = script.with_extracted_env_vars()
+    assert new_script is script
+    assert env == {}
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_single_inline_env_var_no_spaces():
+    """A single KEY=value prefix (no spaces in value) is extracted."""
+    script = Script.parse("DISABLE_API=1 sphinx-build -b html")
+    new_script, env = script.with_extracted_env_vars()
+    assert env == {"DISABLE_API": "1"}
+    assert new_script.command == "sphinx-build"
+    assert new_script.args == ["-b", "html"]
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_multiple_inline_env_vars():
+    """Multiple leading KEY=value tokens are all extracted."""
+    script = Script.parse("FOO=bar BAZ=qux python script.py")
+    new_script, env = script.with_extracted_env_vars()
+    assert env == {"FOO": "bar", "BAZ": "qux"}
+    assert new_script.command == "python"
+    assert new_script.args == ["script.py"]
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_inline_env_var_value_with_spaces():
+    """A value that contained spaces (after shlex quote-stripping) is extracted correctly.
+
+    When a Pipfile [scripts] entry like ``FOO='hello world' python -c ...``
+    is parsed by shlex, the quotes are stripped and the token becomes
+    ``FOO=hello world``.  with_extracted_env_vars must still recognise this
+    as an env var and set FOO to the full value including the space.
+    """
+    # Simulate what Script.parse does with  FOO='hello world' python -c '...'
+    script = Script("FOO=hello world", ["python", "-c", "import os; print(os.getenv('FOO'))"])
+    new_script, env = script.with_extracted_env_vars()
+    assert env == {"FOO": "hello world"}
+    assert new_script.command == "python"
+    assert new_script.args == ["-c", "import os; print(os.getenv('FOO'))"]
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_inline_env_var_only_no_command_is_not_extracted():
+    """If all tokens are KEY=value with no command left, nothing is extracted."""
+    script = Script("FOO=bar")  # only token — can't strip it
+    new_script, env = script.with_extracted_env_vars()
+    assert new_script is script
+    assert env == {}
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_inline_env_var_empty_value():
+    """An empty value (KEY=) is a valid env var and is extracted."""
+    script = Script.parse("MY_VAR= python script.py")
+    new_script, env = script.with_extracted_env_vars()
+    assert env == {"MY_VAR": ""}
+    assert new_script.command == "python"
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_inline_env_var_not_extracted_from_args():
+    """KEY=value tokens that are *not* at the start are left as regular args."""
+    script = Script.parse("python script.py FOO=bar")
+    new_script, env = script.with_extracted_env_vars()
+    assert new_script is script
+    assert env == {}
+    assert new_script.args == ["script.py", "FOO=bar"]

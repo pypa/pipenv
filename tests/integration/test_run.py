@@ -181,6 +181,54 @@ requests = "==2.14.0"
 
 @pytest.mark.run
 @pytest.mark.skip_windows
+def test_run_inline_env_vars(pipenv_instance_pypi):
+    """Inline KEY=value tokens before the command are set in the environment.
+
+    Regression test for https://github.com/pypa/pipenv/issues/6083.
+    Both the command-line form (``pipenv run FOO=bar cmd``) and the Pipfile
+    [scripts] form (``entry = "FOO=bar cmd"``) must be supported, including
+    values that contain spaces (which shlex quote-strips during parsing).
+    """
+    with pipenv_instance_pypi() as p:
+        p.pipenv("install")
+
+        # ── command-line form ─────────────────────────────────────────────
+        # Single env var, simple value
+        c = p.pipenv(
+            "run MY_INLINE_VAR=hello python -c"
+            " \"import os; print(os.environ['MY_INLINE_VAR'])\""
+        )
+        assert c.returncode == 0, c.stderr
+        assert "hello" in c.stdout
+
+        # Multiple env vars
+        c = p.pipenv(
+            "run A=foo B=bar python -c"
+            " \"import os; print(os.environ['A'], os.environ['B'])\""
+        )
+        assert c.returncode == 0, c.stderr
+        assert "foo bar" in c.stdout
+
+        # ── Pipfile [scripts] form ────────────────────────────────────────
+        with open(p.pipfile_path, "w") as f:
+            f.write(
+                "[scripts]\n"
+                'simple_env = "GREET=hi python -c \\"import os; print(os.environ[\'GREET\'])\\""\n'
+                'spaces_env = "GREET=\'hello world\' python -c \\"import os; print(os.environ[\'GREET\'])\\""\n'
+            )
+
+        c = p.pipenv("run simple_env")
+        assert c.returncode == 0, c.stderr
+        assert "hi" in c.stdout
+
+        # Value with spaces — this was the hard part of #6083
+        c = p.pipenv("run spaces_env")
+        assert c.returncode == 0, c.stderr
+        assert "hello world" in c.stdout
+
+
+@pytest.mark.run
+@pytest.mark.skip_windows
 def test_run_shell_builtins(pipenv_instance_pypi):
     """Test that shell builtins work with pipenv run.
 

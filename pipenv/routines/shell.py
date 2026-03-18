@@ -129,6 +129,12 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
         err.print("Can't run script {0!r}-it's empty?")
         return
 
+    # Extract any inline env var assignments that prefix the real command,
+    # e.g. `pipenv run FOO=bar cmd` or a [scripts] entry `FOO='a b' cmd`.
+    # They are added directly to *env* so the child process inherits them.
+    script, inline_env = script.with_extracted_env_vars()
+    env.update(inline_env)
+
     if script.is_sequence:
         _run_script_sequence(script, env, verbose=project.s.is_verbose())
         return  # _run_script_sequence always calls sys.exit
@@ -161,6 +167,11 @@ def _run_script_sequence(script, env, verbose=False):
     path = env.get("PATH", "")
 
     for sub in script._sequence:
+        # Inline env vars are scoped to each individual sub-command so they
+        # don't bleed into subsequent steps.
+        sub, sub_inline_env = sub.with_extracted_env_vars()
+        sub_string_env = {**string_env, **sub_inline_env}
+
         cmd_args = [sub.command] + [expandvars(arg) for arg in sub.args]
         if verbose:
             err.print(f"$ {cmd_list_to_shell(cmd_args)}", style="cyan")
@@ -173,31 +184,31 @@ def _run_script_sequence(script, env, verbose=False):
             if command_path:
                 try:
                     result = subprocess.run(
-                        [command_path] + sub.args, env=string_env, check=False
+                        [command_path] + sub.args, env=sub_string_env, check=False
                     )
                 except OSError as exc:
                     if exc.winerror != 193:
                         raise
                     result = subprocess.run(
-                        sub.cmdify(), shell=True, env=string_env, check=False
+                        sub.cmdify(), shell=True, env=sub_string_env, check=False
                     )
             else:
                 result = subprocess.run(
-                    sub.cmdify(), shell=True, env=string_env, check=False
+                    sub.cmdify(), shell=True, env=sub_string_env, check=False
                 )
         else:
             command_path = system_which(sub.command, path=path)
             if command_path:
                 result = subprocess.run(
                     [command_path, *(expandvars(arg) for arg in sub.args)],
-                    env=string_env,
+                    env=sub_string_env,
                     check=False,
                 )
             else:
                 result = subprocess.run(
                     cmd_list_to_shell(cmd_args),
                     shell=True,
-                    env=string_env,
+                    env=sub_string_env,
                     check=False,
                 )
 
