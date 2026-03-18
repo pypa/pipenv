@@ -184,15 +184,18 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
             else:  # It's a Path object
                 python = python.as_posix()
 
-        err.print("[red]Virtualenv already exists![/red]")
+        err.print(
+            "[bold yellow]Virtualenv already exists but Python version differs. "
+            "Recreating virtualenv...[/bold yellow]"
+        )
         # If VIRTUAL_ENV is set, there is a possibility that we are
         # going to remove the active virtualenv that the user cares
         # about, so confirm first.
         if "VIRTUAL_ENV" in os.environ and not (
-            project.s.PIPENV_YES or Confirm.ask("Use existing virtualenv?", default=True)
+            project.s.PIPENV_YES
+            or Confirm.ask("Recreate existing virtualenv?", default=True)
         ):
             sys.exit(1)
-        err.print("[bold]Using existing virtualenv...[/bold]")
         # Remove the virtualenv.
         cleanup_virtualenv(project, bare=True)
         # Call this function again.
