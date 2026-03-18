@@ -87,7 +87,17 @@ def format_requirement_for_lockfile(
             entry["version"] = str(req.specifier)
         if req.link:
             if req.link.is_file:
-                entry["file"] = req.link.url
+                # Only record the file path when the *Pipfile itself* explicitly
+                # declares this as a file/path dependency.  When the resolver
+                # locates an index-published package via the local pip wheel cache
+                # (common for platform-specific packages resolved cross-platform,
+                # e.g. a win32-only package locked on Linux), req.link is a
+                # file:// URL pointing at the cache – storing that path would
+                # break installs on any machine without that exact cache layout.
+                if isinstance(pipfile_entry, dict) and (
+                    pipfile_entry.get("file") or pipfile_entry.get("path")
+                ):
+                    entry["file"] = req.link.url
             elif req.link.scheme in ("http", "https") and req.req and req.req.url:
                 # Handle direct URL dependencies (PEP 508 style: package @ https://...)
                 # Only when the requirement itself has a URL (req.req.url is set),
