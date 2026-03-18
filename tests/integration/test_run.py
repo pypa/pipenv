@@ -213,10 +213,8 @@ def test_run_inline_env_vars(pipenv_instance_pypi):
         with open(p.pipfile_path, "w") as f:
             f.write(
                 "[scripts]\n"
-                'simple_env = "GREET=hi python -c '
-                "'\\\"import os; print(os.environ['GREET'])\\\"'\"\n"
-                'spaces_env = "GREET=\'hello world\' python -c '
-                "'\\\"import os; print(os.environ['GREET'])\\\"'\"\n"
+                'simple_env = "GREET=hi python -c \\"import os; print(os.environ[\'GREET\'])\\""\n'
+                'spaces_env = "GREET=\'hello world\' python -c \\"import os; print(os.environ[\'GREET\'])\\""\n'
             )
 
         c = p.pipenv("run simple_env")
