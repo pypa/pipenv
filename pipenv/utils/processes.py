@@ -21,11 +21,16 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     :raises: exceptions.PipenvCmdError
     """
 
-    from pipenv.cmdparse import Script
+    from pipenv.cmdparse import Script, ScriptEmptyError
 
     catch_exceptions = kwargs.pop("catch_exceptions", True)
-    if isinstance(cmd, ((str,), list, tuple)):
+    if isinstance(cmd, str):
         cmd = Script.parse(cmd)
+    elif isinstance(cmd, (list, tuple)):
+        # Pre-tokenized command: treat as [command, *args], not as a TOML sequence.
+        if not cmd:
+            raise ScriptEmptyError(cmd)
+        cmd = Script(str(cmd[0]), [str(a) for a in cmd[1:]])
     if not isinstance(cmd, Script):
         raise TypeError("Command input must be a string, list or tuple")
     if "env" not in kwargs:

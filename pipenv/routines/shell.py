@@ -71,6 +71,10 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
     When system=True, skip virtualenv creation and use system Python directly.
     This is useful in Docker environments where packages are installed with
     `pipenv install --system` and users want to run scripts from [scripts] section.
+
+    If the script is defined as a TOML array of command strings, each command
+    is executed in order; the sequence stops at the first non-zero exit code
+    (equivalent to shell ``&&`` chaining).
     """
 
     from pipenv.cmdparse import ScriptEmptyError
@@ -121,11 +125,18 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
 
     try:
         script = project.build_script(command, args)
-        cmd_string = cmd_list_to_shell([script.command] + script.args)
-        if project.s.is_verbose():
-            err.print(f"$ {cmd_string}", style="cyan")
     except ScriptEmptyError:
         err.print("Can't run script {0!r}-it's empty?")
+        return
+
+    if script.is_sequence:
+        _run_script_sequence(script, env, verbose=project.s.is_verbose())
+        return  # _run_script_sequence always calls sys.exit
+
+    cmd_string = cmd_list_to_shell([script.command] + script.args)
+    if project.s.is_verbose():
+        err.print(f"$ {cmd_string}", style="cyan")
+
     run_args = [project, script]
     run_kwargs = {"env": env}
     if os.name == "nt":
@@ -134,6 +145,66 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
         run_fn = do_run_posix
         run_kwargs.update({"command": command})
     run_fn(*run_args, **run_kwargs)
+
+
+def _run_script_sequence(script, env, verbose=False):
+    """Run each sub-script in a sequence, stopping on the first failure.
+
+    Unlike single-command execution (which uses ``os.execve`` on POSIX to
+    replace the process), sequential commands are run via ``subprocess.run``
+    so that control can return here between steps.
+
+    The process exits with the return code of the first failed command, or 0
+    if all commands succeeded.
+    """
+    string_env = {k: str(v) for k, v in env.items() if v is not None}
+    path = env.get("PATH", "")
+
+    for sub in script._sequence:
+        cmd_args = [sub.command] + [expandvars(arg) for arg in sub.args]
+        if verbose:
+            err.print(f"$ {cmd_list_to_shell(cmd_args)}", style="cyan")
+
+        if os.name == "nt":
+            # On Windows mirror _launch_windows_subprocess: try direct
+            # CreateProcess first, fall back to shell=True.
+            command_path = system_which(sub.command, path=path)
+            sub.cmd_args[1:] = [expandvars(arg) for arg in sub.args]
+            if command_path:
+                try:
+                    result = subprocess.run(
+                        [command_path] + sub.args, env=string_env, check=False
+                    )
+                except OSError as exc:
+                    if exc.winerror != 193:
+                        raise
+                    result = subprocess.run(
+                        sub.cmdify(), shell=True, env=string_env, check=False
+                    )
+            else:
+                result = subprocess.run(
+                    sub.cmdify(), shell=True, env=string_env, check=False
+                )
+        else:
+            command_path = system_which(sub.command, path=path)
+            if command_path:
+                result = subprocess.run(
+                    [command_path, *(expandvars(arg) for arg in sub.args)],
+                    env=string_env,
+                    check=False,
+                )
+            else:
+                result = subprocess.run(
+                    cmd_list_to_shell(cmd_args),
+                    shell=True,
+                    env=string_env,
+                    check=False,
+                )
+
+        if result.returncode != 0:
+            sys.exit(result.returncode)
+
+    sys.exit(0)
 
 
 def do_run_posix(project, script, command, env):

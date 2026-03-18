@@ -830,9 +830,8 @@ def actually_resolve_deps(
 def resolve(cmd, st, project):
     import threading
 
-    from pipenv.cmdparse import Script
-
-    c = subprocess_run(Script.parse(cmd).cmd_args, block=False, env=os.environ.copy())
+    # cmd is a pre-tokenized list (not a TOML sequence); pass it directly.
+    c = subprocess_run([str(x) for x in cmd], block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
 
     # Use threading to read from both stdout and stderr concurrently.
