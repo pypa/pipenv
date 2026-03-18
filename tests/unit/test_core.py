@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from pipenv.shells import _get_deactivate_wrapper_script
+from pipenv.shells import _get_activate_script, _get_deactivate_wrapper_script
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import warn_in_virtualenv
@@ -215,3 +215,55 @@ def test_deactivate_wrapper_script_includes_unset_pipenv_active():
     # Test nushell - returns empty for now (different paradigm)
     nu_script = _get_deactivate_wrapper_script("nu")
     assert nu_script == ""
+
+
+@pytest.mark.core
+def test_get_activate_script_windows_full_path():
+    """Test that _get_activate_script handles Windows full paths with .exe extension.
+
+    On Windows, shellingham returns the full path to the shell executable, e.g.
+    'C:\\Program Files\\PowerShell\\7\\pwsh.exe'. The function must correctly
+    identify the shell from the path stem, not the endswith check.
+    See: https://github.com/pypa/pipenv/issues/6532
+    """
+    venv = "/path/to/venv"
+
+    # PowerShell 7 (pwsh) - Windows full path
+    script = _get_activate_script(
+        r"C:\Program Files\PowerShell\7\pwsh.exe", venv
+    )
+    assert ".ps1" in script
+
+    # Windows PowerShell (powershell) - Windows full path
+    script = _get_activate_script(
+        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe", venv
+    )
+    assert ".ps1" in script
+
+    # Bare shell names still work (POSIX-style)
+    script = _get_activate_script("pwsh", venv)
+    assert ".ps1" in script
+
+    script = _get_activate_script("powershell", venv)
+    assert ".ps1" in script
+
+
+@pytest.mark.core
+def test_get_deactivate_wrapper_script_windows_full_path():
+    """Test that _get_deactivate_wrapper_script handles Windows full paths with .exe extension.
+
+    See: https://github.com/pypa/pipenv/issues/6532
+    """
+    # PowerShell 7 (pwsh) - Windows full path
+    script = _get_deactivate_wrapper_script(
+        r"C:\Program Files\PowerShell\7\pwsh.exe"
+    )
+    assert "PIPENV_ACTIVE" in script
+    assert "Remove-Item" in script
+
+    # Windows PowerShell (powershell) - Windows full path
+    script = _get_deactivate_wrapper_script(
+        r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
+    )
+    assert "PIPENV_ACTIVE" in script
+    assert "Remove-Item" in script
