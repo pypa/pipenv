@@ -152,11 +152,14 @@ requests = {editable = true, git = "https://github.com/requests/requests.git", r
 
 ### Local Path Dependencies
 
-You can install packages from a local path:
+You can install packages from a local path using the `path` attribute:
 
 ```bash
 # Install a local package in editable mode
 $ pipenv install -e ./path/to/package
+
+# Install the current directory as an editable package
+$ pipenv install -e .
 ```
 
 This will be reflected in your `Pipfile`:
@@ -164,7 +167,39 @@ This will be reflected in your `Pipfile`:
 ```toml
 [packages]
 my-package = {editable = true, path = "./path/to/package"}
+# or, for the current directory:
+my-package = {editable = true, path = "."}
 ```
+
+To install a local package without editable mode:
+
+```bash
+$ pipenv install ./path/to/package
+```
+
+```toml
+[packages]
+my-package = {path = "./path/to/package"}
+```
+
+### Remote File URL Dependencies
+
+You can install packages directly from a remote URL (wheel or source distribution)
+using the `file` attribute:
+
+```bash
+$ pipenv install https://example.com/packages/my-package-1.0.tar.gz
+```
+
+This will be reflected in your `Pipfile`:
+
+```toml
+[packages]
+my-package = {file = "https://example.com/packages/my-package-1.0.tar.gz"}
+```
+
+> **`path` vs `file`**: use `path` for local filesystem locations (e.g., `.` or
+> `./libs/my-package`) and `file` for remote HTTP/HTTPS URLs.
 
 ### Platform-Specific Dependencies
 

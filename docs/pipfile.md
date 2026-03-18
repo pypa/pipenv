@@ -78,8 +78,11 @@ sentry-sdk = {version = ">=1.0.0", extras = ["flask"]}
 # Git repositories
 flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "master"}
 
-# Local paths
+# Local paths (relative filesystem path)
 my-package = { path = "./path/to/local/package" }
+
+# Remote file URLs (wheel or sdist hosted over HTTP/HTTPS)
+my-package = { file = "https://example.com/packages/my-package-1.0.tar.gz" }
 
 # Platform-specific dependencies
 gunicorn = {version = "*", markers = "sys_platform == 'linux'"}
@@ -89,7 +92,11 @@ waitress = {version = "*", markers = "sys_platform == 'win32'"}
 private-package = {version = "*", index = "private"}
 ```
 
-Local path dependencies use the `path` attribute.
+Local path dependencies use the `path` attribute, and remote file URL dependencies
+use the `file` attribute.
+
+**`path`** — a relative (or absolute) filesystem path to a local package directory
+or archive:
 
 By default, Pipenv performs a standard (non-editable) installation:
 
@@ -98,11 +105,11 @@ By default, Pipenv performs a standard (non-editable) installation:
 my-package = { path = "./path/to/local/package" }
 ```
 
-To install the package in development (editable) mode:
+To install the package in development (editable) mode (`pipenv install -e .`):
 
 ```toml
 [packages]
-my-package = { path = "./path/to/local/package", editable = true }
+my-package = { path = ".", editable = true }
 ```
 
 Editable installs mirror `pip install -e` behavior and reflect changes to
@@ -110,6 +117,17 @@ the source immediately.
 
 > Note: Older Pipenv versions implicitly treated path dependencies as
 > editable. Newer versions require `editable = true` to be explicit.
+
+**`file`** — an HTTP or HTTPS URL pointing to a remote wheel (`.whl`) or source
+distribution (`.tar.gz`, `.zip`):
+
+```toml
+[packages]
+my-package = { file = "https://example.com/packages/my-package-1.0.tar.gz" }
+```
+
+> Note: `path` is for local filesystem locations; `file` is for remote HTTP/HTTPS
+> URLs. Running `pipenv install -e .` writes `path = "."` to the Pipfile.
 
 ### Development Packages Section
 
@@ -336,9 +354,9 @@ flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "
 custom-package = {git = "https://github.com/user/repo.git", editable = true}
 ```
 
-### Local Dependencies
+### Local and Remote File Dependencies
 
-For local development of packages:
+For local development of packages, use the `path` attribute with a filesystem path:
 
 ```toml
 [packages]
@@ -347,7 +365,7 @@ my-package = { path = "./path/to/package" }
 
 This performs a regular (non-editable) installation.
 
-To install in development mode:
+To install in development (editable) mode:
 
 ```toml
 [packages]
@@ -358,6 +376,17 @@ The `editable` flag installs the package in development mode, so changes to the 
 
 > If `editable` is omitted, Pipenv will perform a standard installation
 > instead of a development install.
+
+For packages hosted at a remote URL (wheel or sdist), use the `file` attribute:
+
+```toml
+[packages]
+my-package = { file = "https://example.com/packages/my-package-1.0-py3-none-any.whl" }
+```
+
+> **`path` vs `file`**: use `path` for local filesystem locations and `file` for
+> remote HTTP/HTTPS URLs. Running `pipenv install -e .` always writes
+> `{ path = ".", editable = true }` to your Pipfile.
 
 ## Troubleshooting
 

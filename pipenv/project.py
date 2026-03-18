@@ -1255,7 +1255,10 @@ class Project:
             entry["extras"] = list(extras)
         if path_specifier:
             editable = pip_line.startswith("-e")
-            entry["file"] = unquote(
+            # Use "file" for remote HTTP/HTTPS URLs; "path" for local filesystem paths.
+            is_remote_url = path_specifier.startswith(("http:", "https:"))
+            key = "file" if is_remote_url else "path"
+            entry[key] = unquote(
                 normalize_editable_path_for_pip(path_specifier)
                 if editable
                 else str(path_specifier)
