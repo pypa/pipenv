@@ -1,5 +1,6 @@
 import os
 from tempfile import TemporaryDirectory
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -215,6 +216,186 @@ def test_deactivate_wrapper_script_includes_unset_pipenv_active():
     # Test nushell - returns empty for now (different paradigm)
     nu_script = _get_deactivate_wrapper_script("nu")
     assert nu_script == ""
+
+
+# ---------------------------------------------------------------------------
+# Tests for _parse_pip_conf_indexes (pip.conf support – GH #5710)
+# ---------------------------------------------------------------------------
+
+
+def _make_configuration(flat_conf: dict, trusted_host_map: dict | None = None):
+    """Build a minimal mock of pip's Configuration that satisfies
+    _parse_pip_conf_indexes.
+
+    :param flat_conf: dict mapping "section.key" → value, e.g.
+        ``{"global.index-url": "https://example.com/simple"}``
+    :param trusted_host_map: dict mapping "section.trusted-host" → string
+        value (space-separated if multiple hosts), used by get_value.
+    """
+    from pipenv.patched.pip._internal.exceptions import ConfigurationError
+
+    trusted_host_map = trusted_host_map or {}
+
+    configuration = MagicMock()
+    # _dictionary returns {filename: {section.key: value}}; wrap in one file
+    configuration._dictionary = {"fake_pip.conf": flat_conf}
+
+    def _get_value(key):
+        if key in flat_conf:
+            return flat_conf[key]
+        if key in trusted_host_map:
+            return trusted_host_map[key]
+        raise ConfigurationError(f"No such key - {key}")
+
+    configuration.get_value.side_effect = _get_value
+    return configuration
+
+
+class TestParsePipConfIndexes:
+    """Unit tests for _parse_pip_conf_indexes."""
+
+    def _call(self, flat_conf, trusted_host_map=None):
+        from pipenv.project import _parse_pip_conf_indexes
+
+        configuration = _make_configuration(flat_conf, trusted_host_map)
+        return _parse_pip_conf_indexes(configuration)
+
+    # ------------------------------------------------------------------
+    # index-url
+    # ------------------------------------------------------------------
+
+    def test_index_url_https_verify_ssl_true(self):
+        indexes, extras = self._call(
+            {"global.index-url": "https://pypi.example.com/simple"}
+        )
+        assert len(indexes) == 1
+        assert indexes[0]["url"] == "https://pypi.example.com/simple"
+        assert indexes[0]["verify_ssl"] is True
+        assert indexes[0]["name"] == "pip_conf_index_global"
+        assert extras == []
+
+    def test_index_url_http_verify_ssl_false(self):
+        indexes, extras = self._call(
+            {"global.index-url": "http://internal.repo/simple"}
+        )
+        assert len(indexes) == 1
+        assert indexes[0]["verify_ssl"] is False
+
+    def test_index_url_trusted_host_disables_verify_ssl(self):
+        """When the host appears in trusted-host, verify_ssl must be False."""
+        indexes, _ = self._call(
+            {"global.index-url": "https://private.repo/simple"},
+            trusted_host_map={"global.trusted-host": "private.repo"},
+        )
+        assert indexes[0]["verify_ssl"] is False
+
+    def test_index_url_trusted_host_multiple_hosts_string(self):
+        """trusted-host with space-separated hosts – only matching host disables SSL."""
+        indexes, _ = self._call(
+            {"global.index-url": "https://other.repo/simple"},
+            trusted_host_map={
+                "global.trusted-host": "private.repo other.repo yetanother.repo"
+            },
+        )
+        assert indexes[0]["verify_ssl"] is False
+
+    def test_index_url_trusted_host_newline_separated(self):
+        """trusted-host with newline-separated hosts (pip multi-line config)."""
+        indexes, _ = self._call(
+            {"global.index-url": "https://other.repo/simple"},
+            trusted_host_map={"global.trusted-host": "private.repo\nother.repo"},
+        )
+        assert indexes[0]["verify_ssl"] is False
+
+    def test_index_url_non_matching_trusted_host_keeps_verify_ssl(self):
+        """A trusted-host that does not match the index URL must not affect verify_ssl."""
+        indexes, _ = self._call(
+            {"global.index-url": "https://other.repo/simple"},
+            trusted_host_map={"global.trusted-host": "unrelated.repo"},
+        )
+        assert indexes[0]["verify_ssl"] is True
+
+    # ------------------------------------------------------------------
+    # extra-index-url
+    # ------------------------------------------------------------------
+
+    def test_extra_index_url_single(self):
+        """A single extra-index-url is returned in pip_conf_extra_indexes."""
+        indexes, extras = self._call(
+            {"global.extra-index-url": "https://extra.repo/simple"}
+        )
+        assert indexes == []
+        assert len(extras) == 1
+        assert extras[0]["url"] == "https://extra.repo/simple"
+        assert extras[0]["verify_ssl"] is True
+        assert extras[0]["name"] == "pip_conf_extra_index_global"
+
+    def test_extra_index_url_multiple_space_separated(self):
+        """Multiple whitespace-separated URLs in extra-index-url become separate entries."""
+        _, extras = self._call(
+            {
+                "global.extra-index-url": (
+                    "https://repo1.example.com/simple https://repo2.example.com/simple"
+                )
+            }
+        )
+        assert len(extras) == 2
+        assert extras[0]["url"] == "https://repo1.example.com/simple"
+        assert extras[0]["name"] == "pip_conf_extra_index_global_0"
+        assert extras[1]["url"] == "https://repo2.example.com/simple"
+        assert extras[1]["name"] == "pip_conf_extra_index_global_1"
+
+    def test_extra_index_url_multiple_newline_separated(self):
+        """Newline-separated URLs (pip multi-line) also expand to separate entries."""
+        _, extras = self._call(
+            {
+                "global.extra-index-url": (
+                    "https://repo1.example.com/simple\nhttps://repo2.example.com/simple"
+                )
+            }
+        )
+        assert len(extras) == 2
+
+    def test_extra_index_url_trusted_host(self):
+        """trusted-host applies to extra-index-url entries too."""
+        _, extras = self._call(
+            {"global.extra-index-url": "https://private.repo/simple"},
+            trusted_host_map={"global.trusted-host": "private.repo"},
+        )
+        assert extras[0]["verify_ssl"] is False
+
+    # ------------------------------------------------------------------
+    # Combined index-url + extra-index-url
+    # ------------------------------------------------------------------
+
+    def test_index_url_and_extra_index_url_together(self):
+        """Both index-url and extra-index-url can be present simultaneously."""
+        indexes, extras = self._call(
+            {
+                "global.index-url": "https://pypi.example.com/simple",
+                "global.extra-index-url": "https://extra.repo/simple",
+            }
+        )
+        assert len(indexes) == 1
+        assert len(extras) == 1
+        assert indexes[0]["url"] == "https://pypi.example.com/simple"
+        assert extras[0]["url"] == "https://extra.repo/simple"
+
+    # ------------------------------------------------------------------
+    # Empty / no relevant keys
+    # ------------------------------------------------------------------
+
+    def test_empty_config_returns_empty_lists(self):
+        indexes, extras = self._call({})
+        assert indexes == []
+        assert extras == []
+
+    def test_irrelevant_keys_are_ignored(self):
+        indexes, extras = self._call(
+            {"global.timeout": "60", "global.retries": "5"}
+        )
+        assert indexes == []
+        assert extras == []
 
 
 @pytest.mark.core
