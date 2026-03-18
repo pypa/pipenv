@@ -103,3 +103,13 @@ def test_pipenv_venv_in_project_set_false(monkeypatch):
 def test_pipenv_venv_in_project_unset(monkeypatch):
     monkeypatch.delenv("PIPENV_VENV_IN_PROJECT", raising=False)
     assert environments.Setting().PIPENV_VENV_IN_PROJECT is None
+
+
+def test_pipenv_default_categories_set(monkeypatch):
+    monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
+    assert environments.Setting().PIPENV_DEFAULT_CATEGORIES == "packages,dev-packages"
+
+
+def test_pipenv_default_categories_unset(monkeypatch):
+    monkeypatch.delenv("PIPENV_DEFAULT_CATEGORIES", raising=False)
+    assert environments.Setting().PIPENV_DEFAULT_CATEGORIES is None

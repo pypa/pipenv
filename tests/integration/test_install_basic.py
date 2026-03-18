@@ -90,6 +90,50 @@ tablib = "*"
         assert c.returncode == 0
 
 
+@pytest.mark.dev
+@pytest.mark.basic
+@pytest.mark.install
+def test_install_uses_default_categories_envvar(pipenv_instance_private_pypi, monkeypatch):
+    monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+six = "*"
+
+[dev-packages]
+tablib = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install")
+        assert c.returncode == 0
+        c = p.pipenv('run python -c "import tablib, six"')
+        assert c.returncode == 0
+
+
+@pytest.mark.dev
+@pytest.mark.basic
+@pytest.mark.install
+def test_install_explicit_dev_overrides_default_categories_envvar(
+    pipenv_instance_private_pypi, monkeypatch
+):
+    monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages")
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+six = "*"
+
+[dev-packages]
+tablib = "*"
+            """.strip()
+            f.write(contents)
+        c = p.pipenv("install --dev")
+        assert c.returncode == 0
+        c = p.pipenv('run python -c "import tablib, six"')
+        assert c.returncode == 0
+
+
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_with_version_req_default_operator(pipenv_instance_private_pypi):

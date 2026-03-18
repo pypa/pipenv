@@ -12,6 +12,7 @@ from pipenv.cli.options import (
     general_options,
     install_options,
     lock_options,
+    parse_categories,
     pass_state,
     pypi_mirror_option,
     python_option,
@@ -27,6 +28,7 @@ from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
 from pipenv.vendor.click import (
     Choice,
+    Context,
     argument,
     edit,
     group,
@@ -34,6 +36,7 @@ from pipenv.vendor.click import (
     pass_context,
     version_option,
 )
+from pipenv.vendor.click.core import ParameterSource
 
 with console.capture() as capture:
     console.print("[bold]pipenv[/bold]", end="")
@@ -44,6 +47,26 @@ subcommand_context = CONTEXT_SETTINGS.copy()
 subcommand_context.update({"ignore_unknown_options": True, "allow_extra_args": True})
 subcommand_context_no_interspersion = subcommand_context.copy()
 subcommand_context_no_interspersion["allow_interspersed_args"] = False
+
+
+def _apply_default_categories(ctx: Context, state) -> None:
+    categories_source = ctx.get_parameter_source("categories")
+    dev_source = ctx.get_parameter_source("dev")
+
+    explicit_sources = {
+        ParameterSource.COMMANDLINE,
+        ParameterSource.ENVIRONMENT,
+        ParameterSource.DEFAULT_MAP,
+    }
+    if categories_source in explicit_sources or dev_source in explicit_sources:
+        return
+
+    if state.installstate.categories:
+        return
+
+    default_categories = parse_categories(state.project.s.PIPENV_DEFAULT_CATEGORIES)
+    if default_categories:
+        state.installstate.categories = default_categories
 
 
 @group(cls=PipenvGroup, invoke_without_command=True, context_settings=CONTEXT_SETTINGS)
@@ -200,10 +223,13 @@ def cli(
 @site_packages_option
 @install_options
 @pass_state
-def install(state, **kwargs):
+@pass_context
+def install(ctx, state, **kwargs):
     """Installs provided packages and adds them to Pipfile,
     or (if no packages are given), installs all packages from Pipfile."""
     from pipenv.routines.install import do_install
+
+    _apply_default_categories(ctx, state)
 
     do_install(
         state.project,
@@ -234,9 +260,12 @@ def install(state, **kwargs):
 @install_options
 @upgrade_options
 @pass_state
-def upgrade(state, **kwargs):
+@pass_context
+def upgrade(ctx, state, **kwargs):
     from pipenv.routines.update import upgrade
     from pipenv.utils.project import ensure_project
+
+    _apply_default_categories(ctx, state)
 
     ensure_project(
         state.project,
@@ -284,6 +313,8 @@ def uninstall(ctx, state, all_dev=False, all=False, **kwargs):
     """Uninstalls a provided package and removes it from Pipfile."""
     from pipenv.routines.uninstall import do_uninstall
 
+    _apply_default_categories(ctx, state)
+
     pre = state.installstate.pre
 
     retcode = do_uninstall(
@@ -328,6 +359,8 @@ def lock(ctx, state, **kwargs):
     """Generates Pipfile.lock."""
     from pipenv.routines.lock import do_lock
     from pipenv.utils.project import ensure_project
+
+    _apply_default_categories(ctx, state)
 
     # Ensure that virtualenv is available.
     # Note that we don't pass clear on to ensure_project as it is also
@@ -792,6 +825,8 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     """Runs lock when no packages are specified, or upgrade, and then sync."""
     from pipenv.routines.update import do_update
 
+    _apply_default_categories(ctx, state)
+
     do_update(
         state.project,
         python=state.python,
@@ -889,6 +924,8 @@ def run_open(state, module, *args, **kwargs):
 def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
     from pipenv.routines.sync import do_sync
+
+    _apply_default_categories(ctx, state)
 
     retcode = do_sync(
         state.project,
