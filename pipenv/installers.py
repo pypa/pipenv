@@ -1,3 +1,4 @@
+import json
 import operator
 import os
 import re
@@ -231,3 +232,117 @@ class Asdf(Installer):
             timeout=self.project.s.PIPENV_INSTALL_TIMEOUT,
         )
         return c
+
+
+class PyManager(Installer):
+    """Python Install Manager (pymanager) - the official Windows Python installer.
+
+    This is the tool recommended by the Python documentation for installing and
+    managing Python versions on Windows. It is available via the ``pymanager``
+    command after installation from python.org or the Microsoft Store.
+
+    See: https://docs.python.org/3/using/windows.html#python-install-manager
+    See: https://www.python.org/downloads/release/pymanager-260/
+    See: https://github.com/python/pymanager (PEP 773)
+    """
+
+    def _find_installer(self):
+        """Find the pymanager executable on Windows.
+
+        The ``pymanager`` command is unambiguous and only available when the
+        Python Install Manager (pymanager) is installed. This is distinct from
+        the legacy ``py.exe`` launcher.
+
+        Installation locations (in order of preference):
+            1. On PATH (normal case after MSIX/MSI install).
+            2. In the WindowsApps directory (MSIX install without PATH update).
+        """
+        if os.name != "nt":
+            raise InstallerNotFound()
+
+        # The pymanager command is the unambiguous alias for Python Install Manager.
+        # Unlike ``py``, ``pymanager`` is not provided by the legacy py.exe launcher,
+        # so finding it is sufficient to confirm pymanager is available.
+        candidate = find_windows_executable("", "pymanager")
+        if (
+            candidate is not None
+            and os.path.isfile(str(candidate))
+            and os.access(str(candidate), os.X_OK)
+        ):
+            return str(candidate)
+
+        # pymanager may be installed as an MSIX but not on PATH yet.
+        # Check the WindowsApps directory where MSIX apps are registered.
+        local_app_data = os.environ.get("LOCALAPPDATA", "")
+        if local_app_data:
+            windows_apps = os.path.join(local_app_data, "Microsoft", "WindowsApps")
+            candidate = find_windows_executable(windows_apps, "pymanager")
+            if (
+                candidate is not None
+                and os.path.isfile(str(candidate))
+                and os.access(str(candidate), os.X_OK)
+            ):
+                return str(candidate)
+
+        raise InstallerNotFound()
+
+    def __str__(self):
+        return "Python Install Manager (pymanager)"
+
+    def iter_installable_versions(self):
+        """Iterate through CPython versions available for pymanager to install.
+
+        Uses ``pymanager list --online --format=jsonl`` to fetch available
+        runtimes from the online index. Each line of output is a JSON object.
+        Only standard CPython releases (PythonCore, no free-threaded or
+        architecture-specific suffixes) are yielded.
+
+        Expected JSON fields per line (based on pymanager list --format=jsonl):
+            - ``tag``: runtime tag, e.g. "3.14", "3.13t", "3.14-arm64"
+            - ``company``: publisher, e.g. "PythonCore" for official CPython
+        """
+        try:
+            c = self._run("list", "--online", "--format=jsonl")
+        except InstallerError:
+            return
+
+        for line in c.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                data = json.loads(line)
+            except (ValueError, json.JSONDecodeError):
+                continue
+
+            # Only consider PythonCore (official CPython) releases.
+            company = data.get("company", "PythonCore")
+            if company and company.lower() not in ("pythoncore", ""):
+                continue
+
+            # The "tag" field holds the version identifier (e.g., "3.14", "3.13").
+            # Skip free-threaded builds ("3.13t") and arch-specific tags ("3.14-arm64")
+            # since Version.parse will reject those non-standard suffixes.
+            tag = data.get("tag", "")
+            try:
+                version = Version.parse(tag)
+                yield version
+            except ValueError:
+                continue
+
+    def install(self, version):
+        """Install the given version with pymanager.
+
+        The version must be a ``Version`` instance representing a version
+        found in iter_installable_versions().
+        A InstallerError is raised if the pymanager command fails.
+
+        After installation, the runtime is registered via PEP 514 and is
+        discoverable by ``py --list-paths`` and pythonfinder's PyLauncherFinder
+        and WindowsRegistryFinder.
+        """
+        return self._run(
+            "install",
+            str(version),
+            timeout=self.project.s.PIPENV_INSTALL_TIMEOUT,
+        )

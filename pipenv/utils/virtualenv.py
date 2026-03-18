@@ -284,7 +284,13 @@ def ensure_python(project, python=None):
             "was not found on your system..."
         )
         # check for python installers
-        from pipenv.installers import Asdf, InstallerError, InstallerNotFound, Pyenv
+        from pipenv.installers import (
+            Asdf,
+            InstallerError,
+            InstallerNotFound,
+            Pyenv,
+            PyManager,
+        )
 
         # prefer pyenv if both pyenv and asdf are installed as it's
         # dedicated to python installs so probably the preferred
@@ -298,10 +304,24 @@ def ensure_python(project, python=None):
             with contextlib.suppress(InstallerNotFound):
                 installer = Asdf(project)
 
+        # On Windows, fall back to the Python Install Manager (pymanager) if
+        # neither pyenv nor asdf are available. pymanager is the tool recommended
+        # by the Python documentation for installing Python on Windows.
+        # See: https://docs.python.org/3/using/windows.html#python-install-manager
+        if (
+            installer is None
+            and os.name == "nt"
+            and not project.s.PIPENV_DONT_USE_PYMANAGER
+        ):
+            with contextlib.suppress(InstallerNotFound):
+                installer = PyManager(project)
+
         if not installer:
             if os.name == "nt":
                 abort(
-                    "Python was not found on your system and neither 'pyenv' nor 'asdf' could be found to install Python."
+                    "Python was not found on your system and none of 'pyenv', 'asdf', "
+                    "or 'pymanager' (Python Install Manager) could be found to install Python. "
+                    "Install pymanager from https://www.python.org/downloads/ or via the Microsoft Store."
                 )
             else:
                 abort("Neither 'pyenv' nor 'asdf' could be found to install Python.")

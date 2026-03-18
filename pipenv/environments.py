@@ -150,6 +150,14 @@ class Setting:
         Default is to install Python automatically via asdf when needed, if possible.
         """
 
+        self.PIPENV_DONT_USE_PYMANAGER = bool(
+            get_from_env("DONT_USE_PYMANAGER", check_for_negation=False)
+        )
+        """If set, Pipenv does not attempt to install Python with the Python Install Manager (pymanager) on Windows.
+
+        Default is to install Python automatically via pymanager when needed on Windows, if possible.
+        """
+
         self.PIPENV_PYENV_AUTO_INSTALL = bool(get_from_env("PYENV_AUTO_INSTALL"))
         """If set, Pipenv automatically installs missing Python versions via pyenv/asdf
         without prompting the user.
