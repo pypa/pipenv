@@ -946,9 +946,8 @@ class TestPipfileVenvInProject:
 
     def _make_project_with_pipfile(self, tmp_path, monkeypatch, pipfile_content, env_var=None):
         """Create a Project mock with parsed_pipfile from the given content."""
-        from pipenv.vendor import tomlkit
-
         from pipenv.environments import Setting
+        from pipenv.vendor import tomlkit
 
         if env_var is True:
             monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "1")
