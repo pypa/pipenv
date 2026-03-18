@@ -1,3 +1,4 @@
+import os
 from unittest.mock import MagicMock
 
 from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator
@@ -7,7 +8,7 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
     SpecifierSet as PipSpecifierSet,
 )
 from pipenv.resolver import Entry
-from pipenv.utils.dependencies import clean_resolved_dep
+from pipenv.utils.dependencies import _file_url_to_relative_path, clean_resolved_dep
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
 
@@ -95,6 +96,107 @@ def test_clean_resolved_dep_with_vcs_url_and_extras():
     assert result["example-package"]["git"] == "git+https://${GIT_USERNAME}:${GIT_PASSWORD}@github.com/username/repo.git[extra1,extra2]"
     assert result["example-package"]["ref"] == "main"
     assert result["example-package"]["extras"] == ["extra1", "extra2"]
+
+
+# ---------------------------------------------------------------------------
+# Tests for GH-6119: transitive local-file sub-dependency path normalisation
+# ---------------------------------------------------------------------------
+
+class TestFileUrlToRelativePath:
+    """Unit tests for the _file_url_to_relative_path helper."""
+
+    def test_posix_file_url_becomes_relative(self):
+        base = "/home/user/my-project"
+        url = "file:///home/user/namespace-utils"
+        result = _file_url_to_relative_path(url, base)
+        assert result == "../namespace-utils"
+
+    def test_already_relative_path_unchanged(self):
+        base = "/home/user/my-project"
+        result = _file_url_to_relative_path("../some-lib", base)
+        assert result == "../some-lib"
+
+    def test_http_url_unchanged(self):
+        url = "https://example.com/packages/pkg-1.0.tar.gz"
+        result = _file_url_to_relative_path(url, "/some/dir")
+        assert result == url
+
+    def test_non_string_input_unchanged(self):
+        assert _file_url_to_relative_path(None, "/base") is None
+        assert _file_url_to_relative_path(42, "/base") == 42
+
+    def test_nested_subdirectory(self):
+        base = "/home/user/my-project"
+        url = "file:///home/user/my-project/vendor/local-pkg"
+        result = _file_url_to_relative_path(url, base)
+        assert result == "vendor/local-pkg"
+
+
+def test_clean_resolved_dep_converts_file_url_subdep():
+    """Transitive local deps whose file:// URL is resolved by pip are
+    converted to a project-relative path in the lockfile.
+
+    Regression test for https://github.com/pypa/pipenv/issues/6119.
+    """
+    project = MagicMock()
+    project.project_directory = "/home/user/my-project"
+
+    dep = {
+        "name": "namespace-utils",
+        "file": "file:///home/user/namespace-utils",
+    }
+    result = clean_resolved_dep(project, dep)
+
+    assert "namespace-utils" in result
+    entry = result["namespace-utils"]
+    assert "file" in entry
+    # Must be a relative path, not an absolute file:// URL
+    assert not entry["file"].startswith("file://"), (
+        f"Expected a relative path but got: {entry['file']!r}"
+    )
+    assert entry["file"] == "../namespace-utils"
+
+
+def test_clean_resolved_dep_preserves_relative_file_toplevel():
+    """Already-relative file paths are not modified by the normalisation logic.
+
+    The normalisation only applies to absolute ``file://`` URLs; plain relative
+    paths (as stored by top-level Pipfile entries after get_locked_dep merges
+    the Pipfile data) must pass through unchanged.
+    """
+    project = MagicMock()
+    project.project_directory = "/home/user/my-project"
+
+    # Use is_top_level=False to avoid the unearth_hashes_for_dep code path
+    # that requires an actual filesystem path.  The normalisation logic under
+    # test runs before is_top_level is considered.
+    dep = {
+        "name": "namespace-library",
+        "file": "../namespace-library-file",
+        "editable": True,
+    }
+    result = clean_resolved_dep(project, dep, is_top_level=False)
+
+    assert "namespace-library" in result
+    entry = result["namespace-library"]
+    assert entry["file"] == "../namespace-library-file"
+    assert entry["editable"] is True
+
+
+def test_clean_resolved_dep_file_url_no_project():
+    """When project has no project_directory attribute the file:// URL is
+    stored as-is (graceful degradation, no crash).
+    """
+    dep = {
+        "name": "namespace-utils",
+        "file": "file:///home/user/namespace-utils",
+    }
+    # Use a plain dict as the project mock (no project_directory attribute)
+    result = clean_resolved_dep({}, dep)
+
+    assert "namespace-utils" in result
+    # URL is unchanged when we cannot compute a relative path
+    assert result["namespace-utils"]["file"] == "file:///home/user/namespace-utils"
 
 
 class TestPrereleaseFiltering:

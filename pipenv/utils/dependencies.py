@@ -235,6 +235,33 @@ def extract_vcs_url(vcs_url):
     return clean_url
 
 
+def _file_url_to_relative_path(file_url, base_dir):
+    """Convert an absolute ``file://`` URL to a path relative to *base_dir*.
+
+    pip resolves transitive local-file/path sub-dependencies to absolute
+    ``file://`` URLs.  The lockfile should store a relative path (matching
+    what top-level Pipfile entries carry) so it stays portable across
+    machines.  See https://github.com/pypa/pipenv/issues/6119.
+
+    Returns *file_url* unchanged when it is not a ``file://`` URL (e.g. an
+    already-relative path, an HTTP URL, or a VCS URL).
+    """
+    if not isinstance(file_url, str) or not file_url.startswith("file://"):
+        return file_url
+    from urllib.request import url2pathname
+
+    try:
+        parsed = urlparse(file_url)
+        local_path = url2pathname(parsed.path)
+        rel = os.path.relpath(local_path, base_dir)
+        # Normalise to forward slashes for cross-platform lockfile portability.
+        return rel.replace(os.sep, "/") if os.sep != "/" else rel
+    except (ValueError, TypeError):
+        # os.path.relpath raises ValueError on Windows when source and target
+        # are on different drives.  Fall back to the original URL.
+        return file_url
+
+
 def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
@@ -270,6 +297,15 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
         else:
             version = None
 
+    # Normalise absolute file:// URLs produced by pip's resolver for transitive
+    # local-file/path sub-dependencies to a project-relative path.  Top-level
+    # Pipfile entries are already overridden with their relative path by
+    # get_locked_dep(); only sub-dependencies reach here with a raw
+    # "file:///..." URL.  (GH-6119)
+    project_dir = getattr(project, "project_directory", None)
+    if project_dir and isinstance(dep.get("file"), str):
+        dep["file"] = _file_url_to_relative_path(dep["file"], project_dir)
+
     is_vcs_or_file = False
     for vcs_type in VCS_LIST:
         if vcs_type in dep:
@@ -294,8 +330,7 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
     if dependency_file_key:
         lockfile[dependency_file_key] = dep[dependency_file_key]
         is_vcs_or_file = True
-        if "editable" in dep:
-            lockfile["editable"] = dep["editable"]
+        # editable is already written above; no need to repeat here
 
     if version and not is_vcs_or_file:
         if isinstance(version, PipRequirement):
