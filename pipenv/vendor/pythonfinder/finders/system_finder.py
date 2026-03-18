@@ -57,7 +57,12 @@ class SystemFinder(PathFinder):
         venv = os.environ.get("VIRTUAL_ENV")
         if venv:
             bin_dir = "Scripts" if os.name == "nt" else "bin"
-            venv_path = Path(venv).resolve() / bin_dir
+            try:
+                venv_path = Path(venv).resolve() / bin_dir
+            except (PermissionError, OSError):
+                # resolve() can raise PermissionError on Windows for restricted
+                # system directories; fall back to a non-resolving join.
+                venv_path = Path(venv) / bin_dir
 
             # For Windows tests with Unix-style paths
             if os.name == "nt" and str(venv).startswith("/"):
