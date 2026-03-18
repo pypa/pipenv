@@ -83,7 +83,9 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
         c = p.pipenv(f"install {line}")
         assert c.returncode == 0
         assert "testpipenv" in p.pipfile["packages"]
-        assert p.pipfile["packages"]["testpipenv"]["file"] == "."
+        # Local editable installs use "path" (not "file"); "file" is for file:// URLs.
+        assert p.pipfile["packages"]["testpipenv"]["path"] == "."
+        assert p.pipfile["packages"]["testpipenv"]["editable"] is True
         assert p.pipfile["packages"]["testpipenv"]["extras"] == ["dev"]
         assert "six" in p.lockfile["default"]
 
