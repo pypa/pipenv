@@ -1007,3 +1007,113 @@ class TestPipfileVenvInProject:
         pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=False)
         assert project.is_venv_in_project() is False
+
+
+
+class TestPipfilePythonOverride:
+    """Tests for _get_pipfile_python_override and _patched_marker_environment.
+
+    See https://github.com/pypa/pipenv/issues/5908
+    """
+
+    def _make_project(self, monkeypatch, requires):
+        """Create a mock project with the given [requires] section."""
+        proj = mock.MagicMock()
+        proj.pipfile_exists = True
+        proj.parsed_pipfile = {"requires": requires} if requires else {}
+        return proj
+
+    @pytest.mark.utils
+    def test_override_python_version_only(self, monkeypatch):
+        """python_version = '3.11' should produce python_full_version = '3.11.0'."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, {"python_version": "3.11"})
+        override = _get_pipfile_python_override(proj)
+        assert override is not None
+        assert override["python_version"] == "3.11"
+        assert override["python_full_version"] == "3.11.0"
+
+    @pytest.mark.utils
+    def test_override_python_full_version(self, monkeypatch):
+        """python_full_version = '3.11.2' should be used as-is."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, {"python_full_version": "3.11.2"})
+        override = _get_pipfile_python_override(proj)
+        assert override is not None
+        assert override["python_version"] == "3.11"
+        assert override["python_full_version"] == "3.11.2"
+
+    @pytest.mark.utils
+    def test_override_wildcard_returns_none(self, monkeypatch):
+        """python_version = '*' should not produce an override."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, {"python_version": "*"})
+        override = _get_pipfile_python_override(proj)
+        assert override is None
+
+    @pytest.mark.utils
+    def test_override_no_requires_returns_none(self, monkeypatch):
+        """No [requires] section should not produce an override."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, None)
+        override = _get_pipfile_python_override(proj)
+        assert override is None
+
+    @pytest.mark.utils
+    def test_override_no_pipfile_returns_none(self, monkeypatch):
+        """No Pipfile should not produce an override."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = mock.MagicMock()
+        proj.pipfile_exists = False
+        override = _get_pipfile_python_override(proj)
+        assert override is None
+
+    @pytest.mark.utils
+    def test_patched_marker_environment_overrides_python(self):
+        """_patched_marker_environment should override python_version and
+        python_full_version in default_environment."""
+        import pipenv.patched.pip._vendor.packaging.markers as pip_markers
+        from pipenv.utils.resolver import _patched_marker_environment
+
+        override = {"python_version": "3.11", "python_full_version": "3.11.0"}
+        with _patched_marker_environment(override):
+            env = pip_markers.default_environment()
+            assert env["python_version"] == "3.11"
+            assert env["python_full_version"] == "3.11.0"
+
+        # After exit, original values should be restored.
+        env_after = pip_markers.default_environment()
+        assert env_after["python_version"] != "3.11" or sys.version_info[:2] == (3, 11)
+
+    @pytest.mark.utils
+    def test_patched_marker_environment_none_is_noop(self):
+        """_patched_marker_environment(None) should be a no-op."""
+        import pipenv.patched.pip._vendor.packaging.markers as pip_markers
+        from pipenv.utils.resolver import _patched_marker_environment
+
+        env_before = pip_markers.default_environment()
+        with _patched_marker_environment(None):
+            env_during = pip_markers.default_environment()
+        assert env_before["python_full_version"] == env_during["python_full_version"]
+
+    @pytest.mark.utils
+    def test_marker_evaluation_uses_override(self):
+        """Markers should evaluate against the overridden Python version."""
+        from pipenv.patched.pip._vendor.packaging.markers import Marker
+        from pipenv.utils.resolver import _patched_marker_environment
+
+        marker = Marker('python_full_version <= "3.11.2"')
+        override = {"python_version": "3.11", "python_full_version": "3.11.0"}
+        with _patched_marker_environment(override):
+            # 3.11.0 <= 3.11.2 → True
+            assert marker.evaluate() is True
+
+        override_high = {"python_version": "3.11", "python_full_version": "3.11.5"}
+        with _patched_marker_environment(override_high):
+            # 3.11.5 <= 3.11.2 → False
+            assert marker.evaluate() is False
