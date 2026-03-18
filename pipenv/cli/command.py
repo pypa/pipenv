@@ -229,7 +229,10 @@ def install(ctx, state, **kwargs):
     or (if no packages are given), installs all packages from Pipfile."""
     from pipenv.routines.install import do_install
 
-    _apply_default_categories(ctx, state)
+    if state.installstate.all_categories:
+        state.installstate.categories = state.project.get_package_categories()
+    else:
+        _apply_default_categories(ctx, state)
 
     do_install(
         state.project,
@@ -925,7 +928,10 @@ def sync(ctx, state, bare=False, user=False, unused=False, **kwargs):
     """Installs all packages specified in Pipfile.lock."""
     from pipenv.routines.sync import do_sync
 
-    _apply_default_categories(ctx, state)
+    if state.installstate.all_categories:
+        state.installstate.categories = state.project.get_package_categories()
+    else:
+        _apply_default_categories(ctx, state)
 
     retcode = do_sync(
         state.project,
