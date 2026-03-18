@@ -334,6 +334,19 @@ waitress = {version = "*", markers = "sys_platform == 'win32'"}
 colorama = {version = "*", markers = "python_version >= '3.7'"}
 ```
 
+Pipenv also supports shorthand keys for common markers. These are equivalent to using the full `markers` syntax:
+
+```toml
+[packages]
+# Shorthand form — these marker keys are recognized directly:
+gunicorn = {version = "*", sys_platform = "== 'linux'"}
+arm-optimized = {version = "*", platform_machine = "== 'arm64'"}
+```
+
+All [PEP 508 environment marker](https://peps.python.org/pep-0508/#environment-markers) keys are supported, including `sys_platform`, `platform_machine`, `platform_system`, `os_name`, `python_version`, `python_full_version`, `platform_python_implementation`, and `implementation_name`.
+
+For more details and architecture-specific examples, see [Platform-Specific Dependencies](specifiers.md#platform-specific-dependencies).
+
 ### Package Extras
 
 Many packages provide optional features as "extras":

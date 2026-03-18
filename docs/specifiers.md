@@ -217,6 +217,53 @@ This will be reflected in your `Pipfile`:
 pywinusb = {version = "*", markers = "sys_platform == 'win32'"}
 ```
 
+#### Shorthand Marker Keys
+
+In addition to the full `markers` syntax, Pipenv supports shorthand keys for common markers directly in Pipfile entries:
+
+```toml
+[packages]
+# These two forms are equivalent:
+pywinusb = {version = "*", markers = "sys_platform == 'win32'"}
+pywinusb = {version = "*", sys_platform = "== 'win32'"}
+
+# Platform-specific using platform_machine:
+special-arm-lib = {version = "*", platform_machine = "== 'arm64'"}
+
+# macOS-only dependency:
+pyobjc = {version = "*", sys_platform = "== 'darwin'"}
+```
+
+Any key from the [PEP 508 environment markers](https://peps.python.org/pep-0508/#environment-markers) can be used as a shorthand.
+
+#### Architecture-Specific Dependencies
+
+Use the `platform_machine` marker to target specific CPU architectures:
+
+```toml
+[packages]
+# Only install on ARM64 (e.g., Apple Silicon Macs, ARM Linux)
+arm-optimized = {version = "*", platform_machine = "== 'arm64'"}
+
+# Only install on x86_64 systems
+x86-optimized = {version = "*", platform_machine = "== 'x86_64'"}
+
+# macOS on Apple Silicon only
+macos-arm = {version = "*", markers = "sys_platform == 'darwin' and platform_machine == 'arm64'"}
+```
+
+Common `platform_machine` values:
+- `x86_64` — 64-bit Intel/AMD (Linux, macOS)
+- `arm64` — ARM 64-bit (Apple Silicon macOS)
+- `aarch64` — ARM 64-bit (Linux)
+- `AMD64` — 64-bit Intel/AMD (Windows)
+
+> **Note:** `platform_machine` controls *whether* a package is installed based on the
+> current machine's architecture. It does not control *which wheel variant* pip selects
+> (e.g., it cannot force pip to choose a `universal2` wheel over an `arm64` wheel).
+> To install a specific wheel file, use the `file` or `path` attribute instead — see
+> [Local and Remote File Dependencies](pipfile.md#local-and-remote-file-dependencies).
+
 ### Python Version-Specific Dependencies
 
 You can specify dependencies that are only needed for certain Python versions:
@@ -240,7 +287,8 @@ Common markers include:
 - `python_version`: Python version in 'X.Y' format
 - `python_full_version`: Python version in 'X.Y.Z' format
 - `sys_platform`: Platform name (e.g., 'win32', 'linux', 'darwin')
-- `platform_machine`: Machine type (e.g., 'x86_64', 'i386')
+- `platform_machine`: Machine type (e.g., 'x86_64', 'arm64', 'aarch64', 'AMD64')
+- `platform_system`: Operating system name (e.g., 'Linux', 'Darwin', 'Windows')
 - `platform_python_implementation`: Python implementation (e.g., 'CPython', 'PyPy')
 - `os_name`: Name of the operating system (e.g., 'posix', 'nt')
 
