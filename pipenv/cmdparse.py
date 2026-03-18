@@ -13,6 +13,13 @@ class ScriptParseError(ValueError):
     pass
 
 
+# Matches a shell-style inline environment variable assignment such as
+# ``FOO=bar`` or ``MY_VAR=hello world`` (after shlex has stripped quotes).
+# The name must be a valid POSIX identifier: letter/underscore, then
+# letters/digits/underscores.  The value may be anything (including empty).
+_ENV_VAR_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_]*)=(.*)$", re.DOTALL)
+
+
 def _quote_if_contains(value, pattern):
     if next(iter(re.finditer(pattern, value)), None):
         return '"{}"'.format(re.sub(r'(\\*)"', r'\1\1\\"', value))
@@ -151,6 +158,39 @@ class Script:
             self._sequence[-1]._parts.extend(extra_args)
         else:
             self._parts.extend(extra_args)
+
+    def with_extracted_env_vars(self):
+        """Extract leading ``KEY=value`` tokens from this script's command/args.
+
+        Handles inline environment variable assignments that precede the real
+        command, for example::
+
+            FOO=bar python script.py
+            MY_VAR=hello pytest -x
+
+        Works whether the assignment came from the command line
+        (``pipenv run FOO=bar cmd``) or from a Pipfile ``[scripts]`` entry
+        whose string began with ``KEY=value`` tokens.
+
+        Returns a ``(new_script, env_dict)`` tuple where *new_script* has the
+        env-var tokens removed and *env_dict* maps each extracted name to its
+        value string.  If no inline env vars are present the original script
+        object and an empty dict are returned unchanged.
+        """
+        parts = list(self._parts)  # [command, *args]
+        inline_env = {}
+        i = 0
+        # Leave at least one token so we never consume the real command.
+        while i < len(parts) - 1:
+            m = _ENV_VAR_RE.match(parts[i])
+            if not m:
+                break
+            inline_env[m.group(1)] = m.group(2)
+            i += 1
+        if not inline_env:
+            return self, {}
+        new_script = Script(parts[i], parts[i + 1 :])
+        return new_script, inline_env
 
     def cmdify(self):
         """Encode into a cmd-executable string.
