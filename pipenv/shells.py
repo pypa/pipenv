@@ -194,13 +194,16 @@ class Shell:
             os.environ.pop("LINES", None)
             c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
 
-        # In quiet mode, disable echo to suppress activation command output
+        # Always disable PTY echo while sending the internal setup commands
+        # (activate script + deactivate wrapper) so they are not printed on
+        # the user's terminal.  These are implementation details and should be
+        # invisible regardless of --quiet mode.
         # See: https://github.com/pypa/pipenv/issues/5954
-        if quiet:
-            try:
-                c.setecho(False)
-            except Exception:
-                pass  # setecho may not be supported on all platforms
+        #      https://github.com/pypa/pipenv/issues/6531
+        try:
+            c.setecho(False)
+        except Exception:
+            pass  # setecho may not be supported on all platforms
 
         c.sendline(_get_activate_script(self.cmd, venv))
 
@@ -212,12 +215,11 @@ class Shell:
         if args:
             c.sendline(" ".join(args))
 
-        # Re-enable echo after sending activation commands
-        if quiet:
-            try:
-                c.setecho(True)
-            except Exception:
-                pass
+        # Re-enable echo so the interactive session behaves normally.
+        try:
+            c.setecho(True)
+        except Exception:
+            pass
 
         # Handler for terminal resizing events
         # Must be defined here to have the shell process in its context, since
