@@ -9,6 +9,6 @@ pipdeptree==2.31.0
 plette==2.1.0
 ptyprocess==0.7.0
 python-dotenv==1.2.2
-pythonfinder==3.0.0
+pythonfinder==3.0.2
 shellingham==1.5.4
 tomlkit==0.14.0
