@@ -529,6 +529,22 @@ class Lockfile:
                 package_name, package_info, include_hashes=True, include_markers=True
             )
             install_req, _ = expansive_install_req_from_line(pip_line)
+            # Set markers from the lockfile entry onto install_req so that
+            # environment marker evaluation (e.g. python_version < '3.11') can
+            # be performed when deciding whether to install the package.
+            if (
+                not install_req.markers
+                and isinstance(package_info, dict)
+                and package_info.get("markers")
+            ):
+                from pipenv.patched.pip._vendor.packaging.markers import (
+                    Marker as PipMarker,
+                )
+
+                try:
+                    install_req.markers = PipMarker(package_info["markers"])
+                except Exception:
+                    pass
             yield install_req, pip_line_specified
 
     def requirements_list(self, category: str) -> List[Dict]:

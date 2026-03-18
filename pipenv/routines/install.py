@@ -604,11 +604,21 @@ def batch_install(
         sequential_deps = []
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
-    deps_to_install = [
-        (dep, pip_line)
-        for dep, pip_line in deps_to_install
-        if not project.environment.is_satisfied(dep)
-    ]
+    filtered_deps = []
+    for dep, pip_line in deps_to_install:
+        # Skip packages whose environment markers don't match the current
+        # Python environment (e.g. python_version < '3.11' on Python 3.11).
+        # This ensures pipenv install -r and pipenv sync behave consistently.
+        if dep.markers and not dep.markers.evaluate():
+            err.print(
+                f"Ignoring [bold]{dep.name}[/bold]: markers "
+                f"[yellow]{dep.markers!r}[/yellow] don't match your environment",
+                style="dim",
+            )
+            continue
+        if not project.environment.is_satisfied(dep):
+            filtered_deps.append((dep, pip_line))
+    deps_to_install = filtered_deps
     search_all_sources = project.settings.get("install_search_all_sources", False)
     sources = get_source_list(
         project,
