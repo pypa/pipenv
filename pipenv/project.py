@@ -141,6 +141,80 @@ class SourceNotFound(KeyError):
     pass
 
 
+def _parse_pip_conf_indexes(
+    configuration: Configuration,
+) -> tuple[list[dict], list[dict]]:
+    """Parse ``index-url`` and ``extra-index-url`` entries from a loaded pip
+    :class:`Configuration` object.
+
+    Returns a 2-tuple ``(pip_conf_indexes, pip_conf_extra_indexes)`` where:
+
+    * *pip_conf_indexes* – sources built from ``index-url`` keys.
+    * *pip_conf_extra_indexes* – sources built from ``extra-index-url`` keys.
+
+    Each source dict has the shape ``{"url": str, "verify_ssl": bool, "name": str}``.
+
+    The ``trusted-host`` value for a section is handled correctly whether pip
+    returns a single hostname, a whitespace/newline-separated list, or a Python
+    list (future-proof).
+    """
+    pip_conf_indexes: list[dict] = []
+    pip_conf_extra_indexes: list[dict] = []
+
+    # Build a flat merged config respecting pip's priority order (later
+    # entries, i.e. higher-priority files, override earlier ones).
+    merged_conf: dict[str, str] = {}
+    for config_dict in configuration._dictionary.values():
+        merged_conf.update(config_dict)
+
+    for section_key, value in merged_conf.items():
+        key_parts = section_key.split(".", 1)
+        if len(key_parts) <= 1:
+            continue
+        section, option = key_parts
+
+        if option not in ("index-url", "extra-index-url"):
+            continue
+
+        # Retrieve trusted-host for this section and normalise to a list of
+        # hostnames.  Pip may return a single string (possibly containing
+        # whitespace/newline-separated hostnames) or a list.
+        try:
+            trusted_hosts_raw = configuration.get_value(f"{section}.trusted-host")
+            if isinstance(trusted_hosts_raw, str):
+                trusted_hosts = trusted_hosts_raw.split()
+            else:
+                trusted_hosts = list(trusted_hosts_raw) if trusted_hosts_raw else []
+        except ConfigurationError:
+            trusted_hosts = []
+
+        if option == "index-url":
+            pip_conf_indexes.append(
+                {
+                    "url": value,
+                    "verify_ssl": not any(th in value for th in trusted_hosts)
+                    and "https://" in value,
+                    "name": f"pip_conf_index_{section}",
+                }
+            )
+        else:
+            # extra-index-url may list multiple URLs separated by whitespace
+            # or newlines (pip supports multi-line values in config files).
+            extra_urls = [u for u in value.split() if u]
+            for i, url in enumerate(extra_urls):
+                name_suffix = f"_{i}" if len(extra_urls) > 1 else ""
+                pip_conf_extra_indexes.append(
+                    {
+                        "url": url,
+                        "verify_ssl": not any(th in url for th in trusted_hosts)
+                        and "https://" in url,
+                        "name": f"pip_conf_extra_index_{section}{name_suffix}",
+                    }
+                )
+
+    return pip_conf_indexes, pip_conf_extra_indexes
+
+
 class Project:
     """docstring for Project"""
 
@@ -161,32 +235,12 @@ class Project:
         self.python_version = python_version
         self.sessions = {}  # pip requests sessions
         self.s = Setting()
-        # Load Pip configuration and get items
+        # Load Pip configuration and merge index-url / extra-index-url entries.
         self.configuration = Configuration(isolated=False, load_only=None)
         self.configuration.load()
-        pip_conf_indexes = []
-        # In pip 25.3+, _dictionary is a dict of {filename: config_dict} pairs
-        # where config_dict contains the actual key-value pairs like {"global.index-url": "..."}
-        for config_dict in self.configuration._dictionary.values():
-            for section_key, value in config_dict.items():
-                key_parts = section_key.split(".", 1)
-                if len(key_parts) > 1 and key_parts[1] == "index-url":
-                    try:
-                        trusted_hosts = self.configuration.get_value(
-                            f"{key_parts[0]}.trusted-host"
-                        )
-                    except ConfigurationError:
-                        trusted_hosts = []
-                    pip_conf_indexes.append(
-                        {
-                            "url": value,
-                            "verify_ssl": not any(
-                                trusted_host in value for trusted_host in trusted_hosts
-                            )
-                            and "https://" in value,
-                            "name": f"pip_conf_index_{key_parts[0]}",
-                        }
-                    )
+        pip_conf_indexes, pip_conf_extra_indexes = _parse_pip_conf_indexes(
+            self.configuration
+        )
 
         if pip_conf_indexes:
             self.default_source = None
@@ -212,6 +266,10 @@ class Project:
         default_sources_toml = f"[[source]]\n{tomlkit.dumps(self.default_source)}"
         for pip_conf_index in pip_conf_indexes:
             default_sources_toml += f"\n\n[[source]]\n{tomlkit.dumps(pip_conf_index)}"
+        for pip_conf_extra_index in pip_conf_extra_indexes:
+            default_sources_toml += (
+                f"\n\n[[source]]\n{tomlkit.dumps(pip_conf_extra_index)}"
+            )
         plette.pipfiles.DEFAULT_SOURCE_TOML = default_sources_toml
 
         # Hack to skip this during pipenv run, or -r.
