@@ -2,7 +2,6 @@ import pytest
 
 from pipenv.cmdparse import Script, ScriptEmptyError, ScriptParseError
 
-
 # ---------------------------------------------------------------------------
 # Single-command parse
 # ---------------------------------------------------------------------------
