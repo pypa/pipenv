@@ -133,6 +133,9 @@ def format_requirement_for_lockfile(
                 entry["editable"] = pipfile_entry["editable"]
             entry.pop("version", None)
             entry.pop("index", None)
+        # Propagate no_binary so batch_install can re-apply --no-binary on sync/install
+        if pipfile_entry.get("no_binary"):
+            entry["no_binary"] = True
 
     entry = translate_markers(entry)
     return name, entry

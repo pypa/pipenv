@@ -456,3 +456,108 @@ class TestCandidateEvaluatorPrereleases:
         assert "0.20b0" not in versions
         assert "0.50b0" in versions
         assert "0.60b0" in versions
+
+
+
+# ---------------------------------------------------------------------------
+# Tests for no_binary handling (GitHub issue #5362)
+# ---------------------------------------------------------------------------
+
+class TestNoBinaryCleanResolvedDep:
+    """Ensure clean_resolved_dep preserves the no_binary flag."""
+
+    def test_no_binary_true_is_preserved(self):
+        """no_binary = True must survive clean_resolved_dep so the lockfile
+        records it and batch_install can re-apply --no-binary."""
+        project = MagicMock()
+        project.project_directory = None
+
+        dep = {
+            "name": "cartopy",
+            "version": "==0.21.0",
+            "no_binary": True,
+        }
+        result = clean_resolved_dep(project, dep)
+
+        assert "cartopy" in result
+        assert result["cartopy"].get("no_binary") is True
+
+    def test_no_binary_false_is_not_written(self):
+        """When no_binary is falsy it should not appear in the lockfile entry."""
+        project = MagicMock()
+        project.project_directory = None
+
+        dep = {
+            "name": "requests",
+            "version": "==2.28.0",
+            "no_binary": False,
+        }
+        result = clean_resolved_dep(project, dep)
+
+        assert "no_binary" not in result.get("requests", {})
+
+    def test_no_binary_absent_is_not_written(self):
+        """When no_binary is absent it should not appear in the lockfile entry."""
+        project = MagicMock()
+        project.project_directory = None
+
+        dep = {
+            "name": "requests",
+            "version": "==2.28.0",
+        }
+        result = clean_resolved_dep(project, dep)
+
+        assert "no_binary" not in result.get("requests", {})
+
+
+class TestShouldUseNoBinary:
+    """Tests for the _should_use_no_binary helper in routines/install.py."""
+
+    def _call(self, pkg_name, extra_pip_args=None, env=None):
+        import os
+        from unittest.mock import patch
+        from pipenv.routines.install import _should_use_no_binary
+
+        env = env or {}
+        with patch.dict(os.environ, env, clear=False):
+            return _should_use_no_binary(pkg_name, extra_pip_args)
+
+    def test_extra_pip_args_space_separated(self):
+        assert self._call("cartopy", ["--no-binary", "cartopy"]) is True
+
+    def test_extra_pip_args_equals_form(self):
+        assert self._call("cartopy", ["--no-binary=cartopy"]) is True
+
+    def test_extra_pip_args_all(self):
+        assert self._call("cartopy", ["--no-binary", ":all:"]) is True
+
+    def test_extra_pip_args_comma_list_matches(self):
+        assert self._call("cartopy", ["--no-binary", "numpy,cartopy,scipy"]) is True
+
+    def test_extra_pip_args_comma_list_no_match(self):
+        assert self._call("cartopy", ["--no-binary", "numpy,scipy"]) is False
+
+    def test_extra_pip_args_different_package(self):
+        assert self._call("cartopy", ["--no-binary", "numpy"]) is False
+
+    def test_pip_no_binary_env_var_matches(self):
+        assert self._call("cartopy", env={"PIP_NO_BINARY": "cartopy"}) is True
+
+    def test_pip_no_binary_env_var_all(self):
+        assert self._call("cartopy", env={"PIP_NO_BINARY": ":all:"}) is True
+
+    def test_pip_no_binary_env_var_no_match(self):
+        assert self._call("cartopy", env={"PIP_NO_BINARY": "numpy"}) is False
+
+    def test_case_insensitive_match(self):
+        assert self._call("Cartopy", ["--no-binary", "cartopy"]) is True
+
+    def test_normalised_name_match(self):
+        # pip normalises dashes/underscores, ensure we do too
+        assert self._call("some-package", ["--no-binary", "some_package"]) is True
+
+    def test_empty_extra_pip_args(self):
+        assert self._call("cartopy", []) is False
+
+    def test_none_pkg_name(self):
+        assert self._call(None, ["--no-binary", "cartopy"]) is False
