@@ -282,8 +282,8 @@ class Entry:
             ),
             "subdirectory": self.requirement.source.subdirectory,
             "editable": self.entry_dict.get("editable", None),
-            "path": self.requirement.source.path,
-            "file": self.requirement.source.path,
+            "path": self.entry_dict.get("path"),
+            "file": self.entry_dict.get("file"),
         }
 
         # Add index if present

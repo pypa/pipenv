@@ -1,11 +1,70 @@
+from unittest.mock import MagicMock
+
 from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator
 from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 from pipenv.patched.pip._internal.models.release_control import ReleaseControl
 from pipenv.patched.pip._vendor.packaging.specifiers import (
     SpecifierSet as PipSpecifierSet,
 )
+from pipenv.resolver import Entry
 from pipenv.utils.dependencies import clean_resolved_dep
 from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+
+def _make_entry(entry_dict, category="packages"):
+    """Helper to create an Entry with mocked project/resolver dependencies."""
+    project = MagicMock()
+    project.parsed_pipfile = {category: {}}
+    resolver = MagicMock()
+    resolver.index_lookup = {}
+    return Entry(
+        name=entry_dict["name"],
+        entry_dict=entry_dict,
+        project=project,
+        resolver=resolver,
+        category=category,
+    )
+
+
+def test_entry_get_cleaned_dict_preserves_file_url():
+    """Test that file:// URLs are preserved in get_cleaned_dict.
+
+    Regression test for https://github.com/pypa/pipenv/issues/6521.
+    When a transitive dependency uses a PEP 508 file:// URL,
+    the file key must be preserved in the lockfile entry.
+    """
+    entry = _make_entry({
+        "name": "local-child-pkg",
+        "file": "file:///home/user/project/vendor/local-child-pkg",
+    })
+    cleaned = entry.get_cleaned_dict
+    assert "file" in cleaned
+    assert cleaned["file"] == "file:///home/user/project/vendor/local-child-pkg"
+    assert "version" not in cleaned  # file deps shouldn't have a version
+
+
+def test_entry_get_cleaned_dict_preserves_path():
+    """Test that path entries are preserved in get_cleaned_dict."""
+    entry = _make_entry({
+        "name": "my-local-pkg",
+        "path": "vendor/my-local-pkg",
+    })
+    cleaned = entry.get_cleaned_dict
+    assert "path" in cleaned
+    assert cleaned["path"] == "vendor/my-local-pkg"
+
+
+def test_entry_get_cleaned_dict_no_file_or_path():
+    """Test that regular PyPI packages don't get spurious file/path keys."""
+    entry = _make_entry({
+        "name": "requests",
+        "version": "==2.28.1",
+        "hashes": ["sha256:abc123"],
+    })
+    cleaned = entry.get_cleaned_dict
+    assert "file" not in cleaned
+    assert "path" not in cleaned
+    assert cleaned["version"] == "==2.28.1"
 
 
 def test_clean_resolved_dep_with_vcs_url():
