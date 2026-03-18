@@ -951,6 +951,29 @@ def actually_resolve_deps(
     return (results, hashes, resolver)
 
 
+def _is_download_status_line(line: str) -> bool:
+    """Return True if the pip stderr line reports a file download.
+
+    pip emits lines like::
+
+        Downloading torch-2.0.0-cp311-cp311-linux_x86_64.whl (726.8 MB)
+
+    to stderr during the resolution/hash-gathering phase.  We surface these
+    even in non-verbose mode so that users can see *why* pipenv appears to be
+    doing nothing for a long time instead of assuming it is frozen.
+    """
+    stripped = line.strip()
+    # Match "Downloading <name>.whl (X MB)" style messages.
+    if stripped.startswith("Downloading ") and (
+        " MB)" in stripped
+        or " kB)" in stripped
+        or " KB)" in stripped
+        or " GB)" in stripped
+    ):
+        return True
+    return False
+
+
 def resolve(cmd, st, project):
     import threading
 
@@ -974,12 +997,16 @@ def resolve(cmd, st, project):
             stdout_chunks.append(chunk)
 
     def read_stderr():
-        """Read stderr line by line, optionally printing in verbose mode."""
+        """Read stderr line by line, printing verbose output or download notices."""
         for line in iter(c.stderr.readline, ""):
             if line.rstrip():
                 stderr_lines.append(line)
                 if is_verbose:
                     st.console.print(line.rstrip())
+                elif _is_download_status_line(line):
+                    # Always show download progress so users know pipenv is not
+                    # frozen when pip is fetching a large package (issue #5718).
+                    err.print(f"  [dim]{line.rstrip()}[/dim]")
 
     # Start reader threads
     stdout_thread = threading.Thread(target=read_stdout, daemon=True)

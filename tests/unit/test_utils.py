@@ -1306,3 +1306,50 @@ class TestFormatRequirementForLockfile:
         # The important thing is that the file URL IS stored.
         assert "file" in entry
 
+
+class TestIsDownloadStatusLine:
+    """Tests for _is_download_status_line (issue #5718).
+
+    pip emits download progress lines to stderr during dependency resolution.
+    These should always be shown to users so they know pipenv isn't frozen
+    while a large package is being fetched.
+    """
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "  Downloading torch-2.0.0-cp311-cp311-linux_x86_64.whl (726.8 MB)",
+            "Downloading torch-2.0.0-cp311-cp311-linux_x86_64.whl (726.8 MB)",
+            "  Downloading requests-2.31.0-py3-none-any.whl (62.6 kB)",
+            "  Downloading numpy-1.25.0-cp311-cp311-manylinux_2_17_x86_64.whl (17.3 MB)",
+            "  Downloading model-2.0.tar.gz (1.2 GB)",
+            "  Downloading small_pkg-0.1.0-py3-none-any.whl (512 KB)",
+        ],
+    )
+    def test_recognises_download_lines(self, line):
+        from pipenv.utils.resolver import _is_download_status_line
+
+        assert _is_download_status_line(line) is True
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "line",
+        [
+            # Resolution / collection messages – not downloads
+            "Collecting torch",
+            "  Using cached torch-2.0.0-cp311-cp311-linux_x86_64.whl (726.8 MB)",
+            "Downloading",  # bare keyword, no size
+            "Downloading torch-2.0.0.whl",  # no parenthesised size
+            "Successfully installed torch-2.0.0",
+            "Building wheels for collected packages: torch",
+            "",
+            "   ",
+        ],
+    )
+    def test_ignores_non_download_lines(self, line):
+        from pipenv.utils.resolver import _is_download_status_line
+
+        assert _is_download_status_line(line) is False
+
+
