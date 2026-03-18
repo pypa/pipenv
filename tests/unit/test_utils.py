@@ -1192,7 +1192,9 @@ class TestFormatRequirementForLockfile:
 
     @pytest.mark.utils
     def test_file_url_still_works(self):
-        """Local file:// URLs should continue to work as before."""
+        """Local file:// URLs declared as a file dependency in the Pipfile
+        should continue to be stored in the lockfile.
+        """
         from pipenv.utils.locking import format_requirement_for_lockfile
 
         url = "file:///tmp/my_package-1.0.0-py3-none-any.whl"
@@ -1203,11 +1205,46 @@ class TestFormatRequirementForLockfile:
             markers_lookup={},
             index_lookup={},
             original_deps={},
-            pipfile_entries={},
+            # Simulate a Pipfile that explicitly declares this as a file dep
+            pipfile_entries={"my-package": {"file": url}},
         )
 
         assert name == "my-package"
         assert entry.get("file") == url
+
+    @pytest.mark.utils
+    def test_cached_wheel_not_stored_in_lockfile(self):
+        """Index-resolved packages whose wheel pip cached locally must NOT have
+        their cache path written as 'file' in the lockfile.  This was the root
+        cause of broken Windows CI: a win32-only package (e.g. atomicwrites)
+        locked on Linux was resolved via the local pip cache, and the cache path
+        was committed into Pipfile.lock, breaking every machine without that
+        exact cache directory.
+        """
+        from pipenv.utils.locking import format_requirement_for_lockfile
+
+        cache_path = (
+            "file:///home/user/.cache/pip/wheels/ab/cd/ef/"
+            "atomicwrites-1.4.1-py3-none-any.whl"
+        )
+        req = self._make_install_req(
+            "atomicwrites", link_url=cache_path, specifier="==1.4.1"
+        )
+
+        name, entry = format_requirement_for_lockfile(
+            req=req,
+            markers_lookup={},
+            index_lookup={},
+            original_deps={},
+            # No file/path in the Pipfile entry -> this is an index package
+            pipfile_entries={},
+        )
+
+        assert name == "atomicwrites"
+        assert "file" not in entry, (
+            "Local pip cache paths must not bleed into the lockfile"
+        )
+        assert entry.get("version") == "==1.4.1"
 
     @pytest.mark.utils
     def test_regular_pypi_package_no_file_key(self):

@@ -40,12 +40,10 @@
             "version": "==2.0.3"
         },
         "atomicwrites": {
-            "file": "../.cache/pipenv/wheels/17/5c/07/1cbbde9c113ebe939ffd48f9cf7f16e8f170f816792508d044/atomicwrites-1.4.1-py2.py3-none-any.whl",
             "hashes": [
                 "sha256:81b2c9071a49367a7f770170e5eec8cb66567cfbbc8c73d20ce5ca4a8d71cf11"
             ],
             "markers": "sys_platform == 'win32'",
-            "sys_platform": "== 'win32'",
             "version": "==1.4.1"
         },
         "attrs": {
