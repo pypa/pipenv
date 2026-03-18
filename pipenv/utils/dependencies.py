@@ -262,7 +262,9 @@ def _file_url_to_relative_path(file_url, base_dir):
         return file_url
 
 
-def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
+def clean_resolved_dep(  # noqa: PLR0912
+    project, dep, is_top_level=False, current_entry=None
+):
     from pipenv.patched.pip._vendor.packaging.requirements import (
         Requirement as PipRequirement,
     )
@@ -353,6 +355,10 @@ def clean_resolved_dep(project, dep, is_top_level=False, current_entry=None):
 
     if dep.get("extras"):
         lockfile["extras"] = sorted(dep["extras"])
+
+    # Preserve the no_binary flag so pipenv can re-apply --no-binary on future installs
+    if dep.get("no_binary"):
+        lockfile["no_binary"] = True
 
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path

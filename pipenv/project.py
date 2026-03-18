@@ -1257,7 +1257,7 @@ class Project:
         self.write_toml(parsed)
 
     def generate_package_pipfile_entry(
-        self, package, pip_line, category=None, index_name=None
+        self, package, pip_line, category=None, index_name=None, no_binary=False
     ):
         """Generate a package entry from pip install line
         given the installreq package and the pip line that generated it.
@@ -1343,16 +1343,22 @@ class Project:
         if package.markers:
             entry["markers"] = str(package.markers)
 
+        # Store no_binary flag so pipenv re-applies --no-binary on future installs
+        if no_binary:
+            entry["no_binary"] = True
+
         if len(entry) == 1 and "version" in entry:
             return name, normalized_name, specifier
         else:
             return name, normalized_name, entry
 
-    def add_package_to_pipfile(self, package, pip_line, dev=False, category=None):
+    def add_package_to_pipfile(
+        self, package, pip_line, dev=False, category=None, no_binary=False
+    ):
         category = category if category else "dev-packages" if dev else "packages"
 
         name, normalized_name, entry = self.generate_package_pipfile_entry(
-            package, pip_line, category=category
+            package, pip_line, category=category, no_binary=no_binary
         )
 
         return self.add_pipfile_entry_to_pipfile(

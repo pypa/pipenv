@@ -27,6 +27,57 @@ from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 
 
+def _should_use_no_binary(pkg_name, extra_pip_args):
+    """Return True if --no-binary should be recorded in the Pipfile for pkg_name.
+
+    Checks both ``extra_pip_args`` (e.g. ``["--no-binary", "cartopy"]``) and the
+    ``PIP_NO_BINARY`` environment variable (e.g. ``PIP_NO_BINARY=cartopy``).
+    """
+    if not pkg_name:
+        return False
+
+    # Normalise the name the same way pip does internally so that
+    # "Cartopy", "cartopy", and "cartopy" all match.
+    def _normalise(name):
+        return name.lower().replace("-", "_").replace(".", "_")
+
+    pkg_norm = _normalise(pkg_name)
+
+    def _name_matches(value):
+        """Return True if value is ':all:' or contains pkg_name."""
+        if value.strip() == ":all:":
+            return True
+        return any(
+            _normalise(part.strip()) == pkg_norm
+            for part in value.split(",")
+            if part.strip()
+        )
+
+    # Check extra_pip_args
+    if extra_pip_args:
+        i = 0
+        while i < len(extra_pip_args):
+            arg = extra_pip_args[i]
+            if arg == "--no-binary" and i + 1 < len(extra_pip_args):
+                if _name_matches(extra_pip_args[i + 1]):
+                    return True
+                i += 2
+            elif arg.startswith("--no-binary="):
+                val = arg.split("=", 1)[1]
+                if _name_matches(val):
+                    return True
+                i += 1
+            else:
+                i += 1
+
+    # Check PIP_NO_BINARY environment variable
+    pip_no_binary = os.environ.get("PIP_NO_BINARY", "")
+    if pip_no_binary and _name_matches(pip_no_binary):
+        return True
+
+    return False
+
+
 def handle_new_packages(
     project,
     packages,
@@ -80,16 +131,24 @@ def handle_new_packages(
                     sys.exit(1)
 
                 try:
+                    no_binary = _should_use_no_binary(
+                        pkg_requirement.name if pkg_requirement else None,
+                        extra_pip_args,
+                    )
                     if pipfile_categories:
                         for category in pipfile_categories:
                             added, cat, normalized_name = project.add_package_to_pipfile(
-                                pkg_requirement, pkg_line, dev, category
+                                pkg_requirement,
+                                pkg_line,
+                                dev,
+                                category,
+                                no_binary=no_binary,
                             )
                             if added:
                                 new_packages.append((normalized_name, cat))
                     else:
                         added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, pkg_line, dev
+                            pkg_requirement, pkg_line, dev, no_binary=no_binary
                         )
                         if added:
                             new_packages.append((normalized_name, cat))
@@ -602,6 +661,19 @@ def batch_install(
 ):
     if sequential_deps is None:
         sequential_deps = []
+
+    # Collect packages that require --no-binary from the lockfile / pipfile section.
+    # This ensures that packages installed via "pipenv install" from an existing
+    # Pipfile/lockfile honour the no_binary flag that was recorded at install time.
+    no_binary_packages = [
+        pkg_name
+        for pkg_name, entry in lockfile_section.items()
+        if isinstance(entry, dict) and entry.get("no_binary")
+    ]
+    if no_binary_packages:
+        extra_pip_args = list(extra_pip_args or [])
+        extra_pip_args += ["--no-binary", ",".join(no_binary_packages)]
+
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     filtered_deps = []
