@@ -938,3 +938,73 @@ class TestPythonVersionMatchesRequired:
         from pipenv.utils.project import _python_version_matches_required
 
         assert _python_version_matches_required(actual, required) is expected
+
+
+
+class TestPipfileVenvInProject:
+    """Tests for the [pipenv] venv_in_project Pipfile directive."""
+
+    def _make_project_with_pipfile(self, tmp_path, monkeypatch, pipfile_content, env_var=None):
+        """Create a Project mock with parsed_pipfile from the given content."""
+        import tomlkit
+
+        from pipenv.environments import Setting
+
+        if env_var is True:
+            monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "1")
+        elif env_var is False:
+            monkeypatch.setenv("PIPENV_VENV_IN_PROJECT", "0")
+        else:
+            monkeypatch.delenv("PIPENV_VENV_IN_PROJECT", raising=False)
+
+        parsed = tomlkit.parse(pipfile_content)
+        project = mock.MagicMock()
+        project.s = Setting()
+        project.parsed_pipfile = parsed
+        project.pipfile_exists = True
+        project.project_directory = str(tmp_path)
+
+        # Bind real methods to the mock
+        from pipenv.project import Project
+
+        project._pipfile_venv_in_project = Project._pipfile_venv_in_project.__get__(project)
+        project.is_venv_in_project = Project.is_venv_in_project.__get__(project)
+
+        return project
+
+    @pytest.mark.utils
+    def test_pipfile_venv_in_project_true(self, tmp_path, monkeypatch):
+        """When [pipenv] venv_in_project = true in Pipfile, is_venv_in_project returns True."""
+        pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
+        project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
+        assert project._pipfile_venv_in_project() is True
+        assert project.is_venv_in_project() is True
+
+    @pytest.mark.utils
+    def test_pipfile_venv_in_project_false(self, tmp_path, monkeypatch):
+        """When [pipenv] venv_in_project = false in Pipfile, is_venv_in_project returns False."""
+        pipfile = '[pipenv]\nvenv_in_project = false\n\n[packages]\n\n[dev-packages]\n'
+        project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
+        assert project._pipfile_venv_in_project() is False
+        assert project.is_venv_in_project() is False
+
+    @pytest.mark.utils
+    def test_pipfile_venv_in_project_not_set(self, tmp_path, monkeypatch):
+        """When [pipenv] section has no venv_in_project, _pipfile_venv_in_project returns None."""
+        pipfile = '[packages]\n\n[dev-packages]\n'
+        project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
+        assert project._pipfile_venv_in_project() is None
+
+    @pytest.mark.utils
+    def test_env_var_true_overrides_pipfile_false(self, tmp_path, monkeypatch):
+        """Environment variable PIPENV_VENV_IN_PROJECT=1 overrides Pipfile venv_in_project=false."""
+        pipfile = '[pipenv]\nvenv_in_project = false\n\n[packages]\n\n[dev-packages]\n'
+        project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=True)
+        assert project.is_venv_in_project() is True
+
+    @pytest.mark.utils
+    def test_env_var_false_overrides_pipfile_true(self, tmp_path, monkeypatch):
+        """Environment variable PIPENV_VENV_IN_PROJECT=0 overrides Pipfile venv_in_project=true."""
+        pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
+        project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=False)
+        assert project.is_venv_in_project() is False
