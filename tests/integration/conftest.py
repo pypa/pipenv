@@ -213,6 +213,21 @@ class _PipenvInstance:
         return self
 
     def __exit__(self, *args):
+        # Clean up the virtualenv before removing the project directory,
+        # otherwise orphaned virtualenvs accumulate in WORKON_HOME.
+        if self.path:
+            try:
+                c = self.run_command("pipenv --rm")
+                if c.returncode != 0:
+                    # If pipenv --rm fails, try to find and remove the venv directly
+                    c = self.run_command("pipenv --venv")
+                    if c.returncode == 0:
+                        venv_loc = c.stdout.strip()
+                        if venv_loc and os.path.isdir(venv_loc):
+                            shutil.rmtree(venv_loc, ignore_errors=True)
+            except Exception:
+                pass
+
         if self.pipfile_path:
             with contextlib.suppress(OSError):
                 os.remove(self.pipfile_path)
