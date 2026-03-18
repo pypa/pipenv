@@ -974,12 +974,27 @@ def _is_download_status_line(line: str) -> bool:
     return False
 
 
-def resolve(cmd, st, project):
+def _is_transient_resolution_failure(errors: str) -> bool:
+    """Return True if the resolution failure looks transient and worth retrying.
+
+    Genuine dependency conflicts (ResolutionImpossible) will not benefit from
+    a retry, but network timeouts, HTTP errors, and other transient issues may
+    resolve on a subsequent attempt.  When the error output does not contain a
+    known non-retryable marker we assume the failure *is* transient (e.g. the
+    resolver subprocess crashed or was killed without producing a clear error).
+    """
+    non_retryable_markers = [
+        "ResolutionImpossible",
+    ]
+    return not any(marker in errors for marker in non_retryable_markers)
+
+
+def _run_resolve_subprocess(cmd, st, is_verbose):
+    """Run the resolver subprocess once and return a CompletedProcess."""
     import threading
 
     # cmd is a pre-tokenized list (not a TOML sequence); pass it directly.
     c = subprocess_run([str(x) for x in cmd], block=False, env=os.environ.copy())
-    is_verbose = project.s.is_verbose()
 
     # Use threading to read from both stdout and stderr concurrently.
     # This prevents deadlocks when the subprocess writes a lot of data to stdout,
@@ -1024,20 +1039,44 @@ def resolve(cmd, st, project):
     out = "".join(stdout_chunks)
     errors = "".join(stderr_lines)
 
-    if returncode != 0:
+    return subprocess.CompletedProcess(c.args, returncode, out, errors)
+
+
+def resolve(cmd, st, project):
+    max_retries = project.s.PIPENV_MAX_RETRIES
+    is_verbose = project.s.is_verbose()
+
+    for attempt in range(1 + max_retries):
+        c = _run_resolve_subprocess(cmd, st, is_verbose)
+
+        if c.returncode == 0:
+            if is_verbose:
+                err.print(c.stdout.strip())
+            return c
+
+        # Resolution failed — decide whether to retry
+        if attempt < max_retries and _is_transient_resolution_failure(c.stderr):
+            delay = 2 ** (attempt + 1)  # 2s, 4s, 8s, ...
+            err.print(
+                f"[yellow]Locking failed (attempt {attempt + 1}/{1 + max_retries}), "
+                f"retrying in {delay}s...[/yellow]"
+            )
+            if is_verbose and c.stderr:
+                err.print(c.stderr)
+            time.sleep(delay)
+            continue
+
+        # Final failure — no more retries
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         if not is_verbose:
-            err.print(errors)
-            if errors and "ResolutionImpossible" in errors:
+            err.print(c.stderr)
+            if c.stderr and "ResolutionImpossible" in c.stderr:
                 err.print(
                     "[cyan]Hint:[/cyan] Re-run with [yellow]--verbose[/yellow] "
                     "to see the full dependency resolution output and identify "
                     "which packages are in conflict."
                 )
         raise ResolutionFailure("Failed to lock Pipfile.lock!")
-    if is_verbose:
-        err.print(out.strip())
-    return subprocess.CompletedProcess(c.args, returncode, out, errors)
 
 
 def venv_resolve_deps(

@@ -1353,3 +1353,41 @@ class TestIsDownloadStatusLine:
         assert _is_download_status_line(line) is False
 
 
+class TestIsTransientResolutionFailure:
+    """Tests for _is_transient_resolution_failure.
+
+    The function decides whether a failed resolution subprocess should be
+    retried.  Genuine dependency conflicts (ResolutionImpossible) should
+    NOT be retried, while network errors and other transient failures should.
+    """
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "errors",
+        [
+            "ConnectionError: connection refused",
+            "ReadTimeoutError: timed out",
+            "SSLError: certificate verify failed",
+            "pip._vendor.urllib3.exceptions.NewConnectionError",
+            "requests.exceptions.ConnectionError",
+            "",  # empty stderr — resolver crashed without output
+            "Some unknown error occurred",
+        ],
+    )
+    def test_transient_failures_are_retryable(self, errors):
+        from pipenv.utils.resolver import _is_transient_resolution_failure
+
+        assert _is_transient_resolution_failure(errors) is True
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "errors",
+        [
+            "ResolutionImpossible: cannot resolve foo>=2.0 and bar<1.0",
+            "ERROR: ResolutionImpossible\nsome extra context",
+        ],
+    )
+    def test_resolution_impossible_is_not_retryable(self, errors):
+        from pipenv.utils.resolver import _is_transient_resolution_failure
+
+        assert _is_transient_resolution_failure(errors) is False
