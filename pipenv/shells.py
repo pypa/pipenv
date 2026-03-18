@@ -39,19 +39,26 @@ def _get_activate_script(cmd, venv):
     # Suffix and source command for various shells.
     command = "source"
 
-    if cmd.endswith("fish"):
+    # Extract the shell executable name from the path, handling both POSIX
+    # forward-slash paths and Windows backslash paths on any host OS.
+    # e.g. "C:\Program Files\PowerShell\7\pwsh.exe" -> "pwsh"
+    #      "/usr/bin/zsh"                            -> "zsh"
+    # See: https://github.com/pypa/pipenv/issues/6532
+    shell_name = re.split(r"[\\/]", cmd)[-1].split(".")[0].lower()
+
+    if shell_name == "fish":
         suffix = ".fish"
-    elif cmd.endswith("csh"):
+    elif shell_name in ("csh", "tcsh"):
         suffix = ".csh"
-    elif cmd.endswith("xonsh"):
+    elif shell_name == "xonsh":
         suffix = ".xsh"
-    elif cmd.endswith("nu"):
+    elif shell_name == "nu":
         suffix = ".nu"
         command = "overlay use"
-    elif cmd.endswith(("pwsh", "powershell")):
+    elif shell_name in ("pwsh", "powershell"):
         suffix = ".ps1"
         command = "."
-    elif cmd.endswith(("sh", "bash", "zsh")):
+    elif shell_name in ("sh", "bash", "zsh", "dash", "ash", "ksh"):
         suffix = ""
     else:
         sys.exit(f"unknown shell {cmd}")
@@ -76,48 +83,55 @@ def _get_deactivate_wrapper_script(cmd):
     PIPENV_ACTIVE environment variable is also cleared, allowing subsequent
     'pipenv shell' commands to work without the 'already activated' error.
     """
-    if cmd.endswith("fish"):
+    # Extract the shell executable name from the path, handling both POSIX
+    # forward-slash paths and Windows backslash paths on any host OS.
+    # e.g. "C:\Program Files\PowerShell\7\pwsh.exe" -> "pwsh"
+    #      "/usr/bin/zsh"                            -> "zsh"
+    # See: https://github.com/pypa/pipenv/issues/6532
+    shell_name = re.split(r"[\\/]", cmd)[-1].split(".")[0].lower()
+
+    if shell_name == "fish":
         # Fish shell uses 'functions' and 'set -e' to unset variables
         return (
             "functions -c deactivate _pipenv_old_deactivate; "
             "function deactivate; _pipenv_old_deactivate; set -e PIPENV_ACTIVE; end"
         )
-    elif cmd.endswith("csh"):
+    elif shell_name in ("csh", "tcsh"):
         # C shell uses 'unsetenv'
         return (
             "alias _pipenv_old_deactivate deactivate; "
             "alias deactivate '_pipenv_old_deactivate; unsetenv PIPENV_ACTIVE'"
         )
-    elif cmd.endswith("xonsh"):
+    elif shell_name == "xonsh":
         # Xonsh uses Python-like syntax
         return (
             "_pipenv_old_deactivate = deactivate; "
             "def deactivate(): _pipenv_old_deactivate(); del $PIPENV_ACTIVE"
         )
-    elif cmd.endswith("nu"):
+    elif shell_name == "nu":
         # Nushell - deactivate is typically handled differently
         # For now, return empty as nu has different paradigm
         return ""
-    elif cmd.endswith(("pwsh", "powershell")):
+    elif shell_name in ("pwsh", "powershell"):
         # PowerShell
         return (
             "$_pipenv_old_deactivate = $function:deactivate; "
             "function deactivate { & $_pipenv_old_deactivate; "
             "Remove-Item Env:PIPENV_ACTIVE -ErrorAction SilentlyContinue }"
         )
-    elif cmd.endswith("zsh"):
+    elif shell_name == "zsh":
         # Zsh uses 'functions -c' to copy function definitions
         return (
             "functions -c deactivate _pipenv_old_deactivate; "
             "deactivate() { _pipenv_old_deactivate; unset PIPENV_ACTIVE; }"
         )
-    elif cmd.endswith("bash"):
+    elif shell_name == "bash":
         # Bash uses 'declare -f' to copy function definitions
         return (
             'eval "_pipenv_old_deactivate() { $(declare -f deactivate | tail -n +2) }"; '
             "deactivate() { _pipenv_old_deactivate; unset PIPENV_ACTIVE; }"
         )
-    elif cmd.endswith("sh"):
+    elif shell_name in ("sh", "dash", "ash", "ksh"):
         # Plain POSIX sh doesn't have 'declare -f', use a simpler approach
         # Just redefine deactivate to call the original via sourcing and add unset
         return "deactivate() { command deactivate 2>/dev/null; unset PIPENV_ACTIVE; }"
