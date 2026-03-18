@@ -847,7 +847,7 @@ class Factory:
             + "the dependency conflict\n"
         )
 
-        logger.info(msg)
+        logger.critical(msg)
 
         return DistributionNotFound(
             "ResolutionImpossible: for help visit "
