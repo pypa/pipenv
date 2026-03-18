@@ -466,6 +466,7 @@ def _resolve_and_update_lockfile(
         pre=pre,
         allow_global=system,
         pypi_mirror=pypi_mirror,
+        pipfile=requested_packages[pipfile_category],
     )
 
     if not upgrade_lock_data:
@@ -484,6 +485,7 @@ def _resolve_and_update_lockfile(
         pre=pre,
         allow_global=system,
         pypi_mirror=pypi_mirror,
+        pipfile=complete_packages,
     )
 
     # Update lockfile with verified resolution data
@@ -649,6 +651,7 @@ def upgrade(
                 pre=pre,
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
+                pipfile=complete_packages,
             )
             category_resolutions[category] = full_lock_resolution
 
