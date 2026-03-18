@@ -819,7 +819,12 @@ def audit(
 @cli.command(short_help="Runs lock, then sync.", context_settings=CONTEXT_SETTINGS)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--outdated", is_flag=True, default=False, help="List out-of-date dependencies.")
-@option("--dry-run", is_flag=True, default=None, help="List out-of-date dependencies.")
+@option(
+    "--dry-run",
+    is_flag=True,
+    default=None,
+    help="List packages that would be updated without actually updating.",
+)
 @install_options
 @upgrade_options
 @pass_state
