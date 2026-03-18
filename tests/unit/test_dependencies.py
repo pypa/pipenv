@@ -515,8 +515,9 @@ class TestShouldUseNoBinary:
 
     def _call(self, pkg_name, extra_pip_args=None, env=None):
         import os
-        from pipenv.routines.install import _should_use_no_binary
         from unittest.mock import patch
+
+        from pipenv.routines.install import _should_use_no_binary
 
         env = env or {}
         with patch.dict(os.environ, env, clear=False):
