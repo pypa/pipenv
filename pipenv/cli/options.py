@@ -89,6 +89,12 @@ class LockOptions:
 pass_state = make_pass_decorator(State, ensure=True)
 
 
+def parse_categories(value):
+    if not value:
+        return []
+    return [category for category in re.split(r", *| ", value) if category]
+
+
 def index_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -164,7 +170,7 @@ def categories_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
         if value:
-            state.installstate.categories += re.split(r", *| ", value)
+            state.installstate.categories += parse_categories(value)
         return value
 
     return option(

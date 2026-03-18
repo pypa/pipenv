@@ -1,7 +1,9 @@
 import pytest
 
+from pipenv.cli import cli
 from pipenv.project import Project
 from pipenv.routines.update import get_modified_pipfile_entries
+from pipenv.vendor.click.testing import CliRunner
 
 
 @pytest.mark.parametrize("cmd_option", ["", "--dev"])
@@ -17,6 +19,23 @@ def test_update_outdated_with_outdated_package(pipenv_instance_private_pypi, cmd
         p.pipenv(f"install {cmd_option} {package_name}==1.11")
         c = p.pipenv(f"update {package_name} {cmd_option} --outdated")
         assert f"Package '{package_name}' out-of-date:" in c.stdout
+
+
+@pytest.mark.update
+def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, monkeypatch):
+    captured = {}
+
+    def fake_do_update(project, **kwargs):
+        captured["categories"] = kwargs["categories"]
+
+    monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
+    monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
+    with pipenv_instance_private_pypi() as p:
+        cli_runner = CliRunner()
+        result = cli_runner.invoke(cli, ["update", "six"])
+
+    assert result.exit_code == 0, result.output
+    assert captured["categories"] == ["packages", "dev-packages"]
 
 
 def test_get_modified_pipfile_entries_new_package(pipenv_instance_pypi):

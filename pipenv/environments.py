@@ -126,6 +126,15 @@ class Setting:
         this configuration.
         """
 
+        self.PIPENV_DEFAULT_CATEGORIES = get_from_env(
+            "DEFAULT_CATEGORIES", check_for_negation=False
+        )
+        """Comma- or space-delimited default dependency categories.
+
+        When set, category-aware commands can use these categories when neither
+        ``--categories`` nor ``--dev`` was explicitly provided.
+        """
+
         self.PIPENV_DONT_LOAD_ENV = bool(
             get_from_env("DONT_LOAD_ENV", check_for_negation=False)
         )
