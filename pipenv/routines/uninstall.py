@@ -85,22 +85,11 @@ def do_uninstall(
             "Un-installing all packages...",
             style="bold",
         )
-        # Uninstall all packages from all groups
-        for category in project.get_package_categories():
-            if category in ["source", "requires"]:
-                continue
-            for package in project.get_pipfile_section(category):
-                _uninstall_from_environment(project, package, system=system)
-
-        # Clear all categories in the lockfile
-        for category in list(lockfile_content.keys()):
-            if category != "_meta":
-                lockfile_content[category] = {}
-
-        lockfile_content.update({"_meta": project.get_lockfile_meta()})
-        project.write_lockfile(lockfile_content)
-
-        # Call do_purge to remove all packages from the environment
+        # Purge all packages from the virtualenv without touching Pipfile or
+        # Pipfile.lock.  The --all flag is documented as "Purge all package(s)
+        # from virtualenv. Does not edit Pipfile." — the lockfile must also be
+        # left intact so that a subsequent `pipenv install` (or `pipenv sync`)
+        # can restore exactly the same environment from the existing lock data.
         do_purge(project, bare=False, downloads=False, allow_global=system)
         return
 

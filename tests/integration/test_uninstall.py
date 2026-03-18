@@ -95,12 +95,22 @@ def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
         ).as_uri()
         c = p.pipenv(f"install {file_uri}")
         assert c.returncode == 0
+        # Capture the lockfile content *before* the purge so we can compare after.
+        lockfile_before = p.lockfile
+        assert "tablib" in lockfile_before["default"], "tablib should be locked before --all"
+
         c = p.pipenv("uninstall --all")
         assert c.returncode == 0
         assert "tablib" in c.stdout
         # Uninstall --all is not supposed to remove things from the pipfile
         # Note that it didn't before, but that instead local filenames showed as hashes
         assert "tablib" in p.pipfile["packages"]
+        # Pipfile.lock must be left completely intact so that a subsequent
+        # `pipenv install` / `pipenv sync` can restore the same environment.
+        # Regression test for https://github.com/pypa/pipenv/issues/6510
+        assert p.lockfile["default"] == lockfile_before["default"], (
+            "uninstall --all must not wipe Pipfile.lock"
+        )
 
 
 @pytest.mark.install
