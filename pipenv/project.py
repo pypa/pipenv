@@ -407,10 +407,29 @@ class Project:
     def requirements_exists(self) -> bool:
         return bool(self.requirements_location)
 
+    def _pipfile_venv_in_project(self) -> bool | None:
+        """Check the [pipenv] section of the Pipfile for venv_in_project setting.
+
+        Returns True/False if explicitly set, None if not set.
+        """
+        if self.pipfile_exists:
+            value = self.parsed_pipfile.get("pipenv", {}).get("venv_in_project")
+            if value is not None:
+                return bool(value)
+        return None
+
     def is_venv_in_project(self) -> bool:
+        # Environment variable takes precedence over Pipfile setting.
         if self.s.PIPENV_VENV_IN_PROJECT is False:
             return False
-        return self.s.PIPENV_VENV_IN_PROJECT or (
+        if self.s.PIPENV_VENV_IN_PROJECT is True:
+            return True
+        # If env var is not set, check Pipfile [pipenv] section.
+        pipfile_setting = self._pipfile_venv_in_project()
+        if pipfile_setting is not None:
+            return pipfile_setting
+        # Fall back to auto-detection of .venv directory.
+        return bool(
             self.project_directory and Path(self.project_directory, ".venv").is_dir()
         )
 
@@ -451,7 +470,10 @@ class Project:
                 # exists in WORKON_HOME (e.g. created before the user independently
                 # ran `python -m venv .venv`), prefer that one so that `pipenv --rm`
                 # does not accidentally remove the user-created .venv directory.
-                if not self.s.PIPENV_VENV_IN_PROJECT:
+                if (
+                    not self.s.PIPENV_VENV_IN_PROJECT
+                    and not self._pipfile_venv_in_project()
+                ):
                     workon_home_venv = get_workon_home() / self.virtualenv_name
                     if workon_home_venv.exists():
                         return workon_home_venv

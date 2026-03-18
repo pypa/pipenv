@@ -226,3 +226,63 @@ def test_venv_name_accepts_custom_name_environment_variable(pipenv_instance_pypi
             assert c.returncode == 0
             venv_path = c.stdout.strip()
             assert test_name == Path(venv_path).parts[-1]
+
+
+
+@pytest.mark.dotvenv
+def test_venv_in_project_via_pipfile_directive(pipenv_instance_pypi):
+    """Test that [pipenv] venv_in_project = true in Pipfile creates venv in project."""
+    with temp_environ():
+        os.environ.pop("PIPENV_VENV_IN_PROJECT", None)
+        with pipenv_instance_pypi() as p:
+            with open(p.pipfile_path, "w") as f:
+                f.write(
+                    """
+[pipenv]
+venv_in_project = true
+
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+""".strip()
+                )
+            c = p.pipenv("install")
+            assert c.returncode == 0
+            c = p.pipenv("--venv")
+            assert c.returncode == 0
+            assert p.path in c.stdout
+
+
+@pytest.mark.dotvenv
+def test_venv_in_project_env_var_overrides_pipfile_directive(pipenv_instance_pypi):
+    """Test that PIPENV_VENV_IN_PROJECT=0 overrides Pipfile venv_in_project=true."""
+    with temp_environ():
+        os.environ["PIPENV_VENV_IN_PROJECT"] = "0"
+        with pipenv_instance_pypi() as p:
+            with open(p.pipfile_path, "w") as f:
+                f.write(
+                    """
+[pipenv]
+venv_in_project = true
+
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+""".strip()
+                )
+            c = p.pipenv("install")
+            assert c.returncode == 0
+            c = p.pipenv("--venv")
+            assert c.returncode == 0
+            # venv should NOT be in the project directory
+            assert p.path not in c.stdout
