@@ -238,11 +238,14 @@ def exists_and_is_accessible(path: Path) -> bool:
     """
     try:
         return path.exists()
-    except PermissionError as pe:
-        if pe.errno == errno.EACCES:  # Permission denied
-            return False
-        else:
-            raise
+    except PermissionError:
+        # Treat any permission-denied error (including Windows WinError 5) as
+        # inaccessible rather than crashing.
+        return False
+    except OSError:
+        # Catch other OS-level errors (e.g. Windows ERROR_ACCESS_DENIED variants
+        # that may surface as OSError rather than PermissionError).
+        return False
 
 
 def is_in_path(path: str | Path, parent_path: str | Path) -> bool:

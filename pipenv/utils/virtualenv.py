@@ -455,6 +455,14 @@ def find_a_system_python(line):
 
     from pipenv.vendor.pythonfinder import Finder
 
+    # Short-circuit: if an absolute path was given and it exists, use it
+    # directly without scanning PATH (avoids PermissionError on restricted
+    # Windows system directories such as C:\WINDOWS\system32\config\...).
+    if line and os.path.isabs(line):
+        path_obj = Path(line)
+        if path_obj.is_file() and os.access(str(path_obj), os.X_OK):
+            return str(path_obj)
+
     finder = Finder(system=True, global_search=True)
     if not line:
         return next(iter(finder.find_all_python_versions()), None)
