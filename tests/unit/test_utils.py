@@ -779,3 +779,51 @@ class TestPipConfigurationParsing:
             assert project.default_source["url"] in [primary_index, extra_index]
         finally:
             os.chdir(original_dir)
+
+
+
+class TestPythonVersionMatchesRequired:
+    """Tests for _python_version_matches_required.
+
+    Regression coverage for https://github.com/pypa/pipenv/issues/6514:
+    the old `not in` substring check incorrectly accepted e.g. actual="3.13.11"
+    when required="3.11", because "3.11" is a substring of "3.13.11".
+    """
+
+    @pytest.mark.parametrize(
+        "actual, required, expected",
+        [
+            # --- python_version (major.minor) cases ---
+            # Exact major.minor match with a patch suffix on actual
+            ("3.11.0", "3.11", True),
+            ("3.11.5", "3.11", True),
+            # The substring-false-positive that triggered the bug report:
+            # "3.11" is a substring of "3.13.11" but they are NOT compatible.
+            ("3.13.11", "3.11", False),
+            # Additional substring traps
+            ("3.9.1", "3.9", True),
+            ("3.9.10", "3.9", True),
+            ("3.10.0", "3.1", False),   # "3.1" would match "3.1x.y" as substring
+            ("3.13.1", "3.1", False),
+            ("3.11.0", "3.1", False),
+            # Major version mismatch
+            ("2.7.18", "3.7", False),
+            ("3.7.0", "2.7", False),
+            # Same major, different minor
+            ("3.10.0", "3.11", False),
+            ("3.12.0", "3.11", False),
+            # --- python_full_version (major.minor.patch) cases ---
+            ("3.11.0", "3.11.0", True),
+            ("3.11.0", "3.11.1", False),
+            ("3.13.11", "3.11.0", False),
+            ("3.11.10", "3.11.1", False),  # "3.11.1" is substring of "3.11.10"
+            # --- Edge / guard cases ---
+            ("", "3.11", False),
+            ("3.11.0", "", False),
+            ("", "", False),
+        ],
+    )
+    def test_version_match(self, actual, required, expected):
+        from pipenv.utils.project import _python_version_matches_required
+
+        assert _python_version_matches_required(actual, required) is expected
