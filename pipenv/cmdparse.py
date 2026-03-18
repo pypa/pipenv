@@ -44,6 +44,25 @@ class Script:
     """Parse a script line (in Pipfile's [scripts] section).
 
     This always works in POSIX mode, even on Windows.
+
+    A script may be defined in any of these forms in the Pipfile ``[scripts]``
+    section:
+
+    * **String** — a single command, shell-split into tokens::
+
+        test = "pytest -x"
+
+    * **Inline table** — extended syntax for callable scripts::
+
+        check = {call = "mypackage.checks:run()"}
+
+    * **Array of strings** — a *sequence* of commands run in order; execution
+      stops at the first non-zero exit code (equivalent to ``&&`` chaining)::
+
+        lint = ["ruff check .", "ruff format --check ."]
+
+      Extra arguments supplied on the command line (``pipenv run lint --fix``)
+      are appended to the **last** command in the sequence.
     """
 
     script_types = ["call"]
@@ -52,9 +71,14 @@ class Script:
         self._parts = [command]
         if args:
             self._parts.extend(args)
+        # When the script was parsed from a TOML array, _sequence holds an
+        # ordered list of Script objects to execute one after the other.
+        self._sequence = None  # type: list[Script] | None
 
     @classmethod
     def parse(cls, value):
+        if isinstance(value, list):
+            return cls._parse_sequence(value)
         if isinstance(value, tomlkit.items.InlineTable):
             cmd_string = _parse_toml_inline_table(value)
             value = shlex.split(cmd_string)
@@ -64,7 +88,44 @@ class Script:
             raise ScriptEmptyError(value)
         return cls(value[0], value[1:])
 
+    @classmethod
+    def _parse_sequence(cls, items):
+        """Parse a TOML array of command strings into a sequential script.
+
+        Each element must be a non-empty string; it is shell-split (POSIX
+        mode) to obtain the command and its arguments.
+
+        Raises:
+            ScriptParseError: if an element is not a string.
+            ScriptEmptyError: if the list is empty or any element is blank.
+        """
+        if not items:
+            raise ScriptEmptyError(items)
+        scripts = []
+        for item in items:
+            if not isinstance(item, str):
+                raise ScriptParseError(
+                    f"Each item in a script sequence must be a string, got {type(item)!r}"
+                )
+            parts = shlex.split(item)
+            if not parts:
+                raise ScriptEmptyError(item)
+            scripts.append(cls(parts[0], parts[1:]))
+        # The outer Script mirrors the *first* sub-script's command/args so
+        # that callers that only inspect .command/.args still see something
+        # sensible (e.g. verbose logging of the first step).
+        result = cls(scripts[0].command, scripts[0].args)
+        result._sequence = scripts
+        return result
+
+    @property
+    def is_sequence(self):
+        """True when this script represents multiple sequential commands."""
+        return self._sequence is not None
+
     def __repr__(self):
+        if self._sequence is not None:
+            return f"Script(sequence={self._sequence!r})"
         return f"Script({self._parts!r})"
 
     @property
@@ -80,7 +141,16 @@ class Script:
         return self._parts
 
     def extend(self, extra_args):
-        self._parts.extend(extra_args)
+        """Append *extra_args* to the script.
+
+        For sequence scripts the extra arguments are appended to the **last**
+        command in the sequence (most useful when extra CLI flags are meant for
+        the primary/final command, e.g. ``pipenv run test -v``).
+        """
+        if self._sequence is not None:
+            self._sequence[-1]._parts.extend(extra_args)
+        else:
+            self._parts.extend(extra_args)
 
     def cmdify(self):
         """Encode into a cmd-executable string.
