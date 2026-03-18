@@ -446,6 +446,15 @@ class Project:
         # If there's no .venv in project root or it is a folder, set location based on config.
         if not dot_venv.exists() or dot_venv.is_dir():
             if self.is_venv_in_project():
+                # When PIPENV_VENV_IN_PROJECT is not explicitly set, the .venv dir
+                # was detected automatically. If a pipenv-managed virtualenv already
+                # exists in WORKON_HOME (e.g. created before the user independently
+                # ran `python -m venv .venv`), prefer that one so that `pipenv --rm`
+                # does not accidentally remove the user-created .venv directory.
+                if not self.s.PIPENV_VENV_IN_PROJECT:
+                    workon_home_venv = get_workon_home() / self.virtualenv_name
+                    if workon_home_venv.exists():
+                        return workon_home_venv
                 return dot_venv
             return get_workon_home().joinpath(self.virtualenv_name)
 
