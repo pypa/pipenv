@@ -85,8 +85,16 @@ def format_requirement_for_lockfile(
             entry["version"] = str(req.req.specifier)
         elif req.specifier:
             entry["version"] = str(req.specifier)
-        if req.link and req.link.is_file:
-            entry["file"] = req.link.url
+        if req.link:
+            if req.link.is_file:
+                entry["file"] = req.link.url
+            elif req.link.scheme in ("http", "https") and req.req and req.req.url:
+                # Handle direct URL dependencies (PEP 508 style: package @ https://...)
+                # Only when the requirement itself has a URL (req.req.url is set),
+                # NOT when the URL is simply a download link from a package index.
+                entry["file"] = req.link.url
+                entry.pop("version", None)
+                entry.pop("index", None)
     # Add index information
     if name in index_lookup:
         entry["index"] = index_lookup[name]
