@@ -98,6 +98,59 @@ class HashCacheMixin:
         return hash_value.decode("utf8")
 
 
+def _format_resolution_error(install_error):
+    """Extract and format conflict details from an InstallationError exception chain.
+
+    When pip raises an InstallationError due to a ResolutionImpossible, the original
+    ResolutionImpossible exception (with its ``causes`` list) is attached as
+    ``install_error.__cause__``. This helper traverses that chain and builds a
+    human-readable summary of the conflicting requirements so users can diagnose
+    the problem without needing to re-run with ``--verbose``.
+    """
+    base_msg = str(install_error)
+
+    # Walk the exception chain to find a ResolutionImpossible cause
+    cause = getattr(install_error, "__cause__", None)
+    resolution_impossible = None
+    while cause is not None:
+        # Import lazily to avoid circular imports at module level
+        try:
+            from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
+
+            if isinstance(cause, ResolutionImpossible):
+                resolution_impossible = cause
+                break
+        except ImportError:
+            break
+        cause = getattr(cause, "__cause__", None)
+
+    if resolution_impossible is None or not getattr(
+        resolution_impossible, "causes", None
+    ):
+        return base_msg
+
+    lines = [base_msg, "\nThe conflict is caused by:"]
+    for req_info in resolution_impossible.causes:
+        requirement = getattr(req_info, "requirement", None)
+        parent = getattr(req_info, "parent", None)
+        if requirement is None:
+            continue
+        req_str = (
+            requirement.format_for_error()
+            if hasattr(requirement, "format_for_error")
+            else str(requirement)
+        )
+        if parent is not None:
+            parent_name = getattr(parent, "name", str(parent))
+            parent_version = getattr(parent, "version", "")
+            prefix = f"    {parent_name} {parent_version} depends on "
+        else:
+            prefix = "    The user requested "
+        lines.append(prefix + req_str)
+
+    return "\n".join(lines)
+
+
 class Resolver:
     def __init__(
         self,
@@ -472,7 +525,7 @@ class Resolver:
             try:
                 results = resolver.resolve(self.constraints, check_supported_wheels=False)
             except InstallationError as e:
-                raise ResolutionFailure(message=e)
+                raise ResolutionFailure(message=_format_resolution_error(e)) from e
             else:
                 self.results = set(results.all_requirements)
                 self.resolved_tree.update(self.results)
@@ -877,6 +930,12 @@ def resolve(cmd, st, project):
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         if not is_verbose:
             err.print(errors)
+            if errors and "ResolutionImpossible" in errors:
+                err.print(
+                    "[cyan]Hint:[/cyan] Re-run with [yellow]--verbose[/yellow] "
+                    "to see the full dependency resolution output and identify "
+                    "which packages are in conflict."
+                )
         raise ResolutionFailure("Failed to lock Pipfile.lock!")
     if is_verbose:
         err.print(out.strip())

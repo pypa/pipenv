@@ -335,7 +335,8 @@ class ResolutionFailure(PipenvException):
             "mismatch in your sub-dependencies.\n"
             "You can use [yellow]$ pipenv run pip install <requirement_name>[/yellow] to bypass this mechanism, then run "
             "[yellow]$ pipenv graph[/yellow] to inspect the versions actually installed in the virtualenv.\n"
-            "Hint: try [yellow]$ pipenv lock --pre[/yellow] if it is a pre-release dependency."
+            "Hint: try [yellow]$ pipenv lock --pre[/yellow] if it is a pre-release dependency.\n"
+            "Hint: try [yellow]$ pipenv lock --verbose[/yellow] to see the full dependency resolution output."
         )
         message_str = str(message)
         if "no version found at all" in message_str:
