@@ -52,6 +52,77 @@ else:
     import importlib.metadata as importlib_metadata
 
 
+def _get_pipfile_python_override(project):
+    """Determine python_version and python_full_version overrides from the Pipfile.
+
+    When the Pipfile specifies ``python_version = "3.11"`` (major.minor only),
+    the resolver should evaluate markers as if ``python_full_version`` were
+    ``"3.11.0"`` — the lowest patch release for that minor series.  This ensures
+    that dependencies guarded by markers like
+    ``python_full_version <= "3.11.2"`` are *included* in the lock file so that
+    the lock file is portable across all patch releases of that minor version.
+
+    Returns a dict with ``python_version`` and ``python_full_version`` keys
+    suitable for passing as an environment override, or *None* if no override
+    is needed.
+    """
+    if not project.pipfile_exists:
+        return None
+
+    requires = project.parsed_pipfile.get("requires", {})
+    python_full = requires.get("python_full_version")
+    python_ver = requires.get("python_version")
+
+    if python_full and python_full != "*":
+        # Explicit full version — use it directly.
+        parts = python_full.split(".")
+        return {
+            "python_full_version": python_full,
+            "python_version": ".".join(parts[:2]),
+        }
+
+    if python_ver and python_ver != "*":
+        # Only major.minor specified — assume .0 patch for inclusive resolution.
+        return {
+            "python_full_version": f"{python_ver}.0",
+            "python_version": python_ver,
+        }
+
+    return None
+
+
+@contextlib.contextmanager
+def _patched_marker_environment(override):
+    """Context manager that monkey-patches ``default_environment`` in pip's
+    vendored ``packaging.markers`` so that marker evaluation during dependency
+    resolution uses the Pipfile-specified Python version rather than the
+    running interpreter's version.
+
+    Only ``python_version`` and ``python_full_version`` are overridden; all
+    other environment markers (``os_name``, ``sys_platform``, etc.) remain
+    unchanged.
+    """
+    if not override:
+        yield
+        return
+
+    import pipenv.patched.pip._vendor.packaging.markers as pip_markers
+
+    _orig = pip_markers.default_environment
+
+    def _patched_default_environment():
+        env = _orig()
+        env["python_version"] = override["python_version"]
+        env["python_full_version"] = override["python_full_version"]
+        return env
+
+    pip_markers.default_environment = _patched_default_environment
+    try:
+        yield
+    finally:
+        pip_markers.default_environment = _orig
+
+
 def get_package_finder(
     install_cmd=None,
     options=None,
@@ -1033,6 +1104,14 @@ def venv_resolve_deps(
             os.environ.pop("PIPENV_SITE_DIR", None)
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
+        # Pass the Pipfile-required Python version to the resolver subprocess
+        # so that marker evaluation uses it instead of the running interpreter's
+        # version.  See https://github.com/pypa/pipenv/issues/5908
+        python_override = _get_pipfile_python_override(project)
+        if python_override:
+            os.environ["PIPENV_RESOLVER_PYTHON_VERSION"] = python_override[
+                "python_full_version"
+            ]
         with console.status(
             f"Locking {pipfile_category}...", spinner=project.s.PIPENV_SPINNER
         ) as st:
@@ -1048,17 +1127,18 @@ def venv_resolve_deps(
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 try:
-                    results = resolver.resolve_packages(
-                        pre,
-                        clear,
-                        project.s.is_verbose(),
-                        system=allow_global,
-                        write=False,
-                        requirements_dir=req_dir,
-                        packages=deps,
-                        pipfile_category=pipfile_category,
-                        constraints=deps,
-                    )
+                    with _patched_marker_environment(python_override):
+                        results = resolver.resolve_packages(
+                            pre,
+                            clear,
+                            project.s.is_verbose(),
+                            system=allow_global,
+                            write=False,
+                            requirements_dir=req_dir,
+                            packages=deps,
+                            pipfile_category=pipfile_category,
+                            constraints=deps,
+                        )
                     if results:
                         st.console.print(
                             environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
@@ -1185,35 +1265,11 @@ def resolve_deps(
     # First (proper) attempt:
     if not req_dir:
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
+    python_override = _get_pipfile_python_override(project)
     with HackedPythonVersion(python_path=project.python(system=allow_global)):
-        try:
-            results, hashes, internal_resolver = actually_resolve_deps(
-                deps,
-                index_lookup,
-                markers_lookup,
-                project,
-                sources,
-                clear,
-                pre,
-                pipfile_category,
-                req_dir=req_dir,
-            )
-        except RuntimeError:
-            # Don't exit here, like usual.
-            results = None
-    # Second (last-resort) attempt:
-    if results is None:
-        with HackedPythonVersion(
-            python_path=project.python(system=allow_global),
-        ):
+        with _patched_marker_environment(python_override):
             try:
-                # Attempt to resolve again, with different Python version information,
-                # particularly for particularly particular packages.
-                (
-                    results,
-                    hashes,
-                    internal_resolver,
-                ) = actually_resolve_deps(
+                results, hashes, internal_resolver = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -1225,7 +1281,35 @@ def resolve_deps(
                     req_dir=req_dir,
                 )
             except RuntimeError:
-                sys.exit(1)
+                # Don't exit here, like usual.
+                results = None
+    # Second (last-resort) attempt:
+    if results is None:
+        with HackedPythonVersion(
+            python_path=project.python(system=allow_global),
+        ):
+            with _patched_marker_environment(python_override):
+                try:
+                    # Attempt to resolve again, with different Python version
+                    # information, particularly for particularly particular
+                    # packages.
+                    (
+                        results,
+                        hashes,
+                        internal_resolver,
+                    ) = actually_resolve_deps(
+                        deps,
+                        index_lookup,
+                        markers_lookup,
+                        project,
+                        sources,
+                        clear,
+                        pre,
+                        pipfile_category,
+                        req_dir=req_dir,
+                    )
+                except RuntimeError:
+                    sys.exit(1)
     return results, internal_resolver
 
 

@@ -478,6 +478,36 @@ def _main(
     )
 
 
+def _apply_python_version_override():
+    """Monkey-patch ``default_environment`` in pip's vendored packaging so that
+    marker evaluation during dependency resolution uses the Python version
+    specified in the Pipfile rather than the running interpreter's version.
+
+    The override is communicated via the ``PIPENV_RESOLVER_PYTHON_VERSION``
+    environment variable (set by the parent ``venv_resolve_deps`` call).
+    See https://github.com/pypa/pipenv/issues/5908
+    """
+    resolver_python = os.environ.get("PIPENV_RESOLVER_PYTHON_VERSION")
+    if not resolver_python:
+        return
+
+    parts = resolver_python.split(".")
+    python_version = ".".join(parts[:2])
+    python_full_version = resolver_python
+
+    import pipenv.patched.pip._vendor.packaging.markers as pip_markers
+
+    _orig = pip_markers.default_environment
+
+    def _patched():
+        env = _orig()
+        env["python_version"] = python_version
+        env["python_full_version"] = python_full_version
+        return env
+
+    pip_markers.default_environment = _patched
+
+
 def main(argv=None):
     parser = get_parser()
     parsed, remaining = parser.parse_known_args(argv)
@@ -486,6 +516,9 @@ def main(argv=None):
     os.environ["PYTHONIOENCODING"] = "utf-8"
     os.environ["PYTHONUNBUFFERED"] = "1"
     parsed = handle_parsed_args(parsed)
+
+    # Apply Python version override from Pipfile before resolving.
+    _apply_python_version_override()
 
     # Validate required arguments
     if not parsed.packages:
