@@ -1255,14 +1255,23 @@ class Project:
             entry["extras"] = list(extras)
         if path_specifier:
             editable = pip_line.startswith("-e")
-            # Use "file" for remote HTTP/HTTPS URLs; "path" for local filesystem paths.
-            is_remote_url = path_specifier.startswith(("http:", "https:"))
-            key = "file" if is_remote_url else "path"
-            entry[key] = unquote(
-                normalize_editable_path_for_pip(path_specifier)
-                if editable
-                else str(path_specifier)
-            )
+            # Strip "-e" prefix to get the raw package reference from the install line.
+            raw_ref = pip_line[2:].strip() if editable else pip_line.strip()
+            raw_ref = raw_ref.strip('"').strip("'")
+            # Use "file" for remote HTTP/HTTPS URLs and explicit file:// URLs;
+            # use "path" for plain local filesystem paths (e.g. ".", "./lib").
+            is_http_url = path_specifier.startswith(("http:", "https:"))
+            is_file_url = raw_ref.startswith("file:")
+            key = "file" if (is_http_url or is_file_url) else "path"
+            if is_file_url:
+                # Preserve the original file:// URL exactly as the user typed it.
+                entry[key] = unquote(raw_ref)
+            else:
+                entry[key] = unquote(
+                    normalize_editable_path_for_pip(path_specifier)
+                    if editable
+                    else str(path_specifier)
+                )
             if editable:
                 entry["editable"] = editable
         elif vcs_specifier:
