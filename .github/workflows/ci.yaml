@@ -109,12 +109,12 @@ jobs:
       - name: Run pypiserver with pipenv (Python 3.10+)
         run: |
           pipenv run pypi-server --version
-          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures &
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome /dev/null ./tests/pypi/ ./tests/fixtures &
         if: (contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'macOS'))
       - name: Run pypiserver with pipenv on Windows (Python 3.10+)
         run: |
           pipenv run pypi-server --version
-          cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+          cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome NUL ./tests/pypi/ ./tests/fixtures
         if: contains(matrix.os, 'Windows')
       - name: Run tests
         env:

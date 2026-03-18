@@ -179,7 +179,7 @@ reimport-pip-patch:
 .PHONY: pypi-server
 pypi-server: SERVER ?= gunicorn
 pypi-server:
-	pipenv run pypi-server run --server $(SERVER) -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback ./tests/pypi/ ./tests/fixtures
+	pipenv run pypi-server run --server $(SERVER) -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome /dev/null ./tests/pypi/ ./tests/fixtures
 
 .PHONY: benchmark
 benchmark:
