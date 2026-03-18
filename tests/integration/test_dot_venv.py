@@ -173,6 +173,46 @@ def test_venv_in_project_default_when_venv_exists(pipenv_instance_pypi):
         assert venv_loc == Path(venv_path)
 
 
+@pytest.mark.dotvenv
+def test_rm_prefers_workon_home_venv_over_dot_venv_dir(pipenv_instance_pypi):
+    """Regression test for https://github.com/pypa/pipenv/issues/6331.
+
+    When a pipenv-managed virtualenv already exists in WORKON_HOME and the user
+    independently creates a .venv directory (e.g. via `python -m venv .venv`),
+    `pipenv --rm` must remove the pipenv-managed venv, not the user-created .venv.
+    """
+    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+        prefix="pipenv-", suffix="temp_workon_home"
+    ) as workon_home:
+        os.environ["WORKON_HOME"] = workon_home
+        # Step 1: create the pipenv-managed virtualenv in WORKON_HOME.
+        c = p.pipenv("install")
+        assert c.returncode == 0
+        c = p.pipenv("--venv")
+        assert c.returncode == 0
+        pipenv_venv = Path(c.stdout.strip())
+        assert pipenv_venv.exists()
+        assert str(pipenv_venv).startswith(workon_home)
+
+        # Step 2: user independently creates a .venv dir in the project root.
+        dot_venv = Path(p.path) / ".venv"
+        dot_venv.mkdir()
+
+        # Step 3: `--venv` should still report the pipenv-managed venv.
+        c = p.pipenv("--venv")
+        assert c.returncode == 0
+        reported_venv = Path(c.stdout.strip())
+        assert reported_venv == pipenv_venv, (
+            f"Expected pipenv-managed venv {pipenv_venv}, got {reported_venv}"
+        )
+
+        # Step 4: `--rm` must remove the pipenv-managed venv, not .venv.
+        c = p.pipenv("--rm")
+        assert c.returncode == 0
+        assert not pipenv_venv.exists(), "pipenv-managed venv should have been removed"
+        assert dot_venv.exists(), "user-created .venv dir must NOT be removed"
+
+
 @pytest.mark.dotenv
 def test_venv_name_accepts_custom_name_environment_variable(pipenv_instance_pypi):
     """Tests that virtualenv reads PIPENV_CUSTOM_VENV_NAME and accepts it as a name"""
