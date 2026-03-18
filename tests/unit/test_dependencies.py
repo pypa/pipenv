@@ -1,4 +1,3 @@
-import os
 from unittest.mock import MagicMock
 
 from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator

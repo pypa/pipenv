@@ -1,8 +1,15 @@
 import sys
 from collections import namedtuple
 from collections.abc import Mapping
+from pathlib import Path
 
-from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.packaging.utils import (
+    InvalidSdistFilename,
+    InvalidWheelFilename,
+    canonicalize_name,
+    parse_sdist_filename,
+    parse_wheel_filename,
+)
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err
@@ -12,6 +19,30 @@ from pipenv.utils.dependencies import (
     get_version,
     pep423_name,
 )
+
+
+def _get_lockfile_entry_version(lockfile_entry):
+    version = get_version(lockfile_entry)
+    if version:
+        return parse_version(version.replace("==", ""))
+
+    if not isinstance(lockfile_entry, Mapping):
+        return None
+
+    file_path = lockfile_entry.get("file") or lockfile_entry.get("path")
+    if not file_path:
+        return None
+
+    file_name = Path(file_path).name
+    try:
+        return parse_wheel_filename(file_name)[1]
+    except InvalidWheelFilename:
+        pass
+
+    try:
+        return parse_sdist_filename(file_name)[1]
+    except InvalidSdistFilename:
+        return None
 
 
 def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
@@ -38,13 +69,10 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         project, clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror
     )
     for category in project.get_package_categories(for_lockfile=True):
-        for package in lockfile.get(category, []):
-            try:
-                updated_packages[package] = parse_version(
-                    lockfile[category][package]["version"].replace("==", "")
-                )
-            except KeyError:  # noqa: PERF203
-                pass
+        for package, lockfile_entry in lockfile.get(category, {}).items():
+            resolved_version = _get_lockfile_entry_version(lockfile_entry)
+            if resolved_version is not None:
+                updated_packages[pep423_name(package)] = resolved_version
     outdated = []
     skipped = []
     for package in packages.keys():  # noqa: PLC0206
