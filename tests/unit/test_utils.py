@@ -782,6 +782,117 @@ class TestPipConfigurationParsing:
 
 
 
+class TestEnsureProjectPythonVersionMismatch:
+    """Tests for ensure_project detecting Python version mismatch (GitHub issue #6141).
+
+    When --python is passed and an existing virtualenv uses a different Python
+    version, ensure_project should call ensure_virtualenv so the virtualenv is
+    recreated with the correct Python version.
+    """
+
+    def _make_project(self, monkeypatch):
+        """Return a minimal mock project object."""
+        project = mock.MagicMock()
+        project.s.PIPENV_USE_SYSTEM = False
+        project.s.PIPENV_YES = False
+        project.virtualenv_exists = True
+        project.pipfile_exists = True
+        # required_python_version=None skips the version warning block
+        project.required_python_version = None
+        # python() must return a str for os.environ assignment
+        project.python.return_value = "/usr/bin/python3"
+        return project
+
+    @pytest.mark.utils
+    def test_python_version_mismatch_triggers_ensure_virtualenv(self, monkeypatch):
+        """When --python 3.12 is given but the venv uses 3.10, ensure_virtualenv
+        should be called so the venv is recreated."""
+        project = self._make_project(monkeypatch)
+        project._which.return_value = "/fake/venv/bin/python"
+
+        monkeypatch.setattr(
+            "pipenv.utils.project.python_version",
+            lambda path: "3.10.5",
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.project.find_a_system_python",
+            lambda x: None,
+        )
+        ensure_virtualenv_calls = []
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_virtualenv",
+            lambda *a, **kw: ensure_virtualenv_calls.append((a, kw)),
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_pipfile",
+            lambda *a, **kw: None,
+        )
+
+        from pipenv.utils.project import ensure_project
+
+        ensure_project(project, python="3.12", system=False)
+
+        assert len(ensure_virtualenv_calls) == 1, (
+            "ensure_virtualenv should be called when Python version mismatches"
+        )
+
+    @pytest.mark.utils
+    def test_python_version_match_skips_ensure_virtualenv(self, monkeypatch):
+        """When --python 3.10 is given and the venv already uses 3.10, ensure_virtualenv
+        should NOT be called (no recreation needed)."""
+        project = self._make_project(monkeypatch)
+        project._which.return_value = "/fake/venv/bin/python"
+
+        monkeypatch.setattr(
+            "pipenv.utils.project.python_version",
+            lambda path: "3.10.5",
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.project.find_a_system_python",
+            lambda x: None,
+        )
+        ensure_virtualenv_calls = []
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_virtualenv",
+            lambda *a, **kw: ensure_virtualenv_calls.append((a, kw)),
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_pipfile",
+            lambda *a, **kw: None,
+        )
+
+        from pipenv.utils.project import ensure_project
+
+        ensure_project(project, python="3.10", system=False)
+
+        assert len(ensure_virtualenv_calls) == 0, (
+            "ensure_virtualenv should NOT be called when Python version already matches"
+        )
+
+    @pytest.mark.utils
+    def test_no_python_arg_skips_version_check(self, monkeypatch):
+        """When --python is not specified, no version-mismatch check should be done."""
+        project = self._make_project(monkeypatch)
+
+        ensure_virtualenv_calls = []
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_virtualenv",
+            lambda *a, **kw: ensure_virtualenv_calls.append((a, kw)),
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_pipfile",
+            lambda *a, **kw: None,
+        )
+
+        from pipenv.utils.project import ensure_project
+
+        ensure_project(project, python=None, system=False)
+
+        assert len(ensure_virtualenv_calls) == 0, (
+            "ensure_virtualenv should not be called when no --python is given and venv exists"
+        )
+
+
 class TestPythonVersionMatchesRequired:
     """Tests for _python_version_matches_required.
 

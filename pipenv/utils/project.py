@@ -89,6 +89,35 @@ def ensure_project(
                 "Please ensure Python is installed and available in PATH.",
             )
 
+    # If --python was explicitly specified and the existing virtualenv uses a different
+    # Python version, allow ensure_virtualenv to handle recreation.
+    if (
+        python
+        and project.virtualenv_exists
+        and not system
+        and not project.s.PIPENV_USE_SYSTEM
+    ):
+        try:
+            venv_python_path = project._which("python") or project._which("py")
+            if venv_python_path:
+                venv_python_ver = python_version(str(venv_python_path))
+                if os.path.isabs(python):
+                    # python is an absolute path; get its version for comparison.
+                    requested_ver = python_version(python)
+                else:
+                    # python is a version specifier like "3.12".
+                    requested_ver = python
+                if (
+                    venv_python_ver
+                    and requested_ver
+                    and not _python_version_matches_required(
+                        venv_python_ver, requested_ver
+                    )
+                ):
+                    system_or_exists = False
+        except Exception:
+            pass  # If version detection fails, fall through to default behavior
+
     # Skip virtualenv creation when --system was used.
     if not system_or_exists:
         ensure_virtualenv(
