@@ -30,7 +30,7 @@ def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, mon
 
     monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
     monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_private_pypi() as _:
         cli_runner = CliRunner()
         result = cli_runner.invoke(cli, ["update", "six"])
 
