@@ -205,21 +205,23 @@ class Shell:
         except Exception:
             pass  # setecho may not be supported on all platforms
 
-        c.sendline(_get_activate_script(self.cmd, venv))
-
-        # Wrap the deactivate function to also unset PIPENV_ACTIVE
-        deactivate_wrapper = _get_deactivate_wrapper_script(self.cmd)
-        if deactivate_wrapper:
-            c.sendline(deactivate_wrapper)
-
-        if args:
-            c.sendline(" ".join(args))
-
-        # Re-enable echo so the interactive session behaves normally.
         try:
-            c.setecho(True)
-        except Exception:
-            pass
+            c.sendline(_get_activate_script(self.cmd, venv))
+
+            # Wrap the deactivate function to also unset PIPENV_ACTIVE
+            deactivate_wrapper = _get_deactivate_wrapper_script(self.cmd)
+            if deactivate_wrapper:
+                c.sendline(deactivate_wrapper)
+
+            if args:
+                c.sendline(" ".join(args))
+        finally:
+            # Re-enable echo so the interactive session behaves normally,
+            # even if an exception was raised while sending setup commands.
+            try:
+                c.setecho(True)
+            except Exception:
+                pass
 
         # Handler for terminal resizing events
         # Must be defined here to have the shell process in its context, since
