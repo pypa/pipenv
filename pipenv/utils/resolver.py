@@ -14,6 +14,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
+from pipenv.patched.pip._internal.cli.cmdoptions import check_release_control_exclusive
 from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.exceptions import InstallationError
 from pipenv.patched.pip._internal.models.target_python import TargetPython
@@ -429,6 +430,14 @@ class Resolver:
         pip_options.pre = self.pre or self.project.settings.get(
             "allow_prereleases", False
         )
+        # In pip 26+, setting options.pre=True is no longer sufficient to
+        # enable pre-release resolution. pip's PackageFinder uses
+        # release_control.all_releases to determine whether pre-releases are
+        # allowed, and check_release_control_exclusive() is what transforms
+        # options.pre=True into release_control.all_releases={":all:"}.
+        # pip's own commands (install, download, lock) call this in run(),
+        # but pipenv bypasses those entry points, so we must call it here.
+        check_release_control_exclusive(pip_options)
         return pip_options
 
     @property  # Remove cached_property to prevent stale sessions and authentication issues
