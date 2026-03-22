@@ -53,6 +53,7 @@ Bug Fixes
 ---------
 
 - Fix reading of ``index-url`` from pip configuration files (``/etc/pip.conf``, ``~/.pip/pip.conf``, etc.) which was broken after vendoring pip 25.3 due to a change in pip's Configuration.items() return format.  `#6478 <https://github.com/pypa/pipenv/issues/6478>`_
+
 2026.0.0 (2025-12-10)
 =====================
 pipenv 2026.0.0 (2025-12-10)
@@ -146,6 +147,7 @@ Improved Documentation
 ----------------------
 
 - Fix documentation that incorrectly referenced ``pipenv scan`` as a standalone command. The correct usage is ``pipenv check --scan``.  `#6396 <https://github.com/pypa/pipenv/issues/6396>`_
+
 2025.1.3 (2025-12-09)
 =====================
 pipenv 2025.1.3 (2025-12-09)
@@ -158,6 +160,7 @@ Bug Fixes
 - Fix TypeError when using pipenv with Python 3.9 target environments
   by adding ``from __future__ import annotations`` to files in
   ``pipenv/patched/pip`` that use Python 3.10+ type annotation syntax.  `#6448 <https://github.com/pypa/pipenv/issues/6448>`_
+
 2025.1.1 (2025-12-05)
 =====================
 pipenv 2025.1.1 (2025-12-05)
@@ -177,6 +180,7 @@ Features & Improvements
 -----------------------
 
 - Vendor in pip 25.3 for dependency resolution.  `#6445 <https://github.com/pypa/pipenv/issues/6445>`_
+
 2025.0.4 (2025-07-07)
 =====================
 Pipenv 2025.0.4 (2025-07-07)
@@ -189,6 +193,7 @@ Bug Fixes
 - Significantly improved dependency resolution performance with ResolveLib 1.2.0 optimistic backjumping, intelligent caching system, and batch Pipfile operations. Added comprehensive benchmarking infrastructure to prevent performance regressions. Requirements imports are 60-80% faster for large files, complex resolutions are 10-30% faster, and repeated operations benefit from smart caching.  `#6419 <https://github.com/pypa/pipenv/issues/6419>`_
 - Ensure the requested Python version is installed when it differs from the one used with Pipenv.  `#6425 <https://github.com/pypa/pipenv/issues/6425>`_
 - Restored ignore compatibility finder patch to enable comprehensive cross-platform hash collection in lock files.  `#6426 <https://github.com/pypa/pipenv/issues/6426>`_
+
 2025.0.3 (2025-05-29)
 =====================
 Pipenv 2025.0.3 (2025-05-29)
@@ -199,10 +204,11 @@ Vendored Libraries
 ------------------
 
 - Vendor in ``pip==25.1.1`` latest.  `#6400 <https://github.com/pypa/pipenv/issues/6400>`_
-2025.0.1 (2025-05-02)
+
+2025.0.2 (2025-05-02)
 =====================
-2025.0.2 2025.0.1 (2025-05-02)
-==============================
+Pipenv 2025.0.2 (2025-05-02)
+============================
 
 
 Bug Fixes
@@ -332,6 +338,7 @@ Vendored Libraries
 ------------------
 
 - Remove click.echo from exceptions.py  `#6216 <https://github.com/pypa/pipenv/issues/6216>`_
+
 2024.4.0 (2024-11-05)
 =====================
 Pipenv 2024.4.0 (2024-11-05)
@@ -357,6 +364,7 @@ Vendored Libraries
     - tomli from 2.0.1 to 2.0.2
     - tomlkit from 0.12.4 to 0.13.2
     - zipp from 3.18.1 to 3.20.2  `#6293 <https://github.com/pypa/pipenv/issues/6293>`_
+
 2024.3.1 (2024-10-30)
 =====================
 
@@ -529,6 +537,7 @@ Bug Fixes
 ---------
 
 - Remove debug print statements that should not have made it into the last release.  `#6079 <https://github.com/pypa/pipenv/issues/6079>`_
+
 2023.12.0 (2024-02-01)
 ======================
 Pipenv 2023.12.0 (2024-02-01)
@@ -541,6 +550,7 @@ Bug Fixes
 - Removal of pydantic from pythonfinder and pipenv; reduced complexity of pythonfinder pathlib usage (avoid posix conversions).  `#6065 <https://github.com/pypa/pipenv/issues/6065>`_
 - Adjusted logic which assumed any file, path or VCS install should be considered editable.  Instead relies on the user specified editable flag to mark requirement as editable install.  `#6069 <https://github.com/pypa/pipenv/issues/6069>`_
 - Remove logic that treats ``CI`` variable to use ``do_run_nt`` shell logic, as the original reasons for that patch were no longer valid.  `#6072 <https://github.com/pypa/pipenv/issues/6072>`_
+
 2023.11.17 (2024-01-21)
 =======================
 Pipenv 2023.11.17 (2024-01-21)
@@ -559,6 +569,7 @@ Vendored Libraries
 
 - Update vendored tomlkit to ``0.12.3``  `#6024 <https://github.com/pypa/pipenv/issues/6024>`_
 - Bump version of pipdeptree to 0.13.2  `#6055 <https://github.com/pypa/pipenv/issues/6055>`_
+
 2023.11.15 (2023-11-15)
 =======================
 Pipenv 2023.11.15 (2023-11-15)
