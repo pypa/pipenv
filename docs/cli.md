@@ -20,7 +20,7 @@ These options can be used with any Pipenv command:
 | `--venv` | Output virtualenv information |
 | `--py` | Output Python interpreter information |
 | `--envs` | Output environment variable options |
-| `--rm` | Remove the virtualenv |
+| `--rm` | Remove the virtualenv (deprecated: use `pipenv remove` instead) |
 | `--bare` | Minimal output |
 | `--man` | Display manpage |
 | `--support` | Output diagnostic information for GitHub issues |
@@ -545,6 +545,7 @@ Understanding how Pipenv commands relate to each other can help you use them mor
 - `upgrade`: Updates Pipfile.lock for specific packages without installing them
 - `uninstall`: Removes packages from virtualenv and Pipfile
 - `clean`: Removes packages from virtualenv that aren't in Pipfile.lock
+- `remove`: Deletes the entire virtualenv for the current project
 
 ## Best Practices
 

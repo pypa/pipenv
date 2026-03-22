@@ -67,7 +67,24 @@ def test_pipenv_support(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_rm(pipenv_instance_pypi):
+def test_pipenv_remove(pipenv_instance_pypi):
+    with pipenv_instance_pypi() as p:
+        c = p.pipenv("--python python")
+        assert c.returncode == 0
+        c = p.pipenv("--venv")
+        assert c.returncode == 0
+        venv_path = c.stdout.strip()
+        assert os.path.isdir(venv_path)
+
+        c = p.pipenv("remove")
+        assert c.returncode == 0
+        assert c.stdout
+        assert not os.path.isdir(venv_path)
+
+
+@pytest.mark.cli
+def test_pipenv_rm_deprecated(pipenv_instance_pypi):
+    """--rm still works but emits a deprecation warning."""
     with pipenv_instance_pypi() as p:
         c = p.pipenv("--python python")
         assert c.returncode == 0
@@ -78,7 +95,7 @@ def test_pipenv_rm(pipenv_instance_pypi):
 
         c = p.pipenv("--rm")
         assert c.returncode == 0
-        assert c.stdout
+        assert "deprecated" in c.stderr.lower()
         assert not os.path.isdir(venv_path)
 
 
