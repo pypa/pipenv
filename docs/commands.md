@@ -16,6 +16,7 @@ This document provides a comprehensive reference for all Pipenv commands, includ
 | `shell` | Spawn a shell within the virtual environment |
 | `run` | Run a command within the virtual environment |
 | `graph` | Display dependency graph information |
+| `remove` | Remove the virtualenv for the current project |
 | `clean` | Remove packages not specified in Pipfile.lock |
 | `verify` | Verify the Pipfile.lock hash is up-to-date |
 | `requirements` | Generate a requirements.txt from Pipfile.lock |
@@ -457,6 +458,29 @@ $ pipenv requirements --categories="tests,docs"
 | `--hash` | Include package hashes |
 | `--exclude-markers` | Exclude PEP 508 markers |
 | `--categories` | Include packages from specified categories |
+
+## remove
+
+The `remove` command deletes the virtualenv associated with the current project.
+
+### Basic Usage
+
+```bash
+$ pipenv remove
+```
+
+### Examples
+
+Remove the current project's virtualenv:
+
+```bash
+$ pipenv remove
+Removing virtualenv (/home/user/.local/share/virtualenvs/myproject-abc123)...
+```
+
+You can then recreate it with `pipenv install`.
+
+> **Note**: The legacy `pipenv --rm` flag performs the same action but is deprecated and will be removed in a future release. Use `pipenv remove` instead.
 
 ## clean
 

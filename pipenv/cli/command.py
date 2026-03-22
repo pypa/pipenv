@@ -78,7 +78,12 @@ def _apply_default_categories(ctx: Context, state) -> None:
 @option(
     "--envs", is_flag=True, default=False, help="Output Environment Variable options."
 )
-@option("--rm", is_flag=True, default=False, help="Remove the virtualenv.")
+@option(
+    "--rm",
+    is_flag=True,
+    default=False,
+    help="Remove the virtualenv. [deprecated: use `pipenv remove` instead]",
+)
 @option("--bare", is_flag=True, default=False, help="Minimal output.")
 @option("--man", is_flag=True, default=False, help="Display manpage.")
 @option(
@@ -112,7 +117,7 @@ def cli(
     from pipenv.routines.clear import do_clear
     from pipenv.utils.display import format_help
     from pipenv.utils.project import ensure_project
-    from pipenv.utils.virtualenv import cleanup_virtualenv, do_where, warn_in_virtualenv
+    from pipenv.utils.virtualenv import do_where, warn_in_virtualenv
 
     if "PIPENV_COLORBLIND" in os.environ:
         err.print(
@@ -174,32 +179,13 @@ def cli(
             else:
                 print(state.project.virtualenv_location)
                 return 0
-        # --rm was passed...
+        # --rm was passed (deprecated: use `pipenv remove` instead)...
         elif rm:
-            # Abort if --system (or running in a virtualenv).
-            if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
-                console.print(
-                    "You are attempting to remove a virtualenv that "
-                    "Pipenv did not create. Aborting.",
-                    style="red",
-                )
-                ctx.abort()
-            if state.project.virtualenv_exists:
-                loc = state.project.virtualenv_location
-                console.print(
-                    f"[bold]Removing virtualenv[/bold] ([green]{loc}[green])..."
-                )
-
-                with console.status("Running..."):
-                    # Remove the virtualenv.
-                    cleanup_virtualenv(state.project, bare=True)
-                return 0
-            else:
-                err.print(
-                    "No virtualenv has been created for this project yet!",
-                    style="red bold",
-                )
-                ctx.abort()
+            err.print(
+                "Warning: [yellow]--rm[/yellow] is deprecated and will be removed in a future release. "
+                "Use [green]`pipenv remove`[/green] instead.",
+            )
+            ctx.invoke(remove)
     # --python was passed...
     if (state.python) or state.site_packages:
         ensure_project(
@@ -252,6 +238,38 @@ def install(ctx, state, **kwargs):
         pipfile_categories=state.installstate.categories,
         skip_lock=state.installstate.skip_lock,
     )
+
+
+@cli.command(
+    short_help="Removes the virtualenv for the current project.",
+    context_settings=CONTEXT_SETTINGS,
+)
+@pass_state
+@pass_context
+def remove(ctx, state):
+    """Removes the virtualenv for the current project."""
+    from pipenv.utils.virtualenv import cleanup_virtualenv
+
+    # Abort if --system (or running in a virtualenv).
+    if state.project.s.PIPENV_USE_SYSTEM or environments.is_in_virtualenv():
+        console.print(
+            "You are attempting to remove a virtualenv that "
+            "Pipenv did not create. Aborting.",
+            style="red",
+        )
+        ctx.abort()
+    if state.project.virtualenv_exists:
+        loc = state.project.virtualenv_location
+        console.print(f"[bold]Removing virtualenv[/bold] ([green]{loc}[/green])...")
+        with console.status("Running..."):
+            cleanup_virtualenv(state.project, bare=True)
+        return 0
+    else:
+        err.print(
+            "No virtualenv has been created for this project yet!",
+            style="red bold",
+        )
+        ctx.abort()
 
 
 @cli.command(
