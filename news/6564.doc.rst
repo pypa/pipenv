@@ -1,0 +1,1 @@
+Fix broken changelog headers and update the auto-generated changelog template to avoid the issue in the future
