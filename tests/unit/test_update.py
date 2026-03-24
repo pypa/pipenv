@@ -1,8 +1,6 @@
 """Unit tests for pipenv.routines.update helpers."""
 from unittest.mock import MagicMock
 
-import pytest
-
 from pipenv.routines.update import _clean_unused_dependencies
 
 
@@ -151,8 +149,6 @@ def test_clean_unused_deps_verbose_prints_removed_package(capsys):
             "pytz": {"version": "==2023.3"},
         }
     }
-    full_lock_resolution = {}  # NOTE: empty → early return, no removal
-
     # Use a non-empty resolution to actually trigger a removal
     full_lock_resolution_with_removal = {"other-pkg": {"version": "==1.0"}}
     _clean_unused_dependencies(
