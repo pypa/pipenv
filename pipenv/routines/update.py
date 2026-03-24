@@ -515,6 +515,12 @@ def _clean_unused_dependencies(
     if category not in lockfile or category not in original_lockfile:
         return
 
+    # Guard against an empty resolution which would indicate a resolution failure.
+    # Without this guard every package in the original lockfile would be incorrectly
+    # treated as unused and deleted.
+    if not full_lock_resolution:
+        return
+
     # Get the set of packages in the new resolution
     resolved_packages = set(full_lock_resolution.keys())
 
