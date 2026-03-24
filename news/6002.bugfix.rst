@@ -1,1 +1,0 @@
-``pipenv upgrade`` now correctly removes transitive dependencies that are no longer needed after a package is upgraded (e.g. ``pytz`` is removed when upgrading Django from 3.2.x to 4.2+). A safety guard was also added to ``_clean_unused_dependencies`` to prevent incorrectly wiping all packages when a full resolution returns an empty result due to a subprocess failure.

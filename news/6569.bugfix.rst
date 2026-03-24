@@ -1,1 +1,0 @@
-Run python -m virtualenv from empty directory to prevent PYTHONPATH pollution. Fixes #6568.

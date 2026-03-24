@@ -1,3 +1,20 @@
+2026.2.2 (2026-03-24)
+=====================
+pipenv 2026.2.2 (2026-03-24)
+============================
+
+
+Bug Fixes
+---------
+
+- ``pipenv upgrade`` now correctly removes transitive dependencies that are no longer needed after a package is upgraded (e.g. ``pytz`` is removed when upgrading Django from 3.2.x to 4.2+). A safety guard was also added to ``_clean_unused_dependencies`` to prevent incorrectly wiping all packages when a full resolution returns an empty result due to a subprocess failure.  `#6002 <https://github.com/pypa/pipenv/issues/6002>`_
+- Run python -m virtualenv from empty directory to prevent PYTHONPATH pollution. Fixes #6568.  `#6569 <https://github.com/pypa/pipenv/issues/6569>`_
+
+Improved Documentation
+----------------------
+
+- Fix broken changelog headers and update the auto-generated changelog template to avoid the issue in the future  `#6564 <https://github.com/pypa/pipenv/issues/6564>`_
+
 2026.2.1 (2026-03-19)
 =====================
 pipenv 2026.2.1 (2026-03-19)
