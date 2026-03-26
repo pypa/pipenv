@@ -17,8 +17,10 @@ def _make_project(verbose=False):
 
 
 def test_clean_unused_deps_removes_unused_package():
-    """Packages absent from full_lock_resolution are removed from the lockfile."""
+    """Packages absent from full_lock_resolution are removed when their parent
+    was upgraded (version changed in lockfile)."""
     project = _make_project()
+    # django upgraded from 3.2.10 -> 4.2.7, pytz no longer needed
     lockfile = {
         "default": {
             "django": {"version": "==4.2.7"},
@@ -38,9 +40,12 @@ def test_clean_unused_deps_removes_unused_package():
         "sqlparse": {"version": "==0.4.4"},
         # pytz is NOT here – it's no longer a transitive dep
     }
+    # django was upgraded
+    upgrade_lock_data = {"django": {"version": "==4.2.7"}}
 
     _clean_unused_dependencies(
-        project, lockfile, "default", full_lock_resolution, original_lockfile
+        project, lockfile, "default", full_lock_resolution, original_lockfile,
+        upgrade_lock_data,
     )
 
     assert "pytz" not in lockfile["default"]
@@ -141,25 +146,75 @@ def test_clean_unused_deps_verbose_prints_removed_package(capsys):
     project = _make_project(verbose=True)
     lockfile = {
         "default": {
+            "django": {"version": "==4.2.7"},
             "pytz": {"version": "==2023.3"},
         }
     }
     original_lockfile = {
         "default": {
+            "django": {"version": "==3.2.10"},
             "pytz": {"version": "==2023.3"},
         }
     }
     # Use a non-empty resolution to actually trigger a removal
-    full_lock_resolution_with_removal = {"other-pkg": {"version": "==1.0"}}
+    full_lock_resolution_with_removal = {"django": {"version": "==4.2.7"}}
+    # django was upgraded (version changed)
+    upgrade_lock_data = {"django": {"version": "==4.2.7"}}
     _clean_unused_dependencies(
         project,
         lockfile,
         "default",
         full_lock_resolution_with_removal,
         original_lockfile,
+        upgrade_lock_data,
     )
 
     assert "pytz" not in lockfile["default"]
     # project.s.is_verbose() was called and err.print was invoked through the mock
     project.s.is_verbose.assert_called()
+
+
+def test_clean_unused_deps_keeps_deps_of_pinned_versions():
+    """Packages required by pinned (not latest) versions must not be removed.
+
+    Regression test for https://github.com/pypa/pipenv/issues/6573
+    When full_lock_resolution is based on latest versions, transitive
+    dependencies that are still needed by older pinned versions should
+    be retained if neither they nor their parent were upgraded.
+    """
+    project = _make_project()
+    # google-auth==2.43.0 requires cachetools and rsa, but latest
+    # google-auth (2.49.1) does not.  google-auth was NOT upgraded.
+    lockfile = {
+        "default": {
+            "google-auth": {"version": "==2.43.0"},
+            "cachetools": {"version": "==6.2.2"},
+            "rsa": {"version": "==4.9.1"},
+        }
+    }
+    original_lockfile = {
+        "default": {
+            "google-auth": {"version": "==2.43.0"},
+            "cachetools": {"version": "==6.2.2"},
+            "rsa": {"version": "==4.9.1"},
+        }
+    }
+    # full_lock_resolution from latest versions does NOT include
+    # cachetools or rsa (latest google-auth dropped them)
+    full_lock_resolution = {
+        "google-auth": {"version": "==2.49.1"},
+    }
+    # Only timeout_decorator was upgraded, not google-auth
+    upgrade_lock_data = {"timeout-decorator": {"version": "==4.4.0"}}
+
+    _clean_unused_dependencies(
+        project, lockfile, "default", full_lock_resolution, original_lockfile,
+        upgrade_lock_data,
+    )
+
+    # cachetools and rsa should be retained because their versions
+    # didn't change and they weren't part of the upgrade
+    assert "google-auth" in lockfile["default"]
+    assert "cachetools" in lockfile["default"]
+    assert "rsa" in lockfile["default"]
 
