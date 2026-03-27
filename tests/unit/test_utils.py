@@ -1353,3 +1353,136 @@ class TestIsDownloadStatusLine:
         assert _is_download_status_line(line) is False
 
 
+# ---------------------------------------------------------------------------
+# Tests for create_pipfile Python-version consistency (GitHub issue #6571)
+# ---------------------------------------------------------------------------
+
+
+class TestCreatePipfileVersionConsistency:
+    """Regression tests for GH-6571.
+
+    When ``pipenv install`` creates both the virtualenv and the Pipfile in the
+    same invocation, ``create_pipfile`` must record the Python version that is
+    actually *inside the virtualenv*, not the version discovered by scanning
+    PATH (which may differ when pyenv, asdf, or similar managers are in use).
+
+    The bug was that:
+    1. ``ensure_virtualenv`` called ``find_all_python_versions()`` and picked
+       the highest installed interpreter (e.g. CPython 3.14).
+    2. ``create_pipfile`` subsequently called ``self.which("python")`` which
+       resolved ``python`` via PATH / pyenv shims and found the pyenv *global*
+       interpreter (e.g. CPython 3.13).
+    3. The Pipfile was written with ``python_version = "3.13"`` while the
+       virtualenv contained CPython 3.14 — every subsequent pipenv invocation
+       printed a spurious "Pipfile requires 3.13 but you are using 3.14" warning.
+
+    The fix: when the virtualenv already exists, ``create_pipfile`` uses
+    ``self._which("python")`` (looks directly in the venv's scripts dir)
+    instead of ``self.which("python")`` (searches PATH globally).
+    """
+
+    @staticmethod
+    def _make_project(tmp_path, venv_python_version, global_python_version):
+        """Return a (mock_project, fake_python_version_fn) pair.
+
+        mock_project has:
+        * ``_which("python")`` → venv interpreter path
+        * ``which("python")`` → PATH/pyenv-shim interpreter path
+        * ``virtualenv_exists`` set to True by default (tests can override)
+
+        fake_python_version_fn maps each path to its version string.
+        """
+        from unittest.mock import MagicMock
+
+        venv_python_path = str(tmp_path / "bin" / "python")
+        global_python_path = f"/usr/bin/python{global_python_version}"
+
+        settings = MagicMock()
+        settings.PIPENV_DEFAULT_PYTHON_VERSION = None
+
+        project = MagicMock()
+        project.s = settings
+        project._which.return_value = venv_python_path
+        project.which.return_value = global_python_path
+        project.virtualenv_exists = True
+        project.default_source = {
+            "url": "https://pypi.org/simple",
+            "verify_ssl": True,
+            "name": "pypi",
+        }
+        project.write_toml = MagicMock()
+
+        def _fake_python_version(path):
+            if path == venv_python_path:
+                return venv_python_version
+            if path == global_python_path:
+                return global_python_version
+            return None
+
+        return project, _fake_python_version
+
+    def _call_create_pipfile(self, project, python, fake_pv):
+        """Invoke the real create_pipfile on *project* with all side-effects patched."""
+        from unittest.mock import MagicMock, patch
+        from pipenv.project import Project
+
+        # InstallCommand instantiation pulls in pip internals we don't want in unit tests.
+        fake_cmd = MagicMock()
+        fake_cmd.cmd_opts.get_option.return_value.default = []
+
+        written_data = {}
+
+        def capture_write_toml(data):
+            written_data.update(data)
+
+        project.write_toml.side_effect = capture_write_toml
+
+        with patch("pipenv.project.python_version", side_effect=fake_pv), \
+             patch("pipenv.project.InstallCommand", return_value=fake_cmd):
+            Project.create_pipfile(project, python=python)
+
+        return written_data
+
+    def test_uses_venv_python_when_venv_exists(self, tmp_path):
+        """create_pipfile must record the venv's Python, not the PATH one."""
+        venv_ver = "3.14.3"
+        global_ver = "3.13.12"
+
+        project, fake_pv = self._make_project(tmp_path, venv_ver, global_ver)
+        written_data = self._call_create_pipfile(project, python=None, fake_pv=fake_pv)
+
+        requires = written_data.get("requires", {})
+        assert requires.get("python_version") == "3.14", (
+            f"Expected '3.14' (venv) but got {requires.get('python_version')!r}; "
+            "create_pipfile is resolving the PATH Python instead of the venv's interpreter."
+        )
+
+    def test_no_venv_falls_back_to_which(self, tmp_path):
+        """When no venv exists, which('python') is used as the pre-fix fallback."""
+        project, fake_pv = self._make_project(tmp_path, "3.14.3", "3.13.12")
+        project.virtualenv_exists = False  # No venv yet.
+
+        written_data = self._call_create_pipfile(project, python=None, fake_pv=fake_pv)
+
+        requires = written_data.get("requires", {})
+        # Falls back to which() → global/PATH Python.
+        assert requires.get("python_version") == "3.13", (
+            f"Expected '3.13' (PATH fallback) but got {requires.get('python_version')!r}"
+        )
+
+    def test_explicit_python_argument_always_wins(self, tmp_path):
+        """An explicit python= path overrides both venv and PATH discovery."""
+        explicit_ver = "3.12.10"
+        explicit_path = f"/opt/python{explicit_ver}/bin/python"
+
+        project, _ = self._make_project(tmp_path, "3.14.3", "3.13.12")
+
+        def fake_pv(path):
+            return explicit_ver if path == explicit_path else None
+
+        written_data = self._call_create_pipfile(project, python=explicit_path, fake_pv=fake_pv)
+
+        requires = written_data.get("requires", {})
+        assert requires.get("python_version") == "3.12"
+        # python_full_version is only written when an explicit path is provided.
+        assert requires.get("python_full_version") == "3.12.10"
