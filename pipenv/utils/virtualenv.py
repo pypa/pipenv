@@ -87,14 +87,58 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
 
         err.print(f"[cyan]{c.stdout}[/cyan]")
         if c.returncode != 0:
-            error = (
+            virtualenv_error = (
                 c.stderr if project.s.is_verbose() else exceptions.prettify_exc(c.stderr)
             )
-            err.print(
-                environments.PIPENV_SPINNER_FAIL_TEXT.format(
-                    "Failed creating virtual environment"
+            # Issue: https://github.com/pypa/pipenv/issues/5601
+            # virtualenv may not support alternative Python implementations (e.g.
+            # RustPython, GraalPy). Fall back to the target interpreter's own
+            # built-in `venv` module, which those implementations are more likely
+            # to ship. Only attempt the fallback when the user has not explicitly
+            # chosen a virtualenv creator via PIPENV_VIRTUALENV_CREATOR.
+            if not project.s.PIPENV_VIRTUALENV_CREATOR:
+                err.print(
+                    "[yellow]virtualenv failed; retrying with the interpreter's "
+                    "built-in venv module...[/yellow]"
                 )
-            )
+                fallback_cmd = _create_builtin_venv_cmd(
+                    project, python, site_packages=site_packages
+                )
+                c2 = subprocess_run(fallback_cmd, env=pip_config, cwd=temp_dir)
+                err.print(f"[cyan]{c2.stdout}[/cyan]")
+                if c2.returncode == 0:
+                    err.print(
+                        environments.PIPENV_SPINNER_OK_TEXT.format(
+                            "Successfully created virtual environment!"
+                        )
+                    )
+                    err.print(
+                        "[bold yellow]Note:[/bold yellow] Created using the interpreter's "
+                        "built-in [bold]venv[/bold] module because [bold]virtualenv[/bold] "
+                        "was not able to use this interpreter directly. "
+                        "Some virtualenv features (e.g. [bold]--copies[/bold]) may not be available."
+                    )
+                else:
+                    # Both strategies failed — surface the original virtualenv error
+                    # plus the venv error so the user has full context.
+                    venv_error = (
+                        c2.stderr
+                        if project.s.is_verbose()
+                        else exceptions.prettify_exc(c2.stderr)
+                    )
+                    error = f"{virtualenv_error}\n\nvenv fallback error:\n{venv_error}"
+                    err.print(
+                        environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                            "Failed creating virtual environment"
+                        )
+                    )
+            else:
+                error = virtualenv_error
+                err.print(
+                    environments.PIPENV_SPINNER_FAIL_TEXT.format(
+                        "Failed creating virtual environment"
+                    )
+                )
         else:
             err.print(
                 environments.PIPENV_SPINNER_OK_TEXT.format(
@@ -143,6 +187,27 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
     if site_packages:
         cmd.append("--system-site-packages")
 
+    return cmd
+
+
+def _create_builtin_venv_cmd(project, python, site_packages=False):
+    """Build a command that uses the *target* interpreter's own built-in venv
+    module (``python -m venv``).
+
+    This is the fallback used when ``virtualenv`` fails for a given interpreter
+    (e.g. RustPython, GraalPy) because those implementations may ship their own
+    ``venv`` module even if they don't support all the C-extension hooks that
+    virtualenv probes for.  See: https://github.com/pypa/pipenv/issues/5601
+    """
+    cmd = [
+        Path(python).absolute().as_posix(),
+        "-m",
+        "venv",
+        f"--prompt={project.name}",
+    ]
+    if site_packages:
+        cmd.append("--system-site-packages")
+    cmd.append(project.get_location_for_virtualenv())
     return cmd
 
 

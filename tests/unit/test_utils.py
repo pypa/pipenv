@@ -1637,3 +1637,185 @@ class TestAddPipfileEntryPreservesVersionSpecifiers:
             f"version specifier corrupted: expected '<2.0', got {pydantic_entry['version']!r}"
         )
         assert "extras" in pydantic_entry, "extras key was stripped from pydantic entry"
+
+
+class TestCreateBuiltinVenvCmd:
+    """Tests for _create_builtin_venv_cmd (issue #5601).
+
+    When virtualenv fails for an alternative interpreter (e.g. RustPython),
+    pipenv should fall back to the interpreter's own built-in ``venv`` module.
+    The command produced must invoke the *target* interpreter, not sys.executable.
+    """
+
+    def _make_project(self, tmp_path):
+        """Return a minimal project-like object sufficient for cmd-building tests."""
+        project = mock.MagicMock()
+        project.name = "myproject"
+        project.s.PIPENV_VIRTUALENV_CREATOR = ""
+        project.s.PIPENV_VIRTUALENV_COPIES = False
+        venv_dest = str(tmp_path / "myproject-venv")
+        project.get_location_for_virtualenv.return_value = venv_dest
+        return project, venv_dest
+
+    @pytest.mark.utils
+    def test_uses_target_interpreter_not_sys_executable(self, tmp_path):
+        """The first element of the command must be the *target* python, not sys.executable."""
+        from pipenv.utils.virtualenv import _create_builtin_venv_cmd
+
+        project, _ = self._make_project(tmp_path)
+        python = "/home/user/rustpython/target/release/rustpython"
+        cmd = _create_builtin_venv_cmd(project, python)
+        assert cmd[0] == python, (
+            f"Expected target interpreter {python!r} as first arg, got {cmd[0]!r}"
+        )
+
+    @pytest.mark.utils
+    def test_invokes_venv_module(self, tmp_path):
+        """The command must use ``-m venv``, not ``-m virtualenv``."""
+        from pipenv.utils.virtualenv import _create_builtin_venv_cmd
+
+        project, _ = self._make_project(tmp_path)
+        cmd = _create_builtin_venv_cmd(project, "/usr/bin/python3")
+        assert "-m" in cmd
+        assert "venv" in cmd
+        assert "virtualenv" not in cmd
+
+    @pytest.mark.utils
+    def test_includes_prompt(self, tmp_path):
+        """The --prompt flag should be set to the project name."""
+        from pipenv.utils.virtualenv import _create_builtin_venv_cmd
+
+        project, _ = self._make_project(tmp_path)
+        cmd = _create_builtin_venv_cmd(project, "/usr/bin/python3")
+        assert any("--prompt=myproject" == arg for arg in cmd)
+
+    @pytest.mark.utils
+    def test_destination_path_appended(self, tmp_path):
+        """The virtualenv destination directory must be the last argument."""
+        from pipenv.utils.virtualenv import _create_builtin_venv_cmd
+
+        project, venv_dest = self._make_project(tmp_path)
+        cmd = _create_builtin_venv_cmd(project, "/usr/bin/python3")
+        assert cmd[-1] == venv_dest
+
+    @pytest.mark.utils
+    def test_system_site_packages_flag(self, tmp_path):
+        """--system-site-packages is included only when site_packages=True."""
+        from pipenv.utils.virtualenv import _create_builtin_venv_cmd
+
+        project, _ = self._make_project(tmp_path)
+        cmd_no = _create_builtin_venv_cmd(project, "/usr/bin/python3", site_packages=False)
+        cmd_yes = _create_builtin_venv_cmd(project, "/usr/bin/python3", site_packages=True)
+        assert "--system-site-packages" not in cmd_no
+        assert "--system-site-packages" in cmd_yes
+
+
+class TestDoCreateVirtualenvFallback:
+    """Tests for the venv fallback logic in do_create_virtualenv (issue #5601).
+
+    When ``virtualenv`` exits with a non-zero code and the user has not set
+    PIPENV_VIRTUALENV_CREATOR, pipenv should automatically retry using the
+    target interpreter's built-in ``venv`` module.
+    """
+
+    def _make_project(self, tmp_path):
+        project = mock.MagicMock()
+        project.name = "myproject"
+        project.pipfile_location = str(tmp_path / "Pipfile")
+        project.virtualenv_location = str(tmp_path / "venv")
+        project.project_directory = str(tmp_path)
+        project.get_location_for_virtualenv.return_value = str(tmp_path / "venv")
+        project.pipfile_sources.return_value = []
+        project.parsed_pipfile = {}
+        project.s.PIPENV_SPINNER = "dots"
+        project.s.PIPENV_VIRTUALENV_CREATOR = ""
+        project.s.PIPENV_VIRTUALENV_COPIES = False
+        project.s.is_verbose.return_value = False
+        # Create the virtualenv dir so .project file write succeeds
+        (tmp_path / "venv").mkdir(parents=True, exist_ok=True)
+        return project
+
+    @pytest.mark.utils
+    def test_fallback_to_builtin_venv_on_virtualenv_failure(self, tmp_path, monkeypatch):
+        """When virtualenv fails, do_create_virtualenv retries with python -m venv."""
+        from pipenv.utils import virtualenv as venv_mod
+
+        project = self._make_project(tmp_path)
+
+        fail_result = mock.MagicMock()
+        fail_result.returncode = 1
+        fail_result.stdout = ""
+        fail_result.stderr = "TypeError: 'NoneType' object is not callable"
+
+        success_result = mock.MagicMock()
+        success_result.returncode = 0
+        success_result.stdout = ""
+        success_result.stderr = ""
+
+        call_count = {"n": 0}
+
+        def fake_subprocess_run(cmd, **kwargs):
+            call_count["n"] += 1
+            if call_count["n"] == 1:
+                return fail_result  # virtualenv attempt
+            return success_result  # venv fallback
+
+        monkeypatch.setattr(venv_mod, "subprocess_run", fake_subprocess_run)
+        monkeypatch.setattr(venv_mod, "create_tracked_tempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(venv_mod, "python_version", lambda p: "3.10.0")
+        monkeypatch.setattr(venv_mod, "do_where", lambda *a, **kw: None)
+        # Environment is imported lazily inside do_create_virtualenv; patch at source.
+        monkeypatch.setattr("pipenv.environment.Environment.__init__", lambda *a, **kw: None)
+
+        # Should not raise — the fallback succeeded
+        venv_mod.do_create_virtualenv(project, python="/usr/bin/python3")
+        assert call_count["n"] == 2, "Expected two subprocess calls (virtualenv + venv fallback)"
+
+    @pytest.mark.utils
+    def test_raises_if_both_virtualenv_and_venv_fail(self, tmp_path, monkeypatch):
+        """If both virtualenv and the venv fallback fail, VirtualenvCreationException is raised."""
+        from pipenv.utils import virtualenv as venv_mod
+        from pipenv.exceptions import VirtualenvCreationException
+
+        project = self._make_project(tmp_path)
+
+        bad_result = mock.MagicMock()
+        bad_result.returncode = 1
+        bad_result.stdout = ""
+        bad_result.stderr = "something went wrong"
+
+        monkeypatch.setattr(venv_mod, "subprocess_run", lambda cmd, **kw: bad_result)
+        monkeypatch.setattr(venv_mod, "create_tracked_tempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(venv_mod, "python_version", lambda p: "3.10.0")
+
+        with pytest.raises(VirtualenvCreationException):
+            venv_mod.do_create_virtualenv(project, python="/usr/bin/python3")
+
+    @pytest.mark.utils
+    def test_no_fallback_when_creator_explicitly_set(self, tmp_path, monkeypatch):
+        """When PIPENV_VIRTUALENV_CREATOR is set, the fallback must NOT be attempted."""
+        from pipenv.utils import virtualenv as venv_mod
+        from pipenv.exceptions import VirtualenvCreationException
+
+        project = self._make_project(tmp_path)
+        project.s.PIPENV_VIRTUALENV_CREATOR = "builtin"  # user chose explicitly
+
+        bad_result = mock.MagicMock()
+        bad_result.returncode = 1
+        bad_result.stdout = ""
+        bad_result.stderr = "virtualenv error"
+
+        call_count = {"n": 0}
+
+        def fake_subprocess_run(cmd, **kwargs):
+            call_count["n"] += 1
+            return bad_result
+
+        monkeypatch.setattr(venv_mod, "subprocess_run", fake_subprocess_run)
+        monkeypatch.setattr(venv_mod, "create_tracked_tempdir", lambda: str(tmp_path))
+        monkeypatch.setattr(venv_mod, "python_version", lambda p: "3.10.0")
+
+        with pytest.raises(VirtualenvCreationException):
+            venv_mod.do_create_virtualenv(project, python="/usr/bin/python3")
+
+        assert call_count["n"] == 1, "Fallback must not be attempted when creator is explicit"
