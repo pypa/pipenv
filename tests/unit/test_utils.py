@@ -1774,8 +1774,8 @@ class TestDoCreateVirtualenvFallback:
     @pytest.mark.utils
     def test_raises_if_both_virtualenv_and_venv_fail(self, tmp_path, monkeypatch):
         """If both virtualenv and the venv fallback fail, VirtualenvCreationException is raised."""
-        from pipenv.utils import virtualenv as venv_mod
         from pipenv.exceptions import VirtualenvCreationException
+        from pipenv.utils import virtualenv as venv_mod
 
         project = self._make_project(tmp_path)
 
@@ -1794,8 +1794,8 @@ class TestDoCreateVirtualenvFallback:
     @pytest.mark.utils
     def test_no_fallback_when_creator_explicitly_set(self, tmp_path, monkeypatch):
         """When PIPENV_VIRTUALENV_CREATOR is set, the fallback must NOT be attempted."""
-        from pipenv.utils import virtualenv as venv_mod
         from pipenv.exceptions import VirtualenvCreationException
+        from pipenv.utils import virtualenv as venv_mod
 
         project = self._make_project(tmp_path)
         project.s.PIPENV_VIRTUALENV_CREATOR = "builtin"  # user chose explicitly
