@@ -1,6 +1,6 @@
 import os
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
@@ -512,6 +512,70 @@ def test_fork_compat_sentinel_restores_echo():
     )
     assert sentinel_expect_idx < setecho_true_idx, (
         "Sentinel expect must complete before setecho(True) to avoid the race condition"
+    )
+
+
+@pytest.mark.core
+def test_install_uses_metadata_name_for_headers():
+    """Regression test for GH-5717: headers directory must use the wheel's
+    own metadata name (original casing) rather than the canonicalised/
+    lowercased requirement name that comes from the lockfile.
+
+    Example: CPyCppyy is stored as 'cpycppyy' in the lockfile (due to
+    normalize_name() in format_requirement_for_lockfile), so self.req.name
+    is 'cpycppyy'.  But the wheel's METADATA has 'Name: CPyCppyy'.
+    The headers must land in …/include/site/pythonX.Y/CPyCppyy/ not
+    …/cpycppyy/ so that downstream consumers (cppyy) can find them.
+
+    The fix reads self.metadata["Name"] from the wheel and passes that as
+    dist_name to get_scheme() and install_wheel(), overriding the lowercase
+    req.name.
+    """
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+
+    captured = {}
+
+    def fake_get_scheme(dist_name, **kwargs):
+        captured["dist_name"] = dist_name
+        return MagicMock()
+
+    def fake_install_wheel(name, *args, **kwargs):
+        captured["install_name"] = name
+
+    mock_req = MagicMock()
+    mock_req.name = "cpycppyy"  # lowercase — as stored in the lockfile
+
+    ireq = InstallRequirement.__new__(InstallRequirement)
+    ireq.req = mock_req
+    ireq.isolated = False
+    ireq.local_file_path = "/fake/CPyCppyy-1.12.13-cp312-cp312-linux_x86_64.whl"
+    ireq.install_succeeded = None
+    ireq.user_supplied = True
+
+    # is_wheel, is_direct, and metadata are all read-only properties on
+    # InstallRequirement, so they must be patched at the class level.
+    # metadata returns a dict-like object mimicking the wheel's METADATA file.
+    metadata_mock = {"Name": "CPyCppyy"}
+    with patch.object(
+        InstallRequirement, "is_wheel", new_callable=PropertyMock, return_value=True
+    ), patch.object(
+        InstallRequirement, "is_direct", new_callable=PropertyMock, return_value=False
+    ), patch.object(
+        InstallRequirement, "metadata", new_callable=PropertyMock, return_value=metadata_mock
+    ), patch(
+        "pipenv.patched.pip._internal.req.req_install.get_scheme",
+        side_effect=fake_get_scheme,
+    ), patch(
+        "pipenv.patched.pip._internal.req.req_install.install_wheel",
+        side_effect=fake_install_wheel,
+    ):
+        ireq.install()
+
+    assert captured["dist_name"] == "CPyCppyy", (
+        f"get_scheme should receive 'CPyCppyy' (from wheel metadata) not {captured['dist_name']!r}"
+    )
+    assert captured["install_name"] == "CPyCppyy", (
+        f"install_wheel should receive 'CPyCppyy' (from wheel metadata) not {captured['install_name']!r}"
     )
 
 
