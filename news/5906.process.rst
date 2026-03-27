@@ -1,0 +1,1 @@
+Update project metadata: replace defunct ``distutils-sig@python.org`` email with ``matteius@gmail.com`` and remove redundant ``.isort.cfg`` (Ruff's isort handles import sorting).
