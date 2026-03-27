@@ -87,13 +87,27 @@ def pip_install_deps(
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
         exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
+        # Suppress pip.conf index configuration so that only Pipfile [[source]]
+        # entries are used.  This prevents pip.conf extra-index-url (e.g.
+        # piwheels) from injecting indexes at install time that were not
+        # declared in the Pipfile, which would bypass pipenv's index safety
+        # model and cause hash-mismatch errors.
+        # Users who need a custom index (e.g. piwheels) should declare it as a
+        # [[source]] in their Pipfile.
         pip_config = {
             "PIP_CACHE_DIR": cache_dir.as_posix(),
             "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),
             "PIP_DESTINATION_DIR": cache_dir.joinpath("pkgs").as_posix(),
             "PIP_EXISTS_ACTION": exists_action,
+            "PIP_CONFIG_FILE": os.devnull,
             "PATH": os.environ.get("PATH"),
         }
+        if sources:
+            pip_config["PIP_INDEX_URL"] = sources[0].get("url", "")
+            if len(sources) > 1:
+                pip_config["PIP_EXTRA_INDEX_URL"] = " ".join(
+                    s.get("url", "") for s in sources[1:]
+                )
         if src_dir:
             if project.s.is_verbose():
                 err.print(f"Using source directory: {src_dir!r}")

@@ -722,8 +722,7 @@ class Resolver:
 
         sources = self.sources  # Enforce index restrictions
         canonical_ireq_name = canonicalize_name(ireq.name)
-        has_index_restriction = canonical_ireq_name in self.index_lookup
-        if has_index_restriction:
+        if canonical_ireq_name in self.index_lookup:
             sources = list(
                 filter(
                     lambda s: s.get("name") == self.index_lookup[canonical_ireq_name],
@@ -731,33 +730,15 @@ class Resolver:
                 )
             )
         source = sources[0] if sources else None
-        collected_hashes: set = set()
         if source:
             if is_pypi_url(source["url"]):
                 hashes = self.project.get_hashes_from_pypi(ireq, source)
                 if hashes:
-                    collected_hashes.update(hashes)
+                    return hashes
             else:
                 hashes = self.project.get_hashes_from_remote_index_urls(ireq, source)
                 if hashes:
-                    collected_hashes.update(hashes)
-
-        # When no per-package index restriction is set, also collect hashes from
-        # any extra-index-url entries found in the system/user pip configuration
-        # (e.g. piwheels on Raspberry Pi).  pip reads these at install time and
-        # may prefer a platform-specific wheel from an extra index; without its
-        # hash in Pipfile.lock the subsequent hash-check will fail even though
-        # pip installed a perfectly valid package.
-        if not has_index_restriction:
-            for extra_source in getattr(self.project, "pip_conf_extra_indexes", []):
-                extra_hashes = self.project.get_hashes_from_remote_index_urls(
-                    ireq, extra_source
-                )
-                if extra_hashes:
-                    collected_hashes.update(extra_hashes)
-
-        if collected_hashes:
-            return collected_hashes
+                    return hashes
 
         # Updated section to use applicable_candidates directly
         best_candidate_result = self.finder(
