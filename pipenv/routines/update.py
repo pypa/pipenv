@@ -411,9 +411,32 @@ def _process_package_args(
                 or category in explicitly_requested.get(normalized_name, [])
             )
         ):
-            project.add_pipfile_entry_to_pipfile(
-                name, normalized_name, pipfile_entry, category=pipfile_category
+            # Guard against cross-category contamination: if the package already
+            # exists in a *different* Pipfile section (e.g. [dev-packages]) but
+            # NOT in the current section (e.g. [packages]), skip the Pipfile write.
+            # Example: `pipenv upgrade mypy==1.5.1` without --dev must not silently
+            # add mypy to [packages] when it already lives in [dev-packages].
+            package_in_current_category = bool(
+                project.get_pipfile_entry(normalized_name, pipfile_category)
             )
+            package_in_other_category = any(
+                project.get_pipfile_entry(normalized_name, cat)
+                for cat in project.get_package_categories()
+                if cat != pipfile_category
+            )
+            if not package_in_current_category and package_in_other_category:
+                # The package lives in a different section; only update the
+                # lockfile, do not modify the Pipfile entry.
+                err.print(
+                    f"[bold][yellow]Package {normalized_name!r} found in a different "
+                    f"Pipfile section than {pipfile_category!r}; skipping Pipfile update "
+                    f"to avoid cross-category contamination. "
+                    f"Use --dev or --categories to target the correct section.[/bold][/yellow]"
+                )
+            else:
+                project.add_pipfile_entry_to_pipfile(
+                    name, normalized_name, pipfile_entry, category=pipfile_category
+                )
 
         requested_packages[pipfile_category][normalized_name] = pipfile_entry
 

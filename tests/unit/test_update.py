@@ -1,7 +1,7 @@
 """Unit tests for pipenv.routines.update helpers."""
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from pipenv.routines.update import _clean_unused_dependencies
+from pipenv.routines.update import _clean_unused_dependencies, _process_package_args
 
 
 def _make_project(verbose=False):
@@ -307,4 +307,111 @@ def test_clean_unused_deps_verbose_prints_removed_package(capsys):
     assert "pytz" not in lockfile["default"]
     # project.s.is_verbose() was called and err.print was invoked through the mock
     project.s.is_verbose.assert_called()
+
+
+# ---------------------------------------------------------------------------
+# _process_package_args – cross-category contamination guard (issue #5914)
+# ---------------------------------------------------------------------------
+
+
+def _make_project_with_pipfile(packages_section=None, dev_packages_section=None):
+    """Return a project mock pre-configured with fake Pipfile sections."""
+    project = MagicMock()
+    project.s.is_verbose.return_value = False
+
+    # Map from (package_name, category) -> entry (or None if not present)
+    pipfile = {}
+    if packages_section:
+        for name, entry in packages_section.items():
+            pipfile[(name, "packages")] = entry
+    if dev_packages_section:
+        for name, entry in dev_packages_section.items():
+            pipfile[(name, "dev-packages")] = entry
+
+    def fake_get_pipfile_entry(pkg_name, category):
+        return pipfile.get((pkg_name, category))
+
+    def fake_get_package_categories():
+        return ["packages", "dev-packages"]
+
+    project.get_pipfile_entry.side_effect = fake_get_pipfile_entry
+    project.get_package_categories.return_value = ["packages", "dev-packages"]
+    return project
+
+
+def test_process_package_args_does_not_cross_contaminate_categories():
+    """Running `upgrade mypy==1.5.1` (no --dev) must not add mypy to [packages]
+    when mypy already lives in [dev-packages]. (issue #5914)
+    """
+    # mypy lives only in [dev-packages]
+    project = _make_project_with_pipfile(
+        packages_section={},
+        dev_packages_section={"mypy": "==1.4.1"},
+    )
+    project.generate_package_pipfile_entry.return_value = ("mypy", "mypy", "==1.5.1")
+
+    requested_packages = {"packages": {}}
+    explicitly_requested = {"mypy": ["default"]}  # user said no --dev
+
+    with patch("pipenv.routines.update.expansive_install_req_from_line") as mock_irl:
+        mock_install_req = MagicMock()
+        mock_irl.return_value = (mock_install_req, "mypy==1.5.1")
+
+        _process_package_args(
+            project=project,
+            package_args=["mypy==1.5.1"],
+            pipfile_category="packages",  # default – no --dev
+            index_name=None,
+            reverse_deps={},
+            explicitly_requested=explicitly_requested,
+            category="default",
+            has_package_args=True,
+            requested_packages=requested_packages,
+            lock_only=False,
+        )
+
+    # The lockfile resolution dict should be populated…
+    assert "mypy" in requested_packages["packages"]
+    # …but the Pipfile should NOT have been written to [packages]
+    project.add_pipfile_entry_to_pipfile.assert_not_called()
+
+
+def test_process_package_args_writes_to_pipfile_when_package_in_correct_category():
+    """When upgrading a package that already lives in [packages], the Pipfile
+    entry IS updated. (normal upgrade path)
+    """
+    project = _make_project_with_pipfile(
+        packages_section={"requests": "==2.28.0"},
+        dev_packages_section={},
+    )
+    project.generate_package_pipfile_entry.return_value = (
+        "requests",
+        "requests",
+        "==2.31.0",
+    )
+
+    requested_packages = {"packages": {}}
+    explicitly_requested = {"requests": ["default"]}
+
+    with patch("pipenv.routines.update.expansive_install_req_from_line") as mock_irl:
+        mock_install_req = MagicMock()
+        mock_irl.return_value = (mock_install_req, "requests==2.31.0")
+
+        _process_package_args(
+            project=project,
+            package_args=["requests==2.31.0"],
+            pipfile_category="packages",
+            index_name=None,
+            reverse_deps={},
+            explicitly_requested=explicitly_requested,
+            category="default",
+            has_package_args=True,
+            requested_packages=requested_packages,
+            lock_only=False,
+        )
+
+    assert "requests" in requested_packages["packages"]
+    project.add_pipfile_entry_to_pipfile.assert_called_once_with(
+        "requests", "requests", "==2.31.0", category="packages"
+    )
 
