@@ -1,7 +1,6 @@
 import os
-import sys
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -475,15 +474,13 @@ def test_fork_compat_sentinel_restores_echo():
     mock_child.sendline.side_effect = _sendline
     mock_child.expect.side_effect = _expect
 
-    with (
-        patch("pipenv.vendor.pexpect.spawn", return_value=mock_child),
-        patch("pipenv.shells._get_activate_script", return_value="source /venv/bin/activate"),
-        patch("pipenv.shells._get_deactivate_wrapper_script", return_value=""),
-        patch("pipenv.shells.get_terminal_size") as mock_size,
-        patch("pipenv.shells.temp_environ"),
-        patch("pipenv.shells.signal.signal"),
-        patch("sys.exit"),
-    ):
+    with patch("pipenv.vendor.pexpect.spawn", return_value=mock_child), \
+         patch("pipenv.shells._get_activate_script", return_value="source /venv/bin/activate"), \
+         patch("pipenv.shells._get_deactivate_wrapper_script", return_value=""), \
+         patch("pipenv.shells.get_terminal_size") as mock_size, \
+         patch("pipenv.shells.temp_environ"), \
+         patch("pipenv.shells.signal.signal"), \
+         patch("sys.exit"):
         mock_size.return_value = MagicMock(lines=24, columns=80)
 
         shell.fork_compat("/path/to/venv", "/project", [])
