@@ -19,10 +19,25 @@ except (ImportError, AttributeError):
 import logging
 import os
 import sys
-from distutils.cmd import Command as DistutilsCommand
-from distutils.command.install import SCHEME_KEYS
-from distutils.command.install import install as distutils_install_command
-from distutils.sysconfig import get_python_lib
+
+try:
+    from distutils.cmd import Command as DistutilsCommand
+    from distutils.command.install import SCHEME_KEYS
+    from distutils.command.install import install as distutils_install_command
+    from distutils.sysconfig import get_python_lib
+except ModuleNotFoundError as _distutils_missing_exc:
+    # distutils was removed in Python 3.12 and is absent on some Linux
+    # distributions without the python3-distutils package.  Raise a clear
+    # ImportError so that the caller (locations/__init__.py) can detect the
+    # situation and fall back to sysconfig instead.
+    # See https://github.com/pypa/pipenv/issues/5674.
+    raise ImportError(
+        "distutils is not available on this interpreter. "
+        "On Python 3.12+ distutils was removed from the standard library. "
+        "Install setuptools to provide a distutils shim, or ensure your "
+        "Python installation includes the distutils package "
+        "(e.g. 'python3-distutils' on Debian/Ubuntu)."
+    ) from _distutils_missing_exc
 
 from pipenv.patched.pip._internal.models.scheme import Scheme
 from pipenv.patched.pip._internal.utils.compat import WINDOWS

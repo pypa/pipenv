@@ -64,7 +64,22 @@ if not _USE_SYSCONFIG:
     # Import distutils lazily to avoid deprecation warnings,
     # but import it soon enough that it is in memory and available during
     # a pip reinstall.
-    from . import _distutils
+    try:
+        from . import _distutils
+    except ImportError:
+        # distutils is not available on this interpreter – it was removed in
+        # Python 3.12 and is absent on some Linux distributions (e.g. Debian /
+        # Ubuntu without the python3-distutils package).  This can also occur in
+        # a mixed-version scenario where pipenv is installed under Python 3.12+
+        # but a subprocess runs under Python < 3.10, causing _USE_SYSCONFIG to
+        # evaluate to False while distutils is still missing.
+        # Fall back to sysconfig so that install-scheme resolution continues to
+        # work.  See https://github.com/pypa/pipenv/issues/5674.
+        logger.debug(
+            "distutils is not available; falling back to sysconfig for "
+            "install-scheme resolution."
+        )
+        _USE_SYSCONFIG = True
 
 # Be noisy about incompatibilities if this platforms "should" be using
 # sysconfig, but is explicitly opting out and using distutils instead.
