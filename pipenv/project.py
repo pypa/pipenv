@@ -241,6 +241,12 @@ class Project:
         pip_conf_indexes, pip_conf_extra_indexes = _parse_pip_conf_indexes(
             self.configuration
         )
+        # Store pip.conf extra-index-url entries so they can be consulted during
+        # hash collection (see Resolver.collect_hashes).  pip reads pip.conf at
+        # install time and will download packages from these extra indexes, so
+        # their hashes must also appear in Pipfile.lock to prevent hash-mismatch
+        # failures (e.g. piwheels on Raspberry Pi).
+        self.pip_conf_extra_indexes: list[dict] = pip_conf_extra_indexes
 
         if pip_conf_indexes:
             self.default_source = None
