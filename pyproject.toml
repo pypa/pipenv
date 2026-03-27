@@ -10,7 +10,7 @@ description = "Python Development Workflow for Humans."
 readme = "README.md"
 license = { text = "MIT License (MIT)" }
 authors = [
-  { name = "Pipenv maintainer team", email = "distutils-sig@python.org" },
+  { name = "Pipenv maintainer team", email = "matteius@gmail.com" },
 ]
 requires-python = ">=3.10"
 classifiers = [
