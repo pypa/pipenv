@@ -993,7 +993,19 @@ class Project:
         # Default requires.
         required_python = python
         if not python:
-            required_python = self.which("python")
+            # When the virtualenv already exists (created moments ago by
+            # ensure_virtualenv, or pre-existing), ask *its* interpreter for
+            # the version.  Using self.which("python") instead resolves
+            # "python" via PATH / pyenv shims and can return a *different*
+            # Python than the one actually inside the virtualenv (e.g. the
+            # pyenv global vs. the highest installed version that
+            # find_all_python_versions() chose).  That disagreement causes a
+            # spurious "Pipfile requires X but you are using Y" warning on
+            # every subsequent pipenv invocation.  See GH-6571.
+            if self.virtualenv_exists:
+                required_python = self._which("python") or self.which("python")
+            else:
+                required_python = self.which("python")
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
