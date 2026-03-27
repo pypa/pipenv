@@ -562,3 +562,145 @@ class TestShouldUseNoBinary:
 
     def test_none_pkg_name(self):
         assert self._call(None, ["--no-binary", "cartopy"]) is False
+
+
+# ---------------------------------------------------------------------------
+# Tests for ensure_path_is_relative (issue #5925)
+# ---------------------------------------------------------------------------
+
+
+class TestEnsurePathIsRelative:
+    """Unit tests for ensure_path_is_relative.
+
+    The function must:
+    * Return a ``./``-prefixed POSIX path for same-directory or subdirectory
+      paths (so pip treats the string as a local path, not a bare package name).
+    * Leave ``"."`` unchanged (it already means "current directory").
+    * Leave paths that start with ``..`` unchanged.
+    * Return the absolute path when the target is on a different drive (Windows).
+    """
+
+    def _call(self, file_path, cwd=None):
+        from unittest.mock import patch
+        from pathlib import Path
+        from pipenv.utils.dependencies import ensure_path_is_relative
+
+        if cwd is None:
+            return ensure_path_is_relative(file_path)
+        with patch("pipenv.utils.dependencies.Path.cwd", return_value=Path(cwd)):
+            return ensure_path_is_relative(file_path)
+
+    def test_subdirectory_gets_dotslash_prefix(self, tmp_path):
+        """A subdirectory relative to cwd should be returned as './subdir'."""
+        pkg_dir = tmp_path / "mypackage"
+        pkg_dir.mkdir()
+        result = self._call(str(pkg_dir), cwd=str(tmp_path))
+        assert result == "./mypackage"
+
+    def test_nested_subdirectory_gets_dotslash_prefix(self, tmp_path):
+        """A nested subdirectory should be returned as './a/b'."""
+        nested = tmp_path / "a" / "b"
+        nested.mkdir(parents=True)
+        result = self._call(str(nested), cwd=str(tmp_path))
+        assert result == "./a/b"
+
+    def test_current_dir_dot_unchanged(self, tmp_path):
+        """When the path resolves to cwd itself, '.' is returned unchanged."""
+        result = self._call(str(tmp_path), cwd=str(tmp_path))
+        assert result == "."
+
+    def test_parent_dir_traversal_unchanged(self, tmp_path):
+        """Paths above cwd (e.g. '../sibling') must not gain a './' prefix."""
+        sibling = tmp_path.parent / "sibling"
+        sibling.mkdir(exist_ok=True)
+        result = self._call(str(sibling), cwd=str(tmp_path))
+        # Must start with '..' — the './' prefix must NOT be added.
+        assert result.startswith(".."), f"Expected '../...' but got: {result!r}"
+        assert not result.startswith("./")
+
+    def test_already_dotslash_path_normalised(self, tmp_path):
+        """An input that already has './' is resolved and re-emitted as './'."""
+        pkg_dir = tmp_path / "mypkg"
+        pkg_dir.mkdir()
+        # Pass the path with an explicit './' prefix; the function should
+        # resolve it and still return './mypkg'.
+        result = self._call(str(tmp_path / "." / "mypkg"), cwd=str(tmp_path))
+        assert result == "./mypkg"
+
+    def test_uses_forward_slashes(self, tmp_path):
+        """Result always uses forward slashes regardless of OS separator."""
+        deep = tmp_path / "a" / "b" / "c"
+        deep.mkdir(parents=True)
+        result = self._call(str(deep), cwd=str(tmp_path))
+        assert "\\" not in result
+        assert result == "./a/b/c"
+
+
+# ---------------------------------------------------------------------------
+# Tests for dependency_as_pip_install_line – editable local-path handling
+# (issue #5925)
+# ---------------------------------------------------------------------------
+
+
+class TestDependencyAsPipInstallLineEditable:
+    """Regression tests for the editable flag handling in
+    dependency_as_pip_install_line.
+
+    The function must prepend ``-e`` when ``editable=True`` regardless of
+    whether the directory actually exists on the current filesystem.  This is
+    important for CI environments and cross-machine lock file consumption.
+    """
+
+    def _call(self, dep_name, dep):
+        from pipenv.utils.dependencies import dependency_as_pip_install_line
+
+        return dependency_as_pip_install_line(
+            dep_name,
+            dep,
+            include_hashes=False,
+            include_markers=True,
+            include_index=False,
+            indexes=[],
+        )
+
+    def test_editable_path_dep_gets_dash_e(self):
+        """Editable local-path dep produces '-e <path>' even when dir absent."""
+        dep = {"path": "./mypackage", "editable": True}
+        result = self._call("mypackage", dep)
+        assert result == "-e ./mypackage"
+
+    def test_non_editable_path_dep_no_dash_e(self):
+        """Non-editable local-path dep must NOT get '-e'."""
+        dep = {"path": "./mypackage"}
+        result = self._call("mypackage", dep)
+        assert result == "./mypackage"
+        assert not result.startswith("-e")
+
+    def test_editable_http_url_dep_no_dash_e(self):
+        """Remote HTTP URL deps must never get '-e' even if editable=True."""
+        dep = {
+            "file": "https://example.com/mypackage-1.0.tar.gz",
+            "editable": True,
+        }
+        result = self._call("mypackage", dep)
+        assert "-e" not in result
+        assert "mypackage @ https://example.com/mypackage-1.0.tar.gz" in result
+
+    def test_editable_path_dep_without_dotslash(self):
+        """Bare path without './' prefix is still treated as editable."""
+        dep = {"path": "mypackage", "editable": True}
+        result = self._call("mypackage", dep)
+        assert result.startswith("-e ")
+        assert "mypackage" in result
+
+    def test_editable_path_dep_with_parent_traversal(self):
+        """'../sibling' editable paths get '-e ../sibling'."""
+        dep = {"path": "../sibling-lib", "editable": True}
+        result = self._call("sibling-lib", dep)
+        assert result == "-e ../sibling-lib"
+
+    def test_non_editable_file_url_produces_pep508_line(self):
+        """Non-editable remote-file dep produces a PEP 508 '@' line."""
+        dep = {"file": "https://example.com/pkg-1.0-py3-none-any.whl"}
+        result = self._call("pkg", dep)
+        assert result == "pkg @ https://example.com/pkg-1.0-py3-none-any.whl"

@@ -105,18 +105,22 @@ By default, Pipenv performs a standard (non-editable) installation:
 my-package = { path = "./path/to/local/package" }
 ```
 
-To install the package in development (editable) mode (`pipenv install -e .`):
+To install the package in development (editable) mode (`pipenv install -e ./my-package`):
 
 ```toml
 [packages]
-my-package = { path = ".", editable = true }
+my-package = { path = "./my-package", editable = true }
 ```
 
 Editable installs mirror `pip install -e` behavior and reflect changes to
-the source immediately.
+the source immediately.  Pipenv writes `{ path = "./my-package", editable = true }`
+when you run `pipenv install -e ./my-package`.
 
-> Note: Older Pipenv versions implicitly treated path dependencies as
-> editable. Newer versions require `editable = true` to be explicit.
+> **Compatibility note**: Older Pipfiles may store the same entry without the
+> `./` prefix (e.g. `path = "my-package"`) or without the `editable = true`
+> flag.  Both forms are still accepted — Pipenv normalises them internally.
+> Older Pipenv versions also implicitly treated every path dependency as
+> editable; newer versions require `editable = true` to be explicit.
 
 **`file`** — an HTTP or HTTPS URL pointing to a remote wheel (`.whl`) or source
 distribution (`.tar.gz`, `.zip`):
@@ -126,8 +130,10 @@ distribution (`.tar.gz`, `.zip`):
 my-package = { file = "https://example.com/packages/my-package-1.0.tar.gz" }
 ```
 
-> Note: `path` is for local filesystem locations; `file` is for remote HTTP/HTTPS
-> URLs. Running `pipenv install -e .` writes `path = "."` to the Pipfile.
+> **`path` vs `file`**: use `path` for local filesystem locations (directories or
+> archives on disk) and `file` for remote HTTP/HTTPS URLs.  Running
+> `pipenv install -e ./my-package` always writes
+> `{ path = "./my-package", editable = true }` to your Pipfile.
 
 ### Development Packages Section
 
@@ -401,6 +407,75 @@ my-package = { file = "https://example.com/packages/my-package-1.0-py3-none-any.
 > remote HTTP/HTTPS URLs. Running `pipenv install -e .` always writes
 > `{ path = ".", editable = true }` to your Pipfile.
 
+#### Migrating from older Pipfile formats
+
+Older Pipenv versions wrote editable local installs without the `./` prefix or
+(in some releases) using the `file` key instead of `path`:
+
+```toml
+# Older format — still accepted by Pipenv
+my-package = { path = "my-package", editable = true }
+```
+
+These are equivalent to the canonical modern form:
+
+```toml
+# Modern canonical form — written by current Pipenv
+my-package = { path = "./my-package", editable = true }
+```
+
+Pipenv normalises both forms at install and lock time, so no manual migration
+is required.  If you want your Pipfile to reflect the current canonical format,
+simply run `pipenv install -e ./my-package` again and Pipenv will rewrite the
+entry.
+
+#### Editable installs and build isolation
+
+By default, pip builds each package in an isolated environment.  When you have
+many editable local packages that share the same build dependencies (e.g.
+`setuptools`), this results in those dependencies being installed once per
+package, which can be slow.
+
+Setting `PIP_NO_BUILD_ISOLATION=0` (or `--no-build-isolation` in
+`PIPENV_EXTRA_PIP_ARGS`) tells pip to reuse the virtual environment for all
+builds.  **However, this introduces a race condition when pipenv installs
+packages in parallel**: if `setuptools` (or another build backend) is being
+upgraded at the same time as an editable package is being built, the build can
+fail with a `BackendUnavailable` error.
+
+Recommended mitigations:
+
+1. **Use named categories to stage build dependencies first.**  Install build
+   backends (e.g. `setuptools`, `wheel`) in a dedicated category and sync that
+   category before the main packages:
+
+   ```toml
+   [build-deps]
+   setuptools = "*"
+   wheel = "*"
+   ```
+
+   ```bash
+   pipenv sync --categories="build-deps packages"
+   ```
+
+2. **Pin your build backend version** in `[packages]` so it is never upgraded
+   in parallel with an editable install:
+
+   ```toml
+   [packages]
+   setuptools = "*"
+   my-editable-pkg = { path = "./my-editable-pkg", editable = true }
+   ```
+
+   Because named (non-editable) packages are installed before editable ones in
+   the same category, `setuptools` will always be present and stable before
+   `my-editable-pkg` is built.
+
+3. **Keep `PIP_NO_BUILD_ISOLATION=1`** (the default) unless you have a
+   compelling performance reason.  Isolated builds are slower but immune to
+   the race condition described above.
+
 ## Troubleshooting
 
 ### Lock File Hash Mismatch
@@ -426,3 +501,57 @@ If Pipenv can't resolve dependencies:
 
 - **Pipfile**: Safe to edit manually, but follow TOML syntax rules
 - **Pipfile.lock**: Do not edit manually; always use Pipenv commands to modify
+
+### Editable Install Fails with `BackendUnavailable` (build isolation disabled)
+
+**Symptom**: When `PIP_NO_BUILD_ISOLATION=0` is set and you have multiple
+editable packages, `pipenv sync` fails with an error like:
+
+```
+pipenv.patched.pip._vendor.pyproject_hooks._impl.BackendUnavailable:
+  ImportError: The 'importlib_metadata' package is required; normally this is
+  bundled with this package so if you get this warning, consult the packager
+  of your distribution.
+```
+
+**Cause**: Pipenv installs packages in parallel.  With build isolation
+disabled, all packages share the same virtual environment for building.  If
+`setuptools` (or another build backend) is being upgraded in one thread while
+another thread is trying to use it to build an editable package, the build
+backend can fail mid-import.
+
+**Solutions** (in order of preference):
+
+1. **Restore build isolation** (`PIP_NO_BUILD_ISOLATION=1`, the default).
+   Each package gets its own clean build environment so there is no race
+   condition.  Accept the extra install time as a trade-off for reliability.
+
+2. **Stage build dependencies with named categories** so they are always
+   installed before packages that need them:
+
+   ```toml
+   [build-deps]
+   setuptools = "*"
+   wheel = "*"
+
+   [packages]
+   my-editable-pkg = { path = "./my-editable-pkg", editable = true }
+   ```
+
+   ```bash
+   pipenv sync --categories="build-deps packages"
+   ```
+
+3. **Include build backends in `[packages]`** so they are installed (as
+   non-editable, named packages) before the editable packages in the same
+   category.  Pipenv installs all non-editable packages before editable ones
+   within a single category:
+
+   ```toml
+   [packages]
+   setuptools = "*"
+   my-editable-pkg = { path = "./my-editable-pkg", editable = true }
+   ```
+
+See [Editable installs and build isolation](#editable-installs-and-build-isolation)
+in the Advanced Usage section for a fuller explanation.
