@@ -581,8 +581,9 @@ class TestEnsurePathIsRelative:
     """
 
     def _call(self, file_path, cwd=None):
-        from unittest.mock import patch
         from pathlib import Path
+        from unittest.mock import patch
+
         from pipenv.utils.dependencies import ensure_path_is_relative
 
         if cwd is None:

@@ -1424,6 +1424,7 @@ class TestCreatePipfileVersionConsistency:
     def _call_create_pipfile(self, project, python, fake_pv):
         """Invoke the real create_pipfile on *project* with all side-effects patched."""
         from unittest.mock import MagicMock, patch
+
         from pipenv.project import Project
 
         # InstallCommand instantiation pulls in pip internals we don't want in unit tests.
