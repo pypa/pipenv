@@ -1230,6 +1230,9 @@ class TestFormatRequirementForLockfile:
         req = self._make_install_req(
             "atomicwrites", link_url=cache_path, specifier="==1.4.1"
         )
+        # Index-resolved packages have no req.req.url (no PEP 508 @ URL);
+        # explicitly set to None so the PEP 508 file:// branch is not triggered.
+        req.req.url = None
 
         name, entry = format_requirement_for_lockfile(
             req=req,
@@ -1245,6 +1248,46 @@ class TestFormatRequirementForLockfile:
             "Local pip cache paths must not bleed into the lockfile"
         )
         assert entry.get("version") == "==1.4.1"
+
+    @pytest.mark.utils
+    def test_transitive_pep508_file_url_stored_in_lockfile(self):
+        """Transitive dependencies declared via PEP 508 ``pkg @ file:///...``
+        in upstream package metadata must have their ``file`` URL recorded in
+        the lockfile.
+
+        Regression test for https://github.com/pypa/pipenv/issues/6521.
+
+        When a top-level package depends on ``local-child-pkg @
+        file:///vendor/local-child-pkg``, pipenv used to write an empty entry
+        ``"local-child-pkg": {}`` because the package was not in the Pipfile
+        and the file:// path was silently dropped.  On the next ``pipenv
+        install`` pip then tried to satisfy ``local-child-pkg`` from PyPI and
+        failed with "No matching distribution found".
+        """
+        from pipenv.utils.locking import format_requirement_for_lockfile
+
+        file_url = "file:///home/user/my-project/vendor/local-child-pkg"
+        req = self._make_install_req("local-child-pkg", link_url=file_url)
+        # Simulate a PEP 508 direct URL reference: req.req.url is set to the
+        # file:// URL (as pip sets it when the requirement is ``pkg @ file://...``).
+        req.req.url = file_url
+
+        name, entry = format_requirement_for_lockfile(
+            req=req,
+            markers_lookup={},
+            index_lookup={},
+            original_deps={},
+            # Transitive dep: not in the Pipfile, so pipfile_entries is empty.
+            pipfile_entries={},
+        )
+
+        assert name == "local-child-pkg"
+        assert entry.get("file") == file_url, (
+            "PEP 508 file:// transitive deps must have their URL recorded in the lockfile"
+        )
+        # version and index should be removed (same as https:// direct URL deps)
+        assert "version" not in entry
+        assert "index" not in entry
 
     @pytest.mark.utils
     def test_regular_pypi_package_no_file_key(self):

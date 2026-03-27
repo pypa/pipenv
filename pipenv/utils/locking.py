@@ -98,6 +98,14 @@ def format_requirement_for_lockfile(
                     pipfile_entry.get("file") or pipfile_entry.get("path")
                 ):
                     entry["file"] = req.link.url
+                elif req.req and req.req.url and req.req.url.startswith("file:"):
+                    # PEP 508 direct URL file:// dependency (e.g. a transitive dep
+                    # declared as ``pkg @ file:///path/to/pkg`` in upstream metadata).
+                    # req.req.url being set distinguishes this from a cached wheel
+                    # (which also resolves to a file:// link but never sets req.req.url).
+                    entry["file"] = req.link.url
+                    entry.pop("version", None)
+                    entry.pop("index", None)
             elif req.link.scheme in ("http", "https") and req.req and req.req.url:
                 # Handle direct URL dependencies (PEP 508 style: package @ https://...)
                 # Only when the requirement itself has a URL (req.req.url is set),
