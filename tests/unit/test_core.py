@@ -1,6 +1,7 @@
 import os
+import sys
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, call, patch
 
 import pytest
 
@@ -427,6 +428,94 @@ def test_get_activate_script_windows_full_path():
 
     script = _get_activate_script("powershell", venv)
     assert ".ps1" in script
+
+
+@pytest.mark.core
+@pytest.mark.skipif(os.name == "nt", reason="PTY/pexpect not available on Windows")
+def test_fork_compat_sentinel_restores_echo():
+    """Regression test for GH-6572: fork_compat must re-enable PTY echo.
+
+    In Docker / pty-over-pty environments (e.g. Debian 13.4 + python:3.14-slim)
+    the shell's own readline initialisation can race with our setecho(True) call
+    and leave echo permanently disabled, making typed input invisible.
+
+    The fix sends a sentinel via ``echo __PIPENV_SHELL_READY__`` and blocks on
+    ``c.expect(sentinel)`` before re-enabling echo, ensuring the shell is idle
+    and all terminal-attribute changes from setup commands have settled.
+
+    This test verifies the sentinel handshake is performed and that setecho is
+    called in the correct order (False → sentinel → True) using a mock pexpect
+    child so no real PTY is needed.
+    """
+    from pipenv.shells import Shell
+
+    shell = Shell("/bin/bash")
+
+    # Build a mock pexpect child that simulates the sentinel handshake.
+    mock_child = MagicMock()
+    # Simulate setecho raising on some platforms to verify robustness.
+    mock_child.setecho.return_value = None
+    mock_child.expect.return_value = 0  # sentinel found
+    mock_child.interact.return_value = None
+    mock_child.exitstatus = 0
+
+    call_order = []
+
+    def _setecho(state):
+        call_order.append(("setecho", state))
+
+    def _sendline(line):
+        call_order.append(("sendline", line))
+
+    def _expect(pattern, timeout=30):
+        call_order.append(("expect", pattern))
+        return 0
+
+    mock_child.setecho.side_effect = _setecho
+    mock_child.sendline.side_effect = _sendline
+    mock_child.expect.side_effect = _expect
+
+    with (
+        patch("pipenv.vendor.pexpect.spawn", return_value=mock_child),
+        patch("pipenv.shells._get_activate_script", return_value="source /venv/bin/activate"),
+        patch("pipenv.shells._get_deactivate_wrapper_script", return_value=""),
+        patch("pipenv.shells.get_terminal_size") as mock_size,
+        patch("pipenv.shells.temp_environ"),
+        patch("pipenv.shells.signal.signal"),
+        patch("sys.exit"),
+    ):
+        mock_size.return_value = MagicMock(lines=24, columns=80)
+
+        shell.fork_compat("/path/to/venv", "/project", [])
+
+    # Verify setecho(False) was called before any sendline.
+    setecho_false_idx = next(
+        i for i, item in enumerate(call_order) if item == ("setecho", False)
+    )
+    first_sendline_idx = next(
+        i for i, item in enumerate(call_order) if item[0] == "sendline"
+    )
+    assert setecho_false_idx < first_sendline_idx, (
+        "setecho(False) must be called before any sendline"
+    )
+
+    # Verify the sentinel was sent and expected.
+    sentinel_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_SHELL_READY__" in item[1]]
+    assert sentinel_send, "Sentinel line must be sent via sendline"
+
+    sentinel_expect = [item for item in call_order if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])]
+    assert sentinel_expect, "Sentinel must be waited for via expect"
+
+    # Verify sentinel expect happens before setecho(True).
+    sentinel_expect_idx = next(
+        i for i, item in enumerate(call_order) if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])
+    )
+    setecho_true_idx = next(
+        i for i, item in enumerate(call_order) if item == ("setecho", True)
+    )
+    assert sentinel_expect_idx < setecho_true_idx, (
+        "Sentinel expect must complete before setecho(True) to avoid the race condition"
+    )
 
 
 @pytest.mark.core
