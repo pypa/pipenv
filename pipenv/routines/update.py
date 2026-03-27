@@ -500,7 +500,12 @@ def _resolve_and_update_lockfile(
 
 
 def _clean_unused_dependencies(
-    project, lockfile, category, full_lock_resolution, original_lockfile
+    project,
+    lockfile,
+    category,
+    full_lock_resolution,
+    original_lockfile,
+    reverse_deps=None,
 ):
     """
     Remove dependencies that are no longer needed after an upgrade.
@@ -511,6 +516,10 @@ def _clean_unused_dependencies(
         category: The category to clean (e.g., 'default', 'develop')
         full_lock_resolution: The complete resolution of dependencies
         original_lockfile: The original lockfile before the upgrade
+        reverse_deps: Optional mapping of package -> set of (requiring_package, version_constraint)
+            built from the installed environment.  When provided it is used to
+            detect transitive dependencies that are still required by packages
+            whose pinned version was NOT changed by this upgrade.
     """
     if category not in lockfile or category not in original_lockfile:
         return
@@ -533,6 +542,37 @@ def _clean_unused_dependencies(
     # Remove unused packages from the lockfile
     for package_name in unused_packages:
         if package_name in lockfile[category]:
+            # Before removing, check whether this package is still needed as a
+            # transitive dependency of a package whose version was NOT changed by
+            # this upgrade.  full_lock_resolution resolves every Pipfile entry to
+            # its *latest* available version, so its transitive closure only
+            # reflects the latest versions – not the versions currently pinned in
+            # the lockfile.  If a requiring package stayed at its original pinned
+            # version its own dependencies have not changed, so we must keep P.
+            if reverse_deps is not None:
+                still_needed = False
+                for requiring_pkg, _ in reverse_deps.get(package_name, set()):
+                    if requiring_pkg not in lockfile[category]:
+                        continue
+                    current_version = lockfile[category][requiring_pkg].get("version")
+                    original_version = (
+                        original_lockfile[category].get(requiring_pkg, {}).get("version")
+                    )
+                    # If the requiring package's version is unchanged, its
+                    # transitive dependencies haven't changed either – keep P.
+                    if (
+                        current_version is not None
+                        and current_version == original_version
+                    ):
+                        still_needed = True
+                        break
+                if still_needed:
+                    if project.s.is_verbose():
+                        err.print(
+                            f"Keeping {package_name} (still needed by a package at its pinned version)"
+                        )
+                    continue
+
             if project.s.is_verbose():
                 err.print(f"Removing unused dependency: {package_name}")
             del lockfile[category][package_name]
@@ -661,9 +701,15 @@ def upgrade(
             )
             category_resolutions[category] = full_lock_resolution
 
-            # Clean up unused dependencies
+            # Clean up unused dependencies, passing the reverse-dependency map so
+            # that transitive deps of un-upgraded (pinned) packages are preserved.
             _clean_unused_dependencies(
-                project, lockfile, category, full_lock_resolution, original_lockfile
+                project,
+                lockfile,
+                category,
+                full_lock_resolution,
+                original_lockfile,
+                reverse_deps,
             )
 
         # Reset package args for next category if needed
