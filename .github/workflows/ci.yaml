@@ -54,9 +54,16 @@ jobs:
       - run: |
           python -m pip install pre-commit
           pre-commit run --all-files --verbose --show-diff-on-failure
+  ruff:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install --user ruff
+      - run: ruff check --output-format=github .
   vendor:
     name: Vendoring
-    needs: lint
+    needs: [lint, ruff]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -68,7 +75,7 @@ jobs:
           python -m invoke vendoring.update
   tests:
     name: ${{matrix.os}} / ${{ matrix.python-version }}
-    needs: lint
+    needs: [lint, ruff]
     runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
@@ -131,7 +138,7 @@ jobs:
 
   benchmark:
     name: Package Manager Benchmark
-    needs: lint
+    needs: [lint, ruff]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -162,7 +169,7 @@ jobs:
 
   build:
     name: Build Package
-    needs: lint
+    needs: [lint, ruff]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
