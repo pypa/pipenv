@@ -1487,3 +1487,110 @@ class TestCreatePipfileVersionConsistency:
         assert requires.get("python_version") == "3.12"
         # python_full_version is only written when an explicit path is provided.
         assert requires.get("python_full_version") == "3.12.10"
+
+
+class TestAddPipfileEntryPreservesVersionSpecifiers:
+    """Regression tests for https://github.com/pypa/pipenv/issues/5865.
+
+    Installing a failing/nonexistent package must not strip version specifiers
+    from unrelated entries already present in the Pipfile.
+    """
+
+    @pytest.mark.utils
+    def test_convert_toml_preserves_inline_table_version(self):
+        """convert_toml_outline_tables must not drop the 'version' key from an
+        existing inline-table package entry when rewriting the Pipfile.
+        """
+        import textwrap
+        from unittest.mock import MagicMock
+
+        from pipenv.utils.toml import convert_toml_outline_tables
+        from pipenv.vendor import tomlkit
+
+        pipfile_content = textwrap.dedent("""\
+            [[source]]
+            url = "https://pypi.org/simple"
+            verify_ssl = true
+            name = "pypi"
+
+            [packages]
+            pydantic = {extras = ["email"], version = "<2.0"}
+
+            [dev-packages]
+
+            [requires]
+            python_version = "3.11"
+        """)
+
+        parsed = tomlkit.parse(pipfile_content)
+        # Simulate adding a new dev package (as add_pipfile_entry_to_pipfile does)
+        parsed["dev-packages"]["some-random-package"] = "*"
+
+        project = MagicMock()
+        project.get_package_categories.return_value = ["packages", "dev-packages"]
+
+        result = convert_toml_outline_tables(parsed, project)
+
+        pydantic_entry = result.get("packages", {}).get("pydantic")
+        assert pydantic_entry is not None, "pydantic entry was removed entirely"
+        assert "version" in pydantic_entry, (
+            "version key was stripped from pydantic entry after convert_toml_outline_tables"
+        )
+        assert str(pydantic_entry["version"]) == "<2.0", (
+            f"version specifier corrupted: expected '<2.0', got {pydantic_entry['version']!r}"
+        )
+        assert "extras" in pydantic_entry, "extras key was stripped from pydantic entry"
+
+    @pytest.mark.utils
+    def test_add_dev_package_preserves_packages_version_specifier(self, tmp_path, monkeypatch):
+        """add_pipfile_entry_to_pipfile must not corrupt version specifiers in
+        unrelated sections (e.g. adding to [dev-packages] must leave [packages] intact).
+        """
+        import textwrap
+
+        from pipenv.project import Project
+        from pipenv.vendor import tomlkit
+
+        pipfile_content = textwrap.dedent("""\
+            [[source]]
+            url = "https://pypi.org/simple"
+            verify_ssl = true
+            name = "pypi"
+
+            [packages]
+            pydantic = {extras = ["email"], version = "<2.0"}
+
+            [dev-packages]
+
+            [requires]
+            python_version = "3.11"
+        """)
+
+        pipfile_path = tmp_path / "Pipfile"
+        pipfile_path.write_text(pipfile_content)
+
+        monkeypatch.chdir(tmp_path)
+
+        project = Project(chdir=False)
+
+        # Add an unrelated dev package
+        project.add_pipfile_entry_to_pipfile(
+            "some-random-package",
+            "some-random-package",
+            "*",
+            category="dev-packages",
+        )
+
+        # Read back what was written
+        result = tomlkit.parse(pipfile_path.read_text())
+        pydantic_entry = result.get("packages", {}).get("pydantic")
+
+        assert pydantic_entry is not None, "pydantic entry was removed from [packages]"
+        assert "version" in pydantic_entry, (
+            "version key '<2.0' was stripped from pydantic when adding an unrelated dev package "
+            "(regression of https://github.com/pypa/pipenv/issues/5865)"
+        )
+        assert str(pydantic_entry["version"]) == "<2.0", (
+            f"version specifier corrupted: expected '<2.0', got {pydantic_entry['version']!r}"
+        )
+        assert "extras" in pydantic_entry, "extras key was stripped from pydantic entry"
