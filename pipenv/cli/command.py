@@ -206,7 +206,10 @@ def build_parser():
         help="Quiet standard output, except vulnerability report.",
     )
     p_shell.add_argument(
-        "shell_args", nargs="*", default=[], help="Arguments to pass to the shell."
+        "shell_args",
+        nargs=argparse.REMAINDER,
+        default=[],
+        help="Arguments to pass to the shell.",
     )
     add_pypi_mirror_option(p_shell)
     add_python_option(p_shell)
