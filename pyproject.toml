@@ -34,6 +34,9 @@ dependencies = [
   "setuptools>=67",
   "virtualenv>=20.24.2",
 ]
+optional-dependencies.completion = [
+  "argcomplete>=3.1",
+]
 optional-dependencies.dev = [
   "beautifulsoup4",
   "black==26.3.1",

@@ -129,35 +129,101 @@ This is useful when you want to use system environment variables instead of thos
 
 ## Shell Completion
 
-Pipenv provides shell completion scripts for various shells to make working with the command line more efficient.
+Pipenv supports tab completion for commands, options, and arguments via
+[argcomplete](https://kislyuk.github.io/argcomplete/).
 
-### Fish Shell Completion
+### Installation
 
-To enable completion in fish, add this to your configuration (`~/.config/fish/config.fish`):
+Shell completion is an optional feature. Install it alongside pipenv:
+
+```bash
+pip install "pipenv[completion]"
+```
+
+Or install `argcomplete` separately:
+
+```bash
+pip install argcomplete
+```
+
+### Activation
+
+#### Bash
+
+Add the following line to your `~/.bashrc` (or `~/.bash_profile` on macOS):
+
+```bash
+eval "$(register-python-argcomplete pipenv)"
+```
+
+Then reload your shell:
+
+```bash
+source ~/.bashrc
+```
+
+#### Zsh
+
+Add to your `~/.zshrc`:
+
+```zsh
+autoload -U bashcompinit
+bashcompinit
+eval "$(register-python-argcomplete pipenv)"
+```
+
+Then reload:
+
+```zsh
+source ~/.zshrc
+```
+
+#### Fish
 
 ```fish
-eval (env _PIPENV_COMPLETE=fish_source pipenv)
+register-python-argcomplete --shell fish pipenv | source
 ```
 
-There's also a [fish plugin](https://github.com/fisherman/pipenv) that automatically activates your virtual environments when you enter a directory with a Pipfile.
+To make it permanent, add the line above to `~/.config/fish/config.fish`.
 
-### Zsh Completion
+#### Global activation (all argcomplete-enabled tools at once)
 
-For zsh, add this to your configuration (`~/.zshrc`):
+If you use multiple tools that support argcomplete, you can activate completion
+for all of them in one step:
 
 ```bash
-eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+activate-global-python-argcomplete
 ```
 
-### Bash Completion
+This installs a shell hook that handles any package that calls
+`argcomplete.autocomplete()`.
 
-For bash, add this to your configuration (`~/.bashrc` or `~/.bash_profile`):
+### Verifying completion works
 
-```bash
-eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
-```
+After reloading your shell, type `pipenv ` and press `Tab` — you should see the
+list of available subcommands. Pressing `Tab` again after a partial subcommand
+name (e.g. `pipenv ins<Tab>`) completes it to `pipenv install`.
 
-After adding the appropriate line to your shell configuration, restart your shell or source the configuration file to enable completion.
+### Troubleshooting
+
+If completion is not working:
+
+1. **Confirm argcomplete is installed** in the same environment as pipenv:
+   ```bash
+   pip show argcomplete
+   ```
+
+2. **Verify the activation line** is present in your shell startup file and
+   that the file is being sourced for interactive sessions.
+
+3. **Restart your shell** completely (not just `source`) if the hook was
+   recently added.
+
+4. **Check for errors** by running the registration command directly:
+   ```bash
+   register-python-argcomplete pipenv
+   ```
+   It should print a shell function definition without errors.
 
 ## Best Practices for Shell Configuration
 
@@ -289,11 +355,7 @@ If environment variables aren't being loaded correctly:
 
 ### Shell Completion Issues
 
-If shell completion isn't working:
-
-1. **Verify you've added the correct line** to your shell configuration
-2. **Restart your shell** or source the configuration file
-3. **Check for errors** in your shell startup files
+See the [Troubleshooting](#troubleshooting) section under *Shell Completion* above.
 
 ## Using Python-Dotenv
 
