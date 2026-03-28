@@ -282,6 +282,7 @@ If you're having authentication problems:
 2. Ensure environment variables are properly set
 3. Verify that your credentials have access to the repository
 4. Check for special characters in your credentials that might need URL encoding
+5. If using a system credential manager (e.g. Windows Credential Manager), set `PIPENV_KEYRING_PROVIDER=subprocess` to enable keyring-based credential lookup. See [Credentials](credentials.md) for details.
 
 ### SSL Certificate Issues
 

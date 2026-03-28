@@ -143,14 +143,27 @@ Starting with pip 23.1, you can install keyring system-wide (outside of your pro
    $ virtualenv --upgrade-embed-wheels
    ```
 
-4. **Configure pip to use the subprocess keyring provider**:
+4. **Configure the keyring provider** using one of these methods:
+
+   **Option A: Environment variable (recommended for Pipenv)**:
    ```bash
-   # Global configuration (recommended)
+   $ export PIPENV_KEYRING_PROVIDER=subprocess
+   ```
+
+   **Option B: pip configuration**:
+   ```bash
+   # Global configuration
    $ pip config set --global keyring-provider subprocess
 
    # Or user-level configuration
    $ pip config set --user keyring-provider subprocess
    ```
+
+   !!! note
+       Setting `PIPENV_KEYRING_PROVIDER` ensures that keyring credentials are used
+       during both dependency resolution and installation, even though Pipenv disables
+       interactive pip input by default. This is particularly important for credential
+       managers like Windows Credential Manager.
 
 5. **Configure your index URL with the appropriate username**:
    - For Google Artifact Registry: use `oauth2accesstoken` as username
@@ -200,6 +213,8 @@ Google Cloud Artifact Registry supports authentication via keyring:
    disable_pip_input = false
    ```
 
+   Alternatively, if your keyring provider does not require user interaction (e.g. Windows Credential Manager), you can set `PIPENV_KEYRING_PROVIDER=subprocess` instead.
+
 ### Azure Artifact Registry
 
 For Azure Artifact Registry:
@@ -210,6 +225,33 @@ For Azure Artifact Registry:
    ```
 
 2. Configure your `Pipfile` similar to the Google Cloud example above, using `VssSessionToken` as the username in your index URL.
+
+### Windows Credential Manager
+
+On Windows, pip can use credentials stored in Windows Credential Manager via the keyring library.
+To use these credentials with Pipenv:
+
+1. **Install keyring globally**:
+   ```powershell
+   > pip install --user keyring
+   ```
+
+2. **Set the keyring provider**:
+   ```powershell
+   > $env:PIPENV_KEYRING_PROVIDER="subprocess"
+   ```
+
+   Or set it permanently via system environment variables.
+
+3. **Store your credentials** in Windows Credential Manager (via Control Panel or `cmdkey`).
+
+4. **Configure your `Pipfile`** with the private index URL (with or without the username):
+   ```toml
+   [[source]]
+   url = "https://username@private-repo.example.com/simple"
+   verify_ssl = true
+   name = "private"
+   ```
 
 ### AWS CodeArtifact
 

@@ -69,6 +69,7 @@ def test_pip_install_deps_attaches_deps_to_subprocess(monkeypatch, tmp_path):
     class _Settings:
         PIPENV_CACHE_DIR = str(tmp_path)
         PIP_EXISTS_ACTION = None
+        PIPENV_KEYRING_PROVIDER = None
 
         def is_verbose(self):
             return False
@@ -136,6 +137,7 @@ def test_pip_install_deps_suppresses_pip_conf(monkeypatch, tmp_path):
     class _Settings:
         PIPENV_CACHE_DIR = str(tmp_path)
         PIP_EXISTS_ACTION = None
+        PIPENV_KEYRING_PROVIDER = None
 
         def is_verbose(self):
             return False
@@ -206,6 +208,7 @@ def test_pip_install_deps_single_source_no_extra_index(monkeypatch, tmp_path):
     class _Settings:
         PIPENV_CACHE_DIR = str(tmp_path)
         PIP_EXISTS_ACTION = None
+        PIPENV_KEYRING_PROVIDER = None
 
         def is_verbose(self):
             return False

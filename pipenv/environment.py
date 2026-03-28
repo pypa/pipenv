@@ -562,6 +562,9 @@ class Environment:
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
         pip_options.pre = self.pipfile.get("pre", pre)
+        keyring_provider = self.project.s.PIPENV_KEYRING_PROVIDER
+        if keyring_provider:
+            pip_options.keyring_provider = keyring_provider
         session = pip_command._build_session(pip_options)
         finder = get_package_finder(
             install_cmd=pip_command, options=pip_options, session=session

@@ -91,11 +91,12 @@ To disable a boolean option, set it to a false value: `"0"`, `"false"`, `"no"`, 
 | `PIPENV_CLEAR` | Clear caches on run | `0` |
 | `PIPENV_SITE_PACKAGES` | Enable site-packages for virtualenv | `0` |
 
-#### Security
+#### Security and Credentials
 
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PIPENV_PYUP_API_KEY` | PyUp.io API key for security checks | None |
+| `PIPENV_KEYRING_PROVIDER` | Keyring provider for credential lookup (`auto`, `disabled`, `import`, `subprocess`) | None (pip default: `auto`) |
 
 #### Runtime Environment Variables
 
