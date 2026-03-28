@@ -1,0 +1,3 @@
+Add ``--exclude-index`` flag to ``pipenv requirements`` command to allow users
+to exclude index URLs (``-i`` and ``--extra-index-url``) from the generated output.
+This is useful when the index is configured separately in the target environment.

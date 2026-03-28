@@ -1059,6 +1059,12 @@ def verify(state):
 @option("--hash", is_flag=True, default=False, help="Add package hashes.")
 @option("--exclude-markers", is_flag=True, default=False, help="Exclude markers.")
 @option(
+    "--exclude-index",
+    is_flag=True,
+    default=False,
+    help="Exclude index URLs from the output.",
+)
+@option(
     "--categories",
     is_flag=False,
     default="",
@@ -1084,6 +1090,7 @@ def requirements(
     dev_only=False,
     hash=False,
     exclude_markers=False,
+    exclude_index=False,
     categories="",
     from_pipfile=False,
     no_lock=False,
@@ -1103,6 +1110,7 @@ def requirements(
         categories=categories,
         from_pipfile=from_pipfile,
         no_lock=no_lock,
+        include_index=not exclude_index,
     )
 
 
