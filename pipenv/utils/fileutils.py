@@ -52,7 +52,7 @@ def url_to_path(url: str) -> Path:
 
 
 if os.name == "nt":
-    # from click _winconsole.py
+    # code taken from click _winconsole.py
     from ctypes import create_unicode_buffer, windll
 
     def get_long_path(short_path: str) -> str:
