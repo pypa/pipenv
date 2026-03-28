@@ -347,6 +347,7 @@ def do_install(
         pypi_mirror=pypi_mirror,
         site_packages=site_packages,
         pipfile_categories=pipfile_categories,
+        lockfile_only=ignore_pipfile,
     )
 
     do_install_validations(
@@ -853,7 +854,7 @@ def do_init(
     """Initialize the project, ensuring that the Pipfile and Pipfile.lock are in place.
     Returns True if packages were updated + installed.
     """
-    if not deploy:
+    if not deploy and not ignore_pipfile:
         ensure_pipfile(project, system=system)
 
     handle_lockfile(

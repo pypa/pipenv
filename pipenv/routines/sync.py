@@ -24,6 +24,7 @@ def do_sync(
         raise exceptions.LockfileNotFound("Pipfile.lock")
 
     # Ensure that virtualenv is available if not system.
+    # sync only needs the lockfile, so skip Pipfile creation.
     ensure_project(
         project,
         python=python,
@@ -33,6 +34,7 @@ def do_sync(
         pypi_mirror=pypi_mirror,
         clear=clear,
         site_packages=site_packages,
+        lockfile_only=True,
     )
 
     # Install everything.

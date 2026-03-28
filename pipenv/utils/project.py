@@ -71,6 +71,7 @@ def ensure_project(
     pypi_mirror=None,
     clear=False,
     pipfile_categories=None,
+    lockfile_only=False,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
@@ -173,14 +174,16 @@ def ensure_project(
             else:
                 raise exceptions.DeployException
 
-    # Ensure the Pipfile exists.
-    ensure_pipfile(
-        project,
-        validate=validate,
-        skip_requirements=skip_requirements,
-        system=system,
-        pipfile_categories=pipfile_categories,
-    )
+    # Ensure the Pipfile exists (skip when installing from lockfile only,
+    # e.g. ``pipenv sync`` — we don't need or want to create a blank Pipfile).
+    if not lockfile_only:
+        ensure_pipfile(
+            project,
+            validate=validate,
+            skip_requirements=skip_requirements,
+            system=system,
+            pipfile_categories=pipfile_categories,
+        )
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
 
 
