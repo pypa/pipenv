@@ -22,6 +22,13 @@ def _build_info(value):
 def detect_info(project):
     if project.s.PIPENV_SHELL_EXPLICIT:
         return _build_info(project.s.PIPENV_SHELL_EXPLICIT)
+    # On Windows, prefer $SHELL over shellingham process-tree detection.
+    # shellingham walks the process tree and can be confused by cmd.exe shims
+    # (e.g. pyenv), returning 'cmd' even when the user is in bash or powershell.
+    # $SHELL is set by POSIX-like environments (Git Bash, MSYS2, WSL) to the
+    # correct interactive shell.
+    if os.name == "nt" and project.s.PIPENV_SHELL:
+        return _build_info(project.s.PIPENV_SHELL)
     try:
         return shellingham.detect_shell()
     except (shellingham.ShellDetectionFailure, TypeError):
