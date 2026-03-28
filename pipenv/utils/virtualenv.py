@@ -214,6 +214,11 @@ def _create_builtin_venv_cmd(project, python, site_packages=False):
 def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv, if one doesn't exist."""
 
+    # When --system is used, skip virtualenv creation entirely.
+    # The user explicitly wants to install to the system Python.
+    if project.s.PIPENV_USE_SYSTEM:
+        return
+
     if not project.virtualenv_exists:
         try:
             # Ensure environment variables are set properly.
@@ -225,16 +230,6 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
                     python = python.path.as_posix()
                 else:  # It's a Path object
                     python = python.as_posix()
-            # Create the virtualenv.
-            # Abort if --system (or running in a virtualenv).
-            if project.s.PIPENV_USE_SYSTEM:
-                err.print(
-                    "[red]"
-                    "You are attempting to re–create a virtualenv that "
-                    "Pipenv did not create. Aborting.",
-                    "[/red]",
-                )
-                sys.exit(1)
             do_create_virtualenv(
                 project,
                 python=python,

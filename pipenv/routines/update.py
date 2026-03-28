@@ -51,6 +51,13 @@ def do_update(
     if not outdated:
         outdated = bool(dry_run)
 
+    # Handle --system flag
+    if project.s.PIPENV_USE_SYSTEM:
+        system = True
+    if system:
+        project.s.PIPENV_USE_SYSTEM = True
+        os.environ["PIPENV_USE_SYSTEM"] = "1"
+
     ensure_project(
         project,
         python=python,
@@ -58,6 +65,7 @@ def do_update(
         warn=(not quiet),
         site_packages=site_packages,
         clear=clear,
+        system=system,
     )
 
     if not outdated:
@@ -72,6 +80,7 @@ def do_update(
                 clear=clear,
                 pypi_mirror=pypi_mirror,
                 extra_pip_args=extra_pip_args,
+                system=system,
             )
         upgrade(
             project,
@@ -96,6 +105,7 @@ def do_update(
             clear=clear,
             pypi_mirror=pypi_mirror,
             extra_pip_args=extra_pip_args,
+            system=system,
         )
     else:
         do_outdated(

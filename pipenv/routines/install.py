@@ -506,6 +506,69 @@ def do_install_validations(
                 sys.exit(1)
 
 
+def install_build_system_packages(
+    project,
+    allow_global=False,
+    pypi_mirror=None,
+    requirements_dir=None,
+):
+    """Install packages specified in [build-system].requires from the Pipfile.
+
+    These packages are installed before any other packages are resolved or installed,
+    so they are available when building packages that import non-standard tools in
+    their setup.py (e.g. custom setuptools wrappers).
+
+    Example Pipfile::
+
+        [build-system]
+        requires = ["stwrapper", "setuptools>=40.8.0", "wheel"]
+
+    :param project: The pipenv project instance.
+    :param allow_global: Whether to use the global Python environment.
+    :param pypi_mirror: Optional PyPI mirror URL.
+    :param requirements_dir: Optional temporary directory for requirements files.
+    """
+    build_requires = project.pipfile_build_requires
+    if not build_requires:
+        return
+
+    if not requirements_dir:
+        requirements_dir = fileutils.create_tracked_tempdir(
+            suffix="-requirements", prefix="pipenv-"
+        )
+
+    if not project.s.is_quiet():
+        err.print(
+            "Installing [build-system] dependencies...",
+            style="bold",
+        )
+
+    sources = get_source_list(
+        project,
+        index=None,
+        extra_indexes=None,
+        trusted_hosts=get_trusted_hosts(),
+        pypi_mirror=pypi_mirror,
+    )
+
+    procs = queue.Queue(maxsize=1)
+    cmds = pip_install_deps(
+        project,
+        deps=build_requires,
+        sources=sources,
+        allow_global=allow_global,
+        ignore_hashes=True,  # Build deps are not hashed
+        no_deps=False,
+        requirements_dir=requirements_dir,
+        use_pep517=True,
+        extra_pip_args=None,
+    )
+
+    for c in cmds:
+        procs.put(c)
+        _cleanup_procs(project, procs)
+
+
 def do_install_dependencies(
     project,
     dev=False,
@@ -522,6 +585,14 @@ def do_install_dependencies(
     Executes the installation functionality.
 
     """
+    # Install any build-system packages first so they are available when
+    # building packages that use non-standard setup.py tooling.
+    install_build_system_packages(
+        project,
+        allow_global=allow_global,
+        pypi_mirror=pypi_mirror,
+        requirements_dir=requirements_dir,
+    )
     procs = queue.Queue(maxsize=1)
     if not categories:
         if dev:

@@ -1,9 +1,11 @@
 import os
+import queue
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, PropertyMock, patch
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 import pytest
 
+from pipenv.project import NON_CATEGORY_SECTIONS
 from pipenv.shells import _get_activate_script, _get_deactivate_wrapper_script
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.shell import temp_environ
@@ -623,3 +625,146 @@ def test_get_deactivate_wrapper_script_windows_full_path():
     )
     assert "PIPENV_ACTIVE" in script
     assert "Remove-Item" in script
+
+
+# ── Tests for [build-system] support (issue #3651) ──────────────────────────
+
+
+@pytest.mark.core
+def test_build_system_excluded_from_non_category_sections():
+    """[build-system] must be listed in NON_CATEGORY_SECTIONS so it is never
+    treated as a package category by get_package_categories."""
+    assert "build-system" in NON_CATEGORY_SECTIONS
+
+
+@pytest.mark.core
+def test_pipfile_build_requires_empty_when_no_section(project):
+    """pipfile_build_requires returns [] when Pipfile has no [build-system]."""
+    with patch.object(
+        type(project),
+        "pipfile_exists",
+        new_callable=PropertyMock,
+        return_value=True,
+    ), patch.object(
+        type(project),
+        "parsed_pipfile",
+        new_callable=PropertyMock,
+        return_value={},
+    ):
+        assert project.pipfile_build_requires == []
+
+
+@pytest.mark.core
+def test_pipfile_build_requires_empty_when_no_pipfile(project):
+    """pipfile_build_requires returns [] when there is no Pipfile at all."""
+    with patch.object(
+        type(project),
+        "pipfile_exists",
+        new_callable=PropertyMock,
+        return_value=False,
+    ):
+        assert project.pipfile_build_requires == []
+
+
+@pytest.mark.core
+def test_pipfile_build_requires_reads_requires_list(project):
+    """pipfile_build_requires returns the list of packages from [build-system].requires."""
+    fake_pipfile = {
+        "build-system": {
+            "requires": ["stwrapper>=1.0", "setuptools>=40.8.0", "wheel"],
+        }
+    }
+    with patch.object(
+        type(project),
+        "pipfile_exists",
+        new_callable=PropertyMock,
+        return_value=True,
+    ), patch.object(
+        type(project),
+        "parsed_pipfile",
+        new_callable=PropertyMock,
+        return_value=fake_pipfile,
+    ):
+        result = project.pipfile_build_requires
+        assert result == ["stwrapper>=1.0", "setuptools>=40.8.0", "wheel"]
+
+
+@pytest.mark.core
+def test_build_system_not_in_package_categories(project):
+    """get_package_categories must never include 'build-system' (or its lockfile
+    counterpart) in the returned list."""
+    fake_pipfile = {
+        "source": [{"url": "https://pypi.org/simple", "verify_ssl": True, "name": "pypi"}],
+        "packages": {"requests": "*"},
+        "dev-packages": {"pytest": "*"},
+        "build-system": {"requires": ["setuptools"]},
+    }
+    with patch.object(
+        type(project),
+        "pipfile_exists",
+        new_callable=PropertyMock,
+        return_value=True,
+    ), patch.object(
+        type(project),
+        "parsed_pipfile",
+        new_callable=PropertyMock,
+        return_value=fake_pipfile,
+    ):
+        categories = project.get_package_categories()
+        assert "build-system" not in categories
+        lockfile_categories = project.get_package_categories(for_lockfile=True)
+        assert "build-system" not in lockfile_categories
+
+
+@pytest.mark.core
+def test_install_build_system_packages_no_op_when_empty(project):
+    """install_build_system_packages does nothing when pipfile_build_requires is []."""
+    from pipenv.routines.install import install_build_system_packages
+
+    with patch.object(
+        type(project),
+        "pipfile_build_requires",
+        new_callable=PropertyMock,
+        return_value=[],
+    ), patch(
+        "pipenv.routines.install.pip_install_deps"
+    ) as mock_pip_install:
+        install_build_system_packages(project)
+        mock_pip_install.assert_not_called()
+
+
+@pytest.mark.core
+def test_install_build_system_packages_calls_pip_install(project):
+    """install_build_system_packages calls pip_install_deps with the build requires."""
+    from pipenv.routines.install import install_build_system_packages
+
+    build_requires = ["stwrapper>=1.0", "setuptools"]
+
+    # Create a fake subprocess result that succeeds
+    fake_proc = MagicMock()
+    fake_proc.returncode = 0
+    fake_proc.communicate.return_value = (b"", b"")
+
+    with patch.object(
+        type(project),
+        "pipfile_build_requires",
+        new_callable=PropertyMock,
+        return_value=build_requires,
+    ), patch.object(
+        type(project),
+        "settings",
+        new_callable=PropertyMock,
+        return_value={},
+    ), patch(
+        "pipenv.routines.install.get_source_list",
+        return_value=[{"url": "https://pypi.org/simple", "verify_ssl": True, "name": "pypi"}],
+    ), patch(
+        "pipenv.routines.install.pip_install_deps",
+        return_value=[fake_proc],
+    ) as mock_pip_install:
+        install_build_system_packages(project)
+
+    mock_pip_install.assert_called_once()
+    call_kwargs = mock_pip_install.call_args
+    assert call_kwargs[1]["deps"] == build_requires
+    assert call_kwargs[1]["ignore_hashes"] is True

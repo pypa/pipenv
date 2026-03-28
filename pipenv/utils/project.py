@@ -81,6 +81,7 @@ def ensure_project(
         raise exceptions.PipfileNotFound
 
     # When --system is used with --python, validate that the Python can be found
+    # and store the resolved path so pip uses the correct interpreter.
     if system and python:
         path_to_python = find_a_system_python(
             python, pyenv_only=project.s.PIPENV_PYENV_ONLY
@@ -90,6 +91,11 @@ def ensure_project(
                 message=f"Python version '{python}' was not found on your system. "
                 "Please ensure Python is installed and available in PATH.",
             )
+        # Store the resolved Python path so project_python() and
+        # get_environment() can use the correct interpreter for --system
+        # installs targeting a specific Python (#3593).
+        os.environ["PIP_PYTHON_PATH"] = path_to_python
+        project.s.PIPENV_PYTHON = path_to_python
 
     # If --python was explicitly specified and the existing virtualenv uses a different
     # Python version, allow ensure_virtualenv to handle recreation.

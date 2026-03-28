@@ -1,0 +1,3 @@
+Add ``--system`` flag to ``pipenv update`` command, allowing system-level package
+updates without creating a virtualenv. This is useful in Docker environments and
+other contexts where packages are installed directly to the system Python.
