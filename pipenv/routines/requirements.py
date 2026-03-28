@@ -31,16 +31,24 @@ def generate_requirements(
         )
         return
 
-    lockfile = project.load_lockfile(expand_env_vars=True)
+    lockfile = project.load_lockfile(expand_env_vars=False)
     pipfile_package_names = project.pipfile_package_names
 
-    # Print index URLs first (unless excluded)
+    # Print index URLs first (unless excluded).
+    # We deliberately do NOT expand env vars here so that credentials stored
+    # as ``${TOKEN}`` remain as templates that pip can expand itself (per
+    # https://pip.pypa.io/en/stable/reference/requirements-file-format/#using-environment-variables).
+    # We *do* normalise bare ``$VAR`` to ``${VAR}`` because pip only supports
+    # the braced form (#5272).
     if include_index:
         for i, package_index in enumerate(lockfile["_meta"]["sources"]):
             prefix = "-i" if i == 0 else "--extra-index-url"
-            print(
-                " ".join([prefix, package_index["url"]])
-            )  # Use print instead of console.print
+            url = re.sub(
+                r"\$([A-Za-z_][A-Za-z0-9_]*)",
+                r"${\1}",
+                package_index["url"],
+            )
+            print(f"{prefix} {url}")
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []
