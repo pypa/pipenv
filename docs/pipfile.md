@@ -147,6 +147,36 @@ mypy = "*"
 sphinx = {version = ">=4.0.0", extras = ["docs"]}
 ```
 
+#### Pinning a Package in `dev-packages` That Is Also a Production Dependency
+
+If a package is required by a production dependency (listed under `[packages]`) *and*
+you also pin it explicitly in `[dev-packages]`, the resolver treats both sections as
+part of a single unified dependency graph. The production dependency's constraints
+take precedence when they conflict.
+
+For example:
+
+```toml
+[packages]
+apispec = "*"       # apispec depends on `packaging` (any version)
+
+[dev-packages]
+packaging = "==21.3"  # Pinned to an older version
+```
+
+Here, `packaging` will be resolved to whatever version satisfies `apispec`'s
+requirement (e.g. `==22.0`), **not** necessarily `==21.3`. No resolution error
+is raised because `apispec = "*"` allows any version of `packaging`.
+
+```{note}
+This is intentional behaviour: Pipenv uses a single resolver for all categories and
+there is only one installed version of each package per environment. To enforce a
+specific version, add the pin to `[packages]` as well, or tighten the constraint on
+the package that requires it (e.g. `apispec = {version = "*", dependencies = {packaging = "==21.3"}}`
+is not valid Pipfile syntax; instead use `pipenv install "packaging==21.3"` so the
+pin appears in `[packages]`).
+```
+
 ### Python Version Requirements
 
 The `[requires]` section specifies Python version constraints:

@@ -107,6 +107,66 @@ easiest to use either the `.tar.gz` or universal wheels (ex: `py2.py3-none`). If
 a `.tar.gz` or universal wheel is not available, add wheels for all available
 architectures and platforms.
 
+## News Fragments (Changelog Entries)
+
+Pipenv uses [towncrier](https://towncrier.readthedocs.io/) to manage its changelog.
+Every pull request that changes user-visible behaviour should include a **news fragment**
+so the change is captured in the next release's `CHANGELOG.md`.
+
+### Creating a News Fragment
+
+News fragments live in the `news/` directory. Create a file named:
+
+```
+news/<issue-number>.<type>.rst
+```
+
+Where `<type>` is one of:
+
+| Type | Description | Appears in CHANGELOG? |
+|------|-------------|----------------------|
+| `feature` | New feature or improvement | Yes |
+| `behavior` | Change to existing behavior | Yes |
+| `bugfix` | Bug fix | Yes |
+| `vendor` | Update to a vendored library | Yes |
+| `doc` | Documentation-only improvement | Yes |
+| `removal` | Deprecation or removal | Yes |
+| `process` | Change to dev/CI process | Yes |
+| `trivial` | Typo fix, refactor, or other minor change | **No** (not shown in CHANGELOG) |
+
+For example, to document a bug fix for issue #1234:
+
+```bash
+$ echo "Fixed the frobnication logic when the widget is None." > news/1234.bugfix.rst
+```
+
+### Trivial Fragments
+
+Use the `trivial` type for changes that do **not** warrant a user-facing changelog entry
+(e.g. internal refactors, test-only changes, typo fixes in comments):
+
+```bash
+$ echo "." > news/1234.trivial.rst
+```
+
+```{note}
+Trivial fragments **are** required by CI to confirm you have considered whether a
+changelog entry is needed — but they are intentionally excluded from the generated
+`CHANGELOG.md`. This is expected: `towncrier` collects them, deletes the files, and
+silently omits them from the output. You do not need to add anything to the trivial
+fragment's content; a single `.` is conventional.
+```
+
+### Generating the Changelog Locally
+
+To preview what the next changelog section will look like:
+
+```bash
+$ towncrier build --draft --version 9999.0.0
+```
+
+This prints the draft changelog to stdout without modifying any files.
+
 ## Documentation Contributions
 
 Documentation improvements are always welcome! The documentation files live in

@@ -1,0 +1,1 @@
+Enhanced the "Moving or Renaming Projects" section in docs/virtualenv.md with a recovery workflow for users who already moved their project without running ``pipenv --rm`` first, and added a tip about ``PIPENV_VENV_IN_PROJECT``.

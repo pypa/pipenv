@@ -112,6 +112,21 @@ Or for more specific control:
 python_full_version = "3.10.4"  # Exactly Python 3.10.4
 ```
 
+```{warning}
+**`python_version` only accepts an exact version string**, such as `"3.10"` or `"3"`.
+It does **not** accept version range specifiers like `">= 3.6"` or `"~= 3.9"`.
+
+If you write `python_version = ">= 3.6"`, Pipenv will warn that the required Python
+version was not found and may behave unexpectedly:
+
+    Warning: Python >= 3.6 was not found on your system...
+    Warning: Your Pipfile requires python_version >= 3.6, but you are using 3.9.2 (...)
+
+To express a minimum Python requirement, simply set the lowest version you support
+as the exact `python_version` (e.g. `python_version = "3.9"`). If you need
+a fully exact pin, use `python_full_version` instead (e.g. `python_full_version = "3.9.7"`).
+```
+
 ### Python Version Selection Logic
 
 When you run `pipenv install` without specifying a Python version:
@@ -235,6 +250,25 @@ pyobjc = {version = "*", sys_platform = "== 'darwin'"}
 ```
 
 Any key from the [PEP 508 environment markers](https://peps.python.org/pep-0508/#environment-markers) can be used as a shorthand.
+
+#### Platform Markers and Locking
+
+```{important}
+When `pipenv lock` runs, pip resolves **all** packages in your `Pipfile`, regardless of
+platform markers. If a package with a `sys_platform == 'win32'` marker is listed and
+pip cannot find a matching distribution for it on your current platform (e.g. Linux),
+you may see an error like:
+
+    ERROR: No matching distribution found for pywin32
+
+This happens because pip's resolver attempts to download metadata for all listed packages
+and some Windows-only packages do not publish distributions for Linux/macOS.
+
+**Workaround:** Ensure the package supports all platforms at the *metadata* level, or
+split Windows-specific packages into a separate Pipfile or category. For packages that
+truly have no Linux/macOS releases at all, consider managing them outside of Pipenv for
+the non-Windows environments.
+```
 
 #### Architecture-Specific Dependencies
 

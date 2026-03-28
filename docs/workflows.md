@@ -283,6 +283,65 @@ $ git commit -m "Update dependencies"
 $ pipenv install
 ```
 
+## Upgrading the Python Version
+
+When you want to move a project from one Python version to another (e.g., from 3.9 to
+3.11), follow these steps to ensure a clean upgrade.
+
+### Step-by-Step Python Version Upgrade
+
+1. **Install the new Python version** on your system (via pyenv, asdf, your OS package
+   manager, or python.org):
+   ```bash
+   # Using pyenv
+   $ pyenv install 3.11
+   ```
+
+2. **Remove the current virtual environment** so Pipenv can create a fresh one:
+   ```bash
+   $ pipenv --rm
+   ```
+
+3. **Update the `[requires]` section** in your `Pipfile` to the new version:
+   ```toml
+   [requires]
+   python_version = "3.11"
+   ```
+
+4. **Recreate the virtual environment** with the new Python version:
+   ```bash
+   $ pipenv --python 3.11
+   ```
+
+5. **Re-lock and install all dependencies** to regenerate `Pipfile.lock` for the new
+   Python version:
+   ```bash
+   $ pipenv lock
+   $ pipenv sync --dev
+   ```
+
+6. **Verify the upgrade:**
+   ```bash
+   $ pipenv run python --version
+   Python 3.11.x
+   ```
+
+### Quick Reference
+
+```bash
+$ pipenv --rm
+# Edit Pipfile: python_version = "3.11"
+$ pipenv --python 3.11
+$ pipenv lock
+$ pipenv sync --dev
+```
+
+```{note}
+Do **not** edit `Pipfile.lock` by hand to change the Python version. Always re-run
+`pipenv lock` after updating `[requires]` so that the lock file is regenerated with
+the correct platform markers and package versions for the new interpreter.
+```
+
 ## Troubleshooting Workflows
 
 ### Resolving Dependency Conflicts
