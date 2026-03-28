@@ -345,6 +345,30 @@ class Resolver:
                 markers_lookup[package_name] = install_req.markers
             if is_constraint:
                 constraints.add(dep)
+
+        # For non-default categories (e.g. dev-packages, custom groups), also
+        # populate index_lookup with index information from *all other* Pipfile
+        # sections.  This is necessary so that transitive dependencies of the
+        # current category that happen to be explicitly listed in another
+        # section (most commonly [packages]) can still be found on the correct
+        # private index when the resolver uses index_restricted=True.
+        #
+        # Example: if [packages] has ``private_lib = {index = "private"}`` and
+        # [dev-packages] has ``dev_tool`` which depends on ``private_lib``,
+        # locking [dev-packages] would fail because ``private_lib`` was not in
+        # index_lookup and pip therefore tried the default (PyPI) index only.
+        if pipfile_category and pipfile_category != "packages":
+            for other_category in project.get_package_categories():
+                if other_category == pipfile_category:
+                    continue
+                other_packages = project.get_pipfile_section(other_category)
+                for pkg_name, pkg_entry in other_packages.items():
+                    canonical_pkg_name = canonicalize_name(pkg_name)
+                    # Don't override entries already set for the current category
+                    if canonical_pkg_name not in index_lookup:
+                        if isinstance(pkg_entry, dict) and pkg_entry.get("index"):
+                            index_lookup[canonical_pkg_name] = pkg_entry["index"]
+
         lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
         resolver = Resolver(
             set(),
