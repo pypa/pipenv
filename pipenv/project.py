@@ -1257,8 +1257,15 @@ class Project:
         sources = (self.sources, self.pipfile_sources())
         if refresh:
             sources = reversed(sources)
+        # Use a filtering generator so that a None result from the first
+        # source list does not short-circuit the search in the second list.
         found = next(
-            iter(find_source(source, name=name, url=url) for source in sources), None
+            (
+                result
+                for source in sources
+                if (result := find_source(source, name=name, url=url)) is not None
+            ),
+            None,
         )
         target = next(iter(t for t in (name, url) if t is not None))
         if found is None:

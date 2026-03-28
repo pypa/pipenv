@@ -62,16 +62,17 @@ def do_clean(
 
 
 def ensure_lockfile(project, pypi_mirror=None):
-    """Ensures that the lockfile is up-to-date."""
-    # Write out the lockfile if it doesn't exist, but not if the Pipfile is being ignored
+    """Ensures that a lockfile exists. If one exists but is out of date, warn
+    the user but do NOT re-lock -- ``pipenv clean`` should use the current
+    Pipfile.lock as-is.  Only create a new lock file when none exists at all."""
     if project.lockfile_exists:
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
             err.print(
-                f"Pipfile.lock ({old_hash[-6:]}) out of date, updating to ({new_hash[-6:]})...",
+                f"Pipfile.lock ({old_hash[-6:]}) out of date. "
+                "Run `pipenv lock` to update.",
                 style="bold yellow",
             )
-            do_lock(project, pypi_mirror=pypi_mirror)
     else:
         do_lock(project, pypi_mirror=pypi_mirror)
