@@ -51,7 +51,7 @@ def main(args: Sequence[str] | None = None) -> int | None:
         print(f"Failed to query custom interpreter: {e}", file=sys.stderr)  # noqa: T201
         return 1
 
-    tree = PackageDAG.from_pkgs(pkgs)
+    tree = PackageDAG.from_pkgs(pkgs, include_extras=options.extras)
 
     validate(tree)
 
@@ -79,9 +79,9 @@ def main(args: Sequence[str] | None = None) -> int | None:
 
 
 def _is_text_output(options: Options) -> bool:
-    if any([options.json, options.json_tree, options.graphviz_format, options.mermaid]):
+    if any((options.json, options.json_tree, options.graphviz_format, options.mermaid)):
         return False
-    return options.output_format in {"freeze", "text"}
+    return options.output_format in {"freeze", "rich", "text"}
 
 
 def _determine_return_code(warning_printer: WarningPrinter) -> int:

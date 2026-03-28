@@ -1,0 +1,17 @@
+Fix Windows py-launcher Python discovery for full version strings such as
+``python_full_version = "3.11.9"`` in Pipfile and ``pipenv --python 3.11.9``
+on the CLI.
+
+Two bugs were addressed:
+
+1. ``find_python_from_py_launcher`` incorrectly required three whitespace-separated
+   tokens on each ``py --list-paths`` output line, which caused every non-default
+   Python installation (lines without the ``*`` marker) to be silently skipped.
+   The parser now accepts both two-token (non-default) and three-token (default)
+   lines, using the last token as the executable path in both cases.
+
+2. ``PyLauncherFinder`` stored only the ``major.minor`` version reported by
+   ``py --list-paths`` (e.g. ``3.11``), so searches that required a specific
+   patch level (``patch=9``) never matched.  The finder now queries each
+   discovered executable for its real version string (e.g. ``3.11.9``) so that
+   full-version lookups succeed.

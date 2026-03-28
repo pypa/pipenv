@@ -4,12 +4,13 @@ import sys
 from collections import defaultdict
 from typing import TYPE_CHECKING
 
+from pipenv.vendor.pipdeptree._models.package import ReqPackage
 from pipenv.vendor.pipdeptree._warning import get_warning_printer
 
 if TYPE_CHECKING:
     from pipenv.vendor.pipdeptree._models.package import Package
 
-    from ._models import DistPackage, PackageDAG, ReqPackage
+    from ._models import DistPackage, PackageDAG
 
 
 def validate(tree: PackageDAG) -> None:
@@ -101,16 +102,19 @@ def cyclic_deps(tree: PackageDAG) -> list[list[Package]]:
 
 def render_cycles_text(cycles: list[list[Package]]) -> None:
     # List in alphabetical order the dependency that caused the cycle (i.e. the second-to-last Package element)
-    cycles = sorted(cycles, key=lambda c: c[len(c) - 2].key)
+    cycles = sorted(cycles, key=lambda c: c[-2].key)
     for cycle in cycles:
         print("*", end=" ", file=sys.stderr)  # noqa: T201
 
         size = len(cycle) - 1
         for idx, pkg in enumerate(cycle):
+            name = pkg.project_name
+            if isinstance(pkg, ReqPackage) and pkg.extra:
+                name += f" [extra: {pkg.extra}]"
             if idx == size:
-                print(f"{pkg.project_name}", end="", file=sys.stderr)  # noqa: T201
+                print(name, end="", file=sys.stderr)  # noqa: T201
             else:
-                print(f"{pkg.project_name} =>", end=" ", file=sys.stderr)  # noqa: T201
+                print(f"{name} =>", end=" ", file=sys.stderr)  # noqa: T201
         print(file=sys.stderr)  # noqa: T201
 
 

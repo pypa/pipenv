@@ -92,7 +92,10 @@ class PyLauncherFinder(BaseFinder):
         Create a PythonInfo object from py launcher information.
 
         Args:
-            version: The Python version (e.g. "3.11").
+            version: The Python version reported by the py launcher (e.g. "3.11").
+                     This is typically only major.minor; the full patch version is
+                     resolved by querying the executable so that searches for a
+                     specific full version (e.g. "3.11.9") succeed.
             path: The path to the Python executable.
             is_default: "*" if this is the default version, "" otherwise.
 
@@ -102,13 +105,29 @@ class PyLauncherFinder(BaseFinder):
         if not path or not os.path.exists(path):
             return None
 
-        # Parse the version
+        # Parse the version reported by the py launcher (usually major.minor only).
         try:
             version_data = parse_python_version(version)
         except InvalidPythonVersion:
             if not self.ignore_unsupported:
                 raise
             return None
+
+        # `py --list-paths` only reports major.minor (e.g. "3.11").  Resolve the
+        # real patch version by querying the executable so that callers searching
+        # for a full version string like "3.11.9" can match correctly.
+        if version_data.get("patch") is None:
+            try:
+                from ..utils.version_utils import get_python_version
+
+                full_version = get_python_version(path)
+                full_version_data = parse_python_version(full_version)
+                version_data = full_version_data
+                version = full_version
+            except Exception:
+                # If we can't run the executable, fall back to the major.minor
+                # version string provided by the py launcher.
+                pass
 
         # Create the PythonInfo object
         return PythonInfo(

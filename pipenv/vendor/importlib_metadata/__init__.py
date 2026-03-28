@@ -35,17 +35,18 @@ from ._compat import (
     NullFinder,
     install,
 )
+from ._context import ExceptionTrap
 from ._functools import method_cache, noop, pass_none, passthrough
 from ._itertools import always_iterable, bucket, unique_everseen
 from ._meta import PackageMetadata, SimplePath
-from ._typing import md_none
-from .compat import py39, py311
+from .compat import py311
 
 __all__ = [
     'Distribution',
     'DistributionFinder',
     'PackageMetadata',
     'PackageNotFoundError',
+    'MetadataNotFound',
     'SimplePath',
     'distribution',
     'distributions',
@@ -68,6 +69,10 @@ class PackageNotFoundError(ModuleNotFoundError):
     def name(self) -> str:  # type: ignore[override] # make readonly
         (name,) = self.args
         return name
+
+
+class MetadataNotFound(FileNotFoundError):
+    """No metadata file is present in the distribution."""
 
 
 class Sectioned:
@@ -340,7 +345,7 @@ class EntryPoints(tuple):
         Select entry points from self that match the
         given parameters (typically group and/or name).
         """
-        return EntryPoints(ep for ep in self if py39.ep_matches(ep, **params))
+        return EntryPoints(ep for ep in self if ep.matches(**params))
 
     @property
     def names(self) -> set[str]:
@@ -491,7 +496,12 @@ class Distribution(metaclass=abc.ABCMeta):
 
         Ref python/importlib_resources#489.
         """
-        buckets = bucket(dists, lambda dist: bool(dist.metadata))
+
+        has_metadata = ExceptionTrap(MetadataNotFound).passes(
+            operator.attrgetter('metadata')
+        )
+
+        buckets = bucket(dists, has_metadata)
         return itertools.chain(buckets[True], buckets[False])
 
     @staticmethod
@@ -512,7 +522,7 @@ class Distribution(metaclass=abc.ABCMeta):
         return filter(None, declared)
 
     @property
-    def metadata(self) -> _meta.PackageMetadata | None:
+    def metadata(self) -> _meta.PackageMetadata:
         """Return the parsed metadata for this Distribution.
 
         The returned object will have keys that name the various bits of
@@ -521,6 +531,8 @@ class Distribution(metaclass=abc.ABCMeta):
 
         Custom providers may provide the METADATA file or override this
         property.
+
+        :raises MetadataNotFound: If no metadata file is present.
         """
 
         text = (
@@ -531,20 +543,25 @@ class Distribution(metaclass=abc.ABCMeta):
             # (which points to the egg-info file) attribute unchanged.
             or self.read_text('')
         )
-        return self._assemble_message(text)
+        return self._assemble_message(self._ensure_metadata_present(text))
 
     @staticmethod
-    @pass_none
     def _assemble_message(text: str) -> _meta.PackageMetadata:
         # deferred for performance (python/cpython#109829)
         from . import _adapters
 
         return _adapters.Message(email.message_from_string(text))
 
+    def _ensure_metadata_present(self, text: str | None) -> str:
+        if text is not None:
+            return text
+
+        raise MetadataNotFound('No package metadata was found.')
+
     @property
     def name(self) -> str:
         """Return the 'Name' metadata for the distribution package."""
-        return md_none(self.metadata)['Name']
+        return self.metadata['Name']
 
     @property
     def _normalized_name(self):
@@ -554,7 +571,7 @@ class Distribution(metaclass=abc.ABCMeta):
     @property
     def version(self) -> str:
         """Return the 'Version' metadata for the distribution package."""
-        return md_none(self.metadata)['Version']
+        return self.metadata['Version']
 
     @property
     def entry_points(self) -> EntryPoints:
@@ -1067,11 +1084,12 @@ def distributions(**kwargs) -> Iterable[Distribution]:
     return Distribution.discover(**kwargs)
 
 
-def metadata(distribution_name: str) -> _meta.PackageMetadata | None:
+def metadata(distribution_name: str) -> _meta.PackageMetadata:
     """Get the metadata for the named package.
 
     :param distribution_name: The name of the distribution package to query.
     :return: A PackageMetadata containing the parsed metadata.
+    :raises MetadataNotFound: If no metadata file is present in the distribution.
     """
     return Distribution.from_name(distribution_name).metadata
 
@@ -1088,7 +1106,7 @@ def version(distribution_name: str) -> str:
 
 _unique = functools.partial(
     unique_everseen,
-    key=py39.normalized_name,
+    key=operator.attrgetter('_normalized_name'),
 )
 """
 Wrapper for ``distributions`` to return unique distributions by name.
@@ -1142,7 +1160,7 @@ def packages_distributions() -> Mapping[str, list[str]]:
     pkg_to_dist = collections.defaultdict(list)
     for dist in distributions():
         for pkg in _top_level_declared(dist) or _top_level_inferred(dist):
-            pkg_to_dist[pkg].append(md_none(dist.metadata)['Name'])
+            pkg_to_dist[pkg].append(dist.metadata['Name'])
     return dict(pkg_to_dist)
 
 

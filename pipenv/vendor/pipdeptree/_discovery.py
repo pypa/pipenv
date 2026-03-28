@@ -65,7 +65,7 @@ def query_interpreter_for_paths(interpreter: str, *, local_only: bool = False) -
     args = [interpreter, "-c", cmd]
     try:
         result = subprocess.run(args, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, check=True, text=True)  # noqa: S603
-        return ast.literal_eval(result.stdout)  # type: ignore[no-any-return]
+        return ast.literal_eval(result.stdout)
     except Exception as e:
         raise InterpreterQueryError(str(e)) from e
 
@@ -116,7 +116,10 @@ def filter_valid_distributions(iterable_dists: Iterable[Distribution]) -> list[D
 
 
 def has_valid_metadata(dist: Distribution) -> bool:
-    return "Name" in dist.metadata
+    try:
+        return "Name" in dist.metadata
+    except (TypeError, FileNotFoundError):
+        return False
 
 
 def render_invalid_metadata_text(site_dirs_with_invalid_metadata: set[str]) -> None:

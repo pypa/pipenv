@@ -485,27 +485,31 @@ def find_python_from_py_launcher(version):
         if c.returncode != 0:
             return None
 
-        # Parse the output to find the requested version
+        # Parse the output to find the requested version.
+        # The format from `py --list-paths` is one of:
+        #   -V:3.12 *        C:\...\python.exe   (default version, has *)
+        #   -V:3.11          C:\...\python.exe   (non-default, no *)
+        # split(None, 2) gives 3 parts for default entries and only 2 parts
+        # for non-default entries, so we must NOT require exactly 3 parts.
         for line in c.stdout.splitlines():
             line = line.strip()
             if not line:
                 continue
 
-            # Format is: -V:3.9 * path\to\python.exe
-            # We need to extract the version and path
             parts = line.split(None, 2)
-            if len(parts) < 3:
+            if len(parts) < 2:
                 continue
 
-            # Extract version from -V:3.9
+            # Extract version from -V:X.Y
             v_part = parts[0]
             if not v_part.startswith("-V:"):
                 continue
 
             v = v_part[3:]  # Remove -V: prefix
+            # Path is always the last token regardless of whether * is present
+            path = parts[-1]
             if v == version:
-                # Found the requested version, return the path
-                return parts[-1]
+                return path
     except Exception:
         # If anything goes wrong, fall back to other methods
         pass

@@ -31,7 +31,7 @@ def render_text(
     if encoding in {"utf-8", "utf-16", "utf-32"}:
         _render_text_with_unicode(tree, nodes, max_depth, include_license)
     else:
-        _render_text_without_unicode(tree, nodes, max_depth, include_license)
+        _render_text_simple(tree, nodes, max_depth, include_license)
 
 
 def get_top_level_nodes(tree: PackageDAG, *, list_all: bool) -> list[DistPackage]:
@@ -117,11 +117,14 @@ def _render_text_with_unicode(
     print("\n".join(lines))  # noqa: T201
 
 
-def _render_text_without_unicode(
+def _render_text_simple(  # noqa: PLR0913
     tree: PackageDAG,
     nodes: list[DistPackage],
     max_depth: float,
     include_license: bool,  # noqa: FBT001
+    *,
+    frozen: bool = False,
+    bullet: str = "- ",
 ) -> None:
     def aux(
         node: DistPackage | ReqPackage,
@@ -131,10 +134,9 @@ def _render_text_without_unicode(
         depth: int = 0,
     ) -> list[Any]:
         cur_chain = cur_chain or []
-        node_str = node.render(parent, frozen=False)
+        node_str = node.render(parent, frozen=frozen)
         if parent:
-            prefix = " " * indent + "- "
-            node_str = prefix + node_str
+            node_str = " " * indent + bullet + node_str
         elif include_license:
             node_str += " " + node.licenses()
         result = [node_str]

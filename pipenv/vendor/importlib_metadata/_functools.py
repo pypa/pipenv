@@ -1,6 +1,7 @@
 import functools
 import types
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 
 # from jaraco.functools 3.3
