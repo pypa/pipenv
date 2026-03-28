@@ -308,11 +308,21 @@ def ensure_python(project, python=None):
         if python:
             range_pattern = r"^[<>]=?|!="
             if re.search(range_pattern, python):
-                err.print(
-                    f"[bold red]Error[/bold red]: Python version range specifier '[cyan]{python}[/cyan]' is not supported. "
-                    "[yellow]Please use an absolute version number or specify the path to the Python executable on Pipfile.[/yellow]"
+                # PEP 440 specifier like ">=3.8" — find the best installed match.
+                path_to_python = _find_python_for_specifier(
+                    python, pyenv_only=project.s.PIPENV_PYENV_ONLY
                 )
-                sys.exit(1)
+                if path_to_python:
+                    err.print(
+                        f"Found Python satisfying [cyan]{python}[/cyan]: [green]{path_to_python}[/green]"
+                    )
+                    return path_to_python
+                else:
+                    err.print(
+                        f"[bold red]Error[/bold red]: No installed Python satisfies [cyan]{python}[/cyan]. "
+                        "[yellow]Install a compatible Python via pyenv or asdf first.[/yellow]"
+                    )
+                    sys.exit(1)
 
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
@@ -450,6 +460,45 @@ def ensure_python(project, python=None):
                 )
                 sys.exit(1)
     return path_to_python
+
+
+def _find_python_for_specifier(specifier_str, pyenv_only=False):
+    """Return the path to the highest installed Python satisfying *specifier_str*.
+
+    *specifier_str* is a PEP 440 version-specifier string such as ``">=3.8"``
+    or ``">=3.9,<4"``.  Returns ``None`` when no installed Python satisfies the
+    constraint.
+    """
+    from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
+    from pipenv.vendor.pythonfinder import Finder
+
+    try:
+        spec = SpecifierSet(specifier_str)
+    except InvalidSpecifier:
+        return None
+
+    finder = Finder(system=True, global_search=True, pyenv_only=pyenv_only)
+    all_versions = finder.find_all_python_versions()
+
+    candidates = []
+    for python_info in all_versions:
+        ver_str = python_info.version_str
+        if ver_str:
+            try:
+                if ver_str in spec:
+                    candidates.append(python_info)
+            except Exception:
+                pass
+
+    if not candidates:
+        return None
+
+    # find_all_python_versions already sorts descending; pick first.
+    best = sorted(candidates, key=lambda x: x.version_sort, reverse=True)[0]
+    path = (
+        best.path if best.path else (Path(best.executable) if best.executable else None)
+    )
+    return str(path) if path else None
 
 
 def find_python_from_py_launcher(version):

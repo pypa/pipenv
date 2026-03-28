@@ -9,6 +9,7 @@ from pipenv.utils.dependencies import python_version
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv, find_a_system_python
+from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 if TYPE_CHECKING:
     STRING_TYPE = str
@@ -23,26 +24,27 @@ def _python_version_matches_required(actual_ver_str, required_ver_str):
     """Return True if *actual_ver_str* satisfies *required_ver_str*.
 
     ``required_ver_str`` comes from the Pipfile ``[requires]`` section and may
-    be either a ``python_version`` (``"X.Y"``, major.minor only) or a
-    ``python_full_version`` (``"X.Y.Z"``).
+    be either:
+
+    * A PEP 440 version specifier string like ``">=3.8"`` or ``">=3.9,<4"``
+      (the ``python_version`` field contains an operator).
+    * A plain ``"X.Y"`` (major.minor) or ``"X.Y.Z"`` (full version) string.
 
     ``actual_ver_str`` is the full version string reported by the Python
-    interpreter (e.g. ``"3.13.11"``).
-
-    A simple substring/``in`` check is **wrong** here: ``"3.11" in "3.13.11"``
-    is ``True`` because ``"3.11"`` happens to appear as a substring of
-    ``"3.13.11"``, causing an incompatible Python version to be silently
-    accepted.  See https://github.com/pypa/pipenv/issues/6514.
-
-    Instead, this function:
-    * When *required_ver_str* has fewer than three dot-separated components
-      (i.e. only ``major.minor``), compares just the ``major`` and ``minor``
-      fields of both parsed versions.
-    * When *required_ver_str* has three or more components (``major.minor.patch``),
-      requires an exact match of the parsed versions.
+    interpreter (e.g. ``"3.13.1"``).
     """
     if not actual_ver_str or not required_ver_str:
         return False
+
+    # If the required string contains a PEP 440 operator, treat it as a
+    # SpecifierSet (e.g. ">=3.8", ">=3.9,<4").
+    if any(op in required_ver_str for op in (">=", "<=", "!=", "~=", ">", "<")):
+        try:
+            spec = SpecifierSet(required_ver_str)
+            return actual_ver_str in spec
+        except InvalidSpecifier:
+            pass
+
     try:
         actual = parse_version(actual_ver_str)
         required = parse_version(required_ver_str)
