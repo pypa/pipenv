@@ -121,7 +121,7 @@ def proper_case(package_name):
     """Properly case project name from pypi.org."""
     # Hit the simple API.
     r = get_requests_session().get(
-        f"https://pypi.org/pypi/{package_name}/json", timeout=0.3, stream=True
+        f"https://pypi.org/pypi/{package_name}/json", timeout=3, stream=True
     )
     r.close()
     if not r.ok:
