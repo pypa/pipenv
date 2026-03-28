@@ -16,7 +16,6 @@ from pipenv.utils.processes import run_command, subprocess_run
 from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import cmd_list_to_shell, project_python
-from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 
 
 def _uninstall_from_environment(project: Project, package, system=False):
@@ -172,7 +171,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
 
     # Remove comments from the output, if any.
     installed = {
-        normalized_name(pkg) for pkg in project.environment.get_installed_packages()
+        pkg._normalized_name for pkg in project.environment.get_installed_packages()
     }
     bad_pkgs = {pep423_name(pkg) for pkg in BAD_PACKAGES}
     # Remove setuptools, pip, etc from targets for removal
