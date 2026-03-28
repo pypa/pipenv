@@ -1,1 +1,0 @@
-Documented that ``python_version`` in the ``[requires]`` section only accepts an exact version string and not range specifiers such as ``>= 3.6``.

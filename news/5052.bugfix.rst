@@ -1,4 +1,0 @@
-Fix ``--system`` flag causing confusing errors when a stale virtualenv exists from
-a previously deleted project, or when a virtualenv already exists. When ``--system``
-is used, pipenv now correctly skips virtualenv creation instead of aborting with
-"You are attempting to re-create a virtualenv that Pipenv did not create".

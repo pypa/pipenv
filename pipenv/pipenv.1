@@ -27,7 +27,7 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Mar 24, 2026" "2026.2.2" "pipenv"
+.TH "PIPENV" "1" "Mar 28, 2026" "2026.3.0" "pipenv"
 .sp
 This guide provides comprehensive instructions for installing Pipenv on various platforms and environments. Follow the approach that best suits your system and requirements.
 .SH PREREQUISITES
@@ -63,6 +63,92 @@ pip 22.1.2
 .UNINDENT
 .sp
 If pip is not installed, you can install it following the \X'tty: link https://pip.pypa.io/en/stable/installation/'\fI\%pip installation guide\fP\X'tty: link'\&.
+.SH INSTALLING ON WINDOWS
+.sp
+Windows is a first\-class platform for Pipenv. The recommended installation method on
+Windows is \fBpipx\fP, which installs Pipenv in an isolated environment and makes the
+\fBpipenv\fP command available system\-wide.
+.SS Recommended: pipx (Windows)
+.INDENT 0.0
+.IP 1. 3
+\fBInstall pipx\fP (requires Python 3.7+):
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+> python \-m pip install \-\-user pipx
+> python \-m pipx ensurepath
+
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Close and reopen your terminal so the updated \fBPATH\fP takes effect.
+.IP 2. 3
+\fBInstall Pipenv via pipx:\fP
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+> pipx install pipenv
+
+.EE
+.UNINDENT
+.UNINDENT
+.IP 3. 3
+\fBVerify the installation:\fP
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+> pipenv \-\-version
+
+.EE
+.UNINDENT
+.UNINDENT
+.UNINDENT
+.SS Alternative: pip install (Windows)
+.sp
+If you prefer not to use pipx, you can install Pipenv with pip:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+> pip install pipenv
+
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+If the \fBpipenv\fP command is not found afterwards, add the Python Scripts directory to
+your \fBPATH\fP:
+.INDENT 0.0
+.IP 1. 3
+Find the Scripts directory:
+.INDENT 3.0
+.INDENT 3.5
+.sp
+.EX
+> python \-m site \-\-user\-site
+C:\eUsers\eUsername\eAppData\eRoaming\ePython\ePython311\esite\-packages
+
+.EE
+.UNINDENT
+.UNINDENT
+.IP 2. 3
+Replace \fBsite\-packages\fP with \fBScripts\fP in that path.
+.IP 3. 3
+Add it to your \fBPATH\fP via \fBSystem → Advanced system settings → Environment Variables\fP\&.
+.UNINDENT
+.sp
+\fBNOTE:\fP
+.INDENT 0.0
+.INDENT 3.5
+Unlike Linux and macOS, \fBpip install \-\-user\fP on Windows places the \fBpipenv\fP executable
+under \fB%APPDATA%\ePython\ePythonXY\eScripts\e\fP\&. Make sure this directory is on your \fBPATH\fP
+or use pipx to avoid this manual step entirely.
+.UNINDENT
+.UNINDENT
 .SH INSTALLATION METHODS
 .SS Recommended: Isolated Virtual Environment Installation
 .sp

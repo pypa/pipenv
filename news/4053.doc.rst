@@ -1,1 +1,0 @@
-Added a dedicated "Installing on Windows" section to the installation docs with the recommended pipx method and PATH setup guidance.

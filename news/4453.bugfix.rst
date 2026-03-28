@@ -1,7 +1,0 @@
-Pass through ``PIP_IGNORE_INSTALLED`` and ``PIP_USER`` environment variables to
-pip subprocess when using ``--system``. This fixes ``pipenv install --deploy --system``
-not respecting these environment variables for Docker multi-stage builds.
-
-Add ``PIPENV_BREAK_SYSTEM_PACKAGES`` environment variable to pass
-``--break-system-packages`` to pip when using ``--system`` on PEP 668
-externally-managed environments (e.g. Ubuntu 23.04+, Debian 12+).

@@ -1,3 +1,76 @@
+2026.3.0 (2026-03-28)
+=====================
+pipenv 2026.3.0 (2026-03-28)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Support ``--system --python=/path/to/python`` to install packages to a specific
+  Python interpreter's site-packages. Previously ``--system`` always used the
+  default ``python3`` from PATH, ignoring the ``--python`` flag.  `#3593 <https://github.com/pypa/pipenv/issues/3593>`_
+- Add ``--exclude-index`` flag to ``pipenv requirements`` command to allow users
+  to exclude index URLs (``-i`` and ``--extra-index-url``) from the generated output.
+  This is useful when the index is configured separately in the target environment.  `#4398 <https://github.com/pypa/pipenv/issues/4398>`_
+- Add ``--system`` flag to ``pipenv update`` command, allowing system-level package
+  updates without creating a virtualenv. This is useful in Docker environments and
+  other contexts where packages are installed directly to the system Python.  `#5584 <https://github.com/pypa/pipenv/issues/5584>`_
+
+Bug Fixes
+---------
+
+- ``pipenv shell`` now waits for the shell to finish its startup before sending the virtualenv activate script.  Previously, interactive prompts during shell startup (e.g. oh-my-zsh's update dialogue) could consume the activate command, leaving the virtualenv unactivated.  `#3615 <https://github.com/pypa/pipenv/issues/3615>`_
+- ``pipenv --where`` now exits with a non-zero exit code (1) when no Pipfile is
+  found, making it suitable for use in scripts and CI pipelines.  `#4085 <https://github.com/pypa/pipenv/issues/4085>`_
+- Pass through ``PIP_IGNORE_INSTALLED`` and ``PIP_USER`` environment variables to
+  pip subprocess when using ``--system``. This fixes ``pipenv install --deploy --system``
+  not respecting these environment variables for Docker multi-stage builds.
+
+  Add ``PIPENV_BREAK_SYSTEM_PACKAGES`` environment variable to pass
+  ``--break-system-packages`` to pip when using ``--system`` on PEP 668
+  externally-managed environments (e.g. Ubuntu 23.04+, Debian 12+).  `#4453 <https://github.com/pypa/pipenv/issues/4453>`_
+- Fix ``--system`` flag causing confusing errors when a stale virtualenv exists from
+  a previously deleted project, or when a virtualenv already exists. When ``--system``
+  is used, pipenv now correctly skips virtualenv creation instead of aborting with
+  "You are attempting to re-create a virtualenv that Pipenv did not create".  `#5052 <https://github.com/pypa/pipenv/issues/5052>`_
+- Shorthand marker keys in Pipfile entries (e.g. ``sys_platform = "== 'linux'"``, ``platform_machine = "== 'arm64'"``) now behave identically to the equivalent ``markers`` syntax.  Previously, using the shorthand form caused pip to resolve and download sub-dependencies on all platforms, even though the top-level package was correctly marked as platform-specific in the lock file.  The shorthand keys are now translated to PEP 508 markers before building the pip requirement line, so the resolver skips resolution on non-matching platforms.  `#5884 <https://github.com/pypa/pipenv/issues/5884>`_
+- Fix Windows py-launcher Python discovery for full version strings such as
+  ``python_full_version = "3.11.9"`` in Pipfile and ``pipenv --python 3.11.9``
+  on the CLI.
+
+  Two bugs were addressed:
+
+  1. ``find_python_from_py_launcher`` incorrectly required three whitespace-separated
+     tokens on each ``py --list-paths`` output line, which caused every non-default
+     Python installation (lines without the ``*`` marker) to be silently skipped.
+     The parser now accepts both two-token (non-default) and three-token (default)
+     lines, using the last token as the executable path in both cases.
+
+  2. ``PyLauncherFinder`` stored only the ``major.minor`` version reported by
+     ``py --list-paths`` (e.g. ``3.11``), so searches that required a specific
+     patch level (``patch=9``) never matched.  The finder now queries each
+     discovered executable for its real version string (e.g. ``3.11.9``) so that
+     full-version lookups succeed.  `#5893 <https://github.com/pypa/pipenv/issues/5893>`_
+- Security hardening: suppress ``pip.conf`` index configuration (``index-url`` and ``extra-index-url``) during ``pip install`` subprocess invocation.  Previously, ``pip.conf`` could silently inject extra package indexes at install time, bypassing pipenv's explicit-index-per-package security model and causing hash-mismatch errors (e.g. piwheels on Raspberry Pi).  Now pipenv sets ``PIP_CONFIG_FILE=/dev/null`` and explicitly passes only Pipfile ``[[source]]`` entries via ``PIP_INDEX_URL`` and ``PIP_EXTRA_INDEX_URL`` environment variables.  Users who need custom indexes (e.g. piwheels) should declare them as ``[[source]]`` entries in their Pipfile.  `#6066 <https://github.com/pypa/pipenv/issues/6066>`_
+
+Improved Documentation
+----------------------
+
+- Added a dedicated "Installing on Windows" section to the installation docs with the recommended pipx method and PATH setup guidance.  `#4053 <https://github.com/pypa/pipenv/issues/4053>`_
+- Added a "Upgrading the Python Version" workflow section to docs/workflows.md with step-by-step instructions for moving a project to a new Python interpreter.  `#4577 <https://github.com/pypa/pipenv/issues/4577>`_
+- Documented that ``python_version`` in the ``[requires]`` section only accepts an exact version string and not range specifiers such as ``>= 3.6``.  `#4636 <https://github.com/pypa/pipenv/issues/4636>`_
+- Enhanced the "Moving or Renaming Projects" section in docs/virtualenv.md with a recovery workflow for users who already moved their project without running ``pipenv --rm`` first, and added a tip about ``PIPENV_VENV_IN_PROJECT``.  `#5129 <https://github.com/pypa/pipenv/issues/5129>`_
+- Added a "Multi-Platform Considerations" section to docs/locking.md explaining that ``Pipfile.lock`` is platform-specific and documenting workarounds for cross-platform teams.  `#5130 <https://github.com/pypa/pipenv/issues/5130>`_
+- Added a "News Fragments" section to docs/dev/contributing.md explaining towncrier fragment types, including why ``trivial`` fragments are intentionally omitted from the generated CHANGELOG.  `#5324 <https://github.com/pypa/pipenv/issues/5324>`_
+- Documented the behavior when a package pinned in ``[dev-packages]`` conflicts with the version resolved via ``[packages]`` dependencies, and clarified how to enforce a specific version in that scenario.  `#5528 <https://github.com/pypa/pipenv/issues/5528>`_
+- Added a "Platform Markers and Locking" note to docs/specifiers.md explaining why packages with ``sys_platform`` markers may still cause resolution failures on non-matching platforms and documenting workarounds.  `#6028 <https://github.com/pypa/pipenv/issues/6028>`_
+
+Relates to dev process changes
+------------------------------
+
+- Update project metadata: replace defunct ``distutils-sig@python.org`` email with ``matteius@gmail.com`` and remove redundant ``.isort.cfg`` (Ruff's isort handles import sorting).
+
 2026.2.2 (2026-03-24)
 =====================
 pipenv 2026.2.2 (2026-03-24)
