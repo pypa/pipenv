@@ -28,6 +28,56 @@ pip 22.1.2
 
 If pip is not installed, you can install it following the [pip installation guide](https://pip.pypa.io/en/stable/installation/).
 
+## Installing on Windows
+
+Windows is a first-class platform for Pipenv. The recommended installation method on
+Windows is **pipx**, which installs Pipenv in an isolated environment and makes the
+`pipenv` command available system-wide.
+
+### Recommended: pipx (Windows)
+
+1. **Install pipx** (requires Python 3.7+):
+   ```powershell
+   > python -m pip install --user pipx
+   > python -m pipx ensurepath
+   ```
+   Close and reopen your terminal so the updated `PATH` takes effect.
+
+2. **Install Pipenv via pipx:**
+   ```powershell
+   > pipx install pipenv
+   ```
+
+3. **Verify the installation:**
+   ```powershell
+   > pipenv --version
+   ```
+
+### Alternative: pip install (Windows)
+
+If you prefer not to use pipx, you can install Pipenv with pip:
+
+```powershell
+> pip install pipenv
+```
+
+If the `pipenv` command is not found afterwards, add the Python Scripts directory to
+your `PATH`:
+
+1. Find the Scripts directory:
+   ```powershell
+   > python -m site --user-site
+   C:\Users\Username\AppData\Roaming\Python\Python311\site-packages
+   ```
+2. Replace `site-packages` with `Scripts` in that path.
+3. Add it to your `PATH` via **System → Advanced system settings → Environment Variables**.
+
+```{note}
+Unlike Linux and macOS, `pip install --user` on Windows places the `pipenv` executable
+under `%APPDATA%\Python\PythonXY\Scripts\`. Make sure this directory is on your `PATH`
+or use pipx to avoid this manual step entirely.
+```
+
 ## Installation Methods
 
 ### Recommended: Isolated Virtual Environment Installation

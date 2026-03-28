@@ -146,11 +146,16 @@ Dangerous characters (i.e., ``$!*@"``, as well as space, line feed, carriage ret
 
 ## Moving or Renaming Projects
 
-When you move or rename a project directory, Pipenv can no longer find the associated virtual environment because the path hash changes.
+When you move or rename a project directory, Pipenv can no longer find the associated
+virtual environment because the virtual environment name includes a hash of the full
+project path. After a move or rename, `pipenv --venv` will report an error and
+`pipenv shell` / `pipenv run` will fail.
 
 ### Recommended Workflow for Moving/Renaming
 
-1. Remove the virtual environment before moving or renaming:
+Follow these steps **before** moving or renaming your project directory:
+
+1. Remove the virtual environment:
    ```bash
    $ pipenv --rm
    ```
@@ -164,6 +169,40 @@ When you move or rename a project directory, Pipenv can no longer find the assoc
    ```
 
 This ensures that Pipenv creates a new virtual environment with the correct path hash.
+
+### Recovery: Already Moved Without `pipenv --rm`
+
+If you have already moved or renamed your project directory without first removing the
+virtual environment, the old virtualenv is now orphaned. Follow these steps to recover:
+
+1. **Navigate to the new project location:**
+   ```bash
+   $ cd /path/to/new/location
+   ```
+
+2. **Recreate the virtual environment** (Pipenv will create a fresh one for the new path):
+   ```bash
+   $ pipenv install
+   ```
+   This reads your existing `Pipfile` (and `Pipfile.lock` if present) and creates a
+   correctly named virtual environment for the new path.
+
+3. **Clean up the orphaned virtual environment** (optional, to reclaim disk space):
+   ```bash
+   # List all virtualenvs to find the orphaned one
+   $ ls ~/.local/share/virtualenvs/   # Linux/macOS
+   $ ls %USERPROFILE%\.virtualenvs\   # Windows
+
+   # Remove it (replace <old-venv-name> with the orphaned environment's name)
+   $ rm -rf ~/.local/share/virtualenvs/<old-venv-name>
+   ```
+
+```{tip}
+To avoid this issue entirely, set `PIPENV_VENV_IN_PROJECT=1` in your shell
+configuration. This places the virtual environment in a `.venv` directory **inside**
+your project, so it always moves with the project directory and the path hash
+problem does not arise.
+```
 
 ## Using Different Python Versions
 

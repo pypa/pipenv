@@ -1,0 +1,1 @@
+Added a "News Fragments" section to docs/dev/contributing.md explaining towncrier fragment types, including why ``trivial`` fragments are intentionally omitted from the generated CHANGELOG.

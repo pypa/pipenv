@@ -231,6 +231,59 @@ Key sections:
 - `develop`: Development dependencies
 - Custom categories: Any additional package categories you've defined
 
+## Multi-Platform Considerations
+
+### Platform-Specific Lock Files
+
+`Pipfile.lock` is generated based on the **current platform** where `pipenv lock` is run.
+This means:
+
+- Package hashes included in the lock file are only those for wheels/sdists compatible
+  with the platform and Python version used during locking.
+- If your team develops on macOS but deploys to Linux, the lock file generated on macOS
+  may include different hashes than one generated on Linux (especially for packages with
+  platform-specific binary wheels).
+
+This is expected behavior, but it is important to be aware of when working across multiple
+platforms or operating systems.
+
+### Working Across Multiple Platforms
+
+If your project runs on multiple platforms (e.g., developers on Windows/macOS and
+production on Linux), consider these strategies:
+
+**Option 1: Lock on the target platform**
+
+Generate the `Pipfile.lock` on the same platform (or a Docker container matching it) as
+your production environment:
+
+```bash
+# Lock inside a Linux container
+$ docker run --rm -v $(pwd):/app -w /app python:3.11-slim \
+    sh -c "pip install pipenv && pipenv lock"
+```
+
+**Option 2: Use `PIPENV_VENV_IN_PROJECT` with CI/CD**
+
+Generate the lock file in CI on your target platform and commit it to version control,
+ensuring all developers install with `pipenv sync` instead of re-locking locally.
+
+**Option 3: Use `--extra-pip-args` for cross-platform wheels**
+
+For packages that need specific platform wheels, you can use pip's `--platform` flag
+during installation (but not during locking):
+
+```bash
+$ pipenv install --extra-pip-args="--platform=manylinux2014_x86_64 --only-binary=:all:"
+```
+
+```{note}
+Native cross-platform lock file generation (a single `Pipfile.lock` with hashes for
+all target platforms) is not currently supported by Pipenv. This is a known limitation.
+If this is a hard requirement, consider generating separate lock files per platform in
+CI and selecting the appropriate one at deploy time.
+```
+
 ## Best Practices
 
 ### Version Control

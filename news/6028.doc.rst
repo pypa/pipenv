@@ -1,0 +1,1 @@
+Added a "Platform Markers and Locking" note to docs/specifiers.md explaining why packages with ``sys_platform`` markers may still cause resolution failures on non-matching platforms and documenting workarounds.
