@@ -866,12 +866,14 @@ def test_detect_info_prefers_shell_env_on_windows():
 
     mock_project = MagicMock()
     mock_project.s.PIPENV_SHELL_EXPLICIT = None
-    mock_project.s.PIPENV_SHELL = r"C:\Program Files\Git\usr\bin\bash.exe"
+    # Use a POSIX-style path to avoid WindowsPath instantiation on Linux.
+    # The logic under test is the priority ordering, not path parsing.
+    mock_project.s.PIPENV_SHELL = "/usr/bin/bash"
 
     with patch("pipenv.shells.os.name", "nt"):
         name, path = detect_info(mock_project)
         assert name == "bash"
-        assert path == r"C:\Program Files\Git\usr\bin\bash.exe"
+        assert path == "/usr/bin/bash"
 
 
 @pytest.mark.core
@@ -880,13 +882,13 @@ def test_detect_info_explicit_takes_priority_over_shell_env():
     from pipenv.shells import detect_info
 
     mock_project = MagicMock()
-    mock_project.s.PIPENV_SHELL_EXPLICIT = r"C:\Windows\System32\cmd.exe"
-    mock_project.s.PIPENV_SHELL = r"C:\Program Files\Git\usr\bin\bash.exe"
+    mock_project.s.PIPENV_SHELL_EXPLICIT = "/usr/bin/cmd"
+    mock_project.s.PIPENV_SHELL = "/usr/bin/bash"
 
     with patch("pipenv.shells.os.name", "nt"):
         name, path = detect_info(mock_project)
         assert name == "cmd"
-        assert path == r"C:\Windows\System32\cmd.exe"
+        assert path == "/usr/bin/cmd"
 
 
 @pytest.mark.core
