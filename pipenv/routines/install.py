@@ -430,7 +430,9 @@ def do_install_validations(
     if not project.pipfile_exists and not (package_args or dev):
         if not (ignore_pipfile or deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
-        elif ((skip_lock and deploy) or ignore_pipfile) and not project.lockfile_exists:
+        elif (
+            (skip_lock and deploy) or ignore_pipfile
+        ) and not project.any_lockfile_exists:
             raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # Load the --pre settings from the Pipfile.
     if not pre:
@@ -617,12 +619,15 @@ def do_install_dependencies(
                 )
                 lockfile_type = (
                     "pylock.toml"
-                    if project.use_pylock and project.pylock_location
+                    if project.pylock_exists
+                    and (project.use_pylock or not project.lockfile_exists)
                     else "Pipfile.lock"
                 )
+                lockfile_hash = lockfile["_meta"].get("hash", {}).get("sha256", "") or ""
+                hash_suffix = f"({lockfile_hash[-6:]})" if lockfile_hash else ""
                 console.print(
-                    f"Installing dependencies from {lockfile_type} [{lockfile_category}]"
-                    f"({lockfile['_meta'].get('hash', {}).get('sha256')[-6:]})...",
+                    f"Installing dependencies from {lockfile_type} "
+                    f"[{lockfile_category}]{hash_suffix}...",
                     style="bold",
                 )
         if skip_lock:

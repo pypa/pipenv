@@ -70,7 +70,7 @@ def do_update(
 
     if not outdated:
         # Pre-sync packages for pipdeptree resolution to avoid conflicts
-        if project.lockfile_exists:
+        if project.any_lockfile_exists:
             do_sync(
                 project,
                 dev=dev,

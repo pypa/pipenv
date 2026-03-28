@@ -183,10 +183,12 @@ class PipfileNotFound(PipenvFileError):
 class LockfileNotFound(PipenvFileError):
     def __init__(self, filename="Pipfile.lock", extra=None, **kwargs):
         extra = kwargs.pop("extra", [])
-        message = "{} {} {}".format(
+        message = "{} {} {} {} {}".format(
             "[bold]You need to run[/bold]",
             "[bold red]$ pipenv lock[/bold red]",
-            "[bold]before you can continue.[/bold]",
+            "[bold]before you can continue,[/bold]",
+            "[bold]or provide a[/bold]",
+            "[bold red]pylock.toml[/bold red] [bold]file.[/bold]",
         )
         super().__init__(filename, message=message, extra=extra, **kwargs)
 

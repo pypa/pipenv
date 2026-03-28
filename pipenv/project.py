@@ -880,6 +880,14 @@ class Project:
                 raise
             except Exception:
                 pass
+        if not lockfile_loaded and self.pylock_exists:
+            # Try loading from pylock.toml when Pipfile.lock isn't available.
+            try:
+                pylock = PylockFile.from_path(self.pylock_location)
+                lockfile = pylock.convert_to_pipenv_lockfile()
+                lockfile_loaded = True
+            except Exception:
+                pass
         if not lockfile_loaded:
             with open(self.pipfile_location) as pf:
                 lockfile = plette.Lockfile.with_meta_from(
@@ -923,6 +931,11 @@ class Project:
     @property
     def lockfile_exists(self):
         return Path(self.lockfile_location).is_file()
+
+    @property
+    def any_lockfile_exists(self):
+        """Returns True if either Pipfile.lock or pylock.toml exists."""
+        return self.lockfile_exists or self.pylock_exists
 
     @property
     def lockfile_content(self):
@@ -1059,6 +1072,22 @@ class Project:
                 lockfile = Req_Lockfile.from_data(
                     self.lockfile_location, self.lockfile_content
                 )
+        elif self.pylock_exists:
+            # Load from pylock.toml when no Pipfile.lock exists.
+            # lockfile_content already handles pylock.toml → internal format conversion.
+            lockfile_dict = self.lockfile_content.copy()
+            sources = lockfile_dict.get("_meta", {}).get("sources", [])
+            if not sources and self.pipfile_exists:
+                sources = self.pipfile_sources(expand_vars=False)
+            elif not isinstance(sources, list):
+                sources = [sources]
+            if sources:
+                lockfile_dict["_meta"]["sources"] = [
+                    self.populate_source(s) for s in sources
+                ]
+            lockfile = Req_Lockfile.from_data(
+                path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
+            )
         else:
             lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location,
@@ -1067,14 +1096,17 @@ class Project:
             )
         if lockfile.lockfile is not None:
             return lockfile
-        if self.lockfile_exists and self.lockfile_content:
+        if self.any_lockfile_exists and self.lockfile_content:
             lockfile_dict = self.lockfile_content.copy()
             sources = lockfile_dict.get("_meta", {}).get("sources", [])
-            if not sources:
+            if not sources and self.pipfile_exists:
                 sources = self.pipfile_sources(expand_vars=False)
             elif not isinstance(sources, list):
                 sources = [sources]
-            lockfile_dict["_meta"]["sources"] = [self.populate_source(s) for s in sources]
+            if sources:
+                lockfile_dict["_meta"]["sources"] = [
+                    self.populate_source(s) for s in sources
+                ]
             _created_lockfile = Req_Lockfile.from_data(
                 path=self.lockfile_location, data=lockfile_dict, meta_from_project=False
             )
@@ -1212,7 +1244,7 @@ class Project:
 
     @property
     def sources(self):
-        if self.lockfile_exists and hasattr(self.lockfile_content, "keys"):
+        if self.any_lockfile_exists and hasattr(self.lockfile_content, "keys"):
             meta_ = self.lockfile_content.get("_meta", {})
             sources_ = meta_.get("sources")
             if sources_:
@@ -1683,11 +1715,22 @@ class Project:
             j = {}
 
         if not j.get("_meta"):
-            with pipfile_path.open() as pf:
-                default_lockfile = plette.Lockfile.with_meta_from(
-                    plette.Pipfile.load(pf), categories=[]
-                )
-                j["_meta"] = default_lockfile._data["_meta"]
+            if pipfile_path.exists():
+                with pipfile_path.open() as pf:
+                    default_lockfile = plette.Lockfile.with_meta_from(
+                        plette.Pipfile.load(pf), categories=[]
+                    )
+                    j["_meta"] = default_lockfile._data["_meta"]
+                    lockfile_modified = True
+            else:
+                # No Pipfile available; provide minimal _meta so callers
+                # don't break.  This can happen when only pylock.toml exists.
+                j["_meta"] = {
+                    "hash": {"sha256": ""},
+                    "pipfile-spec": 6,
+                    "requires": {},
+                    "sources": [],
+                }
                 lockfile_modified = True
 
         if j.get("default") is None:
