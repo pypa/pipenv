@@ -87,6 +87,16 @@ def pip_install_deps(
         cache_dir = Path(project.s.PIPENV_CACHE_DIR)
         default_exists_action = "w"
         exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
+        # Validate PIP_EXISTS_ACTION — pip only accepts s/i/w/b/a (#5063).
+        _valid_exists_actions = {"s", "i", "w", "b", "a"}
+        if exists_action not in _valid_exists_actions:
+            err.print(
+                f"[yellow]Warning:[/yellow] PIP_EXISTS_ACTION=[cyan]{exists_action!r}[/cyan] "
+                f"is not a valid pip exists-action. "
+                f"Valid values are: {', '.join(sorted(_valid_exists_actions))}. "
+                "Falling back to [cyan]'w'[/cyan] (wipe)."
+            )
+            exists_action = default_exists_action
         # Suppress pip.conf index configuration so that only Pipfile [[source]]
         # entries are used.  This prevents pip.conf extra-index-url (e.g.
         # piwheels) from injecting indexes at install time that were not
