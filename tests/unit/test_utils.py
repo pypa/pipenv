@@ -390,6 +390,58 @@ twine = "*"
         assert new_toml[-1] == "\n"
 
     @pytest.mark.utils
+    def test_cleanup_toml_preserves_single_blank_lines_within_sections(this):
+        """Blank lines placed by the user within a section survive cleanup. (#5914)"""
+        toml_data = (
+            "[packages]\n"
+            "requests = \"==2.31.0\"\n"
+            "\n"
+            "flask = \"==2.0.0\"\n"
+            "\n"
+            "[dev-packages]\n"
+            "pytest = \"*\"\n"
+        )
+        result = toml.cleanup_toml(toml_data)
+        lines = result.split("\n")
+        # The blank line between requests and flask must be preserved.
+        assert "" in lines[: lines.index("[dev-packages]")]
+
+    @pytest.mark.utils
+    def test_cleanup_toml_collapses_multiple_blank_lines(this):
+        """Multiple consecutive blank lines are collapsed to a single one. (#5914)"""
+        toml_data = (
+            "[packages]\n"
+            "requests = \"==2.31.0\"\n"
+            "\n"
+            "\n"
+            "\n"
+            "flask = \"==2.0.0\"\n"
+        )
+        result = toml.cleanup_toml(toml_data)
+        lines = result.split("\n")
+        # No two consecutive blank lines should remain.
+        for i in range(len(lines) - 1):
+            assert not (lines[i] == "" and lines[i + 1] == ""), (
+                f"Found consecutive blank lines at indices {i} and {i+1}"
+            )
+
+    @pytest.mark.utils
+    def test_cleanup_toml_adds_blank_line_before_section_header(this):
+        """A blank line is inserted before a section header if one is missing. (#5914)"""
+        toml_data = (
+            "[packages]\n"
+            "requests = \"==2.31.0\"\n"
+            "[dev-packages]\n"  # no blank line before this
+            "pytest = \"*\"\n"
+        )
+        result = toml.cleanup_toml(toml_data)
+        lines = result.split("\n")
+        dev_idx = lines.index("[dev-packages]")
+        assert lines[dev_idx - 1] == "", (
+            "Expected a blank line before [dev-packages]"
+        )
+
+    @pytest.mark.utils
     @pytest.mark.parametrize(
         "input_path, expected",
         [

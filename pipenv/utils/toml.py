@@ -18,20 +18,39 @@ TOML_DICT_NAMES = [o.__class__.__name__ for o in TOML_DICT_OBJECTS]
 
 
 def cleanup_toml(tml):
-    # Remove all empty lines from TOML.
-    toml = "\n".join(line for line in tml.split("\n") if line.strip())
+    """Normalise whitespace in a serialised TOML string.
+
+    * Collapse multiple consecutive blank lines into a single blank line,
+      preserving intentional spacing (e.g. visual grouping of packages
+      within a section) that the user placed in the Pipfile.
+    * Ensure exactly one blank line appears before every section header
+      (lines that start with ``[``).
+    * Strip trailing blank lines and end the file with a single newline.
+    """
+    lines = tml.split("\n")
     new_toml = []
-    # Add newlines between TOML sections.
-    for i, line in enumerate(toml.split("\n")):
-        # Skip the first line.
-        if line.startswith("[") and i > 0:
-            # Insert a newline before the heading.
+    prev_blank = False
+
+    for i, line in enumerate(lines):
+        is_blank = not line.strip()
+        is_section_header = line.startswith("[")
+
+        if is_blank and prev_blank:
+            # Collapse consecutive blank lines into a single one.
+            continue
+
+        if is_section_header and i > 0 and not prev_blank:
+            # Ensure there is exactly one blank line before every section header.
             new_toml.append("")
+
         new_toml.append(line)
-    # adding new line at the end of the TOML file
+        prev_blank = is_blank
+
+    # Remove trailing blank lines, then add exactly one newline at the end.
+    while new_toml and not new_toml[-1].strip():
+        new_toml.pop()
     new_toml.append("")
-    toml = "\n".join(new_toml)
-    return toml
+    return "\n".join(new_toml)
 
 
 def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
@@ -49,7 +68,12 @@ def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
 
         index: int = 0
         for key, value in body:
-            if not key:
+            if key is None:
+                # Preserve whitespace and comment items so that blank lines
+                # intentionally placed by the user within a section survive
+                # a Pipfile rewrite (Table.append(None, item) is supported
+                # by tomlkit's Container and does not add a dict entry).
+                result.append(key, value)
                 continue
             if hasattr(value, "keys") and not isinstance(value, InlineTable):
                 table = tomlkit.inline_table()
