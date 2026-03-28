@@ -464,18 +464,11 @@ class Resolver:
 
     @property
     def target_py_version_info(self):
-        """Extract the target Python version info tuple from the Pipfile.
-
-        Returns a tuple like (3, 11, 0) for use with TargetPython and the
-        resolver factory.  When the Pipfile specifies ``python_version`` or
-        ``python_full_version``, the finder and factory filter candidates
-        against this version instead of blindly ignoring Requires-Python.
-        Returns None if no target version is specified.
-        """
+        """Extract the target Python version tuple from the Pipfile override."""
         override = _get_pipfile_python_override(self.project)
         if override:
             parts = override["python_full_version"].split(".")
-            return tuple(int(p) for p in parts)
+            return tuple(int(part) for part in parts)
         return None
 
     @property  # cached_property breaks authenticated private indexes
