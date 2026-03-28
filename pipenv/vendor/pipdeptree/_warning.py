@@ -15,14 +15,11 @@ class WarningType(Enum):
 
     @classmethod
     def from_str(cls, string: str) -> WarningType:
-        if string == "silence":
-            return WarningType.SILENCE
-        if string == "suppress":
-            return WarningType.SUPPRESS
-        if string == "fail":
-            return WarningType.FAIL
-        msg = "Unknown WarningType string value provided"
-        raise ValueError(msg)
+        try:
+            return cls(string)
+        except ValueError:
+            msg = "Unknown WarningType string value provided"
+            raise ValueError(msg) from None
 
 
 class WarningPrinter:

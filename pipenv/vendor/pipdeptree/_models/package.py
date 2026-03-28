@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING
 from pipenv.vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.vendor.packaging.utils import canonicalize_name
 
-from pipenv.vendor.pipdeptree._freeze import dist_to_frozen_repr
+from pipenv.vendor.pipdeptree._parser import distribution_to_specifier
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
@@ -50,7 +50,7 @@ class Package(ABC):
                 license_str = line.rsplit(":: ", 1)[-1]
                 license_strs.append(license_str)
 
-        if len(license_strs) == 0:
+        if not license_strs:
             return self.UNKNOWN_LICENSE_STR
 
         return f"({', '.join(license_strs)})"
@@ -77,8 +77,8 @@ class Package(ABC):
         return render(frozen=frozen)
 
     @staticmethod
-    def as_frozen_repr(dist: Distribution) -> str:
-        return dist_to_frozen_repr(dist)
+    def as_frozen_repr(distribution: Distribution) -> str:
+        return distribution_to_specifier(distribution)
 
     def __repr__(self) -> str:
         return f'<{self.__class__.__name__}("{self.key}")>'
@@ -121,6 +121,24 @@ class DistPackage(Package):
                 yield req
 
     @property
+    def provides_extras(self) -> frozenset[str]:
+        return frozenset(self._obj.metadata.get_all("Provides-Extra") or ())
+
+    def requires_for_extras(self, extras: frozenset[str]) -> Iterator[tuple[Requirement, str]]:
+        """Yield (requirement, extra_name) for requirements gated behind the given extras."""
+        for raw_req in self._obj.requires or []:
+            try:
+                req = Requirement(raw_req)
+            except InvalidRequirement:
+                continue
+            if not req.marker or req.marker.evaluate():
+                continue
+            for extra in extras:
+                if req.marker.evaluate({"extra": extra}):
+                    yield req, extra
+                    break
+
+    @property
     def version(self) -> str:
         return self._obj.version
 
@@ -138,7 +156,8 @@ class DistPackage(Package):
             parent_str = self.req.project_name
             if parent_ver_spec:
                 parent_str += parent_ver_spec
-            return f"{self.project_name}=={self.version} [requires: {parent_str}]"
+            extra_str = f", extra: {self.req.extra}" if self.req.extra else ""
+            return f"{self.project_name}=={self.version} [requires: {parent_str}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
     def as_requirement(self) -> ReqPackage:
@@ -162,6 +181,13 @@ class DistPackage(Package):
             return self
         return self.__class__(self._obj, req)
 
+    @property
+    def edge_label(self) -> str:
+        version = (self.req.version_spec if self.req is not None else None) or "any"
+        if self.req is not None and self.req.extra:
+            return f"[{self.req.extra}] {version}"
+        return version
+
     def as_dict(self) -> dict[str, str]:
         return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
 
@@ -177,10 +203,11 @@ class ReqPackage(Package):
 
     UNKNOWN_VERSION = "?"
 
-    def __init__(self, obj: Requirement, dist: DistPackage | None = None) -> None:
+    def __init__(self, obj: Requirement, dist: DistPackage | None = None, extra: str | None = None) -> None:
         super().__init__(obj.name)
         self._obj = obj
         self.dist = dist
+        self.extra = extra
 
     def render_as_root(self, *, frozen: bool) -> str:
         if not frozen:
@@ -192,16 +219,21 @@ class ReqPackage(Package):
     def render_as_branch(self, *, frozen: bool) -> str:
         if not frozen:
             req_ver = self.version_spec or "Any"
-            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}]"
+            extra_str = f", extra: {self.extra}" if self.extra else ""
+            return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
     @property
     def version_spec(self) -> str | None:
-        result = None
-        specs = sorted(map(str, self._obj.specifier), reverse=True)  # `reverse` makes '>' prior to '<'
-        if specs:
-            result = ",".join(specs)
-        return result
+        specs = sorted(map(str, self._obj.specifier), reverse=True)  # type: ignore[invalid-argument-type]  # `reverse` makes '>' prior to '<'
+        return ",".join(specs) if specs else None
+
+    @property
+    def edge_label(self) -> str:
+        version = self.version_spec or "any"
+        if self.extra:
+            return f"[{self.extra}] {version}"
+        return version
 
     @property
     def installed_version(self) -> str:
@@ -237,12 +269,15 @@ class ReqPackage(Package):
         return self.installed_version == self.UNKNOWN_VERSION
 
     def as_dict(self) -> dict[str, str]:
-        return {
+        result = {
             "key": self.key,
             "package_name": self.project_name,
             "installed_version": self.installed_version,
             "required_version": self.version_spec if self.version_spec is not None else "Any",
         }
+        if self.extra:
+            result["extra"] = self.extra
+        return result
 
 
 __all__ = [

@@ -27,7 +27,7 @@ def detect_active_interpreter() -> str:
         if not path:
             continue
         if not path.exists():
-            break
+            continue
         return str(path)
 
     print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
