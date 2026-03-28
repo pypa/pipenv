@@ -264,7 +264,8 @@ def cmd_run(args, state, extra_args=None):
         err.print("Error: Missing argument 'command'.")
         sys.exit(1)
 
-    run_args = list(args.args) + list(extra_args or [])
+    # extra_args contains everything after run_command (captured by parse_known_args).
+    run_args = list(extra_args or [])
     do_run(
         state.project,
         command=args.run_command,

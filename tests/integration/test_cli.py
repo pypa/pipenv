@@ -117,16 +117,12 @@ def test_pipenv_graph(pipenv_instance_pypi):
 
 @pytest.mark.cli
 def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
-    from pipenv.cli import cli
-    from pipenv.vendor.click.testing import CliRunner
-
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install tablib==0.13.0")
         assert c.returncode == 0
 
-        cli_runner = CliRunner()
-        c = cli_runner.invoke(cli, "graph --reverse --json-tree")
-        assert c.exit_code == 0
+        c = p.pipenv("graph --reverse --json-tree")
+        assert c.returncode == 0
 
         output = c.stdout
         try:
