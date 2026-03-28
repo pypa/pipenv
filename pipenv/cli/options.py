@@ -184,6 +184,29 @@ def categories_option(f):
     )(f)
 
 
+def extras_option(f):
+    def callback(ctx, param, value):
+        state = ctx.ensure_object(State)
+        if value:
+            extras = parse_categories(value)
+            # --extras always includes 'packages' so users get the defaults
+            # plus the requested optional categories.
+            if "packages" not in state.installstate.categories:
+                state.installstate.categories.insert(0, "packages")
+            state.installstate.categories += extras
+        return value
+
+    return option(
+        "--extras",
+        nargs=1,
+        required=False,
+        callback=callback,
+        expose_value=False,
+        type=click_types.STRING,
+        help="Install optional extra categories alongside default packages.",
+    )(f)
+
+
 def all_categories_option(f):
     def callback(ctx, param, value):
         state = ctx.ensure_object(State)
@@ -613,6 +636,7 @@ def install_base_options(f):
 def uninstall_options(f):
     f = install_base_options(f)
     f = categories_option(f)
+    f = extras_option(f)
     f = uninstall_dev_option(f)
     f = editable_option(f)
     f = package_arg(f)
@@ -632,6 +656,7 @@ def sync_options(f):
     f = install_base_options(f)
     f = install_dev_option(f)
     f = categories_option(f)
+    f = extras_option(f)
     f = all_categories_option(f)
     return f
 
