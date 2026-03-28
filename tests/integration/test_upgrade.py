@@ -3,9 +3,6 @@ import os
 
 import pytest
 
-from pipenv.cli import cli
-from pipenv.vendor.click.testing import CliRunner
-
 
 @pytest.mark.upgrade
 def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
@@ -60,9 +57,6 @@ atomicwrites = "*"
 
 @pytest.mark.cli
 def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
-    from pipenv.cli import cli
-    from pipenv.vendor.click.testing import CliRunner
-
     with pipenv_instance_pypi() as p:
         # Step 1: Install initial dependency version
         c = p.pipenv("install google-api-core==2.18.0")
@@ -85,9 +79,8 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
             pipfile.write(updated_pipfile_content)
 
         # Step 3: Update protobuf to an incompatible version
-        cli_runner = CliRunner()
-        c = cli_runner.invoke(cli, "update protobuf==5.27.5")
-        assert c.exit_code == 0, f"Failed to update protobuf: {c.stderr}"
+        c = p.pipenv("update protobuf==5.27.5")
+        assert c.returncode == 0, f"Failed to update protobuf: {c.stderr}"
 
         # Step 4: Check the lockfile for incompatible dependencies
         with open(lockfile_path) as lockfile:
@@ -240,10 +233,10 @@ sphinx = "*"
             """.strip()
             f.write(contents)
 
-        cli_runner = CliRunner()
-        result = cli_runner.invoke(cli, ["upgrade", "--all"])
+        from pipenv.cli.command import cli as pipenv_cli
 
-    assert result.exit_code == 0, result.output
+        pipenv_cli(["upgrade", "--all"])
+
     assert "packages" in captured["categories"]
     assert "dev-packages" in captured["categories"]
     assert "docs" in captured["categories"]

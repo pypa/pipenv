@@ -6,8 +6,6 @@ from traceback import format_tb
 from pipenv.patched.pip._vendor.rich.console import Console
 from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.utils import err
-from pipenv.vendor import click
-from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
 
 
 def unstyle(text: str) -> str:
@@ -42,7 +40,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 
     is_verbose = environments.Setting().is_verbose()
 
-    if is_verbose or not issubclass(exc_type, ClickException):
+    if is_verbose or not issubclass(exc_type, PipenvException):
         hook(exc_type, exception, traceback)
     elif issubclass(exc_type, PipenvException):
         # For PipenvException and subclasses (ResolutionFailure, etc.),
@@ -50,7 +48,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
         # The exception's show() method provides user-friendly output.
         exception.show()
     else:
-        # For other ClickExceptions, show a minimal traceback
+        # For other exceptions, show a minimal traceback
         tb = format_tb(traceback, limit=-6)
         lines = itertools.chain.from_iterable([frame.splitlines() for frame in tb])
         formatted_lines = []
@@ -69,7 +67,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 sys.excepthook = handle_exception
 
 
-class PipenvException(ClickException):
+class PipenvException(Exception):
     message = "[bold][red]ERROR[/red][/bold]: {}"
 
     def __init__(self, message=None, **kwargs):
@@ -78,6 +76,7 @@ class PipenvException(ClickException):
         extra = kwargs.pop("extra", [])
         self.message = self.message.format(message)
         self.extra = extra
+        super().__init__(self.message)
 
     def show(self, file=None):
         if file is None:
@@ -124,7 +123,7 @@ class JSONParseError(PipenvException):
             console.print(f"[bold][red]ERROR TEXT:[/red][/bold]: {self.error_text}")
 
 
-class PipenvUsageError(UsageError):
+class PipenvUsageError(PipenvException):
     def __init__(self, message=None, ctx=None, **kwargs):
         formatted_message = "{0}: {1}"
         msg_prefix = "[bold red]ERROR:[/bold red]"
@@ -132,22 +131,19 @@ class PipenvUsageError(UsageError):
             message = "Pipenv encountered a problem and had to exit."
         message = formatted_message.format(msg_prefix, f"[bold]{message}[/bold]")
         self.message = message
-        UsageError.__init__(self, message, ctx)
+        self.cmd = None
+        self.ctx = ctx
+        extra = kwargs.pop("extra", [])
+        super().__init__(message, extra=extra)
 
     def show(self, file=None):
-        hint = ""
-        if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
-            hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
-        if self.ctx is not None:
-            console = Console(
-                stderr=True, file=file, highlight=False, force_terminal=self.ctx.color
-            )
-            console.print(self.ctx.get_usage() + f"\n{hint}")
         console = Console(stderr=True, file=file, highlight=False)
+        if self.ctx is not None:
+            console.print(f'Try "pipenv -h" for help.\n')
         console.print(self.message)
 
 
-class PipenvFileError(FileError):
+class PipenvFileError(PipenvException):
     formatted_message = "{} {{}} {{}}".format("[bold red]ERROR:[/bold red]")
 
     def __init__(self, filename, message=None, **kwargs):
@@ -157,8 +153,8 @@ class PipenvFileError(FileError):
         message = self.formatted_message.format(
             f"[bold]{filename} not found![/bold]", message
         )
-        FileError.__init__(self, filename=filename, hint=message, **kwargs)
-        self.extra = extra
+        self.filename = filename
+        super().__init__(message, extra=extra)
 
     def show(self, file=None):
         console = Console(stderr=True, file=file, highlight=False)
@@ -319,13 +315,8 @@ class InstallError(PipenvException):
 class DependencyConflict(PipenvException):
     def __init__(self, message):
         extra = [
-            "{} {}".format(
-                click.style("The operation failed...", bold=True, fg="red"),
-                click.style(
-                    "A dependency conflict was detected and could not be resolved.",
-                    fg="red",
-                ),
-            )
+            "[bold red]The operation failed...[/bold red] "
+            "[red]A dependency conflict was detected and could not be resolved.[/red]"
         ]
         PipenvException.__init__(self, message, extra=extra)
 
@@ -392,12 +383,7 @@ class RequirementError(PipenvException):
                     req_value = "\n".join([f"    {k}: {v}" for k, v in values])
                 else:
                     req_value = getattr(req.line_instance, "line", None)
-        message = click.style(
-            f"Failed creating requirement instance {req_value}",
-            bold=False,
-            fg="reset",
-            bg="reset",
-        )
+        message = f"Failed creating requirement instance {req_value}"
         extra = [str(req)]
         PipenvException.__init__(self, message, extra=extra)
 

@@ -1,9 +1,7 @@
 import pytest
 
-from pipenv.cli import cli
 from pipenv.project import Project
 from pipenv.routines.update import get_modified_pipfile_entries
-from pipenv.vendor.click.testing import CliRunner
 
 
 @pytest.mark.parametrize("cmd_option", ["", "--dev"])
@@ -31,10 +29,10 @@ def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, mon
     monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
     monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
     with pipenv_instance_private_pypi() as _:
-        cli_runner = CliRunner()
-        result = cli_runner.invoke(cli, ["update", "six"])
+        from pipenv.cli.command import cli as pipenv_cli
 
-    assert result.exit_code == 0, result.output
+        pipenv_cli(["update", "six"])
+
     assert captured["categories"] == ["packages", "dev-packages"]
 
 
@@ -60,10 +58,10 @@ sphinx = "*"
             """.strip()
             f.write(contents)
 
-        cli_runner = CliRunner()
-        result = cli_runner.invoke(cli, ["update", "--all"])
+        from pipenv.cli.command import cli as pipenv_cli
 
-    assert result.exit_code == 0, result.output
+        pipenv_cli(["update", "--all"])
+
     assert "packages" in captured["categories"]
     assert "dev-packages" in captured["categories"]
     assert "docs" in captured["categories"]

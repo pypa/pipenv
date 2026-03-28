@@ -37,7 +37,7 @@ def is_pip_audit_installed(project=None, system=False):
 
 def install_pip_audit(project, system=False):
     """Install pip-audit."""
-    from pipenv.vendor import click
+    from pipenv.cli.parser import confirm
 
     python = project_python(project, system=system)
 
@@ -45,7 +45,7 @@ def install_pip_audit(project, system=False):
         "[yellow bold]pip-audit is required for vulnerability scanning but not installed.[/yellow bold]"
     )
 
-    install = click.confirm(
+    install = confirm(
         "Would you like to install pip-audit? This will not modify your Pipfile/lockfile.",
         default=True,
     )
