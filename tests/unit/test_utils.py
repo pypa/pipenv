@@ -1206,11 +1206,18 @@ class TestPipfilePythonOverride:
 
     @pytest.mark.utils
     def test_resolver_package_finder_uses_target_python_filtering(self, monkeypatch):
+        import tempfile
+
         from pipenv.utils.resolver import Resolver
 
         project = self._make_project(monkeypatch, {"python_full_version": "3.11.15"})
+        # Use os.path.join(tempfile.gettempdir(), ...) so the path is an absolute
+        # path on all platforms.  A bare "/tmp/..." prefix is not considered
+        # absolute by os.path.isabs() on Windows, which causes pip's
+        # _build_session() to raise an AssertionError.
+        cache_dir = os.path.join(tempfile.gettempdir(), "pipenv-cache")
         project.s = mock.MagicMock(
-            PIPENV_CACHE_DIR="/tmp/pipenv-cache",
+            PIPENV_CACHE_DIR=cache_dir,
             PIPENV_KEYRING_PROVIDER=None,
         )
         project.settings = {}
@@ -1223,6 +1230,10 @@ class TestPipfilePythonOverride:
             return mock.sentinel.finder
 
         monkeypatch.setattr("pipenv.utils.resolver.get_package_finder", fake_get_package_finder)
+        # Mock the session property so that _build_session() is never invoked;
+        # this unit test only needs to verify that package_finder passes the
+        # correct py_version_info, not that a real PipSession is created.
+        monkeypatch.setattr(Resolver, "session", property(lambda self: mock.MagicMock()))
 
         finder = resolver.package_finder
 
