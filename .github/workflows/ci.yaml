@@ -76,6 +76,14 @@ jobs:
         os: [MacOS, Ubuntu, Windows]
     steps:
       - uses: actions/checkout@v4
+      - name: Disable Windows Defender for Python paths
+        if: contains(matrix.os, 'Windows')
+        shell: powershell
+        run: |
+          Add-MpPreference -ExclusionPath "C:\hostedtoolcache\windows\Python"
+          Add-MpPreference -ExclusionPath "$env:GITHUB_WORKSPACE"
+          Add-MpPreference -ExclusionPath "$env:USERPROFILE\.virtualenvs"
+          Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\pip"
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
@@ -135,6 +143,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+      - name: Disable Windows Defender for Python paths
+        if: contains(matrix.os, 'Windows')
+        shell: powershell
+        run: |
+          Add-MpPreference -ExclusionPath "C:\hostedtoolcache\windows\Python"
+          Add-MpPreference -ExclusionPath "$env:GITHUB_WORKSPACE"
+          Add-MpPreference -ExclusionPath "$env:USERPROFILE\.virtualenvs"
+          Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\pip"
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

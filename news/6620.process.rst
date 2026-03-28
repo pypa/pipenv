@@ -2,3 +2,6 @@ Optimize CI pipeline: replace Black with ``ruff-format`` in pre-commit,
 remove redundant standalone Ruff job, and add a ``tests-smoke`` gate that
 runs Python 3.12 across all OSes before the full version matrix — cutting
 wasted compute on version-agnostic failures.
+Disable Windows Defender real-time scanning for Python toolcache,
+workspace, virtualenvs, and pip cache on Windows runners
+to reduce I/O overhead.
