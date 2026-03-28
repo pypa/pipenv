@@ -206,6 +206,19 @@ class Shell:
             pass  # setecho may not be supported on all platforms
 
         try:
+            # Wait for the shell to finish its startup (including any
+            # interactive prompts such as oh-my-zsh's update dialogue)
+            # before sending the activate script.  Without this, the
+            # activate command is consumed by whatever prompt appears
+            # first, and the virtualenv never gets activated.
+            # See: https://github.com/pypa/pipenv/issues/3615
+            _STARTUP_SENTINEL = "__PIPENV_STARTUP_READY__"
+            c.sendline(f"echo {_STARTUP_SENTINEL}")
+            try:
+                c.expect(_STARTUP_SENTINEL, timeout=30)
+            except Exception:
+                pass  # best-effort: continue even if the sentinel is not seen
+
             c.sendline(_get_activate_script(self.cmd, venv))
 
             # Wrap the deactivate function to also unset PIPENV_ACTIVE

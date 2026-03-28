@@ -1,0 +1,1 @@
+``pipenv shell`` now waits for the shell to finish its startup before sending the virtualenv activate script.  Previously, interactive prompts during shell startup (e.g. oh-my-zsh's update dialogue) could consume the activate command, leaving the virtualenv unactivated.

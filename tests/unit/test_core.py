@@ -432,19 +432,24 @@ def test_get_activate_script_windows_full_path():
 @pytest.mark.core
 @pytest.mark.skipif(os.name == "nt", reason="PTY/pexpect not available on Windows")
 def test_fork_compat_sentinel_restores_echo():
-    """Regression test for GH-6572: fork_compat must re-enable PTY echo.
+    """Regression test for GH-6572 and GH-3615.
 
-    In Docker / pty-over-pty environments (e.g. Debian 13.4 + python:3.14-slim)
-    the shell's own readline initialisation can race with our setecho(True) call
-    and leave echo permanently disabled, making typed input invisible.
+    GH-6572: fork_compat must re-enable PTY echo.  In Docker / pty-over-pty
+    environments the shell's own readline initialisation can race with our
+    setecho(True) call, leaving echo permanently disabled.
 
-    The fix sends a sentinel via ``echo __PIPENV_SHELL_READY__`` and blocks on
-    ``c.expect(sentinel)`` before re-enabling echo, ensuring the shell is idle
-    and all terminal-attribute changes from setup commands have settled.
+    GH-3615: fork_compat must wait for the shell to finish its startup
+    (including any interactive prompts like oh-my-zsh's update dialogue)
+    before sending the activate script.
 
-    This test verifies the sentinel handshake is performed and that setecho is
-    called in the correct order (False → sentinel → True) using a mock pexpect
-    child so no real PTY is needed.
+    The fix sends a startup sentinel ``echo __PIPENV_STARTUP_READY__`` and
+    blocks on ``c.expect(sentinel)`` *before* activating, then sends a
+    second sentinel ``echo __PIPENV_SHELL_READY__`` *after* all setup
+    commands and blocks again before re-enabling echo.
+
+    This test verifies both sentinels are performed and that setecho is
+    called in the correct order (False → startup sentinel → activate →
+    ready sentinel → True) using a mock pexpect child.
     """
     from pipenv.shells import Shell
 
@@ -452,7 +457,6 @@ def test_fork_compat_sentinel_restores_echo():
 
     # Build a mock pexpect child that simulates the sentinel handshake.
     mock_child = MagicMock()
-    # Simulate setecho raising on some platforms to verify robustness.
     mock_child.setecho.return_value = None
     mock_child.expect.return_value = 0  # sentinel found
     mock_child.interact.return_value = None
@@ -496,22 +500,43 @@ def test_fork_compat_sentinel_restores_echo():
         "setecho(False) must be called before any sendline"
     )
 
-    # Verify the sentinel was sent and expected.
-    sentinel_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_SHELL_READY__" in item[1]]
-    assert sentinel_send, "Sentinel line must be sent via sendline"
+    # Verify the startup sentinel was sent and expected *before* activate.
+    startup_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_STARTUP_READY__" in item[1]]
+    assert startup_send, "Startup sentinel must be sent via sendline"
 
-    sentinel_expect = [item for item in call_order if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])]
-    assert sentinel_expect, "Sentinel must be waited for via expect"
+    startup_expect = [item for item in call_order if item[0] == "expect" and "__PIPENV_STARTUP_READY__" in str(item[1])]
+    assert startup_expect, "Startup sentinel must be waited for via expect"
 
-    # Verify sentinel expect happens before setecho(True).
-    sentinel_expect_idx = next(
+    startup_expect_idx = next(
+        i for i, item in enumerate(call_order) if item[0] == "expect" and "__PIPENV_STARTUP_READY__" in str(item[1])
+    )
+    activate_idx = next(
+        i for i, item in enumerate(call_order) if item == ("sendline", "source /venv/bin/activate")
+    )
+    assert startup_expect_idx < activate_idx, (
+        "Startup sentinel expect must complete before the activate script is sent (GH-3615)"
+    )
+
+    # Verify the ready sentinel was sent and expected *after* activate.
+    ready_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_SHELL_READY__" in item[1]]
+    assert ready_send, "Ready sentinel must be sent via sendline"
+
+    ready_expect = [item for item in call_order if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])]
+    assert ready_expect, "Ready sentinel must be waited for via expect"
+
+    ready_expect_idx = next(
         i for i, item in enumerate(call_order) if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])
     )
+    assert activate_idx < ready_expect_idx, (
+        "Ready sentinel expect must happen after the activate script"
+    )
+
+    # Verify ready sentinel expect happens before setecho(True).
     setecho_true_idx = next(
         i for i, item in enumerate(call_order) if item == ("setecho", True)
     )
-    assert sentinel_expect_idx < setecho_true_idx, (
-        "Sentinel expect must complete before setecho(True) to avoid the race condition"
+    assert ready_expect_idx < setecho_true_idx, (
+        "Ready sentinel expect must complete before setecho(True) to avoid the race condition"
     )
 
 
