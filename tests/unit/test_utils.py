@@ -868,7 +868,7 @@ class TestEnsureProjectPythonVersionMismatch:
         )
         monkeypatch.setattr(
             "pipenv.utils.project.find_a_system_python",
-            lambda x: None,
+            lambda x, pyenv_only=False: None,
         )
         ensure_virtualenv_calls = []
         monkeypatch.setattr(
@@ -901,7 +901,7 @@ class TestEnsureProjectPythonVersionMismatch:
         )
         monkeypatch.setattr(
             "pipenv.utils.project.find_a_system_python",
-            lambda x: None,
+            lambda x, pyenv_only=False: None,
         )
         ensure_virtualenv_calls = []
         monkeypatch.setattr(

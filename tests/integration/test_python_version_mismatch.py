@@ -22,7 +22,7 @@ def test_ensure_python_non_interactive_no_yes(monkeypatch, project):
     monkeypatch.setattr("pipenv.installers.Pyenv", MockInstaller)
 
     # Mock find_a_system_python to return None (Python not found)
-    monkeypatch.setattr("pipenv.utils.virtualenv.find_a_system_python", lambda x: None)
+    monkeypatch.setattr("pipenv.utils.virtualenv.find_a_system_python", lambda x, pyenv_only=False: None)
 
     # Mock os.name to not be 'nt' to skip Windows-specific code
     monkeypatch.setattr("os.name", "posix")
@@ -66,7 +66,7 @@ def test_ensure_python_non_interactive_with_yes(monkeypatch, project):
     # and then return a path after "installation"
     find_python_calls = [None]
 
-    def mock_find_python(version):
+    def mock_find_python(version, pyenv_only=False):
         if len(find_python_calls) == 1:
             find_python_calls.append("/mock/path/to/python")
             return find_python_calls[-1]

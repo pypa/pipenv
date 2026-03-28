@@ -322,7 +322,7 @@ def ensure_python(project, python=None):
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
     # Try to find Python using system registry and default paths first
-    path_to_python = find_a_system_python(python)
+    path_to_python = find_a_system_python(python, pyenv_only=project.s.PIPENV_PYENV_ONLY)
 
     if project.s.is_verbose():
         err.print(f"Using python: {python}")
@@ -442,7 +442,9 @@ def ensure_python(project, python=None):
                     err.print(f"[cyan]{c.stdout}[/cyan]")
             # Find the newly installed Python, hopefully.
             version = str(version)
-            path_to_python = find_a_system_python(version)
+            path_to_python = find_a_system_python(
+                version, pyenv_only=project.s.PIPENV_PYENV_ONLY
+            )
             try:
                 assert python_version(path_to_python) == version
             except AssertionError:
@@ -517,7 +519,7 @@ def find_python_from_py_launcher(version):
     return None
 
 
-def find_a_system_python(line):
+def find_a_system_python(line, pyenv_only=False):
     """Find a Python installation from a given line.
 
     This tries to parse the line in various of ways:
@@ -530,6 +532,10 @@ def find_a_system_python(line):
     * Nothing fits, return None.
 
     Note: The Windows py launcher is handled separately in ensure_python.
+
+    Args:
+        line: The python version or path string to search for.
+        pyenv_only: If True, only search for pyenv-managed Python installations.
     """
 
     from pipenv.vendor.pythonfinder import Finder
@@ -542,7 +548,7 @@ def find_a_system_python(line):
         if path_obj.is_file() and os.access(str(path_obj), os.X_OK):
             return str(path_obj)
 
-    finder = Finder(system=True, global_search=True)
+    finder = Finder(system=True, global_search=True, pyenv_only=pyenv_only)
     if not line:
         return next(iter(finder.find_all_python_versions()), None)
     # Use the windows finder executable

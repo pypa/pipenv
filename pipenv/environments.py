@@ -151,6 +151,15 @@ class Setting:
         Default is to install Python automatically via pyenv when needed, if possible.
         """
 
+        self.PIPENV_PYENV_ONLY = bool(
+            get_from_env("PYENV_ONLY", check_for_negation=False)
+        )
+        """If set, Pipenv only searches for Python interpreters installed via pyenv.
+
+        This restricts Python discovery to pyenv-managed installations only,
+        ignoring system, Homebrew, and other Python interpreters.
+        """
+
         self.PIPENV_DONT_USE_ASDF = bool(
             get_from_env("DONT_USE_ASDF", check_for_negation=False)
         )
