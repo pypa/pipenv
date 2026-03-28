@@ -17,6 +17,7 @@ def generate_requirements(
     categories="",
     from_pipfile=False,
     no_lock=False,
+    include_index=True,
 ):
     # If --no-lock, generate from Pipfile directly without using lockfile versions
     if no_lock:
@@ -26,18 +27,20 @@ def generate_requirements(
             dev_only=dev_only,
             include_markers=include_markers,
             categories=categories,
+            include_index=include_index,
         )
         return
 
     lockfile = project.load_lockfile(expand_env_vars=False)
     pipfile_package_names = project.pipfile_package_names
 
-    # Print index URLs first
-    for i, package_index in enumerate(lockfile["_meta"]["sources"]):
-        prefix = "-i" if i == 0 else "--extra-index-url"
-        print(
-            " ".join([prefix, package_index["url"]])
-        )  # Use print instead of console.print
+    # Print index URLs first (unless excluded)
+    if include_index:
+        for i, package_index in enumerate(lockfile["_meta"]["sources"]):
+            prefix = "-i" if i == 0 else "--extra-index-url"
+            print(
+                " ".join([prefix, package_index["url"]])
+            )  # Use print instead of console.print
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []
@@ -92,6 +95,7 @@ def _generate_requirements_from_pipfile(
     dev_only=False,
     include_markers=True,
     categories="",
+    include_index=True,
 ):
     """Generate requirements directly from Pipfile using flexible version specifiers.
 
@@ -100,13 +104,14 @@ def _generate_requirements_from_pipfile(
     """
     parsed_pipfile = project.parsed_pipfile
 
-    # Print index URLs from Pipfile sources
-    sources = parsed_pipfile.get("source", [])
-    for i, source in enumerate(sources):
-        url = source.get("url", "")
-        if url:
-            prefix = "-i" if i == 0 else "--extra-index-url"
-            print(f"{prefix} {url}")
+    # Print index URLs from Pipfile sources (unless excluded)
+    if include_index:
+        sources = parsed_pipfile.get("source", [])
+        for i, source in enumerate(sources):
+            url = source.get("url", "")
+            if url:
+                prefix = "-i" if i == 0 else "--extra-index-url"
+                print(f"{prefix} {url}")
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []

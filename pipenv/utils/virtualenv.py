@@ -563,7 +563,7 @@ def do_where(project, virtualenv=False, bare=True):
                 "No Pipfile present at project home. Consider running "
                 "[green]`pipenv install`[/green] first to automatically generate a Pipfile for you."
             )
-            return
+            sys.exit(1)
         location = project.pipfile_location
         # Shorten the virtual display of the path to the virtualenv.
         if not bare:
