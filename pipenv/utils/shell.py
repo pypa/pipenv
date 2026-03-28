@@ -509,9 +509,13 @@ def is_env_truthy(name):
 def project_python(project, system=False):
     if not system:
         python = project._which("python")
+    # When --system --python was used, PIPENV_PYTHON holds the resolved path
+    # to the target interpreter so we install to its site-packages (#3593).
+    elif project and project.s and project.s.PIPENV_PYTHON:
+        python = project.s.PIPENV_PYTHON
     else:
         interpreters = [system_which(p) for p in ("python3", "python")]
-        interpreters = [i for i in interpreters if i]  # filter out not found interpreters
+        interpreters = [i for i in interpreters if i]  # filter out not found
         python = interpreters[0] if interpreters else None
     if not python:
         err.print("The Python interpreter can't be found.", style="red")

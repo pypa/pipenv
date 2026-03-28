@@ -375,6 +375,19 @@ class Setting:
         Defaults to ``(w)ipe``
         """
 
+        self.PIPENV_BREAK_SYSTEM_PACKAGES = bool(
+            get_from_env("BREAK_SYSTEM_PACKAGES", check_for_negation=False)
+        )
+        """If set, passes ``--break-system-packages`` to pip when using ``--system``.
+
+        This is needed on PEP 668 compliant distributions (e.g. Ubuntu 23.04+,
+        Debian 12+) where pip refuses to install packages into the system
+        site-packages without this flag.
+
+        Default is unset.  Can also be enabled by setting the standard
+        ``PIP_BREAK_SYSTEM_PACKAGES=1`` environment variable.
+        """
+
         self.PIPENV_RESOLVE_VCS = bool(get_from_env("RESOLVE_VCS", default=True))
         """Tells Pipenv whether to resolve all VCS dependencies in full.
 

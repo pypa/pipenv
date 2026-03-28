@@ -110,6 +110,20 @@ def pip_install_deps(
         )
         if keyring_provider:
             pip_config["PIP_KEYRING_PROVIDER"] = keyring_provider
+        # When installing to the system (--system), pass through PIP_BREAK_SYSTEM_PACKAGES
+        # to support PEP 668 externally-managed environments (e.g. Ubuntu 23.04+, Debian 12+).
+        # This can be enabled via PIPENV_BREAK_SYSTEM_PACKAGES=1 or PIP_BREAK_SYSTEM_PACKAGES=1.
+        if allow_global:
+            break_system = project.s.PIPENV_BREAK_SYSTEM_PACKAGES or os.environ.get(
+                "PIP_BREAK_SYSTEM_PACKAGES"
+            )
+            if break_system:
+                pip_config["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
+            # Pass through PIP_IGNORE_INSTALLED and PIP_USER if set in the environment
+            for env_key in ("PIP_IGNORE_INSTALLED", "PIP_USER"):
+                env_val = os.environ.get(env_key)
+                if env_val:
+                    pip_config[env_key] = env_val
         if sources:
             pip_config["PIP_INDEX_URL"] = sources[0].get("url", "")
             if len(sources) > 1:

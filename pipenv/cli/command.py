@@ -846,6 +846,7 @@ def audit(
     default=None,
     help="List packages that would be updated without actually updating.",
 )
+@system_option
 @install_options
 @upgrade_options
 @pass_state
@@ -866,7 +867,7 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
         clear=state.clear,
         pre=state.installstate.pre,
         pypi_mirror=state.pypi_mirror,
-        system=False,
+        system=state.system,
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
         dev=state.installstate.dev,
