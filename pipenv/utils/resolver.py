@@ -454,6 +454,12 @@ class Resolver:
         pip_options.pre = self.pre or self.project.settings.get(
             "allow_prereleases", False
         )
+        # Allow the user to override the keyring provider so that credential
+        # managers (e.g. Windows Credential Manager) work even when pip input
+        # is disabled.  See https://github.com/pypa/pipenv/issues/5715
+        keyring_provider = self.project.s.PIPENV_KEYRING_PROVIDER
+        if keyring_provider:
+            pip_options.keyring_provider = keyring_provider
         # In pip 26+, setting options.pre=True is no longer sufficient to
         # enable pre-release resolution. pip's PackageFinder uses
         # release_control.all_releases to determine whether pre-releases are
@@ -1157,6 +1163,12 @@ def venv_resolve_deps(
         if pypi_mirror:
             os.environ["PIPENV_PYPI_MIRROR"] = str(pypi_mirror)
         os.environ["PIP_NO_INPUT"] = "1"
+        # Pass through keyring provider so that credential managers
+        # (e.g. Windows Credential Manager) work during resolution.
+        # See https://github.com/pypa/pipenv/issues/5715
+        keyring_provider = project.s.PIPENV_KEYRING_PROVIDER
+        if keyring_provider:
+            os.environ["PIP_KEYRING_PROVIDER"] = keyring_provider
         pipenv_site_dir = get_pipenv_sitedir()
         if pipenv_site_dir is not None:
             os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir

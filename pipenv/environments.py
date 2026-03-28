@@ -389,6 +389,17 @@ class Setting:
         )
         """Tells Pipenv to use the virtualenv --copies to prevent symlinks when specified as Truthy."""
 
+        self.PIPENV_KEYRING_PROVIDER = get_from_env(
+            "KEYRING_PROVIDER", check_for_negation=False
+        )
+        """If set, tells pipenv which keyring provider to use for credentials lookup.
+
+        Accepts: ``auto``, ``disabled``, ``import``, ``subprocess``.
+        When set to ``import`` or ``subprocess``, keyring credentials will be
+        used even when pip input is disabled (the default).
+        Default is unset, which lets pip use its own default (``auto``).
+        """
+
         self.PIPENV_PYUP_API_KEY = get_from_env("PYUP_API_KEY", check_for_negation=False)
 
         # Internal, support running in a different Python from sys.executable.

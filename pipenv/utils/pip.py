@@ -102,6 +102,14 @@ def pip_install_deps(
             "PIP_CONFIG_FILE": os.devnull,
             "PATH": os.environ.get("PATH"),
         }
+        # Pass through keyring provider so that credential managers
+        # (e.g. Windows Credential Manager) work during install.
+        # See https://github.com/pypa/pipenv/issues/5715
+        keyring_provider = project.s.PIPENV_KEYRING_PROVIDER or os.environ.get(
+            "PIP_KEYRING_PROVIDER"
+        )
+        if keyring_provider:
+            pip_config["PIP_KEYRING_PROVIDER"] = keyring_provider
         if sources:
             pip_config["PIP_INDEX_URL"] = sources[0].get("url", "")
             if len(sources) > 1:
