@@ -60,8 +60,8 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         using_string = "Using default python from"
 
     err.print(
-        f"[bold]{using_string}[/bold] [bold][yellow]{python}[/yellow][/bold]"
-        f"[green]{python_version(python)}[green] "
+        f"[bold]{using_string}[/bold] [bold][yellow]{python}[/yellow][/bold] "
+        f"[green]{python_version(python)}[/green] "
         "[bold]to create virtualenv...[/bold]"
     )
 

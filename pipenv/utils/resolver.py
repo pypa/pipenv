@@ -89,9 +89,22 @@ def _get_pipfile_python_override(project):
             # evaluation — don't override, let the running interpreter's
             # actual version be used.
             return None
-        # Only major.minor specified — assume .0 patch for inclusive resolution.
+        # Only major.minor specified — use the running interpreter's actual
+        # patch version so that markers like ``python_full_version >= "3.11.4"``
+        # evaluate correctly.  Previously we assumed ".0" which caused
+        # ResolutionTooDeep failures by wrongly excluding packages.
+        import platform
+
+        actual_full = platform.python_version()  # e.g. "3.11.15"
+        actual_major_minor = ".".join(actual_full.split(".")[:2])
+        if actual_major_minor == python_ver:
+            # Running interpreter matches the Pipfile — use its real patch.
+            full_version = actual_full
+        else:
+            # Different minor version — fall back to .0 (best guess).
+            full_version = f"{python_ver}.0"
         return {
-            "python_full_version": f"{python_ver}.0",
+            "python_full_version": full_version,
             "python_version": python_ver,
         }
 
