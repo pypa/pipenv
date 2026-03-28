@@ -3,6 +3,9 @@ import os
 
 import pytest
 
+from pipenv.cli import cli
+from pipenv.vendor.click.testing import CliRunner
+
 
 @pytest.mark.upgrade
 def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
@@ -209,3 +212,38 @@ pytest = "*"
         if "requests" in updated_lock_data["develop"]:
             # If it's there, it should be updated
             assert updated_lock_data["develop"]["requests"]["version"] == f"=={target_version}"
+
+
+@pytest.mark.upgrade
+def test_upgrade_all_categories_flag(pipenv_instance_private_pypi, monkeypatch):
+    captured = {}
+
+    def fake_upgrade(project, **kwargs):
+        captured["categories"] = kwargs["categories"]
+
+    def fake_ensure_project(*args, **kwargs):
+        pass
+
+    monkeypatch.setattr("pipenv.routines.update.upgrade", fake_upgrade)
+    monkeypatch.setattr("pipenv.utils.project.ensure_project", fake_ensure_project)
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+six = "*"
+
+[dev-packages]
+pytest = "*"
+
+[docs]
+sphinx = "*"
+            """.strip()
+            f.write(contents)
+
+        cli_runner = CliRunner()
+        result = cli_runner.invoke(cli, ["upgrade", "--all"])
+
+    assert result.exit_code == 0, result.output
+    assert "packages" in captured["categories"]
+    assert "dev-packages" in captured["categories"]
+    assert "docs" in captured["categories"]

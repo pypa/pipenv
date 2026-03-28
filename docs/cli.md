@@ -169,6 +169,7 @@ pipenv sync [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--dev` | Install both development and default packages |
+| `--all` | Install packages from all categories defined in the Pipfile |
 | `--categories TEXT` | Install packages from specified category groups |
 | `--python TEXT` | Specify which Python version to use |
 | `--extra-pip-args TEXT` | Pass additional arguments to pip |
@@ -183,6 +184,11 @@ $ pipenv sync
 Install development packages too:
 ```bash
 $ pipenv sync --dev
+```
+
+Install all categories (default, dev, and any custom categories):
+```bash
+$ pipenv sync --all
 ```
 
 Install specific categories:
@@ -203,6 +209,7 @@ pipenv update [OPTIONS] [PACKAGES]...
 | Option | Description |
 |--------|-------------|
 | `--dev` | Update development packages |
+| `--all` | Update packages from all categories defined in the Pipfile |
 | `--categories TEXT` | Update packages in specified categories |
 | `--outdated` | List out-of-date dependencies |
 | `--dry-run` | Show what would happen without making changes |
@@ -239,6 +246,7 @@ pipenv upgrade [OPTIONS] [PACKAGES]...
 | Option | Description |
 |--------|-------------|
 | `--dev` | Upgrade development packages |
+| `--all` | Upgrade packages from all categories defined in the Pipfile |
 | `--categories TEXT` | Upgrade packages in specified categories |
 | `--dry-run` | Show what would happen without making changes |
 | `--python TEXT` | Specify which Python version to use |
