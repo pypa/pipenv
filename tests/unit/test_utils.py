@@ -1871,3 +1871,178 @@ class TestDoCreateVirtualenvFallback:
             venv_mod.do_create_virtualenv(project, python="/usr/bin/python3")
 
         assert call_count["n"] == 1, "Fallback must not be attempted when creator is explicit"
+
+
+class TestResolverCreateCrossGroupIndexLookup:
+    """Tests for issue #5782: When locking a non-default category (e.g.
+    dev-packages), transitive dependencies that are explicitly declared with a
+    private ``index`` in another Pipfile section (e.g. [packages]) must still
+    be resolvable from that private index.
+
+    The fix populates ``index_lookup`` in ``Resolver.create()`` with entries
+    from all other Pipfile sections so that the pip SearchScope (which is
+    ``index_restricted=True``) can route transitive deps to the correct index.
+    """
+
+    def _make_project(self, packages, dev_packages, extra_categories=None):
+        """Return a minimal mock project whose ``get_pipfile_section`` and
+        ``get_package_categories`` behave like a real project with the given
+        Pipfile sections."""
+        project = mock.MagicMock()
+        section_map = {
+            "packages": packages,
+            "dev-packages": dev_packages,
+        }
+        if extra_categories:
+            section_map.update(extra_categories)
+
+        project.get_pipfile_section.side_effect = lambda sec: section_map.get(sec, {})
+
+        all_categories = list(section_map.keys())
+
+        project.get_package_categories.return_value = all_categories
+
+        project.sources = [
+            {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True},
+            {"name": "private", "url": "https://private.example.com/simple", "verify_ssl": True},
+        ]
+        project.get_default_index.return_value = {"name": "pypi", "url": "https://pypi.org/simple"}
+        project.s.PIPENV_CACHE_DIR = "/tmp/cache"
+        project.s.PIPENV_SPINNER = "dots"
+        project.settings.get.return_value = True
+        return project
+
+    @pytest.mark.utils
+    def test_private_packages_index_propagated_to_dev_lookup(self, tmp_path):
+        """index entries from [packages] must appear in index_lookup when
+        locking [dev-packages] so that transitive deps can be resolved.
+
+        Reproduces: https://github.com/pypa/pipenv/issues/5782
+        """
+        from unittest.mock import patch
+
+        from pipenv.utils.resolver import Resolver
+
+        packages = {
+            "private-lib": {"version": "*", "index": "private"},
+        }
+        dev_packages = {
+            "dev-tool": {"version": "*", "index": "private"},
+        }
+
+        project = self._make_project(packages, dev_packages)
+
+        # Patch out the heavy parts of Resolver.create that need a real
+        # environment (tempdir, pip internals) so we can test just the
+        # index_lookup construction logic.
+        fake_resolver = mock.MagicMock(spec=Resolver)
+        fake_resolver.index_lookup = {}
+        fake_resolver.markers_lookup = {}
+        fake_resolver.skipped = {}
+        fake_resolver.initial_constraints = set()
+
+        with patch(
+            "pipenv.utils.resolver.create_tracked_tempdir",
+            return_value=str(tmp_path),
+        ), patch.object(Resolver, "__init__", return_value=None) as mock_init:
+            # We call create() and capture what index_lookup ends up as.
+            # __init__ is stubbed so no real Resolver object is built.
+            captured = {}
+
+            def capture_init(self_inner, *args, **kwargs):
+                captured["index_lookup"] = kwargs.get("index_lookup", {})
+
+            mock_init.side_effect = capture_init
+
+            # Provide a minimal dep string for the dev category
+            deps = {"dev-tool": "dev-tool -i https://private.example.com/simple"}
+
+            with patch(
+                "pipenv.utils.resolver.expansive_install_req_from_line"
+            ) as mock_eirl, patch(
+                "pipenv.utils.resolver.parse_indexes",
+                return_value=(None, None, None, []),
+            ):
+                mock_req = mock.MagicMock()
+                mock_req.markers = None
+                mock_eirl.return_value = (mock_req, None)
+
+                try:
+                    Resolver.create(
+                        deps=deps,
+                        project=project,
+                        pipfile_category="dev-packages",
+                        req_dir=str(tmp_path),
+                    )
+                except Exception:
+                    pass  # __init__ is stubbed; downstream AttributeError is expected
+
+        index_lookup = captured.get("index_lookup", {})
+        # The key assertion: private-lib (from [packages]) must be in the
+        # index_lookup even though we are locking [dev-packages].
+        assert "private-lib" in index_lookup, (
+            "index_lookup for dev-packages resolution must include packages from "
+            "[packages] that have an explicit 'index' so that transitive "
+            "dependencies can be found on the correct private index. "
+            "(See https://github.com/pypa/pipenv/issues/5782)"
+        )
+        assert index_lookup["private-lib"] == "private"
+
+    @pytest.mark.utils
+    def test_current_category_entries_not_overridden(self, tmp_path):
+        """An explicit index in [dev-packages] must NOT be overridden by an
+        entry for the same package in [packages] with a different index."""
+        from unittest.mock import patch
+
+        from pipenv.utils.resolver import Resolver
+
+        # Same package in both sections, but different indexes
+        packages = {
+            "shared-lib": {"version": "*", "index": "private"},
+        }
+        dev_packages = {
+            "shared-lib": {"version": "*", "index": "testpypi"},
+        }
+
+        project = self._make_project(packages, dev_packages)
+
+        captured = {}
+
+        with patch(
+            "pipenv.utils.resolver.create_tracked_tempdir",
+            return_value=str(tmp_path),
+        ), patch.object(Resolver, "__init__", return_value=None) as mock_init:
+
+            def capture_init(self_inner, *args, **kwargs):
+                captured["index_lookup"] = kwargs.get("index_lookup", {})
+
+            mock_init.side_effect = capture_init
+
+            deps = {"shared-lib": "shared-lib -i https://test.pypi.org/simple"}
+
+            with patch(
+                "pipenv.utils.resolver.expansive_install_req_from_line"
+            ) as mock_eirl, patch(
+                "pipenv.utils.resolver.parse_indexes",
+                return_value=(None, None, None, []),
+            ):
+                mock_req = mock.MagicMock()
+                mock_req.markers = None
+                mock_eirl.return_value = (mock_req, None)
+
+                try:
+                    Resolver.create(
+                        deps=deps,
+                        project=project,
+                        pipfile_category="dev-packages",
+                        req_dir=str(tmp_path),
+                    )
+                except Exception:
+                    pass
+
+        index_lookup = captured.get("index_lookup", {})
+        # The dev-packages entry for shared-lib (testpypi) must win over the
+        # packages entry (private).
+        assert index_lookup.get("shared-lib") == "testpypi", (
+            "Current category's index must not be overridden by another section's entry."
+        )
