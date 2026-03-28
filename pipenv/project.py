@@ -1728,10 +1728,64 @@ class Project:
         return ""
 
     def calculate_pipfile_hash(self):
-        # Update the lockfile if it is out-of-date.
+        """Compute a SHA-256 hash of the Pipfile that is stable regardless of
+        package-name casing or separator style (PEP 503 / #4699).
+
+        ``Sphinx`` and ``sphinx``, ``my_pkg`` and ``my-pkg``, etc. all hash to
+        the same value so that minor edits to a Pipfile that don't change the
+        resolved environment don't trigger unnecessary re-locks.
+
+        The hash algorithm mirrors plette's ``Pipfile.get_hash()`` exactly,
+        except that every package-name key in ``[packages]``, ``[dev-packages]``
+        and any custom categories is replaced by its PEP 503 canonical form
+        before serialisation.
+        """
+        import hashlib
+        import json
+
+        from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
+        _PIPFILE_SECTIONS = frozenset(
+            (
+                "source",
+                "packages",
+                "dev-packages",
+                "requires",
+                "scripts",
+                "pipfile",
+                "pipenv",
+            )
+        )
+
+        def _normalize_section(section):
+            """Return a new dict with all keys canonicalized (PEP 503)."""
+            return {canonicalize_name(k): v for k, v in section.items()}
+
         with open(self.pipfile_location) as pf:
             p = plette.Pipfile.load(pf)
-        return p.get_hash().value
+
+        raw = p._data
+        data = {
+            "_meta": {
+                "sources": raw.get("source", {}),
+                "requires": raw.get("requires", {}),
+            },
+            "default": _normalize_section(raw.get("packages", {})),
+            "develop": _normalize_section(raw.get("dev-packages", {})),
+        }
+        for category, values in raw.items():
+            if category in _PIPFILE_SECTIONS or category in (
+                "default",
+                "develop",
+                "pipenv",
+            ):
+                continue
+            data[category] = _normalize_section(values)
+
+        content = json.dumps(data, sort_keys=True, separators=(",", ":"))
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+        return hashlib.sha256(content).hexdigest()
 
     def ensure_proper_casing(self):
         """Ensures proper casing of Pipfile packages"""
