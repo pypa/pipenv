@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import errno
 import os
 import re
 from pathlib import Path
@@ -230,6 +229,12 @@ def exists_and_is_accessible(path: Path) -> bool:
     """
     Check if a path exists and is accessible.
 
+    Catches all ``OSError`` subclasses (including ``PermissionError``) and
+    returns ``False`` so that network mounts, FUSE filesystems (e.g.
+    ``/keybase``), and other special paths that raise unexpected error codes
+    are silently skipped instead of propagating an unhandled exception or —
+    worse — blocking the process with a kernel-level FUSE hang (#4898).
+
     Args:
         path: The path to check.
 
@@ -238,14 +243,10 @@ def exists_and_is_accessible(path: Path) -> bool:
     """
     try:
         return path.exists()
-    except PermissionError as error:
-        if error.errno == errno.EACCES or getattr(error, "winerror", None) == 5:
-            return False
-        raise
-    except OSError as error:
-        if error.errno == errno.EACCES or getattr(error, "winerror", None) == 5:
-            return False
-        raise
+    except OSError:
+        # Covers PermissionError, EACCES, ENOTCONN, and any FUSE/network
+        # errno that would otherwise propagate or cause a hang.
+        return False
 
 
 def is_in_path(path: str | Path, parent_path: str | Path) -> bool:

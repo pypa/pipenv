@@ -197,7 +197,30 @@ def _format_resolution_error(install_error):
     ``install_error.__cause__``. This helper traverses that chain and builds a
     human-readable summary of the conflicting requirements so users can diagnose
     the problem without needing to re-run with ``--verbose``.
+
+    Also handles MetadataGenerationFailed with actionable hints (#5155).
     """
+    # Detect MetadataGenerationFailed specifically and emit an actionable hint.
+    try:
+        from pipenv.patched.pip._internal.exceptions import MetadataGenerationFailed
+
+        if isinstance(install_error, MetadataGenerationFailed):
+            pkg_name = getattr(install_error, "package_name", None) or "a package"
+            return (
+                f"Metadata generation failed for {pkg_name}.\n\n"
+                "This usually means the package uses a legacy build system "
+                "(setup.py egg_info) that is incompatible with modern pip.\n\n"
+                "Possible causes and fixes:\n"
+                "  1. The package version is too old — try upgrading to a newer release.\n"
+                "  2. A file named 'util.py', 'setup.py', or similar in your project\n"
+                "     directory is shadowing a system module. Rename or move it.\n"
+                "  3. Missing build dependencies (e.g. setuptools, wheel) — run:\n"
+                "       pipenv run pip install --upgrade setuptools wheel\n"
+                "  4. Re-run with --verbose for the full pip build log."
+            )
+    except ImportError:
+        pass
+
     base_msg = str(install_error)
 
     # Walk the exception chain to find a ResolutionImpossible cause
