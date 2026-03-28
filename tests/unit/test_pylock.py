@@ -629,6 +629,7 @@ version = '2.28.1'
 def test_any_lockfile_exists_with_pipfile_lock_only(tmp_path):
     """Test that any_lockfile_exists returns True when only Pipfile.lock exists."""
     import json
+
     from pipenv.project import Project
 
     pipfile_content = """
