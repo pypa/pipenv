@@ -1,9 +1,10 @@
+import sys
+
 import pytest
 
-from pipenv.cli import cli
+from pipenv.cli.command import cli
 from pipenv.project import Project
 from pipenv.routines.update import get_modified_pipfile_entries
-from pipenv.vendor.click.testing import CliRunner
 
 
 @pytest.mark.parametrize("cmd_option", ["", "--dev"])
@@ -31,10 +32,14 @@ def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, mon
     monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
     monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
     with pipenv_instance_private_pypi() as _:
-        cli_runner = CliRunner()
-        result = cli_runner.invoke(cli, ["update", "six"])
+        monkeypatch.setattr(sys, "argv", ["pipenv", "update", "six"])
+        try:
+            cli()
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if e.code is not None else 0
 
-    assert result.exit_code == 0, result.output
+    assert exit_code == 0, captured
     assert captured["categories"] == ["packages", "dev-packages"]
 
 
@@ -60,10 +65,14 @@ sphinx = "*"
             """.strip()
             f.write(contents)
 
-        cli_runner = CliRunner()
-        result = cli_runner.invoke(cli, ["update", "--all"])
+        monkeypatch.setattr(sys, "argv", ["pipenv", "update", "--all"])
+        try:
+            cli()
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if e.code is not None else 0
 
-    assert result.exit_code == 0, result.output
+    assert exit_code == 0, captured
     assert "packages" in captured["categories"]
     assert "dev-packages" in captured["categories"]
     assert "docs" in captured["categories"]
