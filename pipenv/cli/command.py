@@ -92,7 +92,7 @@ def _apply_default_categories(ctx: Context, state) -> None:
     help="Output diagnostic information for use in GitHub issues.",
 )
 @general_options
-@version_option(prog_name=prog_name, version=__version__)
+@version_option(prog_name=prog_name, version=__version__, allow_from_autoenv=False)
 @pass_state
 @pass_context
 def cli(
