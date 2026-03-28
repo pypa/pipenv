@@ -528,6 +528,13 @@ def activate(state):
     print(activate_cmd.strip())
 
 
+def _complete_run_args(ctx, param, incomplete):
+    """Provide file path completion for extra args passed to `pipenv run`."""
+    from pipenv.vendor.click.shell_completion import CompletionItem
+
+    return [CompletionItem(incomplete, type="file")]
+
+
 @cli.command(
     short_help="Spawns a command installed into the virtualenv.",
     context_settings=subcommand_context_no_interspersion,
@@ -535,7 +542,7 @@ def activate(state):
 @system_option
 @common_options
 @argument("command")
-@argument("args", nargs=-1)
+@argument("args", nargs=-1, shell_complete=_complete_run_args)
 @pass_state
 def run(state, command, args):
     """Spawns a command installed into the virtualenv."""
