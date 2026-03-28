@@ -1040,6 +1040,29 @@ def apply_env_vars(namespace):
 # ── Main parser factory ───────────────────────────────────────────────────────
 
 
+class _PipenvArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser subclass that appends 'Did you mean …?' suggestions
+    when the user types an unrecognised subcommand name."""
+
+    def error(self, message: str) -> None:
+        import difflib
+        import re
+
+        m = re.search(r"invalid choice: '([^']+)'", message)
+        if m:
+            attempted = m.group(1)
+            # Collect known subcommand names from the registered choices.
+            known: list[str] = []
+            for action in self._actions:
+                if isinstance(action, argparse._SubParsersAction):
+                    known = list(action.choices)
+                    break
+            suggestions = difflib.get_close_matches(attempted, known, n=1, cutoff=0.6)
+            if suggestions:
+                message += f"  Did you mean '{suggestions[0]}'?"
+        super().error(message)
+
+
 def build_parser():
     """Build and return the top-level ArgumentParser for pipenv.
 
@@ -1049,7 +1072,7 @@ def build_parser():
     """
     from pipenv.__version__ import __version__
 
-    parser = argparse.ArgumentParser(
+    parser = _PipenvArgumentParser(
         prog="pipenv",
         description="Python Development Workflow for Humans.",
         add_help=False,

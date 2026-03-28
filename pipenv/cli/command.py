@@ -765,7 +765,7 @@ def cli():
     # ── Dispatch ──────────────────────────────────────────────────────────────
     handler = _DISPATCH.get(cmd)
     if handler is None:
-        parser.error(f"No such command: {cmd!r}")
+        parser.error(f"No such command: {cmd!r}.")
 
     if cmd == "run":
         handler(args, state, extra_args=remaining)
