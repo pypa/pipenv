@@ -1,7 +1,6 @@
 import os
-import queue
 from tempfile import TemporaryDirectory
-from unittest.mock import MagicMock, PropertyMock, call, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
