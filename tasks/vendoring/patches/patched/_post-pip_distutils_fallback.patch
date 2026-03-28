@@ -1,0 +1,62 @@
+diff --git b/pipenv/patched/pip/_internal/locations/__init__.py a/pipenv/patched/pip/_internal/locations/__init__.py
+index 6e5d6045..95184b8a 100644
+--- b/pipenv/patched/pip/_internal/locations/__init__.py
++++ a/pipenv/patched/pip/_internal/locations/__init__.py
+@@ -64,7 +64,22 @@ if not _USE_SYSCONFIG:
+     # Import distutils lazily to avoid deprecation warnings,
+     # but import it soon enough that it is in memory and available during
+     # a pip reinstall.
+-    from . import _distutils
++    try:
++        from . import _distutils
++    except ImportError:
++        # distutils is not available on this interpreter – it was removed in
++        # Python 3.12 and is absent on some Linux distributions (e.g. Debian /
++        # Ubuntu without the python3-distutils package).  This can also occur in
++        # a mixed-version scenario where pipenv is installed under Python 3.12+
++        # but a subprocess runs under Python < 3.10, causing _USE_SYSCONFIG to
++        # evaluate to False while distutils is still missing.
++        # Fall back to sysconfig so that install-scheme resolution continues to
++        # work.  See https://github.com/pypa/pipenv/issues/5674.
++        logger.debug(
++            "distutils is not available; falling back to sysconfig for "
++            "install-scheme resolution."
++        )
++        _USE_SYSCONFIG = True
+ 
+ # Be noisy about incompatibilities if this platforms "should" be using
+ # sysconfig, but is explicitly opting out and using distutils instead.
+diff --git b/pipenv/patched/pip/_internal/locations/_distutils.py a/pipenv/patched/pip/_internal/locations/_distutils.py
+index 9e9ee5f1..c9044585 100644
+--- b/pipenv/patched/pip/_internal/locations/_distutils.py
++++ a/pipenv/patched/pip/_internal/locations/_distutils.py
+@@ -19,10 +19,25 @@ except (ImportError, AttributeError):
+ import logging
+ import os
+ import sys
+-from distutils.cmd import Command as DistutilsCommand
+-from distutils.command.install import SCHEME_KEYS
+-from distutils.command.install import install as distutils_install_command
+-from distutils.sysconfig import get_python_lib
++
++try:
++    from distutils.cmd import Command as DistutilsCommand
++    from distutils.command.install import SCHEME_KEYS
++    from distutils.command.install import install as distutils_install_command
++    from distutils.sysconfig import get_python_lib
++except ModuleNotFoundError as _distutils_missing_exc:
++    # distutils was removed in Python 3.12 and is absent on some Linux
++    # distributions without the python3-distutils package.  Raise a clear
++    # ImportError so that the caller (locations/__init__.py) can detect the
++    # situation and fall back to sysconfig instead.
++    # See https://github.com/pypa/pipenv/issues/5674.
++    raise ImportError(
++        "distutils is not available on this interpreter. "
++        "On Python 3.12+ distutils was removed from the standard library. "
++        "Install setuptools to provide a distutils shim, or ensure your "
++        "Python installation includes the distutils package "
++        "(e.g. 'python3-distutils' on Debian/Ubuntu)."
++    ) from _distutils_missing_exc
+ 
+ from pipenv.patched.pip._internal.models.scheme import Scheme
+ from pipenv.patched.pip._internal.utils.compat import WINDOWS

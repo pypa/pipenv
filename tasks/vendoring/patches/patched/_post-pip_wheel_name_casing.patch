@@ -1,0 +1,43 @@
+diff --git b/pipenv/patched/pip/_internal/req/req_install.py a/pipenv/patched/pip/_internal/req/req_install.py
+index b52ce441..9465e32c 100644
+--- b/pipenv/patched/pip/_internal/req/req_install.py
++++ a/pipenv/patched/pip/_internal/req/req_install.py
+@@ -766,8 +766,28 @@ class InstallRequirement:
+         pycompile: bool = True,
+     ) -> None:
+         assert self.req is not None
++
++        # Prefer the distribution name recorded in the wheel's own METADATA
++        # over self.req.name, which may be the canonicalised (lowercased) form
++        # produced by pipenv's lockfile normalisation.  Using the original
++        # author-chosen casing ensures the headers install directory
++        # (scheme.headers = …/include/site/pythonX.Y/<dist_name>/) matches
++        # what downstream packages expect when they search for C/C++ headers.
++        #
++        # Example: CPyCppyy ships headers under include/.../CPyCppyy/ but the
++        # lockfile key is 'cpycppyy', so without this fix the directory ends
++        # up as 'cpycppyy/' and cppyy cannot find the headers.
++        #
++        # See: https://github.com/pypa/pipenv/issues/5717
++        dist_name = self.req.name
++        if self.local_file_path and self.is_wheel:
++            try:
++                dist_name = self.metadata["Name"]
++            except Exception:
++                pass  # fall back to the requirement name
++
+         scheme = get_scheme(
+-            self.req.name,
++            dist_name,
+             user=use_user_site,
+             home=home,
+             root=root,
+@@ -779,7 +799,7 @@ class InstallRequirement:
+         assert self.local_file_path
+ 
+         install_wheel(
+-            self.req.name,
++            dist_name,
+             self.local_file_path,
+             scheme=scheme,
+             req_description=str(self.req),
