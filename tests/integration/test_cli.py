@@ -259,6 +259,7 @@ def test_help(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
+@pytest.mark.skipif(os.name == "nt", reason="man is not available on Windows")
 def test_man(pipenv_instance_pypi):
     with pipenv_instance_pypi():
         c = subprocess_run(["pipenv", "--man"])
