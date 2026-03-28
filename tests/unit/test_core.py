@@ -9,6 +9,7 @@ from pipenv.shells import _get_activate_script, _get_deactivate_wrapper_script
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import warn_in_virtualenv
+from pipenv.vendor import shellingham
 
 
 @pytest.mark.core
@@ -849,3 +850,73 @@ def test_extras_with_dev_categories():
     state.categories += extras
 
     assert state.categories == ["packages", "dev-packages", "systemd"]
+
+
+# --- Tests for shell detection (GH-5478) ---
+
+
+@pytest.mark.core
+def test_detect_info_prefers_shell_env_on_windows():
+    """On Windows, detect_info should prefer $SHELL over shellingham to avoid
+    shellingham returning 'cmd' when pyenv shims are in the process tree.
+
+    See: https://github.com/pypa/pipenv/issues/5478
+    """
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = None
+    mock_project.s.PIPENV_SHELL = r"C:\Program Files\Git\usr\bin\bash.exe"
+
+    with patch("pipenv.shells.os.name", "nt"):
+        name, path = detect_info(mock_project)
+        assert name == "bash"
+        assert path == r"C:\Program Files\Git\usr\bin\bash.exe"
+
+
+@pytest.mark.core
+def test_detect_info_explicit_takes_priority_over_shell_env():
+    """PIPENV_SHELL_EXPLICIT should always win, even on Windows."""
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = r"C:\Windows\System32\cmd.exe"
+    mock_project.s.PIPENV_SHELL = r"C:\Program Files\Git\usr\bin\bash.exe"
+
+    with patch("pipenv.shells.os.name", "nt"):
+        name, path = detect_info(mock_project)
+        assert name == "cmd"
+        assert path == r"C:\Windows\System32\cmd.exe"
+
+
+@pytest.mark.core
+def test_detect_info_falls_through_to_shellingham_on_posix():
+    """On POSIX, shellingham should be used even if $SHELL is set."""
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = None
+    mock_project.s.PIPENV_SHELL = "/bin/bash"
+
+    with patch("pipenv.shells.os.name", "posix"), \
+         patch("pipenv.shells.shellingham.detect_shell", return_value=("zsh", "/bin/zsh")):
+        name, path = detect_info(mock_project)
+        assert name == "zsh"
+        assert path == "/bin/zsh"
+
+
+@pytest.mark.core
+def test_detect_info_falls_back_to_shell_env_when_shellingham_fails():
+    """When shellingham fails, detect_info should fall back to PIPENV_SHELL."""
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = None
+    mock_project.s.PIPENV_SHELL = "/bin/bash"
+
+    with patch("pipenv.shells.os.name", "posix"), \
+         patch("pipenv.shells.shellingham.detect_shell",
+               side_effect=shellingham.ShellDetectionFailure()):
+        name, path = detect_info(mock_project)
+        assert name == "bash"
+        assert path == "/bin/bash"
