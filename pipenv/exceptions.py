@@ -6,8 +6,47 @@ from traceback import format_tb
 from pipenv.patched.pip._vendor.rich.console import Console
 from pipenv.patched.pip._vendor.rich.text import Text
 from pipenv.utils import err
-from pipenv.vendor import click
-from pipenv.vendor.click.exceptions import ClickException, FileError, UsageError
+
+
+class _ClickException(Exception):
+    """Minimal ClickException replacement during migration from click to argparse."""
+
+    exit_code = 1
+
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message
+
+    def format_message(self):
+        return self.message
+
+    def show(self, file=None):
+        if file is None:
+            file = sys.stderr
+        print(f"Error: {self.format_message()}", file=file)
+
+
+class _UsageError(_ClickException):
+    """Minimal UsageError replacement."""
+
+    def __init__(self, message, ctx=None):
+        super().__init__(message)
+        self.ctx = ctx
+        self.cmd = None
+        self.param = None
+        self.param_hint = None
+
+
+class _FileError(_ClickException):
+    """Minimal FileError replacement."""
+
+    def __init__(self, filename, hint=None):
+        if hint is None:
+            hint = "unknown error"
+        super().__init__(hint)
+        self.filename = filename
+        self.hint = hint
+        self.message = hint
 
 
 def unstyle(text: str) -> str:
@@ -42,7 +81,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 
     is_verbose = environments.Setting().is_verbose()
 
-    if is_verbose or not issubclass(exc_type, ClickException):
+    if is_verbose or not issubclass(exc_type, _ClickException):
         hook(exc_type, exception, traceback)
     elif issubclass(exc_type, PipenvException):
         # For PipenvException and subclasses (ResolutionFailure, etc.),
@@ -69,7 +108,7 @@ def handle_exception(exc_type, exception, traceback, hook=sys.excepthook):
 sys.excepthook = handle_exception
 
 
-class PipenvException(ClickException):
+class PipenvException(_ClickException):
     message = "[bold][red]ERROR[/red][/bold]: {}"
 
     def __init__(self, message=None, **kwargs):
@@ -124,7 +163,7 @@ class JSONParseError(PipenvException):
             console.print(f"[bold][red]ERROR TEXT:[/red][/bold]: {self.error_text}")
 
 
-class PipenvUsageError(UsageError):
+class PipenvUsageError(_UsageError):
     def __init__(self, message=None, ctx=None, **kwargs):
         formatted_message = "{0}: {1}"
         msg_prefix = "[bold red]ERROR:[/bold red]"
@@ -132,13 +171,13 @@ class PipenvUsageError(UsageError):
             message = "Pipenv encountered a problem and had to exit."
         message = formatted_message.format(msg_prefix, f"[bold]{message}[/bold]")
         self.message = message
-        UsageError.__init__(self, message, ctx)
+        _UsageError.__init__(self, message, ctx)
 
     def show(self, file=None):
         hint = ""
-        if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
-            hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
         if self.ctx is not None:
+            if self.cmd is not None and self.cmd.get_help_option(self.ctx) is not None:
+                hint = f'Try "{self.ctx.command_path} {self.ctx.help_option_names[0]}" for help.\n'
             console = Console(
                 stderr=True, file=file, highlight=False, force_terminal=self.ctx.color
             )
@@ -147,7 +186,7 @@ class PipenvUsageError(UsageError):
         console.print(self.message)
 
 
-class PipenvFileError(FileError):
+class PipenvFileError(_FileError):
     formatted_message = "{} {{}} {{}}".format("[bold red]ERROR:[/bold red]")
 
     def __init__(self, filename, message=None, **kwargs):
@@ -157,7 +196,7 @@ class PipenvFileError(FileError):
         message = self.formatted_message.format(
             f"[bold]{filename} not found![/bold]", message
         )
-        FileError.__init__(self, filename=filename, hint=message, **kwargs)
+        _FileError.__init__(self, filename=filename, hint=message)
         self.extra = extra
 
     def show(self, file=None):
@@ -319,13 +358,8 @@ class InstallError(PipenvException):
 class DependencyConflict(PipenvException):
     def __init__(self, message):
         extra = [
-            "{} {}".format(
-                click.style("The operation failed...", bold=True, fg="red"),
-                click.style(
-                    "A dependency conflict was detected and could not be resolved.",
-                    fg="red",
-                ),
-            )
+            "[bold red]The operation failed...[/bold red] "
+            "[red]A dependency conflict was detected and could not be resolved.[/red]"
         ]
         PipenvException.__init__(self, message, extra=extra)
 
@@ -392,12 +426,7 @@ class RequirementError(PipenvException):
                     req_value = "\n".join([f"    {k}: {v}" for k, v in values])
                 else:
                     req_value = getattr(req.line_instance, "line", None)
-        message = click.style(
-            f"Failed creating requirement instance {req_value}",
-            bold=False,
-            fg="reset",
-            bg="reset",
-        )
+        message = f"Failed creating requirement instance {req_value}"
         extra = [str(req)]
         PipenvException.__init__(self, message, extra=extra)
 

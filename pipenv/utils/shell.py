@@ -12,7 +12,6 @@ from pathlib import Path, PurePath
 
 from pipenv.utils import err
 from pipenv.utils.fileutils import normalize_drive
-from pipenv.vendor import click
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
@@ -533,13 +532,6 @@ def handle_remove_readonly(func, path, exc):
         return
 
     raise exc_exception
-
-
-def style_no_color(text, fg=None, bg=None, **kwargs) -> str:
-    """Wrap click style to ignore colors."""
-    if hasattr(click, "original_style"):
-        return click.original_style(text, **kwargs)
-    return click.style(text, **kwargs)
 
 
 def env_to_bool(val):
