@@ -6,22 +6,25 @@ from pathlib import Path
 
 from pipenv import environments
 from pipenv.__version__ import __version__
-from pipenv.cli.options_argparse import (
+from pipenv.cli.options import (
     State,
     add_common_options,
     add_deploy_option,
     add_general_options,
     add_install_options,
     add_lock_options,
+    add_pypi_mirror_option,
+    add_python_option,
     add_site_packages_option,
     add_sync_options,
     add_system_option,
     add_uninstall_options,
     add_upgrade_options,
+    add_verbose_option,
     parse_categories,
     populate_state,
 )
-from pipenv.cli.parser import PipenvArgumentParser, PipenvSubcommandParser
+from pipenv.cli.parser import PipenvArgumentParser
 from pipenv.utils import console, err
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.processes import subprocess_run
@@ -82,11 +85,19 @@ def build_parser():
     # Subcommands
     subparsers = parser.add_subparsers(dest="command", help="Available commands:")
 
+    def _add_subparser(name, **kwargs):
+        """Add a subparser with conflict_handler='resolve' for overlapping options."""
+        return subparsers.add_parser(name, conflict_handler="resolve", **kwargs)
+
     # --- install ---
-    p_install = subparsers.add_parser(
+    _install_help = (
+        "Installs provided packages and adds them to Pipfile, "
+        "or (if no packages are given), installs all packages from Pipfile."
+    )
+    p_install = _add_subparser(
         "install",
-        help="Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.",
-        description="Installs provided packages and adds them to Pipfile, or (if no packages are given), installs all packages from Pipfile.",
+        help=_install_help,
+        description=_install_help,
     )
     add_system_option(p_install)
     add_deploy_option(p_install)
@@ -95,7 +106,7 @@ def build_parser():
     p_install.set_defaults(func=cmd_install)
 
     # --- remove ---
-    p_remove = subparsers.add_parser(
+    p_remove = _add_subparser(
         "remove",
         help="Removes the virtualenv for the current project.",
         description="Removes the virtualenv for the current project.",
@@ -103,7 +114,7 @@ def build_parser():
     p_remove.set_defaults(func=cmd_remove)
 
     # --- upgrade ---
-    p_upgrade = subparsers.add_parser(
+    p_upgrade = _add_subparser(
         "upgrade",
         help="Resolves provided packages and adds them to Pipfile, or (if no packages are given), merges results to Pipfile.lock",
         description="Resolves provided packages and adds them to Pipfile, or (if no packages are given), merges results to Pipfile.lock",
@@ -115,7 +126,7 @@ def build_parser():
     p_upgrade.set_defaults(func=cmd_upgrade)
 
     # --- uninstall ---
-    p_uninstall = subparsers.add_parser(
+    p_uninstall = _add_subparser(
         "uninstall",
         help="Uninstalls a provided package and removes it from Pipfile.",
         description="Uninstalls a provided package and removes it from Pipfile.",
@@ -128,7 +139,7 @@ def build_parser():
     p_uninstall.set_defaults(func=cmd_uninstall)
 
     # --- lock ---
-    p_lock = subparsers.add_parser(
+    p_lock = _add_subparser(
         "lock",
         help="Generates Pipfile.lock.",
         description="Generates Pipfile.lock.",
@@ -137,7 +148,7 @@ def build_parser():
     p_lock.set_defaults(func=cmd_lock)
 
     # --- shell ---
-    p_shell = subparsers.add_parser(
+    p_shell = _add_subparser(
         "shell",
         help="Spawns a shell within the virtualenv.",
         description="Spawns a shell within the virtualenv.",
@@ -150,24 +161,22 @@ def build_parser():
                           help="Quiet standard output, except vulnerability report.")
     p_shell.add_argument("shell_args", nargs="*", default=[],
                           help="Arguments to pass to the shell.")
-    from pipenv.cli.options_argparse import add_pypi_mirror_option, add_python_option
     add_pypi_mirror_option(p_shell)
     add_python_option(p_shell)
     p_shell.set_defaults(func=cmd_shell)
 
     # --- activate ---
-    p_activate = subparsers.add_parser(
+    p_activate = _add_subparser(
         "activate",
         help="Outputs the activation command for the virtualenv.",
         description="Outputs the shell command to activate the virtualenv.",
     )
-    from pipenv.cli.options_argparse import add_pypi_mirror_option, add_python_option
     add_pypi_mirror_option(p_activate)
     add_python_option(p_activate)
     p_activate.set_defaults(func=cmd_activate)
 
     # --- run ---
-    p_run = subparsers.add_parser(
+    p_run = _add_subparser(
         "run",
         help="Spawns a command installed into the virtualenv.",
         description="Spawns a command installed into the virtualenv.",
@@ -181,10 +190,15 @@ def build_parser():
     p_run.set_defaults(func=cmd_run)
 
     # --- check ---
-    p_check = subparsers.add_parser(
+    _check_desc = (
+        "DEPRECATED: Checks for PyUp Safety security vulnerabilities "
+        "and against PEP 508 markers provided in Pipfile. "
+        "Use 'pipenv audit' instead."
+    )
+    p_check = _add_subparser(
         "check",
         help="DEPRECATED: Checks for PyUp Safety security vulnerabilities.",
-        description="DEPRECATED: Checks for PyUp Safety security vulnerabilities and against PEP 508 markers provided in Pipfile. Use 'pipenv audit' instead.",
+        description=_check_desc,
     )
     p_check.add_argument("--db", default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
                           help="Path or URL to a PyUp Safety vulnerabilities database.")
@@ -224,7 +238,7 @@ def build_parser():
     p_check.set_defaults(func=cmd_check)
 
     # --- audit ---
-    p_audit = subparsers.add_parser(
+    p_audit = _add_subparser(
         "audit",
         help="Audits packages for security vulnerabilities using pip-audit.",
         description="Audit packages for known security vulnerabilities using pip-audit.",
@@ -264,7 +278,7 @@ def build_parser():
     p_audit.set_defaults(func=cmd_audit)
 
     # --- update ---
-    p_update = subparsers.add_parser(
+    p_update = _add_subparser(
         "update",
         help="Runs lock, then sync.",
         description="Runs lock when no packages are specified, or upgrade, and then sync.",
@@ -281,7 +295,7 @@ def build_parser():
     p_update.set_defaults(func=cmd_update)
 
     # --- graph ---
-    p_graph = subparsers.add_parser(
+    p_graph = _add_subparser(
         "graph",
         help="Displays currently-installed dependency graph information.",
         description="Displays currently-installed dependency graph information.",
@@ -297,7 +311,7 @@ def build_parser():
     p_graph.set_defaults(func=cmd_graph)
 
     # --- open ---
-    p_open = subparsers.add_parser(
+    p_open = _add_subparser(
         "open",
         help="View a given module in your editor.",
         description="View a given module in your editor. Uses the EDITOR environment variable.",
@@ -307,7 +321,7 @@ def build_parser():
     p_open.set_defaults(func=cmd_open)
 
     # --- sync ---
-    p_sync = subparsers.add_parser(
+    p_sync = _add_subparser(
         "sync",
         help="Installs all packages specified in Pipfile.lock.",
         description="Installs all packages specified in Pipfile.lock.",
@@ -320,7 +334,7 @@ def build_parser():
     p_sync.set_defaults(func=cmd_sync)
 
     # --- clean ---
-    p_clean = subparsers.add_parser(
+    p_clean = _add_subparser(
         "clean",
         help="Uninstalls all packages not specified in Pipfile.lock.",
         description="Uninstalls all packages not specified in Pipfile.lock.",
@@ -329,13 +343,12 @@ def build_parser():
                           help="Minimal output.")
     p_clean.add_argument("--dry-run", action="store_true", default=False,
                           help="Just output unneeded packages.")
-    from pipenv.cli.options_argparse import add_verbose_option, add_python_option
     add_verbose_option(p_clean)
     add_python_option(p_clean)
     p_clean.set_defaults(func=cmd_clean)
 
     # --- scripts ---
-    p_scripts = subparsers.add_parser(
+    p_scripts = _add_subparser(
         "scripts",
         help="Lists scripts in current environment config.",
         description="Lists scripts in current environment config.",
@@ -344,7 +357,7 @@ def build_parser():
     p_scripts.set_defaults(func=cmd_scripts)
 
     # --- verify ---
-    p_verify = subparsers.add_parser(
+    p_verify = _add_subparser(
         "verify",
         help="Verify the hash in Pipfile.lock is up-to-date.",
         description="Verify the hash in Pipfile.lock is up-to-date.",
@@ -352,7 +365,7 @@ def build_parser():
     p_verify.set_defaults(func=cmd_verify)
 
     # --- requirements ---
-    p_requirements = subparsers.add_parser(
+    p_requirements = _add_subparser(
         "requirements",
         help="Generate a requirements.txt from Pipfile.lock.",
         description="Generate a requirements.txt from Pipfile.lock.",
@@ -376,7 +389,7 @@ def build_parser():
     p_requirements.set_defaults(func=cmd_requirements)
 
     # --- pylock ---
-    p_pylock = subparsers.add_parser(
+    p_pylock = _add_subparser(
         "pylock",
         help="Manage PEP 751 pylock.toml files.",
         description="Generate, validate, or convert pylock.toml files.",
@@ -970,7 +983,6 @@ def do_py(project, system=False, bare=False):
 
 def cli(argv=None):
     """Main CLI entry point."""
-    from pipenv.utils.display import format_help
     from pipenv.utils.shell import system_which
 
     parser = build_parser()

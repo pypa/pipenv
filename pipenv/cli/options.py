@@ -1,14 +1,13 @@
 """CLI options and state management for pipenv using argparse."""
 
+import argparse
 import os
 import re
 from pathlib import Path
 
-from pipenv.cli.parser import PipenvArgumentParser
 from pipenv.project import Project
 from pipenv.utils import err
 from pipenv.utils.internet import is_valid_url
-
 
 CONTEXT_SETTINGS = {"help_option_names": ["-h", "--help"], "auto_envvar_prefix": "PIPENV"}
 
@@ -372,8 +371,6 @@ def add_general_options(parser):
     add_common_options(parser)
     add_site_packages_option(parser)
 
-
-import argparse  # noqa: E402 (at top already, this is for SUPPRESS reference)
 
 
 def setup_verbosity(state):

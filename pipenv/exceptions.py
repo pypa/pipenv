@@ -139,7 +139,7 @@ class PipenvUsageError(PipenvException):
     def show(self, file=None):
         console = Console(stderr=True, file=file, highlight=False)
         if self.ctx is not None:
-            console.print(f'Try "pipenv -h" for help.\n')
+            console.print('Try "pipenv -h" for help.\n')
         console.print(self.message)
 
 

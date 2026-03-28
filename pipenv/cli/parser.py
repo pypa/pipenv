@@ -2,7 +2,6 @@
 
 import argparse
 import difflib
-import os
 import sys
 
 from pipenv.utils import console, err
@@ -41,9 +40,9 @@ class PipenvArgumentParser(argparse.ArgumentParser):
                     message += f"\n\nDid you mean one of these?\n    {suggestions}"
                     break
 
-        err.print(f"Usage: pipenv [OPTIONS] COMMAND [ARGS]...")
+        err.print("Usage: pipenv [OPTIONS] COMMAND [ARGS]...")
         err.print(f"\nError: {message}", style="red")
-        err.print(f"\nTry 'pipenv -h' for help.")
+        err.print("\nTry 'pipenv -h' for help.")
         sys.exit(2)
 
     def add_subparsers(self, **kwargs):
