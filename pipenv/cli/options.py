@@ -1212,7 +1212,10 @@ def build_parser():
     p.add_argument("-h", "--help", dest="help", action="store_true", default=False)
     _add_system_option(p)
     _add_common_options(p)
-    p.add_argument("command", help="Command to run.")
+    # Use dest="run_command" to avoid overwriting the subparser dest ("command").
+    p.add_argument(
+        "run_command", metavar="command", nargs="?", default=None, help="Command to run."
+    )
     p.add_argument("args", nargs="*", default=[], help="Arguments for the command.")
 
     # ── check ─────────────────────────────────────────────────────────────────
