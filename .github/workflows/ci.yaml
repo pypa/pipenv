@@ -54,16 +54,9 @@ jobs:
       - run: |
           python -m pip install pre-commit
           pre-commit run --all-files --verbose --show-diff-on-failure
-  ruff:
-    name: Ruff
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install --user ruff
-      - run: ruff check --output-format=github .
   vendor:
     name: Vendoring
-    needs: [lint, ruff]
+    needs: [lint]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -73,16 +66,71 @@ jobs:
       - run: |
           python -m pip install --upgrade wheel invoke parver beautifulsoup4 towncrier requests parse hatch-fancy-pypi-readme semver
           python -m invoke vendoring.update
+  tests-smoke:
+    name: Smoke / ${{ matrix.os }} / 3.12
+    needs: [lint]
+    runs-on: ${{ matrix.os }}-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [MacOS, Ubuntu, Windows]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Get python path
+        id: python-path
+        run: |
+          echo "path=$(python -c 'import sys; print(sys.executable)')" >> $GITHUB_OUTPUT
+      - name: Install latest pip, setuptools, wheel
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+      - name: Install dependencies
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: "3.12"
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PYTHONIOENCODING: "utf-8"
+          GIT_ASK_YESNO: "false"
+        run: |
+          git submodule sync
+          git submodule update --init --recursive
+          python -m pip install -e . --upgrade
+          pipenv install --deploy --dev --python=3.12
+      - name: Run pypiserver with pipenv (Python 3.10+)
+        run: |
+          pipenv run pypi-server --version
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome /dev/null ./tests/pypi/ ./tests/fixtures &
+        if: (contains(matrix.os, 'Ubuntu') || contains(matrix.os, 'MacOS'))
+      - name: Run pypiserver with pipenv on Windows (Python 3.10+)
+        run: |
+          pipenv run pypi-server --version
+          cmd /c start pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome NUL ./tests/pypi/ ./tests/fixtures
+        if: contains(matrix.os, 'Windows')
+      - name: Run tests
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: "3.12"
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PIPENV_NOSPIN: "1"
+          CI: "1"
+          GIT_ASK_YESNO: "false"
+          PYPI_VENDOR_DIR: "./tests/pypi/"
+          PYTHONIOENCODING: "utf-8"
+          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
+        run: |
+          pipenv run pytest -ra -n auto -v --fulltrace tests
+
   tests:
     name: ${{matrix.os}} / ${{ matrix.python-version }}
-    needs: [lint, ruff]
+    needs: [tests-smoke]
     runs-on: ${{ matrix.os }}-latest
     strategy:
       fail-fast: false
       matrix:
         # Note: Python 3.15 removed until upstream pip supports it
         # (pip's typing_extensions uses typing.no_type_check_decorator which was removed in 3.15)
-        python-version: ["3.10", 3.11, 3.12, 3.13, 3.14]
+        python-version: ["3.10", 3.11, 3.13, 3.14]
         os: [MacOS, Ubuntu, Windows]
 
     steps:
@@ -138,7 +186,7 @@ jobs:
 
   benchmark:
     name: Package Manager Benchmark
-    needs: [lint, ruff]
+    needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -169,7 +217,7 @@ jobs:
 
   build:
     name: Build Package
-    needs: [lint, ruff]
+    needs: [lint]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
