@@ -152,10 +152,10 @@ def get_package_finder(
     abi=None,
     implementation=None,
     ignore_requires_python=None,
+    py_version_info=None,
 ):
     """Reduced Shim for compatibility to generate package finders."""
-    py_version_info = None
-    if python_versions:
+    if py_version_info is None and python_versions:
         py_version_info_python = max(python_versions)
         py_version_info = tuple([int(part) for part in py_version_info_python])
     target_python = TargetPython(
@@ -462,6 +462,22 @@ class Resolver:
         )
         return default_constraint_filename
 
+    @property
+    def target_py_version_info(self):
+        """Extract the target Python version info tuple from the Pipfile.
+
+        Returns a tuple like (3, 11, 0) for use with TargetPython and the
+        resolver factory.  When the Pipfile specifies ``python_version`` or
+        ``python_full_version``, the finder and factory filter candidates
+        against this version instead of blindly ignoring Requires-Python.
+        Returns None if no target version is specified.
+        """
+        override = _get_pipfile_python_override(self.project)
+        if override:
+            parts = override["python_full_version"].split(".")
+            return tuple(int(p) for p in parts)
+        return None
+
     @property  # cached_property breaks authenticated private indexes
     def pip_options(self):
         pip_options, _ = self.pip_command.parser.parse_args(self.pip_args)
@@ -469,7 +485,7 @@ class Resolver:
         pip_options.no_python_version_warning = True
         pip_options.no_input = self.project.settings.get("disable_pip_input", True)
         pip_options.progress_bar = "off"
-        pip_options.ignore_requires_python = True
+        pip_options.ignore_requires_python = False
         pip_options.pre = self.pre or self.project.settings.get(
             "allow_prereleases", False
         )
@@ -506,10 +522,12 @@ class Resolver:
 
     @property
     def package_finder(self):
+        py_version_info = self.target_py_version_info
         finder = get_package_finder(
             install_cmd=self.pip_command,
             options=self.pip_options,
             session=self.session,
+            py_version_info=py_version_info,
         )
         return finder
 
@@ -646,6 +664,7 @@ class Resolver:
                         ignore_requires_python=pip_options.ignore_requires_python,
                         force_reinstall=pip_options.force_reinstall,
                         upgrade_strategy="to-satisfy-only",
+                        py_version_info=self.target_py_version_info,
                     )
                     yield resolver
 
