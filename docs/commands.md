@@ -131,6 +131,12 @@ Install both default and development packages:
 $ pipenv sync --dev
 ```
 
+Install all categories (default, dev, and any custom categories):
+
+```bash
+$ pipenv sync --all
+```
+
 Install specific package categories:
 
 ```bash
@@ -142,6 +148,7 @@ $ pipenv sync --categories="tests,docs"
 | Option | Description |
 |--------|-------------|
 | `--dev` | Install both development and default packages |
+| `--all` | Install packages from all categories defined in the Pipfile |
 | `--categories` | Install packages from specified category groups |
 
 ## uninstall

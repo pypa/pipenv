@@ -38,6 +38,37 @@ def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, mon
     assert captured["categories"] == ["packages", "dev-packages"]
 
 
+@pytest.mark.update
+def test_update_all_categories_flag(pipenv_instance_private_pypi, monkeypatch):
+    captured = {}
+
+    def fake_do_update(project, **kwargs):
+        captured["categories"] = kwargs["categories"]
+
+    monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            contents = """
+[packages]
+six = "*"
+
+[dev-packages]
+pytest = "*"
+
+[docs]
+sphinx = "*"
+            """.strip()
+            f.write(contents)
+
+        cli_runner = CliRunner()
+        result = cli_runner.invoke(cli, ["update", "--all"])
+
+    assert result.exit_code == 0, result.output
+    assert "packages" in captured["categories"]
+    assert "dev-packages" in captured["categories"]
+    assert "docs" in captured["categories"]
+
+
 def test_get_modified_pipfile_entries_new_package(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         # Add package to Pipfile

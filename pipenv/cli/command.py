@@ -286,7 +286,10 @@ def upgrade(ctx, state, **kwargs):
     from pipenv.routines.update import upgrade
     from pipenv.utils.project import ensure_project
 
-    _apply_default_categories(ctx, state)
+    if state.installstate.all_categories:
+        state.installstate.categories = state.project.get_package_categories()
+    else:
+        _apply_default_categories(ctx, state)
 
     ensure_project(
         state.project,
@@ -851,7 +854,10 @@ def update(ctx, state, bare=False, dry_run=None, outdated=False, **kwargs):
     """Runs lock when no packages are specified, or upgrade, and then sync."""
     from pipenv.routines.update import do_update
 
-    _apply_default_categories(ctx, state)
+    if state.installstate.all_categories:
+        state.installstate.categories = state.project.get_package_categories()
+    else:
+        _apply_default_categories(ctx, state)
 
     do_update(
         state.project,
