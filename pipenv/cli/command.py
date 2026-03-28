@@ -60,24 +60,51 @@ def build_parser():
     )
 
     # Root-level options
-    parser.add_argument("--where", action="store_true", default=False,
-                        help="Output project home information.")
-    parser.add_argument("--venv", action="store_true", default=False,
-                        help="Output virtualenv information.")
-    parser.add_argument("--py", action="store_true", default=False,
-                        help="Output Python interpreter information.")
-    parser.add_argument("--envs", action="store_true", default=False,
-                        help="Output Environment Variable options.")
-    parser.add_argument("--rm", action="store_true", default=False,
-                        help="Remove the virtualenv. [deprecated: use `pipenv remove` instead]")
-    parser.add_argument("--bare", action="store_true", default=False,
-                        help="Minimal output.")
-    parser.add_argument("--man", action="store_true", default=False,
-                        help="Display manpage.")
-    parser.add_argument("--support", action="store_true", default=False,
-                        help="Output diagnostic information for use in GitHub issues.")
-    parser.add_argument("--version", action="version",
-                        version=f"pipenv, version {__version__}")
+    parser.add_argument(
+        "--where",
+        action="store_true",
+        default=False,
+        help="Output project home information.",
+    )
+    parser.add_argument(
+        "--venv",
+        action="store_true",
+        default=False,
+        help="Output virtualenv information.",
+    )
+    parser.add_argument(
+        "--py",
+        action="store_true",
+        default=False,
+        help="Output Python interpreter information.",
+    )
+    parser.add_argument(
+        "--envs",
+        action="store_true",
+        default=False,
+        help="Output Environment Variable options.",
+    )
+    parser.add_argument(
+        "--rm",
+        action="store_true",
+        default=False,
+        help="Remove the virtualenv. [deprecated: use `pipenv remove` instead]",
+    )
+    parser.add_argument(
+        "--bare", action="store_true", default=False, help="Minimal output."
+    )
+    parser.add_argument(
+        "--man", action="store_true", default=False, help="Display manpage."
+    )
+    parser.add_argument(
+        "--support",
+        action="store_true",
+        default=False,
+        help="Output diagnostic information for use in GitHub issues.",
+    )
+    parser.add_argument(
+        "--version", action="version", version=f"pipenv, version {__version__}"
+    )
 
     # General options on root
     add_general_options(parser)
@@ -131,10 +158,19 @@ def build_parser():
         help="Uninstalls a provided package and removes it from Pipfile.",
         description="Uninstalls a provided package and removes it from Pipfile.",
     )
-    p_uninstall.add_argument("--all-dev", action="store_true", default=False,
-                              help="Uninstall all package from [dev-packages].")
-    p_uninstall.add_argument("--all", dest="uninstall_all", action="store_true", default=False,
-                              help="Purge all package(s) from virtualenv. Does not edit Pipfile.")
+    p_uninstall.add_argument(
+        "--all-dev",
+        action="store_true",
+        default=False,
+        help="Uninstall all package from [dev-packages].",
+    )
+    p_uninstall.add_argument(
+        "--all",
+        dest="uninstall_all",
+        action="store_true",
+        default=False,
+        help="Purge all package(s) from virtualenv. Does not edit Pipfile.",
+    )
     add_uninstall_options(p_uninstall)
     p_uninstall.set_defaults(func=cmd_uninstall)
 
@@ -153,14 +189,24 @@ def build_parser():
         help="Spawns a shell within the virtualenv.",
         description="Spawns a shell within the virtualenv.",
     )
-    p_shell.add_argument("--fancy", action="store_true", default=False,
-                          help="Run in shell in fancy mode.")
-    p_shell.add_argument("--anyway", action="store_true", default=False,
-                          help="Always spawn a sub-shell, even if one is already spawned.")
-    p_shell.add_argument("--quiet", action="store_true", default=False,
-                          help="Quiet standard output, except vulnerability report.")
-    p_shell.add_argument("shell_args", nargs="*", default=[],
-                          help="Arguments to pass to the shell.")
+    p_shell.add_argument(
+        "--fancy", action="store_true", default=False, help="Run in shell in fancy mode."
+    )
+    p_shell.add_argument(
+        "--anyway",
+        action="store_true",
+        default=False,
+        help="Always spawn a sub-shell, even if one is already spawned.",
+    )
+    p_shell.add_argument(
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Quiet standard output, except vulnerability report.",
+    )
+    p_shell.add_argument(
+        "shell_args", nargs="*", default=[], help="Arguments to pass to the shell."
+    )
     add_pypi_mirror_option(p_shell)
     add_python_option(p_shell)
     p_shell.set_defaults(func=cmd_shell)
@@ -183,10 +229,14 @@ def build_parser():
     )
     add_system_option(p_run)
     add_common_options(p_run)
-    p_run.add_argument("run_command", metavar="command",
-                       help="Command to run.")
-    p_run.add_argument("run_args", nargs="*", metavar="args", default=[],
-                       help="Arguments to pass to the command.")
+    p_run.add_argument("run_command", metavar="command", help="Command to run.")
+    p_run.add_argument(
+        "run_args",
+        nargs="*",
+        metavar="args",
+        default=[],
+        help="Arguments to pass to the command.",
+    )
     p_run.set_defaults(func=cmd_run)
 
     # --- check ---
@@ -200,39 +250,91 @@ def build_parser():
         help="DEPRECATED: Checks for PyUp Safety security vulnerabilities.",
         description=_check_desc,
     )
-    p_check.add_argument("--db", default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
-                          help="Path or URL to a PyUp Safety vulnerabilities database.")
-    p_check.add_argument("--ignore", "-i", action="append", default=[],
-                          help="Ignore specified vulnerability during PyUp Safety checks.")
-    p_check.add_argument("--output", default="default",
-                          choices=["default", "json", "full-report", "bare", "screen", "text", "minimal"],
-                          help="Output format.")
-    p_check.add_argument("--key", default=None,
-                          help="Safety API key from PyUp.io.")
-    p_check.add_argument("--quiet", action="store_true", default=False,
-                          help="Quiet standard output, except vulnerability report.")
-    p_check.add_argument("--policy-file", default="",
-                          help="Define the policy file to be used")
-    p_check.add_argument("--exit-code", action="store_true", default=True,
-                          help="Output standard exit codes. Default: --exit-code")
-    p_check.add_argument("--continue-on-error", action="store_true", default=False,
-                          help="Continue on error.")
-    p_check.add_argument("--audit-and-monitor", action="store_true", default=True,
-                          help="Send results back to pyup.io.")
-    p_check.add_argument("--disable-audit-and-monitor", action="store_true", default=False,
-                          help="Disable sending results back to pyup.io.")
-    p_check.add_argument("--project", default=None, dest="safety_project",
-                          help="Project to associate this scan with on pyup.io.")
-    p_check.add_argument("--save-json", default="",
-                          help="Path to where output file will be placed.")
-    p_check.add_argument("--use-installed", action="store_true", default=False,
-                          help="Whether to use the lockfile as input to check.")
-    p_check.add_argument("--categories", default="", dest="check_categories",
-                          help="Use the specified categories from the lockfile.")
-    p_check.add_argument("--auto-install", action="store_true", default=False,
-                          help="Automatically install safety if not already installed.")
-    p_check.add_argument("--scan", action="store_true", default=False,
-                          help="Use the new scan command instead of the deprecated check command.")
+    p_check.add_argument(
+        "--db",
+        default=lambda: os.environ.get("PIPENV_SAFETY_DB"),
+        help="Path or URL to a PyUp Safety vulnerabilities database.",
+    )
+    p_check.add_argument(
+        "--ignore",
+        "-i",
+        action="append",
+        default=[],
+        help="Ignore specified vulnerability during PyUp Safety checks.",
+    )
+    p_check.add_argument(
+        "--output",
+        default="default",
+        choices=["default", "json", "full-report", "bare", "screen", "text", "minimal"],
+        help="Output format.",
+    )
+    p_check.add_argument("--key", default=None, help="Safety API key from PyUp.io.")
+    p_check.add_argument(
+        "--quiet",
+        action="store_true",
+        default=False,
+        help="Quiet standard output, except vulnerability report.",
+    )
+    p_check.add_argument(
+        "--policy-file", default="", help="Define the policy file to be used"
+    )
+    p_check.add_argument(
+        "--exit-code",
+        action="store_true",
+        default=True,
+        help="Output standard exit codes. Default: --exit-code",
+    )
+    p_check.add_argument(
+        "--continue-on-error",
+        action="store_true",
+        default=False,
+        help="Continue on error.",
+    )
+    p_check.add_argument(
+        "--audit-and-monitor",
+        action="store_true",
+        default=True,
+        help="Send results back to pyup.io.",
+    )
+    p_check.add_argument(
+        "--disable-audit-and-monitor",
+        action="store_true",
+        default=False,
+        help="Disable sending results back to pyup.io.",
+    )
+    p_check.add_argument(
+        "--project",
+        default=None,
+        dest="safety_project",
+        help="Project to associate this scan with on pyup.io.",
+    )
+    p_check.add_argument(
+        "--save-json", default="", help="Path to where output file will be placed."
+    )
+    p_check.add_argument(
+        "--use-installed",
+        action="store_true",
+        default=False,
+        help="Whether to use the lockfile as input to check.",
+    )
+    p_check.add_argument(
+        "--categories",
+        default="",
+        dest="check_categories",
+        help="Use the specified categories from the lockfile.",
+    )
+    p_check.add_argument(
+        "--auto-install",
+        action="store_true",
+        default=False,
+        help="Automatically install safety if not already installed.",
+    )
+    p_check.add_argument(
+        "--scan",
+        action="store_true",
+        default=False,
+        help="Use the new scan command instead of the deprecated check command.",
+    )
     add_common_options(p_check)
     add_system_option(p_check)
     p_check.set_defaults(func=cmd_check)
@@ -243,36 +345,87 @@ def build_parser():
         help="Audits packages for security vulnerabilities using pip-audit.",
         description="Audit packages for known security vulnerabilities using pip-audit.",
     )
-    p_audit.add_argument("--output", "-f", default="columns",
-                          choices=["columns", "json", "cyclonedx-json", "cyclonedx-xml", "markdown"],
-                          help="Output format for audit results.")
-    p_audit.add_argument("--vulnerability-service", "-s", default="pypi",
-                          choices=["pypi", "osv"],
-                          help="Vulnerability service to query.")
-    p_audit.add_argument("--ignore", "-i", action="append", default=[],
-                          help="Ignore a specific vulnerability by ID.")
-    p_audit.add_argument("--fix", action="store_true", default=False,
-                          help="Automatically upgrade packages with known vulnerabilities.")
-    p_audit.add_argument("--dry-run", action="store_true", default=False,
-                          help="Collect dependencies but do not audit.")
-    p_audit.add_argument("--strict", action="store_true", default=False,
-                          help="Fail if dependency collection fails on any dependency.")
-    p_audit.add_argument("--skip-editable", action="store_true", default=False,
-                          help="Skip auditing editable packages.")
-    p_audit.add_argument("--no-deps", action="store_true", default=False,
-                          help="Don't perform dependency resolution.")
-    p_audit.add_argument("--local", action="store_true", default=False,
-                          help="Only audit packages in the local environment.")
-    p_audit.add_argument("--desc", action="store_true", default=False,
-                          help="Include descriptions for each vulnerability.")
-    p_audit.add_argument("--aliases", action="store_true", default=False,
-                          help="Include alias IDs (CVE, GHSA) for each vulnerability.")
-    p_audit.add_argument("--output-file", "-o", default=None,
-                          help="Output results to the given file.")
-    p_audit.add_argument("--quiet", action="store_true", default=False,
-                          help="Quiet mode - minimal output.")
-    p_audit.add_argument("--locked", action="store_true", default=False,
-                          help="Audit lockfiles instead of the environment.")
+    p_audit.add_argument(
+        "--output",
+        "-f",
+        default="columns",
+        choices=["columns", "json", "cyclonedx-json", "cyclonedx-xml", "markdown"],
+        help="Output format for audit results.",
+    )
+    p_audit.add_argument(
+        "--vulnerability-service",
+        "-s",
+        default="pypi",
+        choices=["pypi", "osv"],
+        help="Vulnerability service to query.",
+    )
+    p_audit.add_argument(
+        "--ignore",
+        "-i",
+        action="append",
+        default=[],
+        help="Ignore a specific vulnerability by ID.",
+    )
+    p_audit.add_argument(
+        "--fix",
+        action="store_true",
+        default=False,
+        help="Automatically upgrade packages with known vulnerabilities.",
+    )
+    p_audit.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Collect dependencies but do not audit.",
+    )
+    p_audit.add_argument(
+        "--strict",
+        action="store_true",
+        default=False,
+        help="Fail if dependency collection fails on any dependency.",
+    )
+    p_audit.add_argument(
+        "--skip-editable",
+        action="store_true",
+        default=False,
+        help="Skip auditing editable packages.",
+    )
+    p_audit.add_argument(
+        "--no-deps",
+        action="store_true",
+        default=False,
+        help="Don't perform dependency resolution.",
+    )
+    p_audit.add_argument(
+        "--local",
+        action="store_true",
+        default=False,
+        help="Only audit packages in the local environment.",
+    )
+    p_audit.add_argument(
+        "--desc",
+        action="store_true",
+        default=False,
+        help="Include descriptions for each vulnerability.",
+    )
+    p_audit.add_argument(
+        "--aliases",
+        action="store_true",
+        default=False,
+        help="Include alias IDs (CVE, GHSA) for each vulnerability.",
+    )
+    p_audit.add_argument(
+        "--output-file", "-o", default=None, help="Output results to the given file."
+    )
+    p_audit.add_argument(
+        "--quiet", action="store_true", default=False, help="Quiet mode - minimal output."
+    )
+    p_audit.add_argument(
+        "--locked",
+        action="store_true",
+        default=False,
+        help="Audit lockfiles instead of the environment.",
+    )
     add_common_options(p_audit)
     add_system_option(p_audit)
     p_audit.set_defaults(func=cmd_audit)
@@ -283,12 +436,21 @@ def build_parser():
         help="Runs lock, then sync.",
         description="Runs lock when no packages are specified, or upgrade, and then sync.",
     )
-    p_update.add_argument("--bare", action="store_true", default=False,
-                           help="Minimal output.")
-    p_update.add_argument("--outdated", action="store_true", default=False,
-                           help="List out-of-date dependencies.")
-    p_update.add_argument("--dry-run", action="store_true", default=None,
-                           help="List packages that would be updated without actually updating.")
+    p_update.add_argument(
+        "--bare", action="store_true", default=False, help="Minimal output."
+    )
+    p_update.add_argument(
+        "--outdated",
+        action="store_true",
+        default=False,
+        help="List out-of-date dependencies.",
+    )
+    p_update.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=None,
+        help="List packages that would be updated without actually updating.",
+    )
     add_system_option(p_update)
     add_install_options(p_update)
     add_upgrade_options(p_update)
@@ -300,14 +462,25 @@ def build_parser():
         help="Displays currently-installed dependency graph information.",
         description="Displays currently-installed dependency graph information.",
     )
-    p_graph.add_argument("--bare", action="store_true", default=False,
-                          help="Minimal output.")
-    p_graph.add_argument("--json", action="store_true", default=False, dest="json_output",
-                          help="Output JSON.")
-    p_graph.add_argument("--json-tree", action="store_true", default=False,
-                          help="Output JSON in nested tree.")
-    p_graph.add_argument("--reverse", action="store_true", default=False,
-                          help="Reversed dependency graph.")
+    p_graph.add_argument(
+        "--bare", action="store_true", default=False, help="Minimal output."
+    )
+    p_graph.add_argument(
+        "--json",
+        action="store_true",
+        default=False,
+        dest="json_output",
+        help="Output JSON.",
+    )
+    p_graph.add_argument(
+        "--json-tree",
+        action="store_true",
+        default=False,
+        help="Output JSON in nested tree.",
+    )
+    p_graph.add_argument(
+        "--reverse", action="store_true", default=False, help="Reversed dependency graph."
+    )
     p_graph.set_defaults(func=cmd_graph)
 
     # --- open ---
@@ -327,8 +500,9 @@ def build_parser():
         description="Installs all packages specified in Pipfile.lock.",
     )
     add_system_option(p_sync)
-    p_sync.add_argument("--bare", action="store_true", default=False,
-                         help="Minimal output.")
+    p_sync.add_argument(
+        "--bare", action="store_true", default=False, help="Minimal output."
+    )
     add_sync_options(p_sync)
     add_site_packages_option(p_sync)
     p_sync.set_defaults(func=cmd_sync)
@@ -339,10 +513,15 @@ def build_parser():
         help="Uninstalls all packages not specified in Pipfile.lock.",
         description="Uninstalls all packages not specified in Pipfile.lock.",
     )
-    p_clean.add_argument("--bare", action="store_true", default=False,
-                          help="Minimal output.")
-    p_clean.add_argument("--dry-run", action="store_true", default=False,
-                          help="Just output unneeded packages.")
+    p_clean.add_argument(
+        "--bare", action="store_true", default=False, help="Minimal output."
+    )
+    p_clean.add_argument(
+        "--dry-run",
+        action="store_true",
+        default=False,
+        help="Just output unneeded packages.",
+    )
     add_verbose_option(p_clean)
     add_python_option(p_clean)
     p_clean.set_defaults(func=cmd_clean)
@@ -370,22 +549,52 @@ def build_parser():
         help="Generate a requirements.txt from Pipfile.lock.",
         description="Generate a requirements.txt from Pipfile.lock.",
     )
-    p_requirements.add_argument("--dev", action="store_true", default=False,
-                                 help="Also add development requirements.")
-    p_requirements.add_argument("--dev-only", action="store_true", default=False,
-                                 help="Only add development requirements.")
-    p_requirements.add_argument("--hash", action="store_true", default=False, dest="include_hash",
-                                 help="Add package hashes.")
-    p_requirements.add_argument("--exclude-markers", action="store_true", default=False,
-                                 help="Exclude markers.")
-    p_requirements.add_argument("--exclude-index", action="store_true", default=False,
-                                 help="Exclude index URLs from the output.")
-    p_requirements.add_argument("--categories", default="", dest="req_categories",
-                                 help="Only add requirement of the specified categories.")
-    p_requirements.add_argument("--from-pipfile", action="store_true", default=False,
-                                 help="Only include dependencies from Pipfile.")
-    p_requirements.add_argument("--no-lock", action="store_true", default=False,
-                                 help="Use version specifiers from Pipfile instead of locked versions.")
+    p_requirements.add_argument(
+        "--dev",
+        action="store_true",
+        default=False,
+        help="Also add development requirements.",
+    )
+    p_requirements.add_argument(
+        "--dev-only",
+        action="store_true",
+        default=False,
+        help="Only add development requirements.",
+    )
+    p_requirements.add_argument(
+        "--hash",
+        action="store_true",
+        default=False,
+        dest="include_hash",
+        help="Add package hashes.",
+    )
+    p_requirements.add_argument(
+        "--exclude-markers", action="store_true", default=False, help="Exclude markers."
+    )
+    p_requirements.add_argument(
+        "--exclude-index",
+        action="store_true",
+        default=False,
+        help="Exclude index URLs from the output.",
+    )
+    p_requirements.add_argument(
+        "--categories",
+        default="",
+        dest="req_categories",
+        help="Only add requirement of the specified categories.",
+    )
+    p_requirements.add_argument(
+        "--from-pipfile",
+        action="store_true",
+        default=False,
+        help="Only include dependencies from Pipfile.",
+    )
+    p_requirements.add_argument(
+        "--no-lock",
+        action="store_true",
+        default=False,
+        help="Use version specifiers from Pipfile instead of locked versions.",
+    )
     p_requirements.set_defaults(func=cmd_requirements)
 
     # --- pylock ---
@@ -394,16 +603,35 @@ def build_parser():
         help="Manage PEP 751 pylock.toml files.",
         description="Generate, validate, or convert pylock.toml files.",
     )
-    p_pylock.add_argument("--generate", action="store_true", default=False,
-                           help="Generate pylock.toml from Pipfile.lock.")
-    p_pylock.add_argument("--from-pyproject", action="store_true", default=False,
-                           help="Generate pylock.toml skeleton from pyproject.toml.")
-    p_pylock.add_argument("--validate", action="store_true", default=False,
-                           help="Validate an existing pylock.toml file.")
-    p_pylock.add_argument("--output", "-o", default=None,
-                           help="Output file path (default: pylock.toml in project directory).")
-    p_pylock.add_argument("--dev-groups", default="dev",
-                           help="Comma-separated list of dependency group names for dev packages.")
+    p_pylock.add_argument(
+        "--generate",
+        action="store_true",
+        default=False,
+        help="Generate pylock.toml from Pipfile.lock.",
+    )
+    p_pylock.add_argument(
+        "--from-pyproject",
+        action="store_true",
+        default=False,
+        help="Generate pylock.toml skeleton from pyproject.toml.",
+    )
+    p_pylock.add_argument(
+        "--validate",
+        action="store_true",
+        default=False,
+        help="Validate an existing pylock.toml file.",
+    )
+    p_pylock.add_argument(
+        "--output",
+        "-o",
+        default=None,
+        help="Output file path (default: pylock.toml in project directory).",
+    )
+    p_pylock.add_argument(
+        "--dev-groups",
+        default="dev",
+        help="Comma-separated list of dependency group names for dev packages.",
+    )
     add_common_options(p_pylock)
     p_pylock.set_defaults(func=cmd_pylock)
 
@@ -411,6 +639,7 @@ def build_parser():
 
 
 # --- Command implementations ---
+
 
 def cmd_install(args, state):
     """Installs provided packages and adds them to Pipfile."""
@@ -737,8 +966,13 @@ def cmd_graph(args, state):
     """Displays currently-installed dependency graph information."""
     from pipenv.routines.graph import do_graph
 
-    do_graph(state.project, bare=args.bare, json=args.json_output,
-             json_tree=args.json_tree, reverse=args.reverse)
+    do_graph(
+        state.project,
+        bare=args.bare,
+        json=args.json_output,
+        json_tree=args.json_tree,
+        reverse=args.reverse,
+    )
 
 
 def cmd_open(args, state):
@@ -1038,6 +1272,7 @@ def cli(argv=None):
             return 0
         elif args.support:
             from pipenv.help import get_pipenv_diagnostics
+
             get_pipenv_diagnostics(state.project)
             return 0
         elif state.clear:

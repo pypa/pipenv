@@ -59,7 +59,9 @@ def validate_python_path(value):
     if isinstance(value, (str, bytes)):
         path = Path(value)
         if path.is_absolute() and not path.is_file():
-            err.print(f"Error: Expected Python at path {value} does not exist", style="red")
+            err.print(
+                f"Error: Expected Python at path {value} does not exist", style="red"
+            )
             raise SystemExit(2)
     return value
 
@@ -89,9 +91,11 @@ def _get_envvar_bool(name, prefix="PIPENV", default=False):
 # Each function adds arguments to a parser.
 # They mirror the old click option decorators.
 
+
 def add_index_option(parser):
     parser.add_argument(
-        "-i", "--index",
+        "-i",
+        "--index",
         default=os.environ.get("PIP_INDEX_URL"),
         help="Specify target package index by url or index name from Pipfile.",
     )
@@ -99,7 +103,8 @@ def add_index_option(parser):
 
 def add_editable_option(parser):
     parser.add_argument(
-        "-e", "--editable",
+        "-e",
+        "--editable",
         action="append",
         default=[],
         metavar="PATH",
@@ -118,7 +123,8 @@ def add_ignore_pipfile_option(parser):
 
 def add_dev_option(parser, help_text="Install both develop and default packages"):
     parser.add_argument(
-        "--dev", "-d",
+        "--dev",
+        "-d",
         action="store_true",
         default=_get_envvar_bool("DEV"),
         help=help_text,
@@ -195,7 +201,8 @@ def add_pypi_mirror_option(parser):
 
 def add_verbose_option(parser):
     parser.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         default=False,
         help="Verbose mode.",
@@ -204,7 +211,8 @@ def add_verbose_option(parser):
 
 def add_quiet_option(parser):
     parser.add_argument(
-        "--quiet", "-q",
+        "--quiet",
+        "-q",
         action="store_true",
         default=False,
         help="Quiet mode.",
@@ -247,7 +255,8 @@ def add_system_option(parser):
 
 def add_requirementstxt_option(parser):
     parser.add_argument(
-        "--requirements", "-r",
+        "--requirements",
+        "-r",
         dest="requirementstxt",
         default="",
         help="Import a requirements.txt file.",
@@ -312,6 +321,7 @@ def add_selective_upgrade_option(parser):
 
 # --- Composite option groups ---
 
+
 def add_common_options(parser):
     add_pypi_mirror_option(parser)
     add_verbose_option(parser)
@@ -370,7 +380,6 @@ def add_upgrade_options(parser):
 def add_general_options(parser):
     add_common_options(parser)
     add_site_packages_option(parser)
-
 
 
 def setup_verbosity(state):
