@@ -5,11 +5,11 @@ import sys
 from pathlib import Path
 
 from pipenv import pep508checker
-from pipenv.utils import console, err
+from pipenv.utils import Confirm, console, err
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import project_python
-from pipenv.vendor import click, plette
+from pipenv.vendor import plette
 
 
 def build_safety_options(
@@ -171,7 +171,7 @@ def install_safety(project, system=False, auto_install=False, quiet=False):
 
     install = auto_install
     if not auto_install:
-        install = click.confirm(
+        install = Confirm.ask(
             "Would you like to install safety? This will not modify your Pipfile/lockfile.",
             default=True,
         )
