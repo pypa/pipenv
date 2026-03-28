@@ -737,6 +737,11 @@ def cmd_uninstall(args, state):
 
     _apply_default_categories(args, state)
 
+    # --dev means target dev-packages; translate it to a category so
+    # do_uninstall doesn't fall back to ["default"].
+    if state.installstate.dev and not state.installstate.categories:
+        state.installstate.categories = ["dev-packages"]
+
     pre = state.installstate.pre
 
     retcode = do_uninstall(

@@ -41,6 +41,7 @@ class InstallState:
         self.categories = []
         self.skip_lock = False
         self.all_categories = False
+        self.lock_only = False
 
 
 class LockOptions:
