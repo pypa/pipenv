@@ -1,0 +1,13 @@
+diff --git b/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py a/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
+index a551b020..03ee8262 100644
+--- b/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
++++ a/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
+@@ -847,7 +847,7 @@ class Factory:
+             + "the dependency conflict\n"
+         )
+ 
+-        logger.info(msg)
++        logger.critical(msg)
+ 
+         return DistributionNotFound(
+             "ResolutionImpossible: for help visit "
