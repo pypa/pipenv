@@ -62,6 +62,7 @@ from pipenv.utils.pylock import PylockFile, find_pylock_file
 from pipenv.utils.project import get_default_pyproject_backend
 from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
+    expand_url_credentials,
     find_requirements,
     find_windows_executable,
     get_workon_home,
@@ -1177,8 +1178,18 @@ class Project:
                 sources[0]["url"] = os.environ["PIPENV_PYPI_MIRROR"]
             return sources
         # Expand environment variables in the source URLs.
+        # For the "url" field we use expand_url_credentials() which URL-encodes
+        # the expanded credential values so that passwords with special characters
+        # (e.g. '@', ':', '%') produce a valid URL (#4868).
         sources = [
-            {k: safe_expandvars(v) if expand_vars else v for k, v in source.items()}
+            {
+                k: (
+                    (expand_url_credentials(v) if k == "url" else safe_expandvars(v))
+                    if expand_vars
+                    else v
+                )
+                for k, v in source.items()
+            }
             for source in self.parsed_pipfile["source"]
         ]
         for source in sources:
@@ -1692,9 +1703,10 @@ class Project:
 
         if expand_env_vars:
             # Expand environment variables in Pipfile.lock at runtime.
+            # Use expand_url_credentials() so that passwords with special
+            # characters are URL-encoded after expansion (#4868).
             for i, _ in enumerate(j["_meta"].get("sources", {})):
-                # Path doesn't have expandvars method, so we need to use os.path.expandvars
-                j["_meta"]["sources"][i]["url"] = os.path.expandvars(
+                j["_meta"]["sources"][i]["url"] = expand_url_credentials(
                     j["_meta"]["sources"][i]["url"]
                 )
 

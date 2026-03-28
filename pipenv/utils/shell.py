@@ -234,6 +234,76 @@ def safe_expandvars(value):
     return value
 
 
+def expand_url_credentials(url):
+    """Expand ``${VAR}`` tokens in a source URL, URL-encoding the expanded
+    credential values so that passwords containing special characters such as
+    ``@``, ``:``, ``%``, or ``#`` produce a valid URL (#4868).
+
+    Only the *userinfo* portion (``user:password@``) is URL-encoded after
+    expansion.  The host, scheme, path, and query are expanded with plain
+    ``os.path.expandvars()`` — no percent-encoding is applied there.
+
+    Single-quoted references (``'${VAR}'``) are also supported: the
+    surrounding quotes are stripped before expansion so that the legacy Pipfile
+    idiom for protecting special characters continues to work.
+    """
+    import re
+    from urllib.parse import quote, urlsplit, urlunsplit
+
+    if not url or ("${" not in url and "$" not in url):
+        return url
+
+    try:
+        parsed = urlsplit(url)
+    except Exception:
+        return os.path.expandvars(url)
+
+    # No auth component — fall through to plain expansion.
+    if "@" not in parsed.netloc:
+        return os.path.expandvars(url)
+
+    # Matches both '${VAR}' (single-quoted legacy) and ${VAR} / $VAR.
+    _env_var_re = re.compile(r"'?\$\{([^}]+)\}'?|\$([A-Za-z_][A-Za-z0-9_]*)")
+
+    def _expand_and_encode(s):
+        def _sub(m):
+            var_name = m.group(1) or m.group(2)
+            value = os.environ.get(var_name)
+            if value is None:
+                return m.group(0)  # var not set — leave token unchanged
+            return quote(value, safe="")  # URL-encode special chars
+
+        return _env_var_re.sub(_sub, s)
+
+    # Split on the LAST '@' so any un-encoded '@' in unexpanded tokens
+    # doesn't confuse the split.
+    userinfo, _, hostinfo = parsed.netloc.rpartition("@")
+
+    # Split userinfo on the FIRST ':' to isolate username and password.
+    if ":" in userinfo:
+        raw_user, _, raw_pass = userinfo.partition(":")
+        encoded_userinfo = (
+            f"{_expand_and_encode(raw_user)}:{_expand_and_encode(raw_pass)}"
+        )
+    else:
+        encoded_userinfo = _expand_and_encode(userinfo)
+
+    # Expand the host without encoding (it may contain ${VAR} for the
+    # registry hostname but must not be percent-encoded).
+    expanded_hostinfo = os.path.expandvars(hostinfo)
+
+    new_netloc = f"{encoded_userinfo}@{expanded_hostinfo}"
+    return urlunsplit(
+        (
+            parsed.scheme,
+            new_netloc,
+            os.path.expandvars(parsed.path),
+            os.path.expandvars(parsed.query),
+            parsed.fragment,
+        )
+    )
+
+
 def cmd_list_to_shell(args):
     """Convert a list of arguments to a quoted shell command."""
     return " ".join(shlex.quote(str(token)) for token in args)
