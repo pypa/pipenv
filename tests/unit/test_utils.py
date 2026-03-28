@@ -1107,6 +1107,16 @@ class TestPipfilePythonOverride:
         assert override is None
 
     @pytest.mark.utils
+    def test_override_major_only_returns_none(self, monkeypatch):
+        """python_version = '3' (major-only) is too imprecise and should not
+        produce an override — the running interpreter's version is used instead."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, {"python_version": "3"})
+        override = _get_pipfile_python_override(proj)
+        assert override is None
+
+    @pytest.mark.utils
     def test_override_no_requires_returns_none(self, monkeypatch):
         """No [requires] section should not produce an override."""
         from pipenv.utils.resolver import _get_pipfile_python_override

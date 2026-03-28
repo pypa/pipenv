@@ -83,6 +83,12 @@ def _get_pipfile_python_override(project):
         }
 
     if python_ver and python_ver != "*":
+        parts = python_ver.split(".")
+        if len(parts) < 2:
+            # Major-only version (e.g. "3") is too imprecise for marker
+            # evaluation — don't override, let the running interpreter's
+            # actual version be used.
+            return None
         # Only major.minor specified — assume .0 patch for inclusive resolution.
         return {
             "python_full_version": f"{python_ver}.0",
