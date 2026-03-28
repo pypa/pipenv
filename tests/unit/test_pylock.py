@@ -579,3 +579,283 @@ def test_from_pyproject_missing_file(tmp_path):
 
     with pytest.raises(FileNotFoundError):
         PylockFile.from_pyproject(pyproject_path)
+
+
+
+# --- Tests for pylock.toml as primary lockfile (no Pipfile.lock) ---
+
+
+def test_any_lockfile_exists_with_pylock_only(tmp_path):
+    """Test that any_lockfile_exists returns True when only pylock.toml exists."""
+    from pipenv.project import Project
+
+    # Create a minimal Pipfile (needed for Project to initialize)
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    # Create a pylock.toml but no Pipfile.lock
+    pylock_content = """
+lock-version = '1.0'
+created-by = 'pipenv'
+
+[[packages]]
+name = 'requests'
+version = '2.28.1'
+"""
+    with open(tmp_path / "pylock.toml", "w") as f:
+        f.write(pylock_content)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        assert project.pylock_exists is True
+        assert project.lockfile_exists is False
+        assert project.any_lockfile_exists is True
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_any_lockfile_exists_with_pipfile_lock_only(tmp_path):
+    """Test that any_lockfile_exists returns True when only Pipfile.lock exists."""
+    import json
+    from pipenv.project import Project
+
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    lockfile_content = {
+        "_meta": {
+            "hash": {"sha256": "abc123"},
+            "pipfile-spec": 6,
+            "requires": {},
+            "sources": [{"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}],
+        },
+        "default": {},
+        "develop": {},
+    }
+    with open(tmp_path / "Pipfile.lock", "w") as f:
+        json.dump(lockfile_content, f)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        assert project.lockfile_exists is True
+        assert project.any_lockfile_exists is True
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_any_lockfile_exists_with_neither(tmp_path):
+    """Test that any_lockfile_exists returns False when neither lockfile exists."""
+    from pipenv.project import Project
+
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        assert project.lockfile_exists is False
+        assert project.pylock_exists is False
+        assert project.any_lockfile_exists is False
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_lockfile_content_from_pylock_only(tmp_path):
+    """Test that lockfile_content works when only pylock.toml exists (no Pipfile.lock)."""
+    from pipenv.project import Project
+
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    pylock_content = """
+lock-version = '1.0'
+created-by = 'pipenv'
+
+[[packages]]
+name = 'requests'
+version = '2.28.1'
+
+[[packages]]
+name = 'pytest'
+version = '7.0.0'
+marker = "'dev' in dependency_groups or 'test' in dependency_groups"
+"""
+    with open(tmp_path / "pylock.toml", "w") as f:
+        f.write(pylock_content)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        content = project.lockfile_content
+        # Should have the standard Pipfile.lock structure
+        assert "_meta" in content
+        assert "default" in content
+        assert "develop" in content
+        # requests should be in default
+        assert "requests" in content["default"]
+        assert content["default"]["requests"]["version"] == "==2.28.1"
+        # pytest should be in develop (due to dependency_groups marker)
+        assert "pytest" in content["develop"]
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_load_lockfile_without_pipfile(tmp_path):
+    """Test that load_lockfile provides minimal _meta when Pipfile doesn't exist."""
+    from pipenv.project import Project
+
+    # Create only a Pipfile (needed for initialization) then remove it
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        # Now remove Pipfile to simulate pylock-only scenario
+        os.unlink(tmp_path / "Pipfile")
+        # load_lockfile should not crash even without Pipfile or Pipfile.lock
+        result = project.load_lockfile()
+        assert "_meta" in result
+        assert "default" in result
+        assert result["_meta"]["pipfile-spec"] == 6
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_lockfile_method_from_pylock(tmp_path):
+    """Test that the lockfile() method can load from pylock.toml when no Pipfile.lock."""
+    from pipenv.project import Project
+
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    pylock_content = """
+lock-version = '1.0'
+created-by = 'pipenv'
+
+[[packages]]
+name = 'six'
+version = '1.16.0'
+"""
+    with open(tmp_path / "pylock.toml", "w") as f:
+        f.write(pylock_content)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        assert project.lockfile_exists is False
+        assert project.pylock_exists is True
+        lf = project.lockfile()
+        assert "default" in lf
+        assert "six" in lf["default"]
+    finally:
+        os.chdir(old_cwd)
+
+
+def test_get_or_create_lockfile_from_pylock(tmp_path):
+    """Test get_or_create_lockfile works with only pylock.toml present."""
+    from pipenv.project import Project
+
+    pipfile_content = """
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+
+[dev-packages]
+"""
+    with open(tmp_path / "Pipfile", "w") as f:
+        f.write(pipfile_content)
+
+    pylock_content = """
+lock-version = '1.0'
+created-by = 'pipenv'
+
+[[packages]]
+name = 'click'
+version = '8.1.3'
+index = 'https://pypi.org/simple/'
+"""
+    with open(tmp_path / "pylock.toml", "w") as f:
+        f.write(pylock_content)
+
+    old_cwd = os.getcwd()
+    os.chdir(tmp_path)
+    try:
+        project = Project(chdir=False)
+        lockfile = project.get_or_create_lockfile(categories=["packages"])
+        # Should succeed without errors
+        assert lockfile is not None
+        assert lockfile.lockfile is not None
+    finally:
+        os.chdir(old_cwd)

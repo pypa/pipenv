@@ -20,7 +20,8 @@ def do_sync(
     site_packages=False,
 ):
     # The lock file needs to exist because sync won't write to it.
-    if not project.lockfile_exists:
+    # Accept either Pipfile.lock or pylock.toml.
+    if not project.any_lockfile_exists:
         raise exceptions.LockfileNotFound("Pipfile.lock")
 
     # Ensure that virtualenv is available if not system.
