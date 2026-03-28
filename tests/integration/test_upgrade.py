@@ -96,8 +96,8 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
         assert protobuf_version == "==5.27.5", "protobuf was not updated correctly"
 
         # Step 5: Run pipenv lock to check for dependency resolution errors
-        c = cli_runner.invoke(cli, "lock")
-        assert c.exit_code == 0, f"Failed to run pipenv lock: {c.stderr}"
+        c = p.pipenv("lock")
+        assert c.returncode == 0, f"Failed to run pipenv lock: {c.stderr}"
 
 
 @pytest.mark.upgrade

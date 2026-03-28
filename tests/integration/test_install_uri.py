@@ -15,12 +15,12 @@ def test_basic_vcs_install_with_env_var(pipenv_instance_pypi):
 
     with pipenv_instance_pypi() as p:
         # edge case where normal package starts with VCS name shouldn't be flagged as vcs
-        os.environ["GIT_HOST"] = "github.com"
         c = subprocess.run(
             [sys.executable, "-m", "pipenv", "install", "-v",
              "git+https://${GIT_HOST}/benjaminp/six.git@1.11.0", "gitdb2"],
             capture_output=True, text=True, cwd=p.path,
             env={**os.environ, "GIT_HOST": "github.com"},
+            check=False,
         )
         assert c.returncode == 0
         assert all(package in p.pipfile["packages"] for package in ["six", "gitdb2"])
