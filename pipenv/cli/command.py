@@ -628,6 +628,17 @@ def cli():
     from pipenv.utils.virtualenv import do_where, warn_in_virtualenv
 
     parser = build_parser()
+
+    # Enable shell completion when argcomplete is installed.
+    # Users activate it once with: eval "$(register-python-argcomplete pipenv)"
+    # Install the optional dependency with: pip install pipenv[completion]
+    try:
+        import argcomplete
+
+        argcomplete.autocomplete(parser)
+    except ImportError:
+        pass
+
     argv = sys.argv[1:]
 
     # Use parse_known_args so that extra args for 'run'/'shell' pass through.
