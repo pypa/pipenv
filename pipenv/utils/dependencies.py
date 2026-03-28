@@ -464,6 +464,10 @@ def dependency_as_pip_install_line(
         elif not COMPARE_OP.match(dep):
             return f"{dep_name}=={dep}"
         return f"{dep_name}{dep}"
+    # Translate shorthand marker keys (e.g. sys_platform, platform_machine, os_name)
+    # into the canonical "markers" key so that the pip line includes them and the
+    # resolver / installer can evaluate them.  See #5884.
+    dep = translate_markers(dep)
     line = []
     is_constraint = False
     vcs = next(iter([vcs for vcs in VCS_LIST if vcs in dep]), None)
