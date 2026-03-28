@@ -54,8 +54,11 @@ def normalize_pipfile_path(p):
     if p is None:
         return None
     loc = Path(p)
+    # Use os.path.abspath instead of Path.resolve() so that symlinks are
+    # preserved.  When a Pipfile is symlinked into a directory, the virtualenv
+    # should be based on the symlink's location, not the target's.  See #4471.
     try:
-        loc = loc.resolve()
+        loc = Path(os.path.abspath(loc))
     except OSError:
         loc = loc.absolute()
     # Recase the path properly on Windows. From https://stackoverflow.com/a/35229734/5043728
