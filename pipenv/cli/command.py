@@ -139,7 +139,7 @@ def cli(
         console.print(
             "The following environment variables can be set, to do various things:\n"
         )
-        for key in state.project.__dict__:
+        for key in state.project.s.__dict__:
             if key.startswith("PIPENV"):
                 console.print(f"  - {key}", style="bold")
         console.print(

@@ -332,7 +332,11 @@ class Resolver:
         pipfile_entries = project.get_pipfile_section(pipfile_category)
         skipped = {}
         if sources is None:
-            sources = project.sources
+            # Always read sources from the Pipfile, not from the (potentially
+            # stale) lockfile _meta.sources.  This ensures settings like
+            # ``verify_ssl = false`` are respected even when an old lockfile
+            # still carries ``verify_ssl = true``.  See gh-5665.
+            sources = project.pipfile_sources()
         packages = project.get_pipfile_section(pipfile_category)
         constraints = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups

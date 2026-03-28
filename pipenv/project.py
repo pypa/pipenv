@@ -1257,9 +1257,15 @@ class Project:
         sources = (self.sources, self.pipfile_sources())
         if refresh:
             sources = reversed(sources)
-        found = next(
-            iter(find_source(source, name=name, url=url) for source in sources), None
-        )
+        # Iterate explicitly so that a None result from the first source list
+        # does not short-circuit the search in the second list.
+        # (Avoids the walrus operator to stay compatible with Python 3.7.)
+        found = None
+        for _src in sources:
+            _result = find_source(_src, name=name, url=url)
+            if _result is not None:
+                found = _result
+                break
         target = next(iter(t for t in (name, url) if t is not None))
         if found is None:
             raise SourceNotFound(target)

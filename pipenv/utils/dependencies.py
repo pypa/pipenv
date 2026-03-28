@@ -1362,6 +1362,13 @@ def handle_non_vcs_requirement(
         version = get_version(_pipfile)
         if is_star(version) or version == "==*":
             version = ""
+        elif version and not any(
+            version.startswith(op) for op in ("==", ">=", "<=", "~=", "!=", ">", "<")
+        ):
+            # A bare version like "2.23.0" has no operator; normalise to "==2.23.0"
+            # so that pip/the resolver treats it as a pinned constraint rather
+            # than silently ignoring it.
+            version = f"=={version}"
 
         req_str = f"{name}{extras_str}{version}"
         markers = PipenvMarkers.from_pipfile(name, _pipfile)
