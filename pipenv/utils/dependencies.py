@@ -1428,6 +1428,31 @@ def get_constraints_from_deps(deps):
     return constraints
 
 
+def get_constraints_from_resolved_deps(resolved_deps):
+    """Get pinned constraints from resolved lockfile data (including transitive deps).
+
+    Unlike get_constraints_from_deps which uses Pipfile specs (only direct deps),
+    this extracts exact version pins from already-resolved lockfile entries,
+    which includes transitive dependencies.
+
+    :param dict resolved_deps: A lockfile section dict, e.g. lockfile["default"]
+    :return: A set of constraint strings like {"sqlalchemy==1.4.5", "greenlet==1.0.0"}
+    :rtype: set
+    """
+    constraints = set()
+    for dep_name, dep_info in resolved_deps.items():
+        if not isinstance(dep_info, dict):
+            continue
+        # Skip path/file/VCS deps - they can't be expressed as simple constraints
+        if any(k in dep_info for k in ("path", "file", "git", "hg", "svn", "bzr")):
+            continue
+        version = dep_info.get("version")
+        if version:
+            canonical = canonicalize_name(dep_name)
+            constraints.add(f"{canonical}{version}")
+    return constraints
+
+
 def prepare_constraint_file(
     constraints,
     directory=None,

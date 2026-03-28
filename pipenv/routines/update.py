@@ -474,6 +474,7 @@ def _resolve_and_update_lockfile(
     system,
     pypi_mirror,
     lockfile,
+    resolved_default_deps=None,
 ):
     """Resolve dependencies and update lockfile."""
     if not requested_packages[pipfile_category]:
@@ -500,6 +501,7 @@ def _resolve_and_update_lockfile(
         allow_global=system,
         pypi_mirror=pypi_mirror,
         pipfile=requested_packages[pipfile_category],
+        resolved_default_deps=resolved_default_deps,
     )
 
     if not upgrade_lock_data:
@@ -519,6 +521,7 @@ def _resolve_and_update_lockfile(
         allow_global=system,
         pypi_mirror=pypi_mirror,
         pipfile=complete_packages,
+        resolved_default_deps=resolved_default_deps,
     )
 
     # Update lockfile with verified resolution data
@@ -677,9 +680,13 @@ def upgrade(
     # Flag for tracking if we have package arguments
     has_package_args = bool(package_args)
 
+    # Determine whether to enforce default constraints on non-default categories.
+    use_default_constraints = project.settings.get("use_default_constraints", True)
+
     # Process each category
     requested_packages = defaultdict(dict)
     category_resolutions = {}
+    resolved_default_deps = None
 
     for category in categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
@@ -705,6 +712,11 @@ def upgrade(
                 lock_only=lock_only,
             )
 
+        # For non-default categories, pass resolved default deps as constraints
+        category_default_deps = None
+        if category != "default" and use_default_constraints:
+            category_default_deps = resolved_default_deps
+
         # Resolve dependencies and update lockfile
         upgrade_lock_data = _resolve_and_update_lockfile(
             project,
@@ -716,6 +728,7 @@ def upgrade(
             system,
             pypi_mirror,
             lockfile,
+            resolved_default_deps=category_default_deps,
         )
 
         # Store the full resolution for this category
@@ -731,6 +744,7 @@ def upgrade(
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
                 pipfile=complete_packages,
+                resolved_default_deps=category_default_deps,
             )
             category_resolutions[category] = full_lock_resolution
 
@@ -745,19 +759,27 @@ def upgrade(
                 reverse_deps,
             )
 
+        # After resolving default, capture resolved pins for constraining
+        # subsequent categories.
+        if category == "default":
+            resolved_default_deps = lockfile.get("default", {})
+
         # Reset package args for next category if needed
         if not has_package_args:
             package_args = []
 
-    # Overwrite any non-default category packages with default packages (if present)
-    # This ensures transitive dependencies in develop match the versions from default
-    for category in categories:
-        if category == "default":
-            continue
-        if lockfile.get(category):
-            lockfile[category].update(
-                overwrite_with_default(lockfile.get("default", {}), lockfile[category])
-            )
+    # Overwrite any non-default category packages with default packages,
+    # but only when use_default_constraints is enabled.
+    if use_default_constraints:
+        for category in categories:
+            if category == "default":
+                continue
+            if lockfile.get(category):
+                lockfile[category].update(
+                    overwrite_with_default(
+                        lockfile.get("default", {}), lockfile[category]
+                    )
+                )
 
     # Update and write lockfile
     lockfile.update({"_meta": project.get_lockfile_meta()})

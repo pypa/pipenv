@@ -705,3 +705,65 @@ class TestDependencyAsPipInstallLineEditable:
         dep = {"file": "https://example.com/pkg-1.0-py3-none-any.whl"}
         result = self._call("pkg", dep)
         assert result == "pkg @ https://example.com/pkg-1.0-py3-none-any.whl"
+
+
+
+class TestGetConstraintsFromResolvedDeps:
+    """Tests for get_constraints_from_resolved_deps (gh-4665, gh-4473)."""
+
+    def test_extracts_version_pins(self):
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        resolved = {
+            "sqlalchemy": {"version": "==1.4.5", "hashes": ["sha256:abc"]},
+            "greenlet": {"version": "==1.0.0"},
+        }
+        constraints = get_constraints_from_resolved_deps(resolved)
+        assert "sqlalchemy==1.4.5" in constraints
+        assert "greenlet==1.0.0" in constraints
+
+    def test_skips_vcs_deps(self):
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        resolved = {
+            "mylib": {"git": "https://github.com/foo/bar.git", "ref": "main"},
+            "normal": {"version": "==1.0"},
+        }
+        constraints = get_constraints_from_resolved_deps(resolved)
+        assert len(constraints) == 1
+        assert "normal==1.0" in constraints
+
+    def test_skips_path_deps(self):
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        resolved = {
+            "local": {"path": "../mylib", "editable": True},
+            "normal": {"version": "==2.0"},
+        }
+        constraints = get_constraints_from_resolved_deps(resolved)
+        assert len(constraints) == 1
+        assert "normal==2.0" in constraints
+
+    def test_skips_non_dict_entries(self):
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        resolved = {
+            "normal": {"version": "==1.0"},
+            "bogus": "not-a-dict",
+        }
+        constraints = get_constraints_from_resolved_deps(resolved)
+        assert constraints == {"normal==1.0"}
+
+    def test_empty_deps(self):
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        assert get_constraints_from_resolved_deps({}) == set()
+
+    def test_canonicalizes_names(self):
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        resolved = {
+            "My-Package": {"version": "==1.0"},
+        }
+        constraints = get_constraints_from_resolved_deps(resolved)
+        assert "my-package==1.0" in constraints

@@ -85,6 +85,12 @@ def get_parser():
         action="store",
         default=None,
     )
+    parser.add_argument(
+        "--resolved-default-deps-file",
+        metavar="resolved_default_deps_file",
+        action="store",
+        default=None,
+    )
     parser.add_argument("packages", nargs="*")
     return parser
 
@@ -110,6 +116,17 @@ def handle_parsed_args(parsed):
         # Convert list of package specs from command line to dict format
         # Expected format: each item is either "name" or "name==version" etc.
         parsed.packages = _parse_package_list(parsed.packages)
+    # Read resolved default deps (pinned versions from already-resolved default
+    # category, including transitive deps) to use as constraints for non-default
+    # categories.  See gh-4665 / gh-4473.
+    parsed.resolved_default_deps = None
+    if parsed.resolved_default_deps_file:
+        try:
+            with open(parsed.resolved_default_deps_file) as f:
+                parsed.resolved_default_deps = json.load(f)
+            os.unlink(parsed.resolved_default_deps_file)
+        except (json.JSONDecodeError, OSError):
+            parsed.resolved_default_deps = None
     return parsed
 
 
@@ -395,6 +412,7 @@ def resolve_packages(
     packages: Dict[str, Any],
     pipfile_category: Optional[str],
     constraints: Optional[Dict[str, Any]] = None,
+    resolved_default_deps: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Resolve package dependencies and return processed results.
@@ -409,6 +427,8 @@ def resolve_packages(
         packages: Package specifications to resolve
         pipfile_category: Category of dependencies being processed
         constraints: Additional constraints to apply
+        resolved_default_deps: Resolved lockfile entries from the default category,
+            used as constraints for non-default categories (gh-4665).
 
     Returns:
         List of processed package entries
@@ -447,6 +467,7 @@ def resolve_packages(
         clear=clear,
         allow_global=system,
         req_dir=requirements_dir,
+        resolved_default_deps=resolved_default_deps,
     )
 
     # Process results
@@ -472,9 +493,18 @@ def _main(
     packages,
     parse_only=False,
     category=None,
+    resolved_default_deps=None,
 ):
     resolve_packages(
-        pre, clear, verbose, system, write, requirements_dir, packages, category
+        pre,
+        clear,
+        verbose,
+        system,
+        write,
+        requirements_dir,
+        packages,
+        category,
+        resolved_default_deps=resolved_default_deps,
     )
 
 
@@ -538,6 +568,7 @@ def main(argv=None):
         parsed.packages,
         parse_only=parsed.parse_only,
         category=parsed.category,
+        resolved_default_deps=parsed.resolved_default_deps,
     )
 
 
