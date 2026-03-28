@@ -1077,13 +1077,27 @@ class TestPipfilePythonOverride:
 
     @pytest.mark.utils
     def test_override_python_version_only(self, monkeypatch):
-        """python_version = '3.11' should produce python_full_version = '3.11.0'."""
+        """Matching major.minor should reuse the running interpreter patch version."""
         from pipenv.utils.resolver import _get_pipfile_python_override
 
+        monkeypatch.setattr("platform.python_version", lambda: "3.11.15")
         proj = self._make_project(monkeypatch, {"python_version": "3.11"})
         override = _get_pipfile_python_override(proj)
         assert override is not None
         assert override["python_version"] == "3.11"
+        assert override["python_full_version"] == "3.11.15"
+
+    @pytest.mark.utils
+    def test_override_python_version_only_falls_back_to_dot_zero_for_other_minor(
+        self, monkeypatch
+    ):
+        """A different running minor version should fall back to major.minor.0."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        monkeypatch.setattr("platform.python_version", lambda: "3.12.1")
+        proj = self._make_project(monkeypatch, {"python_version": "3.11"})
+        override = _get_pipfile_python_override(proj)
+        assert override is not None
         assert override["python_full_version"] == "3.11.0"
 
     @pytest.mark.utils
@@ -1179,6 +1193,42 @@ class TestPipfilePythonOverride:
         with _patched_marker_environment(override_high):
             # 3.11.5 <= 3.11.2 → False
             assert marker.evaluate() is False
+
+    @pytest.mark.utils
+    def test_resolver_target_py_version_info_uses_override(self, monkeypatch):
+        from pipenv.utils.resolver import Resolver
+
+        monkeypatch.setattr("platform.python_version", lambda: "3.11.15")
+        project = self._make_project(monkeypatch, {"python_version": "3.11"})
+        resolver = Resolver(set(), ".", project, sources=[])
+
+        assert resolver.target_py_version_info == (3, 11, 15)
+
+    @pytest.mark.utils
+    def test_resolver_package_finder_uses_target_python_filtering(self, monkeypatch):
+        from pipenv.utils.resolver import Resolver
+
+        project = self._make_project(monkeypatch, {"python_full_version": "3.11.15"})
+        project.s = mock.MagicMock(
+            PIPENV_CACHE_DIR="/tmp/pipenv-cache",
+            PIPENV_KEYRING_PROVIDER=None,
+        )
+        project.settings = {}
+
+        resolver = Resolver(set(), ".", project, sources=[])
+        captured = {}
+
+        def fake_get_package_finder(**kwargs):
+            captured.update(kwargs)
+            return mock.sentinel.finder
+
+        monkeypatch.setattr("pipenv.utils.resolver.get_package_finder", fake_get_package_finder)
+
+        finder = resolver.package_finder
+
+        assert finder is mock.sentinel.finder
+        assert captured["py_version_info"] == (3, 11, 15)
+        assert captured["options"].ignore_requires_python is False
 
 
 class TestFormatRequirementForLockfile:
