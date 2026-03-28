@@ -326,6 +326,13 @@ def ensure_python(project, python=None):
 
     if not python:
         python = project.s.PIPENV_DEFAULT_PYTHON_VERSION
+    # When no Python was explicitly requested and no default is configured,
+    # return None so that do_create_virtualenv falls back to sys.executable
+    # (the Python that is running pipenv).  Calling find_a_system_python(None)
+    # would pick the *newest* Python on the system, which may differ from the
+    # pipenv runner and produces non-deterministic behaviour across machines.
+    if not python:
+        return None
     # Try to find Python using system registry and default paths first
     path_to_python = find_a_system_python(python, pyenv_only=project.s.PIPENV_PYENV_ONLY)
 

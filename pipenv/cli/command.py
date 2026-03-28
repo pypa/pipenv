@@ -146,6 +146,11 @@ def cmd_upgrade(args, state):
 def cmd_uninstall(args, state):
     from pipenv.routines.uninstall import do_uninstall
 
+    # --dev means "operate on dev-packages"; translate it to a category so that
+    # do_uninstall looks in the right Pipfile section.
+    if getattr(args, "dev", None) and not state.installstate.categories:
+        state.installstate.categories = ["dev-packages"]
+
     apply_default_categories(args, state)
 
     pre = state.installstate.pre
