@@ -82,7 +82,9 @@ def ensure_project(
 
     # When --system is used with --python, validate that the Python can be found
     if system and python:
-        path_to_python = find_a_system_python(python)
+        path_to_python = find_a_system_python(
+            python, pyenv_only=project.s.PIPENV_PYENV_ONLY
+        )
         if not path_to_python:
             raise exceptions.PipenvUsageError(
                 message=f"Python version '{python}' was not found on your system. "
@@ -132,7 +134,11 @@ def ensure_project(
     if warn and project.required_python_version:
         if system or project.s.PIPENV_USE_SYSTEM:
             # For --system, check the system Python
-            path_to_python = find_a_system_python(python) if python else None
+            path_to_python = (
+                find_a_system_python(python, pyenv_only=project.s.PIPENV_PYENV_ONLY)
+                if python
+                else None
+            )
             if not path_to_python:
                 from pipenv.utils.shell import system_which
 
