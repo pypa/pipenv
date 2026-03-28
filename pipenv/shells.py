@@ -268,6 +268,33 @@ class Shell:
 
         signal.signal(signal.SIGWINCH, sigwinch_passthrough)
 
+        # Handle job-control signals (Ctrl+Z / suspend) so that the pipenv
+        # process properly suspends itself when the child shell is stopped,
+        # and resumes the child when pipenv is continued.
+        # Without this, pexpect's interact() loop keeps the pipenv process
+        # in the foreground and the parent shell never regains control.
+        # See: https://github.com/pypa/pipenv/issues/5359
+        if os.name != "nt" and hasattr(signal, "SIGTSTP"):
+
+            def sigtstp_handler(sig, frame):
+                # Stop the child shell process group
+                if c.isalive():
+                    os.kill(c.pid, signal.SIGSTOP)
+                # Restore default SIGTSTP handling and re-raise so the
+                # OS stops the pipenv process itself.
+                signal.signal(signal.SIGTSTP, signal.SIG_DFL)
+                os.kill(os.getpid(), signal.SIGTSTP)
+
+            def sigcont_handler(sig, frame):
+                # Re-install our custom SIGTSTP handler after being resumed
+                signal.signal(signal.SIGTSTP, sigtstp_handler)
+                # Resume the child shell process
+                if c.isalive():
+                    os.kill(c.pid, signal.SIGCONT)
+
+            signal.signal(signal.SIGTSTP, sigtstp_handler)
+            signal.signal(signal.SIGCONT, sigcont_handler)
+
         # Interact with the new shell.
         c.interact(escape_character=None)
         c.close()
