@@ -1,0 +1,3 @@
+Remove the vendored ``click`` and ``click_didyoumean`` libraries. The CLI has
+been rewritten to use Python's standard-library ``argparse``, eliminating
+Pipenv's dependency on Click entirely.
