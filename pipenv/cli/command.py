@@ -1,5 +1,6 @@
 """Pipenv CLI command definitions using argparse."""
 
+import argparse
 import os
 import sys
 from pathlib import Path
@@ -232,7 +233,7 @@ def build_parser():
     p_run.add_argument("run_command", metavar="command", help="Command to run.")
     p_run.add_argument(
         "run_args",
-        nargs="*",
+        nargs=argparse.REMAINDER,
         metavar="args",
         default=[],
         help="Arguments to pass to the command.",
