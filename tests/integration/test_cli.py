@@ -347,3 +347,14 @@ def test_pipenv_verify_locked_outdated_failing(pipenv_instance_private_pypi):
         c = p.pipenv("verify")
         assert c.returncode == 1
         assert "Pipfile.lock is out-of-date." in c.stderr
+
+
+
+@pytest.mark.cli
+def test_pipenv_version_envvar_does_not_interfere(pipenv_instance_pypi, monkeypatch):
+    """Setting PIPENV_VERSION env var should not cause an error (issue #5627)."""
+    monkeypatch.setenv("PIPENV_VERSION", "2024.0.2")
+    with pipenv_instance_pypi() as p:
+        c = p.pipenv("--version")
+        assert c.returncode == 0
+        assert "pipenv, version" in c.stdout
