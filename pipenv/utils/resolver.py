@@ -814,6 +814,11 @@ class Resolver:
             )
         if link:
             return {self.project.get_hash_from_link(self.hash_cache, link)}
+
+        if self.project.s.is_verbose():
+            err.print(
+                f"[bold][red]Warning[/red][/bold]: Error generating hash for {ireq.name}."
+            )
         return set()
 
     @property

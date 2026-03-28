@@ -356,10 +356,6 @@ class Project:
                 collected_hashes.add(release["digests"][FAVORITE_HASH])
             return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
         except (ValueError, KeyError, ConnectionError):
-            if self.s.is_verbose():
-                err.print(
-                    f"[bold][red]Warning[/red][/bold]: Error generating hash for {ireq.name}."
-                )
             return None
 
     def get_hashes_from_remote_index_urls(self, ireq, source):
@@ -422,10 +418,6 @@ class Project:
             return self.prepend_hash_types(collected_hashes, FAVORITE_HASH)
 
         except Exception:
-            if self.s.is_verbose():
-                err.print(
-                    f"[bold red]Warning[/bold red]: Error generating hash for {ireq.name}"
-                )
             return None
 
     @staticmethod
