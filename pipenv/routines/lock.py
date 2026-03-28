@@ -22,6 +22,17 @@ def do_lock(
     """Executes the freeze functionality."""
     if not pre:
         pre = project.settings.get("allow_prereleases")
+
+    # Install any [build-system].requires packages first so they are available
+    # when the resolver runs setup.py egg_info on local packages (issue #3651).
+    from pipenv.routines.install import install_build_system_packages
+
+    install_build_system_packages(
+        project,
+        allow_global=system,
+        pypi_mirror=pypi_mirror,
+    )
+
     # Cleanup lockfile.
     if not categories:
         lockfile_categories = project.get_package_categories(for_lockfile=True)

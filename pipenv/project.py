@@ -99,6 +99,7 @@ if is_type_checking():
 
 DEFAULT_NEWLINES = "\n"
 NON_CATEGORY_SECTIONS = {
+    "build-system",
     "pipenv",
     "requires",
     "scripts",
@@ -821,6 +822,26 @@ class Project:
     @property
     def build_backend(self) -> str:
         return self._build_system.get("build-backend", get_default_pyproject_backend())
+
+    @property
+    def pipfile_build_requires(self) -> list[str]:
+        """Returns a list of build-system requirements from the Pipfile [build-system] section.
+
+        Reads the 'requires' key from the [build-system] section of the Pipfile.
+        This allows specifying packages that must be installed before other packages
+        can be resolved or installed (e.g., custom setuptools wrappers used in setup.py).
+
+        Example Pipfile::
+
+            [build-system]
+            requires = ["stwrapper", "setuptools>=40.8.0", "wheel"]
+
+        Returns an empty list if no [build-system] section or requires key is present.
+        """
+        if not self.pipfile_exists:
+            return []
+        build_system = self.parsed_pipfile.get("build-system", {})
+        return list(build_system.get("requires", []))
 
     @property
     def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
