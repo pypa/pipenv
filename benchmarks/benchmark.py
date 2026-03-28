@@ -68,11 +68,11 @@ class PipenvBenchmark:
                 print(f"  Return code: {returncode}")
                 if stderr and stderr.strip():
                     print("  Error output:")
-                    for line in stderr.strip().split("\n")[:5]:
+                    for line in stderr.strip().split("\n"):
                         print(f"    {line}")
                 if stdout and stdout.strip():
                     print("  Stdout:")
-                    for line in stdout.strip().split("\n")[:3]:
+                    for line in stdout.strip().split("\n"):
                         print(f"    {line}")
                 raise subprocess.CalledProcessError(returncode, command, stdout, stderr)
 
