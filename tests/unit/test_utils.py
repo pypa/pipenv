@@ -1208,8 +1208,7 @@ class TestPipfilePythonOverride:
     def test_resolver_package_finder_uses_target_python_filtering(self, monkeypatch):
         from pipenv.utils.resolver import Resolver
 
-        monkeypatch.setattr("platform.python_version", lambda: "3.11.15")
-        project = self._make_project(monkeypatch, {"python_version": "3.11"})
+        project = self._make_project(monkeypatch, {"python_full_version": "3.11.15"})
         project.s = mock.MagicMock(
             PIPENV_CACHE_DIR="/tmp/pipenv-cache",
             PIPENV_KEYRING_PROVIDER=None,
