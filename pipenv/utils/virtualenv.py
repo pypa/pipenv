@@ -200,7 +200,7 @@ def _create_builtin_venv_cmd(project, python, site_packages=False):
     virtualenv probes for.  See: https://github.com/pypa/pipenv/issues/5601
     """
     cmd = [
-        Path(python).absolute().as_posix(),
+        python,
         "-m",
         "venv",
         f"--prompt={project.name}",
