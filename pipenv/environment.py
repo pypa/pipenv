@@ -30,7 +30,6 @@ from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
-from pipenv.vendor.importlib_metadata.compat.py39 import normalized_name
 from pipenv.vendor.pipdeptree._models.dag import PackageDAG
 from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
 from pipenv.vendor.pythonfinder.utils import is_in_path
@@ -508,7 +507,7 @@ class Environment:
     def find_egg(self, egg_dist: importlib_metadata.Distribution) -> str:
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
-        search_filename = f"{normalized_name(egg_dist)}.egg-link"
+        search_filename = f"{egg_dist._normalized_name}.egg-link"
         try:
             user_site = site.getusersitepackages()
         except AttributeError:
@@ -548,7 +547,7 @@ class Environment:
         packages = [
             pkg
             for pkg in workingset
-            if self.dist_is_in_project(pkg) and normalized_name(pkg) != "python"
+            if self.dist_is_in_project(pkg) and pkg._normalized_name != "python"
         ]
         return packages
 
@@ -576,7 +575,7 @@ class Environment:
 
         with self.get_finder() as finder:
             for dist in packages:
-                name = normalized_name(dist)
+                name = dist._normalized_name
                 all_candidates = finder.find_all_candidates(name)
                 allow_prereleases = self.pipfile.get("pre", False)
                 if not allow_prereleases and finder.release_control is not None:
@@ -645,7 +644,7 @@ class Environment:
 
         packages = self.get_installed_packages()
         if pkg:
-            packages = [p for p in packages if normalized_name(p) == pkg]
+            packages = [p for p in packages if p._normalized_name == pkg]
 
         try:
             tree = PackageDAG.from_pkgs(packages)
@@ -726,7 +725,7 @@ class Environment:
         :rtype: bool
         """
 
-        return any(d for d in self.get_distributions() if normalized_name(d) == pkgname)
+        return any(d for d in self.get_distributions() if d._normalized_name == pkgname)
 
     def is_satisfied(self, req: InstallRequirement):
         match = next(
@@ -734,7 +733,7 @@ class Environment:
                 d
                 for d in self.get_distributions()
                 if req.name
-                and canonicalize_name(normalized_name(d)) == canonicalize_name(req.name)
+                and canonicalize_name(d._normalized_name) == canonicalize_name(req.name)
             ),
             None,
         )
