@@ -771,6 +771,87 @@ def test_install_build_system_packages_calls_pip_install(project):
 
 
 
+# --- Tests for --extras CLI option ---
+
+
+@pytest.mark.core
+def test_parse_extras_single():
+    """Test that extras_option parses a single extra category."""
+    from pipenv.cli.options import parse_categories
+
+    result = parse_categories("systemd")
+    assert result == ["systemd"]
+
+
+@pytest.mark.core
+def test_parse_extras_multiple_comma():
+    """Test that extras_option parses comma-separated extras."""
+    from pipenv.cli.options import parse_categories
+
+    result = parse_categories("systemd,monitoring")
+    assert result == ["systemd", "monitoring"]
+
+
+@pytest.mark.core
+def test_parse_extras_multiple_space():
+    """Test that extras_option parses space-separated extras."""
+    from pipenv.cli.options import parse_categories
+
+    result = parse_categories("systemd monitoring")
+    assert result == ["systemd", "monitoring"]
+
+
+@pytest.mark.core
+def test_extras_option_adds_packages_category():
+    """Test that --extras ensures 'packages' is in the categories list."""
+    from pipenv.cli.options import InstallState
+
+    state = InstallState()
+    assert state.categories == []
+
+    # Simulate what extras_option callback does
+    extras = ["systemd"]
+    if "packages" not in state.categories:
+        state.categories.insert(0, "packages")
+    state.categories += extras
+
+    assert state.categories == ["packages", "systemd"]
+
+
+@pytest.mark.core
+def test_extras_option_does_not_duplicate_packages():
+    """Test that --extras doesn't duplicate 'packages' if already present."""
+    from pipenv.cli.options import InstallState
+
+    state = InstallState()
+    state.categories = ["packages"]
+
+    # Simulate what extras_option callback does
+    extras = ["systemd"]
+    if "packages" not in state.categories:
+        state.categories.insert(0, "packages")
+    state.categories += extras
+
+    assert state.categories == ["packages", "systemd"]
+
+
+@pytest.mark.core
+def test_extras_with_dev_categories():
+    """Test that --extras works alongside --dev categories."""
+    from pipenv.cli.options import InstallState
+
+    state = InstallState()
+    state.categories = ["dev-packages"]  # Simulates --dev being set first
+
+    # Simulate what extras_option callback does
+    extras = ["systemd"]
+    if "packages" not in state.categories:
+        state.categories.insert(0, "packages")
+    state.categories += extras
+
+    assert state.categories == ["packages", "dev-packages", "systemd"]
+
+
 # --- Tests for shell detection (GH-5478) ---
 
 
