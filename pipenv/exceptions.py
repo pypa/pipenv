@@ -117,6 +117,7 @@ class PipenvException(_ClickException):
         extra = kwargs.pop("extra", [])
         self.message = self.message.format(message)
         self.extra = extra
+        super().__init__(self.message)
 
     def show(self, file=None):
         if file is None:

@@ -1064,7 +1064,9 @@ def build_parser():
         default=False,
         help="Show this message and exit.",
     )
-    parser.add_argument("--version", action="version", version=__version__)
+    parser.add_argument(
+        "--version", action="version", version=f"pipenv, version {__version__}"
+    )
     parser.add_argument(
         "--where",
         action="store_true",
@@ -1213,10 +1215,12 @@ def build_parser():
     _add_system_option(p)
     _add_common_options(p)
     # Use dest="run_command" to avoid overwriting the subparser dest ("command").
+    # Do NOT add an "args" positional — everything after run_command is captured
+    # in parse_known_args()'s remaining list so flags like -c/-v/-x are not split
+    # from their values by argparse's option-detection heuristic.
     p.add_argument(
         "run_command", metavar="command", nargs="?", default=None, help="Command to run."
     )
-    p.add_argument("args", nargs="*", default=[], help="Arguments for the command.")
 
     # ── check ─────────────────────────────────────────────────────────────────
     p = subs.add_parser(
@@ -1481,6 +1485,7 @@ def build_state(args):
     state.installstate.ignore_pipfile = bool(getattr(args, "ignore_pipfile", None))
     state.installstate.deploy = bool(getattr(args, "deploy", None))
     state.installstate.skip_lock = bool(getattr(args, "skip_lock", None))
+    state.installstate.lock_only = bool(getattr(args, "lock_only", None))
     state.installstate.all_categories = bool(getattr(args, "all_categories", None))
     state.installstate.requirementstxt = getattr(args, "requirementstxt", None)
 
