@@ -983,7 +983,7 @@ def _generate_resolution_cache_key(
     ]
 
     key_string = "|".join(key_components)
-    return hashlib.md5(key_string.encode(), usedforsecurity=False).hexdigest()
+    return hashlib.sha256(key_string.encode()).hexdigest()
 
 
 def _should_use_resolution_cache(cache_key, clear):
