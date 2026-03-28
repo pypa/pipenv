@@ -900,6 +900,8 @@ def test_detect_info_explicit_takes_priority_over_shell_env():
 @pytest.mark.core
 def test_detect_info_falls_through_to_shellingham_on_posix():
     """On POSIX, shellingham should be used even if $SHELL is set."""
+    from pathlib import PurePosixPath
+
     from pipenv.shells import detect_info
 
     mock_project = MagicMock()
@@ -907,6 +909,7 @@ def test_detect_info_falls_through_to_shellingham_on_posix():
     mock_project.s.PIPENV_SHELL = "/bin/bash"
 
     with patch("pipenv.shells.os.name", "posix"), \
+         patch("pipenv.shells.Path", PurePosixPath), \
          patch("pipenv.shells.shellingham.detect_shell", return_value=("zsh", "/bin/zsh")):
         name, path = detect_info(mock_project)
         assert name == "zsh"
@@ -916,6 +919,8 @@ def test_detect_info_falls_through_to_shellingham_on_posix():
 @pytest.mark.core
 def test_detect_info_falls_back_to_shell_env_when_shellingham_fails():
     """When shellingham fails, detect_info should fall back to PIPENV_SHELL."""
+    from pathlib import PurePosixPath
+
     from pipenv.shells import detect_info
 
     mock_project = MagicMock()
@@ -923,6 +928,7 @@ def test_detect_info_falls_back_to_shell_env_when_shellingham_fails():
     mock_project.s.PIPENV_SHELL = "/bin/bash"
 
     with patch("pipenv.shells.os.name", "posix"), \
+         patch("pipenv.shells.Path", PurePosixPath), \
          patch("pipenv.shells.shellingham.detect_shell",
                side_effect=shellingham.ShellDetectionFailure()):
         name, path = detect_info(mock_project)
