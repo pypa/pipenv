@@ -20,7 +20,6 @@ waitress = {version = "3.*", sys_platform = "== 'win32'"}
 gunicorn = {version = "23.0.*", sys_platform = "== 'linux'"}
 parse = "*"
 importlib-metadata = "*"
-colorama= {version = "*", sys_platform = "== 'win32'"}
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
 exceptiongroup = "==1.1.0"
@@ -34,7 +33,6 @@ tomli = "*"
 bottle = "*"
 legacy-cgi = {version = "*", markers = "python_version >= '3.13'"}
 pytest-rerunfailures = "*"
-
 
 [packages]
 pytz = "*"
