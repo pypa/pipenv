@@ -37,13 +37,5 @@ warnings.filterwarnings("ignore", category=ResourceWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 
-if os.name == "nt":
-    from pipenv.vendor import colorama
-
-    no_color = False
-    if not os.getenv("NO_COLOR") or no_color:
-        colorama.just_fix_windows_console()
-
-
 if __name__ == "__main__":
     cli()
