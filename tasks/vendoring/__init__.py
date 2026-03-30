@@ -26,8 +26,6 @@ LIBRARY_DIRNAMES = {
 
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
-    "click-didyoumean": "https://raw.githubusercontent.com/click-contrib/click-didyoumean/master/LICENSE",
-    "click-completion": "https://raw.githubusercontent.com/click-contrib/click-completion/master/LICENSE",
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
     "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
