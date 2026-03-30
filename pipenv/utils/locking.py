@@ -1,6 +1,7 @@
 import copy
 import itertools
 import os
+import re
 import stat
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
@@ -530,6 +531,31 @@ class Lockfile:
     def default(self) -> Dict:
         return self.lockfile.default
 
+    @staticmethod
+    def _pip_marker(marker_str: str) -> Optional[str]:
+        """Strip pylock.toml-specific ``dependency_groups`` conditions from a
+        marker string so that the result is valid PEP 508 for pip.
+
+        Pipenv already filters packages by dependency group before calling pip,
+        so pip never needs to evaluate these conditions itself.
+
+        Patterns produced by PylockFile.from_lockfile:
+          * ``'dev' in dependency_groups``
+            → no marker (return None)
+          * ``('dev' in dependency_groups) and (python_version >= '3.10')``
+            → ``python_version >= '3.10'``
+        """
+        if "dependency_groups" not in marker_str:
+            return marker_str
+        m = re.match(
+            r"^\([^)]*\bdependency_groups\b[^)]*\)\s+and\s+\((.+)\)$",
+            marker_str,
+            re.DOTALL,
+        )
+        if m:
+            return m.group(1)
+        return None
+
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
     ) -> Iterator[InstallRequirement]:
@@ -554,24 +580,36 @@ class Lockfile:
             pip_line = requirement_from_lockfile(
                 package_name, package_info, include_hashes=False, include_markers=False
             )
-            pip_line_specified = requirement_from_lockfile(
-                package_name, package_info, include_hashes=True, include_markers=True
+            # Strip pylock.toml-specific dependency_groups conditions before
+            # passing to pip — pip only understands standard PEP 508 markers.
+            raw_marker = (
+                package_info.get("markers") if isinstance(package_info, dict) else None
             )
+            pip_marker = self._pip_marker(raw_marker) if raw_marker else raw_marker
+            if pip_marker != raw_marker:
+                pip_info = dict(package_info)
+                if pip_marker:
+                    pip_info["markers"] = pip_marker
+                else:
+                    pip_info.pop("markers", None)
+                pip_line_specified = requirement_from_lockfile(
+                    package_name, pip_info, include_hashes=True, include_markers=True
+                )
+            else:
+                pip_line_specified = requirement_from_lockfile(
+                    package_name, package_info, include_hashes=True, include_markers=True
+                )
             install_req, _ = expansive_install_req_from_line(pip_line)
             # Set markers from the lockfile entry onto install_req so that
             # environment marker evaluation (e.g. python_version < '3.11') can
             # be performed when deciding whether to install the package.
-            if (
-                not install_req.markers
-                and isinstance(package_info, dict)
-                and package_info.get("markers")
-            ):
+            if not install_req.markers and pip_marker:
                 from pipenv.patched.pip._vendor.packaging.markers import (
                     Marker as PipMarker,
                 )
 
                 try:
-                    install_req.markers = PipMarker(package_info["markers"])
+                    install_req.markers = PipMarker(pip_marker)
                 except Exception:
                     pass
             yield install_req, pip_line_specified
