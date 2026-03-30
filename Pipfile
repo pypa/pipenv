@@ -19,7 +19,6 @@ typing-extensions = "==4.*"
 waitress = {version = "3.*", sys_platform = "== 'win32'"}
 gunicorn = {version = "23.0.*", sys_platform = "== 'linux'"}
 parse = "*"
-importlib-metadata = "*"
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
 exceptiongroup = "==1.1.0"
@@ -27,7 +26,6 @@ pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
-zipp = "==3.21.0"
 pypiserver = "*"
 tomli = "*"
 bottle = "*"

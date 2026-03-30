@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import importlib.metadata as importlib_metadata
 import importlib.util
 import json
 import os
@@ -33,11 +34,6 @@ from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor.pipdeptree._models.dag import PackageDAG
 from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
 from pipenv.vendor.pythonfinder.utils import is_in_path
-
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
