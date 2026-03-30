@@ -1,0 +1,3 @@
+Remove the vendored ``importlib-metadata`` and ``zipp`` libraries. Python 3.9
+is end-of-life and Pipenv requires Python 3.10+, where ``importlib.metadata``
+is available in the standard library.
