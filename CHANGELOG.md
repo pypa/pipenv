@@ -1,3 +1,57 @@
+2026.5.0 (2026-03-30)
+=====================
+pipenv 2026.5.0 (2026-03-30)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Add optional shell completion via ``argcomplete``. Install with
+  ``pip install "pipenv[completion]"`` and activate once with
+  ``eval "$(register-python-argcomplete pipenv)"``.
+
+  Mistyped subcommand names now produce "Did you mean …?" suggestions using
+  ``difflib``, replacing the ``click_didyoumean`` vendor library.  `#6619 <https://github.com/pypa/pipenv/issues/6619>`_
+
+Bug Fixes
+---------
+
+- Fix ``pylock.toml`` re-generation duplicating ``dependency_groups`` markers
+  for develop packages. Each run of ``pipenv pylock --generate`` (or any
+  command that rewrites the lock file) prepended the ``dependency_groups``
+  prefix even when it was already present, producing malformed markers like
+  ``('dev' in dependency_groups) and (('dev' in dependency_groups) and ...)``.
+  This caused ``pipenv install`` to crash with a ``KeyError: 'dependency_groups'``
+  when evaluating environment markers.  `#6621 <https://github.com/pypa/pipenv/issues/6621>`_
+
+Vendored Libraries
+------------------
+
+- Remove vendored ``colorama``. Rich's ``Console`` supersedes colorama's Windows
+  ANSI escape code handling, and this was the last remaining usage in Pipenv.  `#6621 <https://github.com/pypa/pipenv/issues/6621>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove the vendored ``click`` and ``click_didyoumean`` libraries. The CLI has
+  been rewritten to use Python's standard-library ``argparse``, eliminating
+  Pipenv's dependency on Click entirely.  `#6619 <https://github.com/pypa/pipenv/issues/6619>`_
+- Remove the vendored ``importlib-metadata`` and ``zipp`` libraries. Python 3.9
+  is end-of-life and Pipenv requires Python 3.10+, where ``importlib.metadata``
+  is available in the standard library.  `#6622 <https://github.com/pypa/pipenv/issues/6622>`_
+
+Relates to dev process changes
+------------------------------
+
+- Optimize CI pipeline: replace Black with ``ruff-format`` in pre-commit,
+  remove redundant standalone Ruff job, and add a ``tests-smoke`` gate that
+  runs Python 3.12 across all OSes before the full version matrix — cutting
+  wasted compute on version-agnostic failures.
+  Disable Windows Defender real-time scanning for Python toolcache,
+  workspace, virtualenvs, and pip cache on Windows runners
+  to reduce I/O overhead.
+
 2026.4.0 (2026-03-28)
 =====================
 pipenv 2026.4.0 (2026-03-28)

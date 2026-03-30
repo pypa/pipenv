@@ -1,6 +1,0 @@
-Add optional shell completion via ``argcomplete``. Install with
-``pip install "pipenv[completion]"`` and activate once with
-``eval "$(register-python-argcomplete pipenv)"``.
-
-Mistyped subcommand names now produce "Did you mean …?" suggestions using
-``difflib``, replacing the ``click_didyoumean`` vendor library.

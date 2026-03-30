@@ -1,2 +1,0 @@
-Remove vendored ``colorama``. Rich's ``Console`` supersedes colorama's Windows
-ANSI escape code handling, and this was the last remaining usage in Pipenv.

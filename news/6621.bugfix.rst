@@ -1,7 +1,0 @@
-Fix ``pylock.toml`` re-generation duplicating ``dependency_groups`` markers
-for develop packages. Each run of ``pipenv pylock --generate`` (or any
-command that rewrites the lock file) prepended the ``dependency_groups``
-prefix even when it was already present, producing malformed markers like
-``('dev' in dependency_groups) and (('dev' in dependency_groups) and ...)``.
-This caused ``pipenv install`` to crash with a ``KeyError: 'dependency_groups'``
-when evaluating environment markers.
