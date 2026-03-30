@@ -148,8 +148,13 @@ class PylockFile:
                 # Add markers if present
                 # PEP 751 marker syntax: 'group' in dependency_groups
                 if "markers" in package_data:
-                    # For develop packages, add dependency_groups marker
-                    if section == "develop":
+                    # For develop packages, add dependency_groups marker only
+                    # if it isn't already present (avoids duplication when
+                    # re-writing an existing pylock.toml).
+                    if (
+                        section == "develop"
+                        and "dependency_groups" not in package_data["markers"]
+                    ):
                         package["marker"] = (
                             f"({dev_marker}) and ({package_data['markers']})"
                         )

@@ -758,7 +758,14 @@ def batch_install(
         # Skip packages whose environment markers don't match the current
         # Python environment (e.g. python_version < '3.11' on Python 3.11).
         # This ensures pipenv install -r and pipenv sync behave consistently.
-        if dep.markers and not dep.markers.evaluate():
+        # KeyError can occur for pylock.toml markers that use non-PEP-508
+        # variables like 'dependency_groups'; those are already filtered at
+        # the lockfile level so we simply include the package here.
+        try:
+            markers_match = not dep.markers or dep.markers.evaluate()
+        except KeyError:
+            markers_match = True
+        if not markers_match:
             err.print(
                 f"Ignoring [bold]{dep.name}[/bold]: markers "
                 f"[yellow]{dep.markers!r}[/yellow] don't match your environment",
