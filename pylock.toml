@@ -18,7 +18,7 @@ wheels = [
 [[packages]]
 name = "alabaster"
 version = "1.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "alabaster-1.0.0-py3-none-any.whl", url = "https://pypi.org/simple/alabaster/alabaster-1.0.0-py3-none-any.whl", hashes = {sha256 = "c00dca57bca26fa62a6d7d0a9fcce65f3e026e9bfe33e9c538fd3fbb2144fd9e"}},
@@ -29,7 +29,7 @@ wheels = [
 [[packages]]
 name = "arpeggio"
 version = "2.0.3"
-marker = "('dev' in dependency_groups) and ('dev' in dependency_groups)"
+marker = "'dev' in dependency_groups"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "arpeggio-2.0.3-py3-none-any.whl", url = "https://pypi.org/simple/arpeggio/arpeggio-2.0.3-py3-none-any.whl", hashes = {sha256 = "9374d9c531b62018b787635f37fd81c9a6ee69ef2d28c5db3cd18791b1f7db2f"}},
@@ -40,7 +40,7 @@ wheels = [
 [[packages]]
 name = "atomicwrites"
 version = "1.4.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (sys_platform == 'win32'))"
+marker = "('dev' in dependency_groups) and (sys_platform == 'win32')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "atomicwrites-1.4.1-py3-none-any.whl", url = "https://pypi.org/simple/atomicwrites/atomicwrites-1.4.1-py3-none-any.whl", hashes = {sha256 = "81b2c9071a49367a7f770170e5eec8cb66567cfbbc8c73d20ce5ca4a8d71cf11"}},
@@ -50,7 +50,7 @@ wheels = [
 [[packages]]
 name = "attrs"
 version = "25.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "attrs-25.4.0-py3-none-any.whl", url = "https://pypi.org/simple/attrs/attrs-25.4.0-py3-none-any.whl", hashes = {sha256 = "16d5969b87f0859ef33a48b35d55ac1be6e42ae49d5e853b597db70c35c57e11"}},
@@ -61,7 +61,7 @@ wheels = [
 [[packages]]
 name = "babel"
 version = "2.18.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "babel-2.18.0-py3-none-any.whl", url = "https://pypi.org/simple/babel/babel-2.18.0-py3-none-any.whl", hashes = {sha256 = "b80b99a14bd085fcacfa15c9165f651fbb3406e66cc603abf11c5750937c992d"}},
@@ -72,7 +72,7 @@ wheels = [
 [[packages]]
 name = "beautifulsoup4"
 version = "4.14.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_full_version >= '3.7.0'))"
+marker = "('dev' in dependency_groups) and (python_full_version >= '3.7.0')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "beautifulsoup4-4.14.3-py3-none-any.whl", url = "https://pypi.org/simple/beautifulsoup4/beautifulsoup4-4.14.3-py3-none-any.whl", hashes = {sha256 = "0918bfe44902e6ad8d57732ba310582e98da931428d231a5ecb9e7c703a735bb"}},
@@ -83,7 +83,7 @@ wheels = [
 [[packages]]
 name = "black"
 version = "26.3.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "black-26.3.1-py3-none-any.whl", url = "https://pypi.org/simple/black/black-26.3.1-py3-none-any.whl", hashes = {sha256 = "0126ae5b7c09957da2bdbd91a9ba1207453feada9e9fe51992848658c6c8e01c"}},
@@ -119,7 +119,7 @@ wheels = [
 [[packages]]
 name = "bottle"
 version = "0.13.4"
-marker = "('dev' in dependency_groups) and ('dev' in dependency_groups)"
+marker = "'dev' in dependency_groups"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "bottle-0.13.4-py3-none-any.whl", url = "https://pypi.org/simple/bottle/bottle-0.13.4-py3-none-any.whl", hashes = {sha256 = "045684fbd2764eac9cdeb824861d1551d113e8b683d8d26e296898d3dd99a12e"}},
@@ -130,7 +130,7 @@ wheels = [
 [[packages]]
 name = "build"
 version = "1.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "build-1.4.0-py3-none-any.whl", url = "https://pypi.org/simple/build/build-1.4.0-py3-none-any.whl", hashes = {sha256 = "6a07c1b8eb6f2b311b96fcbdbce5dab5fe637ffda0fd83c9cac622e927501596"}},
@@ -141,7 +141,7 @@ wheels = [
 [[packages]]
 name = "certifi"
 version = "2026.2.25"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "certifi-2026.2.25-py3-none-any.whl", url = "https://pypi.org/simple/certifi/certifi-2026.2.25-py3-none-any.whl", hashes = {sha256 = "027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa"}},
@@ -152,7 +152,7 @@ wheels = [
 [[packages]]
 name = "cffi"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "cffi-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/cffi/cffi-2.0.0-py3-none-any.whl", hashes = {sha256 = "00bdf7acc5f795150faa6957054fbbca2439db2f775ce831222b66f192f03beb"}},
@@ -245,7 +245,7 @@ wheels = [
 [[packages]]
 name = "cfgv"
 version = "3.5.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "cfgv-3.5.0-py3-none-any.whl", url = "https://pypi.org/simple/cfgv/cfgv-3.5.0-py3-none-any.whl", hashes = {sha256 = "a8dc6b26ad22ff227d2634a65cb388215ce6cc96bbcc5cfde7641ae87e8dacc0"}},
@@ -256,7 +256,7 @@ wheels = [
 [[packages]]
 name = "charset-normalizer"
 version = "3.4.6"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "charset_normalizer-3.4.6-py3-none-any.whl", url = "https://pypi.org/simple/charset-normalizer/charset_normalizer-3.4.6-py3-none-any.whl", hashes = {sha256 = "06a7e86163334edfc5d20fe104db92fcd666e5a5df0977cb5680a506fe26cc8e"}},
@@ -394,7 +394,7 @@ wheels = [
 [[packages]]
 name = "click"
 version = "8.0.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.6'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.6')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "click-8.0.3-py3-none-any.whl", url = "https://pypi.org/simple/click/click-8.0.3-py3-none-any.whl", hashes = {sha256 = "353f466495adaeb40b6b5f592f9f91cb22372351c84caeb068132442a4518ef3"}},
@@ -405,7 +405,7 @@ wheels = [
 [[packages]]
 name = "colorama"
 version = "0.4.6"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (sys_platform == 'win32'))"
+marker = "('dev' in dependency_groups) and (sys_platform == 'win32')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "colorama-0.4.6-py3-none-any.whl", url = "https://pypi.org/simple/colorama/colorama-0.4.6-py3-none-any.whl", hashes = {sha256 = "08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"}},
@@ -416,7 +416,7 @@ wheels = [
 [[packages]]
 name = "coverage"
 version = "7.13.5"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "coverage-7.13.5-py3-none-any.whl", url = "https://pypi.org/simple/coverage/coverage-7.13.5-py3-none-any.whl", hashes = {sha256 = "012d5319e66e9d5a218834642d6c35d265515a62f01157a45bcc036ecf947256"}},
@@ -531,7 +531,7 @@ wheels = [
 [[packages]]
 name = "cryptography"
 version = "46.0.5"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8' and python_full_version not in '3.9.0, 3.9.1'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8' and python_full_version not in '3.9.0, 3.9.1')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "cryptography-46.0.5-py3-none-any.whl", url = "https://pypi.org/simple/cryptography/cryptography-46.0.5-py3-none-any.whl", hashes = {sha256 = "02f547fce831f5096c9a567fd41bc12ca8f11df260959ecc7c3202555cc47a72"}},
@@ -589,7 +589,7 @@ wheels = [
 [[packages]]
 name = "distlib"
 version = "0.4.0"
-marker = "('dev' in dependency_groups) and ('dev' in dependency_groups)"
+marker = "'dev' in dependency_groups"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "distlib-0.4.0-py3-none-any.whl", url = "https://pypi.org/simple/distlib/distlib-0.4.0-py3-none-any.whl", hashes = {sha256 = "9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16"}},
@@ -600,7 +600,7 @@ wheels = [
 [[packages]]
 name = "docutils"
 version = "0.22.4"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "docutils-0.22.4-py3-none-any.whl", url = "https://pypi.org/simple/docutils/docutils-0.22.4-py3-none-any.whl", hashes = {sha256 = "4db53b1fde9abecbb74d91230d32ab626d94f6badfc575d6db9194a49df29968"}},
@@ -611,7 +611,7 @@ wheels = [
 [[packages]]
 name = "exceptiongroup"
 version = "1.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "exceptiongroup-1.1.0-py3-none-any.whl", url = "https://pypi.org/simple/exceptiongroup/exceptiongroup-1.1.0-py3-none-any.whl", hashes = {sha256 = "327cbda3da756e2de031a3107b81ab7b3770a602c4d16ca618298c526f4bec1e"}},
@@ -622,7 +622,7 @@ wheels = [
 [[packages]]
 name = "execnet"
 version = "2.1.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "execnet-2.1.2-py3-none-any.whl", url = "https://pypi.org/simple/execnet/execnet-2.1.2-py3-none-any.whl", hashes = {sha256 = "63d83bfdd9a23e35b9c6a3261412324f964c2ec8dcd8d3c6916ee9373e0befcd"}},
@@ -633,7 +633,7 @@ wheels = [
 [[packages]]
 name = "filelock"
 version = "3.25.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "filelock-3.25.2-py3-none-any.whl", url = "https://pypi.org/simple/filelock/filelock-3.25.2-py3-none-any.whl", hashes = {sha256 = "b64ece2b38f4ca29dd3e810287aa8c48182bbecd1ae6e9ae126c9b35f1382694"}},
@@ -644,7 +644,7 @@ wheels = [
 [[packages]]
 name = "flake8"
 version = "3.9.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4'))"
+marker = "('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "flake8-3.9.2-py3-none-any.whl", url = "https://pypi.org/simple/flake8/flake8-3.9.2-py3-none-any.whl", hashes = {sha256 = "07528381786f2a6237b061f6e96610a4167b226cb926e2aa2b6b1d78057c576b"}},
@@ -655,7 +655,7 @@ wheels = [
 [[packages]]
 name = "gunicorn"
 version = "23.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (sys_platform == 'linux'))"
+marker = "('dev' in dependency_groups) and (sys_platform == 'linux')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "gunicorn-23.0.0-py3-none-any.whl", url = "https://pypi.org/simple/gunicorn/gunicorn-23.0.0-py3-none-any.whl", hashes = {sha256 = "ec400d38950de4dfd418cff8328b2c8faed0edb0d517d3394e457c317908ca4d"}},
@@ -666,7 +666,7 @@ wheels = [
 [[packages]]
 name = "id"
 version = "1.6.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "id-1.6.1-py3-none-any.whl", url = "https://pypi.org/simple/id/id-1.6.1-py3-none-any.whl", hashes = {sha256 = "d0732d624fb46fd4e7bc4e5152f00214450953b9e772c182c1c22964def1a069"}},
@@ -677,7 +677,7 @@ wheels = [
 [[packages]]
 name = "identify"
 version = "2.6.18"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "identify-2.6.18-py3-none-any.whl", url = "https://pypi.org/simple/identify/identify-2.6.18-py3-none-any.whl", hashes = {sha256 = "873ac56a5e3fd63e7438a7ecbc4d91aca692eb3fefa4534db2b7913f3fc352fd"}},
@@ -688,7 +688,7 @@ wheels = [
 [[packages]]
 name = "idna"
 version = "3.11"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "idna-3.11-py3-none-any.whl", url = "https://pypi.org/simple/idna/idna-3.11-py3-none-any.whl", hashes = {sha256 = "771a87f49d9defaf64091e6e6fe9c18d4833f140bd19464795bc32d966ca37ea"}},
@@ -699,7 +699,7 @@ wheels = [
 [[packages]]
 name = "imagesize"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10' and python_version < '3.15'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10' and python_version < '3.15')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "imagesize-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/imagesize/imagesize-2.0.0-py3-none-any.whl", hashes = {sha256 = "5667c5bbb57ab3f1fa4bc366f4fbc971db3d5ed011fd2715fd8001f782718d96"}},
@@ -710,7 +710,7 @@ wheels = [
 [[packages]]
 name = "importlib-metadata"
 version = "8.7.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "importlib_metadata-8.7.1-py3-none-any.whl", url = "https://pypi.org/simple/importlib-metadata/importlib_metadata-8.7.1-py3-none-any.whl", hashes = {sha256 = "49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb"}},
@@ -721,7 +721,7 @@ wheels = [
 [[packages]]
 name = "iniconfig"
 version = "2.3.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "iniconfig-2.3.0-py3-none-any.whl", url = "https://pypi.org/simple/iniconfig/iniconfig-2.3.0-py3-none-any.whl", hashes = {sha256 = "c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730"}},
@@ -732,7 +732,7 @@ wheels = [
 [[packages]]
 name = "invoke"
 version = "2.2.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.6'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.6')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "invoke-2.2.1-py3-none-any.whl", url = "https://pypi.org/simple/invoke/invoke-2.2.1-py3-none-any.whl", hashes = {sha256 = "2413bc441b376e5cd3f55bb5d364f973ad8bdd7bf87e53c79de3c11bf3feecc8"}},
@@ -743,7 +743,7 @@ wheels = [
 [[packages]]
 name = "jaraco.classes"
 version = "3.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "jaraco.classes-3.4.0-py3-none-any.whl", url = "https://pypi.org/simple/jaraco.classes/jaraco.classes-3.4.0-py3-none-any.whl", hashes = {sha256 = "47a024b51d0239c0dd8c8540c6c7f484be3b8fcf0b2d85c13825780d3b3f3acd"}},
@@ -754,7 +754,7 @@ wheels = [
 [[packages]]
 name = "jaraco.context"
 version = "6.1.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "jaraco.context-6.1.1-py3-none-any.whl", url = "https://pypi.org/simple/jaraco.context/jaraco.context-6.1.1-py3-none-any.whl", hashes = {sha256 = "0df6a0287258f3e364072c3e40d5411b20cafa30cb28c4839d24319cecf9f808"}},
@@ -765,7 +765,7 @@ wheels = [
 [[packages]]
 name = "jaraco.functools"
 version = "4.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "jaraco.functools-4.4.0-py3-none-any.whl", url = "https://pypi.org/simple/jaraco.functools/jaraco.functools-4.4.0-py3-none-any.whl", hashes = {sha256 = "9eec1e36f45c818d9bf307c8948eb03b2b56cd44087b3cdc989abca1f20b9176"}},
@@ -776,7 +776,7 @@ wheels = [
 [[packages]]
 name = "jeepney"
 version = "0.9.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "jeepney-0.9.0-py3-none-any.whl", url = "https://pypi.org/simple/jeepney/jeepney-0.9.0-py3-none-any.whl", hashes = {sha256 = "97e5714520c16fc0a45695e5365a2e11b81ea79bba796e26f9f1d178cb182683"}},
@@ -787,7 +787,7 @@ wheels = [
 [[packages]]
 name = "jinja2"
 version = "3.1.6"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "jinja2-3.1.6-py3-none-any.whl", url = "https://pypi.org/simple/jinja2/jinja2-3.1.6-py3-none-any.whl", hashes = {sha256 = "0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"}},
@@ -798,7 +798,7 @@ wheels = [
 [[packages]]
 name = "keyring"
 version = "25.7.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "keyring-25.7.0-py3-none-any.whl", url = "https://pypi.org/simple/keyring/keyring-25.7.0-py3-none-any.whl", hashes = {sha256 = "be4a0b195f149690c166e850609a477c532ddbfbaed96a404d4e43f8d5e2689f"}},
@@ -809,7 +809,7 @@ wheels = [
 [[packages]]
 name = "legacy-cgi"
 version = "2.6.4"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.13'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.13')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "legacy_cgi-2.6.4-py3-none-any.whl", url = "https://pypi.org/simple/legacy-cgi/legacy_cgi-2.6.4-py3-none-any.whl", hashes = {sha256 = "7e235ce58bf1e25d1fc9b2d299015e4e2cd37305eccafec1e6bac3fc04b878cd"}},
@@ -820,7 +820,7 @@ wheels = [
 [[packages]]
 name = "linkify-it-py"
 version = "2.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "linkify_it_py-2.1.0-py3-none-any.whl", url = "https://pypi.org/simple/linkify-it-py/linkify_it_py-2.1.0-py3-none-any.whl", hashes = {sha256 = "0d252c1594ecba2ecedc444053db5d3a9b7ec1b0dd929c8f1d74dce89f86c05e"}},
@@ -831,7 +831,7 @@ wheels = [
 [[packages]]
 name = "markdown-it-py"
 version = "4.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "markdown_it_py-4.0.0-py3-none-any.whl", url = "https://pypi.org/simple/markdown-it-py/markdown_it_py-4.0.0-py3-none-any.whl", hashes = {sha256 = "87327c59b172c5011896038353a81343b6754500a08cd7a4973bb48c6d578147"}},
@@ -842,7 +842,7 @@ wheels = [
 [[packages]]
 name = "markupsafe"
 version = "3.0.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "markupsafe-3.0.3-py3-none-any.whl", url = "https://pypi.org/simple/markupsafe/markupsafe-3.0.3-py3-none-any.whl", hashes = {sha256 = "0303439a41979d9e74d18ff5e2dd8c43ed6c6001fd40e5bf2e43f7bd9bbc523f"}},
@@ -940,7 +940,7 @@ wheels = [
 [[packages]]
 name = "mccabe"
 version = "0.6.1"
-marker = "('dev' in dependency_groups) and ('dev' in dependency_groups)"
+marker = "'dev' in dependency_groups"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "mccabe-0.6.1-py3-none-any.whl", url = "https://pypi.org/simple/mccabe/mccabe-0.6.1-py3-none-any.whl", hashes = {sha256 = "ab8a6258860da4b6677da4bd2fe5dc2c659cff31b3ee4f7f5d64e79735b80d42"}},
@@ -951,7 +951,7 @@ wheels = [
 [[packages]]
 name = "mdit-py-plugins"
 version = "0.5.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "mdit_py_plugins-0.5.0-py3-none-any.whl", url = "https://pypi.org/simple/mdit-py-plugins/mdit_py_plugins-0.5.0-py3-none-any.whl", hashes = {sha256 = "07a08422fc1936a5d26d146759e9155ea466e842f5ab2f7d2266dd084c8dab1f"}},
@@ -962,7 +962,7 @@ wheels = [
 [[packages]]
 name = "mdurl"
 version = "0.1.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "mdurl-0.1.2-py3-none-any.whl", url = "https://pypi.org/simple/mdurl/mdurl-0.1.2-py3-none-any.whl", hashes = {sha256 = "84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8"}},
@@ -973,7 +973,7 @@ wheels = [
 [[packages]]
 name = "mock"
 version = "5.2.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.6'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.6')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "mock-5.2.0-py3-none-any.whl", url = "https://pypi.org/simple/mock/mock-5.2.0-py3-none-any.whl", hashes = {sha256 = "4e460e818629b4b173f32d08bf30d3af8123afbb8e04bb5707a1fd4799e503f0"}},
@@ -984,7 +984,7 @@ wheels = [
 [[packages]]
 name = "more-itertools"
 version = "10.8.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "more_itertools-10.8.0-py3-none-any.whl", url = "https://pypi.org/simple/more-itertools/more_itertools-10.8.0-py3-none-any.whl", hashes = {sha256 = "52d4362373dcf7c52546bc4af9a86ee7c4579df9a8dc268be0a2f949d376cc9b"}},
@@ -995,7 +995,7 @@ wheels = [
 [[packages]]
 name = "mypy-extensions"
 version = "1.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "mypy_extensions-1.1.0-py3-none-any.whl", url = "https://pypi.org/simple/mypy-extensions/mypy_extensions-1.1.0-py3-none-any.whl", hashes = {sha256 = "1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505"}},
@@ -1006,7 +1006,7 @@ wheels = [
 [[packages]]
 name = "myst-parser"
 version = "5.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.11'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.11')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "myst_parser-5.0.0-py3-none-any.whl", url = "https://pypi.org/simple/myst-parser/myst_parser-5.0.0-py3-none-any.whl", hashes = {sha256 = "ab31e516024918296e169139072b81592336f2fef55b8986aa31c9f04b5f7211"}},
@@ -1017,7 +1017,7 @@ wheels = [
 [[packages]]
 name = "nh3"
 version = "0.3.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "nh3-0.3.3-py3-none-any.whl", url = "https://pypi.org/simple/nh3/nh3-0.3.3-py3-none-any.whl", hashes = {sha256 = "0d5eb734a78ac364af1797fef718340a373f626a9ff6b4fb0b4badf7927e7b81"}},
@@ -1053,7 +1053,7 @@ wheels = [
 [[packages]]
 name = "nodeenv"
 version = "1.10.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6'))"
+marker = "('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 3.6')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "nodeenv-1.10.0-py3-none-any.whl", url = "https://pypi.org/simple/nodeenv/nodeenv-1.10.0-py3-none-any.whl", hashes = {sha256 = "5bb13e3eed2923615535339b3c620e76779af4cb4c6a90deccc9e36b274d3827"}},
@@ -1064,7 +1064,7 @@ wheels = [
 [[packages]]
 name = "packaging"
 version = "26.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "packaging-26.0-py3-none-any.whl", url = "https://pypi.org/simple/packaging/packaging-26.0-py3-none-any.whl", hashes = {sha256 = "00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4"}},
@@ -1075,7 +1075,7 @@ wheels = [
 [[packages]]
 name = "parse"
 version = "1.21.1"
-marker = "('dev' in dependency_groups) and ('dev' in dependency_groups)"
+marker = "'dev' in dependency_groups"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "parse-1.21.1-py3-none-any.whl", url = "https://pypi.org/simple/parse/parse-1.21.1-py3-none-any.whl", hashes = {sha256 = "55339ca698019815df3b8e8b550e5933933527e623b0cdf1ca2f404da35ffb47"}},
@@ -1086,7 +1086,7 @@ wheels = [
 [[packages]]
 name = "parver"
 version = "0.5"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "parver-0.5-py3-none-any.whl", url = "https://pypi.org/simple/parver/parver-0.5-py3-none-any.whl", hashes = {sha256 = "2281b187276c8e8e3c15634f62287b2fb6fe0efe3010f739a6bd1e45fa2bf2b2"}},
@@ -1097,7 +1097,7 @@ wheels = [
 [[packages]]
 name = "pathspec"
 version = "1.0.4"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pathspec-1.0.4-py3-none-any.whl", url = "https://pypi.org/simple/pathspec/pathspec-1.0.4-py3-none-any.whl", hashes = {sha256 = "0210e2ae8a21a9137c0d470578cb0e595af87edaa6ebf12ff176f14a02e0e645"}},
@@ -1108,7 +1108,7 @@ wheels = [
 [[packages]]
 name = "pip"
 version = "26.0.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pip-26.0.1-py3-none-any.whl", url = "https://pypi.org/simple/pip/pip-26.0.1-py3-none-any.whl", hashes = {sha256 = "bdb1b08f4274833d62c1aa29e20907365a2ceb950410df15fc9521bad440122b"}},
@@ -1118,14 +1118,14 @@ wheels = [
 
 [[packages]]
 name = "pipenv"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 
 
 [[packages]]
 name = "platformdirs"
 version = "4.9.4"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "platformdirs-4.9.4-py3-none-any.whl", url = "https://pypi.org/simple/platformdirs/platformdirs-4.9.4-py3-none-any.whl", hashes = {sha256 = "1ec356301b7dc906d83f371c8f487070e99d3ccf9e501686456394622a01a934"}},
@@ -1136,7 +1136,7 @@ wheels = [
 [[packages]]
 name = "pluggy"
 version = "1.6.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pluggy-1.6.0-py3-none-any.whl", url = "https://pypi.org/simple/pluggy/pluggy-1.6.0-py3-none-any.whl", hashes = {sha256 = "7dcc130b76258d33b90f61b658791dede3486c3e6bfb003ee5c9bfb396dd22f3"}},
@@ -1147,7 +1147,7 @@ wheels = [
 [[packages]]
 name = "pre-commit"
 version = "2.21.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pre_commit-2.21.0-py3-none-any.whl", url = "https://pypi.org/simple/pre-commit/pre_commit-2.21.0-py3-none-any.whl", hashes = {sha256 = "31ef31af7e474a8d8995027fefdfcf509b5c913ff31f2015b4ec4beb26a6f658"}},
@@ -1158,7 +1158,7 @@ wheels = [
 [[packages]]
 name = "pycodestyle"
 version = "2.7.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'))"
+marker = "('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pycodestyle-2.7.0-py3-none-any.whl", url = "https://pypi.org/simple/pycodestyle/pycodestyle-2.7.0-py3-none-any.whl", hashes = {sha256 = "514f76d918fcc0b55c6680472f0a37970994e07bbb80725808c17089be302068"}},
@@ -1169,7 +1169,7 @@ wheels = [
 [[packages]]
 name = "pycparser"
 version = "3.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pycparser-3.0-py3-none-any.whl", url = "https://pypi.org/simple/pycparser/pycparser-3.0-py3-none-any.whl", hashes = {sha256 = "600f49d217304a5902ac3c37e1281c9fe94e4d0489de643a9504c5cdfdfc6b29"}},
@@ -1180,7 +1180,7 @@ wheels = [
 [[packages]]
 name = "pyenchant"
 version = "3.3.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pyenchant-3.3.0-py3-none-any.whl", url = "https://pypi.org/simple/pyenchant/pyenchant-3.3.0-py3-none-any.whl", hashes = {sha256 = "04a5bd0e022ebe2e8c6d9e498ec3d650602e264ec5486e9c6a1b7f99c9507c49"}},
@@ -1193,7 +1193,7 @@ wheels = [
 [[packages]]
 name = "pyflakes"
 version = "2.3.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'))"
+marker = "('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pyflakes-2.3.1-py3-none-any.whl", url = "https://pypi.org/simple/pyflakes/pyflakes-2.3.1-py3-none-any.whl", hashes = {sha256 = "7893783d01b8a89811dd72d7dfd4d84ff098e5eed95cfa8905b22bbffe52efc3"}},
@@ -1204,7 +1204,7 @@ wheels = [
 [[packages]]
 name = "pygments"
 version = "2.19.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pygments-2.19.2-py3-none-any.whl", url = "https://pypi.org/simple/pygments/pygments-2.19.2-py3-none-any.whl", hashes = {sha256 = "636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887"}},
@@ -1215,7 +1215,7 @@ wheels = [
 [[packages]]
 name = "pypiserver"
 version = "2.4.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pypiserver-2.4.1-py3-none-any.whl", url = "https://pypi.org/simple/pypiserver/pypiserver-2.4.1-py3-none-any.whl", hashes = {sha256 = "156540f87ecfd6db06ae2c16e25ae5afe4fda6f510bd1c34e46fbb0c491bcd9e"}},
@@ -1226,7 +1226,7 @@ wheels = [
 [[packages]]
 name = "pyproject-hooks"
 version = "1.2.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pyproject_hooks-1.2.0-py3-none-any.whl", url = "https://pypi.org/simple/pyproject-hooks/pyproject_hooks-1.2.0-py3-none-any.whl", hashes = {sha256 = "1e859bd5c40fae9448642dd871adf459e5e2084186e8d2c2a79a824c970da1f8"}},
@@ -1237,7 +1237,7 @@ wheels = [
 [[packages]]
 name = "pytest"
 version = "9.0.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pytest-9.0.2-py3-none-any.whl", url = "https://pypi.org/simple/pytest/pytest-9.0.2-py3-none-any.whl", hashes = {sha256 = "711ffd45bf766d5264d487b917733b453d917afd2b0ad65223959f59089f875b"}},
@@ -1248,7 +1248,7 @@ wheels = [
 [[packages]]
 name = "pytest-cov"
 version = "4.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pytest_cov-4.1.0-py3-none-any.whl", url = "https://pypi.org/simple/pytest-cov/pytest_cov-4.1.0-py3-none-any.whl", hashes = {sha256 = "3904b13dfbfec47f003b8e77fd5b589cd11904a21ddf1ab38a64f204d6a10ef6"}},
@@ -1259,7 +1259,7 @@ wheels = [
 [[packages]]
 name = "pytest-rerunfailures"
 version = "16.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pytest_rerunfailures-16.1-py3-none-any.whl", url = "https://pypi.org/simple/pytest-rerunfailures/pytest_rerunfailures-16.1-py3-none-any.whl", hashes = {sha256 = "5d11b12c0ca9a1665b5054052fcc1084f8deadd9328962745ef6b04e26382e86"}},
@@ -1270,7 +1270,7 @@ wheels = [
 [[packages]]
 name = "pytest-timeout"
 version = "2.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pytest_timeout-2.4.0-py3-none-any.whl", url = "https://pypi.org/simple/pytest-timeout/pytest_timeout-2.4.0-py3-none-any.whl", hashes = {sha256 = "7e68e90b01f9eff71332b25001f85c75495fc4e3a836701876183c4bcfd0540a"}},
@@ -1281,7 +1281,7 @@ wheels = [
 [[packages]]
 name = "pytest-xdist"
 version = "3.8.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pytest_xdist-3.8.0-py3-none-any.whl", url = "https://pypi.org/simple/pytest-xdist/pytest_xdist-3.8.0-py3-none-any.whl", hashes = {sha256 = "202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88"}},
@@ -1292,7 +1292,7 @@ wheels = [
 [[packages]]
 name = "python-discovery"
 version = "1.1.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "python_discovery-1.1.3-py3-none-any.whl", url = "https://pypi.org/simple/python-discovery/python_discovery-1.1.3-py3-none-any.whl", hashes = {sha256 = "7acca36e818cd88e9b2ba03e045ad7e93e1713e29c6bbfba5d90202310b7baa5"}},
@@ -1303,7 +1303,7 @@ wheels = [
 [[packages]]
 name = "pytokens"
 version = "0.4.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pytokens-0.4.1-py3-none-any.whl", url = "https://pypi.org/simple/pytokens/pytokens-0.4.1-py3-none-any.whl", hashes = {sha256 = "0fc71786e629cef478cbf29d7ea1923299181d0699dbe7c3c0f4a583811d9fc1"}},
@@ -1354,7 +1354,7 @@ wheels = [
 [[packages]]
 name = "pyyaml"
 version = "6.0.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.6'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.6')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "pyyaml-6.0.1-py3-none-any.whl", url = "https://pypi.org/simple/pyyaml/pyyaml-6.0.1-py3-none-any.whl", hashes = {sha256 = "04ac92ad1925b2cff1db0cfebffb6ffc43457495c9b3c39d3fcae417d7125dc5"}},
@@ -1414,7 +1414,7 @@ wheels = [
 [[packages]]
 name = "readme-renderer"
 version = "44.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "readme_renderer-44.0-py3-none-any.whl", url = "https://pypi.org/simple/readme-renderer/readme_renderer-44.0-py3-none-any.whl", hashes = {sha256 = "2fbca89b81a08526aadf1357a8c2ae889ec05fb03f5da67f9769c9a592166151"}},
@@ -1425,7 +1425,7 @@ wheels = [
 [[packages]]
 name = "requests"
 version = "2.32.5"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "requests-2.32.5-py3-none-any.whl", url = "https://pypi.org/simple/requests/requests-2.32.5-py3-none-any.whl", hashes = {sha256 = "2462f94637a34fd532264295e186976db0f5d453d1cdd31473c85a6a161affb6"}},
@@ -1436,7 +1436,7 @@ wheels = [
 [[packages]]
 name = "requests-toolbelt"
 version = "1.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3'))"
+marker = "('dev' in dependency_groups) and (python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2, 3.3')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "requests_toolbelt-1.0.0-py3-none-any.whl", url = "https://pypi.org/simple/requests-toolbelt/requests_toolbelt-1.0.0-py3-none-any.whl", hashes = {sha256 = "7681a0a3d047012b5bdc0ee37d7f8f07ebe76ab08caeccfc3921ce23c88d5bc6"}},
@@ -1447,7 +1447,7 @@ wheels = [
 [[packages]]
 name = "rfc3986"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "rfc3986-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/rfc3986/rfc3986-2.0.0-py3-none-any.whl", hashes = {sha256 = "50b1502b60e289cb37883f3dfd34532b8873c7de9f49bb546641ce9cbd256ebd"}},
@@ -1458,7 +1458,7 @@ wheels = [
 [[packages]]
 name = "rich"
 version = "14.3.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_full_version >= '3.8.0'))"
+marker = "('dev' in dependency_groups) and (python_full_version >= '3.8.0')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "rich-14.3.3-py3-none-any.whl", url = "https://pypi.org/simple/rich/rich-14.3.3-py3-none-any.whl", hashes = {sha256 = "793431c1f8619afa7d3b52b2cdec859562b950ea0d4b6b505397612db8d5362d"}},
@@ -1469,7 +1469,7 @@ wheels = [
 [[packages]]
 name = "roman-numerals"
 version = "4.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "roman_numerals-4.1.0-py3-none-any.whl", url = "https://pypi.org/simple/roman-numerals/roman_numerals-4.1.0-py3-none-any.whl", hashes = {sha256 = "1af8b147eb1405d5839e78aeb93131690495fe9da5c91856cb33ad55a7f1e5b2"}},
@@ -1480,7 +1480,7 @@ wheels = [
 [[packages]]
 name = "secretstorage"
 version = "3.5.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "secretstorage-3.5.0-py3-none-any.whl", url = "https://pypi.org/simple/secretstorage/secretstorage-3.5.0-py3-none-any.whl", hashes = {sha256 = "0ce65888c0725fcb2c5bc0fdb8e5438eece02c523557ea40ce0703c266248137"}},
@@ -1491,7 +1491,7 @@ wheels = [
 [[packages]]
 name = "semver"
 version = "3.0.4"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "semver-3.0.4-py3-none-any.whl", url = "https://pypi.org/simple/semver/semver-3.0.4-py3-none-any.whl", hashes = {sha256 = "9c824d87ba7f7ab4a1890799cec8596f15c1241cb473404ea1cb0c55e4b04746"}},
@@ -1502,7 +1502,7 @@ wheels = [
 [[packages]]
 name = "setuptools"
 version = "82.0.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "setuptools-82.0.1-py3-none-any.whl", url = "https://pypi.org/simple/setuptools/setuptools-82.0.1-py3-none-any.whl", hashes = {sha256 = "7d872682c5d01cfde07da7bccc7b65469d3dca203318515ada1de5eda35efbf9"}},
@@ -1513,7 +1513,7 @@ wheels = [
 [[packages]]
 name = "snowballstemmer"
 version = "3.0.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version not in '3.0, 3.1, 3.2'))"
+marker = "('dev' in dependency_groups) and (python_version not in '3.0, 3.1, 3.2')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "snowballstemmer-3.0.1-py3-none-any.whl", url = "https://pypi.org/simple/snowballstemmer/snowballstemmer-3.0.1-py3-none-any.whl", hashes = {sha256 = "6cd7b3897da8d6c9ffb968a6781fa6532dce9c3618a4b127d920dab764a19064"}},
@@ -1524,7 +1524,7 @@ wheels = [
 [[packages]]
 name = "soupsieve"
 version = "2.8.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "soupsieve-2.8.3-py3-none-any.whl", url = "https://pypi.org/simple/soupsieve/soupsieve-2.8.3-py3-none-any.whl", hashes = {sha256 = "3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349"}},
@@ -1535,7 +1535,7 @@ wheels = [
 [[packages]]
 name = "sphinx"
 version = "9.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.12'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.12')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinx-9.1.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinx/sphinx-9.1.0-py3-none-any.whl", hashes = {sha256 = "7741722357dd75f8190766926071fed3bdc211c74dd2d7d4df5404da95930ddb"}},
@@ -1546,7 +1546,7 @@ wheels = [
 [[packages]]
 name = "sphinx-click"
 version = "4.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.7'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinx_click-4.4.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinx-click/sphinx_click-4.4.0-py3-none-any.whl", hashes = {sha256 = "2821c10a68fc9ee6ce7c92fad26540d8d8c8f45e6d7258f0e4fb7529ae8fab49"}},
@@ -1557,7 +1557,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-applehelp"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_applehelp-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-applehelp/sphinxcontrib_applehelp-2.0.0-py3-none-any.whl", hashes = {sha256 = "2f29ef331735ce958efa4734873f084941970894c6090408b079c61b2e1c06d1"}},
@@ -1568,7 +1568,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-devhelp"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_devhelp-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-devhelp/sphinxcontrib_devhelp-2.0.0-py3-none-any.whl", hashes = {sha256 = "411f5d96d445d1d73bb5d52133377b4248ec79db5c793ce7dbe59e074b4dd1ad"}},
@@ -1579,7 +1579,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-htmlhelp"
 version = "2.1.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_htmlhelp-2.1.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-htmlhelp/sphinxcontrib_htmlhelp-2.1.0-py3-none-any.whl", hashes = {sha256 = "166759820b47002d22914d64a075ce08f4c46818e17cfc9470a9786b759b19f8"}},
@@ -1590,7 +1590,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-jsmath"
 version = "1.0.1"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.5'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.5')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_jsmath-1.0.1-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-jsmath/sphinxcontrib_jsmath-1.0.1-py3-none-any.whl", hashes = {sha256 = "2ec2eaebfb78f3f2078e73666b1415417a116cc848b72e5172e596c871103178"}},
@@ -1601,7 +1601,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-qthelp"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_qthelp-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-qthelp/sphinxcontrib_qthelp-2.0.0-py3-none-any.whl", hashes = {sha256 = "4fe7d0ac8fc171045be623aba3e2a8f613f8682731f9153bb2e40ece16b9bbab"}},
@@ -1612,7 +1612,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-serializinghtml"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_serializinghtml-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-serializinghtml/sphinxcontrib_serializinghtml-2.0.0-py3-none-any.whl", hashes = {sha256 = "6e2cb0eef194e10c27ec0023bfeb25badbbb5868244cf5bc5bdc04e4464bf331"}},
@@ -1623,7 +1623,7 @@ wheels = [
 [[packages]]
 name = "sphinxcontrib-spelling"
 version = "7.7.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.6'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.6')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "sphinxcontrib_spelling-7.7.0-py3-none-any.whl", url = "https://pypi.org/simple/sphinxcontrib-spelling/sphinxcontrib_spelling-7.7.0-py3-none-any.whl", hashes = {sha256 = "56561c3f6a155b0946914e4de988729859315729dc181b5e4dc8a68fe78de35a"}},
@@ -1634,7 +1634,7 @@ wheels = [
 [[packages]]
 name = "stdeb"
 version = "0.11.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (sys_platform == 'linux'))"
+marker = "('dev' in dependency_groups) and (sys_platform == 'linux')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "stdeb-0.11.0-py3-none-any.whl", url = "https://pypi.org/simple/stdeb/stdeb-0.11.0-py3-none-any.whl", hashes = {sha256 = "3f883c522ecb76394514ea4d282eda7671c8bd0db0fd904f9774ba20e02035e6"}},
@@ -1645,7 +1645,7 @@ wheels = [
 [[packages]]
 name = "tomli"
 version = "2.4.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "tomli-2.4.0-py3-none-any.whl", url = "https://pypi.org/simple/tomli/tomli-2.4.0-py3-none-any.whl", hashes = {sha256 = "0408e3de5ec77cc7f81960c362543cbbd91ef883e3138e81b729fc3eea5b9729"}},
@@ -1701,7 +1701,7 @@ wheels = [
 [[packages]]
 name = "towncrier"
 version = "25.8.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "towncrier-25.8.0-py3-none-any.whl", url = "https://pypi.org/simple/towncrier/towncrier-25.8.0-py3-none-any.whl", hashes = {sha256 = "b953d133d98f9aeae9084b56a3563fd2519dfc6ec33f61c9cd2c61ff243fb513"}},
@@ -1712,7 +1712,7 @@ wheels = [
 [[packages]]
 name = "twine"
 version = "6.2.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "twine-6.2.0-py3-none-any.whl", url = "https://pypi.org/simple/twine/twine-6.2.0-py3-none-any.whl", hashes = {sha256 = "418ebf08ccda9a8caaebe414433b0ba5e25eb5e4a927667122fbe8f829f985d8"}},
@@ -1723,7 +1723,7 @@ wheels = [
 [[packages]]
 name = "typing-extensions"
 version = "4.15.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "typing_extensions-4.15.0-py3-none-any.whl", url = "https://pypi.org/simple/typing-extensions/typing_extensions-4.15.0-py3-none-any.whl", hashes = {sha256 = "0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466"}},
@@ -1734,7 +1734,7 @@ wheels = [
 [[packages]]
 name = "uc-micro-py"
 version = "2.0.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.10'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "uc_micro_py-2.0.0-py3-none-any.whl", url = "https://pypi.org/simple/uc-micro-py/uc_micro_py-2.0.0-py3-none-any.whl", hashes = {sha256 = "3603a3859af53e5a39bc7677713c78ea6589ff188d70f4fee165db88e22b242c"}},
@@ -1745,7 +1745,7 @@ wheels = [
 [[packages]]
 name = "urllib3"
 version = "2.6.3"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "urllib3-2.6.3-py3-none-any.whl", url = "https://pypi.org/simple/urllib3/urllib3-2.6.3-py3-none-any.whl", hashes = {sha256 = "1b62b6884944a57dbe321509ab94fd4d3b307075e0c2eae991ac71ee15ad38ed"}},
@@ -1756,7 +1756,7 @@ wheels = [
 [[packages]]
 name = "virtualenv"
 version = "21.2.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.8'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.8')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "virtualenv-21.2.0-py3-none-any.whl", url = "https://pypi.org/simple/virtualenv/virtualenv-21.2.0-py3-none-any.whl", hashes = {sha256 = "1720dc3a62ef5b443092e3f499228599045d7fea4c79199770499df8becf9098"}},
@@ -1767,7 +1767,7 @@ wheels = [
 [[packages]]
 name = "waitress"
 version = "3.0.2"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (sys_platform == 'win32'))"
+marker = "('dev' in dependency_groups) and (sys_platform == 'win32')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "waitress-3.0.2-py3-none-any.whl", url = "https://pypi.org/simple/waitress/waitress-3.0.2-py3-none-any.whl", hashes = {sha256 = "682aaaf2af0c44ada4abfb70ded36393f0e307f4ab9456a215ce0020baefc31f"}},
@@ -1778,7 +1778,7 @@ wheels = [
 [[packages]]
 name = "zipp"
 version = "3.21.0"
-marker = "('dev' in dependency_groups) and (('dev' in dependency_groups) and (python_version >= '3.9'))"
+marker = "('dev' in dependency_groups) and (python_version >= '3.9')"
 index = "https://pypi.org/simple/"
 wheels = [
     {name = "zipp-3.21.0-py3-none-any.whl", url = "https://pypi.org/simple/zipp/zipp-3.21.0-py3-none-any.whl", hashes = {sha256 = "2c9958f6430a2040341a52eb608ed6dd93ef4392e02ffe219417c1b28b5dd1f4"}},
@@ -1787,4 +1787,4 @@ wheels = [
 
 [tool.pipenv]
 generated_from = "Pipfile.lock"
-generation_date = "2026-03-29T17:11:30.211957+00:00"
+generation_date = "2026-03-30T07:47:16.675639+00:00"
