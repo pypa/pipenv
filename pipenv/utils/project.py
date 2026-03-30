@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import TYPE_CHECKING, Optional
 
 from pipenv import exceptions
@@ -14,10 +13,7 @@ from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
 if TYPE_CHECKING:
     STRING_TYPE = str
 
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
+import importlib.metadata as importlib_metadata
 
 
 def _python_version_matches_required(actual_ver_str, required_ver_str):

@@ -1,6 +1,7 @@
 import contextlib
 import dataclasses
 import hashlib
+import importlib.metadata as importlib_metadata
 import json
 import os
 import subprocess
@@ -46,11 +47,6 @@ from .indexes import parse_indexes, prepare_pip_source_args
 from .internet import is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
-
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
 
 
 def _get_pipfile_python_override(project):

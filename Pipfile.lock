@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "e2502327238a07085f3320f4665030b5cceb3796945032e3a2e2c40698fc1c12"
+            "sha256": "0166bf7a5735cee4c0dd2e9967af33c7d2c6493b40de7b6a3ca06619a357ac2d"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -368,15 +368,10 @@
             "markers": "('dev' in dependency_groups) and (python_version >= '3.6')",
             "version": "==8.0.3"
         },
-        "colorama": {
-            "hashes": [
-                "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44",
-                "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"
-            ],
-            "markers": "('dev' in dependency_groups) and (sys_platform == 'win32')",
-            "version": "==0.4.6"
-        },
         "coverage": {
+            "extras": [
+                "toml"
+            ],
             "hashes": [
                 "sha256:012d5319e66e9d5a218834642d6c35d265515a62f01157a45bcc036ecf947256",
                 "sha256:02ca0eed225b2ff301c474aeeeae27d26e2537942aa0f87491d3e147e784a82b",
@@ -630,14 +625,6 @@
             ],
             "markers": "('dev' in dependency_groups) and (python_version >= '3.10' and python_version < '3.15')",
             "version": "==2.0.0"
-        },
-        "importlib-metadata": {
-            "hashes": [
-                "sha256:49fef1ae6440c182052f407c8d34a68f72efc36db9ca90dc0113398f2fdde8bb",
-                "sha256:5a1f80bf1daa489495071efbb095d75a634cf28a8bc299581244063b53176151"
-            ],
-            "markers": "('dev' in dependency_groups) and (python_version >= '3.9')",
-            "version": "==8.7.1"
         },
         "iniconfig": {
             "hashes": [
@@ -1474,14 +1461,6 @@
             ],
             "markers": "('dev' in dependency_groups) and (sys_platform == 'win32')",
             "version": "==3.0.2"
-        },
-        "zipp": {
-            "hashes": [
-                "sha256:2c9958f6430a2040341a52eb608ed6dd93ef4392e02ffe219417c1b28b5dd1f4",
-                "sha256:ac1bbe05fd2991f160ebce24ffbac5f6d11d83dc90891255885223d42b3cd931"
-            ],
-            "markers": "('dev' in dependency_groups) and (python_version >= '3.9')",
-            "version": "==3.21.0"
         }
     }
 }
