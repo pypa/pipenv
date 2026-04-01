@@ -644,6 +644,14 @@ def cli():
     # Use parse_known_args so that extra args for 'run'/'shell' pass through.
     args, remaining = parser.parse_known_args(argv)
 
+    # Shared options use argparse.SUPPRESS as their default so that subparser
+    # defaults never overwrite values already parsed by the root parser
+    # (e.g. ``pipenv --python 3.11 sync``).  Ensure the attributes exist
+    # before env-var overlay and state building.
+    for _attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, _attr):
+            setattr(args, _attr, None)
+
     # Overlay PIPENV_* env vars for any attribute still at its sentinel (None).
     apply_env_vars(args)
 

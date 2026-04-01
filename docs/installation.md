@@ -208,12 +208,6 @@ $ sudo apt update
 $ sudo apt install pipenv
 ```
 
-#### Fedora
-
-```bash
-$ sudo dnf install pipenv
-```
-
 #### FreeBSD
 
 ```bash

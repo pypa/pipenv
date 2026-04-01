@@ -264,6 +264,17 @@ def expand_url_credentials(url):
     # Matches both '${VAR}' (single-quoted legacy) and ${VAR} / $VAR.
     _env_var_re = re.compile(r"'?\$\{([^}]+)\}'?|\$([A-Za-z_][A-Za-z0-9_]*)")
 
+    def _expand_only(s):
+        """Expand env-var references without URL-encoding."""
+        def _sub(m):
+            var_name = m.group(1) or m.group(2)
+            value = os.environ.get(var_name)
+            if value is None:
+                return m.group(0)  # var not set — leave token unchanged
+            return value
+
+        return _env_var_re.sub(_sub, s)
+
     def _expand_and_encode(s):
         def _sub(m):
             var_name = m.group(1) or m.group(2)
@@ -278,14 +289,25 @@ def expand_url_credentials(url):
     # doesn't confuse the split.
     userinfo, _, hostinfo = parsed.netloc.rpartition("@")
 
-    # Split userinfo on the FIRST ':' to isolate username and password.
-    if ":" in userinfo:
-        raw_user, _, raw_pass = userinfo.partition(":")
+    # Expand env vars in userinfo FIRST (without encoding) so that we can
+    # correctly detect the user:password separator.  A single env var like
+    # ``${TOKEN}`` may expand to ``__token__:glpat-xxx`` and the ``:``
+    # must be treated as the delimiter, not URL-encoded.  (#6625)
+    expanded_userinfo = _expand_only(userinfo)
+
+    # If _expand_only() did not change anything we likely still have only
+    # unexpanded placeholders like ``${VAR}``.  Do not percent-encode them
+    # so that the URL structure is preserved and they can be expanded later.
+    if expanded_userinfo == userinfo:
+        encoded_userinfo = expanded_userinfo
+    # Split expanded userinfo on the FIRST ':' to isolate username and password.
+    elif ":" in expanded_userinfo:
+        raw_user, _, raw_pass = expanded_userinfo.partition(":")
         encoded_userinfo = (
-            f"{_expand_and_encode(raw_user)}:{_expand_and_encode(raw_pass)}"
+            f"{quote(raw_user, safe='')}:{quote(raw_pass, safe='')}"
         )
     else:
-        encoded_userinfo = _expand_and_encode(userinfo)
+        encoded_userinfo = quote(expanded_userinfo, safe="")
 
     # Expand the host without encoding (it may contain ${VAR} for the
     # registry hostname but must not be percent-encoded).

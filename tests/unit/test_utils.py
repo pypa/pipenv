@@ -2117,3 +2117,64 @@ class TestResolverCreateCrossGroupIndexLookup:
         assert index_lookup.get("shared-lib") == "testpypi", (
             "Current category's index must not be overridden by another section's entry."
         )
+
+
+
+# --- Regression tests for env-var expansion in source URLs (GH-6625) ---
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_single_token_with_colon(monkeypatch):
+    """Regression test for GH-6625: a single ``${TOKEN}`` env var whose value
+    contains ``user:password`` must keep the ``:`` as the URL delimiter, not
+    URL-encode it to ``%3A``.
+    """
+    monkeypatch.setenv("MY_TOKEN", "__token__:glpat-secret123")
+
+    result = shell.expand_url_credentials(
+        "https://${MY_TOKEN}@gitlab.example.com/api/v4/projects/123/packages/pypi/simple"
+    )
+    assert "__token__:glpat-secret123@" in result
+    assert "%3A" not in result  # colon must NOT be encoded
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_separate_user_and_password(monkeypatch):
+    """Standard ``${USER}:${PASS}`` syntax must still work and URL-encode
+    special characters in each part independently.
+    """
+    monkeypatch.setenv("MY_USER", "myuser")
+    monkeypatch.setenv("MY_PASS", "p@ssw0rd!")
+
+    result = shell.expand_url_credentials(
+        "https://${MY_USER}:${MY_PASS}@pypi.example.com/simple"
+    )
+    assert "myuser:" in result
+    assert "p%40ssw0rd%21" in result  # @ → %40, ! → %21
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_no_auth():
+    """A URL without credentials must be returned unchanged (plain expansion)."""
+    result = shell.expand_url_credentials("https://pypi.org/simple")
+    assert result == "https://pypi.org/simple"
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_literal_credentials():
+    """Literal (non-env-var) credentials must pass through unchanged."""
+    url = "https://user:pass@pypi.example.com/simple"
+    result = shell.expand_url_credentials(url)
+    assert result == url
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_unset_var_left_unchanged():
+    """An unset env var must be left as its raw ``${VAR}`` token — not
+    percent-encoded — so it can still be expanded later.
+    """
+    result = shell.expand_url_credentials(
+        "https://${NONEXISTENT_VAR_12345}@pypi.example.com/simple"
+    )
+    # The raw placeholder must survive intact (no %24, %7B, %7D encoding).
+    assert "${NONEXISTENT_VAR_12345}@" in result

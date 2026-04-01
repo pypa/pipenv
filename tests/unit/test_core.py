@@ -904,3 +904,161 @@ def test_detect_info_falls_back_to_shell_env_when_shellingham_fails():
         name, path = detect_info(mock_project)
         assert name == "bash"
         assert path == "/bin/bash"
+
+
+
+# --- Regression tests for argparse migration (GH-6628, GH-6626) ---
+
+
+@pytest.mark.core
+def test_python_flag_before_subcommand_is_preserved():
+    """Regression test for GH-6628: ``pipenv --python 3.11 sync`` must not
+    lose the ``--python`` value when the subparser's default overwrites it.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, _ = parser.parse_known_args(["--python", "3.11", "sync"])
+
+    # Fill in SUPPRESS defaults the same way cli() does.
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.python == "3.11"
+
+
+@pytest.mark.core
+def test_python_flag_after_subcommand_is_preserved():
+    """Regression test for GH-6628: ``pipenv sync --python 3.11`` must work."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, _ = parser.parse_known_args(["sync", "--python", "3.11"])
+
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.python == "3.11"
+
+
+@pytest.mark.core
+def test_python_flag_defaults_to_none_when_absent():
+    """When ``--python`` is not provided at all, state.python must be None."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, _ = parser.parse_known_args(["sync"])
+
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.python is None
+
+
+@pytest.mark.core
+def test_run_passes_verbose_to_remaining():
+    """Regression test for GH-6626: ``pipenv run ./manage.py test --verbose``
+    must put ``--verbose`` into *remaining*, not consume it as a pipenv flag.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "./manage.py", "test", "--verbose"]
+    )
+    assert "--verbose" in remaining
+
+
+@pytest.mark.core
+def test_run_passes_short_v_to_remaining():
+    """Regression test for GH-6626: ``-v`` after the run command must be
+    passed through to the user's process.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "./manage.py", "test", "-v"]
+    )
+    assert "-v" in remaining
+
+
+@pytest.mark.core
+def test_run_passes_quiet_to_remaining():
+    """Regression test for GH-6626: ``--quiet`` / ``-q`` must pass through."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "pytest", "-q", "--tb=short"]
+    )
+    assert "-q" in remaining
+    assert "--tb=short" in remaining
+
+
+@pytest.mark.core
+def test_run_system_flag_still_works():
+    """``pipenv run --system python -c '...'`` must still recognise --system."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "--system", "python", "-c", "print('hi')"]
+    )
+
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.system is True
+    assert args.run_command == "python"
+    assert remaining == ["-c", "print('hi')"]
+
+
+# --- Regression test for shell history pollution (GH-6627) ---
+
+
+@pytest.mark.core
+def test_fork_compat_sendline_commands_have_leading_space():
+    """Regression test for GH-6627: internal sendline commands in fork_compat
+    must be prefixed with a space so they are not recorded in shell history
+    (most shells honour HISTCONTROL=ignorespace by default).
+    """
+    from pipenv.shells import Shell
+
+    shell = Shell("/bin/bash")
+
+    mock_child = MagicMock()
+    mock_child.setecho.return_value = None
+    mock_child.expect.return_value = 0
+    mock_child.interact.return_value = None
+    mock_child.exitstatus = 0
+
+    sent_lines = []
+
+    def _sendline(line):
+        sent_lines.append(line)
+
+    mock_child.sendline.side_effect = _sendline
+
+    with patch("pipenv.vendor.pexpect.spawn", return_value=mock_child), \
+         patch("pipenv.shells._get_activate_script",
+               return_value=" source /venv/bin/activate"), \
+         patch("pipenv.shells._get_deactivate_wrapper_script",
+               return_value='eval "deactivate() { builtin deactivate; }"'), \
+         patch("pipenv.shells.get_terminal_size") as mock_size, \
+         patch("pipenv.shells.temp_environ"), \
+         patch("pipenv.shells.signal.signal"), \
+         patch("sys.exit"):
+        mock_size.return_value = MagicMock(lines=24, columns=80)
+
+        shell.fork_compat("/path/to/venv", "/project", [])
+
+    # Every internal sendline must start with a space.
+    for line in sent_lines:
+        assert line.startswith(" "), (
+            f"sendline {line!r} must start with a space to avoid history pollution"
+        )
