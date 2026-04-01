@@ -219,8 +219,12 @@ class Shell:
             # activate command is consumed by whatever prompt appears
             # first, and the virtualenv never gets activated.
             # See: https://github.com/pypa/pipenv/issues/3615
+            # Prefix every internal command with a space so that shells
+            # configured with HISTCONTROL=ignorespace (the default on most
+            # distributions) do not record them in the command history.
+            # See: https://github.com/pypa/pipenv/issues/6627
             _STARTUP_SENTINEL = "__PIPENV_STARTUP_READY__"
-            c.sendline(f"echo {_STARTUP_SENTINEL}")
+            c.sendline(f" echo {_STARTUP_SENTINEL}")
             try:
                 c.expect(_STARTUP_SENTINEL, timeout=30)
             except Exception:
@@ -231,7 +235,7 @@ class Shell:
             # Wrap the deactivate function to also unset PIPENV_ACTIVE
             deactivate_wrapper = _get_deactivate_wrapper_script(self.cmd)
             if deactivate_wrapper:
-                c.sendline(deactivate_wrapper)
+                c.sendline(f" {deactivate_wrapper}")
 
             if args:
                 c.sendline(" ".join(args))
@@ -252,7 +256,7 @@ class Shell:
             # the user (PTY echo is still off at this point).
             # See: https://github.com/pypa/pipenv/issues/6572
             _SENTINEL = "__PIPENV_SHELL_READY__"
-            c.sendline(f"echo {_SENTINEL}")
+            c.sendline(f" echo {_SENTINEL}")
             try:
                 c.expect(_SENTINEL, timeout=10)
             except Exception:

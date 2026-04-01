@@ -6,6 +6,11 @@ from pathlib import Path
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
 
+# Use SUPPRESS as default for options shared between the root parser and
+# subparsers.  This prevents subparser defaults from overwriting values
+# already parsed by the root parser (e.g. ``pipenv --python 3.11 sync``).
+_SHARED_DEFAULT = argparse.SUPPRESS
+
 
 class State:
     def __init__(self):
@@ -177,14 +182,14 @@ def _add_python_option(p):
     p.add_argument(
         "--python",
         dest="python",
-        default=None,
+        default=_SHARED_DEFAULT,
         help="Specify which version of Python virtualenv should use.",
     )
 
 
 def _add_pypi_mirror_option(p):
     p.add_argument(
-        "--pypi-mirror", dest="pypi_mirror", default=None, help="Specify a PyPI mirror."
+        "--pypi-mirror", dest="pypi_mirror", default=_SHARED_DEFAULT, help="Specify a PyPI mirror."
     )
 
 
@@ -194,7 +199,7 @@ def _add_verbose_option(p):
         "-v",
         dest="verbose",
         action="store_true",
-        default=None,
+        default=_SHARED_DEFAULT,
         help="Verbose mode.",
     )
 
@@ -205,7 +210,7 @@ def _add_quiet_option(p):
         "-q",
         dest="quiet",
         action="store_true",
-        default=None,
+        default=_SHARED_DEFAULT,
         help="Quiet mode.",
     )
 
@@ -232,7 +237,7 @@ def _add_clear_option(p):
         "--clear",
         dest="clear",
         action="store_true",
-        default=None,
+        default=_SHARED_DEFAULT,
         help="Clears caches (pipenv, pip).",
     )
 
@@ -242,7 +247,7 @@ def _add_system_option(p):
         "--system",
         dest="system",
         action="store_true",
-        default=None,
+        default=_SHARED_DEFAULT,
         help="System pip management.",
     )
 
@@ -613,7 +618,12 @@ def build_parser():
     )
     p.add_argument("-h", "--help", dest="help", action="store_true", default=False)
     _add_system_option(p)
-    _add_common_options(p)
+    # NOTE: Do NOT add _add_common_options here.  The run subparser must not
+    # recognise flags like --verbose / -v / --quiet / --python because they
+    # would be consumed by argparse instead of being passed through to the
+    # user's command.  Use ``pipenv --verbose run …`` for pipenv verbosity.
+    # See: https://github.com/pypa/pipenv/issues/6626
+    #
     # Use dest="run_command" to avoid overwriting the subparser dest ("command").
     # Do NOT add an "args" positional — everything after run_command is captured
     # in parse_known_args()'s remaining list so flags like -c/-v/-x are not split
