@@ -616,13 +616,19 @@ def build_parser():
     p = subs.add_parser(
         "run", add_help=False, help="Spawn a command installed into the virtualenv."
     )
-    p.add_argument("-h", "--help", dest="help", action="store_true", default=False)
-    _add_system_option(p)
-    # NOTE: Do NOT add _add_common_options here.  The run subparser must not
+    # Only -h/--help and --system are intentionally kept on the run subparser:
+    #   -h/--help — needed so ``pipenv run --help`` shows run-specific help.
+    #     Note: ``pipenv run cmd -h`` will also be consumed by argparse; users
+    #     can use ``pipenv run cmd -- -h`` to pass -h through to the command.
+    #   --system  — pipenv-specific flag used by do_run() to skip venv creation.
+    #
+    # Do NOT add _add_common_options here.  The run subparser must not
     # recognise flags like --verbose / -v / --quiet / --python because they
     # would be consumed by argparse instead of being passed through to the
     # user's command.  Use ``pipenv --verbose run …`` for pipenv verbosity.
     # See: https://github.com/pypa/pipenv/issues/6626
+    p.add_argument("-h", "--help", dest="help", action="store_true", default=False)
+    _add_system_option(p)
     #
     # Use dest="run_command" to avoid overwriting the subparser dest ("command").
     # Do NOT add an "args" positional — everything after run_command is captured

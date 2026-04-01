@@ -295,8 +295,13 @@ def expand_url_credentials(url):
     # must be treated as the delimiter, not URL-encoded.  (#6625)
     expanded_userinfo = _expand_only(userinfo)
 
+    # If _expand_only() did not change anything we likely still have only
+    # unexpanded placeholders like ``${VAR}``.  Do not percent-encode them
+    # so that the URL structure is preserved and they can be expanded later.
+    if expanded_userinfo == userinfo:
+        encoded_userinfo = expanded_userinfo
     # Split expanded userinfo on the FIRST ':' to isolate username and password.
-    if ":" in expanded_userinfo:
+    elif ":" in expanded_userinfo:
         raw_user, _, raw_pass = expanded_userinfo.partition(":")
         encoded_userinfo = (
             f"{quote(raw_user, safe='')}:{quote(raw_pass, safe='')}"

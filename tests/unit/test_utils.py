@@ -2170,10 +2170,11 @@ def test_expand_url_credentials_literal_credentials():
 
 @pytest.mark.utils
 def test_expand_url_credentials_unset_var_left_unchanged():
-    """An unset env var is left as its raw ``${VAR}`` token (URL-encoded)."""
+    """An unset env var must be left as its raw ``${VAR}`` token — not
+    percent-encoded — so it can still be expanded later.
+    """
     result = shell.expand_url_credentials(
         "https://${NONEXISTENT_VAR_12345}@pypi.example.com/simple"
     )
-    # The raw token is preserved but URL-encoded in the userinfo position.
-    assert "pypi.example.com" in result
-    assert "@pypi.example.com" in result
+    # The raw placeholder must survive intact (no %24, %7B, %7D encoding).
+    assert "${NONEXISTENT_VAR_12345}@" in result
