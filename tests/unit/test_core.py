@@ -1022,6 +1022,7 @@ def test_run_system_flag_still_works():
 
 
 @pytest.mark.core
+@pytest.mark.skipif(os.name == "nt", reason="PTY/pexpect not available on Windows")
 def test_fork_compat_sendline_commands_have_leading_space():
     """Regression test for GH-6627: internal sendline commands in fork_compat
     must be prefixed with a space so they are not recorded in shell history
