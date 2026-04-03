@@ -627,6 +627,23 @@ def cli():
     from pipenv.utils.shell import system_which
     from pipenv.utils.virtualenv import do_where, warn_in_virtualenv
 
+    # Handle legacy _PIPENV_COMPLETE env var from the Click-based CLI.
+    # Since pipenv 2026.5.0, shell completion uses argcomplete instead.
+    # Detect the old mechanism and provide a helpful migration message.
+    if os.environ.get("_PIPENV_COMPLETE"):
+        print(
+            "Shell completion has changed in pipenv >= 2026.5.0.\n"
+            "The _PIPENV_COMPLETE environment variable is no longer supported.\n"
+            "\n"
+            "To enable shell completion, install the completion extra and use:\n"
+            "  pip install pipenv[completion]\n"
+            '  eval "$(register-python-argcomplete pipenv)"\n'
+            "\n"
+            "For more details, see: https://pipenv.pypa.io/en/latest/shell.html#shell-completion",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
     parser = build_parser()
 
     # Enable shell completion when argcomplete is installed.

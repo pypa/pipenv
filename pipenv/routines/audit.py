@@ -9,6 +9,7 @@ Advisory Database (PyPI) or Open Source Vulnerabilities (OSV) database.
 import logging
 import subprocess
 import sys
+import tempfile
 
 from pipenv.utils import console, err
 from pipenv.utils.processes import run_command
@@ -115,9 +116,9 @@ def build_audit_options(
     if aliases:
         options.append("--aliases")
 
-    # Use lockfile (pyproject.toml / pylock.toml)
-    if use_lockfile:
-        options.append("--locked")
+    # Note: use_lockfile is handled in do_audit by generating a temporary
+    # requirements file from Pipfile.lock, since pip-audit's --locked flag
+    # does not support Pipfile.lock format.
 
     # Requirements file
     if requirements_file:
@@ -165,7 +166,7 @@ def do_audit(  # noqa: PLR0913
 
     Supports auditing from:
     - The current virtualenv (default)
-    - pyproject.toml / pylock.toml files (with --locked flag)
+    - Pipfile.lock (with --locked flag, converted to requirements format for pip-audit)
     """
     if not verbose:
         logging.getLogger("pipenv").setLevel(logging.ERROR if quiet else logging.WARN)
@@ -222,9 +223,35 @@ def do_audit(  # noqa: PLR0913
     python_path = project_python(project, system=system)
     cmd = [python_path, "-m", "pip_audit"] + options
 
-    # If using lockfile mode, add the project directory path
+    # If using lockfile mode, generate a temporary requirements file from
+    # Pipfile.lock and pass it via -r.  pip-audit's own --locked flag only
+    # recognises pylock.toml / poetry.lock / uv.lock — not Pipfile.lock.
+    tmp_requirements = None
     if use_lockfile:
-        cmd.append(project.project_directory)
+        if not project.lockfile_exists:
+            err.print(
+                "[red]Pipfile.lock not found. Run 'pipenv lock' first.[/red]"
+            )
+            sys.exit(1)
+
+        from pipenv.utils.requirements import requirements_from_lockfile
+
+        lockfile = project.load_lockfile(expand_env_vars=False)
+        deps = {}
+        deps.update(lockfile.get("default", {}))
+        deps.update(lockfile.get("develop", {}))
+
+        lines = requirements_from_lockfile(
+            deps, include_hashes=False, include_markers=True
+        )
+
+        tmp_requirements = tempfile.NamedTemporaryFile(
+            mode="w", suffix=".txt", prefix="pipenv-audit-", delete=False
+        )
+        tmp_requirements.write("\n".join(lines))
+        tmp_requirements.flush()
+        tmp_requirements.close()
+        cmd.extend(["-r", tmp_requirements.name])
 
     if not quiet and not project.s.is_quiet() and verbose:
         console.print(f"[dim]Running: {' '.join(cmd)}[/dim]")
@@ -240,3 +267,8 @@ def do_audit(  # noqa: PLR0913
     except Exception as e:
         err.print(f"[red]Error running pip-audit: {str(e)}[/red]")
         sys.exit(1)
+    finally:
+        if tmp_requirements is not None:
+            import os
+
+            os.unlink(tmp_requirements.name)
