@@ -204,6 +204,35 @@ After reloading your shell, type `pipenv ` and press `Tab` — you should see th
 list of available subcommands. Pressing `Tab` again after a partial subcommand
 name (e.g. `pipenv ins<Tab>`) completes it to `pipenv install`.
 
+#### Git Bash (Windows)
+
+Git Bash supports bash completion. Add to your `~/.bashrc` (typically
+`C:\Users\<you>\.bashrc`):
+
+```bash
+eval "$(register-python-argcomplete pipenv)"
+```
+
+Then restart Git Bash or run `source ~/.bashrc`.
+
+### Migrating from pipenv < 2026.5.0
+
+In older versions of pipenv (before 2026.5.0), shell completion was powered by
+Click and activated with the `_PIPENV_COMPLETE` environment variable:
+
+```bash
+# OLD method — no longer works in pipenv >= 2026.5.0
+eval "$(_PIPENV_COMPLETE=bash_source pipenv)"    # bash
+eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"     # zsh
+_PIPENV_COMPLETE=fish_source pipenv | source     # fish
+```
+
+Starting with pipenv 2026.5.0, shell completion uses
+[argcomplete](https://kislyuk.github.io/argcomplete/) instead. **Replace** the
+lines above with the `register-python-argcomplete` commands shown in the
+[Activation](#activation) section and make sure the `argcomplete` package is
+installed (`pip install "pipenv[completion]"`).
+
 ### Troubleshooting
 
 If completion is not working:
@@ -224,6 +253,10 @@ If completion is not working:
    register-python-argcomplete pipenv
    ```
    It should print a shell function definition without errors.
+
+5. **If you see a migration message** about `_PIPENV_COMPLETE`, you are using
+   the old activation method. See [Migrating from pipenv < 2026.5.0](#migrating-from-pipenv--202650)
+   above.
 
 ## Best Practices for Shell Configuration
 
