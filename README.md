@@ -129,22 +129,35 @@ For command reference, see [Commands](https://pipenv.pypa.io/en/latest/commands/
 
 ### Shell Completion
 
-To enable completion in fish, add this to your configuration `~/.config/fish/completions/pipenv.fish`:
+Shell completion is powered by [argcomplete](https://kislyuk.github.io/argcomplete/).
+Install the optional dependency first:
 
-    eval (env _PIPENV_COMPLETE=fish_source pipenv)
+    pip install "pipenv[completion]"
+
+For **fish**, add this to `~/.config/fish/completions/pipenv.fish`:
+
+    register-python-argcomplete --shell fish pipenv | source
 
 There is also a [fish plugin](https://github.com/fisherman/pipenv), which will automatically
 activate your subshells for you!
 
-Alternatively, with zsh, add this to your configuration `~/.zshrc`:
+For **zsh**, add this to your `~/.zshrc`:
 
-    eval "$(_PIPENV_COMPLETE=zsh_source pipenv)"
+    autoload -U bashcompinit
+    bashcompinit
+    eval "$(register-python-argcomplete pipenv)"
 
-Alternatively, with bash, add this to your configuration `~/.bashrc` or `~/.bash_profile`:
+For **bash** (including Git Bash on Windows), add this to `~/.bashrc` or `~/.bash_profile`:
 
-    eval "$(_PIPENV_COMPLETE=bash_source pipenv)"
+    eval "$(register-python-argcomplete pipenv)"
 
-Magic shell completions are now enabled!
+Then reload your shell, and tab completions are enabled!
+
+> **Note:** If you are upgrading from pipenv < 2026.5.0, the old
+> `_PIPENV_COMPLETE` environment variable method no longer works.
+> Replace it with the `register-python-argcomplete` commands above.
+> See the [Shell Completion docs](https://pipenv.pypa.io/en/latest/shell.html#shell-completion)
+> for details.
 
 Usage
 -------
