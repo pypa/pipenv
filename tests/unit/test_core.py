@@ -414,13 +414,19 @@ def test_fork_compat_sentinel_restores_echo():
     (including any interactive prompts like oh-my-zsh's update dialogue)
     before sending the activate script.
 
+    GH-6633: setecho(False) must be called *after* the startup sentinel
+    (i.e. after the shell's readline has initialised and saved its baseline
+    terminal state with echo ON).  If called earlier, readline saves echo-off
+    as its baseline and restores it on every new prompt, permanently disabling
+    input echo.
+
     The fix sends a startup sentinel ``echo __PIPENV_STARTUP_READY__`` and
-    blocks on ``c.expect(sentinel)`` *before* activating, then sends a
-    second sentinel ``echo __PIPENV_SHELL_READY__`` *after* all setup
-    commands and blocks again before re-enabling echo.
+    blocks on ``c.expect(sentinel)`` *before* disabling echo and activating,
+    then sends a second sentinel ``echo __PIPENV_SHELL_READY__`` *after* all
+    setup commands and blocks again before re-enabling echo.
 
     This test verifies both sentinels are performed and that setecho is
-    called in the correct order (False → startup sentinel → activate →
+    called in the correct order (startup sentinel → False → activate →
     ready sentinel → True) using a mock pexpect child.
     """
     from pipenv.shells import Shell
@@ -461,17 +467,6 @@ def test_fork_compat_sentinel_restores_echo():
 
         shell.fork_compat("/path/to/venv", "/project", [])
 
-    # Verify setecho(False) was called before any sendline.
-    setecho_false_idx = next(
-        i for i, item in enumerate(call_order) if item == ("setecho", False)
-    )
-    first_sendline_idx = next(
-        i for i, item in enumerate(call_order) if item[0] == "sendline"
-    )
-    assert setecho_false_idx < first_sendline_idx, (
-        "setecho(False) must be called before any sendline"
-    )
-
     # Verify the startup sentinel was sent and expected *before* activate.
     startup_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_STARTUP_READY__" in item[1]]
     assert startup_send, "Startup sentinel must be sent via sendline"
@@ -487,6 +482,18 @@ def test_fork_compat_sentinel_restores_echo():
     )
     assert startup_expect_idx < activate_idx, (
         "Startup sentinel expect must complete before the activate script is sent (GH-3615)"
+    )
+
+    # GH-6633: setecho(False) must come *after* the startup sentinel expect
+    # so that readline has already saved its baseline state with echo ON.
+    setecho_false_idx = next(
+        i for i, item in enumerate(call_order) if item == ("setecho", False)
+    )
+    assert startup_expect_idx < setecho_false_idx, (
+        "setecho(False) must be called after startup sentinel expect (GH-6633)"
+    )
+    assert setecho_false_idx < activate_idx, (
+        "setecho(False) must be called before the activate script"
     )
 
     # Verify the ready sentinel was sent and expected *after* activate.

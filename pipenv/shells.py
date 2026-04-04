@@ -201,17 +201,6 @@ class Shell:
             os.environ.pop("LINES", None)
             c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
 
-        # Always disable PTY echo while sending the internal setup commands
-        # (activate script + deactivate wrapper) so they are not printed on
-        # the user's terminal.  These are implementation details and should be
-        # invisible regardless of --quiet mode.
-        # See: https://github.com/pypa/pipenv/issues/5954
-        #      https://github.com/pypa/pipenv/issues/6531
-        try:
-            c.setecho(False)
-        except Exception:
-            pass  # setecho may not be supported on all platforms
-
         try:
             # Wait for the shell to finish its startup (including any
             # interactive prompts such as oh-my-zsh's update dialogue)
@@ -229,6 +218,24 @@ class Shell:
                 c.expect(_STARTUP_SENTINEL, timeout=30)
             except Exception:
                 pass  # best-effort: continue even if the sentinel is not seen
+
+            # Disable PTY echo while sending the internal setup commands
+            # (activate script + deactivate wrapper) so they are not printed
+            # on the user's terminal.  These are implementation details and
+            # should be invisible regardless of --quiet mode.
+            # See: https://github.com/pypa/pipenv/issues/5954
+            #      https://github.com/pypa/pipenv/issues/6531
+            #
+            # IMPORTANT: setecho(False) must come *after* the startup sentinel
+            # (i.e. after the shell and its readline library have fully
+            # initialised).  If called earlier, readline saves the echo-off
+            # state as its baseline and restores it on every new prompt,
+            # permanently disabling input echo for the interactive session.
+            # See: https://github.com/pypa/pipenv/issues/6633
+            try:
+                c.setecho(False)
+            except Exception:
+                pass  # setecho may not be supported on all platforms
 
             c.sendline(_get_activate_script(self.cmd, venv))
 
