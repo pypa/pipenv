@@ -439,6 +439,10 @@ def test_fork_compat_sentinel_restores_echo():
     mock_child.expect.return_value = 0  # sentinel found
     mock_child.interact.return_value = None
     mock_child.exitstatus = 0
+    # Simulate a buffer that contains leaked sentinel text (happens when
+    # setecho(False) is ineffective and expect() matches the echoed command
+    # rather than the actual output).
+    mock_child.buffer = b"\r\n__PIPENV_SHELL_READY__\r\n(venv) user@host:~$ "
 
     call_order = []
 
@@ -516,6 +520,15 @@ def test_fork_compat_sentinel_restores_echo():
     )
     assert ready_expect_idx < setecho_true_idx, (
         "Ready sentinel expect must complete before setecho(True) to avoid the race condition"
+    )
+
+    # GH-6636: sentinel text must be scrubbed from the pexpect buffer
+    # before interact() flushes it to stdout.
+    assert b"__PIPENV_SHELL_READY__" not in mock_child.buffer, (
+        "Sentinel text must be removed from buffer before interact() (GH-6636)"
+    )
+    assert b"__PIPENV_STARTUP_READY__" not in mock_child.buffer, (
+        "Startup sentinel must be removed from buffer before interact() (GH-6636)"
     )
 
 

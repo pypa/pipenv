@@ -313,6 +313,18 @@ class Shell:
             signal.signal(signal.SIGTSTP, sigtstp_handler)
             signal.signal(signal.SIGCONT, sigcont_handler)
 
+        # Scrub internal sentinel strings from the pexpect buffer before
+        # handing control to the user.  interact() flushes the buffer to
+        # stdout, so any sentinel text left over from a partially-consumed
+        # expect() (e.g. when setecho(False) was ineffective and expect
+        # matched the echoed command rather than its output) would be
+        # printed on the user's terminal.
+        # See: https://github.com/pypa/pipenv/pull/6636
+        buf = c.buffer
+        for _sentinel_text in (b"__PIPENV_STARTUP_READY__", b"__PIPENV_SHELL_READY__"):
+            buf = buf.replace(_sentinel_text, b"")
+        c.buffer = buf
+
         # Interact with the new shell.
         c.interact(escape_character=None)
         c.close()
