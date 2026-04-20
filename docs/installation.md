@@ -36,7 +36,7 @@ Windows is **pipx**, which installs Pipenv in an isolated environment and makes 
 
 ### Recommended: pipx (Windows)
 
-1. **Install pipx** (requires Python 3.7+):
+1. **Install pipx** (use Python 3.10+ for Pipenv):
    ```powershell
    > python -m pip install --user pipx
    > python -m pipx ensurepath
@@ -390,7 +390,7 @@ If you encounter permission errors during installation:
 
 ### Python Version Compatibility
 
-Pipenv requires Python 3.7 or newer. If you're using an older version, you'll need to upgrade Python first.
+Pipenv requires Python 3.10 or newer. If you're using an older version, you'll need to upgrade Python first.
 
 ### pip Not Found
 

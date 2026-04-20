@@ -72,7 +72,7 @@ Table Of Contents
 Installation
 ------------
 
-**Pipenv can be installed with Python 3.7 and above.**
+**Pipenv can be installed with Python 3.10 and above.**
 
 For most users, we recommend installing Pipenv using `pip`:
 
@@ -191,8 +191,8 @@ Usage
 
    ### Usage Examples:
 
-      Create a new project using Python 3.7, specifically:
-      $ pipenv --python 3.7
+      Create a new project using Python 3.10, specifically:
+      $ pipenv --python 3.10
 
       Remove project virtualenv (inferred from current directory):
       $ pipenv --rm
