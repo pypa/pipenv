@@ -825,12 +825,9 @@ class Resolver:
         # for concurrent writes of different keys under CPython's GIL — and
         # the underlying requests.Session is thread-safe.
         def _requires_python_marker(result):
-            try:
-                candidate = finder.find_best_candidate(
-                    result.name, result.specifier
-                ).best_candidate
-            except Exception:
-                return result.name, None
+            candidate = finder.find_best_candidate(
+                result.name, result.specifier
+            ).best_candidate
             if not candidate or not candidate.link.requires_python:
                 return result.name, None
             try:
