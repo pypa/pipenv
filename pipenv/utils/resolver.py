@@ -48,8 +48,6 @@ from .internet import is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 
-_VERSION_SPECIFIER_CHARS = frozenset("<>=!~, ")
-
 
 def _is_python_version_specifier(value):
     """Return True if *value* looks like a PEP 440 specifier (e.g. ``>=3.9``)
