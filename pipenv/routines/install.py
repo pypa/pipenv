@@ -14,8 +14,6 @@ from pipenv.utils.dependencies import (
     get_lockfile_section_using_pipfile_category,
     install_req_from_pipfile,
     normalize_editable_path_for_pip,
-)
-from pipenv.utils.dependencies import (
     python_version as _python_version_for_path,
 )
 from pipenv.utils.indexes import get_source_list
