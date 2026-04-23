@@ -376,9 +376,6 @@ def process_resolver_results(
     if not results:
         return []
 
-    # Get reverse dependencies for the project
-    reverse_deps = project.environment.reverse_dependencies()
-
     processed_results = []
     for result in results:
         # Create Entry instance with our new dataclass
@@ -387,7 +384,6 @@ def process_resolver_results(
             entry_dict=result,
             project=project,
             resolver=resolver,
-            reverse_deps=reverse_deps,
             category=category,
         )
 

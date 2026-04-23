@@ -321,6 +321,11 @@ class Resolver:
         self.pipfile_entries = pipfile_entries
         self._retry_attempts = 0
         self._hash_cache = None
+        self._constraint_file = None
+        self._default_constraint_file = None
+        self._parsed_constraints = None
+        self._parsed_default_constraints = None
+        self._hash_finder = None
 
     def __repr__(self):
         return (
@@ -491,16 +496,22 @@ class Resolver:
         )
 
     def prepare_constraint_file(self):
+        if self._constraint_file is not None:
+            return self._constraint_file
         constraint_filename = prepare_constraint_file(
             self.initial_constraints,
             directory=self.req_dir,
             sources=self.sources,
             pip_args=self.pip_args,
         )
+        self._constraint_file = constraint_filename
         return constraint_filename
 
     @property
     def default_constraint_file(self):
+        if self._default_constraint_file is not None:
+            return self._default_constraint_file
+
         # When resolved default deps are available (passed from do_lock after
         # resolving the default category), use them.  They include transitive
         # dependencies and exact version pins, which is critical for ensuring
@@ -519,6 +530,7 @@ class Resolver:
             sources=None,
             pip_args=None,
         )
+        self._default_constraint_file = default_constraint_filename
         return default_constraint_filename
 
     @property
@@ -599,14 +611,15 @@ class Resolver:
 
     @property
     def parsed_default_constraints(self):
+        if self._parsed_default_constraints is not None:
+            return self._parsed_default_constraints
+
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
-        # Convert Path object to string to avoid 'PosixPath' has no attribute 'decode' error
-        constraint_file = (
-            str(self.default_constraint_file)
-            if isinstance(self.default_constraint_file, Path)
-            else self.default_constraint_file
-        )
+        # Convert Path object to string to avoid PosixPath decode errors.
+        constraint_file = self.default_constraint_file
+        if isinstance(constraint_file, Path):
+            constraint_file = str(constraint_file)
         parsed_default_constraints = parse_requirements(
             constraint_file,
             constraint=True,
@@ -614,19 +627,21 @@ class Resolver:
             session=self.session,
             options=pip_options,
         )
-        return list(parsed_default_constraints)
+        self._parsed_default_constraints = list(parsed_default_constraints)
+        return self._parsed_default_constraints
 
     @property
     def parsed_constraints(self):
         """Get parsed constraints including those from default packages if needed."""
+        if self._parsed_constraints is not None:
+            return self._parsed_constraints
+
         pip_options = self.pip_options
         pip_options.extra_index_urls = []
-        # Convert Path object to string to avoid 'PosixPath' has no attribute 'decode' error
-        constraint_file = (
-            str(self.prepare_constraint_file())
-            if isinstance(self.prepare_constraint_file(), Path)
-            else self.prepare_constraint_file()
-        )
+        # Convert Path object to string to avoid PosixPath decode errors.
+        constraint_file = self.prepare_constraint_file()
+        if isinstance(constraint_file, Path):
+            constraint_file = str(constraint_file)
         constraints = list(
             parse_requirements(
                 constraint_file,
@@ -642,7 +657,8 @@ class Resolver:
         ):
             constraints.extend(self.parsed_default_constraints)
 
-        return constraints
+        self._parsed_constraints = constraints
+        return self._parsed_constraints
 
     @property
     def default_constraints(self):
@@ -784,6 +800,7 @@ class Resolver:
         # Build mapping of package origins and Python requirements
         comes_from = {}
         python_requirements = {}
+        finder = self.finder()
 
         for result in self.resolved_tree:
             # Track package origin
@@ -794,9 +811,7 @@ class Resolver:
 
             # Collect Python requirements from package metadata
             candidate = (
-                self.finder()
-                .find_best_candidate(result.name, result.specifier)
-                .best_candidate
+                finder.find_best_candidate(result.name, result.specifier).best_candidate
             )
             if candidate and candidate.link.requires_python:
                 try:
@@ -833,6 +848,12 @@ class Resolver:
 
         self.resolved_tree = new_tree
 
+    @property
+    def hash_finder(self):
+        if getattr(self, "_hash_finder", None) is None:
+            self._hash_finder = self.finder(ignore_compatibility=True)
+        return self._hash_finder
+
     def collect_hashes(self, ireq):
         link = ireq.link  # Handle VCS and file links first
         if link and (link.is_vcs or (link.is_file and link.is_existing_dir())):
@@ -861,9 +882,9 @@ class Resolver:
                     return hashes
 
         # Updated section to use applicable_candidates directly
-        best_candidate_result = self.finder(
-            ignore_compatibility=True
-        ).find_best_candidate(ireq.name, ireq.specifier)
+        best_candidate_result = self.hash_finder.find_best_candidate(
+            ireq.name, ireq.specifier
+        )
         if best_candidate_result.applicable_candidates:
             return sorted(
                 {

@@ -228,7 +228,9 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: pipenv-benchmark-stats
-          path: benchmarks/stats.csv
+          path: |
+            benchmarks/stats.csv
+            benchmarks/benchmark-results.json
           retention-days: 30
 
   build:
