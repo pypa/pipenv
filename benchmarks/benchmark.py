@@ -114,7 +114,10 @@ def _usage_delta(
     cpu_percent = ((user + system) / elapsed * 100.0) if elapsed else 0.0
     inputs = max(after.ru_inblock - before.ru_inblock, 0)
     outputs = max(after.ru_oublock - before.ru_oublock, 0)
-    return system, user, cpu_percent, int(after.ru_maxrss), int(inputs), int(outputs)
+    # ru_maxrss from RUSAGE_CHILDREN is a cumulative high-water mark across
+    # child processes, not a per-command measurement, so do not report it as
+    # if it belonged to the command being benchmarked.
+    return system, user, cpu_percent, 0, int(inputs), int(outputs)
 
 
 class PipenvBenchmark:
