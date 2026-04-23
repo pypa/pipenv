@@ -940,8 +940,12 @@ class Resolver:
         # Hash collection is mostly network-bound (PyPI JSON or simple-index
         # HTML), so we dispatch the per-ireq calls on a small thread pool.
         # collect_hashes reads resolver state that is stable post-resolve
-        # (sources, hash_finder, hash_cache); we commit results from this
-        # thread once all futures finish.
+        # (sources, hash_finder, hash_cache); eagerly initialize any lazily
+        # created shared state here on the main thread to avoid races between
+        # workers creating duplicate finders/caches/sessions.
+        _ = self.hash_finder
+        with contextlib.suppress(AttributeError):
+            _ = self.hash_cache
         max_workers = min(len(ireqs), 16)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             for ireq, hashes in zip(ireqs, pool.map(self.collect_hashes, ireqs)):
