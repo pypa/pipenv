@@ -1,0 +1,5 @@
+Install-time marker filtering now evaluates environment markers against the
+target virtualenv's Python version rather than the Python pipenv itself is
+running under.  This prevents spurious ``Ignoring …: markers … don't match
+your environment`` warnings (and the corresponding missing installs) when
+``pipenv sync --python X.Y`` is driven by a different system Python.

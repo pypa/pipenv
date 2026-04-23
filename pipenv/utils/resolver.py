@@ -48,6 +48,16 @@ from .internet import is_pypi_url
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 
+_VERSION_SPECIFIER_CHARS = frozenset("<>=!~, ")
+
+
+def _is_python_version_specifier(value):
+    """Return True if *value* looks like a PEP 440 specifier (e.g. ``>=3.9``)
+    rather than a literal version string.  Literal versions contain only digits
+    and dots; anything else indicates a specifier expression.
+    """
+    return any(ch in _VERSION_SPECIFIER_CHARS for ch in value)
+
 
 def _get_pipfile_python_override(project):
     """Determine python_version and python_full_version overrides from the Pipfile.
@@ -58,6 +68,10 @@ def _get_pipfile_python_override(project):
     that dependencies guarded by markers like
     ``python_full_version <= "3.11.2"`` are *included* in the lock file so that
     the lock file is portable across all patch releases of that minor version.
+
+    If the Pipfile instead specifies a PEP 440 specifier (e.g. ``">=3.9"``),
+    no concrete single version is implied; we return None so that the running
+    interpreter's actual version is used for marker evaluation.  See #6645.
 
     Returns a dict with ``python_version`` and ``python_full_version`` keys
     suitable for passing as an environment override, or *None* if no override
@@ -71,6 +85,9 @@ def _get_pipfile_python_override(project):
     python_ver = requires.get("python_version")
 
     if python_full and python_full != "*":
+        if _is_python_version_specifier(python_full):
+            # Range/specifier — no single concrete version implied.
+            return None
         # Explicit full version — use it directly.
         parts = python_full.split(".")
         return {
@@ -79,6 +96,9 @@ def _get_pipfile_python_override(project):
         }
 
     if python_ver and python_ver != "*":
+        if _is_python_version_specifier(python_ver):
+            # Range/specifier — no single concrete version implied.
+            return None
         parts = python_ver.split(".")
         if len(parts) < 2:
             # Major-only version (e.g. "3") is too imprecise for marker

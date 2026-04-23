@@ -269,8 +269,11 @@ def cmd_run(args, state, extra_args=None):
         err.print("Error: Missing argument 'command'.")
         sys.exit(1)
 
-    # extra_args contains everything after run_command (captured by parse_known_args).
-    run_args = list(extra_args or [])
+    # run_args captures everything after run_command via nargs=REMAINDER so that
+    # flags like ``-h`` pass through to the command instead of being consumed by
+    # argparse.  extra_args (root parse_known_args leftovers) is retained as a
+    # fallback for unusual cases.
+    run_args = list(getattr(args, "run_args", None) or []) + list(extra_args or [])
     do_run(
         state.project,
         command=args.run_command,
