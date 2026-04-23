@@ -66,3 +66,47 @@ def test_write_toml_invalidates_pipfile_cache(project):
         reloaded = project.parsed_pipfile
     assert spy.call_count == 1
     assert "newpkg" in reloaded.get("packages", {})
+
+
+@pytest.mark.utils
+def test_rapid_sequential_writes_are_each_visible(project):
+    """Back-to-back write_toml calls on the same mtime tick must still
+    produce fresh reads on subsequent parsed_pipfile accesses."""
+    for i in range(3):
+        doc = project.parsed_pipfile
+        doc["packages"][f"pkg_{i}"] = "*"
+        project.write_toml(doc)
+        refreshed = project.parsed_pipfile
+        assert f"pkg_{i}" in refreshed.get("packages", {})
+
+
+@pytest.mark.utils
+def test_in_place_mutation_then_write_yields_persisted_state(project, tmp_path):
+    """Mirrors the ensure_proper_casing / write_toml pattern where the cached
+    document is mutated in place before being written back."""
+    doc = project.parsed_pipfile
+    doc["packages"]["Pre-Cased-Pkg"] = "*"
+    # Mutating the cached doc before writing is the intended flow.
+    project.write_toml(doc)
+
+    on_disk = (tmp_path / "Pipfile").read_text()
+    assert "Pre-Cased-Pkg" in on_disk
+
+    reloaded = project.parsed_pipfile
+    assert "Pre-Cased-Pkg" in reloaded.get("packages", {})
+
+
+@pytest.mark.utils
+def test_write_toml_to_other_path_does_not_invalidate_pipfile_cache(
+    project, tmp_path
+):
+    """Writing a TOML blob to an unrelated path (e.g. an intermediate buffer)
+    must not drop the Pipfile cache."""
+    doc = project.parsed_pipfile
+    other = tmp_path / "snapshot.toml"
+    project.write_toml(doc, path=str(other))
+
+    with mock.patch.object(Project, "_parse_pipfile", wraps=project._parse_pipfile) as spy:
+        again = project.parsed_pipfile
+    assert spy.call_count == 0
+    assert again is doc
