@@ -56,7 +56,7 @@ def _is_python_version_specifier(value):
     rather than a literal version string.  Literal versions contain only digits
     and dots; anything else indicates a specifier expression.
     """
-    return any(ch in _VERSION_SPECIFIER_CHARS for ch in value)
+    return any(not (ch.isdigit() or ch == ".") for ch in value)
 
 
 def _get_pipfile_python_override(project):
