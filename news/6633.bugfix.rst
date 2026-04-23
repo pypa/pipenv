@@ -1,0 +1,8 @@
+Fix ``pipenv shell`` breaking terminal input echo on Linux.  The previous
+implementation toggled ``pexpect.setecho(True/False)`` around its internal
+setup commands, which fought with the shell's own readline termios management
+— producing permanently-disabled echo (GH-6572) or double-echoed keystrokes
+(``1234`` → ``11223344``).  ``fork_compat`` no longer touches pty termios;
+instead it drains the synchronisation sentinel from the pexpect buffer twice
+(once for the echoed command, once for its output) so nothing leaks into
+``interact()``.
