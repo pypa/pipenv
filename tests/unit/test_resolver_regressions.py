@@ -235,6 +235,10 @@ def test_resolve_hashes_runs_in_parallel():
     ireqs = [_HashableIreq(f"pkg-{i}") for i in range(32)]
     resolver.results = ireqs
     resolver.hashes = {}
+    # Pre-stub _hash_finder so the eager initialization in resolve_hashes
+    # does not attempt to build a real PackageFinder (which requires
+    # resolver.project and other live state that the stub resolver lacks).
+    resolver._hash_finder = mock.Mock()
 
     concurrent = 0
     peak = 0
@@ -292,16 +296,31 @@ def test_resolve_constraints_runs_candidate_lookup_in_parallel():
 
     concurrent = 0
     peak = 0
+    started = 0
     lock = threading.Lock()
+    overlap_barrier = threading.Barrier(2, timeout=5)
 
     def slow_find(name, specifier):
-        nonlocal concurrent, peak
+        nonlocal concurrent, peak, started
+        should_wait_for_overlap = False
         with lock:
             concurrent += 1
             peak = max(peak, concurrent)
-        threading.Event().wait(timeout=0.05)
-        with lock:
-            concurrent -= 1
+            started += 1
+            should_wait_for_overlap = started <= 2
+        try:
+            # Deterministically require the first two calls to overlap instead of
+            # relying on short real-time waits that can be flaky on slow CI.
+            if should_wait_for_overlap:
+                overlap_barrier.wait()
+        except threading.BrokenBarrierError:
+            pytest.fail(
+                "Timed out waiting for two find_best_candidate calls to overlap; "
+                "expected resolver candidate lookup to run in parallel."
+            )
+        finally:
+            with lock:
+                concurrent -= 1
         return SimpleNamespace(
             best_candidate=SimpleNamespace(link=SimpleNamespace(requires_python=None))
         )
