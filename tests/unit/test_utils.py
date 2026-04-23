@@ -2261,6 +2261,16 @@ class TestTargetMarkerEnvironment:
         assert install._target_marker_environment(project) is None
 
     @pytest.mark.utils
+    def test_returns_none_when_allow_global(self, monkeypatch):
+        """With allow_global=True the target IS the running interpreter; no override."""
+        from pipenv.routines import install
+
+        project = mock.MagicMock()
+        project.virtualenv_exists = True
+        project._which.return_value = "/fake/venv/bin/python"
+        assert install._target_marker_environment(project, allow_global=True) is None
+
+    @pytest.mark.utils
     def test_returns_none_when_no_virtualenv(self, monkeypatch):
         from pipenv.routines import install
 

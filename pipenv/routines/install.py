@@ -30,7 +30,7 @@ from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 
 
-def _target_marker_environment(project):
+def _target_marker_environment(project, allow_global=False):
     """Build a marker environment dict reflecting the venv's Python version.
 
     ``dep.markers.evaluate()`` defaults to marker variables from the *currently
@@ -39,11 +39,16 @@ def _target_marker_environment(project):
     system Python 3.10), evaluating markers in the host environment incorrectly
     filters out packages that actually apply to the target venv.  See #6647.
 
+    When ``allow_global=True`` the installation target is the system interpreter
+    (the same one running pipenv), so no override is needed.
+
     Returns a dict suitable for passing as ``environment=`` to ``Marker.evaluate``
     that overrides ``python_version`` and ``python_full_version``, or *None*
-    if no override is needed (venv matches host, or the venv's version can't
-    be determined).
+    if no override is needed (global install, venv matches host, or the venv's
+    version can't be determined).
     """
+    if allow_global:
+        return None
     try:
         if not project.virtualenv_exists:
             return None
@@ -798,7 +803,7 @@ def batch_install(
     deps_to_install.extend(sequential_deps)
     # Evaluate markers against the target venv's Python version rather than
     # the interpreter pipenv itself runs under.  See #6647.
-    marker_env = _target_marker_environment(project)
+    marker_env = _target_marker_environment(project, allow_global=allow_global)
     filtered_deps = []
     for dep, pip_line in deps_to_install:
         # Skip packages whose environment markers don't match the target
