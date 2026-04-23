@@ -14,6 +14,7 @@ from pipenv.utils.dependencies import (
     get_lockfile_section_using_pipfile_category,
     install_req_from_pipfile,
     normalize_editable_path_for_pip,
+    python_version,
 )
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
@@ -25,6 +26,51 @@ from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
+
+
+def _target_marker_environment(project, allow_global=False):
+    """Build a marker environment dict reflecting the venv's Python version.
+
+    ``dep.markers.evaluate()`` defaults to marker variables from the *currently
+    running* interpreter.  When pipenv runs under a different Python than the
+    virtualenv it manages (e.g. ``pipenv sync --python 3.12`` invoked by a
+    system Python 3.10), evaluating markers in the host environment incorrectly
+    filters out packages that actually apply to the target venv.  See #6647.
+
+    When ``allow_global=True`` the installation target is the system interpreter
+    (the same one running pipenv), so no override is needed.
+
+    Returns a dict suitable for passing as ``environment=`` to ``Marker.evaluate``
+    that overrides ``python_version`` and ``python_full_version``, or *None*
+    if no override is needed (global install, venv matches host, or the venv's
+    version can't be determined).
+    """
+    if allow_global:
+        return None
+    try:
+        if not project.virtualenv_exists:
+            return None
+        venv_python = project._which("python")
+    except Exception:
+        return None
+    if not venv_python:
+        return None
+    try:
+        venv_full_version = python_version(str(venv_python))
+    except Exception:
+        venv_full_version = None
+    if not venv_full_version:
+        return None
+    running_full = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
+    if venv_full_version == running_full:
+        return None
+    parts = venv_full_version.split(".")
+    if len(parts) < 2:
+        return None
+    return {
+        "python_version": ".".join(parts[:2]),
+        "python_full_version": venv_full_version,
+    }
 
 
 def _should_use_no_binary(pkg_name, extra_pip_args):
@@ -753,16 +799,23 @@ def batch_install(
 
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
+    # Evaluate markers against the target venv's Python version rather than
+    # the interpreter pipenv itself runs under.  See #6647.
+    marker_env = _target_marker_environment(project, allow_global=allow_global)
     filtered_deps = []
     for dep, pip_line in deps_to_install:
-        # Skip packages whose environment markers don't match the current
-        # Python environment (e.g. python_version < '3.11' on Python 3.11).
-        # This ensures pipenv install -r and pipenv sync behave consistently.
+        # Skip packages whose environment markers don't match the target
+        # venv's Python environment (e.g. python_version < '3.11' when
+        # targeting Python 3.11).  This keeps pipenv install -r and pipenv
+        # sync consistent and avoids false-positive "Ignoring …" warnings
+        # when the host python differs from the venv python.
         # KeyError can occur for pylock.toml markers that use non-PEP-508
         # variables like 'dependency_groups'; those are already filtered at
         # the lockfile level so we simply include the package here.
         try:
-            markers_match = not dep.markers or dep.markers.evaluate()
+            markers_match = not dep.markers or dep.markers.evaluate(
+                environment=marker_env
+            )
         except KeyError:
             markers_match = True
         if not markers_match:

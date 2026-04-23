@@ -961,7 +961,9 @@ def test_python_flag_defaults_to_none_when_absent():
 @pytest.mark.core
 def test_run_passes_verbose_to_remaining():
     """Regression test for GH-6626: ``pipenv run ./manage.py test --verbose``
-    must put ``--verbose`` into *remaining*, not consume it as a pipenv flag.
+    must pass ``--verbose`` through to the user's process, not consume it as a
+    pipenv flag.  As of #6641 pass-through args are captured in ``run_args``
+    (argparse REMAINDER) rather than the top-level ``remaining`` list.
     """
     from pipenv.cli.options import build_parser
 
@@ -969,7 +971,8 @@ def test_run_passes_verbose_to_remaining():
     args, remaining = parser.parse_known_args(
         ["run", "./manage.py", "test", "--verbose"]
     )
-    assert "--verbose" in remaining
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert "--verbose" in passthrough
 
 
 @pytest.mark.core
@@ -983,7 +986,8 @@ def test_run_passes_short_v_to_remaining():
     args, remaining = parser.parse_known_args(
         ["run", "./manage.py", "test", "-v"]
     )
-    assert "-v" in remaining
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert "-v" in passthrough
 
 
 @pytest.mark.core
@@ -995,8 +999,9 @@ def test_run_passes_quiet_to_remaining():
     args, remaining = parser.parse_known_args(
         ["run", "pytest", "-q", "--tb=short"]
     )
-    assert "-q" in remaining
-    assert "--tb=short" in remaining
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert "-q" in passthrough
+    assert "--tb=short" in passthrough
 
 
 @pytest.mark.core
@@ -1015,7 +1020,38 @@ def test_run_system_flag_still_works():
 
     assert args.system is True
     assert args.run_command == "python"
-    assert remaining == ["-c", "print('hi')"]
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert passthrough == ["-c", "print('hi')"]
+
+
+@pytest.mark.core
+def test_run_passes_dash_h_through_to_command():
+    """Regression test for GH-6641: ``pipenv run psql -h localhost`` must
+    pass ``-h`` through to psql instead of consuming it as pipenv's help flag.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "psql", "-h", "localhost"]
+    )
+    assert args.run_command == "psql"
+    assert args.help is False
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert passthrough == ["-h", "localhost"]
+
+
+@pytest.mark.core
+def test_run_help_before_command_still_shows_help():
+    """``pipenv run --help`` and ``pipenv run -h`` with no command must still
+    trigger help (not be swallowed by the REMAINDER positional)."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    for flag in ("--help", "-h"):
+        args, _ = parser.parse_known_args(["run", flag])
+        assert args.help is True, f"{flag} failed to set help"
+        assert args.run_command is None
 
 
 # --- Regression test for shell history pollution (GH-6627) ---

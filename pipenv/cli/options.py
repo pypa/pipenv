@@ -618,8 +618,9 @@ def build_parser():
     )
     # Only -h/--help and --system are intentionally kept on the run subparser:
     #   -h/--help — needed so ``pipenv run --help`` shows run-specific help.
-    #     Note: ``pipenv run cmd -h`` will also be consumed by argparse; users
-    #     can use ``pipenv run cmd -- -h`` to pass -h through to the command.
+    #     -h/--help placed *before* run_command triggers help; anything after
+    #     the command name is captured by ``run_args`` (nargs=REMAINDER) so
+    #     e.g. ``pipenv run psql -h host`` passes -h through to psql. See #6641.
     #   --system  — pipenv-specific flag used by do_run() to skip venv creation.
     #
     # Do NOT add _add_common_options here.  The run subparser must not
@@ -631,11 +632,14 @@ def build_parser():
     _add_system_option(p)
     #
     # Use dest="run_command" to avoid overwriting the subparser dest ("command").
-    # Do NOT add an "args" positional — everything after run_command is captured
-    # in parse_known_args()'s remaining list so flags like -c/-v/-x are not split
-    # from their values by argparse's option-detection heuristic.
+    # ``run_args`` uses argparse.REMAINDER so that every argument after the
+    # command name — including flags that happen to collide with pipenv's own
+    # options like ``-h`` — is captured verbatim and passed through unchanged.
     p.add_argument(
         "run_command", metavar="command", nargs="?", default=None, help="Command to run."
+    )
+    p.add_argument(
+        "run_args", nargs=argparse.REMAINDER, help=argparse.SUPPRESS
     )
 
     # ── check ─────────────────────────────────────────────────────────────────
