@@ -1405,14 +1405,15 @@ def get_constraints_from_deps(deps):
         c = None
         # Constraints cannot contain extras
         dep_name = dep_name.split("[", 1)[0]
+        canonical = canonicalize_name(dep_name)
         # Creating a constraint as a canonical name plus a version specifier
         if isinstance(dep_version, str):
             if dep_version and not is_star(dep_version):
                 if COMPARE_OP.match(dep_version) is None:
                     dep_version = f"=={dep_version}"
-                c = f"{canonicalize_name(dep_name)}{dep_version}"
+                c = f"{canonical}{dep_version}"
             else:
-                c = canonicalize_name(dep_name)
+                c = canonical
         elif not any(k in dep_version for k in ["path", "file", "uri"]):
             if dep_version.get("skip_resolver") is True:
                 continue
@@ -1420,9 +1421,9 @@ def get_constraints_from_deps(deps):
             if version and not is_star(version):
                 if COMPARE_OP.match(version) is None:
                     version = f"=={version}"
-                c = f"{canonicalize_name(dep_name)}{version}"
+                c = f"{canonical}{version}"
             else:
-                c = canonicalize_name(dep_name)
+                c = canonical
         if c:
             constraints.add(c)
     return constraints

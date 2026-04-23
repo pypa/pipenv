@@ -215,6 +215,125 @@ def test_resolve_constraints_reuses_package_finder():
 
 
 @pytest.mark.utils
+def test_resolve_hashes_runs_in_parallel():
+    """resolve_hashes should dispatch collect_hashes concurrently and still
+    populate resolver.hashes with every ireq -> hashes pair."""
+    import threading
+
+    resolver = Resolver.__new__(Resolver)
+
+    class _HashableIreq:
+        def __init__(self, name):
+            self.name = name
+
+        def __hash__(self):
+            return hash(self.name)
+
+        def __eq__(self, other):
+            return isinstance(other, _HashableIreq) and self.name == other.name
+
+    ireqs = [_HashableIreq(f"pkg-{i}") for i in range(32)]
+    resolver.results = ireqs
+    resolver.hashes = {}
+
+    concurrent = 0
+    peak = 0
+    lock = threading.Lock()
+    barrier_event = threading.Event()
+
+    def slow_collect(ireq):
+        nonlocal concurrent, peak
+        with lock:
+            concurrent += 1
+            peak = max(peak, concurrent)
+        # Give the pool a chance to actually overlap calls.
+        barrier_event.wait(timeout=0.5)
+        with lock:
+            concurrent -= 1
+        return {f"sha256:hash-for-{ireq.name}"}
+
+    resolver.collect_hashes = slow_collect
+    # Release all callers once at least two are in flight.
+    def _release_once_two_in_flight():
+        while True:
+            with lock:
+                if concurrent >= 2:
+                    barrier_event.set()
+                    return
+            threading.Event().wait(timeout=0.01)
+
+    releaser = threading.Thread(target=_release_once_two_in_flight, daemon=True)
+    releaser.start()
+
+    result = Resolver.resolve_hashes.fget(resolver)
+
+    assert peak >= 2, "collect_hashes should have run concurrently"
+    assert result is resolver.hashes
+    assert len(resolver.hashes) == len(ireqs)
+    for ireq in ireqs:
+        assert resolver.hashes[ireq] == {f"sha256:hash-for-{ireq.name}"}
+
+
+@pytest.mark.utils
+def test_resolve_constraints_runs_candidate_lookup_in_parallel():
+    """resolve_constraints should overlap find_best_candidate calls."""
+    import threading
+
+    from pipenv.patched.pip._internal.req.req_install import InstallRequirement  # noqa: F401
+
+    resolver = Resolver.__new__(Resolver)
+    resolver.resolved_tree = {
+        _ResolvedRequirement(f"pkg-{i}") for i in range(16)
+    }
+    resolver.markers = {}
+    resolver.markers_lookup = {}
+    resolver.pipfile_entries = {}
+
+    concurrent = 0
+    peak = 0
+    lock = threading.Lock()
+
+    def slow_find(name, specifier):
+        nonlocal concurrent, peak
+        with lock:
+            concurrent += 1
+            peak = max(peak, concurrent)
+        threading.Event().wait(timeout=0.05)
+        with lock:
+            concurrent -= 1
+        return SimpleNamespace(
+            best_candidate=SimpleNamespace(link=SimpleNamespace(requires_python=None))
+        )
+
+    finder = SimpleNamespace(find_best_candidate=slow_find)
+    resolver.finder = mock.Mock(return_value=finder)
+
+    Resolver.resolve_constraints(resolver)
+
+    assert peak >= 2, "find_best_candidate should have run concurrently"
+
+
+@pytest.mark.utils
+def test_prepare_index_lookup_is_cached():
+    resolver = Resolver.__new__(Resolver)
+    resolver._prepared_index_lookup = None
+    resolver.sources = [
+        {"name": "pypi", "url": "https://pypi.org/simple"},
+        {"name": "internal", "url": "https://example.com/simple"},
+    ]
+    resolver.index_lookup = {"foo": "internal"}
+
+    first = resolver.prepare_index_lookup()
+    # Mutate inputs after the first call — cached result should be returned.
+    resolver.sources.append({"name": "other", "url": "https://other"})
+    resolver.index_lookup["bar"] = "pypi"
+    second = resolver.prepare_index_lookup()
+
+    assert first is second
+    assert "bar" not in first
+
+
+@pytest.mark.utils
 def test_process_resolver_results_does_not_scan_reverse_dependencies():
     from pipenv.resolver import process_resolver_results
 
