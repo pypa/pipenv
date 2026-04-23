@@ -238,33 +238,34 @@ def test_resolve_hashes_runs_in_parallel():
 
     concurrent = 0
     peak = 0
+    started = 0
     lock = threading.Lock()
-    barrier_event = threading.Event()
+    overlap_barrier = threading.Barrier(2, timeout=5)
 
     def slow_collect(ireq):
-        nonlocal concurrent, peak
+        nonlocal concurrent, peak, started
+        should_wait_for_overlap = False
         with lock:
             concurrent += 1
             peak = max(peak, concurrent)
-        # Give the pool a chance to actually overlap calls.
-        barrier_event.wait(timeout=0.5)
-        with lock:
-            concurrent -= 1
+            started += 1
+            should_wait_for_overlap = started <= 2
+        try:
+            # Deterministically require the first two calls to overlap instead of
+            # relying on short real-time waits that can be flaky on slow CI.
+            if should_wait_for_overlap:
+                overlap_barrier.wait()
+        except threading.BrokenBarrierError:
+            pytest.fail(
+                "Timed out waiting for two collect_hashes calls to overlap; "
+                "expected resolver hash collection to run in parallel."
+            )
+        finally:
+            with lock:
+                concurrent -= 1
         return {f"sha256:hash-for-{ireq.name}"}
 
     resolver.collect_hashes = slow_collect
-    # Release all callers once at least two are in flight.
-    def _release_once_two_in_flight():
-        while True:
-            with lock:
-                if concurrent >= 2:
-                    barrier_event.set()
-                    return
-            threading.Event().wait(timeout=0.01)
-
-    releaser = threading.Thread(target=_release_once_two_in_flight, daemon=True)
-    releaser.start()
-
     result = Resolver.resolve_hashes.fget(resolver)
 
     assert peak >= 2, "collect_hashes should have run concurrently"
