@@ -1117,14 +1117,12 @@ class Project:
                         document[category][package] = tomlkit.string(data[category][package])
             formatted_data = tomlkit.dumps(document).rstrip()
 
-        if Path(path).absolute() == Path(self.pipfile_location).absolute():
-            newlines = self._pipfile_newlines
-        else:
-            newlines = DEFAULT_NEWLINES
+        is_pipfile = Path(path).resolve() == Path(self.pipfile_location).resolve()
+        newlines = self._pipfile_newlines if is_pipfile else DEFAULT_NEWLINES
         formatted_data = cleanup_toml(formatted_data)
         with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
-        if Path(path).absolute() == Path(self.pipfile_location).absolute():
+        if is_pipfile:
             self._parsed_pipfile_cache = None
             self._parsed_pipfile_mtime_ns = None
 
