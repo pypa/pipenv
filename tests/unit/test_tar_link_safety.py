@@ -245,4 +245,4 @@ def test_untar_file_blocks_escaping_hardlink_on_modern_cpython(tmp_path):
 
     with pytest.raises(InstallationError):
         untar_file(str(tar_path), str(extract_dir))
-    assert not (tmp_path / "etc-passwd-shadow").exists()
+    assert not (extract_dir / "pkg" / "escape").exists()
