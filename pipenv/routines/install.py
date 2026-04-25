@@ -14,7 +14,9 @@ from pipenv.utils.dependencies import (
     get_lockfile_section_using_pipfile_category,
     install_req_from_pipfile,
     normalize_editable_path_for_pip,
-    python_version,
+)
+from pipenv.utils.dependencies import (
+    python_version as _python_version_for_path,
 )
 from pipenv.utils.indexes import get_source_list
 from pipenv.utils.internet import download_file, is_valid_url
@@ -56,7 +58,7 @@ def _target_marker_environment(project, allow_global=False):
     if not venv_python:
         return None
     try:
-        venv_full_version = python_version(str(venv_python))
+        venv_full_version = _python_version_for_path(str(venv_python))
     except Exception:
         venv_full_version = None
     if not venv_full_version:
