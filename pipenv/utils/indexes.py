@@ -7,7 +7,7 @@ from pipenv.exceptions import PipenvUsageError
 from pipenv.patched.pip._vendor.urllib3.util import parse_url
 from pipenv.utils.constants import MYPY_RUNNING
 
-from .internet import create_mirror_source, is_pypi_url
+from .internet import _strip_credentials_from_url, create_mirror_source, is_pypi_url
 
 if MYPY_RUNNING:
     from typing import List, Optional, Union  # noqa
@@ -16,6 +16,15 @@ if MYPY_RUNNING:
 
 
 def prepare_pip_source_args(sources, pip_args=None):
+    """Build pip CLI args for ``sources``.
+
+    Credentials embedded in source URLs are stripped before they are added
+    to the argument list — argv is exposed to other local users via
+    ``ps aux`` and ``/proc/<pid>/cmdline``, so passing secrets there leaks
+    them.  Pip recovers the credentials from a netrc file that pipenv
+    writes alongside the subprocess invocation (or from any user-configured
+    keyring/netrc).  See GHSA-8xgg-v3jj-95m2.
+    """
     if pip_args is None:
         pip_args = []
     if sources:
@@ -23,10 +32,11 @@ def prepare_pip_source_args(sources, pip_args=None):
         package_url = sources[0].get("url")
         if not package_url:
             raise PipenvUsageError("[[source]] section does not contain a URL.")
-        pip_args.extend(["-i", package_url])
+        sanitized_url, _ = _strip_credentials_from_url(package_url)
+        pip_args.extend(["-i", sanitized_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            url_parts = parse_url(package_url)
+            url_parts = parse_url(sanitized_url)
             url_port = f":{url_parts.port}" if url_parts.port else ""
             pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
         # Add additional sources as extra indexes.
@@ -35,10 +45,11 @@ def prepare_pip_source_args(sources, pip_args=None):
                 url = source.get("url")
                 if not url:  # not harmless, just don't continue
                     continue
-                pip_args.extend(["--extra-index-url", url])
+                sanitized_extra_url, _ = _strip_credentials_from_url(url)
+                pip_args.extend(["--extra-index-url", sanitized_extra_url])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
-                    url_parts = parse_url(url)
+                    url_parts = parse_url(sanitized_extra_url)
                     url_port = f":{url_parts.port}" if url_parts.port else ""
                     pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
     return pip_args

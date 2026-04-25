@@ -7,6 +7,10 @@ from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.utils import err
 from pipenv.utils.fileutils import create_tracked_tempdir, normalize_path
 from pipenv.utils.indexes import prepare_pip_source_args
+from pipenv.utils.internet import (
+    _strip_credentials_from_url,
+    write_credentials_netrc,
+)
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 
@@ -135,11 +139,21 @@ def pip_install_deps(
                 if env_val:
                     pip_config[env_key] = env_val
         if sources:
-            pip_config["PIP_INDEX_URL"] = sources[0].get("url", "")
+            # Strip embedded credentials from index URLs we expose via
+            # environment variables.  PIP_INDEX_URL / PIP_EXTRA_INDEX_URL
+            # are still passed for parity with the CLI args, but the actual
+            # credentials are delivered out-of-band through the temporary
+            # netrc written below.  See GHSA-8xgg-v3jj-95m2.
+            primary_url, _ = _strip_credentials_from_url(sources[0].get("url", ""))
+            pip_config["PIP_INDEX_URL"] = primary_url or ""
             if len(sources) > 1:
                 pip_config["PIP_EXTRA_INDEX_URL"] = " ".join(
-                    s.get("url", "") for s in sources[1:]
+                    (_strip_credentials_from_url(s.get("url", ""))[0] or "")
+                    for s in sources[1:]
                 )
+            netrc_path = write_credentials_netrc(sources, requirements_dir)
+            if netrc_path:
+                pip_config["NETRC"] = netrc_path
         if src_dir:
             if project.s.is_verbose():
                 err.print(f"Using source directory: {src_dir!r}")

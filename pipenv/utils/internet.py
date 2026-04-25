@@ -1,7 +1,8 @@
 import os
 import re
 from html.parser import HTMLParser
-from urllib.parse import urlparse
+from typing import Optional, Tuple
+from urllib.parse import unquote, urlparse, urlunsplit
 
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
@@ -132,6 +133,128 @@ def proper_case(package_name):
     good_name = match.group(1)
 
     return good_name
+
+
+def _strip_credentials_from_url(
+    url: Optional[str],
+) -> Tuple[Optional[str], Optional[Tuple[str, str]]]:
+    """Split userinfo (username/password) out of a URL.
+
+    Returns ``(stripped_url, (username, password))``.  When the URL has no
+    embedded credentials the second element is ``None`` and the URL is
+    returned unchanged.  Username and password are URL-decoded so callers
+    can hand them straight to authentication backends (e.g. netrc).
+
+    See GHSA-8xgg-v3jj-95m2: pipenv must not propagate credentials embedded
+    in source URLs to subprocess argv where they are visible via ``ps`` and
+    ``/proc/<pid>/cmdline``.
+    """
+    if not url:
+        return url, None
+    parsed = urlparse(url)
+    if not parsed.username and not parsed.password:
+        return url, None
+
+    host = parsed.hostname or ""
+    netloc = f"{host}:{parsed.port}" if parsed.port else host
+    stripped = urlunsplit(
+        (parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment)
+    )
+    username = unquote(parsed.username) if parsed.username else ""
+    password = unquote(parsed.password) if parsed.password else ""
+    return stripped, (username, password)
+
+
+def _read_existing_netrc_content() -> str:
+    """Read the user's existing netrc file (if any) so that we can preserve
+    its entries when writing a temporary netrc.  Returns an empty string when
+    no netrc is configured or readable.
+    """
+    candidates = []
+    netrc_env = os.environ.get("NETRC")
+    if netrc_env:
+        candidates.append(netrc_env)
+    home = os.path.expanduser("~")
+    if home and home != "~":
+        if os.name == "nt":
+            candidates.extend([os.path.join(home, "_netrc"), os.path.join(home, ".netrc")])
+        else:
+            candidates.append(os.path.join(home, ".netrc"))
+    for path in candidates:
+        if not path or not os.path.isfile(path):
+            continue
+        try:
+            with open(path, encoding="utf-8") as fh:
+                return fh.read()
+        except OSError:
+            continue
+    return ""
+
+
+def write_credentials_netrc(sources, directory) -> Optional[str]:
+    """Write a netrc file containing credentials extracted from source URLs.
+
+    Pipenv strips userinfo from index URLs before they reach pip's argv (to
+    avoid leaking secrets via process listings, GHSA-8xgg-v3jj-95m2).  We
+    re-introduce those credentials to pip via a temporary netrc file whose
+    location is exposed through the ``NETRC`` environment variable.  Pip
+    (via its vendored ``requests``) will consult this file when it needs
+    HTTP basic auth for an index host.
+
+    Existing user netrc entries are preserved by appending the contents of
+    the user's netrc to the temporary file, so unrelated machines remain
+    authenticatable.
+
+    Returns the absolute path to the netrc file, or ``None`` when no
+    credentialed sources were supplied.
+    """
+    if not sources:
+        return None
+
+    machine_blocks = []
+    seen_hosts = set()
+    for source in sources:
+        url = source.get("url") if isinstance(source, dict) else None
+        if not url:
+            continue
+        _, creds = _strip_credentials_from_url(url)
+        if creds is None:
+            continue
+        username, password = creds
+        host = urlparse(url).hostname
+        if not host or host in seen_hosts:
+            continue
+        seen_hosts.add(host)
+        machine_blocks.append(
+            f"machine {host}\n  login {username}\n  password {password}\n"
+        )
+
+    if not machine_blocks:
+        return None
+
+    existing = _read_existing_netrc_content().strip()
+    body = "\n".join(machine_blocks)
+    if existing:
+        body = f"{body}\n{existing}\n"
+
+    netrc_path = os.path.join(str(directory), "pipenv-netrc")
+    # Write with restrictive permissions: netrc parsers (and pip's vendored
+    # requests) refuse to read world-readable netrc files on POSIX systems.
+    fd = os.open(
+        netrc_path,
+        os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+        0o600,
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(body)
+    except Exception:
+        try:
+            os.unlink(netrc_path)
+        except OSError:
+            pass
+        raise
+    return netrc_path
 
 
 class PackageIndexHTMLParser(HTMLParser):
