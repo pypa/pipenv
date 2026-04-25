@@ -546,6 +546,9 @@ twine = "*"
                     "custom.example.com:12345",
                 ],
             ),
+            # GHSA-8xgg-v3jj-95m2: credentials embedded in source URLs must
+            # NOT be passed to pip via argv (visible in `ps`/`/proc/<pid>/cmdline`).
+            # `prepare_pip_source_args` strips userinfo from the URL.
             (
                 [
                     {"url": "https://pypi.org/simple"},
@@ -558,7 +561,7 @@ twine = "*"
                     "-i",
                     "https://pypi.org/simple",
                     "--extra-index-url",
-                    "https://user:password@custom.example.com/simple",
+                    "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
                 ],
@@ -572,7 +575,7 @@ twine = "*"
                     "-i",
                     "https://pypi.org/simple",
                     "--extra-index-url",
-                    "https://user:password@custom.example.com/simple",
+                    "https://custom.example.com/simple",
                 ],
             ),
             (
@@ -584,7 +587,7 @@ twine = "*"
                 ],
                 [
                     "-i",
-                    "https://user:password@custom.example.com/simple",
+                    "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
                 ],
@@ -599,6 +602,46 @@ twine = "*"
         sources = [{}]
         with pytest.raises(PipenvUsageError):
             indexes.prepare_pip_source_args(sources, pip_args=None)
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "sources",
+        [
+            [
+                {
+                    "url": "https://user:SuperSecret123@10.255.255.1/simple",
+                    "verify_ssl": True,
+                    "name": "private",
+                }
+            ],
+            [
+                {"url": "https://pypi.org/simple"},
+                {
+                    "url": "https://__token__:gha_top_secret@private.example.com/simple",
+                    "verify_ssl": False,
+                },
+            ],
+        ],
+    )
+    def test_prepare_pip_source_args_does_not_leak_credentials(self, sources):
+        """GHSA-8xgg-v3jj-95m2: credentials embedded in source URLs must not
+        appear in the argv list passed to pip — argv is exposed to other local
+        users via ``ps`` and ``/proc/<pid>/cmdline``.
+        """
+        args = indexes.prepare_pip_source_args(sources, pip_args=None)
+        joined = " ".join(args)
+        for source in sources:
+            url = source["url"]
+            from urllib.parse import urlparse
+
+            parsed = urlparse(url)
+            if parsed.password:
+                assert parsed.password not in joined, (
+                    f"Password for {url} leaked into pip argv: {args}"
+                )
+            if parsed.username:
+                # Userinfo (whether name or token) must also be stripped.
+                assert f"{parsed.username}@" not in joined
 
     @pytest.mark.utils
     def test_project_python_tries_python3_before_python_if_system_is_true(self):

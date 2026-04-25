@@ -201,74 +201,71 @@ class Shell:
             os.environ.pop("LINES", None)
             c = pexpect.spawn(self.cmd, ["-i"], dimensions=(dims.lines, dims.columns))
 
-        # Always disable PTY echo while sending the internal setup commands
-        # (activate script + deactivate wrapper) so they are not printed on
-        # the user's terminal.  These are implementation details and should be
-        # invisible regardless of --quiet mode.
-        # See: https://github.com/pypa/pipenv/issues/5954
-        #      https://github.com/pypa/pipenv/issues/6531
+        # NOTE ON TERMINAL ECHO (GH-6633):
+        # Previous versions of this function toggled ``c.setecho(False)`` /
+        # ``setecho(True)`` around the setup commands to hide them from the
+        # user.  This was fundamentally unsound:
+        #
+        # * ``setecho(True)`` at the end re-enables kernel pty ECHO *after*
+        #   the shell's readline has already set stty -echo for its own line
+        #   editing.  Because readline does its own echo, the user then sees
+        #   every keystroke twice (the kernel echo + readline's echo) — hence
+        #   the "1234 -> 11223344" and "^C -> ^C^C" symptoms in #6633.
+        # * ``setecho(False)`` before readline initialises causes readline to
+        #   save echo-off as its baseline termios state, so every new prompt
+        #   permanently disables echo.
+        #
+        # The correct approach is to leave the pty's termios completely alone
+        # and rely on pexpect's expect() calls to drain the setup commands
+        # from the buffer before handing the pty over to ``interact()``.  The
+        # sentinel must be consumed *twice* in that drain: once for the shell
+        # echoing back the command it received (readline or kernel echo), and
+        # once for the command's actual output.
+
+        # Prefix every internal command with a leading space so that shells
+        # configured with HISTCONTROL=ignorespace (the default on most
+        # distributions) do not record them in the command history.
+        # See: https://github.com/pypa/pipenv/issues/6627
+        _STARTUP_SENTINEL = "__PIPENV_STARTUP_READY__"
+        _SENTINEL = "__PIPENV_SHELL_READY__"
+
+        # Wait for the shell to finish its startup (including any
+        # interactive prompts such as oh-my-zsh's update dialogue) before
+        # sending the activate script.  Without this, the activate command
+        # is consumed by whatever prompt appears first, and the virtualenv
+        # never gets activated.  See: https://github.com/pypa/pipenv/issues/3615
+        c.sendline(f" echo {_STARTUP_SENTINEL}")
         try:
-            c.setecho(False)
+            c.expect(_STARTUP_SENTINEL, timeout=30)
         except Exception:
-            pass  # setecho may not be supported on all platforms
+            pass  # best-effort: continue even if the sentinel is not seen
 
+        c.sendline(_get_activate_script(self.cmd, venv))
+
+        # Wrap the deactivate function to also unset PIPENV_ACTIVE.
+        deactivate_wrapper = _get_deactivate_wrapper_script(self.cmd)
+        if deactivate_wrapper:
+            c.sendline(f" {deactivate_wrapper}")
+
+        if args:
+            c.sendline(" ".join(args))
+
+        # Final synchronisation and buffer drain before interact() takes over.
+        #
+        # Each ``sendline`` causes the shell to echo the typed command back
+        # into the pty stream (once), then later produce the command's
+        # actual output (for ``echo``, that's a second copy of the
+        # sentinel).  ``expect()`` consumes output up to and including the
+        # *first* match — so we must expect the sentinel twice to consume
+        # both the echoed-command line and the echoed-output line.  Without
+        # this, ``__PIPENV_SHELL_READY__`` is left in the pexpect buffer and
+        # leaks to the user's terminal when ``interact()`` flushes it.
+        c.sendline(f" echo {_SENTINEL}")
         try:
-            # Wait for the shell to finish its startup (including any
-            # interactive prompts such as oh-my-zsh's update dialogue)
-            # before sending the activate script.  Without this, the
-            # activate command is consumed by whatever prompt appears
-            # first, and the virtualenv never gets activated.
-            # See: https://github.com/pypa/pipenv/issues/3615
-            # Prefix every internal command with a space so that shells
-            # configured with HISTCONTROL=ignorespace (the default on most
-            # distributions) do not record them in the command history.
-            # See: https://github.com/pypa/pipenv/issues/6627
-            _STARTUP_SENTINEL = "__PIPENV_STARTUP_READY__"
-            c.sendline(f" echo {_STARTUP_SENTINEL}")
-            try:
-                c.expect(_STARTUP_SENTINEL, timeout=30)
-            except Exception:
-                pass  # best-effort: continue even if the sentinel is not seen
-
-            c.sendline(_get_activate_script(self.cmd, venv))
-
-            # Wrap the deactivate function to also unset PIPENV_ACTIVE
-            deactivate_wrapper = _get_deactivate_wrapper_script(self.cmd)
-            if deactivate_wrapper:
-                c.sendline(f" {deactivate_wrapper}")
-
-            if args:
-                c.sendline(" ".join(args))
-
-            # Synchronise with the shell before re-enabling echo.
-            #
-            # Without this, there is a race condition on Docker / pty-over-pty
-            # environments (e.g. Debian 13.4 + python:3.14-slim): the shell's
-            # own readline/terminal initialisation runs asynchronously and can
-            # re-disable echo *after* our setecho(True) call, leaving the
-            # interactive session with echo permanently off so that typed
-            # characters are invisible.
-            #
-            # By sending a sentinel line and blocking until the shell echoes it
-            # back we guarantee that all previously queued commands have been
-            # fully processed and the shell is idle before we restore echo.
-            # The sentinel output is consumed by expect() and never shown to
-            # the user (PTY echo is still off at this point).
-            # See: https://github.com/pypa/pipenv/issues/6572
-            _SENTINEL = "__PIPENV_SHELL_READY__"
-            c.sendline(f" echo {_SENTINEL}")
-            try:
-                c.expect(_SENTINEL, timeout=10)
-            except Exception:
-                pass  # timeout or pattern-not-found: best-effort, continue
-        finally:
-            # Re-enable echo so the interactive session behaves normally.
-            # This runs after the sentinel sync (or immediately on exception),
-            # so the shell is guaranteed to be settled before echo is turned on.
-            try:
-                c.setecho(True)
-            except Exception:
-                pass
+            c.expect(_SENTINEL, timeout=10)
+            c.expect(_SENTINEL, timeout=10)
+        except Exception:
+            pass  # pattern-not-found or timeout: best-effort, continue
 
         # Handler for terminal resizing events
         # Must be defined here to have the shell process in its context, since

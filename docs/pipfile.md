@@ -77,6 +77,7 @@ sentry-sdk = {version = ">=1.0.0", extras = ["flask"]}
 
 # Git repositories
 flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "master"}
+my-package = {git = "ssh://git@github.com/bob/my-package.git", ref = "main"}
 
 # Local paths (relative filesystem path)
 my-package = { path = "./path/to/local/package" }
@@ -395,12 +396,15 @@ django = {version = "*", extras = ["bcrypt"]}
 
 ### Git Dependencies
 
-You can install packages directly from Git repositories:
+You can install packages directly from Git repositories.
+It supports both HTTPS and SSH URLs.
+SSH is generally preferred for private repositories, as they can require SSH authentication.
 
 ```toml
 [packages]
 flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "master"}
 custom-package = {git = "https://github.com/user/repo.git", editable = true}
+my-private-package = {git = "ssh://git@github.com/bob/my-package.git", ref = "main"}
 ```
 
 ### Local and Remote File Dependencies

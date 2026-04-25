@@ -46,7 +46,7 @@ from .dependencies import (
     prepare_constraint_file,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
-from .internet import is_pypi_url
+from .internet import is_pypi_url, write_credentials_netrc
 from .locking import format_requirement_for_lockfile, prepare_lockfile
 from .shell import make_posix, subprocess_run, temp_environ
 
@@ -1251,6 +1251,16 @@ def _append_resolved_default_deps_args(cmd, resolved_default_deps):
     cmd.append(default_deps_file.name)
 
 
+def _set_resolver_netrc(project, req_dir):
+    """Write a temporary netrc with credentials extracted from Pipfile sources
+    and expose it via ``NETRC`` so the resolver subprocess can authenticate
+    to private indexes without those credentials appearing in pip argv.
+    """
+    netrc_path = write_credentials_netrc(project.pipfile_sources(), req_dir)
+    if netrc_path:
+        os.environ["NETRC"] = netrc_path
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -1342,6 +1352,12 @@ def venv_resolve_deps(
         keyring_provider = project.s.PIPENV_KEYRING_PROVIDER
         if keyring_provider:
             os.environ["PIP_KEYRING_PROVIDER"] = keyring_provider
+        # Pipenv strips credentials from URLs that flow into pip argv to
+        # avoid leaking secrets via process listings (GHSA-8xgg-v3jj-95m2).
+        # Re-inject them out-of-band through a temporary netrc file so that
+        # the resolver subprocess (and the in-process pip session it
+        # creates) can still authenticate to private indexes.
+        _set_resolver_netrc(project, req_dir)
         pipenv_site_dir = get_pipenv_sitedir()
         if pipenv_site_dir is not None:
             os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
