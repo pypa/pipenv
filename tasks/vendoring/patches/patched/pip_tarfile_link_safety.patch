@@ -1,0 +1,83 @@
+diff --git a/pipenv/patched/pip/_internal/utils/unpacking.py b/pipenv/patched/pip/_internal/utils/unpacking.py
+index 6d60b33e..3dfbc9a8 100644
+--- a/pipenv/patched/pip/_internal/utils/unpacking.py
++++ b/pipenv/patched/pip/_internal/utils/unpacking.py
+@@ -87,6 +87,43 @@ def is_within_directory(directory: str, target: str) -> bool:
+     return prefix == abs_directory
+ 
+ 
++def _tar_link_target_is_within(
++    member: tarfile.TarInfo, destination: str
++) -> bool:
++    """Return True if the resolved target of a tar hardlink/symlink member
++    stays inside ``destination``.
++
++    This re-implements the containment check that ``tarfile.data_filter``
++    performs, so that we can independently validate link safety when
++    falling back to the more permissive ``tar_filter`` on CPython patch
++    versions affected by https://github.com/python/cpython/issues/107845.
++    Without this check the fallback would silently extract hardlinks that
++    point outside the destination directory (GHSA-p4qx-p8p6-4gjf).
++
++    Non-link members and members with absolute or empty link targets are
++    treated as outside the destination — this function only returns True
++    when the link target is unambiguously inside.
++    """
++    if not (member.islnk() or member.issym()):
++        return False
++    linkname = member.linkname
++    if not linkname or os.path.isabs(linkname):
++        return False
++    dest = os.path.realpath(destination)
++    if member.issym():
++        # Symlink targets are resolved relative to the directory of the link.
++        target = os.path.join(dest, os.path.dirname(member.name), linkname)
++    else:
++        # Hardlink targets are paths within the archive (relative to root).
++        target = os.path.join(dest, linkname)
++    target = os.path.realpath(target)
++    try:
++        return os.path.commonpath([dest, target]) == dest
++    except ValueError:
++        # Different drives on Windows — definitely outside.
++        return False
++
++
+ def _get_default_mode_plus_executable() -> int:
+     return 0o777 & ~current_umask() | 0o111
+ 
+@@ -209,16 +246,24 @@ def untar_file(filename: str, location: str) -> None:
+                     try:
+                         member = data_filter(member, location)
+                     except tarfile.LinkOutsideDestinationError:
+-                        if sys.version_info[:3] in {
+-                            (3, 9, 17),
+-                            (3, 10, 12),
+-                            (3, 11, 4),
+-                        }:
+-                            # The tarfile filter in specific Python versions
+-                            # raises LinkOutsideDestinationError on valid input
+-                            # (https://github.com/python/cpython/issues/107845)
+-                            # Ignore the error there, but do use the
+-                            # more lax `tar_filter`
++                        # CPython 3.9.17 / 3.10.12 / 3.11.4 shipped a buggy
++                        # ``data_filter`` that raised ``LinkOutsideDestinationError``
++                        # for some link members whose targets actually stayed
++                        # inside the destination
++                        # (https://github.com/python/cpython/issues/107845).
++                        # The historical workaround was to fall back to the
++                        # more permissive ``tar_filter`` — but that filter
++                        # does *not* perform link-target containment checks,
++                        # so attacker-controlled hardlinks could be allowed
++                        # to point outside the destination directory
++                        # (GHSA-p4qx-p8p6-4gjf).  Re-validate containment
++                        # ourselves here and only fall back when the link
++                        # truly stays inside; otherwise fail closed.
++                        if (
++                            sys.version_info[:3]
++                            in {(3, 9, 17), (3, 10, 12), (3, 11, 4)}
++                            and _tar_link_target_is_within(member, location)
++                        ):
+                             member = tarfile.tar_filter(member, location)
+                         else:
+                             raise
