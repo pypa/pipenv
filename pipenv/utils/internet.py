@@ -245,9 +245,15 @@ def write_credentials_netrc(sources, directory) -> Optional[str]:
         0o600,
     )
     try:
-        os.fchmod(fd, 0o600)
+        if hasattr(os, "fchmod"):
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write(body)
+        if not hasattr(os, "fchmod"):
+            try:
+                os.chmod(netrc_path, 0o600)
+            except OSError:
+                pass
     except Exception:
         try:
             os.unlink(netrc_path)
