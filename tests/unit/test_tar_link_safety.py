@@ -159,6 +159,8 @@ def _force_buggy_cpython(monkeypatch):
     CPython patch versions: ``data_filter`` always raises
     ``LinkOutsideDestinationError`` for link members.
     """
+    if not hasattr(tarfile, "data_filter"):
+        pytest.skip("tarfile.data_filter is unavailable on this Python build")
     real_data_filter = tarfile.data_filter
 
     def fake_data_filter(member, dest_path):
