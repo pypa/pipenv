@@ -113,11 +113,12 @@ def test_link_target_is_within_returns_false_for_non_link(tmp_path):
 # ----------------------------------------------------------------------------
 
 
-def _build_malicious_tar(tar_path: str, target_dir: str) -> None:
+def _build_malicious_tar(tar_path: str) -> None:
     """Write a tar archive containing:
 
     * a regular file ``pkg/real`` so a hardlink can point at it, and
-    * a hardlink ``pkg/escape`` whose linkname escapes ``target_dir``.
+    * a hardlink ``pkg/escape`` with a linkname that escapes the destination
+      (``../../etc-passwd-shadow``).
     """
     with tarfile.open(tar_path, "w") as tar:
         # Regular file inside the archive root.
@@ -183,7 +184,7 @@ def test_untar_file_blocks_escaping_hardlink_on_buggy_cpython(monkeypatch, tmp_p
     tar_path = tmp_path / "malicious.tar"
     extract_dir = tmp_path / "extract"
     extract_dir.mkdir()
-    _build_malicious_tar(str(tar_path), str(extract_dir))
+    _build_malicious_tar(str(tar_path))
 
     _force_buggy_cpython(monkeypatch)
 
@@ -240,7 +241,7 @@ def test_untar_file_blocks_escaping_hardlink_on_modern_cpython(tmp_path):
     tar_path = tmp_path / "malicious.tar"
     extract_dir = tmp_path / "extract"
     extract_dir.mkdir()
-    _build_malicious_tar(str(tar_path), str(extract_dir))
+    _build_malicious_tar(str(tar_path))
 
     # Force the runtime to *not* be considered buggy so the fallback is
     # never reached — exercises the default code path.
@@ -250,4 +251,7 @@ def test_untar_file_blocks_escaping_hardlink_on_modern_cpython(tmp_path):
 
     with pytest.raises(InstallationError):
         untar_file(str(tar_path), str(extract_dir))
-    assert not (extract_dir / "pkg" / "escape").exists()
+    # ``untar_file`` strips the shared leading ``pkg/`` directory, so the
+    # hardlink member would land at ``extract_dir / "escape"`` if extraction
+    # incorrectly proceeded.
+    assert not (extract_dir / "escape").exists()
