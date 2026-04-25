@@ -64,6 +64,82 @@ def pip_install_deps(
         elif editable_requirements not in files:
             files.append(editable_requirements)
 
+    # Build per-invocation pip config values that are constant across all
+    # file-based pip subprocesses.  In particular, write the temporary netrc
+    # file *once* here so that concurrent subprocesses (hashed reqs + editable
+    # reqs) all read the same stable file rather than racing to rewrite it.
+    # See GHSA-8xgg-v3jj-95m2.
+    cache_dir = Path(project.s.PIPENV_CACHE_DIR)
+    default_exists_action = "w"
+    exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
+    # Validate PIP_EXISTS_ACTION — pip only accepts s/i/w/b/a (#5063).
+    _valid_exists_actions = {"s", "i", "w", "b", "a"}
+    if exists_action not in _valid_exists_actions:
+        err.print(
+            f"[yellow]Warning:[/yellow] PIP_EXISTS_ACTION=[cyan]{exists_action!r}[/cyan] "
+            f"is not a valid pip exists-action. "
+            f"Valid values are: {', '.join(sorted(_valid_exists_actions))}. "
+            "Falling back to [cyan]'w'[/cyan] (wipe)."
+        )
+        exists_action = default_exists_action
+    # Suppress pip.conf index configuration so that only Pipfile [[source]]
+    # entries are used.  This prevents pip.conf extra-index-url (e.g.
+    # piwheels) from injecting indexes at install time that were not
+    # declared in the Pipfile, which would bypass pipenv's index safety
+    # model and cause hash-mismatch errors.
+    # Users who need a custom index (e.g. piwheels) should declare it as a
+    # [[source]] in their Pipfile.
+    base_pip_config = {
+        "PIP_CACHE_DIR": cache_dir.as_posix(),
+        "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),
+        "PIP_DESTINATION_DIR": cache_dir.joinpath("pkgs").as_posix(),
+        "PIP_EXISTS_ACTION": exists_action,
+        "PIP_CONFIG_FILE": os.devnull,
+        "PATH": os.environ.get("PATH"),
+    }
+    # Pass through keyring provider so that credential managers
+    # (e.g. Windows Credential Manager) work during install.
+    # See https://github.com/pypa/pipenv/issues/5715
+    keyring_provider = project.s.PIPENV_KEYRING_PROVIDER or os.environ.get(
+        "PIP_KEYRING_PROVIDER"
+    )
+    if keyring_provider:
+        base_pip_config["PIP_KEYRING_PROVIDER"] = keyring_provider
+    # When installing to the system (--system), pass through PIP_BREAK_SYSTEM_PACKAGES
+    # to support PEP 668 externally-managed environments (e.g. Ubuntu 23.04+, Debian 12+).
+    # This can be enabled via PIPENV_BREAK_SYSTEM_PACKAGES=1 or PIP_BREAK_SYSTEM_PACKAGES=1.
+    if allow_global:
+        break_system = project.s.PIPENV_BREAK_SYSTEM_PACKAGES or os.environ.get(
+            "PIP_BREAK_SYSTEM_PACKAGES"
+        )
+        if break_system:
+            base_pip_config["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
+        # Pass through PIP_IGNORE_INSTALLED and PIP_USER if set in the environment
+        for env_key in ("PIP_IGNORE_INSTALLED", "PIP_USER"):
+            env_val = os.environ.get(env_key)
+            if env_val:
+                base_pip_config[env_key] = env_val
+    if sources:
+        # Strip embedded credentials from index URLs we expose via
+        # environment variables.  PIP_INDEX_URL / PIP_EXTRA_INDEX_URL
+        # are still passed for parity with the CLI args, but the actual
+        # credentials are delivered out-of-band through the temporary
+        # netrc written below.  See GHSA-8xgg-v3jj-95m2.
+        primary_url, _ = _strip_credentials_from_url(sources[0].get("url", ""))
+        base_pip_config["PIP_INDEX_URL"] = primary_url or ""
+        if len(sources) > 1:
+            base_pip_config["PIP_EXTRA_INDEX_URL"] = " ".join(
+                (_strip_credentials_from_url(s.get("url", ""))[0] or "")
+                for s in sources[1:]
+            )
+        netrc_path = write_credentials_netrc(sources, requirements_dir)
+        if netrc_path:
+            base_pip_config["NETRC"] = netrc_path
+    if src_dir:
+        if project.s.is_verbose():
+            err.print(f"Using source directory: {src_dir!r}")
+        base_pip_config.update({"PIP_SRC": src_dir})
+
     for file in files:
         pip_command = [
             project_python(project, system=allow_global),
@@ -88,76 +164,7 @@ def pip_install_deps(
             for pip_line in deps:
                 err.print(f"Preparing Installation of {pip_line!r}", style="bold")
             err.print(f"$ {cmd_list_to_shell(pip_command)}", style="cyan")
-        cache_dir = Path(project.s.PIPENV_CACHE_DIR)
-        default_exists_action = "w"
-        exists_action = project.s.PIP_EXISTS_ACTION or default_exists_action
-        # Validate PIP_EXISTS_ACTION — pip only accepts s/i/w/b/a (#5063).
-        _valid_exists_actions = {"s", "i", "w", "b", "a"}
-        if exists_action not in _valid_exists_actions:
-            err.print(
-                f"[yellow]Warning:[/yellow] PIP_EXISTS_ACTION=[cyan]{exists_action!r}[/cyan] "
-                f"is not a valid pip exists-action. "
-                f"Valid values are: {', '.join(sorted(_valid_exists_actions))}. "
-                "Falling back to [cyan]'w'[/cyan] (wipe)."
-            )
-            exists_action = default_exists_action
-        # Suppress pip.conf index configuration so that only Pipfile [[source]]
-        # entries are used.  This prevents pip.conf extra-index-url (e.g.
-        # piwheels) from injecting indexes at install time that were not
-        # declared in the Pipfile, which would bypass pipenv's index safety
-        # model and cause hash-mismatch errors.
-        # Users who need a custom index (e.g. piwheels) should declare it as a
-        # [[source]] in their Pipfile.
-        pip_config = {
-            "PIP_CACHE_DIR": cache_dir.as_posix(),
-            "PIP_WHEEL_DIR": cache_dir.joinpath("wheels").as_posix(),
-            "PIP_DESTINATION_DIR": cache_dir.joinpath("pkgs").as_posix(),
-            "PIP_EXISTS_ACTION": exists_action,
-            "PIP_CONFIG_FILE": os.devnull,
-            "PATH": os.environ.get("PATH"),
-        }
-        # Pass through keyring provider so that credential managers
-        # (e.g. Windows Credential Manager) work during install.
-        # See https://github.com/pypa/pipenv/issues/5715
-        keyring_provider = project.s.PIPENV_KEYRING_PROVIDER or os.environ.get(
-            "PIP_KEYRING_PROVIDER"
-        )
-        if keyring_provider:
-            pip_config["PIP_KEYRING_PROVIDER"] = keyring_provider
-        # When installing to the system (--system), pass through PIP_BREAK_SYSTEM_PACKAGES
-        # to support PEP 668 externally-managed environments (e.g. Ubuntu 23.04+, Debian 12+).
-        # This can be enabled via PIPENV_BREAK_SYSTEM_PACKAGES=1 or PIP_BREAK_SYSTEM_PACKAGES=1.
-        if allow_global:
-            break_system = project.s.PIPENV_BREAK_SYSTEM_PACKAGES or os.environ.get(
-                "PIP_BREAK_SYSTEM_PACKAGES"
-            )
-            if break_system:
-                pip_config["PIP_BREAK_SYSTEM_PACKAGES"] = "1"
-            # Pass through PIP_IGNORE_INSTALLED and PIP_USER if set in the environment
-            for env_key in ("PIP_IGNORE_INSTALLED", "PIP_USER"):
-                env_val = os.environ.get(env_key)
-                if env_val:
-                    pip_config[env_key] = env_val
-        if sources:
-            # Strip embedded credentials from index URLs we expose via
-            # environment variables.  PIP_INDEX_URL / PIP_EXTRA_INDEX_URL
-            # are still passed for parity with the CLI args, but the actual
-            # credentials are delivered out-of-band through the temporary
-            # netrc written below.  See GHSA-8xgg-v3jj-95m2.
-            primary_url, _ = _strip_credentials_from_url(sources[0].get("url", ""))
-            pip_config["PIP_INDEX_URL"] = primary_url or ""
-            if len(sources) > 1:
-                pip_config["PIP_EXTRA_INDEX_URL"] = " ".join(
-                    (_strip_credentials_from_url(s.get("url", ""))[0] or "")
-                    for s in sources[1:]
-                )
-            netrc_path = write_credentials_netrc(sources, requirements_dir)
-            if netrc_path:
-                pip_config["NETRC"] = netrc_path
-        if src_dir:
-            if project.s.is_verbose():
-                err.print(f"Using source directory: {src_dir!r}")
-            pip_config.update({"PIP_SRC": src_dir})
+        pip_config = dict(base_pip_config)
         c = subprocess_run(pip_command, block=False, capture_output=True, env=pip_config)
         c.env = pip_config
         # Attach the deps to this subprocess results
