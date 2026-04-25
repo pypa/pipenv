@@ -155,8 +155,7 @@ def _strip_credentials_from_url(
     if not parsed.username and not parsed.password:
         return url, None
 
-    host = parsed.hostname or ""
-    netloc = f"{host}:{parsed.port}" if parsed.port else host
+    netloc = parsed.netloc.rsplit("@", 1)[-1]
     stripped = urlunsplit(
         (parsed.scheme, netloc, parsed.path, parsed.query, parsed.fragment)
     )
