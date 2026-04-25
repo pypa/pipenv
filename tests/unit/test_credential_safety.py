@@ -82,7 +82,8 @@ def test_write_credentials_netrc_emits_machine_block(tmp_path):
     assert netrc_path is not None
     assert os.path.isfile(netrc_path)
 
-    contents = open(netrc_path).read()
+    with open(netrc_path, encoding="utf-8") as f:
+        contents = f.read()
     assert "machine private.example.com" in contents
     assert "login __token__" in contents
     assert "password abc123" in contents
@@ -107,7 +108,8 @@ def test_write_credentials_netrc_dedupes_hosts(tmp_path):
         {"url": "https://u2:p2@same.example.com/b/"},
     ]
     netrc_path = write_credentials_netrc(sources, tmp_path)
-    contents = open(netrc_path).read()
+    with open(netrc_path, encoding="utf-8") as f:
+        contents = f.read()
     # Only the first occurrence is kept — pipenv resolves auth by host so
     # repeats would just collide anyway.
     assert contents.count("machine same.example.com") == 1
@@ -122,7 +124,8 @@ def test_write_credentials_netrc_decodes_url_encoded_password(tmp_path):
     server."""
     sources = [{"url": "https://user:p%40ss%21@host.example.com/simple"}]
     netrc_path = write_credentials_netrc(sources, tmp_path)
-    contents = open(netrc_path).read()
+    with open(netrc_path, encoding="utf-8") as f:
+        contents = f.read()
     assert "password p@ss!" in contents
 
 
@@ -211,7 +214,8 @@ def test_pip_install_deps_strips_credentials_from_argv(monkeypatch, tmp_path):
     assert "SuperSecret123" not in env.get("PIP_INDEX_URL", "")
     netrc_path = env.get("NETRC")
     assert netrc_path and os.path.isfile(netrc_path)
-    netrc_contents = open(netrc_path).read()
+    with open(netrc_path, encoding="utf-8") as f:
+        netrc_contents = f.read()
     assert "SuperSecret123" in netrc_contents
     assert "machine 10.255.255.1" in netrc_contents
 
