@@ -187,14 +187,19 @@ def test_untar_file_blocks_escaping_hardlink_on_buggy_cpython(monkeypatch, tmp_p
 
     _force_buggy_cpython(monkeypatch)
 
+    sibling = tmp_path / "etc-passwd-shadow"
+    sibling.write_text("sentinel", encoding="utf-8")
+
     with pytest.raises(InstallationError) as exc_info:
         untar_file(str(tar_path), str(extract_dir))
 
-    # The file must not have been extracted, and no link must have been
-    # created outside the destination.
-    assert not (extract_dir / "pkg" / "escape").exists()
-    sibling = tmp_path / "etc-passwd-shadow"
-    assert not sibling.exists()
+    # ``untar_file`` strips the shared leading ``pkg/`` directory, so the
+    # hardlink member would land at ``extract_dir / "escape"`` if extraction
+    # incorrectly proceeded.
+    assert not (extract_dir / "escape").exists()
+    # The pre-existing out-of-bounds target must not be modified or linked.
+    assert sibling.read_text(encoding="utf-8") == "sentinel"
+    assert sibling.stat().st_nlink == 1
     # Error message should mention the offending tarball.
     assert "malicious.tar" in str(exc_info.value)
 
