@@ -154,13 +154,9 @@ class PipProvider(_ProviderBase):
         current_backtrack_causes = []
         promoted = []
         for identifier in identifiers:
-            # Requires-Python has only one candidate and the check is basically
-            # free, so we always do it first to avoid needless work if it fails.
-            # This skips calling get_preference() for all other identifiers.
             if identifier == REQUIRES_PYTHON_IDENTIFIER:
                 return [identifier]
 
-            # Check if this identifier is a backtrack cause
             if identifier in backtrack_identifiers:
                 current_backtrack_causes.append(identifier)
                 continue
@@ -244,6 +240,7 @@ class PipProvider(_ProviderBase):
         )
         unfree = bool(operators)
         requested_order = self._user_requested.get(identifier, math.inf)
+
         conflict_promoted = identifier in self._conflict_promoted
 
         return (

@@ -19,7 +19,7 @@ class InstallationReport:
             # be absent when the requirement was installed from the wheel cache
             # and the cache entry was populated by an older pip version that did not
             # record origin.json.
-            "download_info": ireq.download_info.to_dict(),
+            "download_info": ireq.download_info.to_dict_compat(),
             # is_direct is true if the requirement was a direct URL reference (which
             # includes editable requirements), and false if the requirement was
             # downloaded from a PEP 503 index or --find-links.

@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import contextlib
 import errno
 import json
 import operator
 import os
 import shutil
 import site
+import sys
+from collections.abc import Iterator
 from optparse import SUPPRESS_HELP, Values
 from pathlib import Path
+from typing import Any
 
+from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.requests.exceptions import InvalidProxyURL
 from pipenv.patched.pip._vendor.rich import print_json
@@ -43,6 +48,7 @@ from pipenv.patched.pip._internal.req.req_install import (
     InstallRequirement,
 )
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
+from pipenv.patched.pip._internal.utils.deprecation import deprecated
 from pipenv.patched.pip._internal.utils.filesystem import test_writable_dir
 from pipenv.patched.pip._internal.utils.logging import getLogger
 from pipenv.patched.pip._internal.utils.misc import (
@@ -61,6 +67,76 @@ from pipenv.patched.pip._internal.utils.virtualenv import (
 from pipenv.patched.pip._internal.wheel_builder import build
 
 logger = getLogger(__name__)
+
+
+_IMPORT_AUDIT_HOOK_INSTALLED = False
+_MISSING_MODULES: set[str] = set()
+
+# Non-stdlib modules pip (or its vendored dependencies) may import lazily
+# after installation has started. Importing them eagerly keeps the audit
+# hook from misattributing them to a freshly installed distribution.
+_EAGER_IMPORTS: tuple[str, ...] = (
+    # Used by rich when emitting output to a legacy Windows console.
+    "pipenv.patched.pip._vendor.rich._windows_renderer",
+)
+
+
+# Imports of standard library modules are always safe: they cannot be
+# shadowed by a distribution pip has just installed.
+_STDLIB_MODULE_NAMES: frozenset[str] = frozenset(sys.stdlib_module_names) | frozenset(
+    sys.builtin_module_names
+)
+
+
+def _prevent_import_hook(name: str, args: tuple[Any, ...]) -> None:
+    if name != "import":
+        return
+    module = args[0]
+    if module in _MISSING_MODULES:
+        raise ImportError(f"No module named {module!r}")
+    if module.partition(".")[0] in _STDLIB_MODULE_NAMES:
+        return
+    deprecated(
+        reason=f"Unexpected import of {module!r} after pip install started.",
+        replacement=None,
+        gone_in="26.3",
+        issue=13842,
+        include_source=True,
+        stacklevel=3,
+    )
+
+
+def _eagerly_import_modules() -> None:
+    """Import modules pip uses lazily so the audit hook ignores them later."""
+    for module in _EAGER_IMPORTS:
+        try:
+            __import__(module)
+        except ImportError:
+            # Record the module as missing so the hook can raise ImportError
+            # instead of trying to import it again.
+            _MISSING_MODULES.add(module)
+
+
+def _prevent_further_imports() -> None:
+    """Install an audit hook that warns on unexpected imports after pip install starts.
+
+    Eagerly pre-imports the known lazy imports first so the hook only fires
+    on genuinely unexpected modules.
+    """
+    global _IMPORT_AUDIT_HOOK_INSTALLED
+    if _IMPORT_AUDIT_HOOK_INSTALLED:
+        return
+
+    _IMPORT_AUDIT_HOOK_INSTALLED = True
+    sys.addaudithook(_prevent_import_hook)
+
+
+def _arg_refers_to_pip(arg: str) -> bool:
+    try:
+        req = Requirement(arg)
+    except InvalidRequirement:
+        return False
+    return canonicalize_name(req.name) == "pip"
 
 
 class InstallCommand(RequirementCommand):
@@ -278,6 +354,17 @@ class InstallCommand(RequirementCommand):
             ),
         )
 
+    @contextlib.contextmanager
+    def pip_version_check(self, options: Values, args: list[str]) -> Iterator[None]:
+        # Skip the self-version check when pip itself is a requirement. The
+        # running pip may be replaced mid-command, and the upgrade prompt
+        # is redundant.
+        if any(_arg_refers_to_pip(arg) for arg in args):
+            yield
+            return
+        with super().pip_version_check(options, args):
+            yield
+
     @with_cleanup
     def run(self, options: Values, args: list[str]) -> int:
         if options.use_user_site and options.target_dir is not None:
@@ -458,6 +545,13 @@ class InstallCommand(RequirementCommand):
             warn_script_location = options.warn_script_location
             if options.target_dir or options.prefix_path:
                 warn_script_location = False
+
+            # Warn on late imports so we don't silently pick up a module
+            # from a distribution pip is about to install.
+            try:
+                _eagerly_import_modules()
+            finally:
+                _prevent_further_imports()
 
             installed = install_given_reqs(
                 to_install,

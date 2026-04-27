@@ -14,14 +14,16 @@ import copy
 import logging
 import os
 import re
-from collections.abc import Collection
+from collections.abc import Collection, Mapping
 from dataclasses import dataclass
 
+from pipenv.patched.pip._vendor.packaging import pylock
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
-from pipenv.patched.pip._vendor.packaging.specifiers import Specifier
+from pipenv.patched.pip._vendor.packaging.utils import parse_sdist_filename, parse_wheel_filename
 
 from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.models.format_control import FormatControl
 from pipenv.patched.pip._internal.models.index import PyPI, TestPyPI
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
@@ -30,6 +32,13 @@ from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.filetypes import is_archive_file
 from pipenv.patched.pip._internal.utils.misc import is_installable_dir
 from pipenv.patched.pip._internal.utils.packaging import get_requirement
+from pipenv.patched.pip._internal.utils.pylock import (
+    package_archive_requirement_url,
+    package_directory_requirement_url,
+    package_sdist_requirement_url,
+    package_vcs_requirement_url,
+    package_wheel_requirement_url,
+)
 from pipenv.patched.pip._internal.utils.urls import path_to_url
 from pipenv.patched.pip._internal.vcs import is_url, vcs
 
@@ -40,7 +49,10 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
-operators = Specifier._operators.keys()
+
+# All standard version specifier operators
+# https://packaging.python.org/en/latest/specifications/version-specifiers/#id5
+operators = ("~=", "==", "!=", "<=", ">=", "<", ">", "===")
 
 
 def _strip_extras(path: str) -> tuple[str, str | None]:
@@ -573,3 +585,100 @@ def install_req_extend_extras(
         else None
     )
     return result
+
+
+def _pylock_hashes_to_hash_options(hashes: Mapping[str, str]) -> dict[str, list[str]]:
+    return {k: [v] for k, v in hashes.items()}
+
+
+def install_req_from_pylock_package(
+    package: pylock.Package,
+    package_dist: (
+        pylock.PackageVcs
+        | pylock.PackageArchive
+        | pylock.PackageDirectory
+        | pylock.PackageSdist
+        | pylock.PackageWheel
+    ),
+    pylock_path_or_url: str,
+    format_control: FormatControl,
+    user_supplied: bool,
+) -> InstallRequirement:
+    pass
+    # TODO: validate file size
+    if isinstance(package_dist, pylock.PackageVcs):
+        return InstallRequirement(
+            req=Requirement(
+                f"{package.name} @ "
+                f"{package_vcs_requirement_url(pylock_path_or_url, package_dist)}"
+            ),
+            comes_from=pylock_path_or_url,
+            user_supplied=user_supplied,
+        )
+    elif isinstance(package_dist, pylock.PackageArchive):
+        return InstallRequirement(
+            req=Requirement(
+                f"{package.name} @ "
+                f"{package_archive_requirement_url(pylock_path_or_url, package_dist)}"
+            ),
+            comes_from=pylock_path_or_url,
+            hash_options=_pylock_hashes_to_hash_options(package_dist.hashes),
+            user_supplied=user_supplied,
+        )
+    elif isinstance(package_dist, pylock.PackageDirectory):
+        req = package_directory_requirement_url(pylock_path_or_url, package_dist)
+        if package_dist.editable:
+            return install_req_from_editable(
+                req,
+                comes_from=pylock_path_or_url,
+                user_supplied=user_supplied,
+            )
+        else:
+            return install_req_from_line(
+                req,
+                comes_from=pylock_path_or_url,
+                user_supplied=user_supplied,
+            )
+    else:
+        # wheel or sdist
+        allowed_formats = format_control.get_allowed_formats(package.name)
+        if (
+            isinstance(package_dist, pylock.PackageSdist)
+            and "source" not in allowed_formats
+        ):
+            raise InstallationError(
+                f"source distributions are not permitted for package {package.name!r} "
+                f"and there is no compatible wheel for it in {pylock_path_or_url!r}"
+            )
+        if (
+            isinstance(package_dist, pylock.PackageWheel)
+            and "binary" not in allowed_formats
+        ):
+            if not package.sdist:
+                raise InstallationError(
+                    f"binaries are not permitted for package {package.name!r} and "
+                    f"there is no source distribution for it in {pylock_path_or_url!r}"
+                )
+            package_dist = package.sdist
+        version = package.version
+        if isinstance(package_dist, pylock.PackageWheel):
+            if not version:
+                _, version, _, _ = parse_wheel_filename(package_dist.filename)
+            requirement_url = package_wheel_requirement_url(
+                pylock_path_or_url, package_dist
+            )
+        elif isinstance(package_dist, pylock.PackageSdist):
+            if not version:
+                _, version = parse_sdist_filename(package_dist.filename)
+            requirement_url = package_sdist_requirement_url(
+                pylock_path_or_url, package_dist
+            )
+        ireq = InstallRequirement(
+            req=Requirement(f"{package.name}=={version}"),
+            comes_from=pylock_path_or_url,
+            locked_link=Link(requirement_url),
+            locked_version=version,
+            hash_options=_pylock_hashes_to_hash_options(package_dist.hashes),
+            user_supplied=user_supplied,
+        )
+        return ireq

@@ -55,15 +55,8 @@ def get_module_from_module_name(module_name: str) -> ModuleType | None:
     if module_name == "setuptools":
         module_name = "pkg_resources"
 
-    try:
-        __import__(f"pipenv.patched.pip._vendor.{module_name}", globals(), locals(), level=0)
-        return getattr(pipenv.patched.pip._vendor, module_name)
-    except ImportError:
-        # We allow 'truststore' to fail to import due
-        # to being unavailable on Python 3.9 and earlier.
-        if module_name == "truststore" and sys.version_info < (3, 10):
-            return None
-        raise
+    __import__(f"pipenv.patched.pip._vendor.{module_name}", globals(), locals(), level=0)
+    return getattr(pipenv.patched.pip._vendor, module_name)
 
 
 def get_vendor_version_from_module(module_name: str) -> str | None:

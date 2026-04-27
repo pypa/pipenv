@@ -6,11 +6,9 @@ from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._internal.models.link import Link
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class InstallationCandidate:
     """Represents a potential "candidate" for installation."""
-
-    __slots__ = ["name", "version", "link"]
 
     name: str
     version: Version

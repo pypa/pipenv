@@ -71,7 +71,7 @@ class InspectCommand(Command):
         # report) since it is not recorded in installed metadata.
         direct_url = dist.direct_url
         if direct_url is not None:
-            res["direct_url"] = direct_url.to_dict()
+            res["direct_url"] = direct_url.to_dict_compat()
         else:
             # Emulate direct_url for legacy editable installs.
             editable_project_location = dist.editable_project_location
