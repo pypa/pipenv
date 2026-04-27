@@ -244,9 +244,9 @@ def test_run_script_expands_pipenv_project_dir(pipenv_instance_pypi):
 
         with temp_environ():
             # CI runs the test suite under ``pipenv run pytest``, which injects
-            # outer-project markers into the worker environment. Drop them so
-            # this regression exercises the temp project directly.
-            os.environ.pop("PIPENV_ACTIVE", None)
+            # the outer project's ``PIPENV_PROJECT_DIR`` into worker envs.
+            # Clear only that marker so the temp project can define its own
+            # without tripping nested-virtualenv courtesy behavior.
             os.environ.pop("PIPENV_PROJECT_DIR", None)
             c = p.pipenv("run show_project_file")
         assert c.returncode == 0, c.stderr
