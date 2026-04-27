@@ -217,20 +217,46 @@ def escape_cmd(cmd):
     return cmd
 
 
+# $VAR or ${VAR} — matches os.path.expandvars (posixpath) semantics.
+_VAR_PROG = re.compile(r"\$(\w+|\{[^}]*\})")
+# %VAR% — Windows-only form, also recognised by os.path.expandvars on nt.
+_VAR_PROG_PERCENT = re.compile(r"%([^%]*)%")
+
+
+def _expand_with_mapping(text, mapping):
+    """Expand ``$VAR`` / ``${VAR}`` (and ``%VAR%`` on Windows) against an
+    explicit mapping, leaving unknown names unchanged. Pure-Python — does not
+    touch ``os.environ`` and is therefore thread-safe."""
+
+    def _sub(match):
+        name = match.group(1)
+        if name.startswith("{") and name.endswith("}"):
+            name = name[1:-1]
+        if name in mapping:
+            return str(mapping[name])
+        return match.group(0)
+
+    result = _VAR_PROG.sub(_sub, text)
+    if os.name == "nt":
+        result = _VAR_PROG_PERCENT.sub(_sub, result)
+    return result
+
+
 def safe_expandvars(value, env=None):
     """
     Expand environment variables in a string value, do nothing for non-strings.
 
-    Note: pathlib.Path doesn't have an expandvars method, so we still use os.path.expandvars
-    for the actual expansion.
+    When ``env`` is provided, expansion uses *only* that mapping — variables
+    inherited from the ambient process environment are not visible. This avoids
+    leaking vars from an outer pipenv invocation into a nested run.
     """
     if env is not None:
-        with temp_environ():
-            # Expand against exactly the provided env mapping so inherited
-            # variables from an outer pipenv invocation do not leak in.
-            os.environ.clear()
-            os.environ.update({k: str(v) for k, v in env.items() if v is not None})
-            return safe_expandvars(value)
+        mapping = {k: v for k, v in env.items() if v is not None}
+        if isinstance(value, str):
+            return _expand_with_mapping(value, mapping)
+        if isinstance(value, Path):
+            return Path(_expand_with_mapping(str(value), mapping))
+        return value
     if isinstance(value, str):
         return os.path.expandvars(value)
     # Handle Path objects
