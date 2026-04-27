@@ -226,6 +226,9 @@ def safe_expandvars(value, env=None):
     """
     if env is not None:
         with temp_environ():
+            # Expand against exactly the provided env mapping so inherited
+            # variables from an outer pipenv invocation do not leak in.
+            os.environ.clear()
             os.environ.update({k: str(v) for k, v in env.items() if v is not None})
             return safe_expandvars(value)
     if isinstance(value, str):

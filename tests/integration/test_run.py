@@ -233,20 +233,20 @@ def test_run_script_expands_pipenv_project_dir(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         p.pipenv("install")
 
-        marker_path = os.path.join(p.path, "marker.txt")
-        with open(marker_path, "w") as f:
+        with open(os.path.join(p.path, "marker.txt"), "w") as f:
             f.write("marker")
 
         with open(p.pipfile_path, "w") as f:
             f.write(
                 "[scripts]\n"
-                'show_project_file = "python -c \\"import pathlib, sys; path = pathlib.Path(sys.argv[1]); print(path); print(path.is_file())\\" $PIPENV_PROJECT_DIR/marker.txt"\n'
+                'show_project_file = "python -c \\"import pathlib, sys; print(pathlib.Path(sys.argv[1]).read_text())\\" $PIPENV_PROJECT_DIR/marker.txt"\n'
             )
 
-        c = p.pipenv("run show_project_file")
+        with temp_environ():
+            os.environ["PIPENV_PROJECT_DIR"] = "/definitely/wrong"
+            c = p.pipenv("run show_project_file")
         assert c.returncode == 0, c.stderr
-        lines = [line.strip() for line in c.stdout.splitlines()]
-        assert lines == [marker_path, "True"]
+        assert c.stdout.strip() == "marker"
 
 
 @pytest.mark.run

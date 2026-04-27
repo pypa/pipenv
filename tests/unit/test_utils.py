@@ -2256,6 +2256,18 @@ def test_expand_url_credentials_unset_var_left_unchanged():
     assert "${NONEXISTENT_VAR_12345}@" in result
 
 
+@pytest.mark.utils
+def test_safe_expandvars_with_explicit_env_does_not_leak_ambient_vars(monkeypatch):
+    monkeypatch.setenv("PIPENV_PROJECT_DIR", "/outer/project")
+
+    result = shell.safe_expandvars(
+        "$PIPENV_PROJECT_DIR/marker.txt",
+        env={"PATH": os.environ["PATH"]},
+    )
+
+    assert result == "$PIPENV_PROJECT_DIR/marker.txt"
+
+
 class TestTargetMarkerEnvironment:
     """Tests for _target_marker_environment (GH-6647).
 
