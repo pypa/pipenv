@@ -217,13 +217,17 @@ def escape_cmd(cmd):
     return cmd
 
 
-def safe_expandvars(value):
+def safe_expandvars(value, env=None):
     """
     Expand environment variables in a string value, do nothing for non-strings.
 
     Note: pathlib.Path doesn't have an expandvars method, so we still use os.path.expandvars
     for the actual expansion.
     """
+    if env is not None:
+        with temp_environ():
+            os.environ.update({k: str(v) for k, v in env.items() if v is not None})
+            return safe_expandvars(value)
     if isinstance(value, str):
         return os.path.expandvars(value)
     # Handle Path objects

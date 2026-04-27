@@ -1,11 +1,10 @@
 import os
 import subprocess
 import sys
-from os.path import expandvars
 
 from pipenv.utils import err
 from pipenv.utils.project import ensure_project
-from pipenv.utils.shell import cmd_list_to_shell, system_which
+from pipenv.utils.shell import cmd_list_to_shell, safe_expandvars, system_which
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
 
 
@@ -172,7 +171,8 @@ def _run_script_sequence(script, env, verbose=False):
         sub, sub_inline_env = sub.with_extracted_env_vars()
         sub_string_env = {**string_env, **sub_inline_env}
 
-        cmd_args = [sub.command] + [expandvars(arg) for arg in sub.args]
+        expanded_args = [safe_expandvars(arg, env=sub_string_env) for arg in sub.args]
+        cmd_args = [sub.command] + expanded_args
         if verbose:
             err.print(f"$ {cmd_list_to_shell(cmd_args)}", style="cyan")
 
@@ -180,7 +180,7 @@ def _run_script_sequence(script, env, verbose=False):
             # On Windows mirror _launch_windows_subprocess: try direct
             # CreateProcess first, fall back to shell=True.
             command_path = system_which(sub.command, path=path)
-            sub.cmd_args[1:] = [expandvars(arg) for arg in sub.args]
+            sub.cmd_args[1:] = expanded_args
             if command_path:
                 try:
                     result = subprocess.run(
@@ -200,7 +200,7 @@ def _run_script_sequence(script, env, verbose=False):
             command_path = system_which(sub.command, path=path)
             if command_path:
                 result = subprocess.run(
-                    [command_path, *(expandvars(arg) for arg in sub.args)],
+                    [command_path, *expanded_args],
                     env=sub_string_env,
                     check=False,
                 )
@@ -224,19 +224,20 @@ def do_run_posix(project, script, command, env):
 
     # Ensure all environment variables are strings
     string_env = {k: str(v) for k, v in env.items() if v is not None}
+    expanded_args = [safe_expandvars(arg, env=string_env) for arg in script.args]
 
     if command_path:
         # Command found in PATH, use os.execve for direct execution
         os.execve(
             command_path,
-            [command_path, *(expandvars(arg) for arg in script.args)],
+            [command_path, *expanded_args],
             string_env,
         )
     else:
         # Command not found in PATH, maybe it's a shell builtin (cd, echo, export, etc.)
         # Fall back to running through the shell, similar to Windows behavior.
         # See: https://github.com/pypa/pipenv/issues/6186
-        cmd_args = [script.command] + [expandvars(arg) for arg in script.args]
+        cmd_args = [script.command] + expanded_args
         cmd_string = cmd_list_to_shell(cmd_args)
         result = subprocess.run(cmd_string, shell=True, env=string_env, check=False)
         sys.exit(result.returncode)
@@ -255,7 +256,7 @@ def _launch_windows_subprocess(script, env):
     # Ensure all environment variables are strings
     string_env = {k: str(v) for k, v in env.items() if v is not None}
     options = {"universal_newlines": True, "env": string_env}
-    script.cmd_args[1:] = [expandvars(arg) for arg in script.args]
+    script.cmd_args[1:] = [safe_expandvars(arg, env=string_env) for arg in script.args]
 
     # Command not found, maybe this is a shell built-in?
     if not command:
