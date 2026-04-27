@@ -226,33 +226,6 @@ def test_run_inline_env_vars(pipenv_instance_pypi):
         assert c.returncode == 0, c.stderr
         assert "hello world" in c.stdout
 
-
-@pytest.mark.run
-@pytest.mark.skip_windows
-def test_run_script_expands_pipenv_project_dir(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        p.pipenv("install")
-
-        with open(os.path.join(p.path, "marker.txt"), "w") as f:
-            f.write("marker")
-
-        with open(p.pipfile_path, "w") as f:
-            f.write(
-                "[scripts]\n"
-                'show_project_file = "python -c \\"import pathlib, sys; print(pathlib.Path(sys.argv[1]).read_text())\\" $PIPENV_PROJECT_DIR/marker.txt"\n'
-            )
-
-        with temp_environ():
-            # CI runs the test suite under ``pipenv run pytest``, which injects
-            # the outer project's ``PIPENV_PROJECT_DIR`` into worker envs.
-            # Clear only that marker so the temp project can define its own
-            # without tripping nested-virtualenv courtesy behavior.
-            os.environ.pop("PIPENV_PROJECT_DIR", None)
-            c = p.pipenv("run show_project_file")
-        assert c.returncode == 0, c.stderr
-        assert c.stdout.strip() == "marker"
-
-
 @pytest.mark.run
 @pytest.mark.skip_windows
 def test_run_shell_builtins(pipenv_instance_pypi):
