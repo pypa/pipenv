@@ -222,6 +222,8 @@ class Project:
         self._proper_names_db_path = None
         self._pipfile_location = None
         self._pipfile_newlines = DEFAULT_NEWLINES
+        self._parsed_pipfile_cache = None
+        self._parsed_pipfile_mtime_ns = None
         self._lockfile_newlines = DEFAULT_NEWLINES
         self._requirements_location = None
         self._original_dir = Path.cwd().resolve()
@@ -738,8 +740,28 @@ class Project:
     @property
     def parsed_pipfile(self) -> tomlkit.toml_document.TOMLDocument | TPipfile:
         """Parse Pipfile into a TOMLFile"""
+        # Parsing tomlkit on every access is expensive (see gh perf branch): a
+        # single lock call hit this 500+ times.  Cache the parsed document and
+        # refresh it whenever the file's mtime changes so external edits still
+        # work, while writes from pipenv itself invalidate the cache directly
+        # via write_toml().
+        if not self.pipfile_exists:
+            return self._parse_pipfile("")
+        try:
+            mtime_ns = os.stat(self.pipfile_location).st_mtime_ns
+        except OSError:
+            mtime_ns = None
+        if (
+            self._parsed_pipfile_cache is not None
+            and mtime_ns is not None
+            and self._parsed_pipfile_mtime_ns == mtime_ns
+        ):
+            return self._parsed_pipfile_cache
         contents = self.read_pipfile()
-        return self._parse_pipfile(contents)
+        parsed = self._parse_pipfile(contents)
+        self._parsed_pipfile_cache = parsed
+        self._parsed_pipfile_mtime_ns = mtime_ns
+        return parsed
 
     def read_pipfile(self) -> str:
         # Open the pipfile, read it into memory.
@@ -1095,13 +1117,14 @@ class Project:
                         document[category][package] = tomlkit.string(data[category][package])
             formatted_data = tomlkit.dumps(document).rstrip()
 
-        if Path(path).absolute() == Path(self.pipfile_location).absolute():
-            newlines = self._pipfile_newlines
-        else:
-            newlines = DEFAULT_NEWLINES
+        is_pipfile = Path(path).resolve() == Path(self.pipfile_location).resolve()
+        newlines = self._pipfile_newlines if is_pipfile else DEFAULT_NEWLINES
         formatted_data = cleanup_toml(formatted_data)
         with open(path, "w", newline=newlines) as f:
             f.write(formatted_data)
+        if is_pipfile:
+            self._parsed_pipfile_cache = None
+            self._parsed_pipfile_mtime_ns = None
 
     @property
     def use_pylock(self) -> bool:

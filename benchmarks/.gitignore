@@ -2,6 +2,8 @@
 requirements.txt
 Pipfile.lock
 stats.csv
+benchmark-results.json
+*-results.json
 
 # Timing data
 timings/

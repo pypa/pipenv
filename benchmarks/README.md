@@ -41,6 +41,11 @@ python benchmark.py update-cold        # Benchmark update with cold cache
 python benchmark.py update-warm        # Benchmark update with warm cache
 python benchmark.py add-package        # Benchmark adding a package
 python benchmark.py stats              # Generate stats.csv
+
+# Local diagnosis helpers
+python benchmark.py lock-warm --repeat 3
+python benchmark.py lock-warm --profile
+python benchmark.py update-warm --output-json update-results.json
 ```
 
 ### CI Integration
@@ -58,6 +63,7 @@ The benchmarks run automatically in GitHub Actions on the `ubuntu-latest` runner
 - `requirements.txt` - Downloaded from Sentry's requirements-base.txt during setup
 - `timings/` - Directory created during benchmarks to store timing data
 - `stats.csv` - Generated CSV with benchmark results
+- `benchmark-results.json` - Per-run command timings for local/CI comparison
 
 ## Dependencies
 
@@ -74,4 +80,6 @@ The benchmark uses Sentry's `requirements-base.txt` as a representative real-wor
 - Benchmarks only run on Linux in CI to ensure consistent timing measurements
 - System dependencies (libxmlsec1-dev, librdkafka-dev) are installed for Sentry requirements
 - Cache clearing ensures cold/warm scenarios are properly tested
-- Results include CPU time, memory usage, and I/O statistics
+- `python benchmark.py` reuses an existing local `requirements.txt`; pass `--force-setup` to re-download it
+- Results include elapsed time, CPU time, memory usage, and I/O statistics where the platform exposes them
+- `--profile` writes `.prof` files under `timings/` and keeps pipenv resolver work in-process for easier local profiling

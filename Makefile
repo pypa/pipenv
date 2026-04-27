@@ -187,5 +187,5 @@ benchmark:
 
 .PHONY: benchmark-clean
 benchmark-clean:
-	cd benchmarks && rm -f requirements.txt Pipfile.lock stats.csv
+	cd benchmarks && rm -f requirements.txt Pipfile.lock stats.csv *-results.json
 	cd benchmarks && rm -rf timings/
