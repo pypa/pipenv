@@ -4,7 +4,9 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+from pipenv.cmdparse import Script
 from pipenv.project import NON_CATEGORY_SECTIONS
+from pipenv.routines.shell import do_run_posix
 from pipenv.shells import _get_activate_script, _get_deactivate_wrapper_script
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.shell import temp_environ
@@ -144,6 +146,24 @@ def test_load_dot_env_suppresses_message_when_pipenv_active(monkeypatch, capsys,
         assert os.environ[key] == val
         # But the "Loading .env" message should be suppressed
         assert "Loading .env" not in err
+
+
+@pytest.mark.core
+def test_do_run_posix_expands_project_dir_from_child_env():
+    script = Script("python", ["-c", "print('ok')", "$PIPENV_PROJECT_DIR/marker.txt"])
+    env = {"PATH": "/usr/bin", "PIPENV_PROJECT_DIR": "/tmp/project-root"}
+
+    with temp_environ():
+        os.environ["PIPENV_PROJECT_DIR"] = "/outer/project"
+        with patch("pipenv.routines.shell.system_which", return_value="/usr/bin/python"):
+            with patch("os.execve") as execve:
+                do_run_posix(project=MagicMock(), script=script, command="python", env=env)
+
+    execve.assert_called_once_with(
+        "/usr/bin/python",
+        ["/usr/bin/python", "-c", "print('ok')", "/tmp/project-root/marker.txt"],
+        {"PATH": "/usr/bin", "PIPENV_PROJECT_DIR": "/tmp/project-root"},
+    )
 
 
 @pytest.mark.core

@@ -226,7 +226,6 @@ def test_run_inline_env_vars(pipenv_instance_pypi):
         assert c.returncode == 0, c.stderr
         assert "hello world" in c.stdout
 
-
 @pytest.mark.run
 @pytest.mark.skip_windows
 def test_run_shell_builtins(pipenv_instance_pypi):
