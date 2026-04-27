@@ -2259,10 +2259,12 @@ def test_expand_url_credentials_unset_var_left_unchanged():
 @pytest.mark.utils
 def test_safe_expandvars_with_explicit_env_does_not_leak_ambient_vars(monkeypatch):
     monkeypatch.setenv("PIPENV_PROJECT_DIR", "/outer/project")
+    path_value = "/usr/bin:/bin"
+    monkeypatch.setenv("PATH", path_value)
 
     result = shell.safe_expandvars(
         "$PIPENV_PROJECT_DIR/marker.txt",
-        env={"PATH": os.environ["PATH"]},
+        env={"PATH": path_value},
     )
 
     assert result == "$PIPENV_PROJECT_DIR/marker.txt"
