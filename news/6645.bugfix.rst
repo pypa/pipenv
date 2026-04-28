@@ -1,4 +1,0 @@
-Fix ``ValueError: invalid literal for int() with base 10`` when the Pipfile's
-``[requires]`` section uses a PEP 440 specifier (e.g. ``python_version = ">=3.9"``).
-Specifier values no longer produce a Python-version override; the running
-interpreter's actual version is used for marker evaluation instead.

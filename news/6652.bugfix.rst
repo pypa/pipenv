@@ -1,3 +1,0 @@
-``pipenv run`` now expands ``$PIPENV_PROJECT_DIR`` and other Pipenv-managed
-environment variables inside Pipfile script arguments before direct command
-execution, so project-relative script paths resolve correctly.

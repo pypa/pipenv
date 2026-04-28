@@ -1,1 +1,0 @@
-Pipfile documentation now includes git+ssh examples.

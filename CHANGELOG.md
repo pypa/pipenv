@@ -1,3 +1,43 @@
+2026.6.0 (2026-04-27)
+=====================
+pipenv 2026.6.0 (2026-04-27)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix ``pipenv shell`` breaking terminal input echo on Linux.  The previous
+  implementation toggled ``setecho(True/False)`` on the spawned child around
+  its internal setup commands, which fought with the shell's own readline
+  termios management — producing permanently-disabled echo (GH-6572) or
+  double-echoed keystrokes (``1234`` → ``11223344``).  ``fork_compat`` no
+  longer touches pty termios; instead it drains the synchronisation sentinel
+  from the pexpect buffer twice (once for the echoed command, once for its
+  output) so nothing leaks into ``interact()``.  `#6633 <https://github.com/pypa/pipenv/issues/6633>`_
+- ``pipenv run <command> -h <arg>`` now passes ``-h`` through to the command
+  instead of showing pipenv's help.  All arguments following ``run_command`` are
+  captured verbatim via argparse ``REMAINDER``, so flags like ``-h`` that pipenv
+  itself also defines no longer collide with the wrapped command.  `#6641 <https://github.com/pypa/pipenv/issues/6641>`_
+- Fix ``ValueError: invalid literal for int() with base 10`` when the Pipfile's
+  ``[requires]`` section uses a PEP 440 specifier (e.g. ``python_version = ">=3.9"``).
+  Specifier values no longer produce a Python-version override; the running
+  interpreter's actual version is used for marker evaluation instead.  `#6645 <https://github.com/pypa/pipenv/issues/6645>`_
+- Install-time marker filtering now evaluates environment markers against the
+  target virtualenv's Python version rather than against the Python version
+  that pipenv itself is running under.  This prevents spurious ``Ignoring …:
+  markers … don't match your environment`` warnings (and the corresponding
+  missing installs) when ``pipenv sync --python X.Y`` is driven by a
+  different system Python.  `#6647 <https://github.com/pypa/pipenv/issues/6647>`_
+- ``pipenv run`` now expands ``$PIPENV_PROJECT_DIR`` and other Pipenv-managed
+  environment variables inside Pipfile script arguments before direct command
+  execution, so project-relative script paths resolve correctly.  `#6652 <https://github.com/pypa/pipenv/issues/6652>`_
+
+Improved Documentation
+----------------------
+
+- Pipfile documentation now includes git+ssh examples.  `#6651 <https://github.com/pypa/pipenv/issues/6651>`_
+
 2026.5.2 (2026-04-03)
 =====================
 pipenv 2026.5.2 (2026-04-03)

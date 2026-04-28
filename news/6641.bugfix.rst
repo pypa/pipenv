@@ -1,4 +1,0 @@
-``pipenv run <command> -h <arg>`` now passes ``-h`` through to the command
-instead of showing pipenv's help.  All arguments following ``run_command`` are
-captured verbatim via argparse ``REMAINDER``, so flags like ``-h`` that pipenv
-itself also defines no longer collide with the wrapped command.
