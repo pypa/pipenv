@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "0166bf7a5735cee4c0dd2e9967af33c7d2c6493b40de7b6a3ca06619a357ac2d"
+            "sha256": "1323ff35e4fd1041703bc4176072d8da6e21ea99e186331fd40150b8a6ccc26a"
         },
         "pipfile-spec": 6,
         "requires": {},
@@ -1056,10 +1056,6 @@
             ],
             "markers": "('dev' in dependency_groups) and (python_version >= '3.9')",
             "version": "==26.0.1"
-        },
-        "pipenv": {
-            "markers": "('dev' in dependency_groups) and (python_version >= '3.10')",
-            "version": "*"
         },
         "platformdirs": {
             "hashes": [

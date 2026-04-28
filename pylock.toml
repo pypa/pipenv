@@ -1107,12 +1107,6 @@ wheels = [
 
 
 [[packages]]
-name = "pipenv"
-marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
-index = "https://pypi.org/simple/"
-
-
-[[packages]]
 name = "platformdirs"
 version = "4.9.4"
 marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
