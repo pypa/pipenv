@@ -1,3 +1,18 @@
+2026.6.1 (2026-04-28)
+=====================
+pipenv 2026.6.1 (2026-04-28)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix ``pipenv install`` corrupting existing inline-table or outline-table
+  Pipfile entries (``six = {version = "*"}``, ``[packages.requests]``).  The
+  locker was popping ``version``/``ref`` keys directly off the cached
+  ``parsed_pipfile`` document, so subsequent writes emitted
+  ``six = {}`` and dropped the version specifier from sibling packages.  `#6657 <https://github.com/pypa/pipenv/issues/6657>`_
+
 2026.6.0 (2026-04-27)
 =====================
 pipenv 2026.6.0 (2026-04-27)
