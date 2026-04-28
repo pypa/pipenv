@@ -28,7 +28,7 @@ from pipenv.patched.pip._internal.exceptions import (
 )
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_metadata_distribution
-from pipenv.patched.pip._internal.models.direct_url import ArchiveInfo
+from pipenv.patched.pip._internal.models.direct_url import ArchiveInfo, DirectUrl
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.network.download import Downloader
@@ -586,9 +586,9 @@ class RequirementPreparer:
             # We need to verify hashes, and we have found the requirement in the cache
             # of locally built wheels.
             if (
-                isinstance(req.download_info.info, ArchiveInfo)
-                and req.download_info.info.hashes
-                and hashes.has_one_of(req.download_info.info.hashes)
+                req.download_info.archive_info
+                and req.download_info.archive_info.hashes
+                and hashes.has_one_of(req.download_info.archive_info.hashes)
             ):
                 # At this point we know the requirement was built from a hashable source
                 # artifact, and we verified that the cache entry's hash of the original
@@ -640,14 +640,18 @@ class RequirementPreparer:
             # compute it from the downloaded file.
             # FIXME: https://github.com/pypa/pip/issues/11943
             if (
-                isinstance(req.download_info.info, ArchiveInfo)
-                and not req.download_info.info.hashes
+                req.download_info.archive_info
+                and not req.download_info.archive_info.hashes
                 and local_file
             ):
                 hash = hash_file(local_file.path)[0].hexdigest()
-                # We populate info.hash for backward compatibility.
-                # This will automatically populate info.hashes.
-                req.download_info.info.hash = f"sha256={hash}"
+                # We populate archive_info.hashes. For backward compatibility,
+                # the legacy hash field will be generated when converting to JSON.
+                req.download_info = DirectUrl(
+                    url=req.download_info.url,
+                    archive_info=ArchiveInfo(hashes={"sha256": hash}),
+                    subdirectory=req.download_info.subdirectory,
+                )
 
         # For use in later processing,
         # preserve the file path on the requirement.

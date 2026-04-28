@@ -11,17 +11,19 @@ import socket  # noqa: F401
 import typing
 import warnings
 
-from pipenv.patched.pip._vendor.urllib3.exceptions import ClosedPoolError, ConnectTimeoutError
-from pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as _HTTPError
-from pipenv.patched.pip._vendor.urllib3.exceptions import InvalidHeader as _InvalidHeader
 from pipenv.patched.pip._vendor.urllib3.exceptions import (
+    ClosedPoolError,
+    ConnectTimeoutError,
     LocationValueError,
     MaxRetryError,
     NewConnectionError,
     ProtocolError,
+    ReadTimeoutError,
+    ResponseError,
 )
+from pipenv.patched.pip._vendor.urllib3.exceptions import HTTPError as _HTTPError
+from pipenv.patched.pip._vendor.urllib3.exceptions import InvalidHeader as _InvalidHeader
 from pipenv.patched.pip._vendor.urllib3.exceptions import ProxyError as _ProxyError
-from pipenv.patched.pip._vendor.urllib3.exceptions import ReadTimeoutError, ResponseError
 from pipenv.patched.pip._vendor.urllib3.exceptions import SSLError as _SSLError
 from pipenv.patched.pip._vendor.urllib3.poolmanager import PoolManager, proxy_from_url
 from pipenv.patched.pip._vendor.urllib3.util import Timeout as TimeoutSauce
@@ -47,7 +49,6 @@ from .models import Response
 from .structures import CaseInsensitiveDict
 from .utils import (
     DEFAULT_CA_BUNDLE_PATH,
-    extract_zipped_paths,
     get_auth_from_url,
     get_encoding_from_headers,
     prepend_scheme_if_needed,
@@ -76,9 +77,9 @@ DEFAULT_POOL_TIMEOUT = None
 def _urllib3_request_context(
     request: "PreparedRequest",
     verify: "bool | str | None",
-    client_cert: "typing.Tuple[str, str] | str | None",
+    client_cert: "tuple[str, str] | str | None",
     poolmanager: "PoolManager",
-) -> "(typing.Dict[str, typing.Any], typing.Dict[str, typing.Any])":
+) -> "(dict[str, typing.Any], dict[str, typing.Any])":
     host_params = {}
     pool_kwargs = {}
     parsed_request_url = urlparse(request.url)
@@ -297,7 +298,7 @@ class HTTPAdapter(BaseAdapter):
                 cert_loc = verify
 
             if not cert_loc:
-                cert_loc = extract_zipped_paths(DEFAULT_CA_BUNDLE_PATH)
+                cert_loc = DEFAULT_CA_BUNDLE_PATH
 
             if not cert_loc or not os.path.exists(cert_loc):
                 raise OSError(

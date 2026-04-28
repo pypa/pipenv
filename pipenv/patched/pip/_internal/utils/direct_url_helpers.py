@@ -11,16 +11,20 @@ def direct_url_as_pep440_direct_reference(direct_url: DirectUrl, name: str) -> s
     direct_url.validate()  # if invalid, this is a pip bug
     requirement = name + " @ "
     fragments = []
-    if isinstance(direct_url.info, VcsInfo):
+    if direct_url.vcs_info:
         requirement += (
-            f"{direct_url.info.vcs}+{direct_url.url}@{direct_url.info.commit_id}"
+            f"{direct_url.vcs_info.vcs}+{direct_url.url}"
+            f"@{direct_url.vcs_info.commit_id}"
         )
-    elif isinstance(direct_url.info, ArchiveInfo):
+    elif direct_url.archive_info:
         requirement += direct_url.url
-        if direct_url.info.hash:
-            fragments.append(direct_url.info.hash)
+        if direct_url.archive_info.hashes:
+            hash_algorithm, hash_value = next(
+                iter(direct_url.archive_info.hashes.items())
+            )
+            fragments.append(f"{hash_algorithm}={hash_value}")
     else:
-        assert isinstance(direct_url.info, DirInfo)
+        assert direct_url.dir_info
         requirement += direct_url.url
     if direct_url.subdirectory:
         fragments.append("subdirectory=" + direct_url.subdirectory)
@@ -32,7 +36,7 @@ def direct_url_as_pep440_direct_reference(direct_url: DirectUrl, name: str) -> s
 def direct_url_for_editable(source_dir: str) -> DirectUrl:
     return DirectUrl(
         url=path_to_url(source_dir),
-        info=DirInfo(editable=True),
+        dir_info=DirInfo(editable=True),
     )
 
 
@@ -62,7 +66,7 @@ def direct_url_from_link(
             commit_id = vcs_backend.get_revision(source_dir)
         return DirectUrl(
             url=url,
-            info=VcsInfo(
+            vcs_info=VcsInfo(
                 vcs=vcs_backend.name,
                 commit_id=commit_id,
                 requested_revision=requested_revision,
@@ -72,16 +76,17 @@ def direct_url_from_link(
     elif link.is_existing_dir():
         return DirectUrl(
             url=link.url_without_fragment,
-            info=DirInfo(),
+            dir_info=DirInfo(),
             subdirectory=link.subdirectory_fragment,
         )
     else:
-        hash = None
-        hash_name = link.hash_name
-        if hash_name:
-            hash = f"{hash_name}={link.hash}"
+        if link.hash_name:
+            assert link.hash
+            hashes = {link.hash_name: link.hash}
+        else:
+            hashes = None
         return DirectUrl(
             url=link.url_without_fragment,
-            info=ArchiveInfo(hash=hash),
+            archive_info=ArchiveInfo(hashes=hashes),
             subdirectory=link.subdirectory_fragment,
         )

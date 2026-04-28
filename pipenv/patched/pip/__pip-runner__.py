@@ -9,7 +9,7 @@ an import statement.
 import sys
 
 # Copied from pyproject.toml
-PYTHON_REQUIRES = (3, 9)
+PYTHON_REQUIRES = (3, 10)
 
 
 def version_str(version):  # type: ignore

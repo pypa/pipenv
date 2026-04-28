@@ -41,13 +41,11 @@ logger = logging.getLogger(__name__)
 
 _PLATLIBDIR: str = getattr(sys, "platlibdir", "lib")
 
-_USE_SYSCONFIG_DEFAULT = sys.version_info >= (3, 10)
-
 
 def _should_use_sysconfig() -> bool:
     """This function determines the value of _USE_SYSCONFIG.
 
-    By default, pip uses sysconfig on Python 3.10+.
+    By default, pip uses sysconfig.
     But Python distributors can override this decision by setting:
         sysconfig._PIP_USE_SYSCONFIG = True / False
     Rationale in https://github.com/pypa/pip/issues/10647
@@ -55,7 +53,7 @@ def _should_use_sysconfig() -> bool:
     This is a function for testability, but should be constant during any one
     run.
     """
-    return bool(getattr(sysconfig, "_PIP_USE_SYSCONFIG", _USE_SYSCONFIG_DEFAULT))
+    return bool(getattr(sysconfig, "_PIP_USE_SYSCONFIG", True))
 
 
 _USE_SYSCONFIG = _should_use_sysconfig()
@@ -83,10 +81,10 @@ if not _USE_SYSCONFIG:
 
 # Be noisy about incompatibilities if this platforms "should" be using
 # sysconfig, but is explicitly opting out and using distutils instead.
-if _USE_SYSCONFIG_DEFAULT and not _USE_SYSCONFIG:
-    _MISMATCH_LEVEL = logging.WARNING
-else:
+if _USE_SYSCONFIG:
     _MISMATCH_LEVEL = logging.DEBUG
+else:
+    _MISMATCH_LEVEL = logging.WARNING
 
 
 def _looks_like_bpo_44860() -> bool:
@@ -296,7 +294,7 @@ def get_scheme(
         if k == "platlib" and _looks_like_red_hat_lib():
             continue
 
-        # On Python 3.9+, sysconfig's posix_user scheme sets platlib against
+        # sysconfig's posix_user scheme sets platlib against
         # sys.platlibdir, but distutils's unix_user incorrectly continues
         # using the same $usersite for both platlib and purelib. This creates a
         # mismatch when sys.platlibdir is not "lib".

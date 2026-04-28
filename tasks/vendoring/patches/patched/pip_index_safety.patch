@@ -1,8 +1,7 @@
 diff --git a/pipenv/patched/pip/_internal/index/collector.py b/pipenv/patched/pip/_internal/index/collector.py
-index a9a8dde8b..25e7767d2 100644
 --- a/pipenv/patched/pip/_internal/index/collector.py
 +++ b/pipenv/patched/pip/_internal/index/collector.py
-@@ -393,9 +393,11 @@ class LinkCollector:
+@@ -393,9 +393,11 @@
          self,
          session: PipSession,
          search_scope: SearchScope,
@@ -14,7 +13,7 @@ index a9a8dde8b..25e7767d2 100644
  
      @classmethod
      def create(
-@@ -403,6 +405,7 @@ class LinkCollector:
+@@ -403,6 +405,7 @@
          session: PipSession,
          options: Values,
          suppress_no_index: bool = False,
@@ -22,7 +21,7 @@ index a9a8dde8b..25e7767d2 100644
      ) -> LinkCollector:
          """
          :param session: The Session to use to make requests.
-@@ -424,10 +427,12 @@ class LinkCollector:
+@@ -424,10 +427,12 @@
              find_links=find_links,
              index_urls=index_urls,
              no_index=options.no_index,
@@ -36,22 +35,9 @@ index a9a8dde8b..25e7767d2 100644
          return link_collector
  
 diff --git a/pipenv/patched/pip/_internal/models/search_scope.py b/pipenv/patched/pip/_internal/models/search_scope.py
-index 136163ca0..a41193a6e 100644
 --- a/pipenv/patched/pip/_internal/models/search_scope.py
 +++ b/pipenv/patched/pip/_internal/models/search_scope.py
-@@ -14,17 +14,17 @@ from pip._internal.utils.misc import normalize_path, redact_auth_from_url
- logger = logging.getLogger(__name__)
- 
- 
--@dataclass(frozen=True)
-+@dataclass(frozen=True, slots=True)
- class SearchScope:
-     """
-     Encapsulates the locations that pip is configured to search.
-     """
- 
--    __slots__ = ["find_links", "index_urls", "no_index"]
--
+@@ -23,6 +23,8 @@
      find_links: list[str]
      index_urls: list[str]
      no_index: bool
@@ -60,7 +46,7 @@ index 136163ca0..a41193a6e 100644
  
      @classmethod
      def create(
-@@ -32,6 +32,8 @@ class SearchScope:
+@@ -30,6 +32,8 @@
          find_links: list[str],
          index_urls: list[str],
          no_index: bool,
@@ -69,7 +55,7 @@ index 136163ca0..a41193a6e 100644
      ) -> "SearchScope":
          """
          Create a SearchScope object after normalizing the `find_links`.
-@@ -64,6 +66,8 @@ class SearchScope:
+@@ -64,6 +68,8 @@
              find_links=built_find_links,
              index_urls=index_urls,
              no_index=no_index,
@@ -78,7 +64,7 @@ index 136163ca0..a41193a6e 100644
          )
  
      def get_formatted_locations(self) -> str:
-@@ -121,4 +125,17 @@ class SearchScope:
+@@ -121,4 +127,17 @@
                  loc = loc + "/"
              return loc
  

@@ -39,9 +39,6 @@ from .compat import (
     getproxies_environment,
     integer_types,
     is_urllib3_1,
-)
-from .compat import parse_http_list as _parse_list_header
-from .compat import (
     proxy_bypass,
     proxy_bypass_environment,
     quote,
@@ -50,6 +47,7 @@ from .compat import (
     urlparse,
     urlunparse,
 )
+from .compat import parse_http_list as _parse_list_header
 from .cookies import cookiejar_from_dict
 from .exceptions import (
     FileModeWarning,
@@ -61,6 +59,7 @@ from .structures import CaseInsensitiveDict
 
 NETRC_FILES = (".netrc", "_netrc")
 
+# Certificate is extracted by certifi when needed.
 DEFAULT_CA_BUNDLE_PATH = certs.where()
 
 DEFAULT_PORTS = {"http": 80, "https": 443}
@@ -233,7 +232,7 @@ def get_netrc_auth(url, raise_errors=False):
 
         try:
             _netrc = netrc(netrc_path).authenticators(host)
-            if _netrc:
+            if _netrc and any(_netrc):
                 # Return with login / password
                 login_i = 0 if _netrc[0] else 1
                 return (_netrc[login_i], _netrc[2])
@@ -283,12 +282,13 @@ def extract_zipped_paths(path):
         return path
 
     # we have a valid zip archive and a valid member of that archive
-    tmp = tempfile.gettempdir()
-    extracted_path = os.path.join(tmp, member.split("/")[-1])
-    if not os.path.exists(extracted_path):
-        # use read + write to avoid the creating nested folders, we only want the file, avoids mkdir racing condition
-        with atomic_open(extracted_path) as file_handler:
-            file_handler.write(zip_file.read(member))
+    suffix = os.path.splitext(member.split("/")[-1])[-1]
+    fd, extracted_path = tempfile.mkstemp(suffix=suffix)
+    try:
+        os.write(fd, zip_file.read(member))
+    finally:
+        os.close(fd)
+
     return extracted_path
 
 
@@ -502,26 +502,23 @@ def get_encodings_from_content(content):
 
 
 def _parse_content_type_header(header):
-    """Returns content type and parameters from given header
+    """Returns content type and parameters from given header.
 
     :param header: string
     :return: tuple containing content type and dictionary of
-         parameters
+         parameters.
     """
 
     tokens = header.split(";")
     content_type, params = tokens[0].strip(), tokens[1:]
     params_dict = {}
-    items_to_strip = "\"' "
+    strip_chars = "\"' "
 
     for param in params:
         param = param.strip()
-        if param:
-            key, value = param, True
-            index_of_equals = param.find("=")
-            if index_of_equals != -1:
-                key = param[:index_of_equals].strip(items_to_strip)
-                value = param[index_of_equals + 1 :].strip(items_to_strip)
+        if param and (idx := param.find("=")) != -1:
+            key = param[:idx].strip(strip_chars)
+            value = param[idx + 1 :].strip(strip_chars)
             params_dict[key.lower()] = value
     return content_type, params_dict
 

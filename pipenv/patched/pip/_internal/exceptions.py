@@ -769,7 +769,7 @@ class UninstallMissingRecord(DiagnosticPipError):
             dep = f"{distribution.raw_name}=={distribution.version}"
             hint = Text.assemble(
                 "You might be able to recover from this via: ",
-                (f"pip install --force-reinstall --no-deps {dep}", "green"),
+                (f"pip install --ignore-installed --no-deps {dep}", "green"),
             )
         else:
             hint = Text(

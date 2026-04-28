@@ -410,7 +410,7 @@ class Resolver(BaseResolver):
         If preparer.require_hashes is True, don't use the wheel cache, because
         cached wheels, always built locally, have different hashes than the
         files downloaded from the index server and thus throw false hash
-        mismatches. Furthermore, cached wheels at present have undeterministic
+        mismatches. Furthermore, cached wheels at present have nondeterministic
         contents due to file modification times.
         """
         if req.link is None:

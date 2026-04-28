@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import copy
 import functools
 import logging
 from collections.abc import Iterable, Iterator, Mapping, Sequence
@@ -31,6 +32,7 @@ from pipenv.patched.pip._internal.exceptions import (
 )
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_environment
+from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
@@ -241,6 +243,31 @@ class Factory:
                     return None
             return self._link_candidate_cache[link]
 
+    def _get_locked_installation_candidate(
+        self, ireqs: Sequence[InstallRequirement], name: str, specifier: SpecifierSet
+    ) -> InstallationCandidate | None:
+        locked_ireqs = [ireq for ireq in ireqs if ireq.locked_link]
+        if not locked_ireqs:
+            return None
+        if len(locked_ireqs) > 1:
+            raise InstallationError(
+                f"Multiple locks provided for package {name!r} in "
+                f"{', '.join(str(lir.comes_from) for lir in locked_ireqs)}"
+            )
+        locked_ireq = locked_ireqs[0]
+        assert locked_ireq.locked_link
+        assert locked_ireq.locked_version
+        if not specifier.contains(locked_ireq.locked_version):
+            raise InstallationError(
+                f"Locked version {locked_ireq.locked_version!s} "
+                f"for package {name!r} from {locked_ireq.comes_from!r} "
+                f"is not compatible with other requirements "
+                f"for the same package ({specifier!s})"
+            )
+        return InstallationCandidate(
+            name, str(locked_ireq.locked_version), locked_ireq.locked_link
+        )
+
     def _iter_found_candidates(
         self,
         ireqs: Sequence[InstallRequirement],
@@ -248,6 +275,7 @@ class Factory:
         hashes: Hashes,
         prefers_installed: bool,
         incompatible_ids: set[int],
+        constraint_hash_options: dict[str, list[str]] | None = None,
     ) -> Iterable[Candidate]:
         if not ireqs:
             return ()
@@ -258,6 +286,16 @@ class Factory:
         # Hopefully the Project model can correct this mismatch in the future.
         template = ireqs[0]
         assert template.req, "Candidates found on index must be PEP 508"
+        if (
+            constraint_hash_options
+            and not template.hash_options
+            and any(constraint_hash_options.values())
+        ):
+            template = copy.copy(template)
+            template.hash_options = {
+                k: list(v) for k, v in constraint_hash_options.items()
+            }
+        assert template.req  # to prevent mypy from being confused by the copy
         name = canonicalize_name(template.req.name)
 
         extras: frozenset[str] = frozenset()
@@ -297,12 +335,20 @@ class Factory:
             return candidate
 
         def iter_index_candidate_infos() -> Iterator[IndexCandidateInfo]:
-            result = self._finder.find_best_candidate(
-                project_name=name,
-                specifier=specifier,
-                hashes=hashes,
-            )
-            icans = result.applicable_candidates
+            if locked_ican := self._get_locked_installation_candidate(
+                ireqs, name, specifier
+            ):
+                # Locked InstallRequirements must behave as if they would have
+                # been found on an index, except the link is already known, so we don't
+                # ask the finder for the best candidate in that case.
+                icans = [locked_ican]
+            else:
+                result = self._finder.find_best_candidate(
+                    project_name=name,
+                    specifier=specifier,
+                    hashes=hashes,
+                )
+                icans = result.applicable_candidates
 
             # PEP 592: Yanked releases are ignored unless the specifier
             # explicitly pins a version (via '==' or '===') that can be
@@ -376,16 +422,28 @@ class Factory:
         This creates "fake" InstallRequirement objects that are basically clones
         of what "should" be the template, but with original_link set to link.
         """
+        extras: frozenset[str] = frozenset()
+        base_identifier = identifier
+        with contextlib.suppress(InvalidRequirement):
+            parsed_requirement = get_requirement(identifier)
+            if parsed_requirement.name != identifier:
+                base_identifier = canonicalize_name(parsed_requirement.name)
+                extras = frozenset(parsed_requirement.extras)
+
         for link in constraint.links:
             self._fail_if_link_is_unsupported_wheel(link)
-            candidate = self._make_base_candidate_from_link(
+            base_candidate = self._make_base_candidate_from_link(
                 link,
                 template=install_req_from_link_and_ireq(link, template),
-                name=canonicalize_name(identifier),
+                name=canonicalize_name(base_identifier),
                 version=None,
             )
-            if candidate:
-                yield candidate
+            if base_candidate is None:
+                continue
+            if extras:
+                yield self._make_extras_candidate(base_candidate, extras)
+            else:
+                yield base_candidate
 
     def find_candidates(
         self,
@@ -453,6 +511,7 @@ class Factory:
                 constraint.hashes,
                 prefers_installed,
                 incompat_ids,
+                constraint.hash_options,
             )
 
         return (
@@ -706,8 +765,7 @@ class Factory:
                 version_type = "final version"
 
         logger.critical(
-            "Could not find a %s that satisfies the requirement %s "
-            "(from versions: %s)",
+            "Could not find a %s that satisfies the requirement %s (from versions: %s)",
             version_type,
             req_disp,
             ", ".join(versions) or "none",
@@ -819,8 +877,8 @@ class Factory:
                 msg = msg + "The user requested "
             msg = msg + req.format_for_error()
         for key in relevant_constraints:
-            spec = constraints[key].specifier
-            msg += f"\n    The user requested (constraint) {key}{spec}"
+            constraint_text = f"{key}{constraints[key].format_for_error()}"
+            msg += f"\n    The user requested (constraint) {constraint_text}"
 
         # Check for causes that had no candidates
         causes = set()
