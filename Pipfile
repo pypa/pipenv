@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [dev-packages]
-pipenv = {path = ".", editable = true, extras = ["tests", "dev"]}
 urllib3 = ">=2.6.0"
 requests = ">=2.32.4"
 sphinx = "*"

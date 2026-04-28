@@ -62,7 +62,8 @@ test-install:
 test-install: $(if $(RAMDISK), ramdisk-virtualenv virtualenv)
 	. $(get_venv_path)/bin/activate && \
 		python -m pip install --upgrade pip -e .[tests,dev] && \
-		pipenv install --dev
+		pipenv install --dev && \
+		pipenv run python -m pip install --upgrade -e .[tests,dev]
 
 .PHONY: submodules
 submodules:

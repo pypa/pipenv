@@ -1,0 +1,5 @@
+Fix ``pipenv install`` corrupting existing inline-table or outline-table
+Pipfile entries (``six = {version = "*"}``, ``[packages.requests]``).  The
+locker was popping ``version``/``ref`` keys directly off the cached
+``parsed_pipfile`` document, so subsequent writes emitted
+``six = {}`` and dropped the version specifier from sibling packages.

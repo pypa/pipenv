@@ -82,7 +82,9 @@ The build will fail when linting changes are detected so be sure to sync dev req
 and install the pre-commit hooks locally:
 
 ```bash
+   $ python -m pip install -e ".[tests,dev]"
    $ pipenv install --dev
+   $ pipenv run python -m pip install -e ".[tests,dev]"
    # This will configure running the pre-commit checks at start of each commit
    $ pre-commit install
    # Should you want to check the pre-commit configuration against all configured project files
@@ -287,7 +289,9 @@ This repeats the steps of the scripts above:
 $ git clone https://github.com/pypa/pipenv.git
 $ cd pipenv
 $ git submodule sync && git submodule update --init --recursive
+$ python -m pip install -e ".[tests,dev]"
 $ pipenv install --dev
+$ pipenv run python -m pip install -e ".[tests,dev]"
 $ pipenv run pytest [--any optional arguments to pytest]
 ```
 

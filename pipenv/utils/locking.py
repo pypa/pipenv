@@ -171,10 +171,14 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
             if pep423_name(pipfile_key) == dep_name or pipfile_key == dep_name:
                 is_top_level = True
                 if isinstance(pipfile_entry, dict):
-                    if pipfile_entry.get("version"):
-                        pipfile_entry.pop("version")
-                    if pipfile_entry.get("ref"):
-                        pipfile_entry.pop("ref")
+                    # Copy before mutating: pipfile_section is the cached
+                    # parsed_pipfile, so popping in place strips the original
+                    # Pipfile entry and corrupts the next write_toml.
+                    pipfile_entry = {
+                        k: v
+                        for k, v in pipfile_entry.items()
+                        if k not in ("version", "ref")
+                    }
                     dep.update(pipfile_entry)
                 break
 
