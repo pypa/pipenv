@@ -743,3 +743,33 @@ install_search_all_sources = true
             f.write(contents)
         c = p.pipenv("install --skip-lock")
         assert c.returncode == 0
+
+
+@pytest.mark.lock
+@pytest.mark.requirements
+def test_lock_respects_cool_down_period(pipenv_instance_private_pypi):
+    """cool-down-period in [pipenv] passes --uploaded-prior-to to the resolver.
+
+    The private test PyPI does not expose upload-time metadata so pip silently
+    ignores the filter — the important thing is that the lock succeeds and the
+    package is still resolved correctly.
+    """
+    with pipenv_instance_private_pypi() as p:
+        with open(p.pipfile_path, "w") as f:
+            f.write(
+                f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "testindex"
+
+[packages]
+six = "*"
+
+[pipenv]
+cool-down-period = "30d"
+"""
+            )
+        c = p.pipenv("lock")
+        assert c.returncode == 0, c.stderr
+        assert "six" in p.lockfile["default"]
