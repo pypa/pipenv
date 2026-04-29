@@ -1313,15 +1313,11 @@ def venv_resolve_deps(
     """
     lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
 
-    if not deps:
-        if not project.pipfile_exists:
-            return {}
-        deps = project.parsed_pipfile.get(pipfile_category, {})
+    deps = deps or (project.parsed_pipfile.get(pipfile_category, {}) if project.pipfile_exists else {})
     if not deps:
         return {}
 
-    if not pipfile:
-        pipfile = getattr(project, pipfile_category, {})
+    pipfile = pipfile or getattr(project, pipfile_category, {})
     if lockfile is None:
         lockfile = project.lockfile(categories=[pipfile_category])
     if old_lock_data is None:
