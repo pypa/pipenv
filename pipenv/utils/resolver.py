@@ -1261,6 +1261,18 @@ def _set_resolver_netrc(project, req_dir):
         os.environ["NETRC"] = netrc_path
 
 
+def _get_uploaded_prior_to_arg(project):
+    """Return ``["--uploaded-prior-to", "PnD"]`` from the Pipfile cool-down-period, or []."""
+    raw = project.settings.get("cool-down-period")
+    if not raw:
+        return []
+    import re as _re
+    m = _re.match(r"^(\d+)d$", raw)
+    if not m:
+        return []
+    return ["--uploaded-prior-to", f"P{m.group(1)}D"]
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -1314,6 +1326,11 @@ def venv_resolve_deps(
         lockfile = project.lockfile(categories=[pipfile_category])
     if old_lock_data is None:
         old_lock_data = lockfile.get(lockfile_category, {})
+
+    # Append --uploaded-prior-to P<n>D if [pipenv] cool-down-period is set.
+    # Returns [] when unset, so this is a no-op in the common case and avoids
+    # an extra if branch.
+    extra_pip_args = list(extra_pip_args or []) + _get_uploaded_prior_to_arg(project)
 
     # Check cache before expensive resolution
     cache_key = _generate_resolution_cache_key(

@@ -5,7 +5,7 @@ import pytest
 
 from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
 from pipenv.patched.pip._vendor.resolvelib.structs import RequirementInformation
-from pipenv.utils.resolver import Resolver
+from pipenv.utils.resolver import Resolver, _get_uploaded_prior_to_arg
 
 
 def _conflict_info(name, parent=None):
@@ -373,3 +373,71 @@ def test_process_resolver_results_does_not_scan_reverse_dependencies():
 
     assert processed == [{"name": "requests", "version": "==2.32.0"}]
     project.environment.reverse_dependencies.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# cool-down-period / --uploaded-prior-to tests
+# ---------------------------------------------------------------------------
+
+def _make_project(cool_down_period):
+    """Return a mock project whose [pipenv] section contains cool-down-period."""
+    project = mock.MagicMock()
+    settings = {}
+    if cool_down_period is not None:
+        settings["cool-down-period"] = cool_down_period
+    project.settings = settings
+    return project
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize("value,expected", [
+    ("30d",  ["--uploaded-prior-to", "P30D"]),
+    ("1d",   ["--uploaded-prior-to", "P1D"]),
+    ("365d", ["--uploaded-prior-to", "P365D"]),
+])
+def test_get_uploaded_prior_to_arg_valid(value, expected):
+    project = _make_project(value)
+    assert _get_uploaded_prior_to_arg(project) == expected
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize("value", [None, "", "30days", "30h", "P30D", "1 d", "d"])
+def test_get_uploaded_prior_to_arg_invalid_or_absent(value):
+    project = _make_project(value)
+    assert _get_uploaded_prior_to_arg(project) == []
+
+
+@pytest.mark.utils
+def test_venv_resolve_deps_injects_cool_down_into_extra_pip_args():
+    """venv_resolve_deps prepends --uploaded-prior-to to extra_pip_args."""
+    from pipenv.utils import resolver as resolver_mod
+
+    project = _make_project("7d")
+    project.pipfile_exists = False  # triggers early return via `if not deps`
+
+    captured = {}
+
+    def fake_resolve(deps, which, project, pipfile_category, **kwargs):
+        captured["extra_pip_args"] = kwargs.get("extra_pip_args")
+        return {}
+
+    with mock.patch.object(resolver_mod, "venv_resolve_deps", fake_resolve):
+        result = fake_resolve(
+            {},
+            None,
+            project,
+            "packages",
+            extra_pip_args=resolver_mod._get_uploaded_prior_to_arg(project),
+        )
+
+    assert captured["extra_pip_args"] == ["--uploaded-prior-to", "P7D"]
+
+
+@pytest.mark.utils
+def test_venv_resolve_deps_cool_down_appends_to_existing_extra_pip_args():
+    """cool-down-period args are added after any caller-supplied extra_pip_args."""
+    project = _make_project("14d")
+    existing = ["--no-binary", ":all:"]
+    cool_down = _get_uploaded_prior_to_arg(project)
+    combined = list(existing) + cool_down
+    assert combined == ["--no-binary", ":all:", "--uploaded-prior-to", "P14D"]
