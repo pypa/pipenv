@@ -747,21 +747,21 @@ install_search_all_sources = true
 
 @pytest.mark.lock
 @pytest.mark.requirements
-def test_lock_respects_cool_down_period(pipenv_instance_private_pypi):
+def test_lock_respects_cool_down_period(pipenv_instance_pypi):
     """cool-down-period in [pipenv] passes --uploaded-prior-to to the resolver.
 
-    The private test PyPI does not expose upload-time metadata so pip silently
-    ignores the filter — the important thing is that the lock succeeds and the
-    package is still resolved correctly.
+    Uses the real PyPI because it exposes upload-time metadata, which pip
+    requires when --uploaded-prior-to is supplied.  The 30-day window is wide
+    enough to always include a stable release of `six`.
     """
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             f.write(
                 f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
-name = "testindex"
+verify_ssl = true
+name = "pypi"
 
 [packages]
 six = "*"

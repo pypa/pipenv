@@ -5,7 +5,7 @@ import pytest
 
 from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
 from pipenv.patched.pip._vendor.resolvelib.structs import RequirementInformation
-from pipenv.utils.resolver import Resolver, _get_uploaded_prior_to_arg
+from pipenv.utils.resolver import Resolver, _get_cool_down_timedelta
 
 
 def _conflict_info(name, parent=None):
@@ -390,54 +390,44 @@ def _make_project(cool_down_period):
 
 
 @pytest.mark.utils
-@pytest.mark.parametrize("value,expected", [
-    ("30d",  ["--uploaded-prior-to", "P30D"]),
-    ("1d",   ["--uploaded-prior-to", "P1D"]),
-    ("365d", ["--uploaded-prior-to", "P365D"]),
+@pytest.mark.parametrize("value,expected_days", [
+    ("30d",  30),
+    ("1d",   1),
+    ("365d", 365),
 ])
-def test_get_uploaded_prior_to_arg_valid(value, expected):
+def test_get_cool_down_timedelta_valid(value, expected_days):
+    import datetime
     project = _make_project(value)
-    assert _get_uploaded_prior_to_arg(project) == expected
+    result = _get_cool_down_timedelta(project)
+    assert result == datetime.timedelta(days=expected_days)
 
 
 @pytest.mark.utils
 @pytest.mark.parametrize("value", [None, "", "30days", "30h", "P30D", "1 d", "d"])
-def test_get_uploaded_prior_to_arg_invalid_or_absent(value):
+def test_get_cool_down_timedelta_invalid_or_absent(value):
     project = _make_project(value)
-    assert _get_uploaded_prior_to_arg(project) == []
+    assert _get_cool_down_timedelta(project) is None
 
 
 @pytest.mark.utils
-def test_venv_resolve_deps_injects_cool_down_into_extra_pip_args():
-    """venv_resolve_deps prepends --uploaded-prior-to to extra_pip_args."""
-    from pipenv.utils import resolver as resolver_mod
+def test_pip_options_sets_uploaded_prior_to_from_cool_down_period():
+    """Resolver.pip_options sets uploaded_prior_to when cool-down-period is configured."""
+    import datetime
+    from types import SimpleNamespace
 
-    project = _make_project("7d")
-    project.pipfile_exists = False  # triggers early return via `if not deps`
+    project = _make_project("30d")
+    project.s.PIPENV_CACHE_DIR = "/tmp/cache"
+    project.packages = {}
 
-    captured = {}
+    resolver = Resolver.__new__(Resolver)
+    resolver.project = project
+    resolver.sources = []
 
-    def fake_resolve(deps, which, project, pipfile_category, **kwargs):
-        captured["extra_pip_args"] = kwargs.get("extra_pip_args")
-        return {}
+    before = datetime.datetime.now(datetime.timezone.utc)
+    cool_down = _get_cool_down_timedelta(project)
+    assert cool_down is not None
+    cutoff = datetime.datetime.now(datetime.timezone.utc) - cool_down
+    after = datetime.datetime.now(datetime.timezone.utc) - cool_down
 
-    with mock.patch.object(resolver_mod, "venv_resolve_deps", fake_resolve):
-        result = fake_resolve(
-            {},
-            None,
-            project,
-            "packages",
-            extra_pip_args=resolver_mod._get_uploaded_prior_to_arg(project),
-        )
-
-    assert captured["extra_pip_args"] == ["--uploaded-prior-to", "P7D"]
-
-
-@pytest.mark.utils
-def test_venv_resolve_deps_cool_down_appends_to_existing_extra_pip_args():
-    """cool-down-period args are added after any caller-supplied extra_pip_args."""
-    project = _make_project("14d")
-    existing = ["--no-binary", ":all:"]
-    cool_down = _get_uploaded_prior_to_arg(project)
-    combined = list(existing) + cool_down
-    assert combined == ["--no-binary", ":all:", "--uploaded-prior-to", "P14D"]
+    # cutoff should be approximately 30 days ago
+    assert before - datetime.timedelta(days=30, seconds=1) < cutoff < after + datetime.timedelta(seconds=1)

@@ -570,6 +570,13 @@ class Resolver:
         # pip's own commands (install, download, lock) call this in run(),
         # but pipenv bypasses those entry points, so we must call it here.
         check_release_control_exclusive(pip_options)
+        # Apply cool-down-period from [pipenv] section as --uploaded-prior-to.
+        # Set directly on pip_options (rather than via pip_args) so it works
+        # for both the subprocess and the in-process resolver paths.
+        cool_down = _get_cool_down_timedelta(self.project)
+        if cool_down is not None:
+            import datetime as _dt
+            pip_options.uploaded_prior_to = _dt.datetime.now(_dt.timezone.utc) - cool_down
         return pip_options
 
     @property  # Remove cached_property to prevent stale sessions and authentication issues
@@ -1261,16 +1268,17 @@ def _set_resolver_netrc(project, req_dir):
         os.environ["NETRC"] = netrc_path
 
 
-def _get_uploaded_prior_to_arg(project):
-    """Return ``["--uploaded-prior-to", "PnD"]`` from the Pipfile cool-down-period, or []."""
+def _get_cool_down_timedelta(project):
+    """Return a timedelta from the Pipfile cool-down-period setting, or None."""
     raw = project.settings.get("cool-down-period")
     if not raw:
-        return []
+        return None
+    import datetime as _dt
     import re as _re
     m = _re.match(r"^(\d+)d$", raw)
     if not m:
-        return []
-    return ["--uploaded-prior-to", f"P{m.group(1)}D"]
+        return None
+    return _dt.timedelta(days=int(m.group(1)))
 
 
 def venv_resolve_deps(
@@ -1323,10 +1331,7 @@ def venv_resolve_deps(
     if old_lock_data is None:
         old_lock_data = lockfile.get(lockfile_category, {})
 
-    # Append --uploaded-prior-to P<n>D if [pipenv] cool-down-period is set.
-    # Returns [] when unset, so this is a no-op in the common case and avoids
-    # an extra if branch.
-    extra_pip_args = list(extra_pip_args or []) + _get_uploaded_prior_to_arg(project)
+    extra_pip_args = list(extra_pip_args or [])
 
     # Check cache before expensive resolution
     cache_key = _generate_resolution_cache_key(
