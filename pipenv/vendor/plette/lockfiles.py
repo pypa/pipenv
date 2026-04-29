@@ -13,26 +13,35 @@ class _LockFileEncoder(json.JSONEncoder):
     This adds a few characteristics to the encoder:
 
     * The JSON is always prettified with indents and spaces.
-    * The output is always UTF-8-encoded text, never binary, even on Python 2.
+    * TOMLKit's container elements are seamlessly encodable.
+    * The output is always UTF-8-encoded text, never binary.
     """
     def __init__(self):
-        super(_LockFileEncoder, self).__init__(
-            indent=4, separators=(",", ": "), sort_keys=True,
+        super().__init__(
+            indent=4,
+            separators=(",", ": "),
+            sort_keys=True,
         )
 
     def encode(self, obj):
-        content = super(_LockFileEncoder, self).encode(obj)
+        content = super().encode(obj)
         if not isinstance(content, str):
             content = content.decode("utf-8")
         content += "\n"
         return content
 
     def iterencode(self, obj):
-        for chunk in super(_LockFileEncoder, self).iterencode(obj):
+        for chunk in super().iterencode(obj):
             if not isinstance(chunk, str):
                 chunk = chunk.decode("utf-8")
             yield chunk
         yield "\n"
+
+    def encode(self, obj):
+        content = super().encode(obj)
+        if not isinstance(content, str):
+            content = content.decode("utf-8")
+        return content
 
 
 PIPFILE_SPEC_CURRENT = 6
