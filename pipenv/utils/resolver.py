@@ -570,6 +570,13 @@ class Resolver:
         # pip's own commands (install, download, lock) call this in run(),
         # but pipenv bypasses those entry points, so we must call it here.
         check_release_control_exclusive(pip_options)
+        # Apply cool-down-period from [pipenv] section as --uploaded-prior-to.
+        # Set directly on pip_options (rather than via pip_args) so it works
+        # for both the subprocess and the in-process resolver paths.
+        cool_down = _get_cool_down_timedelta(self.project)
+        if cool_down is not None:
+            import datetime as _dt
+            pip_options.uploaded_prior_to = _dt.datetime.now(_dt.timezone.utc) - cool_down
         return pip_options
 
     @property  # Remove cached_property to prevent stale sessions and authentication issues
@@ -1261,6 +1268,19 @@ def _set_resolver_netrc(project, req_dir):
         os.environ["NETRC"] = netrc_path
 
 
+def _get_cool_down_timedelta(project):
+    """Return a timedelta from the Pipfile cool-down-period setting, or None."""
+    raw = project.settings.get("cool-down-period")
+    if not raw:
+        return None
+    import datetime as _dt
+    import re as _re
+    m = _re.match(r"^(\d+)d$", raw)
+    if not m:
+        return None
+    return _dt.timedelta(days=int(m.group(1)))
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -1301,19 +1321,17 @@ def venv_resolve_deps(
     """
     lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
 
-    if not deps:
-        if not project.pipfile_exists:
-            return {}
-        deps = project.parsed_pipfile.get(pipfile_category, {})
+    deps = deps or (project.parsed_pipfile.get(pipfile_category, {}) if project.pipfile_exists else {})
     if not deps:
         return {}
 
-    if not pipfile:
-        pipfile = getattr(project, pipfile_category, {})
+    pipfile = pipfile or getattr(project, pipfile_category, {})
     if lockfile is None:
         lockfile = project.lockfile(categories=[pipfile_category])
     if old_lock_data is None:
         old_lock_data = lockfile.get(lockfile_category, {})
+
+    extra_pip_args = list(extra_pip_args or [])
 
     # Check cache before expensive resolution
     cache_key = _generate_resolution_cache_key(

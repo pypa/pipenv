@@ -1,4 +1,7 @@
-from .base import DataModel, DataModelSequence, DataModelMapping
+import re as _re
+import datetime as _datetime
+
+from .base import DataModel, DataModelSequence, DataModelMapping, DataValidationError
 from .hashes import Hash
 from .packages import Package
 from .scripts import Script
@@ -49,12 +52,19 @@ META_SECTIONS = {
 }
 
 
+_COOL_DOWN_PATTERN = _re.compile(r"^(\d+)d$")
+
+
 class PipfileSection(DataModel):
 
     """
     Dummy pipfile validator that needs to be completed in a future PR
     Hint: many pipfile features are undocumented in  pipenv/project.py
     """
+
+    __schema__ = {
+        "sort_pipfile": bool
+    }
 
     @classmethod
     def validate(cls, data):
@@ -136,3 +146,36 @@ class Pipenv(DataModel):
     __OPTIONAL__ = {
         "allow_prereleases": bool,
     }
+
+    @classmethod
+    def validate(cls, data):
+        super().validate(data)
+        if "cool-down-period" in data:
+            value = data["cool-down-period"]
+            if not isinstance(value, str) or not _COOL_DOWN_PATTERN.match(value):
+                raise DataValidationError(
+                    f"Invalid cool-down-period {value!r}: expected format '<int>d' (e.g. '30d')"
+                )
+
+    @property
+    def cool_down_period(self):
+        """Return the raw cool-down-period string (e.g. '30d'), or None."""
+        return self._data.get("cool-down-period")
+
+    @cool_down_period.setter
+    def cool_down_period(self, value):
+        if value is not None:
+            if not isinstance(value, str) or not _COOL_DOWN_PATTERN.match(value):
+                raise DataValidationError(
+                    f"Invalid cool-down-period {value!r}: expected format '<int>d' (e.g. '30d')"
+                )
+        self._data["cool-down-period"] = value
+
+    @property
+    def cool_down_period_timedelta(self):
+        """Return cool-down-period as a timedelta, or None if not set."""
+        raw = self.cool_down_period
+        if raw is None:
+            return None
+        days = int(_COOL_DOWN_PATTERN.match(raw).group(1))
+        return _datetime.timedelta(days=days)
