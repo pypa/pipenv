@@ -410,24 +410,34 @@ def test_get_cool_down_timedelta_invalid_or_absent(value):
 
 
 @pytest.mark.utils
-def test_pip_options_sets_uploaded_prior_to_from_cool_down_period():
+def test_pip_options_sets_uploaded_prior_to_from_cool_down_period(monkeypatch):
     """Resolver.pip_options sets uploaded_prior_to when cool-down-period is configured."""
     import datetime
-    from types import SimpleNamespace
 
     project = _make_project("30d")
     project.s.PIPENV_CACHE_DIR = "/tmp/cache"
-    project.packages = {}
+    project.s.PIPENV_KEYRING_PROVIDER = None
+    project.settings = {"cool-down-period": "30d"}
+
+    # Stub parse_args to return a bare namespace so we don't need a real pip command.
+    fake_options = SimpleNamespace(pre=False, force_reinstall=False)
+    pip_cmd = mock.MagicMock()
+    pip_cmd.parser.parse_args.return_value = (fake_options, [])
 
     resolver = Resolver.__new__(Resolver)
     resolver.project = project
-    resolver.sources = []
+    resolver.pre = False
+
+    monkeypatch.setattr(Resolver, "pip_command", property(lambda self: pip_cmd))
+    monkeypatch.setattr(Resolver, "pip_args", property(lambda self: []))
+    monkeypatch.setattr(
+        "pipenv.utils.resolver.check_release_control_exclusive", lambda opts: None
+    )
 
     before = datetime.datetime.now(datetime.timezone.utc)
-    cool_down = _get_cool_down_timedelta(project)
-    assert cool_down is not None
-    cutoff = datetime.datetime.now(datetime.timezone.utc) - cool_down
-    after = datetime.datetime.now(datetime.timezone.utc) - cool_down
+    pip_options = resolver.pip_options
+    after = datetime.datetime.now(datetime.timezone.utc)
 
-    # cutoff should be approximately 30 days ago
-    assert before - datetime.timedelta(days=30, seconds=1) < cutoff < after + datetime.timedelta(seconds=1)
+    assert hasattr(pip_options, "uploaded_prior_to"), "uploaded_prior_to not set on pip_options"
+    cutoff = pip_options.uploaded_prior_to
+    assert before - datetime.timedelta(days=30, seconds=1) < cutoff < after - datetime.timedelta(days=30) + datetime.timedelta(seconds=1)
