@@ -222,9 +222,11 @@ Restricts the resolver to package versions that were uploaded to the index at le
 the specified number of days ago.  This gives newly-published releases time to be
 vetted by the community before they are automatically pulled into your project.
 
-The value must be a string in `<int>d` format (e.g. `"30d"` for 30 days).  Internally
-pipenv translates this to pip's `--uploaded-prior-to P30D` flag, which is only
-effective against indexes that expose upload-time metadata as described in the
+The value must be a string in `<int>d` format (e.g. `"30d"` for 30 days).  Internally,
+pipenv computes a cutoff datetime in UTC (`now - N days`) and passes that cutoff to
+pip's uploaded-prior-to filtering.  Pip also supports duration-style values such as
+`P30D`, but pipenv's behavior here is based on a concrete cutoff timestamp.  This is
+only effective against indexes that expose upload-time metadata as described in the
 [Simple Repository API](https://packaging.python.org/en/latest/specifications/simple-repository-api/).
 When the index does not provide upload-time metadata (e.g. most private mirrors) the
 setting is accepted but has no filtering effect.
