@@ -1283,6 +1283,25 @@ class VCSURLProcessor:
         return urlunparse(tuple(processed_parts))
 
 
+def _validate_pipfile_entry(name: str, pipfile_dict: Dict[str, Any]) -> None:
+    """Warn or raise when a Pipfile entry contains unrecognised keys.
+
+    This catches common mistakes such as writing ``commit = "hash"`` instead
+    of ``ref = "hash"`` for VCS dependencies.
+    """
+    from pipenv.vendor.plette.models.packages import KNOWN_PACKAGE_KEYS
+
+    unknown = set(pipfile_dict.keys()) - KNOWN_PACKAGE_KEYS
+    if unknown:
+        raise PipenvUsageError(
+            f"Unrecognized option(s) in Pipfile for package '{name}': "
+            f"{', '.join(sorted(unknown))}. "
+            "Valid options include: version, extras, editable, markers, "
+            "ref, git, svn, hg, bzr, path, file, index, subdirectory, "
+            "hashes, no_binary, and PEP 508 marker keys."
+        )
+
+
 def install_req_from_pipfile(name: str, pipfile: Dict[str, Any]) -> Tuple[Any, Any, str]:
     """
     Creates an InstallRequirement from a name and a pipfile entry.
@@ -1293,6 +1312,8 @@ def install_req_from_pipfile(name: str, pipfile: Dict[str, Any]) -> Tuple[Any, A
 
     if hasattr(pipfile, "keys"):
         _pipfile = dict(pipfile).copy()
+        # Validate that all keys are recognised before processing.
+        _validate_pipfile_entry(name, _pipfile)
     else:
         vcs = next(iter([vcs for vcs in VCS_LIST if pipfile.startswith(f"{vcs}+")]), None)
         if vcs is not None:
