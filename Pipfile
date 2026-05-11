@@ -4,7 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [dev-packages]
-urllib3 = ">=2.6.0"
+urllib3 = ">=2.7.0"
 requests = ">=2.32.4"
 sphinx = "*"
 sphinx-click = "==4.*"
