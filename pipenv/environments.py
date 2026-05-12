@@ -429,6 +429,22 @@ class Setting:
         # Internal, for testing the resolver without using subprocess
         self.PIPENV_RESOLVER_PARENT_PYTHON = get_from_env("RESOLVER_PARENT_PYTHON")
 
+        # T_F.5: pluggable resolver backend selection.
+        #
+        # ``PIPENV_RESOLVER`` selects which resolver backend pipenv
+        # dispatches to.  The precedence chain is:
+        #
+        #     CLI ``--resolver NAME`` > ``PIPENV_RESOLVER`` env var >
+        #     ``[pipenv] resolver`` in Pipfile > default (``"pip"``).
+        #
+        # T_F.5 in this PR is scaffolding only (see the maintainer
+        # sign-off in ``docs/dev/initiative-f-backends-design.md``,
+        # 2026-05-12).  The only backend shipped is ``"pip"``; selecting
+        # an unknown backend yields a structured ``InternalError``
+        # response with a clear message.  Future releases will register
+        # additional backends.
+        self.PIPENV_RESOLVER = get_from_env("RESOLVER", check_for_negation=False)
+
         _resolver_timeout_raw = get_from_env(
             "RESOLVER_TIMEOUT_S", check_for_negation=False, default=1800
         )
