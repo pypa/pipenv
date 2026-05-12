@@ -907,8 +907,9 @@ class TestIsEditable:
         # The realistic Pipfile path: parsed_pipfile values are tomlkit
         # InlineTable instances, not plain dicts.  They implement
         # collections.abc.Mapping so the canonical helper must recognise
-        # them.
-        import tomlkit
+        # them.  Use the vendored tomlkit (pipenv ships its own) rather
+        # than importing a top-level `tomlkit` that isn't in test deps.
+        from pipenv.vendor import tomlkit
 
         doc = tomlkit.parse(
             '[packages]\nfoo = {editable = true, path = "."}\nbar = "*"\n'
