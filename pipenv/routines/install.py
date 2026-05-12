@@ -53,9 +53,9 @@ def _target_marker_environment(project, allow_global=False):
     if allow_global:
         return None
     try:
-        if not project.virtualenv_exists:
+        if not project.venv_locator.exists:
             return None
-        venv_python = project._which("python")
+        venv_python = project.venv_locator._which("python")
     except Exception:
         return None
     if not venv_python:

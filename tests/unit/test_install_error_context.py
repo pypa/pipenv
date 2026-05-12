@@ -74,10 +74,13 @@ def test_pip_install_deps_attaches_deps_to_subprocess(monkeypatch, tmp_path):
         def is_verbose(self):
             return False
 
+    class _VenvLocator:
+        src_location = str(tmp_path / "src")
+
     class _Project:
         s = _Settings()
         settings = {}
-        virtualenv_src_location = str(tmp_path / "src")
+        venv_locator = _VenvLocator()
 
     # Patch helpers used to build the pip command so this stays a pure unit test
     monkeypatch.setattr(pip_utils, "project_python", lambda project, system=False: "python")
@@ -142,10 +145,13 @@ def test_pip_install_deps_suppresses_pip_conf(monkeypatch, tmp_path):
         def is_verbose(self):
             return False
 
+    class _VenvLocator:
+        src_location = str(tmp_path / "src")
+
     class _Project:
         s = _Settings()
         settings = {}
-        virtualenv_src_location = str(tmp_path / "src")
+        venv_locator = _VenvLocator()
 
     monkeypatch.setattr(pip_utils, "project_python", lambda project, system=False: "python")
     monkeypatch.setattr(pip_utils, "get_runnable_pip", lambda: "pip")
@@ -213,10 +219,13 @@ def test_pip_install_deps_single_source_no_extra_index(monkeypatch, tmp_path):
         def is_verbose(self):
             return False
 
+    class _VenvLocator:
+        src_location = str(tmp_path / "src")
+
     class _Project:
         s = _Settings()
         settings = {}
-        virtualenv_src_location = str(tmp_path / "src")
+        venv_locator = _VenvLocator()
 
     monkeypatch.setattr(pip_utils, "project_python", lambda project, system=False: "python")
     monkeypatch.setattr(pip_utils, "get_runnable_pip", lambda: "pip")

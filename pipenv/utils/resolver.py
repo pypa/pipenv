@@ -1566,7 +1566,7 @@ def resolve_deps(
     index_lookup = {}
     markers_lookup = {}
     if not os.environ.get("PIP_SRC"):
-        os.environ["PIP_SRC"] = str(project.virtualenv_src_location)
+        os.environ["PIP_SRC"] = str(project.venv_locator.src_location)
     results = []
     resolver = None
     if not deps:
@@ -1575,7 +1575,7 @@ def resolve_deps(
     if not req_dir:
         req_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-requirements")
     python_override = _get_pipfile_python_override(project)
-    with HackedPythonVersion(python_path=project.python(system=allow_global)):
+    with HackedPythonVersion(python_path=project.venv_locator.python(system=allow_global)):
         with _patched_marker_environment(python_override):
             try:
                 results, hashes, internal_resolver = actually_resolve_deps(
@@ -1596,7 +1596,7 @@ def resolve_deps(
     # Second (last-resort) attempt:
     if results is None:
         with HackedPythonVersion(
-            python_path=project.python(system=allow_global),
+            python_path=project.venv_locator.python(system=allow_global),
         ):
             with _patched_marker_environment(python_override):
                 try:

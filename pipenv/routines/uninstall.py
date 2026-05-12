@@ -137,7 +137,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
             # Resolve dependencies with the package removed
             resolved_lock_data = venv_resolve_deps(
                 updated_packages,
-                which=project._which,
+                which=project.venv_locator._which,
                 project=project,
                 lockfile={},
                 pipfile_category=pipfile_category,
@@ -192,7 +192,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
     if downloads:
         if not bare:
             console.print("Clearing out downloads directory...", style="bold")
-        shutil.rmtree(project.download_location)
+        shutil.rmtree(project.venv_locator.download_location)
         return
 
     # Remove comments from the output, if any.

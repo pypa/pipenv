@@ -16,7 +16,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     pipdeptree_path = Path(pipdeptree.__file__).parent
     try:
-        python_path = project.python()
+        python_path = project.venv_locator.python()
     except (AttributeError, RuntimeError):
         err.print(
             "[bold][red]Warning: Unable to display currently-installed dependency graph information here. "
@@ -43,7 +43,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     if reverse:
         cmd_args.append("--reverse")
 
-    if not project.virtualenv_exists:
+    if not project.venv_locator.exists:
         err.echo(
             "[bold][red]Warning: No virtualenv has been created for this project yet! Consider "
             "running `pipenv install` first to automatically generate one for you or see "

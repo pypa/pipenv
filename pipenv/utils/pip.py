@@ -28,7 +28,7 @@ def pip_install_deps(
 ):
     if not allow_global:
         src_dir = os.getenv(
-            "PIP_SRC", os.getenv("PIP_SRC_DIR", project.virtualenv_src_location)
+            "PIP_SRC", os.getenv("PIP_SRC_DIR", project.venv_locator.src_location)
         )
     else:
         src_dir = os.getenv("PIP_SRC", os.getenv("PIP_SRC_DIR"))

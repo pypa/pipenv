@@ -120,7 +120,7 @@ def do_update(project, ctx: RoutineContext):
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
     pipdeptree_path = Path(pipdeptree.__file__).parent
-    python_path = project.python()
+    python_path = project.venv_locator.python()
     cmd_args = [python_path, str(pipdeptree_path), "-l", "--reverse", "--json-tree"]
 
     c = run_command(cmd_args, is_verbose=project.s.is_verbose())
@@ -514,7 +514,7 @@ def _resolve_and_update_lockfile(
     # Resolve package to generate constraints of new package data
     upgrade_lock_data = venv_resolve_deps(
         requested_packages[pipfile_category],
-        which=project._which,
+        which=project.venv_locator._which,
         project=project,
         lockfile={},
         pipfile_category=pipfile_category,
@@ -534,7 +534,7 @@ def _resolve_and_update_lockfile(
     # Upgrade a subset of packages
     full_lock_resolution = venv_resolve_deps(
         complete_packages,
-        which=project._which,
+        which=project.venv_locator._which,
         project=project,
         lockfile={},
         pipfile_category=pipfile_category,
@@ -777,7 +777,7 @@ def upgrade(
             complete_packages = project.parsed_pipfile.get(pipfile_category, {})
             full_lock_resolution = venv_resolve_deps(
                 complete_packages,
-                which=project._which,
+                which=project.venv_locator._which,
                 project=project,
                 lockfile={},
                 pipfile_category=pipfile_category,

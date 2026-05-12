@@ -171,7 +171,7 @@ def test_run_in_virtualenv(pipenv_instance_pypi):
         c = p.pipenv('run python -c "import click;print(click.__file__)"')
         assert c.returncode == 0
         assert normalize_path(c.stdout.strip()).startswith(
-            normalize_path(str(project.virtualenv_location))
+            normalize_path(str(project.venv_locator.location))
         )
         c = p.pipenv("clean --dry-run")
         assert c.returncode == 0

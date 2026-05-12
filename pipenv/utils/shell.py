@@ -613,7 +613,7 @@ def is_env_truthy(name):
 
 def project_python(project, system=False):
     if not system:
-        python = project._which("python")
+        python = project.venv_locator._which("python")
     # When --system --python was used, PIPENV_PYTHON holds the resolved path
     # to the target interpreter so we install to its site-packages (#3593).
     elif project and project.s and project.s.PIPENV_PYTHON:

@@ -144,11 +144,16 @@ class _FakeSettings:
         return False
 
 
+class _FakeVenvLocator:
+    def __init__(self, src_dir):
+        self.src_location = src_dir
+
+
 class _FakeProject:
     def __init__(self, cache_dir, src_dir):
         self.s = _FakeSettings(cache_dir)
         self.settings = {}
-        self.virtualenv_src_location = src_dir
+        self.venv_locator = _FakeVenvLocator(src_dir)
 
 
 @pytest.mark.utils

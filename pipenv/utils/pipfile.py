@@ -82,7 +82,7 @@ def ensure_pipfile(
 
     # Assert Pipfile exists.
     python = (
-        project._which("python")
+        project.venv_locator._which("python")
         if not (project.s.USING_DEFAULT_PYTHON or system)
         else None
     )
@@ -123,7 +123,7 @@ def ensure_pipfile(
             # Create the pipfile if it doesn't exist.
             project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
-    if validate and project.virtualenv_exists and not project.s.PIPENV_SKIP_VALIDATION:
+    if validate and project.venv_locator.exists and not project.s.PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
         changed = project.ensure_proper_casing()
