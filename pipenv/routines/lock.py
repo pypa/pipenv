@@ -91,6 +91,12 @@ def do_lock(project, ctx: RoutineContext):
                 )
 
         # Prune old lockfile category as new one will be created.
+        # Initialize to None so that downstream venv_resolve_deps gets a
+        # well-defined sentinel when the category isn't in the lockfile
+        # yet (first lock, or a newly-added category) — without this,
+        # the unconditional reference at the venv_resolve_deps call
+        # site below raises UnboundLocalError when the pop hits KeyError.
+        old_lock_data = None
         with contextlib.suppress(KeyError):
             old_lock_data = lockfile.pop(category)
 
