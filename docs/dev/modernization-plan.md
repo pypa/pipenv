@@ -466,24 +466,93 @@ output file between parallel agents.
   - `docs/dev/initiative-b-triage-fileutils.md` (deleted)
   - `docs/dev/initiative-b-triage-markers.md` (deleted)
 
-#### T_B.7: Execute "delete" decisions from T_B.5
+#### T_B.7: Execute Initiative B decisions (Wave 1c)
 - **depends_on**: [T_B.5]
-- **location**: per T_B.5's decisions (likely `pipenv/utils/requirementslib.py`,
-  `pipenv/utils/requirements.py`).
+- **location**: `pipenv/utils/requirementslib.py`,
+  `pipenv/utils/requirements.py`, `pipenv/utils/dependencies.py`,
+  `pipenv/utils/locking.py`, `pipenv/project.py`,
+  `pipenv/utils/resolver.py`, `tests/unit/test_requirementslib.py`
+  (new), `tests/unit/test_dependencies.py`, `tests/unit/test_core.py`,
+  `news/`.
 - **description**:
-  Of the three triage outcomes (adopt / vendor / delete), "delete" is the
-  cheapest and unblocks Initiative E. Execute only the "delete"
-  decisions in this task: remove symbols with zero internal callers,
-  drop empty modules if applicable, update any leftover imports. "Adopt"
-  decisions remain follow-up cleanup work (tracked in T_B.5's issues);
-  "vendor" decisions are maintainer-only (per risk table). This task
-  intentionally does **not** execute adopt/vendor.
-- **validation**: Every symbol marked "delete" in the triage doc is
-  removed; unit suite green; no `ImportError` introduced. T_E.1 can
-  begin once this task completes.
-- **status**: Not Completed
+  Originally scoped to "delete decisions only" — expanded under
+  maintainer direction to execute the full set of triage decisions
+  inline (no GitHub issues opened; the triage doc is the working
+  record). Five work units launched as Wave 1c:
+  - **W1** — delete dead symbols in `requirementslib.py`. Verification
+    surfaced that the triage's claim of "0 callers" for
+    `prepare_pip_source_args` was stale (real caller in
+    `dependencies.py`); scoped down to 6 symbols; the seventh routed
+    to W3 for divergence investigation.
+  - **W2** — replace 6 inlined `boltons.iterutils` primitives with a
+    purpose-built ~30-line recursive dict-merge helper. `merge_items`'s
+    public signature preserved.
+  - **W3a** — provenance docstrings on `redact_netloc` and
+    `redact_auth_from_url`.
+  - **W3b** — `unpack_url` / `get_http_url`: ADOPT path. Side-by-side
+    found two load-bearing divergences from patched-pip
+    (`unpack_url` returns `File(...)` for VCS links where pip returns
+    `None`; `get_http_url` uses `globally_managed=False` where pip
+    uses `True`). Kept the requirementslib copies with provenance
+    docstrings.
+  - **W3c** — `prepare_pip_source_args`: REPLACE path. Migrated
+    `dependencies.py` to import from the canonical `indexes.py` copy;
+    deleted the requirementslib copy. The `indexes.py` version is
+    strictly better (preserves port in trusted-host args; raises on
+    missing URL; the Pipfile schema guarantees URL presence at the
+    sole call site, so divergence #2 is unreachable).
+  - **W4** — fix latent bug in `pep423_name` (dead-`else` branch);
+    consolidate `normalize_name` into `pep423_name` (4 callers
+    migrated; all pass plain names so the migration is observably
+    equivalent for them).
+  - **W5** — collapse `is_editable` duplicate. The `dependencies.py:1503`
+    copy turned out to be dead code; every active caller used
+    `requirementslib.is_editable`. Made `dependencies.py` canonical
+    (per long-term-home decision); migrated imports.
+- **validation**:
+  - All five work units committed: `5a84f5ac` (W1), `de6628b8` (W2),
+    `e874e9d0` (W4), `842939a4` (W5), `dc58f7a6` (W3a), `2d897a0c`
+    (W3b), `8a7d0a79` (W3c).
+  - `python -m pytest tests/unit -x`: 516 passed, 9 skipped (baseline
+    was 484; +32 new pinning / TDD tests across W2, W4, W5).
+  - `ruff check pipenv/`: clean.
+  - `pipenv/utils/requirementslib.py`: 740 lines → 274 lines (63%
+    reduction).
+  - News fragments added for the two behaviour-affecting changes
+    (`pep423_name` bug fix; `prepare_pip_source_args` migration).
+  - One latent bug found and left unfixed (with a `TODO(swarm)`-style
+    flag in W2's reporting): the old boltons-based `dict_path_exit`
+    silently produced an empty `tomlkit.items.Array` when reassembling
+    nested containers. The new helper preserves array contents. This
+    is technically an observable behaviour fix triggered only by an
+    unusual Pipfile shape (same `extras = ["..."]` in two merged
+    category dicts).
+- **status**: Completed
 - **log**:
+  Wave 1c executed inline per maintainer's "execute, don't track"
+  directive: no GitHub issues opened; the triage doc serves as the
+  working record. The seven Wave-1c commits net out at roughly
+  -470 lines in `requirementslib.py`, +30 lines of purpose-built
+  helper, +30 lines of new tests, two correctness fixes, zero new
+  vendored surface, zero new external dependencies. Per the
+  parallel-agent operating discipline established in T0.2, agents
+  used explicit `git commit -- <files>` to avoid sweep-up across
+  the wave.
 - **files edited/created**:
+  - `pipenv/utils/requirementslib.py` (heavy: -466 lines net across
+    W1 + W2 + W3b docstrings + W3c + W5)
+  - `pipenv/utils/dependencies.py` (W3c imports, W4 pep423_name fix,
+    W4 caller migrations, W5 canonical is_editable)
+  - `pipenv/utils/requirements.py` (W3a docstrings, W4
+    `normalize_name` removal)
+  - `pipenv/utils/locking.py` (W4 caller migration, W5 import retarget)
+  - `pipenv/project.py` (W4 caller migrations)
+  - `pipenv/utils/resolver.py` (W4 caller migration, import update)
+  - `tests/unit/test_requirementslib.py` (new — W2; 8 tests)
+  - `tests/unit/test_dependencies.py` (W4 +12 tests, W5 +12 tests)
+  - `tests/unit/test_core.py` (W4 docstring update)
+  - `news/+pep423-name-scheme-guard.bugfix.rst` (new — W4)
+  - `news/+initiative-b-prepare-pip-source-args.trivial.rst` (new — W3c)
 
 #### T_B.6: Document owned-vs-vendored policy
 - **depends_on**: [T_B.5]
