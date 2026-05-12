@@ -74,7 +74,7 @@ def run_pep508_check(project, system, python):
 
 
 def check_pep508_requirements(project, results, quiet):
-    p = plette.Pipfile.load(open(project.pipfile_location))
+    p = plette.Pipfile.load(open(project.pipfile.location))
     p = plette.Lockfile.with_meta_from(p)
     failed = False
 

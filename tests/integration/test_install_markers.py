@@ -207,14 +207,14 @@ six = "*"
         assert c.returncode == 0
         lock_hash = project.lockfile.hash()
         assert lock_hash is not None
-        assert lock_hash == project.calculate_pipfile_hash()
+        assert lock_hash == project.pipfile.calculate_hash()
 
         assert c.returncode == 0
-        assert project.lockfile.hash() == project.calculate_pipfile_hash()
+        assert project.lockfile.hash() == project.pipfile.calculate_hash()
 
         os.environ["PYPI_PASSWORD"] = "pass2"
-        assert project.lockfile.hash() == project.calculate_pipfile_hash()
+        assert project.lockfile.hash() == project.pipfile.calculate_hash()
 
         with open(p.pipfile_path, "a") as f:
             f.write('requests = "==2.14.0"\n')
-        assert project.lockfile.hash() != project.calculate_pipfile_hash()
+        assert project.lockfile.hash() != project.pipfile.calculate_hash()
