@@ -6,13 +6,11 @@ import os
 import sys
 
 from functools import cached_property
-from json.decoder import JSONDecodeError
 from pathlib import Path
 from urllib.parse import unquote
 
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import extract_vcs_url, normalize_editable_path_for_pip
-from pipenv.utils.exceptions import LockfileCorruptException
 from pipenv.vendor.tomlkit.items import SingleKey, Table
 
 try:
@@ -47,12 +45,8 @@ from pipenv.utils.internet import (
     is_pypi_url,
     proper_case,
 )
-from pipenv.utils.locking import atomic_open_for_write
-from pipenv.utils.pylock import PylockFile, find_pylock_file
-from pipenv.utils.shell import (
-    expand_url_credentials,
-    find_requirements,
-)
+from pipenv.utils.lockfile import Lockfile
+from pipenv.utils.shell import find_requirements
 from pipenv.utils.settings import Settings
 from pipenv.utils.sources import Sources
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
@@ -321,17 +315,6 @@ class Project:
         return get_canonical_names([pkg.name for pkg in self.installed_packages])
 
     @property
-    def lockfile_package_names(self) -> dict[str, set[str]]:
-        results = {
-            "combined": {},
-        }
-        for category in self.get_package_categories(for_lockfile=True):
-            category_packages = get_canonical_names(self.lockfile_content[category].keys())
-            results[category] = set(category_packages)
-            results["combined"] = results["combined"] | category_packages
-        return results
-
-    @property
     def pipfile_package_names(self) -> dict[str, set[str]]:
         result = {}
         combined = set()
@@ -517,38 +500,30 @@ class Project:
             script.extend(extra_args)
         return script
 
-    def lockfile(self, categories=None):
-        """Pipfile.lock divided by PyPI and external dependencies."""
-        lockfile_loaded = False
-        if self.lockfile_exists:
-            try:
-                lockfile = self.load_lockfile(expand_env_vars=False)
-                lockfile_loaded = True
-            except LockfileCorruptException:
-                raise
-            except Exception:
-                pass
-        if not lockfile_loaded and self.pylock_exists:
-            # Try loading from pylock.toml when Pipfile.lock isn't available.
-            try:
-                pylock = PylockFile.from_path(self.pylock_location)
-                lockfile = pylock.convert_to_pipenv_lockfile()
-                lockfile_loaded = True
-            except Exception:
-                pass
-        if not lockfile_loaded:
-            with open(self.pipfile_location) as pf:
-                lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf), categories=categories)
-                lockfile = lockfile._data
+    @cached_property
+    def lockfile(self) -> Lockfile:
+        """The ``Lockfile`` subsystem (Initiative D, T_D.5).
 
-        if categories is None:
-            categories = self.get_package_categories(for_lockfile=True)
-        for category in categories:
-            lock_section = lockfile.get(category)
-            if lock_section is None:
-                lockfile[category] = {}
+        Access lockfile-related operations through this accessor — e.g.
+        ``project.lockfile.content`` (was ``lockfile_content``),
+        ``project.lockfile.exists`` (was ``lockfile_exists``),
+        ``project.lockfile.location`` (was ``lockfile_location``),
+        ``project.lockfile.any_exists`` (was ``any_lockfile_exists``),
+        ``project.lockfile.write(data)`` (was ``write_lockfile``),
+        ``project.lockfile.load()`` (was ``load_lockfile``),
+        ``project.lockfile.meta()`` (was ``get_lockfile_meta``),
+        ``project.lockfile.hash()`` (was ``get_lockfile_hash``),
+        ``project.lockfile.as_dict(categories=...)`` (was the callable
+        ``project.lockfile(...)`` method), etc.
 
-        return lockfile
+        Per T_D.1 §8.1 maintainer sign-off pylock.toml support is not
+        folded into this extraction; pylock seams in the subsystem carry
+        ``# TODO(pylock):`` tags for the 2027 follow-up. The orchestrator
+        ``Project.get_or_create_lockfile`` stays on ``Project``
+        (coordinator bucket per T_D.1 §2). See
+        ``docs/dev/initiative-d-inventory.md``.
+        """
+        return Lockfile(self)
 
     @property
     def _pipfile(self):
@@ -556,45 +531,6 @@ class Project:
 
         pf = ReqLibPipfile.load(self.pipfile_location)
         return pf
-
-    @property
-    def pylock_location(self):
-        """Returns the location of the pylock.toml file, if it exists."""
-        pylock_path = find_pylock_file(self.project_directory)
-        if pylock_path:
-            return str(pylock_path)
-        return None
-
-    @property
-    def pylock_exists(self):
-        """Returns True if a pylock.toml file exists."""
-        return self.pylock_location is not None
-
-    @property
-    def lockfile_location(self):
-        return f"{self.pipfile_location}.lock"
-
-    @property
-    def lockfile_exists(self):
-        return Path(self.lockfile_location).is_file()
-
-    @property
-    def any_lockfile_exists(self):
-        """Returns True if either Pipfile.lock or pylock.toml exists."""
-        return self.lockfile_exists or self.pylock_exists
-
-    @property
-    def lockfile_content(self):
-        """Returns the content of the lockfile, checking for pylock.toml first."""
-        if self.pylock_exists or self.settings.use_pylock:
-            try:
-                if self.pylock_exists:
-                    pylock = PylockFile.from_path(self.pylock_location)
-                    lockfile_data = pylock.convert_to_pipenv_lockfile()
-                    return lockfile_data
-            except Exception as e:
-                err.print(f"[bold yellow]Error loading pylock.toml: {e}[/bold yellow]")
-        return self.load_lockfile()
 
     def get_editable_packages(self, category):
         packages = {k: v for k, v in self.parsed_pipfile.get(category, {}).items() if is_editable(v)}
@@ -679,25 +615,33 @@ class Project:
         self.write_toml(data)
 
     def get_or_create_lockfile(self, categories, from_pipfile=False):
+        """Coordinator method that crosses Lockfile/Sources/Pipfile.
+
+        Stays on ``Project`` per the T_D.1 §2 ``coordinator`` bucket.
+        Reads through the extracted ``Lockfile`` and ``Sources``
+        subsystems; this orchestration is the only legitimate
+        cross-subsystem consumer of both.
+        """
         from pipenv.utils.locking import Lockfile as Req_Lockfile
 
         if from_pipfile and self.pipfile_exists:
             lockfile_dict = {}
             categories = self.get_package_categories(for_lockfile=True)
-            _lockfile = self.lockfile(categories=categories)
+            _lockfile = self.lockfile.as_dict(categories=categories)
             for category in categories:
                 lockfile_dict[category] = _lockfile.get(category, {}).copy()
-            lockfile_dict.update({"_meta": self.get_lockfile_meta()})
-            lockfile = Req_Lockfile.from_data(path=self.lockfile_location, data=lockfile_dict, meta_from_project=False)
-        elif self.lockfile_exists:
+            lockfile_dict.update({"_meta": self.lockfile.meta()})
+            lockfile = Req_Lockfile.from_data(path=self.lockfile.location, data=lockfile_dict, meta_from_project=False)
+        elif self.lockfile.exists:
             try:
-                lockfile = Req_Lockfile.load(self.lockfile_location)
+                lockfile = Req_Lockfile.load(self.lockfile.location)
             except OSError:
-                lockfile = Req_Lockfile.from_data(self.lockfile_location, self.lockfile_content)
-        elif self.pylock_exists:
+                lockfile = Req_Lockfile.from_data(self.lockfile.location, self.lockfile.content)
+        # TODO(pylock): pylock branch — will fold into the format-detection layer.
+        elif self.lockfile.pylock_exists:
             # Load from pylock.toml when no Pipfile.lock exists.
-            # lockfile_content already handles pylock.toml → internal format conversion.
-            lockfile_dict = self.lockfile_content.copy()
+            # lockfile.content already handles pylock.toml → internal format conversion.
+            lockfile_dict = self.lockfile.content.copy()
             sources = lockfile_dict.get("_meta", {}).get("sources", [])
             if not sources and self.pipfile_exists:
                 sources = self.sources.pipfile_sources(expand_vars=False)
@@ -705,17 +649,17 @@ class Project:
                 sources = [sources]
             if sources:
                 lockfile_dict["_meta"]["sources"] = [Sources.populate_source(s) for s in sources]
-            lockfile = Req_Lockfile.from_data(path=self.lockfile_location, data=lockfile_dict, meta_from_project=False)
+            lockfile = Req_Lockfile.from_data(path=self.lockfile.location, data=lockfile_dict, meta_from_project=False)
         else:
             lockfile = Req_Lockfile.from_data(
-                path=self.lockfile_location,
-                data=self.lockfile(),
+                path=self.lockfile.location,
+                data=self.lockfile.as_dict(),
                 meta_from_project=False,
             )
         if lockfile.lockfile is not None:
             return lockfile
-        if self.any_lockfile_exists and self.lockfile_content:
-            lockfile_dict = self.lockfile_content.copy()
+        if self.lockfile.any_exists and self.lockfile.content:
+            lockfile_dict = self.lockfile.content.copy()
             sources = lockfile_dict.get("_meta", {}).get("sources", [])
             if not sources and self.pipfile_exists:
                 sources = self.sources.pipfile_sources(expand_vars=False)
@@ -723,27 +667,11 @@ class Project:
                 sources = [sources]
             if sources:
                 lockfile_dict["_meta"]["sources"] = [Sources.populate_source(s) for s in sources]
-            _created_lockfile = Req_Lockfile.from_data(path=self.lockfile_location, data=lockfile_dict, meta_from_project=False)
+            _created_lockfile = Req_Lockfile.from_data(path=self.lockfile.location, data=lockfile_dict, meta_from_project=False)
             lockfile.lockfile = lockfile.projectfile.model = _created_lockfile
             return lockfile
         else:
             return self.get_or_create_lockfile(categories=categories, from_pipfile=True)
-
-    def get_lockfile_meta(self):
-        from .vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
-
-        if "source" in self.parsed_pipfile:
-            sources = [dict(source) for source in self.parsed_pipfile["source"]]
-        else:
-            sources = self.sources.pipfile_sources(expand_vars=False)
-        if not isinstance(sources, list):
-            sources = [sources]
-        return {
-            "hash": {"sha256": self.calculate_pipfile_hash()},
-            "pipfile-spec": PIPFILE_SPEC_CURRENT,
-            "sources": [Sources.populate_source(s) for s in sources],
-            "requires": self.parsed_pipfile.get("requires", {}),
-        }
 
     def write_toml(self, data, path=None):
         """Writes the given data structure out as TOML."""
@@ -774,40 +702,6 @@ class Project:
         if is_pipfile:
             self._parsed_pipfile_cache = None
             self._parsed_pipfile_mtime_ns = None
-
-    @property
-    def pylock_output_path(self) -> str:
-        """Returns the path where pylock.toml should be written."""
-        pylock_name = self.settings.get("pylock_name")
-        if pylock_name:
-            return str(Path(self.project_directory) / f"pylock.{pylock_name}.toml")
-        return str(Path(self.project_directory) / "pylock.toml")
-
-    def write_lockfile(self, content):
-        """Write out the lockfile."""
-        # Always write the Pipfile.lock
-        s = self._lockfile_encoder.encode(content)
-        open_kwargs = {"newline": self._lockfile_newlines, "encoding": "utf-8"}
-        with atomic_open_for_write(self.lockfile_location, **open_kwargs) as f:
-            f.write(s)
-            # Write newline at end of document. GH-319.
-            # Only need '\n' here; the file object handles the rest.
-            if not s.endswith("\n"):
-                f.write("\n")
-
-        # If use_pylock is enabled, also write a pylock.toml file
-        if self.settings.use_pylock:
-            try:
-                from pipenv.utils.pylock import PylockFile
-
-                pylock = PylockFile.from_lockfile(
-                    lockfile_path=self.lockfile_location,
-                    pylock_path=self.pylock_output_path,
-                )
-                pylock.write()
-                err.print(f"[bold green]Generated pylock.toml at {self.pylock_output_path}[/bold green]")
-            except Exception as e:
-                err.print(f"[bold red]Error generating pylock.toml: {e}[/bold red]")
 
     @cached_property
     def sources(self) -> Sources:
@@ -1115,73 +1009,6 @@ class Project:
     def recase_pipfile(self):
         if self.ensure_proper_casing():
             self.write_toml(self.parsed_pipfile)
-
-    def load_lockfile(self, expand_env_vars=True):
-        lockfile_modified = False
-        lockfile_path = Path(self.lockfile_location)
-        pipfile_path = Path(self.pipfile_location)
-
-        try:
-            with lockfile_path.open(encoding="utf-8") as lock:
-                try:
-                    j = json.load(lock)
-                    self._lockfile_newlines = preferred_newlines(lock)
-                except JSONDecodeError as e:
-                    raise LockfileCorruptException(str(lockfile_path)) from e
-        except FileNotFoundError:
-            j = {}
-
-        if not j.get("_meta"):
-            if pipfile_path.exists():
-                with pipfile_path.open() as pf:
-                    default_lockfile = plette.Lockfile.with_meta_from(plette.Pipfile.load(pf), categories=[])
-                    j["_meta"] = default_lockfile._data["_meta"]
-                    lockfile_modified = True
-            else:
-                # No Pipfile available; provide minimal _meta so callers
-                # don't break.  This can happen when only pylock.toml exists.
-                j["_meta"] = {
-                    "hash": {"sha256": ""},
-                    "pipfile-spec": 6,
-                    "requires": {},
-                    "sources": [],
-                }
-                lockfile_modified = True
-
-        if j.get("default") is None:
-            j["default"] = {}
-            lockfile_modified = True
-
-        if j.get("develop") is None:
-            j["develop"] = {}
-            lockfile_modified = True
-
-        if lockfile_modified:
-            self.write_lockfile(j)
-
-        if expand_env_vars:
-            # Expand environment variables in Pipfile.lock at runtime.
-            # Use expand_url_credentials() so that passwords with special
-            # characters are URL-encoded after expansion (#4868).
-            for i, _ in enumerate(j["_meta"].get("sources", {})):
-                j["_meta"]["sources"][i]["url"] = expand_url_credentials(j["_meta"]["sources"][i]["url"])
-
-        return j
-
-    def get_lockfile_hash(self):
-        lockfile_path = Path(self.lockfile_location)
-        if not lockfile_path.exists():
-            return
-
-        try:
-            lockfile = self.load_lockfile(expand_env_vars=False)
-        except LockfileCorruptException:
-            # Lockfile corrupted
-            return ""
-        if "_meta" in lockfile and hasattr(lockfile, "keys"):
-            return lockfile["_meta"].get("hash", {}).get("sha256") or ""
-        # Lockfile exists but has no hash at all
-        return ""
 
     def calculate_pipfile_hash(self):
         """Compute a SHA-256 hash of the Pipfile that is stable regardless of

@@ -106,7 +106,7 @@ def do_update(project, ctx: RoutineContext):
             do_lock(project, lock_ctx)
         else:
             # Pre-sync packages for pipdeptree resolution to avoid conflicts
-            if project.any_lockfile_exists:
+            if project.lockfile.any_exists:
                 do_sync(project, sync_ctx)
             upgrade(
                 project,
@@ -279,7 +279,7 @@ def get_modified_pipfile_entries(project, pipfile_categories):
     - Its VCS URL, ref, or extras have changed
     """
     modified = defaultdict(dict)
-    lockfile = project.lockfile()
+    lockfile = project.lockfile.as_dict()
 
     for pipfile_category in pipfile_categories:
         lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
@@ -683,7 +683,7 @@ def upgrade(
     ``cmd_upgrade`` is updated to construct ``RoutineContext`` from
     ``state``.
     """
-    lockfile = project.lockfile()
+    lockfile = project.lockfile.as_dict()
     # Store the original lockfile for comparison later
     original_lockfile = {
         k: v.copy() if isinstance(v, dict) else v for k, v in lockfile.items()
@@ -758,7 +758,7 @@ def upgrade(
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
 
         # Get modified entries if no explicit packages specified
-        if not package_args and project.lockfile_exists:
+        if not package_args and project.lockfile.exists:
             modified_entries = get_modified_pipfile_entries(project, [pipfile_category])
             for name, entry in modified_entries[category].items():
                 requested_packages[pipfile_category][name] = entry
@@ -846,5 +846,5 @@ def upgrade(
                 )
 
     # Update and write lockfile
-    lockfile.update({"_meta": project.get_lockfile_meta()})
-    project.write_lockfile(lockfile)
+    lockfile.update({"_meta": project.lockfile.meta()})
+    project.lockfile.write(lockfile)

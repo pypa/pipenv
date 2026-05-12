@@ -228,7 +228,7 @@ def do_audit(  # noqa: PLR0913
     # recognises pylock.toml / poetry.lock / uv.lock — not Pipfile.lock.
     tmp_requirements = None
     if use_lockfile:
-        if not project.lockfile_exists:
+        if not project.lockfile.exists:
             err.print(
                 "[red]Pipfile.lock not found. Run 'pipenv lock' first.[/red]"
             )
@@ -236,7 +236,7 @@ def do_audit(  # noqa: PLR0913
 
         from pipenv.utils.dependencies import requirements_from_lockfile
 
-        lockfile = project.load_lockfile(expand_env_vars=False)
+        lockfile = project.lockfile.load(expand_env_vars=False)
         deps = {}
         deps.update(lockfile.get("default", {}))
         deps.update(lockfile.get("develop", {}))

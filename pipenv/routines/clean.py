@@ -34,7 +34,7 @@ def do_clean(
             installed_package_names.remove(canonicalize_name(bad_package))
     # Intelligently detect if --dev should be used or not.
     locked_packages = {
-        canonicalize_name(pkg) for pkg in project.lockfile_package_names["combined"]
+        canonicalize_name(pkg) for pkg in project.lockfile.package_names["combined"]
     }
     for used_package in locked_packages:
         if used_package in installed_package_names:
@@ -66,8 +66,8 @@ def ensure_lockfile(project, pypi_mirror=None):
     """Ensures that a lockfile exists. If one exists but is out of date, warn
     the user but do NOT re-lock -- ``pipenv clean`` should use the current
     Pipfile.lock as-is.  Only create a new lock file when none exists at all."""
-    if project.lockfile_exists:
-        old_hash = project.get_lockfile_hash()
+    if project.lockfile.exists:
+        old_hash = project.lockfile.hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
             err.print(
