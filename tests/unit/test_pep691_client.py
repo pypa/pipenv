@@ -1003,3 +1003,212 @@ class TestAuthHelperEdgeCases:
         headers = _outgoing_headers(session)
         assert "Authorization" not in headers
         sentinel.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Per-request TLS material threading (FU3 — Phase-3 follow-up #3)
+# ---------------------------------------------------------------------------
+
+
+class TestPerRequestTLSMaterial:
+    """``PEP691Client.fetch`` threads ``verify`` and ``cert`` per-request.
+
+    T8 stored ``self._verify`` / ``self._cert`` on the instance but the
+    Phase-1 ``fetch`` did not thread them into ``session.request(...)``.
+    Real production sessions are :class:`PipSession` (a
+    :class:`requests.Session` subclass via cachecontrol) which honours
+    per-request ``verify=`` and ``cert=``; T8's docstring deferred this
+    threading to a Phase-3 follow-up and this class pins the new contract.
+    """
+
+    def test_default_constructor_threads_verify_true_cert_none(self):
+        """Plain ``PEP691Client(session)`` → ``verify=True, cert=None`` on call."""
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(session)
+
+        client.fetch("https://pypi.org/simple/", "six")
+
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is True
+        assert kwargs["cert"] is None
+
+    def test_verify_false_threaded(self):
+        """``verify=False`` propagates through to the session.request call."""
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(session, verify=False)
+
+        client.fetch("https://pypi.org/simple/", "six")
+
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] is None
+
+    def test_cert_pair_threaded(self, monkeypatch):
+        """``cert=(cert_path, key_path)`` propagates through verbatim."""
+
+        # Clear the env so client_cert_from_env doesn't shadow the explicit pair.
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(
+            session, cert=("/path/to/cert.pem", "/path/to/key.pem")
+        )
+
+        client.fetch("https://pypi.org/simple/", "six")
+
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["cert"] == ("/path/to/cert.pem", "/path/to/key.pem")
+        assert kwargs["verify"] is True
+
+    def test_verify_and_cert_both_threaded_simultaneously(self, monkeypatch):
+        """Both knobs land on the same call."""
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(
+            session,
+            verify=False,
+            cert=("/a/cert.pem", "/a/key.pem"),
+        )
+
+        client.fetch("https://pypi.org/simple/", "six")
+
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/a/cert.pem", "/a/key.pem")
+
+    def test_tls_material_threaded_on_200_json(self, monkeypatch):
+        """A 200 JSON response path still threads verify/cert through."""
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        body = (FIXTURES_JSON / "six.json").read_bytes()
+        response = _make_response(
+            status=200,
+            data=body,
+            headers={"Content-Type": "application/vnd.pypi.simple.v1+json"},
+        )
+        session = _make_session(response)
+        client = PEP691Client(
+            session, verify=False, cert=("/c.pem", "/k.pem")
+        )
+
+        result = client.fetch("https://pypi.org/simple/", "six")
+
+        assert isinstance(result, SimplePageResponse)
+        assert result.status == "fresh"
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/c.pem", "/k.pem")
+
+    def test_tls_material_threaded_on_304(self, monkeypatch):
+        """A 304 not-modified path still threads verify/cert through."""
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=304)
+        session = _make_session(response)
+        client = PEP691Client(
+            session, verify=False, cert=("/c.pem", "/k.pem")
+        )
+
+        result = client.fetch(
+            "https://pypi.org/simple/", "six", if_none_match='"abc"'
+        )
+
+        assert isinstance(result, SimplePageResponse)
+        assert result.status == "not-modified"
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/c.pem", "/k.pem")
+
+    def test_tls_material_threaded_on_404(self, monkeypatch):
+        """A 404 missing path still threads verify/cert through."""
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(
+            session, verify=False, cert=("/c.pem", "/k.pem")
+        )
+
+        result = client.fetch("https://pypi.org/simple/", "nope")
+
+        assert isinstance(result, SimplePageResponse)
+        assert result.status == "missing"
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/c.pem", "/k.pem")
+
+    def test_tls_material_threaded_on_401(self, monkeypatch):
+        """A 401 auth-failure path still threads verify/cert through.
+
+        Status branching is *post-request* — the call itself always
+        carries TLS material regardless of status outcome.
+        """
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=401)
+        session = _make_session(response)
+        client = PEP691Client(
+            session, verify=False, cert=("/c.pem", "/k.pem")
+        )
+
+        result = client.fetch("https://pypi.org/simple/", "six")
+
+        assert isinstance(result, FetchError)
+        assert result.kind == "auth"
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/c.pem", "/k.pem")
+
+    def test_if_none_match_does_not_affect_tls_kwargs(self, monkeypatch):
+        """``if_none_match`` and TLS kwargs are orthogonal — passing one
+        does not perturb the other on the outgoing request."""
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(
+            session, verify=False, cert=("/c.pem", "/k.pem")
+        )
+
+        client.fetch(
+            "https://pypi.org/simple/", "six", if_none_match='"etag-x"'
+        )
+
+        kwargs = _last_call_kwargs(session)
+        # TLS knobs land independently of the conditional GET header.
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/c.pem", "/k.pem")
+        # And the conditional header is still set on the request.
+        assert kwargs["headers"].get("If-None-Match") == '"etag-x"'
+
+    def test_tls_kwargs_independent_of_if_none_match_absent(self, monkeypatch):
+        """No ``if_none_match`` still threads TLS kwargs unchanged."""
+
+        monkeypatch.delenv("PIP_CLIENT_CERT", raising=False)
+
+        response = _make_response(status=404)
+        session = _make_session(response)
+        client = PEP691Client(
+            session, verify=False, cert=("/c.pem", "/k.pem")
+        )
+
+        client.fetch("https://pypi.org/simple/", "six")
+
+        kwargs = _last_call_kwargs(session)
+        assert kwargs["verify"] is False
+        assert kwargs["cert"] == ("/c.pem", "/k.pem")
+        # No conditional-GET header was added.
+        assert "If-None-Match" not in kwargs["headers"]

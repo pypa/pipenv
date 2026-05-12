@@ -687,15 +687,19 @@ class PEP691Client:
 
     TLS material
     ------------
-    Client certificates (``cert``) and ``verify`` settings are
-    constructor-time properties of the ``session`` (a
-    :class:`urllib3.PoolManager` or compatible mock); this class accepts
-    them as instance state for forward-compat (a phase-3 ``Session``
-    rewrite that delegates per-request TLS will need them) but does NOT
-    rebuild the pool on a per-call basis.  Tests that need to assert TLS
-    behaviour should construct a session with the desired TLS config and
-    inject it; the per-request thread for cert/verify lives in design §6
-    and is a phase-3 concern.
+    Client certificates (``cert``) and ``verify`` settings are threaded
+    per-request into ``session.request(verify=..., cert=...)`` (FU3,
+    Initiative G Phase-3 follow-up).  Production sessions are
+    :class:`PipSession` (a :class:`requests.Session` subclass via
+    cachecontrol) which honours per-call TLS material; this is what
+    makes FU2's per-source ``verify_ssl`` fan-out actually take effect
+    at the wire layer.
+
+    A bare :class:`urllib3.PoolManager` does *not* accept ``verify`` /
+    ``cert`` per-request — those are PoolManager constructor-time
+    properties — but production never hands us a bare PoolManager.
+    Tests use :class:`unittest.mock.MagicMock` for the session which
+    accepts any kwargs.
 
     Notable divergence from pip
     ---------------------------
@@ -812,12 +816,33 @@ class PEP691Client:
         #    HTTPError (the urllib3 base) plus OSError (a low-level
         #    socket error may surface here on some platforms before
         #    urllib3 wraps it).
+        #
+        #    FU3 (Initiative G Phase-3 follow-up): thread per-request TLS
+        #    material into the session call.  Production sessions are
+        #    :class:`PipSession` (a :class:`requests.Session` subclass via
+        #    cachecontrol) which honours per-call ``verify=`` and ``cert=``;
+        #    threading them here is what makes FU2's per-source
+        #    ``verify_ssl`` fan-out actually take effect at the wire layer.
+        #
+        #    Note: a bare :class:`urllib3.PoolManager` does *not* accept
+        #    ``verify`` / ``cert`` per-request — those are PoolManager
+        #    constructor-time properties.  Production never hands us a
+        #    bare PoolManager (PipSession wraps one), and tests use
+        #    :class:`unittest.mock.MagicMock` which accepts any kwargs, so
+        #    Option A (always pass) is safe.  If a future Phase-3
+        #    refactor lands a bare-PoolManager transport, the introspect-
+        #    and-fork path (Option B) is the documented fallback.
         timeout = urllib3.Timeout(
             connect=_DEFAULT_CONNECT_TIMEOUT, read=_DEFAULT_READ_TIMEOUT
         )
         try:
             response = self._session.request(
-                "GET", target_url, headers=headers, timeout=timeout
+                "GET",
+                target_url,
+                headers=headers,
+                timeout=timeout,
+                verify=self._verify,
+                cert=self._cert,
             )
         except urllib3_exceptions.HTTPError as exc:
             # MaxRetryError / ProtocolError / TimeoutError / SSLError /
