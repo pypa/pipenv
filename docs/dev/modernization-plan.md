@@ -1442,6 +1442,98 @@ the design — the four are independent of each other once the
   - `tests/unit/test_utils.py` (one-line late-import edit in
     `test_is_vcs`)
 
+#### T_E.4: Relocate the pip-internal fork pair; delete `requirementslib.py`
+- **depends_on**: [T_E.3]
+- **location**: `pipenv/utils/requirementslib.py` (source, deleted),
+  `pipenv/utils/unpack.py` (destination, new), plus caller file
+  `pipenv/utils/dependencies.py` and test files
+  `tests/unit/{test_unpack,test_dependencies_bridges}.py`.
+- **description**:
+  Per T_E.1 sign-off §6 question 4 ("APPROVED as proposed: new
+  `pipenv/utils/unpack.py`"), relocate the two pip-internal fork
+  helpers (`unpack_url`, `get_http_url`) plus the local
+  `VCS_SCHEMES` set out of `requirementslib.py` and into a new
+  `pipenv/utils/unpack.py`. The new module's top-level docstring
+  records the pip-internal-fork provenance and points at the design
+  docs (`initiative-b-triage`, `initiative-e-design` §T_E.4). The
+  load-bearing per-function provenance commentary (VCS-link
+  divergence in `unpack_url`; `globally_managed=False` in
+  `get_http_url`) is preserved verbatim from the source module.
+
+  After the move, `requirementslib.py` has zero remaining symbols
+  and is deleted in the same commit. The sole in-tree caller
+  (`pipenv/utils/dependencies.py:41`) is migrated to import from
+  the new location. This is the final structural move of
+  Initiative E; the only remaining E task is the optional T_E.7
+  `requirements.py` → `redact.py` rename.
+
+  `VCS_SCHEMES` placement: kept alongside `unpack_url` in
+  `unpack.py` (not promoted to `pipenv/utils/constants.py`).
+  Reason: zero cross-module callers (only `unpack_url` reads it).
+  The `constants.py` `VCS_SCHEMES` is a distinct list of
+  `vcs+transport` strings that does NOT include the bare
+  `git`/`hg`/`svn`/`bzr` schemes the unpack set needs, so the
+  two cannot be unified without changing the semantics of one
+  of the consumers.
+- **validation**: `pipenv/utils/requirementslib.py` no longer exists;
+  `unpack_url` and `get_http_url` importable from
+  `pipenv.utils.unpack`; sole caller `pipenv/utils/dependencies.py`
+  imports from the new location; unit suite green; zero in-tree
+  importers of `pipenv.utils.requirementslib` remain (excluding
+  negative-assertion test calls that explicitly check the module
+  is gone).
+- **status**: Completed
+- **log**:
+  Three symbols moved:
+  - `unpack_url` (~63 lines incl. provenance docstring) — relocated
+    verbatim; no behavioural change.
+  - `get_http_url` (~38 lines incl. provenance docstring) —
+    relocated verbatim; no behavioural change.
+  - `VCS_SCHEMES` (25-element set used only by `unpack_url`) —
+    relocated verbatim; intentionally kept distinct from the
+    `pipenv.utils.constants.VCS_SCHEMES` list, which serves a
+    different consumer set (`dependencies.determine_vcs_specifier`,
+    `is_vcs`).
+
+  Caller migrations (1 file):
+  - `pipenv/utils/dependencies.py` (one-line import edit:
+    `from pipenv.utils.requirementslib import unpack_url`
+    → `from pipenv.utils.unpack import unpack_url`)
+
+  `pipenv/utils/requirementslib.py` deleted (was 144 lines after
+  T_E.3; now zero — the file does not exist).
+
+  8 new tests in `tests/unit/test_unpack.py`:
+  - 5 import-shape pins (`unpack_url` and `get_http_url`
+    importable from the new home; `VCS_SCHEMES` is a set with the
+    bare-scheme entries; legacy `requirementslib` module is gone;
+    `dependencies` sources `unpack_url` from the new home).
+  - 3 behavioural smoke tests (VCS-link `File`-not-`None` return;
+    bare `git` scheme dispatches to the VCS branch via our local
+    set; `get_http_url` constructs `TempDirectory` with
+    `globally_managed=False`).
+
+  Also updated 1 T_E.3-era test in
+  `tests/unit/test_dependencies_bridges.py`: the
+  `test_old_requirementslib_module_no_longer_exports_moved_symbols`
+  test was rewritten to assert the module itself is gone (a strict
+  superset of the prior symbol-by-symbol check, which would now
+  crash on `ModuleNotFoundError` at import time).
+
+  Initiative E structural work is complete after T_E.4. T_E.5 and
+  T_E.6 were folded into T_E.2. T_E.7 (optional rename
+  `requirements.py` → `redact.py`) is the only remaining task and
+  has no dependents.
+- **files edited/created**:
+  - `pipenv/utils/unpack.py` (new — 174 lines, all pip-internal-fork
+    provenance preserved)
+  - `pipenv/utils/requirementslib.py` (deleted)
+  - `pipenv/utils/dependencies.py` (one-line import edit)
+  - `tests/unit/test_unpack.py` (new — 8 tests)
+  - `tests/unit/test_dependencies_bridges.py` (the T_E.3 "old
+    module symbols are gone" test rewritten to "module itself is
+    gone")
+
 #### T_F.1: Document current subprocess resolver protocol
 - **depends_on**: [T_E.1]  (gated on E's design so we know what data
   shape will cross the boundary)
