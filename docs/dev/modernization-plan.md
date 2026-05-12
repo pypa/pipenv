@@ -1290,6 +1290,87 @@ the design — the four are independent of each other once the
   - `tests/unit/test_dependencies_bridges.py` (new, 21 tests)
   - `tests/integration/{test_import_requirements,test_requirements,test_lockfile}.py` (test imports)
 
+#### T_E.3: Move predicates and helpers out of `requirementslib.py`
+- **depends_on**: [T_E.2]
+- **location**: `pipenv/utils/requirementslib.py` (source),
+  `pipenv/utils/dependencies.py` (destination), plus caller files
+  `pipenv/utils/{locking,pipfile}.py`, `pipenv/project.py`,
+  `tests/unit/{test_requirementslib,test_utils,test_dependencies_bridges}.py`.
+- **description**:
+  Per T_E.1 sign-off §3: move four single-line/short helpers
+  (`is_vcs`, `add_ssh_scheme_to_git_uri`, `merge_items`,
+  `get_pip_command`) from `requirementslib.py` into `dependencies.py`
+  (canonical home). `merge_items` brings its two private helpers
+  (`_merge_into`, `_new_container_like`) with it. Caller migration
+  in the same PR per the no-shim posture. After this commit
+  `requirementslib.py` contains only the `unpack_url`/`get_http_url`
+  pip-internal fork pair (plus the `VCS_SCHEMES` constant they need);
+  T_E.4 will relocate that pair to a new `pipenv/utils/unpack.py`
+  and delete the empty `requirementslib.py` shell.
+- **validation**: every moved symbol importable from
+  `pipenv.utils.dependencies`; `requirementslib.py` reduced to the
+  two pip-internal forks; unit suite green for the moved-symbol
+  tests; the four removed symbols no longer exist on
+  `pipenv.utils.requirementslib`.
+- **status**: Completed
+- **log**:
+  Four symbols moved (six lines of code including the two private
+  helpers that travel with `merge_items`):
+  - `is_vcs` (~14 lines) — placed alongside `extract_vcs_url` since
+    it shares VCS-URL semantics. Uses the existing `typing.Mapping`
+    import in `dependencies.py` (works with isinstance in Py3.9+);
+    `is_valid_url` newly imported from `.internet`.
+  - `add_ssh_scheme_to_git_uri` (~14 lines) — placed with `is_vcs`
+    (intra-module dependency; the existing cross-module import in
+    `dependencies.py` becomes a local reference).
+  - `merge_items` (~33 lines) + `_merge_into` (~17 lines) +
+    `_new_container_like` (~17 lines) — placed just before
+    `import_requirements` (the next dict-merge-shaped routine).
+  - `get_pip_command` (~9 lines) — placed near `determine_package_name`
+    (its only in-tree caller, intra-module after the move);
+    `InstallCommand` newly imported.
+
+  Caller migrations across 5 files:
+  - `pipenv/utils/locking.py` (folded `is_vcs`, `merge_items` into
+    the existing `from pipenv.utils.dependencies import (...)` block)
+  - `pipenv/utils/pipfile.py` (same — folded into existing
+    `dependencies` import block)
+  - `pipenv/project.py` (one-line late-import edit at
+    `_get_vcs_packages`; narrow scoped to that import line only
+    to avoid T_D.4 conflicts)
+  - `tests/unit/test_requirementslib.py` (docstring + import re-target)
+  - `tests/unit/test_utils.py` (the `test_is_vcs` late import)
+
+  `requirementslib.py` shrank from 275 lines to 144 (-131 lines).
+  After T_E.3 only one importer of `requirementslib` remains in the
+  in-tree codebase (`dependencies.py` for `unpack_url`); T_E.4
+  will close that out.
+
+  10 new tests in `tests/unit/test_dependencies_bridges.py`: 4
+  import-shape pins, 1 sanity check that the old paths are gone,
+  and 5 light behavioural pins (`is_vcs` mapping + string-with-ssh
+  branches, `add_ssh_scheme_to_git_uri` round-trip, `merge_items`
+  recursive last-write-wins + empty-list contract, `get_pip_command`
+  returns a usable `InstallCommand`).
+- **files edited/created**:
+  - `pipenv/utils/dependencies.py` (gains 4 moved symbols + 2
+    private helpers; new `InstallCommand` + `is_valid_url` imports;
+    drops the cross-module `requirementslib` import for the moved
+    symbols)
+  - `pipenv/utils/requirementslib.py` (-131 lines; now 144 lines
+    holding only the `unpack_url`/`get_http_url` fork pair + the
+    `VCS_SCHEMES` constant they need)
+  - `pipenv/utils/{locking,pipfile}.py` (caller imports folded
+    into the existing `dependencies` import block)
+  - `pipenv/project.py` (one-line late-import edit at
+    `_get_vcs_packages`)
+  - `tests/unit/test_dependencies_bridges.py` (extended with 10
+    T_E.3 tests; module docstring updated)
+  - `tests/unit/test_requirementslib.py` (docstring + import
+    re-target to the new location)
+  - `tests/unit/test_utils.py` (one-line late-import edit in
+    `test_is_vcs`)
+
 #### T_F.1: Document current subprocess resolver protocol
 - **depends_on**: [T_E.1]  (gated on E's design so we know what data
   shape will cross the boundary)
