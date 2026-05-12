@@ -780,9 +780,39 @@ output file between parallel agents.
   `RoutineContext`.
 - **validation**: No function in `install.py` takes more than 3 positional
   / keyword arguments besides `project` and `ctx`; unit suite green.
-- **status**: Not Completed
+- **status**: Completed (commit 969fa575)
 - **log**:
+  Seven helpers migrated: `do_init` (9 → 0 non-ctx params),
+  `do_install_validations` (10 → 1 `requirements_directory`),
+  `do_install_dependencies` (9 → 1 `requirements_dir`),
+  `handle_outdated_lockfile` (9 → 2 `old_hash, new_hash` kw),
+  `handle_missing_lockfile` (4 → 0), `batch_install` (10 → 4 call-state
+  args), `batch_install_iteration` (8 → 4 call-state args).
+  `install_build_system_packages` left at 3 non-project params (at the
+  threshold). T_C.6's bridge inside `do_init` collapsed. `sync.py` got
+  a similar inline-`from_cli` bridge added (T_C.9 collapses it).
+
+  Two pre-existing issues fixed as side-effects:
+  - Dead local in `do_install_validations`:
+    `pre = project.settings.get("allow_prereleases")` was assigned and
+    never read.
+  - Subtle bug in `do_install_dependencies`: was mutating its own
+    `ignore_hashes` parameter mid-loop; refactor computes
+    `effective_ignore_hashes` locally so the frozen ctx is never
+    mutated.
+
+  `batch_install`/`batch_install_iteration` retain wide arity for
+  `deps_list`/`procs`/`sources`/etc. — these are the "other" group
+  per the design that belongs to a future `BatchInstall` object
+  (deferred per T_C.4 §3 / T_C.3 sign-off). Flagged with
+  `TODO(swarm)` at `pipenv/routines/install.py:763`.
+
+  Test updates: 6 new signature-pin tests + 5 existing tests adjusted.
+  584 tests pass.
 - **files edited/created**:
+  - `pipenv/routines/install.py`
+  - `pipenv/routines/sync.py` (inline bridge for T_C.9)
+  - `tests/unit/test_do_install_context_routing.py`
 
 #### T_C.8: Migrate `pipenv/routines/update.py`
 - **depends_on**: [T_C.4]  (parallel-safe with T_C.5–T_C.7 once T_C.4
