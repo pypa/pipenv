@@ -339,85 +339,116 @@ unjustified entries.
 
 ---
 
-## 7. Open questions for maintainer sign-off
+## 7. Decisions for execution (maintainer sign-off 2026-05-12)
 
-**Q-A: sdist handling — fall back to pip backend, or fail loud?**
+The questions originally framed as "open" here have been answered.
+Decisions below are load-bearing for the plan in
+[`../../initiative-g-phase3-plan.md`](../../initiative-g-phase3-plan.md);
+flipping any of them requires re-planning.
 
-When a candidate's *only* distribution is an sdist (no wheels
-available for the target Python + platform), `get_dependencies`
-needs to build it to extract metadata.  Phase 3 explicitly punts
-sdist building.  Options:
+**Q-A: sdist handling → FAIL LOUD**
 
-(a) Fall back to pip backend for the ENTIRE resolve when an sdist is
-required.  Transparent but means users on the new backend
-occasionally bounce back to the old slow path.
+When the pure-python backend encounters an sdist-only candidate (no
+wheel for the target Python + platform), the backend raises a typed
+`InternalError` naming the trigger.  The user adjusts the Pipfile or
+explicitly switches `[pipenv] resolver_backend = "pip"` for that
+resolve.  No silent transparent fallback to pip backend.
 
-(b) Fail loud: `InternalError("sdist support is Phase 4; package X
-has no wheel for this Python+platform")`.  User adjusts Pipfile or
-switches `resolver_backend = "pip"` explicitly.
+Rationale: behaviour is auditable; users always know which backend
+their lockfile came from; no "this worked in my CI yesterday and
+silently fell back today" surprises.  Combined with Q-F's pre-check,
+the failure surfaces at lock-startup rather than deep in a 30-second
+resolve.
 
-(c) Hybrid: try (b) first; if the user has `[pipenv]
-sdist_fallback_to_pip = true` in their Pipfile, use (a).
-
-**Recommendation**: (a) for Phase 3 transparency, document the
-fallback in the news fragment, revisit in Phase 4.  Tracked in the
-plan's T-FALLBACK.
-
----
-
-**Q-B: PEP 658 metadata pre-fetch (Q2 in the umbrella design doc)**
-
-Should `ParallelFetcher` pre-fetch the `core-metadata` files
-alongside the simple-API JSON?
-
-(a) Yes — every wheel's metadata is fetched concurrently with the
-manifest.  Single network round at resolve-time (no per-package
-serial fetches).
-
-(b) No — fetch metadata lazily during `get_dependencies`.  Less
-bandwidth on sparse resolutions but loses the parallelism win.
-
-**Recommendation**: (a) for top-level Pipfile packages only (those
-we know to pre-fetch); lazy for transitives.  Bounded bandwidth (~3-5
-kB per pre-fetched metadata × 100 packages = ~500 kB), guaranteed
-parallelism.
+Implementation: T9 raises typed `_SdistEncountered` from
+`get_dependencies`; `PurePythonBackend.resolve` translates that into
+`ResolverResponse.result = InternalError(message=...)`.
 
 ---
 
-**Q-C: `get_preference` parity scope (Q4 in the umbrella design doc)**
+**Q-B: PEP 658 metadata pre-fetch → TOP-LEVEL ONLY**
 
-How aggressively do we mirror pip's `provider.py:get_preference`
-behaviour?
+`ParallelFetcher` pre-fetches `core-metadata` files concurrently with
+the simple-API JSON for top-level Pipfile packages.  Transitive
+candidates stay lazy — their metadata is fetched during
+`get_dependencies`.
 
-(a) Strict mirror — exact tuple shape, exact tie-breaking, audit
-every behaviour in `tests/integration/test_backend_parity.py`.
-Lockfile-byte-identical for the bench is the gate.
-
-(b) Sensible default — mirror the documented rules (pinned > range >
-unconstrained; Pipfile > transitive) but accept divergence on edge
-cases.  Lockfile may differ on backtracking-order-dependent ties.
-
-**Recommendation**: (a).  The parity matrix doc captures every
-divergence as it surfaces.  Lockfile-byte-identity is the only honest
-acceptance gate.
+Rationale: bounded bandwidth (~500 kB at 100 packages) with guaranteed
+parallelism on the most-likely-hit set.
 
 ---
 
-**Q-D: keyring auth scope (Q6 in the umbrella design doc, deferred
-from Phase 1)**
+**Q-C: `get_preference` parity → STRICT MIRROR**
 
-Does Phase 3 plumb pip's keyring provider for private indexes?
+`PurePythonProvider.get_preference` exactly mirrors pip's
+`pipenv/patched/pip/_internal/resolution/resolvelib/provider.py:176`
+tuple shape and tie-breaking.  Lockfile-byte-identity for the
+T15 bench + T_PARITY_REAL real-world list is the gate.
 
-(a) Yes — add a thin keyring shim in `pipenv/resolver/auth.py`,
-mirroring pip's behaviour.
+Rationale: any user-visible divergence is a bug (or a deliberate doc
+entry in T_PARITY_MATRIX); maintainers can audit the matrix
+post-merge.
 
-(b) No — netrc + basic-auth + `PIP_CLIENT_CERT` continue to be the
-only supported auth backends for the new path.  Keyring users stay
-on the pip backend.
+---
 
-**Recommendation**: (b) for Phase 3.  Keyring touches user keychains
-and the failure modes are subtle; Phase 4 can scope this separately
-based on bug-report data once the pure-python backend has users.
+**Q-D: keyring auth → NOT IN PHASE 3**
+
+netrc + URL-embedded basic-auth + `PIP_CLIENT_CERT` are the only
+supported auth backends for the new path.  Keyring users stay on the
+pip backend.  Phase 4 can scope this separately based on bug-report
+data once pure-python has real users.
+
+Rationale: keyring touches user keychains; failure modes are subtle;
+no real signal yet on which keyring providers our users need.
+
+---
+
+**Q-E: T_PARITY_REAL real-world list → 10 WHEEL-HEAVY PROJECTS**
+
+The parity test exercises these 10 mainstream wheel-heavy
+combinations:
+
+1. `django` + `psycopg[binary]`
+2. `flask` + `gunicorn`
+3. `fastapi` + `uvicorn`
+4. `requests` + `httpx`
+5. `pandas` + `numpy`
+6. `pytest` + `pytest-cov`
+7. `sqlalchemy` + `alembic`
+8. `cryptography` + `pyopenssl`
+9. `boto3` + `botocore`
+10. `click` + `rich`
+
+Rationale: chosen to avoid known sdist-only transitives so the Q-A
+fail-loud path doesn't dominate the parity gate.  If any entry develops
+sdist-only deps over time (a Python-version-N+1 wheel hasn't shipped
+yet, etc.), T_PARITY_REAL marks that entry pending; the gate stays
+green on the other 9.
+
+---
+
+**Q-F: sdist UX → BACKEND-STARTUP PRE-CHECK**
+
+When `resolver_backend = "pure-python"` is active, `PurePythonBackend.resolve`
+runs a fast pre-check on the top-level Pipfile packages immediately
+after `ParallelFetcher.populate` returns:
+
+- For each top-level package, iterate its candidates.
+- If at least one candidate is a wheel compatible with the target
+  Python + platform → OK.
+- Otherwise: raise `ResolutionError` with a message naming the
+  offending package(s) and pointing at either pinning to a version
+  with wheels or `pipenv lock --backend pip` for this resolve.
+
+This catches the common case (a top-level Pipfile entry whose only
+release is an sdist) at lock-startup, before resolvelib spends 30
+seconds chasing a transitive graph that's going to fail anyway.
+Transitive sdist-only candidates still hit the deeper Q-A fail-loud
+path inside `get_dependencies` (rarer; harder to surface early).
+
+Rationale: keep the error close to the cause.  No "different backend"
+suggestion phrasing — just `pipenv lock --backend pip` if the user
+chooses to retry that way.
 
 ---
 
