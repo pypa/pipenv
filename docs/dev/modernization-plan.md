@@ -1267,9 +1267,36 @@ the design — the four are independent of each other once the
   intended lean shape (probably ≤ 600 lines after this); plus a
   paragraph in the commit message recording the helper-bucket
   disposition (move out or keep) and rationale.
-- **status**: Not Completed
+- **status**: Completed (commit 3a160cb5) — Initiative D structurally
+  done. `pipenv/project.py` now 491 lines (down from 1848 at the
+  start of Initiative D, a 73% reduction). 38 Pipfile-bucket methods
+  moved to `pipenv/utils/pipfile.py:Pipfile` (the new subsystem); the
+  legacy plette-wrapper dataclass renamed to `PlettePipfile` to free
+  the unqualified name. 42 new unit tests pin the extracted behaviour
+  (cache invalidation, write→re-read, package add/remove, build-system
+  parsing, hash computation, mtime-driven re-parse, etc.). 858 unit
+  tests pass (up from 816 T_D.5 baseline). All `project.X(...)`
+  callers migrated to `project.pipfile.X(...)` in the same PR per
+  T_D.1 §8.4 (no wrappers). Commit message records helper-bucket
+  disposition recommendations: leave `path_to` on `Project`;
+  defer-move `prepend_hash_types` and `get_file_hash` to a small
+  `pipenv/utils/hashing.py` follow-up; coordinators
+  (`create_pipfile`, `get_or_create_lockfile`, `get_environment`,
+  `environment`, `installed_packages`, `installed_package_names`)
+  stay on `Project`.
 - **log**:
+  - 2026-05-12 — Initiative D extraction sequence complete. The five
+    subsystems (`Sources`, `Settings`, `VenvLocator`, `Lockfile`,
+    `Pipfile`) are independent modules accessed via `@cached_property`
+    on `Project`. Helper-bucket cleanup is a low-priority follow-up.
 - **files edited/created**:
+  - `pipenv/utils/pipfile.py` (legacy `Pipfile` → `PlettePipfile`; new
+    `Pipfile` subsystem class + extracted methods)
+  - `pipenv/project.py` (492 lines; only coordinators + helpers remain)
+  - `pipenv/utils/locking.py` (single-caller rename for the
+    plette-wrapper)
+  - 25 production caller files + 14 test caller files migrated
+  - `tests/unit/test_pipfile_subsystem.py` (42 new tests)
 
 #### T_E.1: Define canonical requirement-model API target
 - **depends_on**: [T_B.7]
