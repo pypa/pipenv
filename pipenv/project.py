@@ -63,7 +63,7 @@ from pipenv.utils.shell import (
     system_which,
 )
 from pipenv.utils.settings import Settings
-from pipenv.utils.sources import SourceNotFound, Sources
+from pipenv.utils.sources import Sources
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor import plette, tomlkit

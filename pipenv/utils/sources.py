@@ -47,9 +47,7 @@ from pipenv.vendor import tomlkit
 class SourceNotFound(KeyError):
     """Raised by :meth:`Sources.get_source` when no source matches.
 
-    Subclasses :class:`KeyError` to preserve backward compatibility with
-    callers that used ``except KeyError`` against the original
-    ``pipenv.project.SourceNotFound`` exception.
+    Subclasses :class:`KeyError` so ``except KeyError`` catches it.
     """
 
 

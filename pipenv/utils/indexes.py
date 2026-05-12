@@ -60,8 +60,8 @@ def get_project_index(
     index: str | TSource | None = None,
     trusted_hosts: list[str] | None = None,
 ) -> TSource:
-    from pipenv.project import SourceNotFound
     from pipenv.utils.internet import is_valid_url
+    from pipenv.utils.sources import SourceNotFound
 
     if trusted_hosts is None:
         trusted_hosts = []

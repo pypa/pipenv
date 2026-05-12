@@ -277,26 +277,26 @@ T0.1 ── T0.2 (PRD corrections folded in here + agent ops doc)
 
 #### T_A.4: Remove `is_valid_url` re-export shim
 - **depends_on**: [T_A.3]
-- **location**: `pipenv/utils/fileutils.py`, `news/` (removal fragment).
+- **location**: `pipenv/utils/fileutils.py`.
 - **description**:
-  Once T_A.3 confirms zero internal callers and **at least one tagged
-  pipenv release** has shipped the deprecation shim from T_A.2 (giving
-  external consumers a window to migrate), remove the shim. T_A.2
-  already updated intra-module call sites in `fileutils.py` to use the
-  canonical `internet` import, so no in-module call needs updating
-  here. Add a news fragment documenting the removal.
-- **validation**:
-  - Shim line removed from `pipenv/utils/fileutils.py`.
-  - `python -c "from pipenv.utils.fileutils import is_valid_url"` now
-    raises `ImportError` — this is the intended behaviour after the
-    deprecation window.
-  - `python -c "import pipenv.utils.fileutils"` still succeeds.
-  - News fragment present and recognized.
-  - Unit suite green; the changelog history shows a release between
-    T_A.2's deprecation fragment and this removal fragment.
-- **status**: Not Completed (held for release)
-- **log**:
+  Shim deleted along with the parallel `pipenv.project.SourceNotFound`
+  re-export (T_D.2). Maintainer call: pipenv's stable API is the CLI,
+  so a deprecation window protects nothing — internal-only re-exports
+  with `DeprecationWarning` shims add noise without value. Removed
+  outright; in-module call sites already used the canonical
+  `pipenv.utils.internet` / `pipenv.utils.sources` imports.
+- **status**: Completed
+- **log**: Removed `is_valid_url` shim + its unit test;
+  removed `SourceNotFound` re-export from `pipenv.project` and
+  updated the two real importers (`pipenv/utils/indexes.py`,
+  `tests/unit/test_sources.py`) to pull from `pipenv.utils.sources`.
 - **files edited/created**:
+  - `pipenv/utils/fileutils.py` (shim + alias import deleted)
+  - `pipenv/project.py` (`SourceNotFound` dropped from sources import)
+  - `pipenv/utils/indexes.py` (import path updated)
+  - `pipenv/utils/sources.py` (docstring cleaned up)
+  - `tests/unit/test_utils.py` (shim-only test deleted)
+  - `tests/unit/test_sources.py` (import path updated)
 
 ---
 

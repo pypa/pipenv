@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from pipenv.project import Project, SourceNotFound
-from pipenv.utils.sources import Sources
+from pipenv.project import Project
+from pipenv.utils.sources import SourceNotFound, Sources
 
 PIPFILE_SINGLE_SOURCE = """\
 [[source]]

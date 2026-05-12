@@ -16,7 +16,7 @@ from urllib.parse import quote
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
-from pipenv.utils.internet import is_valid_url as _is_valid_url
+from pipenv.utils.internet import is_valid_url
 
 
 def is_file_url(url: Any) -> bool:
@@ -29,25 +29,6 @@ def is_file_url(url: Any) -> bool:
         except AttributeError:
             raise ValueError(f"Cannot parse url from unknown type: {url!r}")
     return urllib_parse.urlparse(url.lower()).scheme == "file"
-
-
-def is_valid_url(url):
-    """Deprecated alias for :func:`pipenv.utils.internet.is_valid_url`.
-
-    Kept for one release so external callers importing
-    ``pipenv.utils.fileutils.is_valid_url`` see a visible deprecation
-    signal before the shim is removed (see T_A.4 in
-    ``docs/dev/modernization-plan.md``).
-    """
-    import warnings
-
-    warnings.warn(
-        "pipenv.utils.fileutils.is_valid_url is deprecated; "
-        "import is_valid_url from pipenv.utils.internet instead.",
-        DeprecationWarning,
-        stacklevel=2,
-    )
-    return _is_valid_url(url)
 
 
 def url_to_path(url: str) -> Path:
@@ -170,10 +151,7 @@ def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
         except AttributeError:
             raise ValueError(f"Cannot parse url from unknown type: {link!r}")
 
-    # Check if the link is a local path that exists. Use the canonical
-    # ``_is_valid_url`` alias from pipenv.utils.internet so the local
-    # DeprecationWarning shim is not tripped by pipenv itself.
-    if not _is_valid_url(link):
+    if not is_valid_url(link):
         path_obj = Path(link)
         if path_obj.exists():
             link = path_to_url(path_obj)
