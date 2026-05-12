@@ -333,9 +333,83 @@ near the bottom of this document.
     iterator without raising.
   - `incompatibilities` filter: pass one of the returned candidates
     as incompatible; it's excluded from the output.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Implemented per design §5.3.  Hot path lives in
+    :meth:`PurePythonProvider.find_matches` and three private
+    helpers (`_collect_cached_candidates`,
+    `_candidate_satisfies_requirements`,
+    `_candidate_requires_python_ok`).  Algorithm walks every
+    configured ``index_url`` (new ``__init__`` kwarg; see below),
+    concatenates non-``None`` `cache.get(index_url, name)` hits,
+    dispatches a single `fetcher.populate([(idx, name) for idx in
+    index_urls])` on full miss, deduplicates on
+    ``(name, version, filename)``, filters against the merged
+    specifier intersection of every `Requirement` in
+    `requirements[identifier]`, drops candidates whose identity
+    tuple is in `incompatibilities[identifier]`, applies the
+    candidate's own `requires_python` SpecifierSet against
+    `target_env["python_version"]` (with `prereleases=True` so an
+    alpha CPython target doesn't get silently dropped — mirrors
+    pip's `evaluate_link`), and sorts by
+    `pipenv.vendor.packaging.version.Version` descending.  Sdist
+    vs wheel filtering is deliberately NOT done here per Q-A — T7
+    raises `_SdistEncountered` when actually expanding deps, and
+    Q-F's top-level pre-check lives in T9's backend, not on the
+    provider hot path.
+  - `__init__` widened with two keyword-only fields: `index_urls:
+    Sequence[str] = ("https://pypi.org/simple",)` stored as a
+    tuple (frozen-by-convention), and `allow_prereleases: bool =
+    False` for the explicit `--pre` opt-in.  Defaults preserve
+    T3's existing call sites — T3's 8 tests construct the provider
+    without these kwargs and still pass.  The test helper
+    `_make_provider` was extended in lockstep so both T3 and T4
+    cases share the same builder.
+  - Loud-failure stance on `InvalidVersion`: a candidate whose
+    `version` string can't be parsed by
+    `packaging.version.Version` is filtered out rather than
+    sorting last.  Rationale: the PEP 691 parser in
+    `pipenv/resolver/manifest_cache.py` should have rejected it
+    before reaching the cache; if it slipped through, silently
+    sorting it last would mask the upstream bug.  Same stance
+    isn't applied to `InvalidSpecifier` on a candidate's
+    `requires_python` (we accept the candidate on malformed
+    `requires-python` advertisement) — that mirrors pip's
+    behaviour where a bad index payload doesn't make the package
+    invisible.
+  - Cache-key note for T5/T6 follow-ups: `ParsedManifestCache` is
+    keyed on `(index_url, name)`; the provider doesn't know which
+    index served a given cached candidate.  T4's walk-every-index
+    approach is correct but does N cache reads per `find_matches`
+    call where N = len(index_urls).  If this becomes a hot-path
+    bottleneck under a >5-index workload, the fix is to widen
+    `Candidate` with an `index_url` field rather than threading
+    it through here — not a refactor for T5/T6.
+  - RED→GREEN: 4 new tests landed in
+    `tests/unit/test_pure_python_provider.py`
+    (`TestFindMatchesSpecifierFilter`,
+    `TestFindMatchesEmpty`,
+    `TestFindMatchesIncompatibilitiesFilter`,
+    `TestFindMatchesRequiresPythonFilter`) — one per validation
+    bullet plus the bonus `requires_python` filter.  Each uses
+    a `_FakeCache` + `_FakeFetcher` pair (in-file stand-ins for
+    `ParsedManifestCache` + `ParallelFetcher`) — no real network,
+    no real disk.  Full file now 12 tests; all pass.  `grep -nE
+    "^[[:space:]]*(from|import)[[:space:]]+pipenv\.patched\.pip\._internal"
+    pipenv/resolver/pure_python_provider.py` shows zero matches.
+    `ruff check` clean.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (extended:
+    `find_matches` + three private helpers; `__init__` widened
+    with `index_urls` + `allow_prereleases` keyword-only kwargs;
+    new imports for `Iterable`, `Mapping`, `Sequence`,
+    `InvalidSpecifier`, `SpecifierSet`, `InvalidVersion`,
+    `Version`)
+  - `tests/unit/test_pure_python_provider.py` (extended: 4 new
+    tests for T4 + supporting `_FakeCache` / `_FakeFetcher` /
+    `_cand` helpers; `_make_provider` now forwards the new
+    `index_urls` + `allow_prereleases` kwargs with defaults so
+    T3 tests stay unchanged)
 
 ---
 
