@@ -798,9 +798,20 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - Edge case: simulate a 404 for one package from one source via a mock pypi-server fixture → setting on should still produce the same lockfile (pip's resolver hits the other source successfully).
   - Edge case: simulate a transient network error during prefetch → setting on still completes the lock (best-effort path).
 - **validation**: `pytest tests/integration/test_prefetch_manifest.py` passes.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Created `tests/integration/test_prefetch_manifest.py` with five active tests + one documented skip:
+    - `test_prefetch_does_not_change_resolution_result` — locks once with the setting off (default), deletes `Pipfile.lock`, re-locks with `PIPENV_PREFETCH_INDEX_MANIFESTS=1`; asserts identical `_meta.hash.sha256` AND identical per-section `{name: version}` pins (the robust hash-comparison gotcha from the plan instructions).
+    - `test_prefetch_swallows_populate_failure` — sitecustomize-injected `ParallelFetcher.populate` that raises `RuntimeError("simulated network failure")`; asserts `pipenv lock` still exits 0 and writes a valid lockfile.
+    - `test_prefetch_skipped_under_clear` — sitecustomize-injected populate that appends to a marker file; runs `pipenv lock --clear`; asserts marker missing (T19's `--clear` short-circuit).
+    - `test_prefetch_verbose_output_no_url_leak` — runs `pipenv lock --verbose`, scans stderr lines containing "Prefetched"; asserts the canonical wording is present and that those specific lines carry no `https://`, no `http://`, no `/six/` / `/click/` / `/tablib/` URL fragments, no `@pypi.org` host, and no `:***@` credential placeholder.  Scoped to the helper's own line because pip's resolver legitimately logs `LinkCandidate('https://...')` lines at INFO — out of T19's scope.
+    - `test_clear_invalidates_parsed_manifest_cache` — seeds `<PIPENV_CACHE_DIR>/manifests-v1/stale-marker` directly, runs `pipenv lock --clear`, asserts the marker is wiped.  Seed-and-clear keeps the test hermetic (proves T17's wiring, not a side-effect of T19 prefetch behaviour).
+    - `test_prefetch_with_self_signed_source` — explicit `pytest.skip(...)` with docstring; no self-signed-cert fixture exists in the repo, so the `verify_ssl=False` branch of T19's session-per-policy code stays unproven end-to-end.  Gap documented inline.
+  - 2026-05-12: Subprocess-realm mocking gotcha: `_PipenvInstance.run_command` shells out to a child `pipenv` process, so in-process `mock.patch` is invisible.  Tests 2 + 3 instead write a `sitecustomize.py` into a per-test dir, prepend that dir to `PYTHONPATH`, and rebind `pipenv.resolver.fetcher.ParallelFetcher.populate` via an import hook that fires the moment the helper's lazy `from pipenv.resolver.fetcher import ParallelFetcher` resolves.  Validated locally that the patched attribute is `_T20_PATCHED = True` after the import.
+  - 2026-05-12: T17 / T19 path mismatch surfaced during Test 5 design: `_prefetch_index_manifests_if_enabled` writes to `<PIPENV_CACHE_DIR>/pipenv-manifests/manifests-v1/` (cache root = `PIPENV_CACHE_DIR / "pipenv-manifests"`) while `_clear_parsed_manifest_cache` wipes `<PIPENV_CACHE_DIR>/manifests-v1/` (cache root = `PIPENV_CACHE_DIR` directly).  Test 5 sidesteps this by seeding the path `--clear` actually wipes (asserting only on T17's wiring per the plan note "verifies T17's `--clear` wiring touched our cache").  Production code NOT modified per task instructions; flagging the divergence for a Phase-3 follow-up — if both surfaces are meant to share a root, one of them needs to move.
+  - 2026-05-12: `pytest tests/integration/test_prefetch_manifest.py -v --override-ini="addopts=-ra"` → 5 passed, 1 skipped, 0 failed, ~9 s.
 - **files edited/created**:
+  - `tests/integration/test_prefetch_manifest.py` — new (~420 lines incl. docstrings + sitecustomize injection helpers).
 
 ---
 
@@ -828,8 +839,9 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - lock-cold improvement ≥ max(10 %, 2σ_A).
   - lock-warm regression ≤ max(2 %, 1σ_A).
   - The recorded numbers are in the Phase 2 commit message AND in the design doc's §11 for future reference.
-- **status**: Not Completed
+- **status**: Skipped (per maintainer)
 - **log**:
+  - 2026-05-12: Skipped per maintainer scoping decision — no appetite for a multi-run statistically-guarded CI bench step at this time.  T22 ships Phase-2 docs with the Phase-2 perf claim explicitly labelled theoretical (see §11a sign-off note in `docs/dev/initiative-g-pure-python-design.md`).  The setting ships opt-in (default `false`) so warm-cache dev machines are unaffected.  Future maintainer interest can re-spec the bench gate.
 - **files edited/created**:
 
 ---
@@ -850,9 +862,19 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - News fragment validates per repo convention.
   - `grep -A 3 prefetch_index_manifests docs/` returns the new user-facing documentation block.
   - Design doc shows Phase 2 row updated with concrete numbers.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Shipped Phase-2 docs at commit `69e821bd` on branch `maintenance/code-cleanup-phase5-perf-2026-06`.  Three deliverables:
+    1. **User-facing doc** added under `docs/pipfile.md` in the `[pipenv]` directives section (matched the style of the existing `cool-down-period` block — `####` heading, prose paragraphs for what/when/when-not/`--clear`/security, TOML example).  Captured all six required bullets from the task spec: what it does, when to enable, when not to (cites the phase-5 empirical result), env-var override, default false, `--clear` short-circuit, security (PipSession auth inheritance + no-URL-logging guarantee).
+    2. **News fragment** at `news/initiative-g-phase2-prefetch-bridge.feature.rst` in towncrier `.feature.rst` convention; matched the terminal-prose style of the existing `+cool-down-period.feature.rst` and `initiative-g-phase1-pep691-client.feature.rst` fragments (no markdown headers, double-backtick code spans, ~70-char soft wrap).  `python -m towncrier build --draft --version 9999.9.9` confirms the fragment is detected and rendered under `Features`.
+    3. **Design-doc updates** to `docs/dev/initiative-g-pure-python-design.md`: (a) top-of-file status line flipped to `Phases 1 + 2 shipped (Phase 2 with CI bench gate skipped); phases 3-4 awaiting maintainer sign-off`; (b) §11 Phase 2 acceptance bullets — items 1 + 3 flipped to `[x]`, item 2 (CI bench gate) kept as `[ ]` with inline `(deferred — maintainer scoped Phase-2 to ship without a CI bench gate; see note below)` annotation; (c) new §11a "Phase 2a — sign-off note (T22)" sub-section explicitly documenting that the Phase-2 perf claim is theoretical not measured, the underlying parallelism hypothesis is sound but unverified on the current CI bench, and the setting ships opt-in specifically because the phase-5 experiment was empirically net-harmful on warm-cache dev machines.  Tone choice: honest "claim is theoretical" framing rather than hand-waving; explicit invitation for future maintainer-driven bench data to re-spec the criteria.
+    4. **Plan housekeeping**: T21 marked Skipped (per maintainer) with a one-line log entry referencing the user's scoping decision; T22 marked Completed (this entry).
+  - 2026-05-12: Verifications recorded: `python -m towncrier --version` → `25.8.0`; `grep -A 5 prefetch_index_manifests docs/` returns the new entry in `docs/pipfile.md`; `grep -A 6 "^### Phase 2$" docs/dev/initiative-g-pure-python-design.md` confirms the deferred-T21 annotation and §11a anchor.  Pre-commit hooks (ruff, news-fragment, NEWS, eof-fix, large-file, case-conflict, etc.) all skipped or passed on the docs+news commit; zero code changes per task constraint.
 - **files edited/created**:
+  - `docs/pipfile.md` (modified — added `prefetch_index_manifests` to the inline `[pipenv]` example and a new `####` section after `cool-down-period`).
+  - `news/initiative-g-phase2-prefetch-bridge.feature.rst` (created).
+  - `docs/dev/initiative-g-pure-python-design.md` (modified — top-of-file status line + §11 Phase 2 acceptance bullets + new §11a sign-off note).
+  - `initiative-g-phase1-2-plan.md` (working-tree-only — T21 marked Skipped, T22 marked Completed).
 
 ---
 
