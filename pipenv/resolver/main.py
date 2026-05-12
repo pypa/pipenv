@@ -208,10 +208,20 @@ def resolve_packages(request):
     ]
 
     # Resolved-default-deps for non-default categories (gh-4665).
+    # Downstream consumers (``Resolver.default_constraint_file`` →
+    # ``get_constraints_from_resolved_deps`` in
+    # ``pipenv/utils/dependencies.py``) iterate this via ``.items()`` and
+    # canonicalize the key as the package name, so we must hand them a
+    # ``{name: lockfile_dict}`` mapping — NOT a flat list of dicts.  A
+    # list slips past type checks (both call sites accept ``Any``) but
+    # raises ``AttributeError: 'list' object has no attribute 'items'``
+    # on the first non-default category, silently failing the second
+    # resolve in any ``pipenv install --dev`` / multi-category lock.
     if request.resolved_default_deps is not None:
-        resolved_default_deps = [
-            lr.to_lockfile_dict() for lr in request.resolved_default_deps.entries
-        ]
+        resolved_default_deps = {
+            lr.name: lr.to_lockfile_dict()
+            for lr in request.resolved_default_deps.entries
+        }
     else:
         resolved_default_deps = None
 

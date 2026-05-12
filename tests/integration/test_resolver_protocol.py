@@ -92,6 +92,13 @@ def _normalize_request(payload: dict) -> dict:
             meta["parent_pid"] = 0
         if "pipenv_version" in meta:
             meta["pipenv_version"] = "<redacted>"
+        # T_F.6 added ``deadline_seconds`` to RequestMetadata; the
+        # default is 1800s but a Pipfile / env-var override can change
+        # it.  Strip it so the canary stays stable regardless of
+        # ``PIPENV_RESOLVER_TIMEOUT_S`` or ``[pipenv]
+        # resolver_timeout_seconds``.
+        if "deadline_seconds" in meta:
+            meta["deadline_seconds"] = "<redacted>"
     return out
 
 
@@ -117,6 +124,15 @@ def _normalize_response(payload: dict) -> dict:
             result["locked"] = sorted(
                 locked, key=lambda entry: entry.get("name", "")
             )
+    # T_F.7 populates ``diagnostics.resolver_log`` with captured
+    # records that include ephemeral paths (``/tmp/pytest-of-X/...``)
+    # and timing-dependent INFO lines.  ``diagnostics.elapsed_seconds``
+    # likewise varies run-to-run.  Strip the whole diagnostics block —
+    # it's a side channel, not the wire-shape canary; per-field shape
+    # is pinned by the schema dataclass tests in
+    # ``tests/unit/test_resolver_diagnostics.py``.
+    if "diagnostics" in out:
+        out["diagnostics"] = "<redacted>"
     return out
 
 
