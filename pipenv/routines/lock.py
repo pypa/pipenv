@@ -124,41 +124,11 @@ def do_lock(project, ctx: RoutineContext):
 
         from pipenv.utils.resolver import venv_resolve_deps
 
-        # Build the resolver constraint set for this category.  Two sources:
-        #
-        # 1. Warm-relock prior locks (``old_lock_data``) — when a previous
-        #    ``Pipfile.lock`` exists and the user did not pass ``--clear``,
-        #    feed the previously-locked versions back as constraints so
-        #    pip's ``PackageFinder`` short-circuits to the locked version
-        #    instead of re-walking the index for the latest match.  This
-        #    is the "pip install -c lockfile.txt" pattern applied to
-        #    relocking.  We filter out entries whose locked version no
-        #    longer satisfies the current Pipfile spec (the user may have
-        #    tightened ``foo = ">=1.0"`` to ``foo = ">=2.0"``); those
-        #    packages get a fresh resolve, the rest stay pinned.
-        #    Transitive deps (not in the Pipfile) are kept as-is — they
-        #    have no Pipfile spec to validate against and re-pinning them
-        #    is exactly the win on large dependency graphs.
-        #
-        # 2. Cross-category default constraints — for non-default
-        #    categories, the freshly-resolved default category is also
-        #    fed as constraints so dev/test/etc. resolves don't pick
-        #    versions that conflict with default (gh-4665, gh-4473).
-        #    Gated by the ``use_default_constraints`` setting.
-        #
-        # Both sources are dicts keyed by package name, shaped like a
-        # lockfile section.  When merged, cross-category wins for shared
-        # keys (a freshly-resolved default pin should override an older
-        # cached value with the same name).
-        category_default_deps = {}
-        if not clear and old_lock_data:
-            category_default_deps.update(
-                _filter_pinnable_lock_entries(old_lock_data, packages)
-            )
-        if category != "default" and use_default_constraints and resolved_default_deps:
-            category_default_deps.update(resolved_default_deps)
-        if not category_default_deps:
-            category_default_deps = None
+        # For non-default categories, pass resolved default deps as constraints
+        # so the resolver produces compatible version pins.
+        category_default_deps = None
+        if category != "default" and use_default_constraints:
+            category_default_deps = resolved_default_deps
 
         try:
             # Mutates the lockfile
@@ -216,107 +186,3 @@ def overwrite_with_default(default, dev):
     for pkg in set(dev) & set(default):
         dev[pkg] = default[pkg]
     return dev
-
-
-def _filter_pinnable_lock_entries(old_lock_data, pipfile_packages):
-    """Return the subset of ``old_lock_data`` whose locked version is still
-    valid as a constraint for the current Pipfile.
-
-    Used by warm-relock to feed previously-locked versions back to pip's
-    resolver as ``-c lockfile.txt``-style constraints.  This short-circuits
-    ``find_all_candidates`` for packages whose Pipfile spec has not drifted,
-    which is the bulk of the warm-path resolution cost.
-
-    Filtering rules:
-
-    - Drop non-dict entries (defensive; lockfile sections normally hold
-      dicts but tolerant to legacy / hand-edited data).
-    - Drop entries with no ``version`` (VCS / file / path entries — pip
-      can't constrain on those, and ``get_constraints_from_resolved_deps``
-      drops them anyway).
-    - For packages declared in the Pipfile: only keep the pin if the
-      locked version satisfies the Pipfile spec.  ``"*"`` and missing
-      version specs are treated as "any" and always pass.  Pipfile
-      entries with VCS / file / path / git keys are *dropped* (the
-      Pipfile specifies a non-version source, so the locked version
-      can't be used as a constraint).
-    - For packages NOT in the Pipfile (transitive deps): always keep.
-      We have no Pipfile spec to validate against, and transitives are
-      where most of the warm-path speedup comes from.
-
-    Parameters
-    ----------
-    old_lock_data : dict
-        The popped previous lockfile section, keyed by package name as
-        written in the lockfile (already canonicalized by pipenv when
-        the lockfile was written).
-    pipfile_packages : dict
-        The Pipfile section for this category, keyed by package name
-        as written in the Pipfile (may differ in casing from the
-        lockfile canonical form).
-    """
-    from pipenv.patched.pip._vendor.packaging.specifiers import (
-        InvalidSpecifier,
-        SpecifierSet,
-    )
-    from pipenv.patched.pip._vendor.packaging.version import (
-        InvalidVersion,
-        Version,
-    )
-    from pipenv.utils.dependencies import pep423_name
-
-    _VCS_OR_PATH_KEYS = ("git", "hg", "svn", "bzr", "file", "path")
-
-    # Build a canonical-name lookup of the Pipfile section once so
-    # the loop below is O(n) rather than O(n^2).
-    pipfile_by_canon = {
-        pep423_name(name): entry for name, entry in (pipfile_packages or {}).items()
-    }
-
-    valid = {}
-    for name, entry in (old_lock_data or {}).items():
-        if not isinstance(entry, dict):
-            continue
-        version = entry.get("version", "")
-        # Strip a leading "==" since lockfile entries store
-        # versions as ``"==X.Y.Z"`` while ``Version`` wants the bare
-        # number.
-        if isinstance(version, str) and version.startswith("=="):
-            version = version[2:].strip()
-        if not version:
-            # No usable version pin (VCS / file / path lock entry).
-            continue
-
-        pipfile_entry = pipfile_by_canon.get(pep423_name(name))
-        if pipfile_entry is None:
-            # Transitive dep — keep the pin unconditionally.
-            valid[name] = entry
-            continue
-
-        # Top-level entry: extract the version spec from the Pipfile.
-        if isinstance(pipfile_entry, str):
-            spec_str = pipfile_entry
-        elif isinstance(pipfile_entry, dict):
-            if any(k in pipfile_entry for k in _VCS_OR_PATH_KEYS):
-                # Pipfile pins to a non-version source; lockfile version
-                # is irrelevant here.
-                continue
-            spec_str = pipfile_entry.get("version", "")
-        else:
-            # Unknown shape — skip rather than guess.
-            continue
-
-        if not spec_str or spec_str == "*":
-            # Open spec: any locked version is valid.
-            valid[name] = entry
-            continue
-
-        try:
-            if Version(version) in SpecifierSet(spec_str):
-                valid[name] = entry
-        except (InvalidSpecifier, InvalidVersion):
-            # Malformed spec or non-PEP-440 version (e.g. local URL
-            # pseudo-version); don't risk passing a bad constraint.
-            continue
-
-    return valid
