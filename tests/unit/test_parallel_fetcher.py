@@ -765,6 +765,175 @@ class TestCacheIntegration:
 
 
 # ---------------------------------------------------------------------------
+# Stale-etag short-circuit (Initiative G phase-3 follow-up FU1)
+# ---------------------------------------------------------------------------
+
+
+class TestStaleEtagShortCircuit:
+    """``ParallelFetcher.populate`` calls ``cache.peek_etag`` for misses
+    so stale-but-present cache entries get a conditional GET
+    (``If-None-Match: <etag>``) instead of a full re-download.
+
+    Before FU1, T9's :meth:`_dispatch_fetch_result` handled
+    ``status="not-modified"`` correctly but the branch was dead code:
+    nothing in :meth:`populate` ever sent ``If-None-Match`` because
+    :meth:`ParsedManifestCache.get` returned ``None`` past expiry and
+    didn't expose the on-disk etag.  FU1 adds
+    :meth:`ParsedManifestCache.peek_etag` (T7) and wires it in here.
+    """
+
+    def test_expired_cache_sends_if_none_match(self, tmp_path: Path) -> None:
+        """Stale-but-present cache entry → ``If-None-Match: <etag>``."""
+        cache = ParsedManifestCache(tmp_path)
+        # Seed an immediately-expired entry with an etag.
+        prior_cand = _make_candidate(name="numpy", version="0.9.0")
+        cache.put(
+            "https://idx.test/simple",
+            "numpy",
+            [prior_cand],
+            etag='W/"abc"',
+            ttl_seconds=0,  # expired by the time we read it
+        )
+        # Sanity: ``get`` hides it (so populate will treat as a miss),
+        # but ``peek_etag`` recovers the etag.
+        assert cache.get("https://idx.test/simple", "numpy") is None
+        assert cache.peek_etag("https://idx.test/simple", "numpy") == 'W/"abc"'
+
+        fresh_cand = _make_candidate(name="numpy", version="1.0.0")
+        client = _make_client(
+            return_value=_make_response(
+                candidates=(fresh_cand,), etag='W/"new"'
+            )
+        )
+        f = ParallelFetcher(client, cache)
+
+        f.populate([("https://idx.test/simple", "numpy")])
+
+        # The client received the stale etag as If-None-Match.
+        assert client.fetch.call_count == 1
+        call = client.fetch.call_args
+        assert call.kwargs["if_none_match"] == 'W/"abc"'
+
+    def test_cold_cache_sends_if_none_match_none(self, tmp_path: Path) -> None:
+        """No prior cache entry → ``if_none_match=None`` (full fetch)."""
+        cache = ParsedManifestCache(tmp_path)
+        client = _make_client()
+        f = ParallelFetcher(client, cache)
+
+        f.populate([("https://idx.test/simple", "numpy")])
+
+        assert client.fetch.call_count == 1
+        call = client.fetch.call_args
+        assert call.kwargs["if_none_match"] is None
+
+    def test_corrupted_cache_falls_back_to_full_fetch(
+        self, tmp_path: Path
+    ) -> None:
+        """Cache file is unreadable/corrupt → ``peek_etag`` returns
+        ``None`` → fetcher dispatches a full GET (``if_none_match=None``).
+        """
+        cache = ParsedManifestCache(tmp_path)
+        # Seed an entry, then nuke its contents (raw bytes — not JSON).
+        cache.put(
+            "https://idx.test/simple",
+            "numpy",
+            [_make_candidate(name="numpy")],
+            etag="ignored",
+            ttl_seconds=0,
+        )
+        target = cache._path_for("https://idx.test/simple", "numpy")
+        target.write_bytes(b"not json")
+        # Sanity: both ``get`` and ``peek_etag`` return None on corruption.
+        assert cache.get("https://idx.test/simple", "numpy") is None
+        assert cache.peek_etag("https://idx.test/simple", "numpy") is None
+
+        client = _make_client()
+        f = ParallelFetcher(client, cache)
+
+        f.populate([("https://idx.test/simple", "numpy")])
+
+        call = client.fetch.call_args
+        assert call.kwargs["if_none_match"] is None
+
+    def test_not_modified_response_refreshes_cache_with_prior_candidates(
+        self, tmp_path: Path
+    ) -> None:
+        """End-to-end FU1 flow: expired cache → conditional GET →
+        server returns 304 → cache's TTL is refreshed with the prior
+        candidates.
+
+        This was the dead-code branch before FU1 — ``populate`` never
+        sent ``If-None-Match`` so the 304 path was unreachable from
+        real traffic.  Now that ``peek_etag`` exists and the fetcher
+        consults it, a 304 from the server refreshes the existing
+        cache entry's TTL.
+        """
+        cache = ParsedManifestCache(tmp_path)
+        prior_cand = _make_candidate(name="numpy", version="0.9.0")
+        cache.put(
+            "https://idx.test/simple",
+            "numpy",
+            [prior_cand],
+            etag='W/"abc"',
+            ttl_seconds=0,  # expired
+        )
+        # Sanity: expired.
+        assert cache.get("https://idx.test/simple", "numpy") is None
+
+        # Server returns 304 not-modified with the same etag.
+        client = _make_client(
+            return_value=_make_response(
+                status="not-modified", candidates=(), etag='W/"abc"'
+            )
+        )
+        f = ParallelFetcher(client, cache, default_ttl=600)
+
+        result = f.populate([("https://idx.test/simple", "numpy")])
+
+        # Conditional GET was sent.
+        assert client.fetch.call_args.kwargs["if_none_match"] == 'W/"abc"'
+
+        cm = result["numpy"]
+        assert isinstance(cm, CachedManifest)
+        # Refreshed with the prior candidates (T9's option-a contract).
+        assert cm.candidates == (prior_cand,)
+        assert cm.etag == 'W/"abc"'
+
+        # And the on-disk cache is now fresh again.
+        refreshed = cache.get("https://idx.test/simple", "numpy")
+        assert refreshed is not None
+        assert refreshed.candidates == (prior_cand,)
+        assert refreshed.etag == 'W/"abc"'
+
+    def test_peek_etag_called_only_on_miss(self, tmp_path: Path) -> None:
+        """Warm-cache fast-path: no ``peek_etag`` call when ``get`` hits.
+
+        The whole point of ``peek_etag`` is to recover from a ``get``
+        miss; calling it for a hit would be pointless work.
+        """
+        cache_mock = MagicMock()
+        # Warm hit on the first call.
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)
+        cached = CachedManifest(
+            candidates=(_make_candidate(name="numpy"),),
+            etag="e",
+            cached_at=now,
+            expires_at=now + timedelta(seconds=600),
+        )
+        cache_mock.get.return_value = cached
+        client = _make_client()
+        f = ParallelFetcher(client, cache_mock)
+
+        f.populate([("https://idx.test/simple", "numpy")])
+
+        # Warm hit → no fetch, no peek_etag.
+        assert client.fetch.call_count == 0
+        assert cache_mock.peek_etag.call_count == 0
+
+
+# ---------------------------------------------------------------------------
 # Concurrency — dispatch-order instrumentation, NOT wall-time
 # ---------------------------------------------------------------------------
 
