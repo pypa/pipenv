@@ -77,6 +77,17 @@ supported caller.
 - **`pipenv/patched/` and `pipenv/vendor/`.** Untouched. The typed
   schema lives in `pipenv/resolver/` (or `pipenv/utils/resolver_schema.py`
   — see §8 question 4) and consumes pip-internal types defensively.
+- **Pluggable alternative resolver backends.** Initiative F's typed
+  schema is intentionally backend-agnostic in *shape* — the wire types
+  (`LockedRequirement`, `Source`, `PackageSpecs`, the discriminated
+  `ResolverResult`) carry no pip-internal types in their public
+  signatures, and the `pipenv/resolver/` package layout in §8 Q1
+  reserves room for a future `pipenv/resolver/backends/` subpackage.
+  But Initiative F's *execution* (T_F.3 + T_F.4 + T_F.5) is strictly
+  pip-only. Adding a `uv` (or other) backend is a separate future
+  initiative; this design ensures it is not foreclosed. See §6a for
+  the constraints this preserves and the questions it explicitly
+  leaves unanswered.
 
 ## 3. Proposed shape
 
@@ -554,6 +565,84 @@ type (`InstallRequirement`) and one output type
 `LockedRequirement.to_lockfile_dict()` consumer — one place where
 typed data turns into TOML-ready dicts.
 
+## 6a. Future: pluggable resolver backends (informational; not in F)
+
+Pipenv's resolver subprocess today is implicitly pip-only: the
+subprocess imports `pipenv.patched.pip._internal` and constructs pip's
+`Resolver` directly. Initiative F does **not** change this — folding
+the in-process and subprocess branches (T_F.4 / T_F.5) is the next
+step in line, and that work also remains pip-only.
+
+But the typed schema in §3 is the natural insertion point for a future
+"choose a resolver backend" initiative — `uv` being the obvious
+candidate once its lockfile semantics and dependency-group support
+stabilize, but in principle any backend that can consume a
+`ResolverRequest` and produce a `ResolverResponse`. **This design is
+intentionally shaped so that a future backend swap is not foreclosed.**
+
+Concretely, what this design *preserves* for the future pluggability
+initiative:
+
+- **Wire-type cleanliness.** `ResolverRequest`, `LockedRequirement`,
+  `Source`, `PackageSpecs`, and `ResolverResult` carry **no
+  pip-internal types** in their public signatures. The only place
+  `InstallRequirement` is mentioned is the *constructor*
+  `LockedRequirement.from_install_requirement` (§3.3) — a
+  pip-specific adapter living next to the schema. A future
+  `LockedRequirement.from_uv_resolution(...)` would sit alongside it.
+- **Backend-neutral error model.** The discriminated `ResolverResult`
+  (`ResolverSuccess` / `ResolutionError` / `InternalError`) describes
+  what crosses the wire in terms of *outcome*, not in terms of which
+  resolver produced it. uv's resolution errors should fit
+  `ResolutionError` cleanly; if they don't, that's a *finding* worth
+  surfacing when the time comes, not a current design flaw.
+- **Package layout reserves room.** The recommended layout in §8 Q1
+  (`pipenv/resolver/main.py` + `pipenv/resolver/schema.py`) keeps the
+  door open for `pipenv/resolver/backends/` later. The current pip
+  subprocess code at `pipenv/resolver.py` becomes
+  `pipenv/resolver/backends/pip.py` then; nothing in the *schema*
+  module needs to move.
+
+What this design **does not do** (and intentionally so — pluggability
+is out of scope for Initiative F):
+
+- **No `Backend` ABC or registry.** With one backend (pip) actually
+  shipping, an abstract-base-class plugin point is premature. It will
+  be designed when the second backend exists, not before.
+- **No pip-flavoured field renames.** `Diagnostics.pip_version: str`
+  stays pip-named in T_F.3 because pip is the only backend in flight.
+  A future T_F.X that adds uv would rename it (or add a sibling)
+  alongside a `SCHEMA_VERSION` bump — consistent with §5's
+  schema-versioning policy.
+- **No backend-specific options.** `ResolverOptions` (§3.4) is
+  pip-focused. uv-specific knobs (e.g. `--resolution=highest`,
+  `--prerelease=allow`) are not modeled. A future initiative may add
+  `ResolverOptions.backend_specific: Mapping[str, str]` or grow a
+  per-backend variant; T_F.3 ships without that.
+
+**Future-initiative open questions** that this design intentionally
+leaves unanswered (recorded here so they are not surprises later):
+
+- Which Pipfile section opts a project into a non-default backend?
+  `[pipenv]` table? A new `[tool.pipenv.resolver]`? CLI flag only?
+- How does `pipenv install` choose between backends in a multi-backend
+  environment — Pipfile setting, env var, autodetect from
+  `pylock.toml` metadata?
+- How is lockfile compatibility signalled when a Pipfile has been
+  resolved by uv vs pip? Does each backend produce a distinct
+  `_meta` block?
+- Does pipenv require a vendored uv (consistent with the vendor-only
+  posture for pip) or accept a system uv on `$PATH`?
+
+None of these are answered by Initiative F. They become first-class
+when a successor initiative formally adopts the second backend.
+
+This addendum is informational. Initiative F's acceptance criteria do
+not depend on it. The maintainer constraint — *design with future
+pluggable backends in mind, but treat it as out of scope for F* — is
+recorded here so that T_F.3+ reviewers know what *shape* discipline
+applied when this design was written.
+
 ## 7. Test plan
 
 The current resolver subprocess has no protocol-level test coverage:
@@ -612,8 +701,12 @@ Matt's answers gate T_F.3 execution.
    Alternative: keep `pipenv/resolver.py` as the script, put schema in
    `pipenv/utils/resolver_schema.py`, accept the cross-module reach.
    **Recommendation:** turn `pipenv/resolver.py` into a package; the
-   console-script line becomes
-   `"pipenv.resolver.main:main"`. Confirm or override.
+   console-script line becomes `"pipenv.resolver.main:main"`.
+   Adopting the package layout also reserves room for a future
+   `pipenv/resolver/backends/` subpackage if Initiative F ever grows
+   alternative resolver backends (see §6a) — pip becomes
+   `pipenv/resolver/backends/pip.py` then, without touching the
+   schema module. Confirm or override.
 2. **Schema version on mismatch — exit 2 vs. write an
    `InternalError` response?** F.1 §9 decision 2's default was "exit
    2". The cleaner protocol-level answer is "write
