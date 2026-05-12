@@ -83,16 +83,6 @@ def is_vcs(pipfile_entry):
     return False
 
 
-def is_editable(pipfile_entry):
-    # type: (PipfileType) -> bool
-    """Check if a Pipfile entry is editable."""
-    if isinstance(pipfile_entry, Mapping):
-        return pipfile_entry.get("editable", False) is True
-    if isinstance(pipfile_entry, str):
-        return pipfile_entry.startswith("-e ")
-    return False
-
-
 def prepare_pip_source_args(sources, pip_args=None):
     # type: (List[Dict[S, Union[S, bool]]], Optional[List[S]]) -> List[S]
     """Prepare pip arguments for source indexes.

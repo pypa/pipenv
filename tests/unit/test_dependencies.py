@@ -844,3 +844,74 @@ class TestGetConstraintsFromResolvedDeps:
         }
         constraints = get_constraints_from_resolved_deps(resolved)
         assert "my-package==1.0" in constraints
+
+
+class TestIsEditable:
+    """Tests for is_editable (the canonical helper in pipenv.utils.dependencies).
+
+    These tests pin the post-W5 consolidation: a single is_editable now
+    serves every caller (project.py, utils/pipfile.py, utils/locking.py).
+    Real callers iterate Pipfile/lockfile package values, which TOML
+    parses as either Mapping (table) or str (version specifier).  A
+    string ``"-e ./pkg"`` form is also accepted so behaviour matches the
+    pre-consolidation requirementslib.is_editable that locking.py and
+    utils/pipfile.py used.
+    """
+
+    def _call(self, value):
+        from pipenv.utils.dependencies import is_editable
+
+        return is_editable(value)
+
+    def test_dict_with_editable_true(self):
+        assert self._call({"editable": True, "path": "."}) is True
+
+    def test_dict_with_editable_false(self):
+        assert self._call({"editable": False, "path": "."}) is False
+
+    def test_dict_without_editable_key(self):
+        assert self._call({"version": "*"}) is False
+
+    def test_empty_dict(self):
+        assert self._call({}) is False
+
+    def test_dict_with_editable_truthy_non_bool(self):
+        # The mapping branch uses ``is True`` so a truthy-but-not-True
+        # value (e.g. a non-empty string) is NOT treated as editable.
+        # This matches the pre-W5 requirementslib semantics which every
+        # active caller already imported.
+        assert self._call({"editable": "yes"}) is False
+
+    def test_string_with_dash_e_prefix(self):
+        assert self._call("-e ./local-pkg") is True
+
+    def test_string_with_dash_e_git(self):
+        assert self._call("-e git+https://github.com/foo/bar.git#egg=bar") is True
+
+    def test_string_plain_version_specifier(self):
+        # The common Pipfile shape: ``mypkg = "*"`` or ``mypkg = ">=1.0"``.
+        assert self._call("*") is False
+        assert self._call(">=1.0") is False
+
+    def test_string_url_without_dash_e(self):
+        assert self._call("https://example.com/pkg.tar.gz") is False
+
+    def test_none_returns_false(self):
+        assert self._call(None) is False
+
+    def test_other_type_returns_false(self):
+        assert self._call(42) is False
+        assert self._call(["editable"]) is False
+
+    def test_tomlkit_inline_table_editable(self):
+        # The realistic Pipfile path: parsed_pipfile values are tomlkit
+        # InlineTable instances, not plain dicts.  They implement
+        # collections.abc.Mapping so the canonical helper must recognise
+        # them.
+        import tomlkit
+
+        doc = tomlkit.parse(
+            '[packages]\nfoo = {editable = true, path = "."}\nbar = "*"\n'
+        )
+        assert self._call(doc["packages"]["foo"]) is True
+        assert self._call(doc["packages"]["bar"]) is False

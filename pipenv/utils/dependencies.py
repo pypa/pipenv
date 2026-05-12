@@ -1514,8 +1514,15 @@ def is_required_version(version, specified_version):
 
 
 def is_editable(pipfile_entry):
-    if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("editable", False)
+    """Check whether a Pipfile or lockfile package entry is editable.
+
+    Accepts either a mapping (``{"editable": True, ...}``) or a string
+    (``"-e ./pkg"``).  Any other input is treated as non-editable.
+    """
+    if isinstance(pipfile_entry, Mapping):
+        return pipfile_entry.get("editable", False) is True
+    if isinstance(pipfile_entry, str):
+        return pipfile_entry.startswith("-e ")
     return False
 
 
