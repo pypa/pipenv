@@ -325,6 +325,37 @@ class TestUtils:
         assert internet.is_valid_url(not_url) is False
 
     @pytest.mark.utils
+    def test_is_valid_url_fileutils_shim_emits_deprecation(self):
+        """The fileutils.is_valid_url alias is deprecated (T_A.2).
+
+        It must continue to return the correct value but emit a
+        DeprecationWarning pointing callers at pipenv.utils.internet.
+        """
+        import warnings as _warnings
+
+        from pipenv.utils import fileutils
+
+        url = "https://github.com/psf/requests.git"
+        not_url = "something_else"
+
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            assert fileutils.is_valid_url(url) is True
+            assert fileutils.is_valid_url(not_url) is False
+
+        deprecation_messages = [
+            str(w.message)
+            for w in caught
+            if issubclass(w.category, DeprecationWarning)
+            and "pipenv.utils.fileutils.is_valid_url" in str(w.message)
+        ]
+        assert len(deprecation_messages) >= 2, (
+            "Expected DeprecationWarning from fileutils.is_valid_url shim "
+            f"on each call; got: {deprecation_messages!r}"
+        )
+        assert "pipenv.utils.internet" in deprecation_messages[0]
+
+    @pytest.mark.utils
     def test_download_file(self, tmp_path):
         url = "https://example.com/test.md"
         output = tmp_path / "test_download.md"

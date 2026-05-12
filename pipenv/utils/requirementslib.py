@@ -20,8 +20,8 @@ from pipenv.patched.pip._internal.utils.misc import is_installable_dir
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
 from pipenv.patched.pip._vendor.packaging import specifiers
-from pipenv.utils.fileutils import is_valid_url, normalize_path, url_to_path
-from pipenv.utils.internet import _strip_credentials_from_url
+from pipenv.utils.fileutils import normalize_path, url_to_path
+from pipenv.utils.internet import _strip_credentials_from_url, is_valid_url
 from pipenv.vendor import tomlkit
 
 STRING_TYPE = Union[bytes, str, str]
