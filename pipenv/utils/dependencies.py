@@ -38,7 +38,7 @@ from pipenv.utils.fileutils import (
     create_tracked_tempdir,
 )
 from pipenv.utils.requirements import redact_auth_from_url
-from pipenv.utils.requirementslib import unpack_url
+from pipenv.utils.unpack import unpack_url
 
 from .constants import (
     INSTALLABLE_EXTENSIONS,
