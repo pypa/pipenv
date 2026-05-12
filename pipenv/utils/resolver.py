@@ -1,7 +1,6 @@
 import contextlib
 import dataclasses
 import hashlib
-import importlib.metadata as importlib_metadata
 import json
 import os
 import subprocess
@@ -12,7 +11,7 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -1623,10 +1622,3 @@ def resolve_deps(
                 except RuntimeError:
                     sys.exit(1)
     return results, internal_resolver
-
-
-def get_pipenv_sitedir() -> Optional[str]:
-    for dist in importlib_metadata.distributions():
-        if dist.metadata.get("Name", "").lower() == "pipenv":
-            return str(dist.locate_file(""))
-    return None
