@@ -108,11 +108,11 @@ to one location per concept.
 #### Initiative B — Inventory and triage "inlined former vendor" modules
 
 **Current state.** Several modules under `pipenv/utils/` (notably
-`requirementslib.py`, parts of `markers.py`, parts of `fileutils.py`) are
-inlined copies of code that used to be vendored. They are no longer
-reconciled with upstream, but they also haven't been refactored to project
-style. This is the worst-of-both-worlds state: we carry the upstream
-complexity without the upstream maintenance.
+`requirementslib.py`, `requirements.py`, and the URL/path-overlapping
+helpers in `fileutils.py`) are inlined copies of code that used to be
+vendored. They are no longer reconciled with upstream, but they also
+haven't been refactored to project style. This is the worst-of-both-worlds
+state: we carry the upstream complexity without the upstream maintenance.
 
 **Target state.** Every module clearly identifies as either *project-owned*
 (refactor freely; project conventions apply; tests are owned) or *vendored*
@@ -142,14 +142,20 @@ complexity without the upstream maintenance.
 
 ### Wave 2 — Routine ergonomics
 
-#### Initiative C — Replace the ambient `state` dict in routines
+#### Initiative C — Replace wide threaded parameter lists in routines
 
 **Current state.** `pipenv/routines/install.py`, `update.py`,
-`uninstall.py`, and several siblings accept a `state` dict that propagates
-through the call chain and gets mutated along the way. The dict is the
+`uninstall.py`, and several siblings expose top-level routine functions
+that accept long, mostly-keyword parameter lists, then thread subsets of
+those parameters through their child calls. The parameter set is the
 de-facto interface between top-level commands and the resolver/lock
-machinery. Its shape is implicit; its keys are added or removed by reading
-through call sites.
+machinery, but it is spread across signatures rather than collected into a
+named type. Concretely (in `pipenv/routines/install.py`): `do_install` at
+line 353 takes 17 parameters (one positional `project` plus 16 keyword);
+`handle_new_packages` takes 11; `handle_lockfile` takes 10; `do_init`
+takes 10. Adding or removing a flag requires updating every signature in
+the chain, and a reader cannot enumerate the routine "state" without
+visiting each call site.
 
 **Target state.** A typed, immutable-by-default context object (likely a
 `@dataclass(frozen=True)` or `NamedTuple`) with a documented shape. Mutation
