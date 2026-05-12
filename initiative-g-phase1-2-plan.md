@@ -177,9 +177,11 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   Keyring is **not** in scope for Phase 1.
 - **validation**:
   - Tests live in T16; this task's validation is that the three helpers exist with the documented signatures and pass T16's tests once T16 lands.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented `pipenv/resolver/auth.py` with the three documented helpers (`extract_url_credentials`, `lookup_netrc_auth`, `client_cert_from_env`). Pure stdlib (`os`, `urllib.parse`, `netrc`); zero `pip._internal` imports (verified by `grep "pip._internal" pipenv/resolver/auth.py` → empty). `extract_url_credentials` mirrors `pipenv.utils.internet._strip_credentials_from_url` byte-for-byte (URL-decodes creds via `unquote`; rebuilds netloc via `urlunsplit`). `lookup_netrc_auth` tries explicit-arg → `$NETRC` → `~/.netrc` (or `~/_netrc` on Windows) in priority order, swallows `netrc.NetrcParseError` + `OSError`, returns `None` on any failure or missing entry. `client_cert_from_env` returns `(value, value)` for `$PIP_CLIENT_CERT` (matches pip's single-path convention; callers expecting `(cert, key)` pairs work unchanged). RED→GREEN evidence: pre-impl `python -c "from pipenv.resolver.auth import ..."` → `ModuleNotFoundError`; post-impl prints `('https://host/path', ('user', 'pass'))` and `None` for the two documented smoke cases. Tests deferred to T16 per the revised plan.
 - **files edited/created**:
+  - `pipenv/resolver/auth.py` (new)
 
 ---
 
