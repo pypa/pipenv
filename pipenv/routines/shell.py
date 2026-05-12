@@ -123,7 +123,7 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
     env["PIPENV_PROJECT_DIR"] = str(project.pipfile.project_directory)
 
     try:
-        script = project.build_script(command, args)
+        script = project.pipfile.build_script(command, args)
     except ScriptEmptyError:
         err.print("Can't run script {0!r}-it's empty?")
         return
