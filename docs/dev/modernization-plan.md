@@ -1070,9 +1070,42 @@ the design — the four are independent of each other once the
 - **validation**: `pipenv/project.py` lost the 3 methods (and any
   associated state); new module has its own test file; every
   caller updated; unit suite green.
-- **status**: Not Completed
+- **status**: Completed (commit 0b8b5830)
 - **log**:
+  Extracted `Settings` to `pipenv/utils/settings.py` (130 lines).
+  `pipenv/project.py:settings`, `Project.update_settings`, and
+  `Project.use_pylock` removed; `Project.settings` becomes a
+  `@cached_property` returning a `Settings(self)` instance.
+
+  **Naming-collision resolution: Option A (Mapping-shaped subsystem)**.
+  `Settings` subclasses `collections.abc.MutableMapping`, so every
+  existing `project.settings.get(key, default)` /
+  `key in project.settings` / `project.settings[key]` caller works
+  unchanged — the subsystem instance has `.get`, `__getitem__`,
+  `__iter__`, `__len__`, `__contains__`. Only the writer
+  (`update_settings`) and the typed `use_pylock` accessor needed
+  caller-site migration. This was a materially smaller migration
+  than T_D.2's `sources` rename and produces a cleaner public surface.
+
+  Migration sites: `pipenv/routines/install.py` (2 sites:
+  `update_settings(...)` → `settings.update(...)`,
+  `project.use_pylock` → `project.settings.use_pylock`),
+  `pipenv/project.py` (2 internal references), and
+  `tests/integration/test_pylock.py` (2 sites). Zero `.get(...)`
+  callers needed migration.
+
+  10 new tests in `tests/unit/test_settings.py`.
 - **files edited/created**:
+  - `pipenv/utils/settings.py` (new, 130 lines)
+  - `pipenv/project.py` (-5 lines net; 1526 → from 1531 after T_D.2)
+  - `pipenv/routines/install.py` (2 migration sites)
+  - `tests/unit/test_settings.py` (new, 10 tests)
+  - `tests/integration/test_pylock.py` (2 migration sites)
+
+  *(T_D.3's commit accidentally swept in T_E.2's `install.py` import
+  hunks due to the parallel-collision pattern — see the commit log.
+  Net state is correct; both task acceptance criteria satisfied in
+  the final tree.)*
 
 #### T_D.4: Extract `VenvLocator` subsystem
 - **depends_on**: [T_D.3]
@@ -1190,7 +1223,72 @@ the design — the four are independent of each other once the
   filename fates, rename target, unpack home, markers fold-in
   question, redact stay-or-move, test-pinning approach).
 - **files edited/created**:
-  - `docs/dev/initiative-e-design.md` (new, 692 lines)
+  - `docs/dev/initiative-e-design.md` (new, 692 lines + 50-line sign-off
+    addendum)
+
+#### T_E.2: Move Pipfile/lockfile bridges to `dependencies.py`
+- **depends_on**: [T_E.1]
+- **location**: `pipenv/utils/requirements.py` (source), `pipenv/utils/dependencies.py` (destination),
+  and caller files: `pipenv/utils/{pipfile,locking}.py`,
+  `pipenv/routines/{install,update,audit,requirements,clean,uninstall,graph}.py`.
+- **description**:
+  Per T_E.1 sign-off §3: move 6 Pipfile/lockfile bridge functions
+  plus `BAD_PACKAGES` from `requirements.py` into `dependencies.py`
+  (canonical home). Rename the module-level `add_index_to_pipfile`
+  to `add_index_to_pipfile_with_trust_check` to disambiguate from
+  `Project.add_index_to_pipfile`. Caller migration in the same PR
+  per the no-shim posture.
+- **validation**: every moved symbol importable from
+  `pipenv.utils.dependencies`; `requirements.py` reduced to only
+  the `redact_*` fork pair; unit suite green.
+- **status**: Completed (commit caa72db6)
+- **log**:
+  Seven symbols moved:
+  - `import_requirements` (~60 lines)
+  - `add_index_to_pipfile` → **`add_index_to_pipfile_with_trust_check`**
+    (~17 lines; rename only, body identical)
+  - `requirement_from_lockfile` (~88 lines; local imports of
+    `is_editable_path`/`is_star`/`normalize_vcs_url` dropped since
+    they're now intra-file)
+  - `requirements_from_lockfile` (~13 lines)
+  - `requirement_from_pipfile` (~109 lines; same local-import drop)
+  - `requirements_from_pipfile` (~21 lines)
+  - `BAD_PACKAGES` constant tuple (~7 lines)
+
+  Caller migrations across 9 files: `pipfile.py`, `locking.py`,
+  `routines/{install,update,audit,requirements,graph,clean,uninstall}.py`,
+  plus 3 integration test files (`test_import_requirements.py`,
+  `test_requirements.py`, `test_lockfile.py`).
+
+  `requirements.py` is now 72 lines holding only the two `redact_*`
+  fork functions plus their provenance docstrings (per T_E.1 §6
+  sign-off). T_E.7 will optionally rename this file to `redact.py`
+  per T_E.1 §7 sign-off if it still makes sense.
+
+  21 new tests in `tests/unit/test_dependencies_bridges.py`: 7
+  import-shape pins, 2 sanity checks that old paths are gone, 12
+  light behaviour pins covering string/dict/star/version paths and
+  the trusted-host vs untrusted-host branches of
+  `add_index_to_pipfile_with_trust_check`.
+
+  Subtle pre-existing quirk surfaced (not fixed): an unconditional
+  `==` prefix in `requirement_from_lockfile`'s bare-version-string
+  branch produces `===` when the input already starts with `==`.
+  Preserved as-is for behaviour-preservation; documented as a
+  future cleanup candidate.
+
+  *(T_D.3 ran in parallel and committed first; T_D.3's commit
+  accidentally swept in T_E.2's `pipenv/routines/install.py`
+  caller-import hunks. T_E.2 detected the swept-up state and
+  committed the remaining 14 files cleanly. Net final tree is
+  correct.)*
+- **files edited/created**:
+  - `pipenv/utils/dependencies.py` (gains 7 moved symbols, +579 lines net for the move)
+  - `pipenv/utils/requirements.py` (-361 lines; now 72 lines holding only the redact pair)
+  - `pipenv/utils/{pipfile,locking}.py` (caller imports)
+  - `pipenv/routines/{install,update,audit,requirements,graph,clean,uninstall}.py` (caller imports + 1 rename site each in install/update)
+  - `tests/unit/test_dependencies_bridges.py` (new, 21 tests)
+  - `tests/integration/{test_import_requirements,test_requirements,test_lockfile}.py` (test imports)
 
 #### T_F.1: Document current subprocess resolver protocol
 - **depends_on**: [T_E.1]  (gated on E's design so we know what data
