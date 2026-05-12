@@ -1892,8 +1892,15 @@ class TestCreatePipfileVersionConsistency:
 
         project.pipfile.write_toml.side_effect = capture_write_toml
 
+        # ``InstallCommand`` is lazy-imported inside ``Project.create_pipfile``
+        # (see the comment near the import for the perf rationale), so we
+        # patch the canonical source rather than the now-absent module
+        # attribute on ``pipenv.project``.
         with patch("pipenv.project.python_version", side_effect=fake_pv), \
-             patch("pipenv.project.InstallCommand", return_value=fake_cmd):
+             patch(
+                 "pipenv.patched.pip._internal.commands.install.InstallCommand",
+                 return_value=fake_cmd,
+             ):
             Project.create_pipfile(project, python=python)
 
         return written_data
