@@ -774,9 +774,61 @@ Observations:
 
 ---
 
-*This proposal awaits maintainer sign-off. T_C.4 will introduce
-`pipenv/routines/context.py` with the dataclasses defined here, and
-T_C.5 will migrate routines one at a time. The
-[T_C.2 inventory](./initiative-c-params.md) is the source of truth
-for which parameter goes where; updates to that document or to this
+## 9. Maintainer sign-off (2026-05-12)
+
+Recorded answers for each of the seven §7 decision questions:
+
+1. **Field grouping — APPROVED.** Keep the four-nested-dataclass cut
+   (`TargetEnv` / `InstallPolicy` / `PackageSelection` /
+   `ExecutionOptions`). The 5-group alternative (splitting
+   `PackageSelection` into scope + names) is not pursued.
+2. **`Project` reference — APPROVED as proposed.** `project` stays
+   as a separate first positional arg; not folded into
+   `RoutineContext`.
+3. **Naming — APPROVED.** `RoutineContext`. No bikeshedding.
+4. **File location — APPROVED with flexibility.** The
+   `pipenv/routines/context.py` proposal is acceptable, but the
+   maintainer's standing posture is "remain as flexible as we are
+   today (which is very flexible)" — the executing agent in T_C.4 may
+   pick a different sensible location if a strong reason emerges, and
+   we will not retrofit it later as a policy concern.
+5. **`from_cli` naming — APPROVED.** Keep the classmethod.
+6. **`all` / `all_dev` / `dev_only` placement — DEFERRED.** Keep on
+   `PackageSelection` per the proposal until T_C.5 / T_C.7 surface
+   concrete duplication or awkwardness. Re-open the question then if
+   there's a clear reason.
+7. **Optional helper methods — DEFERRED.** No need to design helpers
+   for external-caller ergonomics. Pipenv treats only its CLI as the
+   stable API; the `pipenv.routines.*` surface is internal. If a
+   helper becomes useful during T_C.5+ migration to remove
+   call-site duplication, add it then. We are not designing for
+   plugin / library consumers.
+
+### Consequential ramifications of decision 7
+
+The "internal-only" posture also resolves the related open
+implementation question §8.7 (backwards compatibility for plugin /
+library consumers). Concretely:
+
+- T_C.5 and downstream migrations may change the public signatures of
+  `do_install`, `do_update`, `do_lock`, etc. wholesale — there is no
+  obligation to maintain a backwards-compat shim that accepts the
+  pre-context positional/keyword form.
+- The CLI is the contract. Anyone calling
+  `pipenv.routines.install.do_install(...)` from Python is doing so
+  at their own risk; if the migration breaks them, the fix is to
+  call the CLI.
+- News fragments for the migrations are still appropriate (they
+  describe the cleanup), but they should not need to include
+  "deprecation period" language.
+
+T_C.4 may now proceed: introduce `pipenv/routines/context.py` with
+the four nested dataclasses and `RoutineContext` per section 2,
+land tests in `tests/unit/test_routine_context.py` per the existing
+TDD pattern, do not modify any existing routine signature yet.
+
+---
+
+*Source of truth: the [T_C.2 inventory](./initiative-c-params.md) for
+which parameter goes where; updates to that document or to this
 proposal should be made in lock-step.*
