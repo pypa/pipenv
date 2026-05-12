@@ -41,15 +41,27 @@ Design highlights
 """
 from __future__ import annotations
 
+import base64
 import json
+import logging
 from datetime import datetime
 from html import unescape as _html_unescape
 from html.parser import HTMLParser
 from typing import Any
 from urllib.parse import urljoin, urlsplit
 
+from pipenv.patched.pip._vendor import urllib3
+from pipenv.patched.pip._vendor.urllib3 import exceptions as urllib3_exceptions
+from pipenv.resolver.auth import (
+    client_cert_from_env,
+    extract_url_credentials,
+    lookup_netrc_auth,
+)
 from pipenv.resolver.candidate import Candidate, Hash
+from pipenv.resolver.pep691_types import FetchError, SimplePageResponse
 from pipenv.vendor.packaging.utils import canonicalize_name
+
+_LOGGER = logging.getLogger(__name__)
 
 # ``meta.api-version`` validation: PEP 691 §3 commits to 1.x being
 # additive-only, so any minor revision is safe to parse opportunistically.
@@ -614,4 +626,404 @@ def _parse_pep503_html(body: bytes, page_url: str) -> tuple[Candidate, ...]:
     return tuple(results)
 
 
-__all__ = ["_parse_pep691_json", "_parse_pep503_html"]
+# ---------------------------------------------------------------------------
+# PEP691Client (T8).  HTTP front-end for the two parsers above.  Does NOT
+# cache (T7's ParsedManifestCache sits in front of it) and does NOT retry
+# (T9's ParallelFetcher owns retry policy).  Single-shot GET with status
+# dispatch + Content-Type-driven parser selection + URL-credential / netrc
+# basic auth.
+# ---------------------------------------------------------------------------
+
+
+#: Default connect/read timeout for the simple-API GET.  These values
+#: mirror pip's defaults for the network layer (10s connect, 30s read).
+#: Aggressive enough to fail fast on a flaky mirror; lenient enough for a
+#: slow CI cold-cache run.  T9's retry policy compounds these per-target.
+_DEFAULT_CONNECT_TIMEOUT = 10.0
+_DEFAULT_READ_TIMEOUT = 30.0
+
+#: Accept header advertised on every simple-API request.  Order +
+#: quality values mirror pip's: prefer PEP 691 JSON, accept PEP 691 HTML
+#: at q=0.1 (some private indexes emit JSON only via content negotiation),
+#: accept generic ``text/html`` at q=0.01 (legacy PEP 503-only mirrors).
+_ACCEPT_HEADER = (
+    "application/vnd.pypi.simple.v1+json, "
+    "application/vnd.pypi.simple.v1+html; q=0.1, "
+    "text/html; q=0.01"
+)
+
+#: Content-Type prefix that selects the PEP 691 JSON parser.  Matched
+#: case-insensitively against the full ``Content-Type`` header value.
+_JSON_CT_PREFIX = "application/vnd.pypi.simple.v1+json"
+
+#: Content-Type prefixes that select the PEP 503 HTML parser.  Order is
+#: not significant — any match dispatches to the same parser.
+_HTML_CT_PREFIXES = (
+    "application/vnd.pypi.simple.v1+html",
+    "text/html",
+)
+
+
+class PEP691Client:
+    """Pure-Python client for the simple-API (PEP 691 JSON, PEP 503 HTML fallback).
+
+    Returns :class:`SimplePageResponse` on a successful read (status
+    ``fresh`` / ``not-modified`` / ``missing``) and :class:`FetchError`
+    on auth or transient failures.
+
+    Does NOT cache; the manifest cache layer
+    (:class:`pipenv.resolver.manifest_cache.ParsedManifestCache`, T7)
+    sits in front of this client.  Does NOT retry; retry policy is the
+    fetcher's (T9) job.
+
+    Auth dispatch order
+    -------------------
+    1. URL-embedded ``user:pass@`` credentials (extracted via
+       :func:`pipenv.resolver.auth.extract_url_credentials` and stripped
+       from the outgoing URL so they cannot leak via logs).
+    2. netrc lookup for the URL's host (via
+       :func:`pipenv.resolver.auth.lookup_netrc_auth`).
+    3. No ``Authorization`` header sent.
+
+    TLS material
+    ------------
+    Client certificates (``cert``) and ``verify`` settings are
+    constructor-time properties of the ``session`` (a
+    :class:`urllib3.PoolManager` or compatible mock); this class accepts
+    them as instance state for forward-compat (a phase-3 ``Session``
+    rewrite that delegates per-request TLS will need them) but does NOT
+    rebuild the pool on a per-call basis.  Tests that need to assert TLS
+    behaviour should construct a session with the desired TLS config and
+    inject it; the per-request thread for cert/verify lives in design §6
+    and is a phase-3 concern.
+
+    Notable divergence from pip
+    ---------------------------
+    We do NOT send ``Cache-Control: max-age=0`` on every request.
+    Freshness is the cache layer's responsibility — re-validation only
+    happens when :class:`ParsedManifestCache` returns a stale-but-extant
+    entry, at which point this client's ``if_none_match`` parameter
+    drives the conditional GET.  Skipping the forced revalidate is one
+    of the two cold-cache wins design §3 lists explicitly.
+    """
+
+    # Re-exported on the class so callers / tests can introspect without
+    # reaching into module-private constants.
+    _ACCEPT_HEADER = _ACCEPT_HEADER
+
+    def __init__(
+        self,
+        session: Any,
+        *,
+        netrc_path: str | None = None,
+        cert: tuple[str, str] | None = None,
+        verify: bool = True,
+    ) -> None:
+        """Construct a client bound to ``session``.
+
+        Parameters
+        ----------
+        session:
+            A :class:`urllib3.PoolManager` instance (or a duck-typed
+            mock; tests pass :class:`unittest.mock.MagicMock`).  The
+            session is used as-is; we never rebuild it or twiddle its
+            pool configuration.  Caller owns its lifecycle.
+        netrc_path:
+            Optional explicit path to a netrc file.  ``None`` falls
+            back to ``$NETRC`` then ``~/.netrc`` (POSIX) / ``~/_netrc``
+            (Windows) via :func:`lookup_netrc_auth`.
+        cert:
+            Optional ``(cert_path, key_path)`` pair.  ``None`` falls back
+            to :func:`client_cert_from_env` (the ``$PIP_CLIENT_CERT`` env
+            var).  Stored on the instance for future per-request use; the
+            current ``session`` is assumed to have been built with this
+            TLS material already (see class docstring).
+        verify:
+            TLS verification toggle.  Same caveat as ``cert``: stored on
+            the instance, but the active ``session`` is the source of
+            truth.  Defaults to ``True``.
+        """
+        self._session = session
+        self._netrc_path = netrc_path
+        # Resolve cert at construction time so $PIP_CLIENT_CERT changes
+        # mid-process don't surprise the resolver mid-fetch.
+        self._cert = cert if cert is not None else client_cert_from_env()
+        self._verify = verify
+
+    def fetch(
+        self,
+        index_url: str,
+        package_name: str,
+        *,
+        if_none_match: str | None = None,
+    ) -> SimplePageResponse | FetchError:
+        """Fetch ``package_name``'s simple-API page from ``index_url``.
+
+        Algorithm (numbered to match the plan brief):
+
+        1. Canonicalise ``package_name`` (PEP 503 normalisation).
+        2. Strip URL credentials with
+           :func:`extract_url_credentials`; remember them for the
+           ``Authorization`` header.
+        3. Build target URL ``{stripped_index}/{canonical_name}/``.
+        4. Compose headers: ``Accept`` always; ``If-None-Match`` when
+           ``if_none_match`` non-None; ``Authorization: Basic <b64>`` from
+           URL creds, falling back to netrc by host.
+        5. GET via ``self._session.request``.
+        6. Branch on ``response.status``: 200 → parse + return ``fresh``;
+           304 → ``not-modified`` (carry caller's ETag forward); 404 →
+           ``missing``; 401/403 → ``FetchError("auth")``; other 4xx/5xx
+           → ``FetchError("transient")``; urllib3 exception →
+           ``FetchError("transient", original=exc)``.
+
+        Connection hygiene: ``response.release_conn()`` is always called
+        (even on parse / branch failure) so the connection returns to the
+        pool.  Without this, a worker that consumes a status-but-not-body
+        path would leak the connection until GC.
+
+        Returns
+        -------
+        :class:`SimplePageResponse` on any non-error outcome (``fresh``,
+        ``not-modified``, ``missing``) or :class:`FetchError` on an
+        error.  Never raises (the contract upstream is that the caller
+        — T9's :class:`ParallelFetcher` — multiplexes many of these and
+        a single bad target must not stop the others).
+        """
+        # 1. Canonicalise package name.
+        canonical_name = canonicalize_name(package_name)
+
+        # 2. Strip URL credentials.
+        stripped_url, creds = extract_url_credentials(index_url)
+
+        # 3. Build target URL.  ``rstrip("/")`` handles both
+        #    ``https://host/simple`` and ``https://host/simple/``
+        #    forms consistently.
+        target_url = stripped_url.rstrip("/") + "/" + canonical_name + "/"
+
+        # 4. Compose headers.
+        headers: dict[str, str] = {"Accept": self._ACCEPT_HEADER}
+        if if_none_match is not None:
+            headers["If-None-Match"] = if_none_match
+        auth_header = self._build_auth_header(stripped_url, creds)
+        if auth_header is not None:
+            headers["Authorization"] = auth_header
+
+        # 5. Send the GET.  Any urllib3 exception → transient.  We catch
+        #    HTTPError (the urllib3 base) plus OSError (a low-level
+        #    socket error may surface here on some platforms before
+        #    urllib3 wraps it).
+        timeout = urllib3.Timeout(
+            connect=_DEFAULT_CONNECT_TIMEOUT, read=_DEFAULT_READ_TIMEOUT
+        )
+        try:
+            response = self._session.request(
+                "GET", target_url, headers=headers, timeout=timeout
+            )
+        except urllib3_exceptions.HTTPError as exc:
+            # MaxRetryError / ProtocolError / TimeoutError / SSLError /
+            # NewConnectionError all subclass HTTPError.
+            _LOGGER.debug("transient error fetching %s: %s", target_url, exc)
+            return FetchError(
+                kind="transient",
+                url=target_url,
+                message=str(exc),
+                original=exc,
+            )
+        except OSError as exc:
+            # Belt-and-braces: a socket error not yet wrapped by urllib3.
+            _LOGGER.debug("transient error fetching %s: %s", target_url, exc)
+            return FetchError(
+                kind="transient",
+                url=target_url,
+                message=str(exc),
+                original=exc,
+            )
+
+        # 6. Branch on status.  ``release_conn`` always runs, even on a
+        #    parse error inside the 200 branch.
+        try:
+            return self._dispatch_response(
+                response, target_url=target_url, if_none_match=if_none_match
+            )
+        finally:
+            release = getattr(response, "release_conn", None)
+            if callable(release):
+                try:
+                    release()
+                except Exception:  # noqa: BLE001
+                    # Pool-release failure is non-fatal — the connection
+                    # will be GC'd.  We don't propagate (would mask the
+                    # actual return value).
+                    pass
+
+    # ---- internals --------------------------------------------------
+
+    def _build_auth_header(
+        self,
+        stripped_url: str,
+        creds: tuple[str, str] | None,
+    ) -> str | None:
+        """Compute the ``Authorization`` header value, or ``None``.
+
+        Precedence: URL-embedded creds first, netrc second.  ``None``
+        when neither source yields credentials.
+
+        URL-embedded creds win even when an entry exists in netrc for
+        the same host — explicit user intent (``user:pass@host`` in the
+        Pipfile) beats environment defaults.  Mirrors pip's behaviour.
+        """
+        if creds is not None:
+            user, password = creds
+            return _basic_auth_header(user, password)
+        # Netrc fallback.  ``urllib3.util.parse_url`` gives us the host
+        # without the port — that's what netrc keys off (RFC 1929).
+        try:
+            host = urllib3.util.parse_url(stripped_url).host
+        except urllib3_exceptions.LocationParseError:
+            host = None
+        if not host:
+            return None
+        netrc_auth = lookup_netrc_auth(host, self._netrc_path)
+        if netrc_auth is None:
+            return None
+        user, password = netrc_auth
+        return _basic_auth_header(user, password)
+
+    def _dispatch_response(
+        self,
+        response: Any,
+        *,
+        target_url: str,
+        if_none_match: str | None,
+    ) -> SimplePageResponse | FetchError:
+        """Branch on HTTP status; parse body for 200; map errors."""
+        status = response.status
+        headers = response.headers
+
+        if status == 200:
+            content_type = _get_header(headers, "Content-Type") or ""
+            ct_lower = content_type.lower()
+            body = response.data if response.data is not None else b""
+
+            if ct_lower.startswith(_JSON_CT_PREFIX):
+                try:
+                    candidates = _parse_pep691_json(body, target_url)
+                except ValueError as exc:
+                    # Malformed JSON body on a 200 — caller treats this
+                    # as a transient (the upstream may be mid-deploy).
+                    _LOGGER.debug(
+                        "JSON parse failure on 200 %s: %s", target_url, exc
+                    )
+                    return FetchError(
+                        kind="transient",
+                        url=target_url,
+                        message=f"malformed JSON body: {exc}",
+                        original=exc,
+                    )
+            elif any(ct_lower.startswith(p) for p in _HTML_CT_PREFIXES):
+                # HTML parser never raises on malformed input — it just
+                # yields fewer anchors.  No try/except needed.
+                candidates = _parse_pep503_html(body, target_url)
+            else:
+                # Unknown content type on a 200 — treat as transient.
+                # The mirror may be returning a captive-portal HTML
+                # placeholder or a JSON error envelope; the caller's
+                # retry policy will decide whether to keep trying.
+                return FetchError(
+                    kind="transient",
+                    url=target_url,
+                    message=f"unexpected content-type: {content_type!r}",
+                    original=None,
+                )
+
+            return SimplePageResponse(
+                candidates=candidates,
+                etag=_get_header(headers, "ETag"),
+                last_modified=_get_header(headers, "Last-Modified"),
+                raw_meta={"content_type": content_type},
+                status="fresh",
+            )
+
+        if status == 304:
+            # Carry the caller's ETag forward — they need it to refresh
+            # the cache entry's expires_at without re-storing the body.
+            # We do NOT carry the response's ETag here: per RFC 7232 §4.1
+            # a 304 *should* include the ETag, but servers vary; the
+            # ``If-None-Match`` we sent is the canonical value.
+            return SimplePageResponse(
+                candidates=(),
+                etag=if_none_match,
+                last_modified=None,
+                raw_meta={},
+                status="not-modified",
+            )
+
+        if status == 404:
+            return SimplePageResponse(
+                candidates=(),
+                etag=None,
+                last_modified=None,
+                raw_meta={},
+                status="missing",
+            )
+
+        if status in (401, 403):
+            return FetchError(
+                kind="auth",
+                url=target_url,
+                message=f"HTTP {status}",
+                original=None,
+            )
+
+        # All other 4xx / 5xx — transient by default.  The fetcher
+        # decides retry-vs-give-up via the retry-after header / backoff.
+        return FetchError(
+            kind="transient",
+            url=target_url,
+            message=f"HTTP {status}",
+            original=None,
+        )
+
+
+def _basic_auth_header(user: str, password: str) -> str:
+    """Build a ``Basic <b64>`` header value from a ``(user, password)`` pair.
+
+    UTF-8 encoded per RFC 7617.  Empty user / password are permitted by
+    the spec (some private indexes use a static token as the password
+    with empty user); we don't validate, just encode.
+    """
+    raw = f"{user}:{password}".encode()
+    return "Basic " + base64.b64encode(raw).decode("ascii")
+
+
+def _get_header(headers: Any, name: str) -> str | None:
+    """Case-insensitively fetch a header value from a response.
+
+    urllib3's response headers are an ``HTTPHeaderDict`` (case-insensitive
+    out of the box), but tests pass plain ``dict``s which are not.  Try
+    the case-insensitive ``.get`` first; fall back to a manual
+    lower-case match for plain-dict cases.  Returns ``None`` when the
+    header is absent.
+    """
+    if headers is None:
+        return None
+    # HTTPHeaderDict.get is already case-insensitive.
+    try:
+        value = headers.get(name)
+    except Exception:  # noqa: BLE001
+        value = None
+    if value is not None:
+        return value
+    # Plain-dict fallback: linear scan with case-folded compare.
+    try:
+        items = headers.items()
+    except Exception:  # noqa: BLE001
+        return None
+    name_lower = name.lower()
+    for key, val in items:
+        if isinstance(key, str) and key.lower() == name_lower:
+            return val
+    return None
+
+
+__all__ = ["PEP691Client", "_parse_pep691_json", "_parse_pep503_html"]
