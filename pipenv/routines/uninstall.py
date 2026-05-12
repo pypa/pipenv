@@ -9,13 +9,13 @@ from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console
 from pipenv.utils.dependencies import (
+    BAD_PACKAGES,
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
     pep423_name,
 )
 from pipenv.utils.processes import run_command, subprocess_run
-from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.utils.shell import cmd_list_to_shell, project_python
 

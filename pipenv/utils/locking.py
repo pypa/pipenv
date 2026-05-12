@@ -563,7 +563,7 @@ class Lockfile:
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
     ) -> Iterator[InstallRequirement]:
-        from pipenv.utils.requirements import requirement_from_lockfile
+        from pipenv.utils.dependencies import requirement_from_lockfile
 
         if categories:
             deps = {}

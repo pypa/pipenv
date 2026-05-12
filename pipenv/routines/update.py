@@ -16,13 +16,13 @@ from pipenv.routines.sync import do_sync
 from pipenv.utils import err
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import (
+    add_index_to_pipfile_with_trust_check,
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
 )
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
-from pipenv.utils.requirements import add_index_to_pipfile
 from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import pipdeptree
 
@@ -689,7 +689,7 @@ def upgrade(
     # Set up index and environment
     index_name = None
     if index_url:
-        index_name = add_index_to_pipfile(project, index_url)
+        index_name = add_index_to_pipfile_with_trust_check(project, index_url)
 
     if extra_pip_args:
         os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
