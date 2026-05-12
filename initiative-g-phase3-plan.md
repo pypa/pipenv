@@ -570,9 +570,43 @@ near the bottom of this document.
   fallback (with synthetic test wheels built in `tmp_path`); cache
   round-trip; hash-mismatch behaviour; missing-METADATA inside the
   zip fallback path.  Coverage ≥ 90 %.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Extended the T2 RED-phase test suite from 9 to 65
+    tests, raising line coverage on
+    `pipenv/resolver/pure_python_metadata.py` from 73 % to 97.75 %
+    (well above the 90 % gate).  New test surface:
+    `TestParseMetadataText` (full `CoreMetadata` field population,
+    blank-`Requires-Python` normalisation), `TestCoreMetadataDataclass`
+    (frozen, slots, hashable + `frozenset` membership, value equality),
+    `TestPEP658Extra` (empty / `None` / non-sha256 hash dicts,
+    non-UTF-8 body, HTTP 404, session raises, missing body),
+    `TestWheelHeadFallbackExtra` (missing METADATA member, corrupt
+    zip tail, HEAD 405 with no / `*` / garbage Content-Range, HEAD
+    405 with probe 4xx, both calls session-failure, HEAD 200 with
+    no Content-Length, HEAD 200 with malformed Content-Length,
+    wheel using Windows `\` separator for METADATA),
+    `TestMetadataCacheExtra` (malformed JSON, non-dict payload,
+    wrong schema version, missing required key, generic `OSError`
+    on read, `UnicodeDecodeError`, `cache.put` `OSError` is
+    non-fatal + debug-logged, `os.replace` failure cleans temp
+    file, URL → path determinism + uniqueness, fresh-process
+    round trip), `TestHttpHelpers` (`_get_header` case-insensitive,
+    raising `get` / `items`, `_http_request` exception → `None`,
+    `_http_get_range` failure modes), and `TestPartialFile`
+    (seekable / readable / writable, seek SET / CUR / END +
+    negative + bad whence, in-buffer read, EOF read, prefix-fetch
+    growth, prefix oversize trim, prefix short-read raises,
+    suffix-fetch growth, suffix oversize trim, suffix short-read
+    raises).  Remaining 7 uncovered lines are the
+    `_MAX_CENTRAL_DIRECTORY_WINDOW`-overrun branch (would need a
+    >1 MB synthetic wheel), the `total_length <= 0` guard (the
+    probe path already raises before reaching it), and a couple
+    of related defensive branches that aren't reachable from the
+    public API surface.  No bugs found in T2's implementation.
 - **files edited/created**:
+  - `tests/unit/test_pure_python_metadata.py` — extended (9 → 65
+    tests; +56)
 
 ---
 
