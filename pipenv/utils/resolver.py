@@ -1332,17 +1332,24 @@ def resolve(cmd, st, project, *, deadline_seconds=None):
     out = "".join(stdout_chunks)
     errors = "".join(stderr_lines)
 
-    if returncode != 0:
-        st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
-        if not is_verbose:
-            err.print(errors)
-            if errors and "ResolutionImpossible" in errors:
-                err.print(
-                    "[cyan]Hint:[/cyan] Re-run with [yellow]--verbose[/yellow] "
-                    "to see the full dependency resolution output and identify "
-                    "which packages are in conflict."
-                )
-        raise ResolutionFailure("Failed to lock Pipfile.lock!")
+    # NOTE: pre-2026-05-12 this function raised ``ResolutionFailure`` on
+    # any non-zero return code, which threw away the structured
+    # ``ResolverResponse`` the subprocess writes to ``--response-file``
+    # via the ``InternalError`` exit path (see
+    # ``pipenv/resolver/main.py:_main``).  The caller
+    # (``_run_resolver_subprocess``) already has dispatch logic that
+    # reads the response file and surfaces structured error detail
+    # ("Q10: response file is the source of truth whenever it exists,
+    # regardless of exit code").  We now return the completed process
+    # unconditionally so that dispatch path is reachable on non-zero
+    # exit too — the caller decides between ``ResolutionFailure`` from
+    # a typed ``ResolutionError``, ``RuntimeError`` from a typed
+    # ``InternalError``, and the legacy stderr-fallback path for genuine
+    # crashes that didn't write a response.  Without this change the
+    # phase-3 multi-category-lock failures (default succeeds, dev fails
+    # silently — see GH Actions run 25751144209) raised
+    # ``ResolutionFailure("Failed to lock Pipfile.lock!")`` with the
+    # real error message stranded inside the response file.
     if is_verbose:
         err.print(out.strip())
     return subprocess.CompletedProcess(c.args, returncode, out, errors)

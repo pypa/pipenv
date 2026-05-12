@@ -1,6 +1,7 @@
 {
   "category": "packages",
   "metadata": {
+    "deadline_seconds": "<redacted>",
     "parent_pid": 0,
     "pipenv_version": "<redacted>"
   },
