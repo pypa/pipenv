@@ -107,9 +107,25 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - `python -c "import json; print(len(json.load(open('tests/unit/fixtures/pep691/django.json'))['files']) > 10)"` prints `True`.
   - All `.html` files validate as parseable HTML via `html.parser.HTMLParser`.
   - The `yanked-pkg` JSON fixture has at least one entry with `"yanked": "<reason>"` (non-boolean form) and at least one with `"yanked": true`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Fetched four real PyPI snapshots (`six`, `django`, `cryptography`, `tablib`) via `curl -H 'Accept: application/vnd.pypi.simple.v1+json'` for JSON and `curl -H 'Accept: text/html'` for HTML.  All four JSON responses came back with `meta.api-version` = `"1.4"`, well inside the `"1.x"` range the parser must accept.
+  - File entry counts: six=48, django=781, cryptography=3496, tablib=68 — django comfortably clears the `> 10` acceptance bar.
+  - Hand-crafted two synthetic JSON fixtures (`yanked-pkg.json`, `missing-hash.json`) and one synthetic HTML fixture (`yanked-pkg.html`) covering the yanked-string-reason, yanked-bool-true, yanked-bool-false (control), and empty-`hashes` edge cases.  Synthetic JSON declares `meta.api-version` = `"1.0"` so it stays on the conservative end of the supported range.
+  - All three acceptance checks pass: `len(django files) > 10` → `True`; `six.html`, `django.html`, `cryptography.html`, `yanked-pkg.html` all parse cleanly with `html.parser.HTMLParser`; `yanked-pkg.json` carries the bool-`true`, bool-`false` control, AND string-with-reason `"yanked"` forms.
+  - Provenance (URLs, Accept headers, capture date, sizes) and re-baseline procedure documented in `tests/unit/fixtures/README.md`.
 - **files edited/created**:
+  - `tests/unit/fixtures/pep691/six.json` (new, 24,065 B — real PyPI)
+  - `tests/unit/fixtures/pep691/django.json` (new, 401,061 B — real PyPI)
+  - `tests/unit/fixtures/pep691/cryptography.json` (new, 2,350,042 B — real PyPI)
+  - `tests/unit/fixtures/pep691/tablib.json` (new, 32,763 B — real PyPI)
+  - `tests/unit/fixtures/pep691/yanked-pkg.json` (new, synthetic)
+  - `tests/unit/fixtures/pep691/missing-hash.json` (new, synthetic)
+  - `tests/unit/fixtures/pep503/six.html` (new, 16,337 B — real PyPI)
+  - `tests/unit/fixtures/pep503/django.html` (new, 284,321 B — real PyPI)
+  - `tests/unit/fixtures/pep503/cryptography.html` (new, 1,945,696 B — real PyPI)
+  - `tests/unit/fixtures/pep503/yanked-pkg.html` (new, synthetic)
+  - `tests/unit/fixtures/README.md` (new — provenance + re-baseline procedure)
 
 ---
 
