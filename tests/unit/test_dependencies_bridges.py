@@ -264,18 +264,23 @@ def test_get_pip_command_importable_from_dependencies():
 
 def test_old_requirementslib_module_no_longer_exports_moved_symbols():
     """Per the T_C.3 §9 / T_E.1 sign-off, the old import paths fail
-    immediately after T_E.3; no backwards-compat shim is shipped."""
-    import pipenv.utils.requirementslib as old_mod
+    immediately after T_E.3; no backwards-compat shim is shipped.
 
-    for name in (
-        "is_vcs",
-        "add_ssh_scheme_to_git_uri",
-        "merge_items",
-        "get_pip_command",
-    ):
-        assert not hasattr(old_mod, name), (
-            f"{name} should no longer exist on pipenv.utils.requirementslib"
-        )
+    Under T_E.4 the whole ``pipenv.utils.requirementslib`` module was
+    deleted (its last two symbols -- ``unpack_url``/``get_http_url`` --
+    moved to :mod:`pipenv.utils.unpack`), so this test now pins the
+    strictly stronger property that the module itself is gone. The
+    T_E.3-era symbol-by-symbol check is implied by module non-existence.
+    """
+    import importlib
+
+    try:
+        importlib.import_module("pipenv.utils.requirementslib")
+    except ModuleNotFoundError:
+        return
+    raise AssertionError(
+        "pipenv.utils.requirementslib should be deleted after T_E.4"
+    )
 
 
 def test_is_vcs_detects_mapping_with_git_key():
