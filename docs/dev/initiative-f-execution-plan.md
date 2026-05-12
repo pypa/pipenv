@@ -113,9 +113,13 @@ Wave D (depends on Wave C):                                               │
   - `python -c "from pipenv.resolver import main; assert callable(main)"` passes
   - `pipenv-resolver --help` (or equivalent invocation) still works after `pip install -e . --force-reinstall`
   - `git diff` shows the move + the pyproject.toml line + the three test imports (only) and nothing else
-- **status**: Not Completed
+- **status**: Completed (absorbed into A1 — commit 85993ca4)
 - **log**:
+  Python's import system makes `pipenv/resolver.py` (file) and `pipenv/resolver/` (package directory) mutually exclusive, so the A1 agent had to do the file-move as part of the same commit that introduced `pipenv/resolver/schema.py`. The re-export shim at `pipenv/resolver/__init__.py` keeps every existing import path working (`from pipenv.resolver import Entry`, `process_resolver_results`, `resolve_packages`, `main`, etc.). `pyproject.toml`'s `scripts.pipenv-resolver = "pipenv.resolver:main"` still resolves correctly via the shim, so no `pyproject.toml` change is needed yet — that update can land in B1 alongside the dead-symbol prune (when `Entry`/`PackageRequirement`/`process_resolver_results` come out of the shim, the entry can be pinned to `pipenv.resolver.main:main` for clarity).
 - **files edited/created**:
+  - `pipenv/resolver/main.py` (moved from `pipenv/resolver.py`, no logic change)
+  - `pipenv/resolver/__init__.py` (new, re-export shim)
+  - (pyproject.toml change deferred to B1; tests still pass via the shim)
 
 ### B1: Subprocess entry rewrite — read `--request-file`, write `--response-file`; delete dead symbols + dead test imports
 
