@@ -35,17 +35,16 @@ Design references:
   reason :mod:`pipenv.resolver.schema` does).
 * ``docs/dev/initiative-f-protocol.md`` §7 (the in-process branch).
 
-Future-task hooks (intentionally reserved-but-unused):
+Follow-up tasks wired into this module:
 
-* ``request.metadata.deadline_seconds`` — T_F.6 will wire this to a
-  wall-clock-timeout guard around the resolve call.  The slot is
-  already on the schema; this function reads ``request.metadata`` but
-  does not enforce the timeout yet.
-* ``Diagnostics.resolver_log`` — T_F.7 will populate this with a
-  structured log of resolution events.  This function currently builds
-  an empty :class:`Diagnostics` and attaches it to the response;
-  callers see the field today but it's always the default empty
-  sequence.
+* ``request.metadata.deadline_seconds`` — T_F.6 enforces a wall-clock
+  timeout on the in-process branch via a ``signal.SIGALRM`` guard
+  installed by :func:`_wall_clock_deadline`.  Unix only; on Windows
+  the guard is a no-op (subprocess branch handles enforcement).
+* ``Diagnostics.resolver_log`` — T_F.7 populates this via the
+  ``_capture_resolver_log`` context manager defined below; resolver-
+  side loggers are scraped during the resolve call and the formatted
+  records land on ``response.diagnostics.resolver_log``.
 """
 from __future__ import annotations
 
@@ -66,6 +65,134 @@ from pipenv.resolver.schema import (
     ResolverSuccess,
 )
 
+# ---------------------------------------------------------------------------
+# T_F.7: structured resolver-log capture (per design Q9 / §8).
+# ---------------------------------------------------------------------------
+#
+# We attach a single :class:`logging.Handler` to the loggers the resolver
+# actually emits on, collect formatted records into a bounded list, and
+# attach the result to :class:`Diagnostics.resolver_log` on the way out.
+#
+# Design decisions (documented inline so the next maintainer doesn't have
+# to dig the plan doc back up):
+#
+# 1. **Which loggers**: ``pipenv`` (pipenv's own resolution-tracing
+#    logger, including ``pipenv.utils.resolver`` and the source-
+#    substitution log) and ``pip._internal.resolution`` (pip's resolver-
+#    internal logger that emits the candidate selection trace).  Pip's
+#    download/progress chatter lives on ``pip._internal.network`` and
+#    ``pip._internal.operations.prepare`` and is intentionally NOT
+#    captured — stderr is the appropriate channel for that.
+# 2. **Format**: ``"[LEVELNAME] message"`` — one string per record, no
+#    timestamps (the resolve is a single ~seconds-scale span; a relative
+#    delta would be redundant with the existing ``elapsed_seconds`` field
+#    on Diagnostics).
+# 3. **Bound**: 500 records.  A runaway logger can produce thousands of
+#    candidate-evaluation lines per resolve; cap protects both the JSON
+#    envelope size and the parent's memory.  Truncation appends a single
+#    ``"... (N records elided)"`` sentinel so consumers know they're
+#    looking at a clipped view.
+# 4. **In-process vs subprocess parity**: this capture happens inside
+#    ``resolve_for_pipenv`` so both adapters get identical logs.
+# 5. **Stderr is NOT replaced**: this is structured *complement* data
+#    surfaced only in verbose mode — see ``pipenv/utils/resolver.py``
+#    where the parent prints the records after the resolve completes.
+#
+# Target-Python constraint (design §3.6): stdlib only, ≥3.10 idioms.
+# The handler is a plain ``logging.Handler`` subclass; no MemoryHandler
+# (its flushing semantics are wrong for this use case — we want
+# every-record capture, not buffered flush-on-overflow).
+
+_RESOLVER_LOG_CAP = 500
+
+# The loggers we want resolution traces from.  Order doesn't matter; we
+# install one handler per logger and remove them all on the way out.
+_RESOLVER_LOG_LOGGER_NAMES: tuple[str, ...] = (
+    "pipenv",
+    "pip._internal.resolution",
+)
+
+
+class _BoundedListHandler(logging.Handler):
+    """A logging handler that appends formatted records to an in-memory
+    list, capped at :data:`_RESOLVER_LOG_CAP` records.
+
+    Once the cap is hit, subsequent records are counted but not stored
+    so a runaway logger can't OOM the parent.  The trailing sentinel is
+    appended by the surrounding context manager, not by the handler
+    itself, so the handler doesn't have to know when capture is "done".
+    """
+
+    def __init__(self, sink: list[str], cap: int) -> None:
+        super().__init__(level=logging.DEBUG)
+        self._sink = sink
+        self._cap = cap
+        self._dropped = 0
+        # Single canonical record format — keep this in lock-step with
+        # the test expectations in ``test_resolver_diagnostics.py``.
+        self.setFormatter(logging.Formatter("[%(levelname)s] %(message)s"))
+
+    @property
+    def dropped(self) -> int:
+        return self._dropped
+
+    def emit(self, record: logging.LogRecord) -> None:
+        if len(self._sink) >= self._cap:
+            self._dropped += 1
+            return
+        try:
+            self._sink.append(self.format(record))
+        except Exception:  # noqa: BLE001 — never let a log format crash a resolve
+            self._dropped += 1
+
+
+@contextmanager
+def _capture_resolver_log() -> Iterator[list[str]]:
+    """Install :class:`_BoundedListHandler` on each target logger,
+    yield the shared sink list, and restore each logger's handler set
+    (and original level) on exit, even if the resolve raises.
+
+    The yielded list is mutated in place; callers snapshot it after the
+    ``with`` block.  The truncation sentinel is appended on exit if the
+    handler reports dropped records.
+
+    Logger level handling: pipenv's ``pipenv`` logger and pip's
+    ``pip._internal.resolution`` logger both default to ``WARNING`` (or
+    inherit it from the root logger) outside verbose mode, which would
+    drop INFO/DEBUG resolver-trace records before our handler ever
+    sees them.  We temporarily lower each captured logger's level to
+    ``DEBUG`` for the duration of capture, and restore the original
+    level on exit.  This is a per-logger level change, not a root-level
+    one — other consumers of the same logger keep their own handlers
+    and continue to filter at whatever level they were configured for.
+    """
+    sink: list[str] = []
+    handler = _BoundedListHandler(sink, _RESOLVER_LOG_CAP)
+    # ``(logger, original_level)`` tuples so we can restore each logger
+    # individually.  Levels are integers; ``logger.level`` of ``0``
+    # means NOTSET (inherits from parent).
+    touched: list[tuple[logging.Logger, int]] = []
+    try:
+        for name in _RESOLVER_LOG_LOGGER_NAMES:
+            lg = logging.getLogger(name)
+            touched.append((lg, lg.level))
+            lg.addHandler(handler)
+            lg.setLevel(logging.DEBUG)
+        yield sink
+    finally:
+        for lg, original_level in touched:
+            try:
+                lg.removeHandler(handler)
+            except ValueError:
+                # Handler already removed — shouldn't happen but be
+                # defensive; a leaked handler is the failure mode we're
+                # protecting against.
+                pass
+            lg.setLevel(original_level)
+        if handler.dropped:
+            sink.append(f"... ({handler.dropped} records elided)")
+
+
 # Re-exported so existing callers / tests that monkey-patch
 # ``pipenv.resolver.main.resolve_packages`` continue to work.  The
 # function still lives in ``pipenv.resolver.main``; we import it lazily
@@ -77,6 +204,89 @@ from pipenv.resolver.schema import (
 # that ``mock.patch.object(core, "resolve_packages", ...)`` is a viable
 # test pattern (see ``tests/unit/test_resolver_core.py``).
 resolve_packages = None  # type: ignore[assignment]
+
+
+# ---------------------------------------------------------------------------
+# T_F.6: wall-clock deadline guard for the in-process resolve branch.
+# ---------------------------------------------------------------------------
+#
+# The subprocess branch enforces the deadline via
+# ``subprocess.wait(timeout=...)`` from the parent (see
+# ``pipenv/utils/resolver.py::resolve``).  The in-process branch
+# (``PIPENV_RESOLVER_PARENT_PYTHON=1``) runs the resolve inline in the
+# same interpreter that pipenv itself is using, so it needs a soft
+# in-process guard.  We use ``signal.SIGALRM`` (Unix only) — Windows
+# can't install a signal handler that interrupts a synchronous C call
+# cleanly, so the in-process guard is a no-op there.  The subprocess
+# branch is the production path; this guard is best-effort for the
+# debug branch.
+
+
+@contextmanager
+def _wall_clock_deadline(deadline_seconds: float | None) -> Iterator[None]:
+    """Install a ``signal.SIGALRM`` handler that raises :class:`TimeoutError`
+    after ``deadline_seconds`` and restore the previous handler on exit.
+
+    Behaviour:
+
+    * ``deadline_seconds is None`` or ``<= 0`` — no guard installed.
+    * Non-main thread or unsupported platform (Windows) — no guard
+      installed; the caller (subprocess branch) is responsible.
+    * Otherwise — a SIGALRM handler is installed for the duration of
+      the ``with`` block.  When the alarm fires the handler raises
+      ``TimeoutError("resolver wall-clock deadline elapsed (Ns)")``,
+      which the surrounding ``resolve_for_pipenv`` catches and converts
+      into an :class:`InternalError` response variant.
+    """
+    if deadline_seconds is None or deadline_seconds <= 0:
+        yield
+        return
+
+    # ``signal.SIGALRM`` is Unix-only.  Guard the import too so the
+    # module stays importable on Windows builds.
+    try:
+        import signal as _signal
+    except ImportError:  # pragma: no cover — signal is in stdlib
+        yield
+        return
+    if not hasattr(_signal, "SIGALRM"):
+        # Windows path: skip the guard.  The subprocess branch is the
+        # production path; the in-process debug branch on Windows will
+        # simply not enforce the deadline.
+        yield
+        return
+
+    # ``signal.setitimer`` only works in the main thread of the main
+    # interpreter; fall back gracefully if we're not there.
+    import threading as _threading
+
+    if _threading.current_thread() is not _threading.main_thread():
+        yield
+        return
+
+    seconds = float(deadline_seconds)
+
+    def _handler(_signum, _frame):
+        raise TimeoutError(
+            f"resolver wall-clock deadline elapsed ({seconds:g}s)"
+        )
+
+    previous_handler = _signal.signal(_signal.SIGALRM, _handler)
+    # ``setitimer`` accepts a float; ``alarm`` truncates to int and
+    # silently turns sub-second timeouts into 0 (== disabled).  Prefer
+    # ``setitimer`` so 1.5s deadlines work for tests.
+    try:
+        _signal.setitimer(_signal.ITIMER_REAL, seconds)
+    except (AttributeError, ValueError):  # pragma: no cover — extremely rare
+        _signal.alarm(max(1, int(seconds)))
+    try:
+        yield
+    finally:
+        try:
+            _signal.setitimer(_signal.ITIMER_REAL, 0)
+        except (AttributeError, ValueError):  # pragma: no cover
+            _signal.alarm(0)
+        _signal.signal(_signal.SIGALRM, previous_handler)
 
 
 # ---------------------------------------------------------------------------
@@ -244,9 +454,30 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
     interpreter's state is restored on return, which the in-process
     adapter relies on.
     """
+    # T_F.7: wrap the entire resolve in a structured log-capture
+    # context so both adapters (in-process + subprocess) see the same
+    # ``Diagnostics.resolver_log`` payload.  The capture always
+    # restores handler state on exit; the live list is captured by
+    # reference so we can also attach a partial log to the failure
+    # branches below.  The :func:`_capture_resolver_log` context
+    # manager appends the truncation sentinel on exit, so the snapshot
+    # we take after the ``with`` block sees the final list.
+    log_sink: list[str] = []
     try:
-        with _patched_marker_environment(request.python_marker_override):
-            locked, _internal_resolver = _dispatch_resolve_packages(request)
+        with _capture_resolver_log() as _live_sink:
+            # Alias so the outer ``except`` paths can still see whatever
+            # records made it in before the exception fired.
+            log_sink = _live_sink
+            # --- T_F.6 BEGIN: wall-clock deadline guard (in-process) ---
+            # The subprocess branch enforces the deadline via
+            # ``subprocess.wait(timeout=...)`` in the parent; this guard
+            # protects the ``PIPENV_RESOLVER_PARENT_PYTHON=1`` debug branch
+            # where pipenv runs the resolve inline.
+            with _wall_clock_deadline(request.metadata.deadline_seconds):
+                with _patched_marker_environment(request.python_marker_override):
+                    locked, _internal_resolver = _dispatch_resolve_packages(request)
+            # --- T_F.6 END --------------------------------------------
+        captured_log = tuple(log_sink)
 
         # ``resolve_packages`` may return ``LockedRequirement`` directly
         # (the typed post-T_F.3 shape) or, transitionally, dicts; we
@@ -274,11 +505,16 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
         return ResolverResponse(
             schema_version=SCHEMA_VERSION,
             result=ResolverSuccess(kind="success", locked=tuple(normalized)),
-            diagnostics=Diagnostics(),  # T_F.7 will populate resolver_log here.
+            diagnostics=Diagnostics(resolver_log=captured_log),
         )
 
     except Exception as exc:  # noqa: BLE001 — top-level catch-all per design
         tb = traceback.format_exc()
+        # The ``with _capture_resolver_log()`` block has unwound by the
+        # time we get here (Python guarantees ``__exit__`` runs on
+        # exception), so the truncation sentinel — if any — is already
+        # appended.  Snapshot the live list now.
+        partial_log = tuple(log_sink)
 
         # Detect resolution-impossible failures (user-actionable
         # dependency conflicts) by class name to avoid a hard import
@@ -297,7 +533,7 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
                     conflicts=(),
                     pip_message=str(exc),
                 ),
-                diagnostics=Diagnostics(),
+                diagnostics=Diagnostics(resolver_log=partial_log),
             )
 
         return ResolverResponse(
@@ -307,7 +543,7 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
                 message=str(exc),
                 traceback=tb,
             ),
-            diagnostics=Diagnostics(),
+            diagnostics=Diagnostics(resolver_log=partial_log),
         )
 
 
