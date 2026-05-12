@@ -727,9 +727,23 @@ output file between parallel agents.
   - If no local-only fixture is available, drop the smoke install
     requirement and rely on CI integration tests to catch regressions
     post-push; record this fallback in the PR description.
-- **status**: Not Completed
+- **status**: Completed (commit b5419c1c)
 - **log**:
+  `do_install` signature reduced from 17 params to `(project, ctx)`.
+  CLI entry point `cmd_install` in `pipenv/cli/command.py` constructs
+  the context via `RoutineContext.from_cli(...)` and passes
+  `do_install(state.project, ctx)`. Body of `do_install` accesses
+  `ctx.target_env.*`, `ctx.install_policy.*`, `ctx.package_selection.*`,
+  `ctx.execution_options.*` and continues to pass individual args to
+  unchanged child helpers (T_C.6 migrates them). Editable-path
+  normalization preserved by folding back into the context via
+  `dataclasses.replace`. 11 new pinning tests in
+  `tests/unit/test_do_install_context_routing.py`. No backwards-compat
+  shim — old signature deleted wholesale per T_C.3 §9 sign-off.
 - **files edited/created**:
+  - `pipenv/routines/install.py`
+  - `pipenv/cli/command.py`
+  - `tests/unit/test_do_install_context_routing.py` (new, 11 tests)
 
 #### T_C.6: Migrate `handle_new_packages` and `handle_lockfile`
 - **depends_on**: [T_C.5]
@@ -854,9 +868,40 @@ output file between parallel agents.
   imports retargeting); new module has its own test file; every
   former `project.<sources-method>` caller now uses the new path;
   unit suite green.
-- **status**: Not Completed
+- **status**: Completed (commit 497d9716)
 - **log**:
+  `Sources` extracted to `pipenv/utils/sources.py` (414 lines).
+  `pipenv/project.py` shrunk from 1816 → 1531 lines (-285, far above
+  the 80-line floor).
+
+  **Naming-collision resolution**: the pre-existing `project.sources`
+  property (returning a list of source dicts) was renamed to
+  `project.sources.all`; `project.sources` itself now returns the
+  `Sources` subsystem instance via `@cached_property`. Other
+  renames follow the same dotted pattern: `project.sources_default`
+  → `project.sources.default`, `project.pipfile_sources()` →
+  `project.sources.pipfile_sources()`. `SourceNotFound` was moved
+  to `pipenv/utils/sources.py` and re-exported from
+  `pipenv/project.py` to keep `from pipenv.project import
+  SourceNotFound` working (one external caller in `utils/indexes.py`).
+
+  16 new tests in `tests/unit/test_sources.py`. Caller migrations
+  across `pipenv/{environment,resolver}.py`,
+  `pipenv/routines/install.py`,
+  `pipenv/utils/{dependencies,indexes,requirements,resolver,virtualenv}.py`,
+  plus two test files updated to match. Pipenv install --help exits 0.
+
+  Helper-bucket methods (`path_to`, `prepend_hash_types`,
+  `get_file_hash`) stayed on `Project` per the T_D.1 sign-off §8.5.
 - **files edited/created**:
+  - `pipenv/utils/sources.py` (new, 414 lines)
+  - `pipenv/project.py` (heavy: -285 lines net)
+  - `pipenv/environment.py`, `pipenv/resolver.py`,
+    `pipenv/routines/install.py`,
+    `pipenv/utils/{dependencies,indexes,requirements,resolver,virtualenv}.py`
+    (caller migrations)
+  - `tests/unit/test_sources.py` (new, 16 tests)
+  - `tests/unit/{test_resolver_regressions,test_utils}.py` (test updates)
 
 #### T_E.1: Define canonical requirement-model API target
 - **depends_on**: [T_B.7]
@@ -869,9 +914,44 @@ output file between parallel agents.
   execution plan is regenerated after this lands.
 - **validation**: Design doc lists every in-scope symbol with a target
   location and sequencing notes.
-- **status**: Not Completed
+- **status**: Completed (commit 8ff77143) — **awaits maintainer
+  sign-off before T_E.2 begins**
 - **log**:
+  692-line proposal. Post-Wave-1c symbol counts verified by grep:
+  `dependencies.py` 54 public symbols (canonical home);
+  `requirements.py` 8 funcs + `BAD_PACKAGES` (9 import statements
+  across 8 files); `requirementslib.py` 7 public symbols (was 20
+  pre-Wave-1c, now down to 4 importing files); `markers.py` ~30
+  helpers + 2 classes (3 importing files).
+
+  Sequenced into 6 follow-up tasks (T_E.2 .. T_E.7):
+  - T_E.2: move 6 Pipfile/lockfile bridges + `BAD_PACKAGES` from
+    `requirements.py` → `dependencies.py`; renames
+    `add_index_to_pipfile` → `add_index_to_pipfile_with_trust_check`.
+  - T_E.3: move `is_vcs`, `add_ssh_scheme_to_git_uri`, `merge_items`,
+    `get_pip_command` from `requirementslib.py` → `dependencies.py`.
+  - T_E.4: relocate `unpack_url`/`get_http_url` pip-internal fork
+    pair (new `pipenv/utils/unpack.py` preferred); deletes empty
+    `requirementslib.py`.
+  - T_E.5: move `BAD_PACKAGES` co-location (folded into T_E.2).
+  - T_E.6: `add_index_to_pipfile` rename (folded into T_E.2).
+  - T_E.7: optional rename `requirements.py` → `redact.py` once it
+    shrinks to two `redact_*` forks.
+
+  Recommendations:
+  - `markers.py` stays unchanged (owned glue, no upstream lineage,
+    limited cross-module reuse — folding wouldn't reduce ambiguity).
+  - `redact_netloc`/`redact_auth_from_url` stay in `requirements.py`
+    (pip-internal forks with load-bearing behavioural divergence; no
+    thematic fit with the requirement model).
+  - `normalize_name`/`pep423_name` overlap already resolved under
+    Wave 1c (commit e874e9d0); explicitly out of scope.
+
+  8 decision questions for maintainer sign-off (canonical home shape,
+  filename fates, rename target, unpack home, markers fold-in
+  question, redact stay-or-move, test-pinning approach).
 - **files edited/created**:
+  - `docs/dev/initiative-e-design.md` (new, 692 lines)
 
 #### T_F.1: Document current subprocess resolver protocol
 - **depends_on**: [T_E.1]  (gated on E's design so we know what data
