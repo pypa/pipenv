@@ -240,6 +240,67 @@ def test_resolve_constraints_reads_requires_python_off_resolved_link():
 
 
 @pytest.mark.utils
+def test_resolve_constraints_marker_for_ignore_compatibility_link():
+    """``resolve_constraints`` extracts the ``requires-python`` marker
+    even when the resolved item's link came from a lenient-finder path.
+
+    This pins the post-2026-05 behaviour change.  Before commit
+    ``cf53eb17``, ``resolve_constraints`` called
+    ``self.finder().find_best_candidate(name, specifier)`` with the
+    *strict* finder (default ``ignore_compatibility=False``).  For a
+    resolved item whose link came from the
+    ``pip_finder_ignore_compatability`` patched-pip flag — i.e., a
+    cross-platform locking workflow where the chosen wheel wouldn't
+    pass strict compatibility checks — the strict finder's
+    ``find_best_candidate`` returned ``None`` and the marker was
+    silently dropped from the lockfile entry.
+
+    After the perf fix, we read ``result.link.requires_python``
+    directly off the resolved item.  The link's advertised
+    ``requires-python`` is the same string regardless of which finder
+    produced the resolve, so cross-compat packages now get their
+    markers in the lockfile.
+
+    This test simulates the ignore_compatibility path by attaching a
+    link whose ``requires_python`` is advertised but which would not
+    pass strict-finder compatibility filtering.  The marker MUST land
+    in ``resolver.markers``.
+    """
+    resolver = Resolver.__new__(Resolver)
+    cross_compat = _ResolvedRequirement("torch")
+    cross_compat.link = SimpleNamespace(
+        requires_python=">=3.10",
+        # Mark explicitly so a future reader knows this represents
+        # a lenient-finder-resolved candidate.
+        _resolved_via_ignore_compatibility=True,
+    )
+    resolver.resolved_tree = {cross_compat}
+    resolver.markers = {}
+    resolver.markers_lookup = {}
+    resolver.pipfile_entries = {}
+
+    # The new code path must NEVER call self.finder() — strict or
+    # lenient — so make the finder explosive.
+    resolver.finder = mock.Mock(
+        side_effect=AssertionError(
+            "resolve_constraints must not call self.finder(); the marker "
+            "is read directly from result.link.requires_python regardless "
+            "of which finder produced the resolve"
+        )
+    )
+
+    Resolver.resolve_constraints(resolver)
+
+    # The marker landed in resolver.markers despite this being a
+    # link that wouldn't have passed strict-finder filtering.
+    assert "torch" in resolver.markers, (
+        "Cross-compat link's requires-python advert was dropped — this "
+        "regresses commit cf53eb17"
+    )
+    resolver.finder.assert_not_called()
+
+
+@pytest.mark.utils
 def test_resolve_hashes_runs_in_parallel():
     """resolve_hashes should dispatch collect_hashes concurrently and still
     populate resolver.hashes with every ireq -> hashes pair."""
