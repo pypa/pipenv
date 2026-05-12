@@ -692,8 +692,22 @@ class Resolver:
             )
         )
 
-        # Only add default constraints for dev packages if setting allows
-        if self.category != "default" and self.project.settings.get(
+        # Apply pre-pinned constraints when the caller passed them.
+        #
+        # Historically this branch only fired for non-default categories
+        # (cross-category dev/test resolves inheriting the default
+        # category's pins).  Phase-5 perf cut #3 widens the scope: the
+        # caller (``do_lock``) now also populates
+        # ``resolved_default_deps`` for the default category with the
+        # warm-relock prior-lock entries it filtered out of the previous
+        # ``Pipfile.lock`` (see ``_filter_pinnable_lock_entries`` in
+        # ``pipenv/routines/lock.py``).  When the caller populated the
+        # field it is signalling "these are the constraints to apply",
+        # so we honour them regardless of category.  The
+        # ``use_default_constraints`` user setting remains the kill
+        # switch for both source paths — if the user opted out, the
+        # caller passes ``None`` and we skip the branch entirely.
+        if self.resolved_default_deps and self.project.settings.get(
             "use_default_constraints", True
         ):
             constraints.extend(self.parsed_default_constraints)
@@ -737,10 +751,14 @@ class Resolver:
         for c in possible_constraints_list:
             constraints_list.add(c)
 
-        # Always use default_constraints when installing dev-packages
-        if self.category != "default" and self.project.settings.get(
-            "use_default_constraints", True
-        ):
+        # Same widening as ``parsed_constraints`` above — honour pre-
+        # pinned constraints regardless of category whenever the caller
+        # populated ``resolved_default_deps``.  See the longer note on
+        # ``parsed_constraints``.  ``use_default_constraints`` is still
+        # enforced inside ``default_constraints`` (it returns an empty
+        # set when the user opted out), so the user-facing kill switch
+        # works the same as before.
+        if self.resolved_default_deps:
             constraints_list |= self.default_constraints
 
         return constraints_list
