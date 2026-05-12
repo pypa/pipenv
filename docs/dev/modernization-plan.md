@@ -1733,6 +1733,68 @@ the design — the four are independent of each other once the
 - **log**:
 - **files edited/created**:
 
+#### T_F.6: Enforce wall-clock timeout via `request.metadata.deadline_seconds`
+- **depends_on**: [T_F.3, T_F.4]
+- **location**: `pipenv/utils/resolver.py` (subprocess deadline plumbing
+  + new `_resolve_deadline_seconds` helper), `pipenv/resolver/core.py`
+  (`_wall_clock_deadline` SIGALRM guard for the in-process branch),
+  `news/T_F.6.behavior.rst`, `tests/unit/test_resolver_timeout.py`.
+- **description**:
+  Replaces the reserved-but-unenforced `RequestMetadata.deadline_seconds`
+  slot (queued in T_F.3 design Q11 / §5 decision 11) with a fully wired
+  enforcement path. Resolution precedence: `[pipenv] resolver_timeout_seconds`
+  in the Pipfile > `PIPENV_RESOLVER_TIMEOUT_S` env var > default
+  (1800s, set by `Setting`). The resolved deadline is stamped on every
+  `ResolverRequest.metadata.deadline_seconds` by `_build_resolver_request`
+  so the wire envelope carries the same value the parent uses for
+  `subprocess.wait(timeout=...)`. The existing phase-2 hotfix
+  (`PIPENV_RESOLVER_TIMEOUT_S` knob; commit `577a12a8`) is preserved as
+  the env-var precedence rung — its `subprocess.TimeoutExpired` path
+  now reads from the new request-carried deadline, with a fallback to
+  `project.s.PIPENV_RESOLVER_TIMEOUT_S` for back-compat with any caller
+  not updated to thread the deadline through. The in-process debug
+  branch (`PIPENV_RESOLVER_PARENT_PYTHON=1`) enforces the same deadline
+  via a `signal.SIGALRM` guard installed by a new
+  `_wall_clock_deadline` context manager in `resolver/core.py`; on
+  expiry, `resolve_for_pipenv` returns an `InternalError` variant whose
+  message names the elapsed deadline. Windows skips the in-process
+  guard (no `SIGALRM`); the subprocess path remains the production
+  enforcement path on all platforms. User-facing timeout error message
+  updated to name BOTH the env var and the new Pipfile setting.
+- **validation**:
+  - 7 new tests in `tests/unit/test_resolver_timeout.py` cover:
+    subprocess `TimeoutExpired` → `ResolutionFailure` with both
+    overrides named; default deadline falls back to
+    `PIPENV_RESOLVER_TIMEOUT_S`; Pipfile setting wins over env-backed
+    default; invalid Pipfile values fall back; `_build_resolver_request`
+    stamps `metadata.deadline_seconds`; `resolve()` honours the
+    request-carried deadline; in-process branch returns
+    `InternalError` on SIGALRM-mediated timeout.
+  - Existing `test_resolver_regressions.py` timeout tests continue to
+    pass unchanged.
+  - Full unit suite green (780 passed, 9 skipped).
+- **status**: Completed (branch
+  `maintenance/code-cleanup-phase4-resolver-followups-2026-05`).
+- **log**:
+  - 2026-05-12 — Wired deadline through `_build_resolver_request` →
+    `request.metadata.deadline_seconds` → `resolve()` → `subprocess.wait`.
+    Added SIGALRM-based in-process guard. Sibling agent T_F.7
+    (`Diagnostics.resolver_log`) ran concurrently on the same two files
+    with no logical collision: T_F.6 owns timeout wiring and the
+    deadline-related lines; T_F.7 owns log capture.
+- **files edited/created**:
+  - `pipenv/utils/resolver.py` (`_resolve_deadline_seconds` helper;
+    `_build_resolver_request` stamps `metadata.deadline_seconds`;
+    `resolve()` accepts `deadline_seconds=` keyword;
+    `_run_resolver_subprocess` threads request deadline through;
+    timeout error message names both overrides)
+  - `pipenv/resolver/core.py` (`_wall_clock_deadline` context manager;
+    `resolve_for_pipenv` wraps the resolve in the SIGALRM guard)
+  - `tests/unit/test_resolver_timeout.py` (new, 7 tests)
+  - `tests/unit/test_resolver_parent_dispatch.py` (existing `fake_resolve`
+    stubs widened to `**_kwargs` to accept the new keyword)
+  - `news/T_F.6.behavior.rst` (new)
+
 ---
 
 ## Parallel Execution Groups
