@@ -1548,6 +1548,58 @@ the design — the four are independent of each other once the
 - **files edited/created**:
   - `docs/dev/initiative-f-typed-design.md` (new, 719 lines)
 
+#### T_F.3: Execute the typed resolver subprocess schema
+- **depends_on**: [T_F.2]
+- **location**: `pipenv/resolver/` (new package — `schema.py`, `main.py`, `__init__.py`); `pipenv/utils/resolver.py`; `pipenv/utils/locking.py`; `pyproject.toml` (console-script entry); tests under `tests/unit/test_resolver_schema.py`, `tests/unit/test_resolver_parent_dispatch.py`, `tests/unit/test_resolver_protocol_smoke.py`, `tests/integration/test_resolver_protocol.py`; golden fixtures under `tests/unit/fixtures/resolver_schema/` and `tests/integration/fixtures/resolver_protocol/`; `news/T_F.3.behavior.rst`.
+- **description**:
+  Single-PR execution of the T_F.2 design. Introduces the typed
+  `ResolverRequest` / `ResolverResponse` envelope + discriminated
+  `ResolverResult`; folds `Entry.get_cleaned_dict` and
+  `format_requirement_for_lockfile` into the new unified
+  `LockedRequirement.from_install_requirement` constructor; drops the
+  three env-var hops and the dead argv flags; rewrites both the
+  subprocess entry and the parent dispatcher around the typed envelope;
+  migrates the in-process branch to the new types (without folding it
+  with the subprocess branch — that's T_F.4); pins the JSON wire shape
+  with a golden-fixture integration test + a `PIPENV_REGEN_PROTOCOL_FIXTURES`
+  regen mechanism. Execution structured as a 4-wave swarm (`docs/dev/initiative-f-execution-plan.md`).
+- **validation**:
+  - 758 unit tests pass (was 677 baseline pre-T_F.3). +81 tests from the schema + parity + dispatch + comma-in-marker + protocol-smoke + parent-dispatch suites.
+  - Integration test pins the JSON wire shape (3 consecutive runs ~1.1s each).
+  - `pipenv lock` smoke produces byte-identical lockfiles via subprocess AND `PIPENV_RESOLVER_PARENT_PYTHON=1` in-process paths.
+  - Acceptance greps clean: zero `Entry.get_cleaned_dict`, zero `format_requirement_for_lockfile`, zero `PIPENV_RESOLVER_PYTHON_VERSION`/`PIPENV_EXTRA_PIP_ARGS`/`PIPENV_SITE_DIR` references, zero `--parse-only`/`--pipenv-site`/`--constraints-file`/`--resolved-default-deps-file`/`--category` argv references in `pipenv/resolver/main.py`.
+- **status**: Completed (commits listed below; branch `maintenance/code-cleanup-phase3-resolver-typed-schema-2026-05`).
+- **log**:
+  Wave A (foundation): `85993ca4` schema module + canonical formatter + 27 golden snapshots (16 `format_requirement_for_lockfile` cases + 11 `entry_get_cleaned_dict` cases); A2 absorbed into A1 because Python's import system makes `pipenv/resolver.py` and `pipenv/resolver/` mutually exclusive. Re-export shim at `pipenv/resolver/__init__.py` kept every legacy import path working.
+
+  Wave B (parallel 3-agent): `5e6eca82` B3 (lockfile writer + 17 → 20 ported test cases); `d1563a1e` B1+B2 (subprocess entry + parent rewrite collapsed into one commit due to pre-commit stash race — functionally clean; both reviewer-friendly diffs reflected in commit message). `bfbecba4` later fixed a wave-B bug where `_main` imported the schema before `_ensure_modules()` populated `sys.path`.
+
+  Wave C (parallel 3-agent): `0c4a11a9` schema `from_lockfile_dict` touch-up; `de3edea9` C1 + C3 (45 new schema tests including parity-against-golden + comma-in-marker per Q7); `706b7ab9` C2 integration test + golden request/response fixtures + `PIPENV_REGEN_PROTOCOL_FIXTURES` regen branch; `e891c888` C4 news fragment.
+
+  Wave D: this entry.
+
+  Bugs surfaced + fixed along the way: bootstrap-order bug in `_main` (`bfbecba4`) that affected any subprocess invocation lacking pipenv on `sys.path` — wave-B unit smokes missed it because `python -m pipenv.resolver.main` invocation pre-populates the path; the integration test caught it.
+
+  Out of scope (intentionally; deferred to follow-up tasks): T_F.4 (fold in-process and subprocess branches into one implementation per the PRD acceptance criterion), wall-clock-timeout enforcement (`RequestMetadata.deadline_seconds` reserved on schema but not enforced), populating `Diagnostics.resolver_log` (reserved-but-empty per Q9), pluggable alternative resolver backends (uv etc — design shape preserves the option per typed-design §6a but explicitly not in F).
+- **files edited/created**:
+  - `pipenv/resolver/__init__.py` (new, re-export shim — trimmed after Wave B)
+  - `pipenv/resolver/main.py` (moved from `pipenv/resolver.py`; rewritten to consume `ResolverRequest` and produce `ResolverResponse`)
+  - `pipenv/resolver/schema.py` (new, 14 dataclasses + `SCHEMA_VERSION` + `from_install_requirement` + `from_lockfile_dict` / `to_lockfile_dict`)
+  - `pipenv/utils/resolver.py` (parent-side rewrite — typed envelope build + dispatch + in-process-branch type migration)
+  - `pipenv/utils/locking.py` (deleted `format_requirement_for_lockfile`; `prepare_lockfile` consumes `Sequence[LockedRequirement]`)
+  - `pyproject.toml` (`scripts.pipenv-resolver = "pipenv.resolver.main:main"`)
+  - `tests/unit/test_resolver_schema.py` (new, 62 tests covering invariants, envelope round-trip, golden-fixture parity, dispatch, schema-version-mismatch, VCS pins, comma-in-marker regression)
+  - `tests/unit/test_resolver_parent_dispatch.py` (new, parent-side typed-dispatch tests)
+  - `tests/unit/test_resolver_protocol_smoke.py` (new, subprocess-side typed-envelope smoke)
+  - `tests/unit/fixtures/resolver_schema/{format_requirement_for_lockfile,entry_get_cleaned_dict}/*.json` (27 golden snapshots)
+  - `tests/integration/test_resolver_protocol.py` (new, JSON wire-shape canary with regen branch)
+  - `tests/integration/fixtures/resolver_protocol/{request,response}.json` (new, committed goldens)
+  - `news/T_F.3.behavior.rst` (new, one-line behavior fragment)
+  - `tests/unit/test_dependencies.py`, `tests/unit/test_resolver_regressions.py`, `tests/unit/test_locking_no_mutation.py` (legacy `Entry` / `process_resolver_results` test cases removed; mock updated for new return shape)
+  - `tests/unit/test_utils.py` (17 `format_requirement_for_lockfile` cases ported to 20 typed cases)
+  - `tests/unit/test_core.py` (docstring reference updated)
+  - `docs/dev/initiative-f-execution-plan.md` (entry-by-entry log of each wave commit)
+
 ---
 
 ## Parallel Execution Groups
