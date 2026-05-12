@@ -105,6 +105,7 @@ def do_update(project, ctx: RoutineContext):
             dev=sel.dev,
             lock_only=policy.lock_only,
             extra_pip_args=extra_pip_args,
+            resolver=exec_opts.resolver,
         )
         # Finally sync packages after upgrade
         do_sync(project, sync_ctx)
@@ -498,6 +499,7 @@ def _resolve_and_update_lockfile(
     pre = ctx.install_policy.pre
     system = ctx.target_env.system
     pypi_mirror = ctx.target_env.pypi_mirror
+    resolver = ctx.execution_options.resolver
     if not requested_packages[pipfile_category]:
         return None
 
@@ -523,6 +525,7 @@ def _resolve_and_update_lockfile(
         pypi_mirror=pypi_mirror,
         pipfile=requested_packages[pipfile_category],
         resolved_default_deps=resolved_default_deps,
+        resolver_backend=resolver,
     )
 
     if not upgrade_lock_data:
@@ -543,6 +546,7 @@ def _resolve_and_update_lockfile(
         pypi_mirror=pypi_mirror,
         pipfile=complete_packages,
         resolved_default_deps=resolved_default_deps,
+        resolver_backend=resolver,
     )
 
     # Update lockfile with verified resolution data
@@ -647,6 +651,7 @@ def upgrade(
     dev=False,
     lock_only=False,
     extra_pip_args=None,
+    resolver=None,
 ):
     """Enhanced upgrade command with dependency conflict detection.
 
@@ -678,6 +683,7 @@ def upgrade(
         pypi_mirror=pypi_mirror,
         pre=pre,
         lock_only=lock_only,
+        resolver=resolver,
     )
 
     # Prepare categories
@@ -786,6 +792,7 @@ def upgrade(
                 pypi_mirror=pypi_mirror,
                 pipfile=complete_packages,
                 resolved_default_deps=category_default_deps,
+                resolver_backend=resolver,
             )
             category_resolutions[category] = full_lock_resolution
 

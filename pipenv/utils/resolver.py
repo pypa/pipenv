@@ -1834,6 +1834,7 @@ def venv_resolve_deps(
     old_lock_data=None,
     extra_pip_args=None,
     resolved_default_deps=None,
+    resolver_backend=None,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -1955,6 +1956,7 @@ def venv_resolve_deps(
                 extra_pip_args=extra_pip_args,
                 resolved_default_deps=resolved_default_deps,
                 project=project,
+                resolver_backend=resolver_backend,
             )
 
             # Useful for debugging and hitting breakpoints in the resolver
