@@ -161,9 +161,17 @@ T0.1 ── T0.2 (PRD corrections folded in here + agent ops doc)
   from `internet.py`.
 - **validation**: Doc exists, table is complete, every public symbol
   appears exactly once with a canonical-home decision.
-- **status**: Not Completed
+- **status**: Completed (commit 39d80a17; re-committed after filesystem
+  freeze corrupted the original commit's object writes — content was
+  intact in the working tree)
 - **log**:
-- **files edited/created**:
+  Wrote 132-line inventory covering 13 internet.py symbols and 10
+  fileutils.py symbols with caller counts and canonical-home decisions.
+  Surfaced a separate, latent duplicate `path_to_url` in
+  `pipenv/utils/shell.py:104` with zero internal callers (different
+  implementation than fileutils' version); flagged for T_A.2 sweep
+  rather than a new task.
+- **files edited/created**: `docs/dev/initiative-a-inventory.md` (new)
 
 #### T_A.2: Move `is_valid_url` to canonical home with deprecation signal
 - **depends_on**: [T_A.1]
@@ -287,9 +295,16 @@ output file between parallel agents.
   - Note any symbol with no internal callers as a **delete** candidate.
 - **validation**: Triage doc has an entry per symbol with a recommendation
   and a caller list.
-- **status**: Not Completed
+- **status**: Completed (commit 7b92b6aa; re-committed after filesystem
+  freeze corrupted the original commit's object writes — content was
+  intact in the working tree)
 - **log**:
-- **files edited/created**:
+  20 public symbols audited. Recommendations roll up to: 7 boltons.iterutils
+  dict-walkers form a coherent **vendor** group (move under
+  `pipenv/vendor/boltons/` or replace with a purpose-specific helper);
+  VCS-URI helpers and `is_*` predicates are **adopt**; symbols with
+  zero callers flagged as **delete** candidates for T_B.7.
+- **files edited/created**: `docs/dev/initiative-b-triage-requirementslib.md` (new)
 
 #### T_B.2: Triage `pipenv/utils/requirements.py`
 - **depends_on**: [T0.1, T0.2]
@@ -310,9 +325,21 @@ output file between parallel agents.
 - **validation**: Triage doc entries complete; overlaps with
   `dependencies.py` (especially `normalize_name` / `pep423_name`) are
   explicitly flagged.
-- **status**: Not Completed
+- **status**: Completed (commit cf7695f4)
 - **log**:
-- **files edited/created**:
+  9 public functions audited. Recommendations: 6 **adopt** (project-owned
+  Pipfile/lockfile bridge), 2 **vendor** (`redact_netloc` /
+  `redact_auth_from_url` — deliberate divergent forks of pip-internal
+  helpers preserving env-var auth placeholders and the `git` SSH user;
+  cannot be replaced by pip imports without a behaviour change),
+  1 **delete** (`normalize_name` — overlaps with
+  `dependencies.pep423_name`; flagged for Initiative E merge). Also
+  surfaced: `pep423_name`'s guard predicate is almost certainly buggy
+  (`any(... not in name ...)` makes the `else` branch dead — flag for
+  Initiative E); `BAD_PACKAGES` constant used in 3 routines (Initiative
+  E co-location); module-level `add_index_to_pipfile` name-collides
+  with `Project.add_index_to_pipfile` (Initiative E rename candidate).
+- **files edited/created**: `docs/dev/initiative-b-triage-requirements.md` (new)
 
 #### T_B.3: Triage URL/path overlap in `pipenv/utils/fileutils.py`
 - **depends_on**: [T0.1, T0.2]
@@ -328,9 +355,17 @@ output file between parallel agents.
   doc.
 - **validation**: Triage doc entry exists and is internally consistent
   with T_A.1.
-- **status**: Not Completed
+- **status**: Completed (commit 7606f7a6)
 - **log**:
-- **files edited/created**:
+  All three target symbols (`is_file_url`, `url_to_path`, `path_to_url`)
+  stay in `fileutils.py` per the domain-boundary rule (each one's heavy
+  concept is the Path side; a URL utility knowing nothing about local
+  paths could not implement them). Caller counts: `is_file_url` 0
+  external (only used inside `fileutils.open_file`); `url_to_path` 2
+  (both in `requirementslib.py`); `path_to_url` 0 external. Adjacent
+  finding (relayed to T_A.1): `pipenv/utils/shell.py:104` defines a
+  second `path_to_url` with a different implementation and zero callers.
+- **files edited/created**: `docs/dev/initiative-b-triage-fileutils.md` (new)
 
 #### T_B.4: Confirm `markers.py` is owned, not vendored
 - **depends_on**: [T0.1]
@@ -344,9 +379,14 @@ output file between parallel agents.
   and `pipenv.patched.pip._vendor.packaging`. Refactor freely under
   Initiative E if useful." No further triage required.
 - **validation**: Closeout paragraph present in triage doc.
-- **status**: Not Completed
+- **status**: Completed (commit d98b18e3)
 - **log**:
-- **files edited/created**:
+  Verified `markers.py:9-10` imports `parse_marker` from
+  `pipenv.patched.pip._vendor.distlib.util` and `Marker` from
+  `pipenv.patched.pip._vendor.packaging.markers` — confirms project-owned
+  glue, no separate vendor lineage. Disposition recorded so the question
+  stays closed; refactor freely under Initiative E if useful.
+- **files edited/created**: `docs/dev/initiative-b-triage-markers.md` (new)
 
 #### T_B.5: Synthesize triage doc + open Initiative B execution issues
 - **depends_on**: [T_B.1, T_B.2, T_B.3, T_B.4]
