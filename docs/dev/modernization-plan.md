@@ -1117,9 +1117,80 @@ the design — the four are independent of each other once the
   in this bucket; venv *creation* happens in `routines/`), so no
   split into `Locator` + `Bootstrap` is needed.
 - **validation**: same shape as T_D.3.
-- **status**: Not Completed
+- **status**: Completed (commit `cb349450`).
 - **log**:
+  Third Initiative D extraction. The 13 `VenvLocator`-classified
+  methods + 4 private helpers (`_sanitize`, `_get_virtualenv_hash`,
+  `_pipfile_venv_in_project`, `_which`) moved into a new
+  `pipenv.utils.venv_locator.VenvLocator` class accessed via the
+  `@cached_property` `Project.venv_locator`.
+
+  **Naming-collision resolution: Option B (rename the API surface)**,
+  matching the T_D.2 Sources pattern. The `virtualenv_` prefix on
+  the old `Project` surface drops because the subsystem itself is
+  named `venv_locator`:
+
+  - `project.virtualenv_location` → `project.venv_locator.location`
+  - `project.virtualenv_exists` → `project.venv_locator.exists`
+  - `project.virtualenv_name` → `project.venv_locator.name`
+  - `project.virtualenv_src_location` → `project.venv_locator.src_location`
+  - `project.virtualenv_scripts_location` → `project.venv_locator.scripts_location`
+  - `project.download_location` → `project.venv_locator.download_location`
+  - `project.proper_names_db_path` → `project.venv_locator.proper_names_db_path`
+  - `project.is_venv_in_project()` → `project.venv_locator.is_venv_in_project()`
+  - `project.get_location_for_virtualenv()` → `project.venv_locator.get_location()`
+  - `project.finders` / `.finder` → `project.venv_locator.finders` / `.finder`
+  - `project.which(...)` / `.python(...)` → `project.venv_locator.which(...)` / `.python(...)`
+  - `project._which(...)` → `project.venv_locator._which(...)`
+
+  The three `__init__`-set cache attributes (`_virtualenv_location`,
+  `_download_location`, `_proper_names_db_path`) moved to
+  `VenvLocator` instance state. The `proper_names` and
+  `register_proper_name` methods stayed on `Project` (Pipfile-bucket
+  per T_D.1 inventory) but now read the proper-names DB path through
+  `self.venv_locator.proper_names_db_path`.
+
+  Caller migration in the same PR per T_D.1 §8.4 sign-off — no
+  holding-pattern wrappers. ~38 sites migrated across
+  `pipenv/cli/command.py`, `pipenv/routines/{graph,install,lock,
+  shell,uninstall,update}.py`, `pipenv/utils/{pip,pipfile,project,
+  resolver,shell,virtualenv}.py`, `tests/integration/test_project.py`,
+  and three `tests/unit/` mock-side migrations.
+
+  `pipenv/project.py` shrinks by 245 net lines (1526 → 1281).
+  `VenvLocator` is 431 lines in `pipenv/utils/venv_locator.py`.
+  Module-level imports purged from `project.py`: `base64`, `fnmatch`,
+  `operator`, `re`, `find_windows_executable`, `get_workon_home`,
+  `is_virtual_environment`, `looks_like_dir`, `system_which`,
+  `virtualenv_scripts_dir`.
+
+  Behaviour-preserving: every method's logic is a relocation. Same
+  env-var precedence (`VIRTUAL_ENV` short-circuit, then
+  `PIPENV_VENV_IN_PROJECT`, then Pipfile `[pipenv]` setting, then
+  `.venv` autodetect). Same Pipfile-hash seed in `_get_virtualenv_hash`.
+  Same mkdir-on-access for `src_location` / `download_location` /
+  `proper_names_db_path`.
+
+  17 new tests in `tests/unit/test_venv_locator.py` covering the
+  constructor, the `@cached_property` accessor, env-var-vs-Pipfile
+  precedence for `is_venv_in_project`, the `VIRTUAL_ENV`
+  short-circuit, `location` caching, mkdir-on-access semantics,
+  `PIPENV_CUSTOM_VENV_NAME` / `PIPENV_PYTHON` name hooks, and
+  `which` / `_which` fallback paths. Full unit suite green
+  (677 passed, 9 skipped).
 - **files edited/created**:
+  - `pipenv/utils/venv_locator.py` (new, 431 lines)
+  - `pipenv/project.py` (-245 lines net; 1526 → 1281)
+  - `pipenv/cli/command.py` (6 migration sites)
+  - `pipenv/routines/{graph,install,lock,shell,uninstall,update}.py`
+    (10 migration sites)
+  - `pipenv/utils/{pip,pipfile,project,resolver,shell,virtualenv}.py`
+    (15 migration sites)
+  - `tests/integration/test_project.py` (1 migration site)
+  - `tests/unit/test_credential_safety.py`,
+    `tests/unit/test_install_error_context.py`,
+    `tests/unit/test_utils.py` (mock-side migrations)
+  - `tests/unit/test_venv_locator.py` (new, 17 tests)
 
 #### T_D.5: Extract `Lockfile` subsystem (`Pipfile.lock`-only)
 - **depends_on**: [T_D.4]
