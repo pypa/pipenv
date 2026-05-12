@@ -266,7 +266,7 @@ def add_ssh_scheme_to_git_uri(uri: str | bytes | None) -> str | bytes | None:
 
 
 def is_vcs(
-    pipfile_entry: Mapping[str, Any] | str | bytes | bool | list[str | bytes] | tuple[str | bytes, ...] | None,
+    pipfile_entry: Mapping[str, Any] | str | None,
 ) -> bool:
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
