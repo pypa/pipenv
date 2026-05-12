@@ -1510,10 +1510,10 @@ class TestLockedRequirementFromInstallRequirement:
         )
 
         assert lr.file == url
-        # The direct-URL branch clears index, then the index_lookup re-adds it.
+        # The direct-URL branch clears index, then sources_lookup re-attaches it.
         # ``file`` takes precedence at install time; we pin the legacy
         # observable shape here so future refactors notice the change.
-        assert lr.file == url
+        assert lr.index == "my-private-index"
 
     # ------------------------------------------------------------------
     # Fixture-parametrised parity gate against the A1 golden snapshots
