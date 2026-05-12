@@ -199,15 +199,18 @@ class TestDoInstallFlagRouting:
 
         hnp = patch_install_pipeline["handle_new_packages"]
         assert hnp.called
-        # packages and editables come through as positional args 2 and 3
-        # in the current handle_new_packages signature.
+        # Post T_C.6: handle_new_packages takes (project, ctx, *,
+        # perform_upgrades). The user-facing fields (packages, index,
+        # categories) travel via ctx.
         positional = hnp.call_args.args
-        assert positional[1] == ["requests"]
-        assert positional[2] == []
+        assert positional[0] is project_stub
+        hnp_ctx = positional[1]
+        assert hnp_ctx.package_selection.packages == ("requests",)
+        assert hnp_ctx.package_selection.editable_packages == ()
+        assert hnp_ctx.package_selection.index == "https://pypi.example.org/simple"
+        assert hnp_ctx.package_selection.categories == ("packages",)
         kwargs = hnp.call_args.kwargs
-        assert kwargs["index"] == "https://pypi.example.org/simple"
         assert kwargs["perform_upgrades"] is True  # skip_lock=False default
-        assert kwargs["pipfile_categories"] == ["packages"]
 
     def test_skip_lock_disables_upgrades_in_handle_new_packages(
         self, project_stub, patch_install_pipeline
@@ -234,9 +237,10 @@ class TestDoInstallFlagRouting:
         )
         do_install(project_stub, ctx)
 
-        hnp = patch_install_pipeline["handle_new_packages"].call_args.kwargs
+        # Post T_C.6: handle_new_packages reads extra_pip_args via ctx.
+        hnp_ctx = patch_install_pipeline["handle_new_packages"].call_args.args[1]
+        assert hnp_ctx.execution_options.extra_pip_args == ("--no-build-isolation",)
         did = patch_install_pipeline["do_install_dependencies"].call_args.kwargs
-        assert hnp["extra_pip_args"] == ["--no-build-isolation"]
         assert did["extra_pip_args"] == ["--no-build-isolation"]
 
     def test_requirementstxt_routed_to_validations(
@@ -256,17 +260,46 @@ class TestDoInstallFlagRouting:
         """``do_install`` runs editable paths through
         ``normalize_editable_path_for_pip`` before handing them to
         ``handle_new_packages``. The exact transform is the
-        normaliser's contract; here we only assert the helper is
-        invoked with a non-empty editable list when the user passed
-        editables in.
+        normaliser's contract; here we only assert the helper sees a
+        non-empty editable list via ``ctx.package_selection``.
         """
         from pipenv.routines.install import do_install
 
         ctx = RoutineContext.from_cli(editable_packages=("./local-pkg",))
         do_install(project_stub, ctx)
 
-        hnp = patch_install_pipeline["handle_new_packages"].call_args
-        # positional[2] is the editable_packages list.
-        editables = hnp.args[2]
+        # Post T_C.6: editables travel via ctx.package_selection.
+        hnp_ctx = patch_install_pipeline["handle_new_packages"].call_args.args[1]
+        editables = hnp_ctx.package_selection.editable_packages
         assert editables  # non-empty
         assert len(editables) == 1
+
+
+class TestHandleNewPackagesSignature:
+    """Post T_C.6 the helper takes (project, ctx, *, perform_upgrades)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import handle_new_packages
+
+        sig = inspect.signature(handle_new_packages)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx", "perform_upgrades"]
+        assert (
+            sig.parameters["perform_upgrades"].kind
+            == inspect.Parameter.KEYWORD_ONLY
+        )
+
+
+class TestHandleLockfileSignature:
+    """Post T_C.6 the helper takes (project, ctx)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import handle_lockfile
+
+        sig = inspect.signature(handle_lockfile)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx"]

@@ -130,18 +130,30 @@ def _should_use_no_binary(pkg_name, extra_pip_args):
 
 def handle_new_packages(
     project,
-    packages,
-    editable_packages,
-    dev,
-    pre,
-    system,
-    pypi_mirror,
-    extra_pip_args,
-    pipfile_categories,
-    perform_upgrades=True,
-    index=None,
+    ctx: RoutineContext,
+    *,
+    perform_upgrades: bool = True,
 ):
+    """Add user-requested packages to the Pipfile and optionally upgrade.
+
+    Per T_C.6: consumes :class:`RoutineContext` for the bundled inputs
+    (packages, editables, dev/pre/system/index/extra_pip_args/etc.).
+    ``perform_upgrades`` stays as a per-call kwarg because it is a
+    call-site intent flag (``do_install`` flips it off when
+    ``skip_lock`` is set), not a property of the user's CLI invocation.
+    """
     from pipenv.routines.update import do_update
+
+    sel = ctx.package_selection
+    target = ctx.target_env
+    policy = ctx.install_policy
+    exec_opts = ctx.execution_options
+
+    packages = list(sel.packages) if sel.packages else []
+    editable_packages = list(sel.editable_packages) if sel.editable_packages else []
+    pipfile_categories = list(sel.categories) if sel.categories else []
+    extra_pip_args = list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else []
+    index = sel.index
 
     new_packages = []
     if packages or editable_packages:
@@ -153,7 +165,7 @@ def handle_new_packages(
         for pkg_line in pkg_list:
             console.print(f"Installing {pkg_line}...", style="bold green")
             with temp_environ():
-                if not system:
+                if not target.system:
                     os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
@@ -190,7 +202,7 @@ def handle_new_packages(
                             added, cat, normalized_name = project.add_package_to_pipfile(
                                 pkg_requirement,
                                 pkg_line,
-                                dev,
+                                sel.dev,
                                 category,
                                 no_binary=no_binary,
                             )
@@ -198,7 +210,7 @@ def handle_new_packages(
                                 new_packages.append((normalized_name, cat))
                     else:
                         added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, pkg_line, dev, no_binary=no_binary
+                            pkg_requirement, pkg_line, sel.dev, no_binary=no_binary
                         )
                         if added:
                             new_packages.append((normalized_name, cat))
@@ -217,19 +229,19 @@ def handle_new_packages(
                 )
 
         # Update project settings with pre-release preference.
-        if pre:
-            project.update_settings({"allow_prereleases": pre})
+        if policy.pre:
+            project.update_settings({"allow_prereleases": policy.pre})
 
     # Use the update routine for new packages
     if perform_upgrades and (packages or editable_packages):
         try:
             do_update(
                 project,
-                dev=dev,
-                pre=pre,
+                dev=sel.dev,
+                pre=policy.pre,
                 packages=packages,
                 editable_packages=editable_packages,
-                pypi_mirror=pypi_mirror,
+                pypi_mirror=target.pypi_mirror,
                 index_url=index,
                 extra_pip_args=extra_pip_args,
                 categories=pipfile_categories,
@@ -243,48 +255,53 @@ def handle_new_packages(
     return new_packages, False
 
 
-def handle_lockfile(
-    project,
-    packages,
-    ignore_pipfile,
-    skip_lock,
-    system,
-    allow_global,
-    deploy,
-    pre,
-    pypi_mirror,
-    categories,
-):
-    """Handle the lockfile, updating if necessary.  Returns True if package updates were applied."""
+def handle_lockfile(project, ctx: RoutineContext):
+    """Handle the lockfile, updating if necessary.
+
+    Per T_C.6: consumes :class:`RoutineContext` for the bundled inputs
+    (packages, install-policy flags, target-env flags). The downstream
+    helpers ``handle_outdated_lockfile`` and ``handle_missing_lockfile``
+    keep their pre-context signatures (≤5 params for the latter, and
+    out of scope for T_C.6 per the task description).
+    """
+    sel = ctx.package_selection
+    target = ctx.target_env
+    policy = ctx.install_policy
+
+    packages = list(sel.packages) if sel.packages else []
+    categories = list(sel.categories) if sel.categories else []
+
     if (
-        (project.lockfile_exists and not ignore_pipfile)
-        and not skip_lock
+        (project.lockfile_exists and not policy.ignore_pipfile)
+        and not policy.skip_lock
         and not packages
     ):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            if deploy:
+            if policy.deploy:
                 console.print(
                     f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
                     style="red",
                 )
                 raise exceptions.DeployException
-            elif not system:
+            elif not target.system:
                 handle_outdated_lockfile(
                     project,
                     packages,
                     old_hash=old_hash,
                     new_hash=new_hash,
-                    system=system,
-                    allow_global=allow_global,
-                    skip_lock=skip_lock,
-                    pre=pre,
-                    pypi_mirror=pypi_mirror,
+                    system=target.system,
+                    allow_global=target.allow_global,
+                    skip_lock=policy.skip_lock,
+                    pre=policy.pre,
+                    pypi_mirror=target.pypi_mirror,
                     categories=categories,
                 )
-    elif not project.lockfile_exists and not skip_lock:
-        handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror)
+    elif not project.lockfile_exists and not policy.skip_lock:
+        handle_missing_lockfile(
+            project, target.system, target.allow_global, policy.pre, target.pypi_mirror
+        )
 
 
 def handle_outdated_lockfile(
@@ -446,16 +463,8 @@ def do_install(project, ctx: RoutineContext) -> None:
     if not policy.deploy:
         new_packages, _ = handle_new_packages(
             project,
-            packages,
-            editable_packages,
-            dev=sel.dev,
-            pre=policy.pre,
-            system=target.system,
-            pypi_mirror=target.pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            pipfile_categories=pipfile_categories,
+            ctx,
             perform_upgrades=not policy.skip_lock,
-            index=sel.index,
         )
 
     try:
@@ -946,18 +955,21 @@ def do_init(
     if not deploy and not ignore_pipfile:
         ensure_pipfile(project, system=system)
 
-    handle_lockfile(
-        project,
-        packages,
-        ignore_pipfile=ignore_pipfile,
-        skip_lock=skip_lock,
+    # T_C.6: handle_lockfile consumes a RoutineContext. ``do_init`` is
+    # still on its pre-context signature (T_C.7 migrates it); build a
+    # ctx at the call boundary so behaviour is preserved exactly.
+    lockfile_ctx = RoutineContext.from_cli(
         system=system,
         allow_global=allow_global,
-        deploy=deploy,
-        pre=pre,
         pypi_mirror=pypi_mirror,
-        categories=categories,
+        pre=pre,
+        deploy=deploy,
+        skip_lock=skip_lock,
+        ignore_pipfile=ignore_pipfile,
+        packages=tuple(packages) if packages else (),
+        categories=tuple(categories) if categories else (),
     )
+    handle_lockfile(project, lockfile_ctx)
 
     if (
         not allow_global
