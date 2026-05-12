@@ -121,9 +121,15 @@ T0.1 ── T0.2 (PRD corrections folded in here + agent ops doc)
   comments tagged `TODO(swarm)` so they're greppable).
 - **validation**: File exists, lints clean as markdown, references real
   commands that succeed on the current tree.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
-- **files edited/created**:
+  Wrote 95-line operating manual covering all seven required sections
+  (scope/branch, pre-commit checklist, off-limits paths, commit
+  conventions, Towncrier news fragments, review-flagged TODOs, and
+  task-complete definition). Verified `python -m pytest tests/unit -x`
+  and `ruff check pipenv/` both exit 0 on the current tree before
+  documenting them as the validation commands.
+- **files edited/created**: `docs/dev/swarm-ops.md` (new)
 
 ---
 
