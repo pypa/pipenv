@@ -1600,6 +1600,69 @@ the design — the four are independent of each other once the
   - `tests/unit/test_core.py` (docstring reference updated)
   - `docs/dev/initiative-f-execution-plan.md` (entry-by-entry log of each wave commit)
 
+#### T_F.4: Fold in-process and subprocess resolver paths into one implementation
+- **depends_on**: [T_F.3]
+- **location**: `pipenv/resolver/core.py` (new); `pipenv/resolver/main.py` (subprocess adapter shrinks); `pipenv/utils/resolver.py` (in-process adapter); `tests/unit/test_resolver_core.py` (new, 6 tests).
+- **description**:
+  Completes the PRD acceptance criterion "one resolver implementation,
+  two thin adapters" for Initiative F. T_F.3 introduced the typed
+  `ResolverRequest` / `ResolverResponse` schema but left two near-duplicate
+  plumbing chains: the subprocess entry's `_main` (marker patch +
+  `resolve_packages` call + ResolverResponse wrap + exit codes) and the
+  in-process debug bypass at `PIPENV_RESOLVER_PARENT_PYTHON=1` (its own
+  marker patch + `resolve_packages` + exception propagation).
+
+  This task extracts the shared logic into
+  `pipenv.resolver.core.resolve_for_pipenv(request) -> ResolverResponse` —
+  a single function that applies the python_marker_override via a
+  context manager, dispatches to `resolve_packages` through `sys.modules`
+  (so existing stub patterns keep working), and ALWAYS returns a typed
+  response (never raises). Both adapters become thin wrappers:
+
+  * Subprocess (`pipenv/resolver/main.py:_main`): read request → call
+    `resolve_for_pipenv` → write response → exit code on `result.kind`.
+    The duplicate `_apply_python_marker_override` helper is deleted.
+  * In-process (`pipenv/utils/resolver.py:_resolve_in_process`):
+    new ~28-line helper that dispatches on `response.result.kind` to
+    return locked entries or raise `ResolutionFailure` / `RuntimeError`.
+    The `PIPENV_RESOLVER_PARENT_PYTHON` arm of `venv_resolve_deps` is
+    now one delegating line; the orphaned `from pipenv import resolver`
+    import is removed.
+
+  The unified path leaves explicit room for two queued follow-ups:
+  `request.metadata.deadline_seconds` (T_F.6 timeout enforcement) and
+  `Diagnostics.resolver_log` (T_F.7 structured logging). Neither is
+  implemented here; both fields are already on the schema and the
+  fold target consumes/emits them so future patches are additive.
+- **validation**:
+  - 764 unit tests pass (758 pre-fold + 6 new in `test_resolver_core.py`
+    covering success → ResolverSuccess, ResolutionFailure → ResolutionError,
+    arbitrary exception → InternalError, marker override applied + restored).
+  - Integration test `tests/integration/test_resolver_protocol.py` (JSON
+    wire-shape canary) still passes — the wire schema is untouched.
+  - Manual `pipenv lock` smoke on a tiny Pipfile produces byte-identical
+    lockfiles (same `_meta.hash`) via the default subprocess path AND
+    `PIPENV_RESOLVER_PARENT_PYTHON=1`.
+- **status**: Completed (commit `22921044`; branch
+  `maintenance/code-cleanup-phase4-resolver-followups-2026-05`).
+- **log**:
+  - 2026-05-12 — Fold landed in one commit. Sibling agent T_F.5a
+    (pluggable-backends design doc) ran concurrently on the same branch
+    with no file collision (T_F.5a touched `docs/dev/` only; T_F.4
+    touched code only).
+- **files edited/created**:
+  - `pipenv/resolver/core.py` (new, ~250 lines: `resolve_for_pipenv`,
+    `_patched_marker_environment` context manager,
+    `_apply_request_env`, `_dispatch_resolve_packages`)
+  - `pipenv/resolver/main.py` (subprocess adapter — `_main` now reads/
+    writes JSON around a single `resolve_for_pipenv` call;
+    `_apply_python_marker_override` deleted; net -54 lines)
+  - `pipenv/utils/resolver.py` (in-process adapter — new
+    `_resolve_in_process` helper; `PIPENV_RESOLVER_PARENT_PYTHON`
+    branch in `venv_resolve_deps` reduces to one delegating line;
+    orphaned `from pipenv import resolver` import removed)
+  - `tests/unit/test_resolver_core.py` (new, 6 tests for the fold target)
+
 #### T_F.5a: Pluggable resolver backends — design (sign-off gate)
 - **depends_on**: [T_F.3]
 - **location**: `docs/dev/initiative-f-backends-design.md` (new, 948 lines).
