@@ -79,6 +79,11 @@ def cmd_install(args, state):
         deploy=state.installstate.deploy,
         skip_lock=state.installstate.skip_lock,
         ignore_pipfile=state.installstate.ignore_pipfile,
+        # T17: propagate ``--clear`` through so the inner ``do_lock``
+        # (reached via ``do_init``) can wipe pipenv's parsed-manifest
+        # cache.  Previously ``state.clear`` only had an effect for
+        # the top-level ``pipenv --clear`` command.
+        clear=state.clear,
         # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,

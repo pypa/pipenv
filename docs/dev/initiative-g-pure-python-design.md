@@ -1,7 +1,10 @@
 # Initiative G — Pure-Python Resolver Backend Design
 
-Status: **draft awaiting maintainer sign-off**. No code change under
-Initiative G until this document is approved.
+Status: **Phase 1 shipped; phases 2–4 awaiting maintainer sign-off.**
+Phase 1 (the standalone PEP 691 client + parsed-manifest cache +
+parallel fetcher) is on `main` as of T17 (see §11 below for the
+per-criterion sign-off).  Phases 2–4 remain at design stage pending
+the bench-data sign-off described in §11.
 
 Companion documents:
 
@@ -727,12 +730,28 @@ working.  How much of pip's auth handling do we replicate?
 ## 11. Acceptance criteria per phase
 
 ### Phase 1
-- All unit tests in §9.1 pass.
-- `PEP691Client.fetch` returns the same candidate set as pip's
+*Shipped at T17 on branch `maintenance/code-cleanup-phase5-perf-2026-06`.*
+
+- [x] All unit tests in §9.1 pass.  (T11–T16 landed; resolver-module
+  suite green at 99.67 % aggregate line coverage — well above the
+  90 % CI floor wired by T17.)
+- [x] `PEP691Client.fetch` returns the same candidate set as pip's
   `Link.from_json` for a fixture of 20 packages spanning JSON
-  and HTML simple-API formats.
-- No `pip._internal.*` imports anywhere in the new code.
-- No new runtime dependency added.
+  and HTML simple-API formats.  (T10 parity fixture green.)
+- [x] No `pip._internal.*` imports anywhere in the new code.
+  (Enforced ongoing by the `no-pip-internal-in-resolver`
+  pre-commit hook added in T17 — scoped to `^pipenv/resolver/`,
+  pattern-anchored on actual import statements rather than raw
+  substring so docstring mentions don't false-positive.)
+- [x] No new runtime dependency added.  (Only stdlib + already-vendored
+  `packaging` are imported by the phase-1 surface.)
+- [x] `pipenv lock --clear` / `pipenv install --clear` invalidate the
+  parsed-manifest cache root alongside pip's HTTP cache.  (T17 wired
+  `_clear_parsed_manifest_cache` at the top of `do_lock`.)
+- [x] CI coverage gate (`--cov-fail-under=90` on the resolver-module
+  suite) and pre-commit `pip._internal` gate ship together so the
+  acceptance criteria above are enforced continuously, not just at
+  merge time.
 
 ### Phase 2
 - All phase 1 criteria still hold.

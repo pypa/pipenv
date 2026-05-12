@@ -254,6 +254,33 @@ markers = [
 
 [tool.coverage.run]
 parallel = true
+# Initiative G phase 1 (T17): the resolver-module coverage gate
+# narrows the scope to the new pure-Python simple-API surface.
+# The default ``addopts`` above keeps the regular test workflow
+# coverage-free (it's slow on the full suite); coverage runs via
+# the dedicated CI step that overrides ``addopts`` to drop
+# ``--no-cov`` and adds ``--cov=pipenv.resolver
+# --cov-fail-under=90``.
+source = [ "pipenv/resolver" ]
+# Branch coverage is roughly 2x slower than line coverage; T17
+# ships line coverage only for Phase 1.  Revisit in Phase 2 / 3
+# when the resolver-module suite grows.
+branch = false
+
+[tool.coverage.report]
+# T17: enforce the per-module coverage floors declared in T11-T16
+# (Candidate 99%, parsers 95%, client 90%, manifest cache 95%,
+# parallel fetcher 90%, auth helpers 90%).  90% is the
+# *aggregate* floor across the resolver-module surface; per-module
+# regressions are caught by ``--cov-fail-under`` overrides in
+# targeted tests.
+fail_under = 90
+show_missing = true
+exclude_lines = [
+  "pragma: no cover",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
 
 [tool.towncrier]
 package = "pipenv"
