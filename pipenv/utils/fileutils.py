@@ -8,15 +8,20 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
 from tempfile import TemporaryDirectory
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote
 
-from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
-from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
-from pipenv.utils.internet import is_valid_url
+
+if TYPE_CHECKING:
+    # Only needed for the ``Optional["PipSession"]`` annotation on
+    # :func:`open_file`; eagerly importing it at module load pulls in
+    # ~78 ms of pip-internal modules (network.download → cachecontrol →
+    # requests) on every ``pipenv`` invocation, even commands that
+    # never open a remote file (``pipenv lock``, ``pipenv --version``).
+    from pipenv.patched.pip._internal.network.download import PipSession
 
 
 def is_file_url(url: Any) -> bool:
@@ -135,7 +140,7 @@ def path_to_url(path):
 
 
 @contextmanager
-def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
+def open_file(link, session: Optional["PipSession"] = None, stream: bool = False):
     """Open local or remote file for reading.
 
     :param pipenv.patched.pip._internal.index.Link link: A link object from resolving dependencies with
@@ -145,6 +150,11 @@ def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
     :raises ValueError: If link points to a local directory.
     :return: a context manager to the opened file-like object
     """
+    # Lazy import: ``is_valid_url`` lives in ``pipenv.utils.internet``
+    # which itself transitively imports pip-internal network modules.
+    # Keep that cost off the module-load critical path.
+    from pipenv.utils.internet import is_valid_url
+
     if not isinstance(link, str):
         try:
             link = link.url_without_fragment
@@ -165,7 +175,12 @@ def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
             with local_path.open("rb") as local_file:
                 yield local_file
     else:
-        # Remote URL
+        # Remote URL — ``PipSession`` + ``USER_CACHE_DIR`` are only
+        # needed on the remote path, so defer the heavyweight pip-
+        # internal imports until we actually need them.
+        from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
+        from pipenv.patched.pip._internal.network.download import PipSession
+
         headers = {"Accept-Encoding": "identity"}
         if not session:
             session = PipSession(cache=USER_CACHE_DIR)
