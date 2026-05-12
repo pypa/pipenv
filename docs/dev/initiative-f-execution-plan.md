@@ -312,9 +312,11 @@ Wave D (depends on Wave C):                                               │
   The internal protocol rewrite itself is invisible to users; the user-facing diff is the cleaner error message on `pipenv install` / `pipenv lock` failure.
 - **validation**:
   - File present, valid RST, towncrier pre-commit hook accepts it
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Added `news/T_F.3.behavior.rst` (4-line behavior fragment per Q4) — commit `e891c888`. Pre-commit hooks passed.
 - **files edited/created**:
+  - NEW `news/T_F.3.behavior.rst`
 
 ### D1: Mark T_F.3 complete in modernization plan
 
