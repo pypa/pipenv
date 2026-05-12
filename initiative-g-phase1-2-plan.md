@@ -942,3 +942,31 @@ Total: 22 tasks, conservatively executable across 9 sequential waves with parall
 - Keyring auth backend (deferred to Phase 3).
 - Removing the pip backend (Phase 4).
 - Cross-platform lockfiles (orthogonal).
+
+---
+
+## Phase-3 follow-ups landed during plan execution
+
+Three items originally flagged as "Phase 3 follow-ups" were addressed during plan execution and landed on this same branch, ahead of Phase 3's formal scoping:
+
+### FU1 — `ParsedManifestCache.peek_etag()` + fetcher stale-etag short-circuit
+- **Commit**: `91c1e4e9`
+- **Trigger**: T9's agent flagged that `ParsedManifestCache.get()` returns `None` past expiry without exposing the on-disk etag, so `ParallelFetcher` couldn't send `If-None-Match` for stale entries and the option-a TTL refresh was unreachable dead code.
+- **Resolution**: Added `peek_etag(index_url, package_name) -> str | None` reading on-disk regardless of expiry. `ParallelFetcher.populate` now calls it on cache misses and threads the result through as `if_none_match`. T9's `status="not-modified"` branch now actually fires.
+- **Tests**: 15 new cache tests + 5 new fetcher tests. Coverage stays at 100% on both modules.
+
+### FU2 — Per-source `verify_ssl` fan-out in the prefetcher
+- **Commit**: `4a0ff8a1`
+- **Trigger**: T19's agent flagged that the prefetcher used a single "majority verify policy wins" `PipSession` for all targets, so mixed-policy projects (e.g., self-signed private index alongside public PyPI) silently fell through to pip's cold fetch on the minority sources.
+- **Resolution**: Refactored `_prefetch_index_manifests_if_enabled` to build one `ParallelFetcher` per unique `verify_ssl` value; targets now carry `(url, pkg, verify)` 3-tuples and are grouped by policy at dispatch time. Single-policy projects (common case) are regression-tested for zero-overhead.
+- **Tests**: 4 new unit tests (`tests/unit/test_prefetch_fan_out.py`) + 1 new integration test (`test_prefetch_routes_per_source_verify_ssl`).
+
+### FU3 — Per-request TLS material in `PEP691Client.fetch`
+- **Commit**: `0047a2e3`
+- **Trigger**: T8's agent flagged that `cert` and `verify` constructor kwargs were stored on `self` but never threaded into the actual `session.request(...)` call — making FU2's per-source verify routing a no-op at the request layer.
+- **Resolution**: Pass `verify=self._verify, cert=self._cert` to `session.request(...)`. PipSession (the production transport, a `requests.Session` subclass) honours per-request TLS material.
+- **Tests**: 10 new tests in `TestPerRequestTLSMaterial`. Coverage stays at 100%.
+
+### Remaining Phase-3 work (not addressed in this branch)
+- Self-signed-cert integration test fixture (T20's skipped scenario) — needs `tests/pytest-pypi/` work.
+- The full `pure_python.Provider` and `pure-python` resolver backend (Phase 3's main deliverable, per design doc §7.4).
