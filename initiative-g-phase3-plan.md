@@ -160,9 +160,37 @@ near the bottom of this document.
   - Cache round-trip: `fetch_metadata` populates the cache; second call
     on the same wheel returns from cache without network.
   - Zero `pip._internal.*` imports.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Implemented per design §5.2.  RED→GREEN with
+    `tests/unit/test_pure_python_metadata.py` (9 tests; all pass).
+    PEP 658 fast path verifies advertised `sha256` against
+    `hashlib.sha256(body).hexdigest()`; mismatch raises
+    `MetadataFetchError`.  Wheel-head fallback uses an `io.RawIOBase`
+    shim (`_PartialFile`) that lets `zipfile.ZipFile` see a
+    seekable view over the wheel while transparently re-issuing
+    HTTP range GETs for bytes outside the in-memory window — this
+    handles both the central-directory walk and the subsequent
+    `METADATA` extraction without buffering the whole wheel.  HEAD
+    rejection (405/403) falls back to a probing `GET Range: bytes=0-1`
+    that reads the total length from `Content-Range`.  Cache is keyed
+    by `sha256(wheel_url)` and uses the same tempfile + `os.replace`
+    atomic-write contract as `ParsedManifestCache`.  Since Phase 1's
+    `Candidate` does not yet carry PEP 658 advertisement,
+    `fetch_metadata` accepts optional `metadata_url` + `metadata_hash`
+    keyword arguments — T3 / T7 can widen `Candidate` later and pass
+    the values through without API churn.  `grep -nE
+    "^[[:space:]]*(from|import)[[:space:]]+pipenv\.patched\.pip\._internal"
+    pipenv/resolver/pure_python_metadata.py` shows zero matches.
+    `ruff check` clean.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_metadata.py` (replaced stub with
+    full implementation — `CoreMetadata`, `MetadataFetchError`,
+    `MetadataCache`, `fetch_metadata`, `_parse_metadata_text`,
+    `_PartialFile`)
+  - `tests/unit/test_pure_python_metadata.py` (new; 9 tests covering
+    the four T2 acceptance criteria + helper coverage; T12 will
+    extend this file)
 
 ---
 
