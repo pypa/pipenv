@@ -844,6 +844,42 @@ class Resolver:
             return markers
 
     def resolve_constraints(self):
+        """Fold per-package ``requires-python`` markers into the resolved tree.
+
+        For each resolved item, read ``link.requires_python`` directly and
+        convert it to a marker via :func:`pipenv.utils.markers.marker_from_specifier`.
+        The marker then flows onto the lockfile entry's ``markers`` field.
+
+        Behaviour change vs the pre-2026-05 implementation (commit
+        ``cf53eb17`` — `Resolver.resolve_constraints``):
+
+        - **Before**: this method called
+          ``self.finder().find_best_candidate(name, specifier)`` once per
+          resolved item and read ``candidate.link.requires_python``.  The
+          default ``self.finder()`` is the *strict* finder
+          (``_ignore_compatibility = False``).  For a resolved item whose
+          link came from a *lenient* path (e.g., the
+          ``pip_finder_ignore_compatability`` patched-pip flag, cross-
+          platform locking workflows, or any caller monkey-patching
+          ``finder._ignore_compatibility = True`` before resolve),
+          ``find_best_candidate`` on the strict finder returned ``None`` →
+          no marker added → that lockfile entry silently lacked its
+          advertised ``requires_python`` constraint.
+
+        - **After**: we read the marker directly from the resolved item's
+          ``link`` regardless of which finder produced it.  Cross-compat
+          packages whose links advertise ``requires-python`` now get
+          their markers in the lockfile.  This is arguably a correctness
+          fix (markers were missing for one specific category of
+          packages) but it IS a behaviour change for any consumer that
+          relied on those markers being absent — most likely scripts
+          running ``pipenv lock --ignore-compatibility``-equivalent
+          workflows via the patched-pip flag.
+
+        See ``tests/unit/test_resolver_regressions.py``
+        ``test_resolve_constraints_marker_for_ignore_compatibility_link``
+        for the test that pins the new behaviour.
+        """
         from .markers import marker_from_specifier
 
         # Build mapping of package origins and Python requirements
