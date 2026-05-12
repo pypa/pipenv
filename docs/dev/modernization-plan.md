@@ -94,9 +94,18 @@ T0.1 ── T0.2 (PRD corrections folded in here + agent ops doc)
      URL/path-overlapping helpers in `fileutils.py`.
 - **validation**: PRD section text reflects the corrections; `git diff`
   shows only those two passages changed; no behavioural code changed.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Initiative C retitled to "Replace wide threaded parameter lists in
+    routines"; current-state paragraph rewritten to cite actual parameter
+    counts (`do_install`: 17, `handle_new_packages`: 11, `handle_lockfile`:
+    10, `do_init`: 10). Target state and Approach left untouched.
+  - Initiative B current-state list updated: `markers.py` removed from the
+    suspect set; `requirements.py` and URL/path helpers in `fileutils.py`
+    retained alongside `requirementslib.py`.
+  - `git diff` confirmed only the two intended passages changed.
 - **files edited/created**:
+  - `docs/dev/modernization-prd.md`
 
 #### T0.2: Document agent operating procedure
 - **depends_on**: []
