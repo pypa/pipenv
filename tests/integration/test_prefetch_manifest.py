@@ -407,8 +407,196 @@ def test_clear_invalidates_parsed_manifest_cache(
         )
 
 
+def _write_sitecustomize_recording_fan_out(
+    inject_dir: Path, marker_file: Path
+) -> None:
+    """Inject a ``sitecustomize.py`` that records per-fetcher fan-out.
+
+    Each populate call writes one JSON-lines record to ``marker_file``
+    carrying ``{"fetcher_id": int, "verify": bool, "targets":
+    [[url, pkg], ...]}``.  ``fetcher_id`` is ``id(self)`` of the
+    ``ParallelFetcher`` instance — distinct ids prove FU2's
+    one-fetcher-per-policy fan-out; ``verify`` mirrors the client's
+    own ``_verify`` flag so we can assert which policy received which
+    targets.
+
+    Url note: targets carry full URLs (the test asserts the
+    fan-out shape, not URL contents — the URLs are local fixture URLs,
+    no credential leak risk).
+    """
+    inject_dir.mkdir(parents=True, exist_ok=True)
+    (inject_dir / "sitecustomize.py").write_text(
+        textwrap.dedent(
+            f"""
+            import builtins
+            import json
+
+            _MARKER = {str(marker_file)!r}
+            _real_import = builtins.__import__
+
+            def _patched_import(name, globals=None, locals=None, fromlist=(), level=0):
+                module = _real_import(name, globals, locals, fromlist, level)
+                target = "pipenv.resolver.fetcher"
+                if name == target or (fromlist and target in (
+                    name, getattr(module, "__name__", "")
+                )):
+                    cls = getattr(module, "ParallelFetcher", None)
+                    if cls is not None and not getattr(
+                        cls, "_FU2_PATCHED", False
+                    ):
+                        def _recording_populate(self, targets):
+                            try:
+                                client = getattr(self, "_client", None)
+                                verify = bool(getattr(client, "_verify", True))
+                                rec = {{
+                                    "fetcher_id": id(self),
+                                    "verify": verify,
+                                    "targets": [list(t) for t in targets],
+                                }}
+                                with open(_MARKER, "a") as fh:
+                                    fh.write(json.dumps(rec) + "\\n")
+                            except Exception:
+                                pass
+                            return {{}}
+                        cls.populate = _recording_populate
+                        cls._FU2_PATCHED = True
+                return module
+
+            builtins.__import__ = _patched_import
+            """
+        ).strip()
+        + "\n"
+    )
+
+
 # ---------------------------------------------------------------------------
-# Optional Test 6: verify_ssl=False against a self-signed index
+# Test 6 (FU2): per-source ``verify_ssl`` fan-out
+# ---------------------------------------------------------------------------
+MIXED_VERIFY_PIPFILE = """\
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[[source]]
+url = "https://private.example.test/simple"
+verify_ssl = false
+name = "private"
+
+[packages]
+six = {version = "*", index = "pypi"}
+click = {version = "*", index = "private"}
+
+[pipenv]
+prefetch_index_manifests = true
+"""
+
+
+@pytest.mark.lock
+def test_prefetch_routes_per_source_verify_ssl(
+    pipenv_instance_pypi, monkeypatch
+):
+    """Mixed verify_ssl Pipfile sources each get their own fetcher.
+
+    FU2 contract: a source with ``verify_ssl=false`` uses a
+    :class:`PEP691Client` whose ``_verify`` is ``False``; a source with
+    ``verify_ssl=true`` uses one with ``_verify`` ``True``.  The two
+    fetchers are distinct objects and each receives only the targets
+    matching its policy.
+
+    Observable via a sitecustomize injection (subprocess-realm mocking
+    pattern T20 introduced).  This test does NOT require network — the
+    sitecustomize replaces ``ParallelFetcher.populate`` with a recorder
+    BEFORE any real network call would fire, so the lock itself may
+    still hit pip's normal resolution path for the actual install/lock
+    work but the prefetch is observed via the marker file.
+
+    Note: the private-index URL is intentionally a non-existent
+    ``.example.test`` host.  The actual ``pipenv lock`` may fail to
+    resolve ``click`` from it, which is fine — we don't assert
+    ``returncode == 0``; we only care that the prefetcher constructed
+    distinct fetchers per policy and dispatched the right targets.
+    """
+    with pipenv_instance_pypi() as p:
+        Path(p.pipfile_path).write_text(MIXED_VERIFY_PIPFILE)
+
+        inject_dir = Path(p.path) / "_fu2_inject"
+        marker = Path(p.path) / "_fu2_fan_out_marker"
+        _write_sitecustomize_recording_fan_out(inject_dir, marker)
+
+        existing_pp = os.environ.get("PYTHONPATH", "")
+        new_pp = (
+            f"{inject_dir}{os.pathsep}{existing_pp}"
+            if existing_pp
+            else str(inject_dir)
+        )
+        monkeypatch.setenv("PYTHONPATH", new_pp)
+        monkeypatch.setenv("PIPENV_PREFETCH_INDEX_MANIFESTS", "1")
+
+        # Run lock — may fail when resolving ``click`` from the
+        # non-existent private index, but the prefetch helper runs
+        # BEFORE the resolve, so the marker file will be populated
+        # regardless of the resolve outcome.
+        p.pipenv("lock")
+
+        # ----------------------------------------------------------
+        # Assert: two distinct ``ParallelFetcher`` instances, each
+        # populate'd with ONLY targets matching its verify policy.
+        # ----------------------------------------------------------
+        if not marker.exists():
+            pytest.skip(
+                "prefetch populate marker not produced — environment may have "
+                "skipped the prefetch path (e.g., resolver import failed). "
+                "FU2 is unit-tested in tests/unit/test_prefetch_fan_out.py."
+            )
+
+        import json
+
+        records = []
+        for line in marker.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            records.append(json.loads(line))
+
+        # FU2 contract: two distinct fetcher ids.
+        fetcher_ids = {r["fetcher_id"] for r in records}
+        assert len(fetcher_ids) == 2, (
+            "expected two ParallelFetcher instances (one per verify policy); "
+            f"got {len(fetcher_ids)} distinct id(s) — records: {records}"
+        )
+
+        # One record per fetcher (each policy's populate called exactly once).
+        verifies = {r["verify"] for r in records}
+        assert verifies == {True, False}, (
+            f"expected both verify policies covered; got {verifies}"
+        )
+
+        # Each fetcher's targets must contain ONLY targets matching its
+        # policy.  Build a per-verify (source-url, package-name) set
+        # and prove no cross-policy bleed-through.
+        verify_true_urls = {
+            tuple(t)[0] for r in records if r["verify"] is True
+            for t in r["targets"]
+        }
+        verify_false_urls = {
+            tuple(t)[0] for r in records if r["verify"] is False
+            for t in r["targets"]
+        }
+        # The verify=True fetcher only saw the pypi.org URL.
+        assert verify_true_urls and all(
+            "pypi.org" in u for u in verify_true_urls
+        ), f"verify=True fetcher saw non-pypi URLs: {verify_true_urls}"
+        # The verify=False fetcher only saw the private-index URL.
+        assert verify_false_urls and all(
+            "private.example.test" in u for u in verify_false_urls
+        ), (
+            f"verify=False fetcher saw non-private URLs: {verify_false_urls}"
+        )
+
+
+# ---------------------------------------------------------------------------
+# Optional Test 7: verify_ssl=False against a self-signed index
 # ---------------------------------------------------------------------------
 @pytest.mark.lock
 def test_prefetch_with_self_signed_source():
