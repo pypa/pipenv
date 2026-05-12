@@ -70,7 +70,7 @@ def ensure_project(
         system_or_exists = True
     else:
         system_or_exists = system  # default to False
-    if not project.pipfile_exists and deploy:
+    if not project.pipfile.exists and deploy:
         raise exceptions.PipfileNotFound
 
     # When --system is used with --python, validate that the Python can be found
@@ -130,7 +130,7 @@ def ensure_project(
 
     # Warn users if they are using the wrong version of Python.
     # This check applies to both virtualenv and --system installations.
-    if warn and project.required_python_version:
+    if warn and project.pipfile.required_python_version:
         if system or project.s.PIPENV_USE_SYSTEM:
             # For --system, check the system Python
             path_to_python = (
@@ -146,11 +146,11 @@ def ensure_project(
             path_to_python = project.venv_locator._which("python") or project.venv_locator._which("py")
 
         if path_to_python and not _python_version_matches_required(
-            python_version(path_to_python) or "", project.required_python_version
+            python_version(path_to_python) or "", project.pipfile.required_python_version
         ):
             err.print(
                 f"[red][bold]Warning[/bold][/red]: Your Pipfile requires "
-                f'[bold]"python_version"[/bold] [cyan]{project.required_python_version}[/cyan], '
+                f'[bold]"python_version"[/bold] [cyan]{project.pipfile.required_python_version}[/cyan], '
                 f"but you are using [cyan]{python_version(path_to_python)}[/cyan] "
                 f"from [green]{shorten_path(path_to_python)}[/green]."
             )

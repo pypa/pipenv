@@ -73,7 +73,7 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         pypi_mirror=pypi_mirror,
     )
     lockfile = do_lock(project, lock_ctx)
-    for category in project.get_package_categories(for_lockfile=True):
+    for category in project.pipfile.get_package_categories(for_lockfile=True):
         for package, lockfile_entry in lockfile.get(category, {}).items():
             resolved_version = _get_lockfile_entry_version(lockfile_entry)
             if resolved_version is not None:
@@ -95,11 +95,11 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
             elif canonicalize_name(package) in outdated_packages:
                 skipped.append(outdated_packages[canonicalize_name(package)])
     for package, old_version, new_version in skipped:
-        for category in project.get_package_categories():
-            name_in_pipfile = project.get_package_name_in_pipfile(
+        for category in project.pipfile.get_package_categories():
+            name_in_pipfile = project.pipfile.get_package_name(
                 package, category=category
             )
-            pipfile_section = project.get_pipfile_section(category)
+            pipfile_section = project.pipfile.get_section(category)
             if name_in_pipfile and name_in_pipfile in pipfile_section:
                 required = ""
                 version = get_version(pipfile_section[name_in_pipfile])

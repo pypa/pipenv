@@ -39,7 +39,7 @@ def do_py(project, system=False, bare=False):
     if not project.venv_locator.exists:
         err.print(
             "[red]No virtualenv has been created for this project[/red] "
-            f"[yellow bold]{project.project_directory}[/yellow bold] "
+            f"[yellow bold]{project.pipfile.project_directory}[/yellow bold] "
             "[red] yet![/red]"
         )
         sys.exit(1)
@@ -64,7 +64,7 @@ def cmd_install(args, state):
     from pipenv.routines.install import do_install
 
     if state.installstate.all_categories:
-        state.installstate.categories = state.project.get_package_categories()
+        state.installstate.categories = state.project.pipfile.get_package_categories()
     else:
         apply_default_categories(args, state)
 
@@ -122,7 +122,7 @@ def cmd_upgrade(args, state):
     from pipenv.utils.project import ensure_project
 
     if state.installstate.all_categories:
-        state.installstate.categories = state.project.get_package_categories()
+        state.installstate.categories = state.project.pipfile.get_package_categories()
     else:
         apply_default_categories(args, state)
 
@@ -354,7 +354,7 @@ def cmd_update(args, state):
     from pipenv.routines.update import do_update
 
     if state.installstate.all_categories:
-        state.installstate.categories = state.project.get_package_categories()
+        state.installstate.categories = state.project.pipfile.get_package_categories()
     else:
         apply_default_categories(args, state)
 
@@ -438,7 +438,7 @@ def cmd_sync(args, state):
     from pipenv.routines.sync import do_sync
 
     if state.installstate.all_categories:
-        state.installstate.categories = state.project.get_package_categories()
+        state.installstate.categories = state.project.pipfile.get_package_categories()
     else:
         apply_default_categories(args, state)
 
@@ -474,10 +474,10 @@ def cmd_clean(args, state):
 
 
 def cmd_scripts(args, state):
-    if not state.project.pipfile_exists:
+    if not state.project.pipfile.exists:
         err.print("No Pipfile present at project home.")
         sys.exit(1)
-    scripts_dict = state.project.parsed_pipfile.get("scripts", {})
+    scripts_dict = state.project.pipfile.parsed.get("scripts", {})
     first_column_width = max(len(word) for word in ["Command"] + list(scripts_dict))
     second_column_width = max(
         len(word) for word in ["Script"] + list(scripts_dict.values())
@@ -491,10 +491,10 @@ def cmd_scripts(args, state):
 
 
 def cmd_verify(args, state):
-    if not state.project.pipfile_exists:
+    if not state.project.pipfile.exists:
         err.print("No Pipfile present at project home.")
         sys.exit(1)
-    if state.project.lockfile.hash() != state.project.calculate_pipfile_hash():
+    if state.project.lockfile.hash() != state.project.pipfile.calculate_hash():
         err.print(
             "Pipfile.lock is out-of-date. Run [yellow bold]$ pipenv lock[/yellow bold] to update."
         )
@@ -550,7 +550,7 @@ def cmd_pylock(args, state):
             sys.exit(1)
 
     elif args.from_pyproject:
-        pyproject_path = Path(project.project_directory) / "pyproject.toml"
+        pyproject_path = Path(project.pipfile.project_directory) / "pyproject.toml"
         if not pyproject_path.exists():
             err.print("[bold red]No pyproject.toml found.[/bold red]")
             sys.exit(1)
@@ -775,7 +775,7 @@ def cli():
             if not state.project.venv_locator.exists:
                 err.print(
                     "[red]No virtualenv has been created for this project[/red]"
-                    f"[bold]{state.project.project_directory}[/bold]"
+                    f"[bold]{state.project.pipfile.project_directory}[/bold]"
                     " [red]yet![/red]"
                 )
                 sys.exit(1)

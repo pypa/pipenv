@@ -260,7 +260,7 @@ def get_modified_pipfile_entries(project, pipfile_categories):
 
     for pipfile_category in pipfile_categories:
         lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
-        pipfile_packages = project.parsed_pipfile.get(pipfile_category, {})
+        pipfile_packages = project.pipfile.parsed.get(pipfile_category, {})
         locked_packages = lockfile.get(lockfile_category, {})
 
         for package_name, pipfile_entry in pipfile_packages.items():
@@ -418,7 +418,7 @@ def _process_package_args(
     for package in package_args[:]:
         install_req, _ = expansive_install_req_from_line(package, expand_env=True)
 
-        name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
+        name, normalized_name, pipfile_entry = project.pipfile.generate_entry(
             install_req, package, category=pipfile_category, index_name=index_name
         )
 
@@ -438,11 +438,11 @@ def _process_package_args(
             # Example: `pipenv upgrade mypy==1.5.1` without --dev must not silently
             # add mypy to [packages] when it already lives in [dev-packages].
             package_in_current_category = bool(
-                project.get_pipfile_entry(normalized_name, pipfile_category)
+                project.pipfile.get_entry(normalized_name, pipfile_category)
             )
             package_in_other_category = any(
-                project.get_pipfile_entry(normalized_name, cat)
-                for cat in project.get_package_categories()
+                project.pipfile.get_entry(normalized_name, cat)
+                for cat in project.pipfile.get_package_categories()
                 if cat != pipfile_category
             )
             if not package_in_current_category and package_in_other_category:
@@ -455,7 +455,7 @@ def _process_package_args(
                     f"Use --dev or --categories to target the correct section.[/bold][/yellow]"
                 )
             else:
-                project.add_pipfile_entry_to_pipfile(
+                project.pipfile.add_entry(
                     name, normalized_name, pipfile_entry, category=pipfile_category
                 )
 
@@ -464,7 +464,7 @@ def _process_package_args(
         # Handle reverse dependencies
         if normalized_name in reverse_deps:
             for dependency, _ in reverse_deps[normalized_name]:
-                pipfile_entry = project.get_pipfile_entry(
+                pipfile_entry = project.pipfile.get_entry(
                     dependency, category=pipfile_category
                 )
                 if not pipfile_entry:
@@ -529,7 +529,7 @@ def _resolve_and_update_lockfile(
         err.print("Nothing to upgrade!")
         return None
 
-    complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+    complete_packages = project.pipfile.parsed.get(pipfile_category, {})
 
     # Upgrade a subset of packages
     full_lock_resolution = venv_resolve_deps(
@@ -774,7 +774,7 @@ def upgrade(
 
         # Store the full resolution for this category
         if upgrade_lock_data:
-            complete_packages = project.parsed_pipfile.get(pipfile_category, {})
+            complete_packages = project.pipfile.parsed.get(pipfile_category, {})
             full_lock_resolution = venv_resolve_deps(
                 complete_packages,
                 which=project.venv_locator._which,

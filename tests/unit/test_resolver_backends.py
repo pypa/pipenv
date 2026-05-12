@@ -210,10 +210,14 @@ class TestPipfileResolverSetting:
         """
         from pipenv.utils.settings import Settings
 
-        # Fake project shape that exposes the parsed pipfile mapping.
+        # Fake project shape that exposes a ``pipfile.parsed`` mapping.
+        class _FakePipfile:
+            def __init__(self, table):
+                self.parsed = {"pipenv": table}
+
         class _FakeProject:
             def __init__(self, table):
-                self.parsed_pipfile = {"pipenv": table}
+                self.pipfile = _FakePipfile(table)
 
         settings_with = Settings(_FakeProject({"resolver": "pip"}))
         assert settings_with.resolver == "pip"

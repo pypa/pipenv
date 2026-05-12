@@ -10,7 +10,7 @@ def load_dot_env(project, as_dict=False, quiet=False):
     """Loads .env file into sys.environ."""
     if not project.s.PIPENV_DONT_LOAD_ENV:
         # If the project doesn't exist yet, check current directory for a .env file
-        project_directory = project.project_directory or "."
+        project_directory = project.pipfile.project_directory or "."
 
         # Determine the .env file path
         if project.s.PIPENV_DOTENV_LOCATION:

@@ -98,7 +98,7 @@ def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
         return result
 
     is_tomlkit_parsed = isinstance(parsed, Container)
-    for section in project.get_package_categories():
+    for section in project.pipfile.get_package_categories():
         table_data = parsed.get(section, {})
         if table_data is None:
             continue

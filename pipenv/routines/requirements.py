@@ -32,7 +32,7 @@ def generate_requirements(
         return
 
     lockfile = project.lockfile.load(expand_env_vars=False)
-    pipfile_package_names = project.pipfile_package_names
+    pipfile_package_names = project.pipfile.package_names
 
     # Print index URLs first (unless excluded).
     # We deliberately do NOT expand env vars here so that credentials stored
@@ -110,7 +110,7 @@ def _generate_requirements_from_pipfile(
     This is useful for libraries that need looser version constraints than
     the strictly pinned versions in Pipfile.lock.
     """
-    parsed_pipfile = project.parsed_pipfile
+    parsed_pipfile = project.pipfile.parsed
 
     # Print index URLs from Pipfile sources (unless excluded)
     if include_index:
@@ -126,14 +126,14 @@ def _generate_requirements_from_pipfile(
 
     if categories_list:
         for category in categories_list:
-            category_deps = project.get_pipfile_section(category.strip())
+            category_deps = project.pipfile.get_section(category.strip())
             deps.update(category_deps)
     else:
         if dev or dev_only:
-            dev_deps = project.get_pipfile_section("dev-packages")
+            dev_deps = project.pipfile.get_section("dev-packages")
             deps.update(dev_deps)
         if not dev_only:
-            default_deps = project.get_pipfile_section("packages")
+            default_deps = project.pipfile.get_section("packages")
             deps.update(default_deps)
 
     pip_installable_lines = requirements_from_pipfile(

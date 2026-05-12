@@ -48,7 +48,7 @@ def do_lock(project, ctx: RoutineContext):
 
     # Cleanup lockfile.
     if not categories:
-        lockfile_categories = project.get_package_categories(for_lockfile=True)
+        lockfile_categories = project.pipfile.get_package_categories(for_lockfile=True)
     else:
         lockfile_categories = categories.copy()
         if "dev-packages" in categories:
@@ -79,10 +79,10 @@ def do_lock(project, ctx: RoutineContext):
     # Resolve package to generate constraints before resolving other categories
     for category in lockfile_categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
-        if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(pipfile_category, {})
+        if project.pipfile.exists:
+            packages = project.pipfile.parsed.get(pipfile_category, {})
         else:
-            packages = project.get_pipfile_section(pipfile_category)
+            packages = project.pipfile.get_section(pipfile_category)
 
         if write:
             if not quiet:  # Alert the user of progress.

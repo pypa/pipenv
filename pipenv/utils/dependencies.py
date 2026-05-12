@@ -350,7 +350,8 @@ def clean_resolved_dep(  # noqa: PLR0912
     # Pipfile entries are already overridden with their relative path by
     # get_locked_dep(); only sub-dependencies reach here with a raw
     # "file:///..." URL.  (GH-6119)
-    project_dir = getattr(project, "project_directory", None)
+    pipfile = getattr(project, "pipfile", None)
+    project_dir = getattr(pipfile, "project_directory", None) if pipfile else None
     if project_dir and isinstance(dep.get("file"), str):
         dep["file"] = _file_url_to_relative_path(dep["file"], project_dir)
 
@@ -1671,7 +1672,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
         raise OSError(f"Requirements file not found: {r}")
     # Default path, if none is provided.
     if r is None:
-        r = project.requirements_location
+        r = project.pipfile.requirements_location
     with open(r) as f:
         contents = f.read()
     if categories is None:
@@ -1712,7 +1713,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
 
     # Batch add all packages to Pipfile
     if packages_to_add:
-        project.add_packages_to_pipfile_batch(
+        project.pipfile.add_packages_batch(
             packages_to_add, dev=dev, categories=categories
         )
 
@@ -1723,7 +1724,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
         add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
 
     # Recase pipfile once at the end
-    project.recase_pipfile()
+    project.pipfile.recase()
 
 
 def add_index_to_pipfile_with_trust_check(project, index, trusted_hosts=None):

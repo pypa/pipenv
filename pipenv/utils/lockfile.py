@@ -17,11 +17,11 @@ Behaviour is preserved verbatim from the previous in-``Project``
 implementation; this is a relocation, not a rewrite. ``Lockfile`` holds
 a back-reference to the owning ``Project`` because:
 
-- ``meta()`` needs ``project.calculate_pipfile_hash()`` and
+- ``meta()`` needs ``project.pipfile.calculate_hash()`` and
   ``project.sources.pipfile_sources()`` (cross-subsystem reads).
-- ``content`` / :meth:`load` need ``project.pipfile_location`` and may
-  call ``project.write_toml`` indirectly via :meth:`write` self-call.
-- :attr:`package_names` reads ``project.get_package_categories(for_lockfile=True)``.
+- ``content`` / :meth:`load` need ``project.pipfile.location`` and may
+  call ``project.pipfile.write_toml`` indirectly via :meth:`write` self-call.
+- :attr:`package_names` reads ``project.pipfile.get_package_categories(for_lockfile=True)``.
 
 API rename (matches T_D.2 Sources / T_D.4 VenvLocator patterns):
 
@@ -87,7 +87,7 @@ class Lockfile:
     @property
     def location(self) -> str:
         """Returns the canonical ``Pipfile.lock`` path (``<Pipfile>.lock``)."""
-        return f"{self._project.pipfile_location}.lock"
+        return f"{self._project.pipfile.location}.lock"
 
     @property
     def exists(self) -> bool:
@@ -100,7 +100,7 @@ class Lockfile:
     @property
     def pylock_location(self) -> str | None:
         """Returns the location of the ``pylock.toml`` file, if it exists."""
-        pylock_path = find_pylock_file(self._project.project_directory)
+        pylock_path = find_pylock_file(self._project.pipfile.project_directory)
         if pylock_path:
             return str(pylock_path)
         return None
@@ -129,9 +129,9 @@ class Lockfile:
         pylock_name = self._project.settings.get("pylock_name")
         if pylock_name:
             return str(
-                Path(self._project.project_directory) / f"pylock.{pylock_name}.toml"
+                Path(self._project.pipfile.project_directory) / f"pylock.{pylock_name}.toml"
             )
-        return str(Path(self._project.project_directory) / "pylock.toml")
+        return str(Path(self._project.pipfile.project_directory) / "pylock.toml")
 
     # ---- content readers --------------------------------------------------
 
@@ -179,14 +179,14 @@ class Lockfile:
             except Exception:
                 pass
         if not lockfile_loaded:
-            with open(project.pipfile_location) as pf:
+            with open(project.pipfile.location) as pf:
                 plette_lock = plette.Lockfile.with_meta_from(
                     plette.Pipfile.load(pf), categories=categories
                 )
                 lockfile = plette_lock._data
 
         if categories is None:
-            categories = project.get_package_categories(for_lockfile=True)
+            categories = project.pipfile.get_package_categories(for_lockfile=True)
         for category in categories:
             lock_section = lockfile.get(category)
             if lock_section is None:
@@ -202,7 +202,7 @@ class Lockfile:
         project = self._project
         lockfile_modified = False
         lockfile_path = Path(self.location)
-        pipfile_path = Path(project.pipfile_location)
+        pipfile_path = Path(project.pipfile.location)
 
         try:
             with lockfile_path.open(encoding="utf-8") as lock:
@@ -303,7 +303,7 @@ class Lockfile:
         results: dict[str, set[str]] = {
             "combined": set(),
         }
-        for category in project.get_package_categories(for_lockfile=True):
+        for category in project.pipfile.get_package_categories(for_lockfile=True):
             category_packages = get_canonical_names(
                 self.content[category].keys()
             )
@@ -321,17 +321,17 @@ class Lockfile:
         from pipenv.vendor.plette.lockfiles import PIPFILE_SPEC_CURRENT
 
         project = self._project
-        if "source" in project.parsed_pipfile:
-            sources = [dict(source) for source in project.parsed_pipfile["source"]]
+        if "source" in project.pipfile.parsed:
+            sources = [dict(source) for source in project.pipfile.parsed["source"]]
         else:
             sources = project.sources.pipfile_sources(expand_vars=False)
         if not isinstance(sources, list):
             sources = [sources]
         return {
-            "hash": {"sha256": project.calculate_pipfile_hash()},
+            "hash": {"sha256": project.pipfile.calculate_hash()},
             "pipfile-spec": PIPFILE_SPEC_CURRENT,
             "sources": [Sources.populate_source(s) for s in sources],
-            "requires": project.parsed_pipfile.get("requires", {}),
+            "requires": project.pipfile.parsed.get("requires", {}),
         }
 
     def hash(self) -> str | None:

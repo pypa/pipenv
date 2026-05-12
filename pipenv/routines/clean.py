@@ -68,7 +68,7 @@ def ensure_lockfile(project, pypi_mirror=None):
     Pipfile.lock as-is.  Only create a new lock file when none exists at all."""
     if project.lockfile.exists:
         old_hash = project.lockfile.hash()
-        new_hash = project.calculate_pipfile_hash()
+        new_hash = project.pipfile.calculate_hash()
         if new_hash != old_hash:
             err.print(
                 f"Pipfile.lock ({old_hash[-6:]}) out of date. "
