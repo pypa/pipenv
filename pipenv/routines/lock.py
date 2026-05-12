@@ -1,12 +1,191 @@
 import contextlib
 import sys
 import traceback
+from pathlib import Path
 
 from pipenv.routines.context import RoutineContext
 from pipenv.utils import err
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
+
+
+def _clear_parsed_manifest_cache(project) -> None:
+    """Invalidate the Initiative G phase-1 parsed-manifest cache.
+
+    Wired in T17: ``pipenv lock --clear`` (and ``pipenv install
+    --clear`` via the same lock path) must wipe our pipenv-owned
+    parsed-manifest cache in addition to pip's HTTP cache.  Without
+    this, our cache becomes a poisoning surface the user can't easily
+    nuke.
+
+    Best-effort: failures here must never block the lock/install
+    operation (the cache is opportunistic, not load-bearing in phase
+    1).  ``ParsedManifestCache.clear_all`` already swallows ``rmtree``
+    errors via ``ignore_errors=True``; this wrapper adds an outer
+    guard against import-time / construction-time failures.
+    """
+    try:
+        from pipenv.resolver.manifest_cache import ParsedManifestCache
+
+        cache_root = Path(project.s.PIPENV_CACHE_DIR)
+        ParsedManifestCache(cache_root).clear_all()
+    except Exception:  # noqa: BLE001 — defensive; never block the resolve.
+        pass
+
+
+def _prefetch_index_manifests_if_enabled(
+    project, lockfile_categories, *, clear: bool
+) -> None:
+    """Best-effort: pre-fetch top-level package indexes in parallel.
+
+    Activated only when the user opted in via
+    ``[pipenv] prefetch_index_manifests = true`` (or the
+    ``PIPENV_PREFETCH_INDEX_MANIFESTS`` env-var override added in T18).
+    All exceptions are swallowed so the lock continues with cold-cache
+    behaviour on any failure mode.
+
+    The underlying transport is pip's own ``PipSession`` (obtained via
+    :func:`pipenv.utils.internet.get_requests_session`).  That guarantees
+    pip's on-disk ``SafeFileCache`` is warmed as a side-effect of our
+    fetches — the resolver subprocess invoked later will hit a warm
+    cache without us having to reverse-engineer pip's CacheControl
+    on-disk format.  Our own parsed-manifest cache (T7) is also
+    populated for Phase 3 reuse.
+
+    ``--clear`` short-circuits the prefetch: the user explicitly asked
+    for a fresh resolution, so we honour that.
+
+    No URL is logged at any verbosity level (URLs may carry credentials
+    before stripping).  When verbose, a single summary line is emitted:
+    ``Prefetched N package indexes in M.MMs.``
+
+    Initiative G phase 2 — T19.  See ``initiative-g-phase1-2-plan.md``
+    §T19 for the design rationale.
+    """
+    if clear:
+        return
+    try:
+        if not project.settings.get("prefetch_index_manifests", False):
+            return
+    except Exception:
+        return
+
+    # Lazy imports — when the setting is disabled (the common case) the
+    # cost of importing T7/T8/T9 modules is zero.  Same goes for the
+    # ``time`` module and ``get_requests_session``.
+    import time
+
+    try:
+        from pathlib import Path
+
+        from pipenv.resolver.fetcher import ParallelFetcher
+        from pipenv.resolver.manifest_cache import ParsedManifestCache
+        from pipenv.resolver.pep691 import PEP691Client
+        from pipenv.utils.internet import get_requests_session
+    except Exception:
+        # Phase-1 modules not present in this build, or something else
+        # unexpected at import time.  Opt-out cleanly.
+        return
+
+    # ------------------------------------------------------------------
+    # Collect (index_url, package_name) targets across categories x sources.
+    # ------------------------------------------------------------------
+    try:
+        sources = project.sources.pipfile_sources()
+    except Exception:
+        return
+    if not sources:
+        return
+
+    targets: list[tuple[str, str]] = []
+    for category in lockfile_categories:
+        pipfile_category = get_pipfile_category_using_lockfile_section(category)
+        try:
+            if project.pipfile.exists:
+                packages = project.pipfile.parsed.get(pipfile_category, {})
+            else:
+                packages = project.pipfile.get_section(pipfile_category)
+        except Exception:
+            packages = {}
+        if not packages:
+            continue
+        for package_name in packages.keys():
+            for source in sources:
+                index_url = source.get("url", "")
+                if index_url:
+                    targets.append((index_url, package_name))
+
+    if not targets:
+        return
+
+    # ------------------------------------------------------------------
+    # Resolve cache root and build a PipSession per verify-policy.
+    # Sharing one session per (verify_ssl) value keeps the connection
+    # pool warm while honouring per-source TLS-validation toggles.
+    # ------------------------------------------------------------------
+    try:
+        cache_root = Path(project.s.PIPENV_CACHE_DIR) / "pipenv-manifests"
+    except Exception:
+        return
+
+    sessions_by_verify: dict[bool, object] = {}
+    for source in sources:
+        verify = bool(source.get("verify_ssl", True))
+        if verify in sessions_by_verify:
+            continue
+        try:
+            sessions_by_verify[verify] = get_requests_session(verify_ssl=verify)
+        except Exception:
+            continue
+
+    if not sessions_by_verify:
+        return
+
+    # For now, dispatch via whichever verify policy is most common
+    # (defaulting to ``True`` when both exist).  Mixed-verify projects
+    # are rare; the minority sources simply miss the prefetch and fall
+    # back to pip's normal cold fetch — best-effort is the contract.
+    # Per-source per-session fan-out is deferred to Phase 3.
+    primary_verify = True if True in sessions_by_verify else False
+    session = sessions_by_verify[primary_verify]
+
+    try:
+        cache = ParsedManifestCache(cache_root)
+        client = PEP691Client(session, verify=primary_verify)
+        fetcher = ParallelFetcher(client, cache)
+    except Exception:
+        return
+
+    try:
+        quiet = bool(project.s.is_quiet())
+    except Exception:
+        quiet = False
+    try:
+        verbose = bool(project.s.is_verbose())
+    except Exception:
+        verbose = False
+
+    start = time.perf_counter()
+    try:
+        fetcher.populate(targets)
+    except Exception:
+        return
+    elapsed = time.perf_counter() - start
+
+    if verbose and not quiet:
+        # Count unique package names — ``targets`` carries one
+        # (source, name) tuple per source-fan-out, so the raw length
+        # would overstate the work.
+        unique_names = len({name for (_, name) in targets})
+        try:
+            err.print(
+                f"[dim]Prefetched {unique_names} package indexes "
+                f"in {elapsed:.2f}s.[/dim]"
+            )
+        except Exception:
+            # Even logging failures must not break the lock.
+            pass
 
 
 def do_lock(project, ctx: RoutineContext):
@@ -32,6 +211,14 @@ def do_lock(project, ctx: RoutineContext):
         list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else None
     )
     categories = list(sel.categories) if sel.categories else None
+
+    # T17: ``--clear`` must invalidate our parsed-manifest cache in
+    # addition to pip's HTTP/resolution caches.  Runs at the top of
+    # the lock so a cache wipe is visible to every resolve in this
+    # invocation (and to the prefetch helper below, which is a no-op
+    # under ``clear=True`` regardless — see T19).
+    if clear:
+        _clear_parsed_manifest_cache(project)
 
     if not pre:
         pre = project.settings.get("allow_prereleases")
@@ -63,6 +250,16 @@ def do_lock(project, ctx: RoutineContext):
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
+
+    # T19 (Initiative G phase 2): opt-in parallel manifest prefetch.
+    # No-op unless ``[pipenv] prefetch_index_manifests`` is truthy (or
+    # ``PIPENV_PREFETCH_INDEX_MANIFESTS`` is set).  Best-effort: any
+    # failure is swallowed and the resolve loop below proceeds with
+    # cold-cache behaviour.  Skipped entirely when ``--clear`` was
+    # requested (the user wanted a fresh resolution).
+    _prefetch_index_manifests_if_enabled(
+        project, lockfile_categories, clear=clear
+    )
 
     # Determine whether to enforce default constraints on non-default categories.
     # When enabled (the default), resolved pins from the default category
