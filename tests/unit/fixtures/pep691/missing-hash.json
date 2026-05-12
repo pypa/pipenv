@@ -1,0 +1,26 @@
+{
+  "meta": {
+    "api-version": "1.0"
+  },
+  "name": "missing-hash",
+  "files": [
+    {
+      "filename": "missing-hash-0.1.0.tar.gz",
+      "url": "https://files.example.invalid/packages/mh/missing-hash-0.1.0.tar.gz",
+      "hashes": {},
+      "requires-python": ">=3.8",
+      "yanked": false,
+      "upload-time": "2024-02-10T09:15:00.000000Z"
+    },
+    {
+      "filename": "missing-hash-0.2.0-py3-none-any.whl",
+      "url": "https://files.example.invalid/packages/mh/missing-hash-0.2.0-py3-none-any.whl",
+      "hashes": {
+        "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+      },
+      "requires-python": ">=3.8",
+      "yanked": false,
+      "upload-time": "2024-05-05T14:00:00.000000Z"
+    }
+  ]
+}
