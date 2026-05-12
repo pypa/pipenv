@@ -482,9 +482,68 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - **Parallelism via dispatch-order instrumentation** (replaces flaky wall-time assertion): the mock client records each dispatch timestamp + an `arrive_event` and only returns after `release_event` is set; assert at least 14 of 32 dispatches arrived before any returned (proves the executor is dispatching concurrently up to `max_workers`).
   - One target's worker raises an unexpected exception → other targets still complete; the offender becomes `FetchError(kind="transient", original=<exc>)`.
 - **validation**: `pytest tests/unit/test_parallel_fetcher.py` passes with ≥90 % coverage of `pipenv/resolver/fetcher.py` (enforced by T17's coverage config).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented `tests/unit/test_parallel_fetcher.py` on branch
+    `maintenance/code-cleanup-phase5-perf-2026-06`.  38 tests across 8 test
+    classes covering the full surface of `pipenv/resolver/fetcher.py`:
+    - `TestConstructor` (7): defaults (16 workers, 600s TTL); custom workers
+      below ceiling; clamp >16 with INFO log; ==16 no log; 0 → ValueError;
+      negative → ValueError; custom default_ttl.
+    - `TestBasicDispatch` (4): empty targets → `{}` no executor; 5 cold →
+      5 dispatches; 5 warm → 0 dispatches; mixed 3-warm-2-cold → 2 dispatches
+      via call_args inspection (verifies `to_fetch` partitioning).
+    - `TestStatusBranches` (8): fresh+etag round-trip; fresh+None-etag;
+      missing → FetchError(missing) + no cache write; not-modified with
+      prior cache (option-a TTL refresh); not-modified with response.etag
+      override (response.etag wins); not-modified without prior → transient;
+      unknown status (defensive Literal branch); FetchError pass-through.
+    - `TestMixedOutcomes` (4): 3-fresh+1-missing+1-transient end-to-end;
+      worker `RuntimeError` isolated via `_fetch_one` defensive catch;
+      `KeyboardInterrupt` (BaseException) also caught; duplicate package_name
+      across indexes → one key in result (last-completer wins, both fetches
+      dispatched).
+    - `TestCacheIntegration` (5): get-call-count = 6 (3 step-1 + 3 post-put);
+      put receives ttl_seconds=default_ttl; put OSError → transient
+      (`_store_fresh` branch); not-modified put OSError → soft-fall-back to
+      existing; not-modified post-put-get-None → soft-fall-back to existing;
+      ttl_seconds=0 → in-process `CachedManifest` synthesised (real cache
+      end-to-end).
+    - `TestConcurrency` (2): 32 targets at max_workers=16 → ≥14 concurrent
+      dispatches via `threading.Event` instrumentation (NO wall-time
+      assertions); shallow queue (2 targets, max_workers=8) → workers
+      bounded by len(to_fetch).
+    - `TestEdgeCases` (6): empty-string index_url passes through;
+      duplicate (index, name) tuple → 1 key + 2 dispatches; non-string
+      package_name → TypeError → FetchError(transient, original=<TypeError>);
+      `_fetch_one` returns FetchError verbatim; `_fetch_one` threads
+      `if_none_match` through to client; all-warm → no executor spawned.
+    - `TestFutureExceptionPath` (1): defensive outer `except BaseException`
+      in populate() — patch ThreadPoolExecutor.submit so future.result()
+      raises after the worker has already returned; populate() catches and
+      records a transient.
+    - Coverage:
+      `python -m pytest tests/unit/test_parallel_fetcher.py --cov=pipenv.resolver.fetcher --cov-report=term-missing --override-ini="addopts=-ra"`
+      → `pipenv/resolver/fetcher.py 93 stmts 0 miss 100%`.  Exceeds the
+      ≥90% floor; nothing left uncovered.
+    - Concurrency tests verified stable across 8 consecutive runs (no
+      flakiness from the dispatch-order assertion).
+    - T9 contracts pinned (where the brief left wiggle room):
+      1. **Duplicate (index_url, package_name)**: NOT deduplicated; both
+         are appended to `to_fetch` and both dispatch.  Result dict keyed
+         by `package_name` so the second-completer wins (test asserts
+         exactly one key + 2 fetch calls).
+      2. **Empty-string `index_url`**: passes through unchanged — T9 does
+         not validate it; the client mock receives `""` verbatim.
+      3. **`not-modified` `response.etag` semantics**: when the 304 carries
+         an explicit ETag header it OVERRIDES the cached etag; when
+         `response.etag is None` the cached etag is retained.  (Pinned in
+         `test_not_modified_with_response_etag_overrides`.)
+      4. **`BaseException` catching**: `_fetch_one` catches BaseException
+         (not just Exception) — verified with `KeyboardInterrupt`.
 - **files edited/created**:
+  - Created: `tests/unit/test_parallel_fetcher.py` (38 tests, 100% coverage
+    of `pipenv/resolver/fetcher.py`).
 
 ---
 
@@ -565,9 +624,71 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - Pre-commit hook fails when a forbidden import is introduced (verify with a deliberate failing diff in CI).
   - `python -m towncrier --version` succeeds; the fragment file is detected.
   - `git log --oneline -1 docs/dev/initiative-g-pure-python-design.md` shows the status-update commit.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented on branch `maintenance/code-cleanup-phase5-perf-2026-06`.
+    All six sub-deliverables landed in a single commit:
+    1. **Module exports** (`pipenv/resolver/__init__.py`): added Phase-1
+       re-exports (`Candidate`, `Hash`, `PEP691Client`, `ParsedManifestCache`,
+       `ParallelFetcher`, `SimplePageResponse`, `FetchError`, `CachedManifest`)
+       while preserving the pre-existing Initiative F surface (`_main`,
+       `main`, `resolve_packages`, `which`).  Plan said edit
+       `pipenv/cli/command.py` for the `--clear` wiring, but the cleanest
+       hook is in `pipenv/routines/lock.py` (top of `do_lock`) — that
+       way `pipenv install --clear` (which reaches `do_lock` via
+       `do_init`) is covered without duplicating the call site.
+    2. **`--clear` wiring**: the `_clear_parsed_manifest_cache(project)`
+       helper + its top-of-`do_lock` invocation in
+       `pipenv/routines/lock.py` were landed by the parallel T19
+       agent (commit `f29b87be`) under the T17 banner since both
+       tasks edited the same hot section.  T17's own contribution
+       here is plumbing `clear=state.clear` through `cmd_install`'s
+       `RoutineContext.from_cli` call — that parameter was missing
+       before, so `pipenv install --clear` never reached the
+       resolver's clear path at all (`pipenv lock --clear` already
+       worked).  E2E verified: real `ParsedManifestCache.put(...)`
+       followed by `_clear_parsed_manifest_cache(project)` removes
+       `<cache>/manifests-v1/` and is idempotent on missing dirs.
+    3. **pytest-cov config**: added `[tool.coverage.run]` `source` +
+       `branch=false` and `[tool.coverage.report]` `fail_under=90` /
+       `show_missing=true` / `exclude_lines` to `pyproject.toml`.  The
+       existing `addopts = "-ra --no-cov"` is preserved (it's
+       deliberately fast for the full suite); coverage is gated via
+       a dedicated CI job (`resolver-module-coverage`) that
+       overrides `addopts` and runs the six T11–T16 test files with
+       `--cov-fail-under=90`.  Local verification: full suite at
+       99.67 % line coverage on the six new modules — well above the
+       90 % floor.
+    4. **Pre-commit gate**: added `no-pip-internal-in-resolver` local
+       hook to `.pre-commit-config.yaml`.  Anchored to actual import
+       statements (`^[[:space:]]*(from|import)[[:space:]]+...`) per
+       T1's gotcha so docstring/comment/literal mentions don't
+       false-positive.  Scoped to `^pipenv/resolver/` so T10's
+       deliberate parity import under `tests/` is exempt.  Verified
+       against a deliberate failing file (`exit 1`) and the current
+       clean tree (`exit 0`).
+    5. **News fragment** (`news/initiative-g-phase1-pep691-client.feature.rst`):
+       summarises the Phase-1 surface + the `--clear` invalidation
+       behaviour.  `python -m towncrier build --draft` renders it.
+    6. **Design-doc update**: changed top-of-doc Status line to
+       "Phase 1 shipped; phases 2-4 awaiting maintainer sign-off."
+       Converted §11 Phase 1 acceptance bullets to a `[x]` checklist
+       with a "Shipped at T17" annotation; added two more bullets
+       covering the `--clear` wiring and the CI/pre-commit gates
+       (which were missing from the original list but are
+       acceptance criteria per T17's plan entry).  Phase 2 / 3
+       bullets unchanged.
 - **files edited/created**:
+  - edited: `pipenv/resolver/__init__.py` (Phase-1 re-exports + extended `__all__`)
+  - edited: `pipenv/cli/command.py` (plumb `clear=state.clear` through `cmd_install`'s `RoutineContext.from_cli`)
+  - (already landed by the parallel T19 agent at commit
+    `f29b87be`: `pipenv/routines/lock.py` `_clear_parsed_manifest_cache`
+    helper + top-of-`do_lock` invocation)
+  - edited: `pyproject.toml` (`[tool.coverage.run]` source + `[tool.coverage.report]` `fail_under=90`)
+  - edited: `.pre-commit-config.yaml` (new `no-pip-internal-in-resolver` local hook scoped to `^pipenv/resolver/`)
+  - edited: `.github/workflows/ci.yaml` (new `resolver-module-coverage` job invoking the six T11–T16 suites with `--cov-fail-under=90`)
+  - created: `news/initiative-g-phase1-pep691-client.feature.rst`
+  - edited: `docs/dev/initiative-g-pure-python-design.md` (top-of-doc Status line + §11 Phase 1 acceptance checklist)
 
 ---
 
@@ -638,9 +759,29 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - Setting unset → zero change from current behaviour (verified by unchanged unit tests under T20 with setting absent).
   - Mocking `ParallelFetcher.populate` to raise → `do_lock` still completes successfully (best-effort path).
   - With `verify_ssl=False` on a source, the prefetch does not fail TLS validation against a self-signed cert (test via `tests/pytest-pypi/` local index with a self-signed cert).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented on branch `maintenance/code-cleanup-phase5-perf-2026-06`.  Added `_prefetch_index_manifests_if_enabled(project, lockfile_categories, *, clear)` to `pipenv/routines/lock.py` and invoked it inside `do_lock` immediately after the lockfile-pruning loop and before the use-default-constraints block (between the empty-category fast path's call site and the per-category resolve loop).  Design highlights:
+    - **Zero new top-level imports**: `time`, `pathlib`, the three `pipenv.resolver.*` modules, and `get_requests_session` are imported lazily inside the helper so the cost when the setting is disabled (the common case) is one `dict.get` lookup.
+    - **PipSession transport**: uses `pipenv.utils.internet.get_requests_session(verify_ssl=...)` which returns a `PipSession` already wired to pip's `SafeFileCache` and `PIP_CLIENT_CERT`.  Compatibility with pip's on-disk cache format is therefore guaranteed at runtime by pip's own code — we never reverse-engineer the CacheControl layout.
+    - **Per-verify session grouping**: sources are bucketed by `verify_ssl` into at most two sessions.  Phase-2 dispatches via whichever verify policy is more common (defaulting to `True` when both exist).  Mixed-verify projects are documented as a known phase-3 follow-up; the minority sources simply miss the prefetch and fall through to pip's normal cold fetch (best-effort is the contract).
+    - **Best-effort failure mode**: every step is wrapped in `try / except Exception: return` (or an inner pass for the log-emit step) so `do_lock` continues unchanged on any prefetch failure (offline network, unreadable cache dir, T7/T8/T9 modules absent, populate raises, etc.).  `--clear` short-circuits the helper entirely.
+    - **No URL logging**: only a single `Prefetched N package indexes in M.MMs.` line is emitted, gated on `is_verbose() and not is_quiet()`.  Verified in smoke that no host, scheme, or credential string reaches the captured output at any verbosity.
+    - Insertion point: `pipenv/routines/lock.py` line 227 (the call site sits between the lockfile-pruning loop and the `use_default_constraints` block, satisfying the plan's "between the empty-category fast path and the per-category loop" criterion since the empty-category logic itself is inside the per-category loop).
+  - 2026-05-12: GREEN smoke evidence (7 inline scenarios via `unittest.mock`):
+    - setting `False` (default) → helper returns before importing T7/T8/T9 or constructing a session.
+    - `clear=True` even with setting `True` → short-circuits before session ctor.
+    - setting `True` + `get_requests_session` raises → swallowed; no propagation.
+    - setting `True` + `ParallelFetcher.populate` raises → swallowed; `populate` was called exactly once.
+    - setting `True` + normal path → `populate(targets)` called with the cross product (2 pkgs × 2 sources = 4 tuples, both expected ones present).
+    - empty Pipfile → no session ctor call.
+    - empty sources list → no session ctor call.
+    - Verbose-output captured: `'[dim]Prefetched 1 package indexes in 0.00s.[/dim]'` — zero leak of `USER`, `SECRET`, `pypi.org`, `private.example.com`, `https://`, or `http://`.
+    - Verbose OFF → silent (no `err.print` calls).
+  - 2026-05-12: Regression check: `pytest tests/unit/test_lock_sync_uninstall_context_routing.py tests/unit/test_locking_no_mutation.py tests/unit/test_lockfile.py` → 41 passed.  No new top-level imports in `pipenv/routines/lock.py` (verified by `grep -n "^import\|^from" pipenv/routines/lock.py`: 3 stdlib + 2 pipenv imports, identical to pre-T19).
+  - 2026-05-12: Acceptance items verified locally: #2 (no URL/credential in stderr at verbose), #3 (setting unset → behaviour unchanged; smoke A passes), #4 (`populate` raises → `do_lock` completes; smoke D passes).  Items #1 (identical lockfile hash) and #5 (self-signed cert via `verify_ssl=False`) require a real Pipfile + network — they're owned by T20's integration suite.
 - **files edited/created**:
+  - `pipenv/routines/lock.py` — added `_prefetch_index_manifests_if_enabled` helper (~140 lines incl. docstring) and a 7-line invocation site inside `do_lock`.
 
 ---
 
