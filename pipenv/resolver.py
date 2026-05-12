@@ -60,13 +60,6 @@ def get_parser():
         default=None,
     )
     parser.add_argument("--system", action="store_true", default=False)
-    parser.add_argument("--parse-only", action="store_true", default=False)
-    parser.add_argument(
-        "--pipenv-site",
-        metavar="pipenv_site_dir",
-        action="store",
-        default=os.environ.get("PIPENV_SITE_DIR"),
-    )
     parser.add_argument(
         "--requirements-dir",
         metavar="requirements_dir",
@@ -91,7 +84,6 @@ def get_parser():
         action="store",
         default=None,
     )
-    parser.add_argument("packages", nargs="*")
     return parser
 
 
@@ -103,19 +95,15 @@ def handle_parsed_args(parsed):
     if parsed.verbose:
         os.environ["PIPENV_VERBOSITY"] = "1"
         os.environ["PIP_RESOLVER_DEBUG"] = "1"
+    packages = {}
     if parsed.constraints_file:
         with open(parsed.constraints_file) as constraints:
             file_constraints = constraints.read().strip().split("\n")
         os.unlink(parsed.constraints_file)
-        packages = {}
         for line in file_constraints:
             dep_name, pip_line = line.split(",", 1)
             packages[dep_name] = pip_line
-        parsed.packages = packages
-    elif isinstance(parsed.packages, list):
-        # Convert list of package specs from command line to dict format
-        # Expected format: each item is either "name" or "name==version" etc.
-        parsed.packages = _parse_package_list(parsed.packages)
+    parsed.packages = packages
     # Read resolved default deps (pinned versions from already-resolved default
     # category, including transitive deps) to use as constraints for non-default
     # categories.  See gh-4665 / gh-4473.
@@ -128,22 +116,6 @@ def handle_parsed_args(parsed):
         except (json.JSONDecodeError, OSError):
             parsed.resolved_default_deps = None
     return parsed
-
-
-def _parse_package_list(package_list):
-    """Convert a list of package specs to a dict with package names as keys."""
-    from pipenv.patched.pip._vendor.packaging.requirements import Requirement
-
-    packages = {}
-    for pkg_spec in package_list:
-        try:
-            req = Requirement(pkg_spec)
-            # Use the requirement name as key, full spec as value
-            packages[req.name] = pkg_spec
-        except Exception:  # noqa: PERF203
-            # If parsing fails, use the spec as both key and value
-            packages[pkg_spec] = pkg_spec
-    return packages
 
 
 @dataclass
@@ -487,7 +459,6 @@ def _main(
     write,
     requirements_dir,
     packages,
-    parse_only=False,
     category=None,
     resolved_default_deps=None,
 ):
@@ -562,7 +533,6 @@ def main(argv=None):
         parsed.write,
         parsed.requirements_dir,
         parsed.packages,
-        parse_only=parsed.parse_only,
         category=parsed.category,
         resolved_default_deps=parsed.resolved_default_deps,
     )
