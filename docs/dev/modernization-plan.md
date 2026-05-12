@@ -644,7 +644,6 @@ output file between parallel agents.
     objects.
 - **files edited/created**:
   - `docs/dev/initiative-c-params.md` (new, 240-row table + analysis)
-- **files edited/created**:
 
 #### T_C.3: Design `RoutineContext` proposal
 - **depends_on**: [T_C.2]
@@ -662,9 +661,33 @@ output file between parallel agents.
 - **validation**: Design doc exists, includes type signatures and one
   rewritten call site for illustration, has a "decisions needed"
   section for any open choices.
-- **status**: Not Completed
+- **status**: Completed (commit 49f6892f) — **awaits maintainer sign-off
+  before T_C.4 begins**
 - **log**:
+  782-line design proposal. 32 fields across four nested frozen
+  dataclasses (TargetEnv: 5, InstallPolicy: 8, PackageSelection: 10,
+  ExecutionOptions: 9). Includes the concrete `do_install` migration
+  example (17 params → `(project, ctx)`). The agent executed the
+  proposed dataclasses at runtime as a sanity check —
+  `RoutineContext.from_cli(...)` constructs cleanly,
+  `dataclasses.replace` produces a new context without mutating the
+  original, derived properties (`allow_global` derives from `system`)
+  work.
+
+  Seven decision questions for maintainer sign-off: field grouping
+  correctness, `Project` placement (separate first arg vs absorbed
+  into ctx), naming, module location (`pipenv/routines/context.py` vs
+  alternatives), `from_cli` vs `__init__`, uninstall-flag placement,
+  helper-method bundling.
+
+  Seven open implementation questions for follow-up: `categories`
+  defaults, `BAD_PACKAGES` co-location, `requirements_directory`
+  layering, Pipfile-vs-lockfile category aliases, audit/scan scope
+  (deferred to a sibling `AuditOptions` per the design), `None` vs
+  `()` for `extra_pip_args`, backwards-compat shim for external API
+  consumers.
 - **files edited/created**:
+  - `docs/dev/initiative-c-design.md` (new, 782 lines)
 
 #### T_C.4: Introduce `RoutineContext` alongside existing params
 - **depends_on**: [T_C.3]
@@ -776,9 +799,36 @@ output file between parallel agents.
   (PRD suggests `Sources` for self-containedness; verify or revise).
 - **validation**: Inventory table exists; first extraction target
   identified with rationale.
-- **status**: Not Completed
+- **status**: Completed (commit 7297c8f3) — **awaits maintainer sign-off
+  before T_D.2 begins**
 - **log**:
+  434-line inventory covering 93 public members of `Project` (41
+  `@property`, 1 `@cached_property`, 48 `def`, 2 `@classmethod`, 1
+  `@staticmethod`). Bucket distribution: Pipfile 38, Sources 16,
+  VenvLocator 13, Lockfile 13, coordinator 7, helper 3, Settings 3.
+  Sums to 93.
+
+  **First-extraction recommendation: `Sources`** (confirms PRD's
+  nomination). Smallest of the four "real" collaborators (Pipfile /
+  Lockfile / Sources / VenvLocator), single outbound write
+  (`add_index_to_pipfile`), no env-var coupling on its core methods.
+
+  Six decision questions for maintainer sign-off: collaborator-split
+  correctness, module location, first-target sign-off,
+  deprecation-warning timing for the delegating-wrapper window,
+  helper-bucket disposition, and resolution of the `self.pipfile`
+  reference at `project.py:586`.
+
+  Notable side-finds flagged for review:
+  - **Likely bug at `pipenv/project.py:586`**: `self.pipfile.get(...)`
+    references an attribute that doesn't exist on `Project` (likely
+    meant `parsed_pipfile` or `_pipfile`). Worth investigating
+    independent of the extraction.
+  - **Orphan-looking `_read_pyproject` at `project.py:782`**: surfaced
+    during the inventory walk; flagged for potential dead-code
+    cleanup.
 - **files edited/created**:
+  - `docs/dev/initiative-d-inventory.md` (new, 434 lines)
 
 #### T_D.2: First extraction proof-of-concept (`Sources` or per-T_D.1 winner)
 - **depends_on**: [T_D.1]
