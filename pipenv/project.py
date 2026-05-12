@@ -18,9 +18,14 @@ import contextlib
 
 from pipenv.environment import Environment
 from pipenv.environments import Setting, is_in_virtualenv
-from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.exceptions import ConfigurationError
+
+# ``InstallCommand`` lazily imported inside ``Project.init_pipfile``
+# (the only call site).  The eager import pulls ~79 ms of pip-
+# internal command / network machinery into every ``pipenv``
+# invocation, including ones that never instantiate a Project that
+# initialises a Pipfile.
 from pipenv.utils import err
 from pipenv.utils.constants import is_type_checking
 from pipenv.utils.dependencies import python_version
@@ -369,6 +374,8 @@ class Project:
         Settings (PIPENV_DEFAULT_PYTHON_VERSION) and Pipfile (write).
         """
         # Inherit the pip's index configuration of install command.
+        from pipenv.patched.pip._internal.commands.install import InstallCommand
+
         command = InstallCommand(name="InstallCommand", summary="pip Install command.")
         indexes = command.cmd_opts.get_option("--extra-index-url").default
         sources = [self.default_source]
