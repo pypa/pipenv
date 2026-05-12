@@ -82,9 +82,17 @@ Wave D (depends on Wave C):                                               │
   - `python -c "from pipenv.resolver.schema import ResolverRequest, ResolverResponse, LockedRequirement, SCHEMA_VERSION; assert SCHEMA_VERSION == 1"` passes
   - `python -c "from pipenv.resolver.schema import LockedRequirement; LockedRequirement(name='foo')"` raises `ValueError` (post-init invariant fires)
   - Schema module **does not import pip-internal types in module-level namespace** — only inside `from_install_requirement` body. Verify with `grep -n "from pipenv.patched" pipenv/resolver/schema.py` returning zero hits OR only inside function bodies.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `85993ca4` `feat(resolver): introduce typed schema module + canonical LockedRequirement formatter + golden fixtures`. RED→GREEN cycle: 17 unit tests in `TestLockedRequirementInvariants` + `TestEnvelopeRoundtrip` failed with `ModuleNotFoundError` before `schema.py` landed, all 17 pass after. Full unit suite 694 passed / 9 skipped (was 677 / 9 prior). Acceptance grep gates clean (zero `pipenv.patched` top-level imports; zero `typing.Self` / `tomllib`). 27 golden JSON snapshots committed under `tests/unit/fixtures/resolver_schema/`.
+  - **Boundary-crossing note**: A1's deliverable location `pipenv/resolver/schema.py` requires `pipenv/resolver/` to exist as a package, which Python's import system makes mutually exclusive with the historical `pipenv/resolver.py` file (the package directory shadows the .py module). A1 therefore moved `pipenv/resolver.py` → `pipenv/resolver/main.py` and added a re-exporting `__init__.py` for `Entry`, `PackageRequirement`, `PackageSource`, `_main`, `main`, `process_resolver_results`, `resolve_packages`, `which`. The three test modules at `tests/unit/test_dependencies.py`, `tests/unit/test_resolver_regressions.py`, `tests/unit/test_locking_no_mutation.py` continue to import these names through the shim. `pyproject.toml`'s console-script `pipenv.resolver:main` still resolves correctly. A2's remaining scope is therefore reduced — see A2's log when it lands.
 - **files edited/created**:
+  - **CREATED** `pipenv/resolver/__init__.py` — package + re-export shim
+  - **CREATED** `pipenv/resolver/schema.py` — typed dataclass envelope (14 dataclasses + `SCHEMA_VERSION`)
+  - **MOVED** `pipenv/resolver.py` → `pipenv/resolver/main.py` (necessity, see boundary-crossing note above)
+  - **CREATED** `tests/unit/test_resolver_schema.py` — 17 tests covering invariants + envelope round-trip
+  - **CREATED** `tests/unit/fixtures/resolver_schema/format_requirement_for_lockfile/*.json` — 16 golden snapshots
+  - **CREATED** `tests/unit/fixtures/resolver_schema/entry_get_cleaned_dict/*.json` — 11 golden snapshots
 
 ### A2: Convert `pipenv/resolver.py` → `pipenv/resolver/` package (pure restructure, NO behavior change)
 
