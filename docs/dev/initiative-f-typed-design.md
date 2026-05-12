@@ -369,6 +369,80 @@ class Diagnostics:
     resolver_log: Sequence[str] = ()
 ```
 
+### 3.6 The target-Python execution environment (load-bearing constraint)
+
+`pipenv-resolver` is **not** invoked under the same Python that the
+user typed `pipenv` with. It runs under the *target environment's*
+Python — the interpreter that pipenv has just created (or is reusing)
+inside the project's virtualenv. F.1 §3.2 documents the invocation
+path: `pipenv/utils/resolver.py` resolves the target Python with
+`which("python", ...)` against the virtualenv's PATH, then runs that
+interpreter against `pipenv/resolver.py` (which will be
+`pipenv/resolver/main.py` after T_F.3 A2) as a script
+(F.1 §6.2 — `[venv]/bin/python /path/to/pipenv/resolver/main.py …`).
+The parent's interpreter and the resolver's interpreter are routinely
+different versions (e.g. pipenv installed under 3.13 driving a 3.10
+project venv).
+
+This drives several design constraints that look like footnotes but
+are actually load-bearing:
+
+1. **Schema module must import on every Python pipenv supports as a
+   project-Python target.** `pipenv/resolver/schema.py` runs inside
+   the target venv. Today pipenv supports CPython 3.10+ in
+   `pyproject.toml`; the schema module sticks to stdlib idioms that
+   work back to 3.10 (`@dataclass(frozen=True)`,
+   `from __future__ import annotations` for forward refs in the
+   `ResolverResult` union, `Sequence`/`Mapping`/`Optional` from
+   `typing`). No `match` statements unless 3.10+ is enforced
+   explicitly — it is, so they're allowed; no `Self` from `typing`
+   pre-3.11 — out.
+2. **No new vendored dependencies for the schema.** The "no new vendor
+   deps" rule from T_E.1 §6 sign-off is doubly load-bearing here:
+   anything the schema imports at module top-level must be installable
+   into every supported target venv. Plain stdlib survives every
+   target. Pydantic / msgspec / attrs would have to be vendored into
+   `pipenv/vendor/` (we don't want that) and importable from every
+   target Python (varies).
+3. **No reaching into `pipenv.patched.pip._internal` at schema
+   module-level.** The pip patch chain is only safe to import when
+   running inside an interpreter where pipenv itself is on the
+   `sys.path`. The subprocess achieves this because `pipenv-resolver`
+   is launched with `PYTHONPATH` pointing at the parent pipenv's site
+   (F.1 §6.2). The schema module — being in `pipenv/` — gets imported
+   *because* `PYTHONPATH` is set, but the import path must not assume
+   the *target* venv has pipenv installed (it usually does not).
+   `from_install_requirement(req)` accepts the pip-internal
+   `InstallRequirement` only inside its function body where the
+   subprocess is the caller.
+4. **`Diagnostics.pip_version` reports the pip version *the
+   subprocess* sees**, which is pipenv's vendored pip (`pipenv/patched/
+   pip._vendor.pip.__version__`) — NOT whatever pip the target venv
+   has installed. The field's purpose is "what resolved this lockfile",
+   so the vendored answer is the correct one; we just have to be
+   explicit so future readers don't read it as "the user's pip."
+5. **`schema_version` mismatch can fire if the parent's pipenv and the
+   subprocess's pipenv come from different installs** — e.g. a user
+   has `pipenv` installed both in their global Python (one version)
+   and inside the project venv (another version), and pipenv ends up
+   using one to launch the other. The mismatch path in §3.2's
+   `InternalError` exists precisely for this case; it's not just a
+   defensive-programming flourish.
+6. **No `__future__.annotations` in the on-the-wire `to_json_dict`
+   output.** The wire format is JSON, parsed by both sides. The
+   schema module *may* use string annotations in source for forward
+   refs; the *serialized form* uses concrete primitive values only
+   (str / int / bool / list / dict / None). The two-stage
+   `from_json_dict` (read `schema_version` first, then dispatch)
+   referenced in §3.2 is a runtime concern, not a typing one — it
+   reads the dict, it does not introspect the dataclass.
+
+This section is informational; it does not change the proposed shape
+in §3.1–§3.5. It records the *load-bearing* premise that the schema
+must survive being imported on every supported target Python, so that
+future readers (and code reviewers of T_F.3) know what discipline was
+applied.
+
 ## 4. Migration path
 
 Per the T_C.3 §9 / T_E.1 §6 sign-offs, backwards compatibility is **not
