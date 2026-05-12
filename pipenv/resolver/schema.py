@@ -482,6 +482,48 @@ class LockedRequirement:
             subdirectory=data.get("subdirectory"),
         )
 
+    @classmethod
+    def from_lockfile_dict(cls, data: Mapping[str, Any]) -> LockedRequirement:
+        """Inverse of :meth:`to_lockfile_dict`.
+
+        Reconstructs a ``LockedRequirement`` from the flat top-level
+        lockfile-entry dict shape (VCS backend as top-level key rather
+        than the nested ``vcs`` object used by :meth:`to_json_dict`).
+        Used by the C1 parity tests to round-trip the A1 golden
+        snapshots through the typed schema.
+
+        VCS backends are detected by membership in the canonical list
+        ``{"git", "hg", "svn", "bzr"}``.  ``ref`` / ``subdirectory``
+        attach to the resulting ``VCSPin`` when a VCS backend is present.
+        """
+        vcs_backends = ("git", "hg", "svn", "bzr")
+        vcs_pin: VCSPin | None = None
+        for backend in vcs_backends:
+            if backend in data:
+                vcs_pin = VCSPin(
+                    backend=backend,
+                    url=data[backend],
+                    ref=data.get("ref"),
+                    subdirectory=data.get("subdirectory"),
+                )
+                break
+        return cls(
+            name=data["name"],
+            version=data.get("version") if vcs_pin is None else None,
+            extras=tuple(data.get("extras", ())),
+            markers=data.get("markers"),
+            hashes=tuple(data.get("hashes", ())),
+            index=data.get("index"),
+            vcs=vcs_pin,
+            file=data.get("file"),
+            path=data.get("path"),
+            editable=bool(data.get("editable", False)),
+            no_binary=bool(data.get("no_binary", False)),
+            subdirectory=(
+                data.get("subdirectory") if vcs_pin is None else None
+            ),
+        )
+
     def to_lockfile_dict(self) -> dict:
         """Return the TOML-ready dict that ``prepare_lockfile`` consumes.
 
