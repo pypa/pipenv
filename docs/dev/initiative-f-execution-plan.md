@@ -241,9 +241,21 @@ Wave D (depends on Wave C):                                               │
   - Schema-version mismatch at `from_json_dict` parse time raises with a clear message.
 - **validation**:
   - `python -m pytest tests/unit/test_resolver_schema.py -v` shows ≥ 20 tests, all green
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `0c4a11a9` `feat(resolver-schema): add LockedRequirement.from_lockfile_dict for parity tests` — one-line touch-up to `pipenv/resolver/schema.py` adding the inverse of `to_lockfile_dict` (committed separately so the schema diff is clean).
+  - 2026-05-12 — `de3edea9` `test(resolver-schema): expand unit suite with parity, dispatch, comma-in-marker cases (T_F.3 C1 + C3)`. Appends five test classes to `tests/unit/test_resolver_schema.py`:
+    - `TestFromInstallRequirementParity` — parametrised against the A1 golden snapshots: 16 cases from `format_requirement_for_lockfile/*.json` + 11 cases from `entry_get_cleaned_dict/*.json`, plus 2 fixture-count guards. Each snapshot round-trips through `LockedRequirement.from_lockfile_dict` -> `to_lockfile_dict` byte-for-byte. **Strategy choice**: shape-parity (snapshot dict -> typed -> dict) rather than reconstructing a real pip `InstallRequirement` from the snapshot; input-level parity (pip `InstallRequirement` -> typed schema) is C2's job.
+    - `TestResolverResponseDispatch` — 4 cases: one per `result.kind ∈ {success, resolution_error, internal_error}` plus an unknown-kind rejection. Each round-trips through `to_json_dict` / `from_json_dict`.
+    - `TestSchemaVersionMismatch` — 2 cases: the `ValueError` raised on schema-version mismatch must mention both the received version AND the expected `SCHEMA_VERSION` constant (per Q2). Covers both `ResolverResponse` and `ResolverRequest`.
+    - `TestVCSPinAndExtras` — 8 cases: one round-trip per backend (git, hg, svn, bzr) × two encodings (nested `to_json_dict` shape and flat `to_lockfile_dict` shape).
+    - `TestCommaInMarkerRegression` (C3 / Q7) — 2 cases pinning the comma-in-marker regression: a commaful marker on `PackageSpecs.specs` and on `LockedRequirement.markers`.
+  - RED -> GREEN cycle: the new classes failed RED with `AttributeError` for `LockedRequirement.from_lockfile_dict` before `0c4a11a9` landed. All 45 new tests GREEN after.
+  - Total `test_resolver_schema.py` count: 17 (A1 baseline) + 45 (new) = **62 tests**, comfortably above the plan's ≥ 20 target.
+  - Full unit suite: **758 passed / 9 skipped** (was 713 / 9 prior to C1).
 - **files edited/created**:
+  - **EDITED** `pipenv/resolver/schema.py` — added `LockedRequirement.from_lockfile_dict` classmethod (+42 lines)
+  - **EDITED** `tests/unit/test_resolver_schema.py` — added 5 new test classes (+400 / -12 lines)
 
 ### C2: JSON wire-shape integration test
 
@@ -291,9 +303,11 @@ Wave D (depends on Wave C):                                               │
   Fixture: `ResolverRequest` with one package whose pip-line includes a comma-bearing marker. Assert the round-trip preserves it byte-for-byte.
 - **validation**:
   - The test exists and passes
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Landed in the same commit as C1 (`de3edea9` `test(resolver-schema): expand unit suite with parity, dispatch, comma-in-marker cases (T_F.3 C1 + C3)`) per the plan note that "C3 adds a fixture + test case to the C1 file". The new `TestCommaInMarkerRegression` class adds 2 cases: (1) a commaful PEP 508 marker (`python_version >= "3.10", sys_platform == "linux"`) on `PackageSpecs.specs` round-trips through `ResolverRequest.to_json_dict` / `from_json_dict` byte-for-byte (and survives JSON re-serialisation); (2) the same marker on `LockedRequirement.markers` round-trips. Each test cites F.1 §8 row 9 (the legacy `str.split(",", 1)` bug) and design Q7 in its docstring so a future grep finds the pin.
 - **files edited/created**:
+  - **EDITED** `tests/unit/test_resolver_schema.py` — added `TestCommaInMarkerRegression` class (part of the +400 line C1 + C3 diff)
 
 ### C4: News fragment
 
