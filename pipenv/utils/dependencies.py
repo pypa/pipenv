@@ -251,8 +251,7 @@ def extract_vcs_url(vcs_url):
     return clean_url
 
 
-def add_ssh_scheme_to_git_uri(uri):
-    # type: (S) -> S
+def add_ssh_scheme_to_git_uri(uri: str | bytes | None) -> str | bytes | None:
     """Cleans VCS uris from pip format."""
     if isinstance(uri, str):
         # Add scheme for parsing purposes, this is also what pip does
@@ -266,8 +265,7 @@ def add_ssh_scheme_to_git_uri(uri):
     return uri
 
 
-def is_vcs(pipfile_entry):
-    # type: (PipfileType) -> bool
+def is_vcs(pipfile_entry: object) -> bool:
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry if key in VCS_LIST)
