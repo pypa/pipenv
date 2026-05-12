@@ -61,7 +61,6 @@ from pipenv.utils.internet import (
 from pipenv.utils.locking import atomic_open_for_write
 from pipenv.utils.pylock import PylockFile, find_pylock_file
 from pipenv.utils.project import get_default_pyproject_backend
-from pipenv.utils.requirements import normalize_name
 from pipenv.utils.shell import (
     expand_url_credentials,
     find_requirements,
@@ -348,7 +347,7 @@ class Project:
             return None
 
     def get_hashes_from_remote_index_urls(self, ireq, source):
-        normalized_name = normalize_name(ireq.name)
+        normalized_name = pep423_name(ireq.name)
         url_name = normalized_name.replace(".", "-")
         pkg_url = f"{source['url']}/{url_name}/"
         session = self.get_requests_session_for_source(source)
@@ -1351,7 +1350,7 @@ class Project:
         path_specifier = determine_path_specifier(package)
         vcs_specifier = determine_vcs_specifier(package)
         name = self.get_package_name_in_pipfile(req_name, category=category)
-        normalized_name = normalize_name(req_name)
+        normalized_name = pep423_name(req_name)
 
         extras = package.extras
         specifier = "*"

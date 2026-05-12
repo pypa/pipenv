@@ -132,13 +132,26 @@ def pep440_version(version):
 
 
 def pep423_name(name):
-    """Normalize package name to PEP 423 style standard."""
-    name = name.lower()
-    if any(i not in name for i in (VCS_LIST + SCHEME_LIST)):
-        return name.replace("_", "-")
+    """Normalize package name to PEP 423 style standard.
 
-    else:
-        return name
+    Lowercases ``name`` and rewrites ``_`` to ``-`` for plain
+    distribution names. If ``name`` contains a VCS scheme token
+    (``git``, ``svn``, ``hg``, ``bzr``) or URL scheme token
+    (``http://``, ``https://``, ``ftp://``, ``ftps://``, ``file://``)
+    the underscore rewrite is skipped so URL/VCS specifiers are not
+    mangled (e.g. ``git+ssh://host/path/some_repo``).
+
+    Note: prior to the W4 cleanup this function had an inverted
+    predicate (``any(token not in name ...)``) that made the early
+    return the common case and the underscore-preserving branch
+    unreachable. The predicate has been corrected; for bare package
+    names (the dominant call pattern) the observable result is
+    unchanged.
+    """
+    name = name.lower()
+    if not any(token in name for token in (VCS_LIST + SCHEME_LIST)):
+        return name.replace("_", "-")
+    return name
 
 
 def translate_markers(pipfile_entry):

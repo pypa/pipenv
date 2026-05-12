@@ -708,6 +708,83 @@ class TestDependencyAsPipInstallLineEditable:
 
 
 
+class TestPep423Name:
+    """Tests for pep423_name (lowercase + underscore-to-hyphen normalisation).
+
+    These tests pin the post-W4 behaviour:
+    * Plain names get lowercased and have ``_`` rewritten to ``-``.
+    * Inputs that contain a VCS scheme token (``git``, ``svn``, ``hg``, ``bzr``)
+      or URL scheme token (``http://``, ``https://`` ...) are returned with
+      only the lowercase rewrite applied; the ``_``->``-`` rewrite is
+      *skipped* so URL/VCS specifiers are not mangled.
+
+    The W4 bug fix corrects ``any(token not in name ...)`` (which was True
+    for any name missing at least one scheme token, i.e. every real name,
+    making the ``else`` branch dead) to
+    ``not any(token in name ...)`` -- skip the rewrite only when a scheme
+    token *is* present in the input.
+    """
+
+    def _call(self, name):
+        from pipenv.utils.dependencies import pep423_name
+
+        return pep423_name(name)
+
+    def test_plain_lowercase_unchanged(self):
+        assert self._call("requests") == "requests"
+
+    def test_mixed_case_lowercased(self):
+        assert self._call("MyPkg") == "mypkg"
+
+    def test_underscore_to_hyphen_lowercase(self):
+        assert self._call("my_pkg") == "my-pkg"
+
+    def test_mixed_case_with_underscore(self):
+        # Regression: the dead-`else` branch in the buggy version happened
+        # to return this correctly because it took the early-return path.
+        # After the fix this still must work.
+        assert self._call("My_Pkg") == "my-pkg"
+
+    def test_multiple_underscores(self):
+        assert self._call("some_long_name") == "some-long-name"
+
+    def test_dot_preserved(self):
+        # pep423_name only rewrites underscores, not dots.
+        assert self._call("zope.interface") == "zope.interface"
+
+    def test_already_hyphenated(self):
+        assert self._call("python-dateutil") == "python-dateutil"
+
+    def test_vcs_token_in_name_skips_underscore_rewrite(self):
+        # An input containing a VCS token (e.g. "git") should be returned
+        # with the lowercase applied but underscores preserved -- this is
+        # the corrected behaviour the dead-`else` was *meant* to express.
+        # The function returns the input minus case-only changes.
+        result = self._call("git+ssh://github.com/foo/some_repo")
+        assert "_" in result
+        assert result == "git+ssh://github.com/foo/some_repo"
+
+    def test_https_url_skips_underscore_rewrite(self):
+        result = self._call("https://example.com/pkg_with_underscore.tar.gz")
+        assert "_" in result
+        assert result == "https://example.com/pkg_with_underscore.tar.gz"
+
+    def test_http_url_skips_underscore_rewrite(self):
+        result = self._call("http://example.com/some_pkg")
+        assert result == "http://example.com/some_pkg"
+
+    def test_file_url_skips_underscore_rewrite(self):
+        result = self._call("file:///tmp/local_pkg")
+        assert result == "file:///tmp/local_pkg"
+
+    def test_vcs_token_uppercase_input_still_lowercased(self):
+        # The lowercase pass runs before the scheme-token check, so an
+        # uppercase URL still gets lowercased and the token check then
+        # matches the lowercase form.
+        result = self._call("HTTPS://Example.com/pkg_name")
+        assert result == "https://example.com/pkg_name"
+
+
 class TestGetConstraintsFromResolvedDeps:
     """Tests for get_constraints_from_resolved_deps (gh-4665, gh-4473)."""
 

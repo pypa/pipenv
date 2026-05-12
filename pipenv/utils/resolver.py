@@ -34,7 +34,6 @@ from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import determine_vcs_revision_hash, normalize_vcs_url
 from pipenv.utils.fileutils import create_tracked_tempdir
-from pipenv.utils.requirements import normalize_name
 
 from .dependencies import (
     HackedPythonVersion,
@@ -43,6 +42,7 @@ from .dependencies import (
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
     is_pinned_requirement,
+    pep423_name,
     prepare_constraint_file,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
@@ -1001,7 +1001,7 @@ class Resolver:
 
         # Handle resolved packages
         for ireq in self.resolved_tree:
-            if normalize_name(ireq.name) in self.skipped:
+            if pep423_name(ireq.name) in self.skipped:
                 continue
 
             collected_hashes = self.hashes.get(ireq, set())

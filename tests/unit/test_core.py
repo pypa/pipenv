@@ -530,7 +530,7 @@ def test_install_uses_metadata_name_for_headers():
     lowercased requirement name that comes from the lockfile.
 
     Example: CPyCppyy is stored as 'cpycppyy' in the lockfile (due to
-    normalize_name() in format_requirement_for_lockfile), so self.req.name
+    pep423_name() in format_requirement_for_lockfile), so self.req.name
     is 'cpycppyy'.  But the wheel's METADATA has 'Name: CPyCppyy'.
     The headers must land in …/include/site/pythonX.Y/CPyCppyy/ not
     …/cpycppyy/ so that downstream consumers (cppyy) can find them.
