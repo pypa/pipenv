@@ -60,6 +60,7 @@ def _open_editor(filename):
 
 
 def cmd_install(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.install import do_install
 
     if state.installstate.all_categories:
@@ -67,24 +68,28 @@ def cmd_install(args, state):
     else:
         apply_default_categories(args, state)
 
-    do_install(
-        state.project,
-        dev=state.installstate.dev,
+    ctx = RoutineContext.from_cli(
+        # target_env
+        system=state.system,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
-        system=state.system,
-        ignore_pipfile=state.installstate.ignore_pipfile,
-        requirementstxt=state.installstate.requirementstxt,
+        site_packages=state.site_packages,
+        # install_policy
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
-        index=state.index,
+        skip_lock=state.installstate.skip_lock,
+        ignore_pipfile=state.installstate.ignore_pipfile,
+        # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        site_packages=state.site_packages,
+        categories=state.installstate.categories,
+        dev=state.installstate.dev,
+        index=state.index,
+        requirementstxt=state.installstate.requirementstxt,
+        # execution_options
         extra_pip_args=state.installstate.extra_pip_args,
-        pipfile_categories=state.installstate.categories,
-        skip_lock=state.installstate.skip_lock,
     )
+    do_install(state.project, ctx)
 
 
 def cmd_remove(args, state):

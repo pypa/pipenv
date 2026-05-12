@@ -3,10 +3,12 @@ import queue
 import sys
 import warnings
 from collections import defaultdict
+from dataclasses import replace
 from tempfile import NamedTemporaryFile
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
@@ -350,107 +352,127 @@ def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror):
         )
 
 
-def do_install(
-    project,
-    packages=False,
-    editable_packages=False,
-    index=False,
-    dev=False,
-    python=False,
-    pypi_mirror=None,
-    system=False,
-    ignore_pipfile=False,
-    requirementstxt=False,
-    pre=False,
-    deploy=False,
-    site_packages=None,
-    extra_pip_args=None,
-    pipfile_categories=None,
-    skip_lock=False,
-):
+def do_install(project, ctx: RoutineContext) -> None:
+    """Install user-requested packages and/or apply the Pipfile.
+
+    Consumes a :class:`~pipenv.routines.context.RoutineContext` per the
+    design doc (``docs/dev/initiative-c-design.md`` sections 2 and 6).
+    Internal helpers (``handle_new_packages``, ``do_init``,
+    ``do_install_validations``, ``do_install_dependencies``) keep their
+    pre-context signatures for now; T_C.6 migrates them.
+    """
     requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
     warnings.filterwarnings("ignore", category=ResourceWarning)
-    packages = packages if packages else []
-    editable_packages = (
-        [normalize_editable_path_for_pip(p) for p in editable_packages]
-        if editable_packages
-        else []
+
+    # Normalize editable paths up front and fold them back into the
+    # context so downstream readers see the canonicalised values.
+    pkg_sel = ctx.package_selection
+    editable_normalized = tuple(
+        normalize_editable_path_for_pip(p) for p in pkg_sel.editable_packages if p
     )
+    ctx = replace(
+        ctx,
+        package_selection=replace(pkg_sel, editable_packages=editable_normalized),
+    )
+
+    # Pin default categories if the user didn't pass any. Matches the
+    # pre-migration ``do_install`` behaviour exactly.
+    if not ctx.package_selection.categories:
+        default_cats = (
+            ("dev-packages",) if ctx.package_selection.dev else ("packages",)
+        )
+        ctx = replace(
+            ctx,
+            package_selection=replace(
+                ctx.package_selection, categories=default_cats
+            ),
+        )
+
+    # Local working copies of the flags / selections used below.
+    target = ctx.target_env
+    policy = ctx.install_policy
+    sel = ctx.package_selection
+    exec_opts = ctx.execution_options
+
+    packages = list(sel.packages) if sel.packages else []
+    editable_packages = list(sel.editable_packages) if sel.editable_packages else []
     package_args = [p for p in packages if p] + [p for p in editable_packages if p]
-    new_packages = []
-    if dev and not pipfile_categories:
-        pipfile_categories = ["dev-packages"]
-    elif not pipfile_categories:
-        pipfile_categories = ["packages"]
+    pipfile_categories = list(sel.categories)
+    new_packages: list[tuple[str, str]] = []
 
     ensure_project(
         project,
-        python=python,
-        system=system,
+        python=target.python,
+        system=target.system,
         warn=True,
-        deploy=deploy,
+        deploy=policy.deploy,
         skip_requirements=False,
-        pypi_mirror=pypi_mirror,
-        site_packages=site_packages,
+        pypi_mirror=target.pypi_mirror,
+        site_packages=target.site_packages,
         pipfile_categories=pipfile_categories,
-        lockfile_only=ignore_pipfile,
+        lockfile_only=policy.ignore_pipfile,
     )
 
     do_install_validations(
         project,
         package_args,
         requirements_directory,
-        dev=dev,
-        system=system,
-        ignore_pipfile=ignore_pipfile,
-        requirementstxt=requirementstxt,
-        pre=pre,
-        deploy=deploy,
+        dev=sel.dev,
+        system=target.system,
+        ignore_pipfile=policy.ignore_pipfile,
+        requirementstxt=sel.requirementstxt,
+        pre=policy.pre,
+        deploy=policy.deploy,
         categories=pipfile_categories,
-        skip_lock=skip_lock,
+        skip_lock=policy.skip_lock,
     )
 
     do_init(
         project,
         package_args,
-        system=system,
-        allow_global=system,
-        ignore_pipfile=ignore_pipfile,
-        deploy=deploy,
-        pypi_mirror=pypi_mirror,
-        skip_lock=skip_lock,
+        system=target.system,
+        allow_global=target.system,
+        ignore_pipfile=policy.ignore_pipfile,
+        deploy=policy.deploy,
+        pypi_mirror=target.pypi_mirror,
+        skip_lock=policy.skip_lock,
         categories=pipfile_categories,
     )
 
-    if not deploy:
+    extra_pip_args = list(exec_opts.extra_pip_args)
+
+    if not policy.deploy:
         new_packages, _ = handle_new_packages(
             project,
             packages,
             editable_packages,
-            dev=dev,
-            pre=pre,
-            system=system,
-            pypi_mirror=pypi_mirror,
+            dev=sel.dev,
+            pre=policy.pre,
+            system=target.system,
+            pypi_mirror=target.pypi_mirror,
             extra_pip_args=extra_pip_args,
             pipfile_categories=pipfile_categories,
-            perform_upgrades=not skip_lock,
-            index=index,
+            perform_upgrades=not policy.skip_lock,
+            index=sel.index,
         )
 
     try:
-        if dev:  # Install both develop and default package categories from Pipfile.
-            pipfile_categories = ["packages", "dev-packages"]
+        # When --dev was requested, install both default and dev categories
+        # from the Pipfile (the historical do_install behaviour).
+        install_categories = (
+            ["packages", "dev-packages"] if sel.dev else pipfile_categories
+        )
         do_install_dependencies(
             project,
-            dev=dev,
-            allow_global=system,
+            dev=sel.dev,
+            allow_global=target.system,
             requirements_dir=requirements_directory,
-            pypi_mirror=pypi_mirror,
+            pypi_mirror=target.pypi_mirror,
             extra_pip_args=extra_pip_args,
-            categories=pipfile_categories,
-            skip_lock=skip_lock,
+            categories=install_categories,
+            skip_lock=policy.skip_lock,
         )
     except Exception as e:
         # If we fail to install, remove the package from the Pipfile.
