@@ -131,8 +131,8 @@ def test_settings_update_writes_new_keys(project_bare):
     Pipfile's ``[pipenv]`` section."""
     project_bare.settings.update({"allow_prereleases": True})
     # Force a fresh read of the Pipfile to confirm the write persisted.
-    project_bare._parsed_pipfile_cache = None
-    project_bare._parsed_pipfile_mtime_ns = None
+    project_bare.pipfile._parsed_cache = None
+    project_bare.pipfile._parsed_mtime_ns = None
     assert project_bare.settings.get("allow_prereleases") is True
 
 
@@ -143,8 +143,8 @@ def test_settings_update_does_not_overwrite_existing(project_with_settings):
     ``update_settings`` semantics: only adds missing keys)."""
     project_with_settings.settings.update({"allow_prereleases": False})
     # Force a fresh read.
-    project_with_settings._parsed_pipfile_cache = None
-    project_with_settings._parsed_pipfile_mtime_ns = None
+    project_with_settings.pipfile._parsed_cache = None
+    project_with_settings.pipfile._parsed_mtime_ns = None
     # The pre-existing True value is preserved.
     assert project_with_settings.settings.get("allow_prereleases") is True
 

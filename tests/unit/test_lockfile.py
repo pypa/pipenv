@@ -178,7 +178,7 @@ def test_lockfile_meta_includes_pipfile_hash(project_bare):
     meta = project_bare.lockfile.meta()
     assert "hash" in meta
     assert "sha256" in meta["hash"]
-    assert meta["hash"]["sha256"] == project_bare.calculate_pipfile_hash()
+    assert meta["hash"]["sha256"] == project_bare.pipfile.calculate_hash()
     assert "pipfile-spec" in meta
     assert "sources" in meta
 

@@ -111,10 +111,10 @@ def test_missing_lock_then_write_toml_keeps_cached_pipfile_entries(
     ):
         do_lock(project, RoutineContext.from_cli(write=False, quiet=True))
 
-    project.add_pipfile_entry_to_pipfile(
+    project.pipfile.add_entry(
         "colorama", "colorama", "*", category="packages"
     )
-    reparsed = project.parsed_pipfile["packages"]
+    reparsed = project.pipfile.parsed["packages"]
 
     assert str(reparsed["six"]["version"]) == "*"
     assert str(reparsed["requests"]["version"]) == "*"

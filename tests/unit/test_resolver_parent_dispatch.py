@@ -39,21 +39,13 @@ import pytest
 from pipenv.exceptions import ResolutionFailure
 from pipenv.resolver.schema import (
     SCHEMA_VERSION,
-    Diagnostics,
-    InternalError,
     LockedRequirement,
     PackageSpecs,
-    RequestMetadata,
-    ResolutionError,
-    ResolvedDeps,
     ResolverOptions,
     ResolverRequest,
-    ResolverResponse,
-    ResolverSuccess,
     Source,
 )
 from pipenv.utils import resolver as resolver_mod
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -64,14 +56,14 @@ def _stub_project(tmp_path: Path):
     """Minimal project double that exposes the attributes the parent-side
     dispatch helper touches."""
     project = mock.MagicMock()
-    project.project_directory = str(tmp_path)
+    project.pipfile.project_directory = str(tmp_path)
     project.s.is_verbose.return_value = False
     project.s.PIPENV_RESOLVER_TIMEOUT_S = 60
     project.s.PIPENV_SPINNER = "dots"
     project.s.PIPENV_RESOLVER_PARENT_PYTHON = False
     project.s.PIPENV_KEYRING_PROVIDER = None
-    project.pipfile_exists = True
-    project.parsed_pipfile = {"requires": {}}
+    project.pipfile.exists = True
+    project.pipfile.parsed = {"requires": {}}
     project.sources.pipfile_sources.return_value = [
         {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
     ]

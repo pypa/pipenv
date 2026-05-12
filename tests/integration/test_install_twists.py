@@ -31,7 +31,7 @@ setup(
 )
             """.strip()
             fh.write(contents)
-        # project.write_toml({"packages": pipfile, "dev-packages": {}})
+        # project.pipfile.write_toml({"packages": pipfile, "dev-packages": {}})
         c = p.pipenv("install .")
         assert c.returncode == 0
         assert "testpipenv" in p.lockfile["default"]
@@ -71,7 +71,7 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
 [dev-packages]
             """.strip()
             )
-        # project.write_toml({"packages": pipfile, "dev-packages": {}})
+        # project.pipfile.write_toml({"packages": pipfile, "dev-packages": {}})
         c = p.pipenv("install")
         assert c.returncode == 0
         assert "testpipenv" in p.lockfile["default"]

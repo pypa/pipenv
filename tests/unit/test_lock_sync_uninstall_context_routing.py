@@ -20,7 +20,6 @@ import pytest
 
 from pipenv.routines.context import RoutineContext
 
-
 # ----------------------------------------------------------------------
 # Signature pin tests
 # ----------------------------------------------------------------------
@@ -97,9 +96,9 @@ def lock_project_stub():
         "allow_prereleases": None,
         "use_default_constraints": True,
     }.get(key, default)
-    proj.get_package_categories.return_value = ["default"]
-    proj.pipfile_exists = True
-    proj.parsed_pipfile = {"packages": {"requests": "*"}}
+    proj.pipfile.get_package_categories.return_value = ["default"]
+    proj.pipfile.exists = True
+    proj.pipfile.parsed = {"packages": {"requests": "*"}}
     # T_D.5: Lockfile subsystem. ``project.lockfile`` is now the
     # subsystem instance; ``project.lockfile.as_dict(...)`` returns the
     # data dict (was ``project.lockfile(...)``); ``project.lockfile.meta``
@@ -200,7 +199,7 @@ class TestDoLockFlagRouting:
 
         # When categories supplied, get_package_categories is NOT used to
         # pick the lockfile categories.
-        assert not lock_project_stub.get_package_categories.called
+        assert not lock_project_stub.pipfile.get_package_categories.called
         # ``lockfile.as_dict(categories=...)`` is invoked with the
         # canonical lockfile-section name (``develop``).
         lockfile_call = lock_project_stub.lockfile.as_dict.call_args
@@ -442,8 +441,8 @@ class TestDoUninstallFlagRouting:
         from pipenv.routines.uninstall import do_uninstall
 
         project = mock.MagicMock()
-        project.get_pipfile_section.return_value = {"pytest": "*"}
-        project.reset_category_in_pipfile.return_value = True
+        project.pipfile.get_section.return_value = {"pytest": "*"}
+        project.pipfile.reset_category.return_value = True
         # lockfile.content needs to be mutable across the routine
         # (T_D.5: Lockfile subsystem moved from project.lockfile_content).
         project.lockfile.content = {"develop": {"pytest": {}}}
@@ -489,13 +488,13 @@ class TestDoUninstallFlagRouting:
             "pipenv.routines.uninstall.expansive_install_req_from_line",
             mock.MagicMock(return_value=(mock.MagicMock(), None)),
         )
-        project.generate_package_pipfile_entry.return_value = (
+        project.pipfile.generate_entry.return_value = (
             "requests",
             "requests",
             {"version": "*"},
         )
-        project.remove_package_from_pipfile.return_value = True
-        project.get_pipfile_section.return_value = {}
+        project.pipfile.remove_package.return_value = True
+        project.pipfile.get_section.return_value = {}
         project.lockfile.meta.return_value = {}
 
         ctx = RoutineContext.from_cli(

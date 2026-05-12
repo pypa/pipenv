@@ -5,10 +5,10 @@ from unittest.mock import MagicMock, PropertyMock, patch
 import pytest
 
 from pipenv.cmdparse import Script
-from pipenv.project import NON_CATEGORY_SECTIONS
 from pipenv.routines.shell import do_run_posix
 from pipenv.shells import _get_activate_script, _get_deactivate_wrapper_script
 from pipenv.utils.environment import load_dot_env
+from pipenv.utils.pipfile import NON_CATEGORY_SECTIONS
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import warn_in_virtualenv
 from pipenv.vendor import shellingham
@@ -620,53 +620,53 @@ def test_build_system_excluded_from_non_category_sections():
 
 @pytest.mark.core
 def test_pipfile_build_requires_empty_when_no_section(project):
-    """pipfile_build_requires returns [] when Pipfile has no [build-system]."""
+    """pipfile.build_requires returns [] when Pipfile has no [build-system]."""
     with patch.object(
-        type(project),
-        "pipfile_exists",
+        type(project.pipfile),
+        "exists",
         new_callable=PropertyMock,
         return_value=True,
     ), patch.object(
-        type(project),
-        "parsed_pipfile",
+        type(project.pipfile),
+        "parsed",
         new_callable=PropertyMock,
         return_value={},
     ):
-        assert project.pipfile_build_requires == []
+        assert project.pipfile.build_requires == []
 
 
 @pytest.mark.core
 def test_pipfile_build_requires_empty_when_no_pipfile(project):
-    """pipfile_build_requires returns [] when there is no Pipfile at all."""
+    """pipfile.build_requires returns [] when there is no Pipfile at all."""
     with patch.object(
-        type(project),
-        "pipfile_exists",
+        type(project.pipfile),
+        "exists",
         new_callable=PropertyMock,
         return_value=False,
     ):
-        assert project.pipfile_build_requires == []
+        assert project.pipfile.build_requires == []
 
 
 @pytest.mark.core
 def test_pipfile_build_requires_reads_requires_list(project):
-    """pipfile_build_requires returns the list of packages from [build-system].requires."""
+    """pipfile.build_requires returns the list of packages from [build-system].requires."""
     fake_pipfile = {
         "build-system": {
             "requires": ["stwrapper>=1.0", "setuptools>=40.8.0", "wheel"],
         }
     }
     with patch.object(
-        type(project),
-        "pipfile_exists",
+        type(project.pipfile),
+        "exists",
         new_callable=PropertyMock,
         return_value=True,
     ), patch.object(
-        type(project),
-        "parsed_pipfile",
+        type(project.pipfile),
+        "parsed",
         new_callable=PropertyMock,
         return_value=fake_pipfile,
     ):
-        result = project.pipfile_build_requires
+        result = project.pipfile.build_requires
         assert result == ["stwrapper>=1.0", "setuptools>=40.8.0", "wheel"]
 
 
@@ -681,30 +681,30 @@ def test_build_system_not_in_package_categories(project):
         "build-system": {"requires": ["setuptools"]},
     }
     with patch.object(
-        type(project),
-        "pipfile_exists",
+        type(project.pipfile),
+        "exists",
         new_callable=PropertyMock,
         return_value=True,
     ), patch.object(
-        type(project),
-        "parsed_pipfile",
+        type(project.pipfile),
+        "parsed",
         new_callable=PropertyMock,
         return_value=fake_pipfile,
     ):
-        categories = project.get_package_categories()
+        categories = project.pipfile.get_package_categories()
         assert "build-system" not in categories
-        lockfile_categories = project.get_package_categories(for_lockfile=True)
+        lockfile_categories = project.pipfile.get_package_categories(for_lockfile=True)
         assert "build-system" not in lockfile_categories
 
 
 @pytest.mark.core
 def test_install_build_system_packages_no_op_when_empty(project):
-    """install_build_system_packages does nothing when pipfile_build_requires is []."""
+    """install_build_system_packages does nothing when pipfile.build_requires is []."""
     from pipenv.routines.install import install_build_system_packages
 
     with patch.object(
-        type(project),
-        "pipfile_build_requires",
+        type(project.pipfile),
+        "build_requires",
         new_callable=PropertyMock,
         return_value=[],
     ), patch(
@@ -727,8 +727,8 @@ def test_install_build_system_packages_calls_pip_install(project):
     fake_proc.communicate.return_value = (b"", b"")
 
     with patch.object(
-        type(project),
-        "pipfile_build_requires",
+        type(project.pipfile),
+        "build_requires",
         new_callable=PropertyMock,
         return_value=build_requires,
     ), patch.object(
