@@ -1805,25 +1805,48 @@ the design — the four are independent of each other once the
 #### T_F.5: Pluggable resolver backends — execution
 - **depends_on**: [T_F.5a maintainer sign-off]
 - **location**: NEW `pipenv/resolver/backends/__init__.py`,
-  `pipenv/resolver/backends/base.py`, `pipenv/resolver/backends/pip.py`,
-  `pipenv/resolver/backends/uv.py`; +1 classmethod on
-  `pipenv/resolver/schema.py :: LockedRequirement.from_uv_package`;
-  `pipenv/utils/project_settings.py` (`Settings.resolver_backend`);
-  `pipenv/utils/resolver.py` (dispatch); `pipenv/cli/options.py` +
-  `pipenv/cli/command.py` (`--backend` flag); `pipenv/utils/locking.py`
-  (`_meta.resolver_backend`); tests; `news/T_F.5.feature.rst`;
-  `docs/concepts/resolver_backends.md`.
+  `pipenv/resolver/backends/base.py`, `pipenv/resolver/backends/pip.py`;
+  `pipenv/resolver/core.py` (dispatcher); `pipenv/resolver/schema.py`
+  (`ResolverOptions.backend` additive field); `pipenv/utils/settings.py`
+  (`Settings.resolver`); `pipenv/utils/resolver.py` (plumbing);
+  `pipenv/environments.py` (`PIPENV_RESOLVER`); `pipenv/cli/options.py`
+  + `pipenv/cli/command.py` (`--resolver NAME` flag);
+  `pipenv/routines/context.py` (`ExecutionOptions.resolver`);
+  `pipenv/utils/pylock.py` (TODO(T_F.8) marker);
+  `news/T_F.5.feature.rst`; `tests/unit/test_resolver_backends.py`.
 - **description**:
-  Eight-task execution split per `initiative-f-backends-design.md` §7
-  (T_F.5.1 protocol+registry skeleton; T_F.5.2 pip wrapper; T_F.5.3
-  `from_uv_package` constructor; T_F.5.4 uv backend port from
-  `origin/uv-backend`; T_F.5.5 dispatch wiring + CLI flag + `Settings`;
-  T_F.5.6 `_meta.resolver_backend` discriminator; T_F.5.7 missing-backend
-  error path; T_F.5.8 docs + news fragment). Six-wave dependency graph;
-  max 2 concurrent agents (waves B and E).
-- **status**: Not Started (awaits T_F.5a sign-off).
+  Re-scoped to **scaffolding only** per the maintainer sign-off in
+  `initiative-f-backends-design.md` (2026-05-12, answer 8). The uv
+  backend port and dual-backend test matrix become a future initiative
+  (T_F.8 or similar). What lands in this commit: the `Backend` protocol,
+  the `pip` backend wrapping the existing resolve flow, the registry,
+  the `--resolver NAME` / `PIPENV_RESOLVER` / `[pipenv] resolver`
+  precedence chain, the fail-loud error path for unknown / unavailable
+  backends, and a news fragment.
+- **status**: Complete (scaffolding shipped 2026-05-12). The uv backend
+  port and dual-backend test matrix become T_F.8 (or similar) in a
+  later iteration.
 - **log**:
+  - 2026-05-12 — Scaffolding landed: backends subpackage + PipBackend +
+    dispatcher + CLI/env/Pipfile plumbing + 9 unit tests. Wire shape
+    unchanged (`ResolverOptions.backend` is suppressed on the wire when
+    empty so the C2 protocol fixture passes byte-for-byte; no
+    integration fixture regen needed).
 - **files edited/created**:
+  - NEW `pipenv/resolver/backends/__init__.py`
+  - NEW `pipenv/resolver/backends/base.py`
+  - NEW `pipenv/resolver/backends/pip.py`
+  - `pipenv/resolver/core.py`
+  - `pipenv/resolver/schema.py`
+  - `pipenv/cli/options.py`
+  - `pipenv/cli/command.py`
+  - `pipenv/routines/context.py`
+  - `pipenv/utils/settings.py`
+  - `pipenv/utils/resolver.py`
+  - `pipenv/utils/pylock.py`
+  - `pipenv/environments.py`
+  - NEW `news/T_F.5.feature.rst`
+  - NEW `tests/unit/test_resolver_backends.py`
 
 #### T_F.6: Enforce wall-clock timeout via `request.metadata.deadline_seconds`
 - **depends_on**: [T_F.3, T_F.4]
