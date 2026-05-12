@@ -302,12 +302,11 @@ class TestDoSyncFlagRouting:
     def test_sync_pins_ignore_pipfile_and_skip_lock(
         self, sync_project_stub, patch_sync_pipeline
     ):
-        """do_sync collapses the T_C.7 inline bridge but must still pin
-        ignore_pipfile=True and skip_lock=True for do_init /
-        do_install_dependencies."""
+        """do_sync pins ignore_pipfile=True + skip_lock=True only on the
+        do_init call. do_install_dependencies must keep the caller policy
+        unchanged so it reads from the lockfile, not the Pipfile."""
         from pipenv.routines.sync import do_sync
 
-        # User did not pass these — sync must inject them.
         ctx = RoutineContext.from_cli()
         do_sync(sync_project_stub, ctx)
 
@@ -318,8 +317,8 @@ class TestDoSyncFlagRouting:
         did_ctx = patch_sync_pipeline[
             "do_install_dependencies"
         ].call_args.args[1]
-        assert did_ctx.install_policy.ignore_pipfile is True
-        assert did_ctx.install_policy.skip_lock is True
+        assert did_ctx.install_policy.skip_lock is False
+        assert did_ctx.install_policy.ignore_pipfile is False
 
     def test_deploy_routes_to_ensure_project(
         self, sync_project_stub, patch_sync_pipeline

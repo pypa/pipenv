@@ -16,12 +16,11 @@ def do_sync(project, ctx: RoutineContext):
     ``clear`` / ``pypi_mirror`` / ``system`` / ``deploy`` /
     ``extra_pip_args`` / ``categories`` / ``site_packages``).
 
-    The T_C.7 inline ``RoutineContext.from_cli(...)`` bridge that this
-    function used to construct for its ``do_init`` / ``do_install_dependencies``
-    calls collapses into a single ``dataclasses.replace`` of the
-    incoming ``ctx`` so the downstream contract (``ignore_pipfile=True``,
-    ``skip_lock=True``) is still pinned without re-materializing the
-    whole context.
+    Two distinct policies are wired below: ``do_init`` runs with
+    ``ignore_pipfile=True`` + ``skip_lock=True`` (historical sync-time
+    contract); ``do_install_dependencies`` runs with the caller-supplied
+    policy unchanged so it reads resolved entries from the lockfile
+    rather than the Pipfile.
     """
     target = ctx.target_env
     policy = ctx.install_policy
@@ -54,19 +53,21 @@ def do_sync(project, ctx: RoutineContext):
         project.s.PIPENV_USE_SYSTEM = True
         os.environ["PIPENV_USE_SYSTEM"] = "1"
 
-    # Pin the historical sync-time policy: don't validate Pipfile<->lock and
-    # never re-lock. Carried via ``dataclasses.replace`` so the rest of the
-    # caller-supplied ctx (target_env, dev, categories, extra_pip_args, bare)
-    # flows through unchanged.
-    sync_ctx = replace(
+    # ``do_init`` gets the historical sync-time pin (don't validate
+    # Pipfile<->lock; don't re-lock). ``do_install_dependencies`` MUST
+    # keep ``skip_lock=False`` so it reads resolved entries from the
+    # lockfile — passing ``skip_lock=True`` here drives it through
+    # ``install_req_from_pipfile``, which mangles file:// URLs, extras
+    # on URL packages, and editable VCS specs.
+    init_ctx = replace(
         ctx,
         install_policy=replace(
             policy,
-            ignore_pipfile=True,  # Don't check if Pipfile and lock match.
-            skip_lock=True,  # Don't re-lock.
+            ignore_pipfile=True,
+            skip_lock=True,
         ),
     )
-    do_init(project, sync_ctx)
-    do_install_dependencies(project, sync_ctx, requirements_dir)
+    do_init(project, init_ctx)
+    do_install_dependencies(project, ctx, requirements_dir)
     if not exec_opts.bare and not project.s.is_quiet():
         console.print("[green]All dependencies are now up-to-date![/green]")
