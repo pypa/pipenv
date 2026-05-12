@@ -36,7 +36,6 @@ from pipenv.utils.fileutils import (
 from pipenv.utils.requirementslib import (
     add_ssh_scheme_to_git_uri,
     get_pip_command,
-    prepare_pip_source_args,
     unpack_url,
 )
 
@@ -48,6 +47,7 @@ from .constants import (
     VCS_LIST,
     VCS_SCHEMES,
 )
+from .indexes import prepare_pip_source_args
 from .markers import PipenvMarkers
 
 

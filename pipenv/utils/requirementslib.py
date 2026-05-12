@@ -14,7 +14,7 @@ from pipenv.patched.pip._internal.operations.prepare import (
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
-from pipenv.utils.internet import _strip_credentials_from_url, is_valid_url
+from pipenv.utils.internet import is_valid_url
 
 STRING_TYPE = Union[bytes, str, str]
 S = TypeVar("S", bytes, str, str)
@@ -81,34 +81,6 @@ def is_vcs(pipfile_entry):
         parsed_entry = urlsplit(pipfile_entry)
         return parsed_entry.scheme in VCS_SCHEMES
     return False
-
-
-def prepare_pip_source_args(sources, pip_args=None):
-    # type: (List[Dict[S, Union[S, bool]]], Optional[List[S]]) -> List[S]
-    """Prepare pip arguments for source indexes.
-
-    Userinfo (``user:pass``) embedded in source URLs is stripped before
-    being added to the argument list to avoid leaking credentials via
-    process listings (GHSA-8xgg-v3jj-95m2).  Pipenv supplies the
-    credentials to pip out-of-band via a temporary netrc file.
-    """
-    if pip_args is None:
-        pip_args = []
-    if sources:
-        primary_url, _ = _strip_credentials_from_url(sources[0]["url"])
-        pip_args.extend(["-i", primary_url])  # type: ignore
-        # Trust the host if it's not verified.
-        hostname = urlparse(sources[0]["url"]).hostname
-        if not sources[0].get("verify_ssl", True) and hostname:
-            pip_args.extend(["--trusted-host", hostname])  # type: ignore
-        # Add additional sources as extra indexes.
-        for source in sources[1:]:
-            extra_url, _ = _strip_credentials_from_url(source["url"])
-            pip_args.extend(["--extra-index-url", extra_url])  # type: ignore
-            hostname = urlparse(source["url"]).hostname
-            if not source.get("verify_ssl", True) and hostname:
-                pip_args.extend(["--trusted-host", hostname])  # type: ignore
-    return pip_args
 
 
 def _merge_into(target, source):
