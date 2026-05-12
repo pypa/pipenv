@@ -119,9 +119,38 @@ near the bottom of this document.
   - `from_pipfile_entry("django", {"version": ">=4.0", "extras": ["argon2"]})`
     → extras populated.
   - Zero `pip._internal.*` imports.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Implemented per design §5.1.  Frozen
+    `@dataclass(frozen=True, slots=True)` with the six fields
+    enumerated in the brief (`name`, `specifier`, `extras`, `marker`,
+    `source`, `parent`).  Hashability comes for free from
+    `frozen=True` — both `SpecifierSet`
+    (`pipenv/vendor/packaging/specifiers.py:842`) and `Marker`
+    (`pipenv/vendor/packaging/markers.py:329`) are hashable in the
+    vendored `packaging`, so no `__hash__` override is needed.  The
+    `from_pipfile_entry` classmethod handles the four canonical
+    Pipfile shapes from the design brief: bare string version,
+    `"*"`, dict with `version`/`extras`/`markers`, and dict with
+    `"version": "*"`.  Names are canonicalised via
+    `pipenv.vendor.packaging.utils.canonicalize_name` (PEP 503).
+    Unknown value types (neither str nor dict) raise `TypeError` so a
+    malformed Pipfile entry surfaces loudly rather than producing a
+    half-populated constraint.  RED→GREEN with
+    `tests/unit/test_pure_python_requirement.py` (15 tests; all
+    pass).  T11 will extend that file with the broader coverage
+    matrix (negative paths, edge cases).
+    `grep -n "pip\._internal" pipenv/resolver/pure_python_requirement.py`
+    shows zero matches; `ruff check` clean.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_requirement.py` (replaced stub with
+    full implementation — `Requirement` dataclass + `from_pipfile_entry`
+    classmethod)
+  - `tests/unit/test_pure_python_requirement.py` (new; 15 tests
+    covering the four T1 acceptance criteria — round-trip /
+    equality / hashability / `from_pipfile_entry` shapes — plus the
+    `transitive` + `constraint` source-label and parent-propagation
+    cases T3/T7 rely on; T11 extends this file)
 
 ---
 
