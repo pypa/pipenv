@@ -474,9 +474,35 @@ near the bottom of this document.
 - **description**:
   Round-trip, equality, hashability, `from_pipfile_entry` across the
   shapes enumerated in T1's spec.  Coverage ≥ 95 %.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Audited T1's 15-test seed against
+    `pipenv/resolver/pure_python_requirement.py`: starting coverage was
+    97.22 % (line 174 — the `TypeError` raise for unsupported value
+    shapes — was the sole miss).
+  - Extended the file with 20 additional tests covering the T11
+    matrix: unsupported-shape rejection (int / list / None);
+    dict-form keys the constraint node deliberately ignores
+    (`editable`, `git`, `ref`, `index`, `path`); empty-string and
+    missing-`version` dict shapes; whitespace-tolerant specifier
+    parsing; combined version + extras + markers; `None` and `""`
+    markers falling through to `marker is None`; name-canonicalisation
+    corner cases (`Foo.Bar_Baz` → `foo-bar-baz`, `a__b--c..d` →
+    `a-b-c-d`, `3M` → `3m`); and the `source` Literal escape-hatch
+    audit (no runtime enforcement, by design — pinned with a
+    `# T11 audit:` rationale).
+  - Final coverage on `pure_python_requirement.py`: **100 % line +
+    100 % branch (35 tests)**, measured with
+    `pytest tests/unit/test_pure_python_requirement.py
+    --cov=pipenv.resolver.pure_python_requirement
+    --cov-report=term-missing --cov-branch -o addopts=""`.
+  - No bugs found in T1's implementation while extending coverage —
+    silent-ignore behaviour for non-constraint dict keys
+    (`editable`, VCS) matches the docstring contract; documented in
+    the test file rather than tightened, per T11's brief.
 - **files edited/created**:
+  - `tests/unit/test_pure_python_requirement.py` (extended;
+    35 tests total, 100 % coverage).
 
 ---
 
