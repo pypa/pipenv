@@ -288,9 +288,17 @@ Wave D (depends on Wave C):                                               │
   - Test passes green against committed fixtures
   - Test fails (with a readable diff) if `LockedRequirement` field names are renamed without a `SCHEMA_VERSION` bump
   - Fixture-regen flag works end-to-end
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `test(resolver): pin JSON wire shape via integration golden fixtures (T_F.3 C2)`. The test runs `pipenv lock` against a 2-package Pipfile (`pytz==2024.1` + `six==1.16.0` — pure-Python, no transitive deps, frozen versions) via `pipenv_instance_pypi` and captures the resolver's `--request-file` / `--response-file` tempfiles by redirecting them through `TMPDIR`/`TEMP`/`TMP` env vars (the existing parent code uses `tempfile.NamedTemporaryFile(prefix="pipenv-request-"/"pipenv-response-", delete=False)`, which honours the standard tempdir env). After the lock returns the test globs the capture dir for the distinctive prefixes, parses both files, normalises non-deterministic fields (`metadata.parent_pid`, `metadata.pipenv_version`, and the `locked` array's resolution order), then compares against the committed goldens. The regen branch (`PIPENV_REGEN_PROTOCOL_FIXTURES=1`) writes the normalised JSON back and `pytest.skip`s so the maintainer reviews the resulting `git diff` before committing.
+  - **Boundary-crossing fix**: surfaced a pre-existing wave-B bug — `pipenv/resolver/main.py :: _main` did `from pipenv.resolver.schema import ...` BEFORE calling `_ensure_modules()` at line 356. The schema import therefore raced the bootstrap and failed with `ModuleNotFoundError: No module named 'pipenv'` whenever the resolver was invoked via the project venv's python against the absolute file path (i.e. the production code path that integration tests exercise; the wave-B unit smoke avoided this by invoking via `python -m pipenv.resolver.main` from a process that already had `pipenv` on `sys.path`). The fix moves `_ensure_modules()` to the top of `_main` (and deletes the now-redundant second call). Without this fix every integration `lock`/`install` test on this branch was broken. Committed separately as `fix(resolver): bootstrap pipenv on sys.path before schema import in _main`.
+  - The captured `response.json` organically includes a comma-bearing marker (`six`'s `"python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'"`) — incidental coverage of the C3 regression at the integration level.
+  - Test runs green 3 consecutive times; full unit suite untouched at 758 passed / 9 skipped after the `main.py` bootstrap fix.
 - **files edited/created**:
+  - **CREATED** `tests/integration/test_resolver_protocol.py` — single integration test + normalisation helpers + regen branch
+  - **CREATED** `tests/integration/fixtures/resolver_protocol/request.json` — golden request envelope (normalised)
+  - **CREATED** `tests/integration/fixtures/resolver_protocol/response.json` — golden response envelope (locked entries sorted by name)
+  - **EDITED** `pipenv/resolver/main.py` — moved `_ensure_modules()` ahead of the schema import in `_main` (one-line bootstrap-order fix; committed separately)
 
 ### C3: Comma-in-marker regression fixture
 
