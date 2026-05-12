@@ -116,6 +116,11 @@ class ExecutionOptions:
       ``ExecutionOptions`` — they belong to the audit / scan routines,
       which are not really "dependency-management" calls (design doc
       sections 3 and 8.5).
+    * ``resolver`` (T_F.5) carries the ``--resolver NAME`` selection
+      from the CLI down to the resolver-call layer.  ``None`` is the
+      "not specified" sentinel; the dispatcher in
+      ``pipenv.resolver.core`` falls through to PIPENV_RESOLVER /
+      ``[pipenv] resolver`` / default.
     """
 
     extra_pip_args: Sequence[str] = ()
@@ -127,6 +132,7 @@ class ExecutionOptions:
     quiet: bool = False
     verbose: bool = False
     write: bool = True
+    resolver: str | None = None
 
 
 @dataclass(frozen=True)
@@ -187,6 +193,7 @@ class RoutineContext:
         quiet: bool = False,
         verbose: bool = False,
         write: bool = True,
+        resolver: str | None = None,
     ) -> RoutineContext:
         """Single materialization point for CLI defaults.
 
@@ -242,5 +249,6 @@ class RoutineContext:
                 quiet=quiet,
                 verbose=verbose,
                 write=write,
+                resolver=resolver,
             ),
         )

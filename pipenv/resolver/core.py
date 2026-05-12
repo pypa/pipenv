@@ -426,9 +426,15 @@ def _dispatch_resolve_packages(request: ResolverRequest):
     return _fn(request)
 
 
-def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
-    """Run the resolver against a typed :class:`ResolverRequest` and
+def _pip_resolve(request: ResolverRequest) -> ResolverResponse:
+    """Run the (pip) resolver against a typed :class:`ResolverRequest` and
     return a typed :class:`ResolverResponse`.
+
+    This is the core resolve flow that lived inline in
+    :func:`resolve_for_pipenv` prior to T_F.5.  T_F.5 turned
+    ``resolve_for_pipenv`` into a thin backend dispatcher; this function
+    is the body of the default (pip) backend, called via
+    :class:`pipenv.resolver.backends.pip.PipBackend`.
 
     This function NEVER raises.  Every outcome — success, dependency
     conflict, or genuine crash — is captured in the returned response's
@@ -547,9 +553,165 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
         )
 
 
+# ---------------------------------------------------------------------------
+# T_F.5: pluggable resolver-backend dispatch.
+# ---------------------------------------------------------------------------
+#
+# ``resolve_for_pipenv`` was originally the canonical resolve function
+# (T_F.4); T_F.5 turns it into a thin dispatcher that routes through the
+# ``pipenv.resolver.backends`` registry.  The default behaviour is
+# unchanged: with no selection at any level, the pip backend is chosen
+# and ``PipBackend.resolve`` runs the same flow that previously lived
+# here (now in :func:`_pip_resolve`).
+#
+# Backend selection precedence (sign-off 2026-05-12 answers 1, 2):
+#
+#     1. ``ResolverOptions.backend`` on the request (the CLI flag
+#        ``--resolver NAME`` stamps it here);
+#     2. ``PIPENV_RESOLVER`` env var;
+#     3. ``[pipenv] resolver`` Pipfile setting (read via
+#        :class:`pipenv.utils.settings.Settings`);
+#     4. ``"pip"`` (the default).
+#
+# An unknown backend name yields a structured ``InternalError``
+# response — NOT a crash (sign-off answer 4 "fail loud", but loudly
+# *via the typed response*, so adapters can render a clean error).
+
+
+def _resolver_name_from_env() -> str | None:
+    """Return the value of ``PIPENV_RESOLVER`` if set, else ``None``.
+
+    Separated as a helper so tests can monkey-patch the env-var read
+    without manipulating ``os.environ`` (which is process-wide and
+    leaks across tests).
+    """
+    value = os.environ.get("PIPENV_RESOLVER")
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _resolver_name_from_pipfile() -> str | None:
+    """Return the ``[pipenv] resolver`` value from the current project
+    Pipfile, or ``None`` if absent / unreadable.
+
+    Best-effort: this is called from the resolver-call layer in the
+    parent.  The subprocess child does NOT call this (it consults
+    ``request.options.backend`` only — the parent has already made the
+    selection by the time the wire request goes out).  If the project
+    isn't accessible (e.g. running unit tests with no Pipfile on disk),
+    return ``None`` silently and let the caller fall through to the
+    default.
+    """
+    try:
+        from pipenv.project import Project
+    except Exception:  # noqa: BLE001 — defensive against import issues
+        return None
+    try:
+        project = Project()
+        resolver = project.settings.get("resolver")
+    except Exception:  # noqa: BLE001 — any read failure → default
+        return None
+    if not resolver:
+        return None
+    return str(resolver).strip() or None
+
+
+def _selected_backend_name(request: ResolverRequest) -> str:
+    """Apply the precedence chain CLI > env > Pipfile > default and
+    return the backend name to dispatch to.
+
+    Reads only from ``request.options.backend`` (the CLI / explicit
+    selection), :func:`_resolver_name_from_env`, and
+    :func:`_resolver_name_from_pipfile`.  All four levels of the chain
+    are individually monkey-patchable by tests.
+    """
+    # 1. CLI / explicit request override: ``ResolverOptions.backend`` is
+    # the wire-level home for ``--resolver NAME``.  Empty / unset / the
+    # "pip" default all fall through to the lower precedence levels so
+    # that ``pipenv install`` without ``--resolver`` honours the Pipfile
+    # or env-var selection.  The CLI plumbing only stamps this field
+    # when the user explicitly passed ``--resolver``.
+    cli_choice = getattr(request.options, "backend", None)
+    if cli_choice:
+        return str(cli_choice)
+
+    # 2. Env var.
+    env_choice = _resolver_name_from_env()
+    if env_choice:
+        return env_choice
+
+    # 3. Pipfile.
+    pipfile_choice = _resolver_name_from_pipfile()
+    if pipfile_choice:
+        return pipfile_choice
+
+    # 4. Default.
+    return "pip"
+
+
+def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
+    """Dispatch ``request`` to the configured resolver backend.
+
+    Default behaviour (no ``--resolver`` flag, no ``PIPENV_RESOLVER``
+    env var, no ``[pipenv] resolver`` Pipfile key) is unchanged from
+    pre-T_F.5 pipenv: the pip backend is selected and the resolve flow
+    that previously lived inline here (now :func:`_pip_resolve`) runs.
+
+    Unknown or unavailable backends produce a typed ``InternalError``
+    response with a clear message — the function still never raises.
+    """
+    backend_name = _selected_backend_name(request)
+
+    # Look up the backend.  Resolve KeyError into a typed InternalError
+    # so the dispatcher contract ("never raises") is preserved.
+    try:
+        # Lazy import to avoid a cycle: ``backends.pip`` imports from
+        # this module to reach :func:`_pip_resolve`.
+        from pipenv.resolver.backends import get_backend
+
+        backend = get_backend(backend_name)
+    except KeyError as exc:
+        return ResolverResponse(
+            schema_version=SCHEMA_VERSION,
+            result=InternalError(
+                kind="internal_error",
+                message=(
+                    f"Resolver backend {backend_name!r} is not registered. "
+                    f"{exc!s}.  Remove the [pipenv] resolver setting from "
+                    f"your Pipfile, unset PIPENV_RESOLVER, or pass "
+                    f"--resolver pip."
+                ),
+                traceback=None,
+            ),
+        )
+
+    if not backend.is_available():
+        return ResolverResponse(
+            schema_version=SCHEMA_VERSION,
+            result=InternalError(
+                kind="internal_error",
+                message=(
+                    f"Resolver backend {backend_name!r} is not available "
+                    f"on this machine.  Install it and re-run, or remove "
+                    f"the [pipenv] resolver setting from your Pipfile / "
+                    f"unset PIPENV_RESOLVER / pass --resolver pip."
+                ),
+                traceback=None,
+            ),
+        )
+
+    return backend.resolve(request)
+
+
 __all__ = [
     "resolve_for_pipenv",
     "resolve_packages",
     "_apply_request_env",
     "_patched_marker_environment",
+    "_pip_resolve",
+    "_selected_backend_name",
+    "_resolver_name_from_env",
+    "_resolver_name_from_pipfile",
 ]

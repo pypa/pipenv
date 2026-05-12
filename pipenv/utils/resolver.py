@@ -1102,8 +1102,8 @@ def _generate_resolution_cache_key(
     """Generate a cache key for resolution results."""
     # Get lockfile and pipfile modification times
     lockfile_mtime = "no-lock"
-    if project.lockfile_location:
-        lockfile_path = Path(project.lockfile_location)
+    if project.lockfile.location:
+        lockfile_path = Path(project.lockfile.location)
         if lockfile_path.exists():
             lockfile_mtime = str(lockfile_path.stat().st_mtime)
 
@@ -1421,6 +1421,7 @@ def _build_resolver_request(
     extra_pip_args,
     resolved_default_deps,
     project,
+    resolver_backend=None,
 ):
     """Build a :class:`ResolverRequest` from the parent-side inputs.
 
@@ -1463,6 +1464,10 @@ def _build_resolver_request(
             clear=bool(clear),
             system=bool(allow_global),
             verbose=bool(verbose),
+            # T_F.5: pluggable-backend selection from the CLI / caller.
+            # Empty string is the "unset" sentinel; the dispatcher then
+            # falls through to env / Pipfile / default.
+            backend=str(resolver_backend or ""),
         ),
         sources=typed_sources,
         python_marker_override=python_marker_override,
@@ -1832,7 +1837,7 @@ def venv_resolve_deps(
 
     pipfile = pipfile or getattr(project, pipfile_category, {})
     if lockfile is None:
-        lockfile = project.lockfile(categories=[pipfile_category])
+        lockfile = project.lockfile.as_dict(categories=[pipfile_category])
     if old_lock_data is None:
         old_lock_data = lockfile.get(lockfile_category, {})
 
