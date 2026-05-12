@@ -201,20 +201,20 @@ six = "*"
 
         os.environ["PYPI_USERNAME"] = "whatever"
         os.environ["PYPI_PASSWORD"] = "pass"
-        assert project.get_lockfile_hash() is None
+        assert project.lockfile.hash() is None
 
         c = p.pipenv("install")
         assert c.returncode == 0
-        lock_hash = project.get_lockfile_hash()
+        lock_hash = project.lockfile.hash()
         assert lock_hash is not None
         assert lock_hash == project.calculate_pipfile_hash()
 
         assert c.returncode == 0
-        assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
+        assert project.lockfile.hash() == project.calculate_pipfile_hash()
 
         os.environ["PYPI_PASSWORD"] = "pass2"
-        assert project.get_lockfile_hash() == project.calculate_pipfile_hash()
+        assert project.lockfile.hash() == project.calculate_pipfile_hash()
 
         with open(p.pipfile_path, "a") as f:
             f.write('requests = "==2.14.0"\n')
-        assert project.get_lockfile_hash() != project.calculate_pipfile_hash()
+        assert project.lockfile.hash() != project.calculate_pipfile_hash()

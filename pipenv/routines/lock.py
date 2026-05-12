@@ -58,7 +58,7 @@ def do_lock(project, ctx: RoutineContext):
             lockfile_categories.remove("packages")
             lockfile_categories.insert(0, "default")
     # Create the lockfile.
-    lockfile = project.lockfile(categories=lockfile_categories)
+    lockfile = project.lockfile.as_dict(categories=lockfile_categories)
     for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
@@ -149,11 +149,11 @@ def do_lock(project, ctx: RoutineContext):
                     )
                 )
     if write:
-        lockfile.update({"_meta": project.get_lockfile_meta()})
-        project.write_lockfile(lockfile)
+        lockfile.update({"_meta": project.lockfile.meta()})
+        project.lockfile.write(lockfile)
         if not quiet:
             err.print(
-                f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
+                f"Updated Pipfile.lock ({project.lockfile.hash()})!",
                 style="bold",
             )
     else:

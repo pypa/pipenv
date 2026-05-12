@@ -277,11 +277,11 @@ def handle_lockfile(project, ctx: RoutineContext):
     packages = list(sel.packages) if sel.packages else []
 
     if (
-        (project.lockfile_exists and not policy.ignore_pipfile)
+        (project.lockfile.exists and not policy.ignore_pipfile)
         and not policy.skip_lock
         and not packages
     ):
-        old_hash = project.get_lockfile_hash()
+        old_hash = project.lockfile.hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
             if policy.deploy:
@@ -297,7 +297,7 @@ def handle_lockfile(project, ctx: RoutineContext):
                     old_hash=old_hash,
                     new_hash=new_hash,
                 )
-    elif not project.lockfile_exists and not policy.skip_lock:
+    elif not project.lockfile.exists and not policy.skip_lock:
         handle_missing_lockfile(project, ctx)
 
 
@@ -499,7 +499,7 @@ def do_install_validations(
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
         elif (
             (policy.skip_lock and policy.deploy) or policy.ignore_pipfile
-        ) and not project.any_lockfile_exists:
+        ) and not project.lockfile.any_exists:
             raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # NOTE: The pre-context implementation loaded ``allow_prereleases``
     # from ``project.settings`` into a local ``pre`` variable here, but the
@@ -696,8 +696,8 @@ def do_install_dependencies(
                 )
                 lockfile_type = (
                     "pylock.toml"
-                    if project.pylock_exists
-                    and (project.settings.use_pylock or not project.lockfile_exists)
+                    if project.lockfile.pylock_exists
+                    and (project.settings.use_pylock or not project.lockfile.exists)
                     else "Pipfile.lock"
                 )
                 lockfile_hash = lockfile["_meta"].get("hash", {}).get("sha256", "") or ""

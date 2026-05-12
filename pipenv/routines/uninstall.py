@@ -79,7 +79,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     if not categories:
         categories = ["default"]
 
-    lockfile_content = project.lockfile_content
+    lockfile_content = project.lockfile.content
 
     if all_dev:
         console.print(
@@ -94,8 +94,8 @@ def do_uninstall(project: Project, ctx: RoutineContext):
             console.print("Removed [dev-packages] from Pipfile.")
         # Finalize changes to lockfile
         lockfile_content["develop"] = {}
-        lockfile_content.update({"_meta": project.get_lockfile_meta()})
-        project.write_lockfile(lockfile_content)
+        lockfile_content.update({"_meta": project.lockfile.meta()})
+        project.lockfile.write(lockfile_content)
 
     if all:
         console.print(
@@ -164,8 +164,8 @@ def do_uninstall(project: Project, ctx: RoutineContext):
                 pass  # No lockfile data for this category
 
     # Finalize changes to lockfile
-    lockfile_content.update({"_meta": project.get_lockfile_meta()})
-    project.write_lockfile(lockfile_content)
+    lockfile_content.update({"_meta": project.lockfile.meta()})
+    project.lockfile.write(lockfile_content)
 
     # Perform uninstallation of packages and dependencies
     failure = False
