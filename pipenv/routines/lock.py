@@ -28,7 +28,14 @@ def _clear_parsed_manifest_cache(project) -> None:
     try:
         from pipenv.resolver.manifest_cache import ParsedManifestCache
 
-        cache_root = Path(project.s.PIPENV_CACHE_DIR)
+        # MUST match the cache_root used by
+        # :func:`_prefetch_index_manifests_if_enabled` below — otherwise
+        # ``--clear`` wipes the wrong path and the prefetcher's cache
+        # silently survives.  Surfaced by T20's integration test
+        # ``test_clear_invalidates_parsed_manifest_cache`` (the test had
+        # to seed the WRONG path to keep passing while the production
+        # code disagreed with itself).
+        cache_root = Path(project.s.PIPENV_CACHE_DIR) / "pipenv-manifests"
         ParsedManifestCache(cache_root).clear_all()
     except Exception:  # noqa: BLE001 — defensive; never block the resolve.
         pass
