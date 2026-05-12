@@ -568,8 +568,17 @@ output file between parallel agents.
   of policy going forward.
 - **validation**: Section exists, links to `docs/dev/initiative-b-triage.md`,
   and is reachable from `CONTRIBUTING.md`.
-- **status**: Not Completed
+- **status**: Completed (commit aa459f65)
 - **log**:
+  Added 58-line "Owned code vs. vendored code" section to
+  `docs/dev/contributing.md`. Covers the two states, the no-third-state
+  rule, and the deliberate-forks exception with the Wave 1c examples
+  (`redact_*` in `requirements.py`; `unpack_url`/`get_http_url` in
+  `requirementslib.py`). Top-level `CONTRIBUTING.md` got a pointer
+  paragraph rather than a duplicate copy.
+- **files edited/created**:
+  - `docs/dev/contributing.md` (+58 lines)
+  - `CONTRIBUTING.md` (+6 lines pointer)
 - **files edited/created**:
 
 ---
@@ -607,8 +616,34 @@ output file between parallel agents.
 - **validation**: Doc table covers every named parameter on every
   in-scope routine; semantic-group assignment is internally consistent;
   trivial-arity helpers are in the appendix, not the main table.
-- **status**: Not Completed
+- **status**: Completed (commit 0c60c580)
 - **log**:
+  240 parameter rows across 23 in-scope functions in
+  `pipenv/routines/`. Scope finding: `pipenv/core.py` no longer exists
+  (earlier modernization decomposed it into `routines/` + `utils/`);
+  inventory sourced exclusively from `pipenv/routines/`.
+
+  Semantic-group distribution: package_selection 54, execution_options
+  57, target_env 50, install_policy 36, other 34, state_flags 9.
+
+  Cross-cutting findings for T_C.3:
+  - `pypi_mirror` + `system`/`allow_global` universal (~36 rows) —
+    strongest signal for a shared `target_env` group.
+  - `(packages, editable_packages, categories)` shape duplicated in
+    5+ routines, with a parallel `(package_args, pipfile_category,
+    category)` rename inside `update.py`'s helpers (worth normalizing
+    in `RoutineContext`).
+  - `install_policy` flags (`pre`, `deploy`, `skip_lock`,
+    `ignore_pipfile`, `clear`, `lock_only`) consistently travel as a
+    packet — best candidate for a nested dataclass.
+  - `state_flags` (9 rows) is small and incoherent — recommend
+    leaving as call-site args rather than folding into `RoutineContext`.
+  - `other` group is dominated by per-call workflow plumbing
+    (`lockfile`, `procs`, `reverse_deps`, `requested_packages`) — NOT
+    `RoutineContext` material; belongs in per-routine operation
+    objects.
+- **files edited/created**:
+  - `docs/dev/initiative-c-params.md` (new, 240-row table + analysis)
 - **files edited/created**:
 
 #### T_C.3: Design `RoutineContext` proposal
