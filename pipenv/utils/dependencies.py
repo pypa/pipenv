@@ -252,7 +252,9 @@ def extract_vcs_url(vcs_url):
 
 
 def add_ssh_scheme_to_git_uri(uri: str | bytes | None) -> str | bytes | None:
-    """Cleans VCS uris from pip format."""
+    """Clean VCS URIs from pip format, preserving ``None`` unchanged."""
+    if uri is None:
+        return None
     if isinstance(uri, str):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
