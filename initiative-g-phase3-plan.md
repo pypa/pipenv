@@ -248,9 +248,64 @@ near the bottom of this document.
     `("django", frozenset())`.
   - Round-trip equality: two requirements with same name + extras
     have equal `identify` outputs.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Implemented per design §5.3.  Started
+    `pipenv/resolver/pure_python_provider.py` with the
+    `PurePythonProvider(AbstractProvider)` shell: keyword-only
+    `__init__(*, cache, fetcher, metadata_fetcher, target_env)` stores
+    all four collaborators verbatim (typed `Any` for now — T4-T7 will
+    tighten as they consume each one), and `identify` returns the
+    `(canonical_name, frozenset(extras))` group key from design §5.3.
+    The `identify` body branches on `isinstance(_, Requirement)` for
+    static-checker narrowing on the `Requirement` path, and uses
+    duck-typing (`getattr(_, "extras", frozenset())`) on the
+    `Candidate` path so this module doesn't import
+    `pipenv.resolver.candidate` (smaller import graph; dodges any
+    future circular if T9's backend hands the provider a `Candidate`
+    subclass).  `AbstractProvider` in
+    `pipenv/patched/pip/_vendor/resolvelib/providers.py` raises plain
+    `NotImplementedError` (no `@abstractmethod`), so the four
+    un-implemented hot-path methods (`find_matches`, `get_preference`,
+    `is_satisfied_by`, `get_dependencies`) carry stubs that raise
+    `NotImplementedError("T4: ...")` etc. — instantiation works,
+    invocation fails loud with a task-label pointer.
+    `Candidate` was widened with a new `extras: frozenset[str] = field(
+    default_factory=frozenset)` field (appended after the existing
+    fields so frozen-dataclass field-order — no-default-then-default
+    — holds).  The default factory means the existing PEP 691 parser
+    in `pipenv/resolver/manifest_cache.py:407` and all 31
+    `test_candidate.py` tests stay non-breaking (verified: 31/31
+    pass).  RED→GREEN with `tests/unit/test_pure_python_provider.py`
+    (8 tests; all pass) covering the three T3 validation bullets plus
+    the symmetrical cross-shape claim that a `Requirement` and a
+    `Candidate` with matching `(name, extras)` produce equal
+    identifiers (the load-bearing `resolvelib` invariant).  T13 will
+    extend this file with per-method coverage of `find_matches`,
+    `get_preference`, `is_satisfied_by`, and `get_dependencies` once
+    T4-T7 land.  `grep -nE
+    "^[[:space:]]*(from|import)[[:space:]]+pipenv\.patched\.pip\._internal"
+    pipenv/resolver/pure_python_provider.py` shows zero matches —
+    the `AbstractProvider` import goes through
+    `pipenv.patched.pip._vendor.resolvelib`, which is `_vendor` (a
+    third-party-vendored dep of patched pip), not `_internal` (pip's
+    own code).  `ruff check` clean on the new files.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (new — class shell:
+    keyword-only `__init__` storing the four collaborators + `identify`
+    returning `(canonical_name, frozenset(extras))`; `find_matches`,
+    `get_preference`, `is_satisfied_by`, `get_dependencies` are stubs
+    raising `NotImplementedError("Tn: ...")` for T4-T7 to fill in)
+  - `pipenv/resolver/candidate.py` (widened: added
+    `extras: frozenset[str] = field(default_factory=frozenset)` and
+    a field docstring explaining T3's use; imported `field` from
+    `dataclasses`)
+  - `tests/unit/test_pure_python_provider.py` (new — 8 RED→GREEN
+    tests covering the three T3 validation bullets: identifier shape
+    for `Requirement` with/without extras + multi-extra, identifier
+    shape for `Candidate` with default + explicit-empty extras, and
+    round-trip equality across same/different extras + cross-shape
+    `Requirement` ↔ `Candidate`; T13 extends)
 
 ---
 
