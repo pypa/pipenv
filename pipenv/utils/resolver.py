@@ -13,7 +13,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Union
 
-from pipenv import environments, resolver
+from pipenv import environments
 from pipenv.exceptions import ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.cli.cmdoptions import check_release_control_exclusive
@@ -1619,6 +1619,57 @@ def _get_cool_down_timedelta(project):
     return _dt.timedelta(days=int(m.group(1)))
 
 
+def _resolve_in_process(request, st):
+    """In-process adapter around :func:`pipenv.resolver.core.resolve_for_pipenv`.
+
+    T_F.4 fold: the ``PIPENV_RESOLVER_PARENT_PYTHON=1`` debug bypass now
+    calls the exact same unified driver that the subprocess entry calls,
+    then dispatches on ``response.result.kind`` to either return the
+    locked entries or raise.  The marker-environment override is handled
+    inside the unified driver, so this adapter does NOT wrap a separate
+    ``_patched_marker_environment`` context manager.
+
+    Returns
+    -------
+    Sequence[LockedRequirement]
+        On a successful resolve.
+
+    Raises
+    ------
+    ResolutionFailure
+        Structured dependency conflict (``ResolutionError`` variant of
+        the typed response).
+    RuntimeError
+        Genuine internal failure (``InternalError`` variant).
+    """
+    from pipenv.resolver.core import resolve_for_pipenv
+
+    response = resolve_for_pipenv(request)
+    kind = response.result.kind
+    if kind == "success":
+        results = _normalize_resolver_results(response.result.locked)
+        if results:
+            st.console.print(
+                environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
+            )
+        return results
+    st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+    if kind == "resolution_error":
+        message = response.result.pip_message or "Failed to lock Pipfile.lock!"
+        err.print(message)
+        exc = ResolutionFailure(message)
+        exc.conflicts = response.result.conflicts
+        raise exc
+    # internal_error or unknown — surface the captured traceback.
+    if response.result.message:
+        err.print(response.result.message)
+    if response.result.traceback:
+        err.print(response.result.traceback)
+    raise RuntimeError(
+        response.result.message or "Resolver internal error in PARENT_PYTHON branch."
+    )
+
+
 def venv_resolve_deps(
     deps,
     which,
@@ -1759,29 +1810,12 @@ def venv_resolve_deps(
             # Useful for debugging and hitting breakpoints in the resolver
             if project.s.PIPENV_RESOLVER_PARENT_PYTHON:
                 # ---- In-process branch (debug bypass) ----
-                # T_F.3 B2: the type migration matches B1's rewrite of
-                # ``resolve_packages``.  Per the execution plan Q6 the
-                # *fold* between subprocess and in-process is deferred
-                # to T_F.4, but the *type contract* matches:
-                # ``resolve_packages(request)`` returns a tuple of
-                # ``(Sequence[LockedRequirement], Resolver)``.  We
-                # normalize the locked sequence so downstream consumers
-                # see a uniform shape regardless of which branch ran.
-                try:
-                    with _patched_marker_environment(python_override):
-                        locked, _internal_resolver = resolver.resolve_packages(
-                            request
-                        )
-                    results = _normalize_resolver_results(locked)
-                    if results:
-                        st.console.print(
-                            environments.PIPENV_SPINNER_OK_TEXT.format("Success!")
-                        )
-                except Exception:
-                    st.console.print(
-                        environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
-                    )
-                    raise  # maybe sys.exit(1) here?
+                # T_F.4: this branch is now a THIN adapter around the
+                # same :func:`pipenv.resolver.core.resolve_for_pipenv`
+                # the subprocess entry calls.  The only difference is
+                # that we dispatch on ``response.result.kind`` here
+                # rather than reading a JSON file.
+                results = _resolve_in_process(request, st)
             else:  # Default/Production behavior is to use project python's resolver
                 st.console.print("Resolving dependencies...")
                 results = _run_resolver_subprocess(

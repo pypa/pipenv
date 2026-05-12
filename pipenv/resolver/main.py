@@ -1,14 +1,29 @@
-"""``pipenv-resolver`` subprocess entry point (T_F.3).
+"""``pipenv-resolver`` subprocess entry point (T_F.3 + T_F.4).
 
-Wave B1 of Initiative F replaced the legacy argv/env-var/tempfile cocktail
-(see ``docs/dev/initiative-f-protocol.md`` §3 for the full list of
-deleted flags + env-var hops) with a single typed envelope:
+Wave B1 of Initiative F (T_F.3) replaced the legacy argv/env-var/tempfile
+cocktail (see ``docs/dev/initiative-f-protocol.md`` §3 for the full list
+of deleted flags + env-var hops) with a single typed envelope:
 
     pipenv-resolver --request-file <path> --response-file <path>
 
 Both files carry a ``ResolverRequest`` / ``ResolverResponse`` JSON payload
-defined in :mod:`pipenv.resolver.schema`.  See
-``docs/dev/initiative-f-typed-design.md`` for the full design and
+defined in :mod:`pipenv.resolver.schema`.
+
+T_F.4 then folded the in-process and subprocess branches onto a single
+:func:`pipenv.resolver.core.resolve_for_pipenv` driver.  This module is
+now a *thin adapter* around that function — its only jobs are:
+
+1. Bootstrap ``pipenv`` on ``sys.path`` (the subprocess is invoked by
+   the target venv's interpreter, which may not have pipenv installed
+   into its own ``site-packages``).
+2. Read the request JSON from ``--request-file``.
+3. Validate ``schema_version`` BEFORE dispatching on the payload
+   (design §3.6 / plan Risk #6).
+4. Call :func:`resolve_for_pipenv` (which never raises).
+5. Write the response JSON to ``--response-file``.
+6. Choose an exit code based on ``response.result.kind``.
+
+See ``docs/dev/initiative-f-typed-design.md`` for the full design and
 ``docs/dev/initiative-f-execution-plan.md`` §B1 for the rewrite
 checklist.
 
@@ -31,7 +46,6 @@ from __future__ import annotations
 
 import importlib.util
 import json
-import logging
 import os
 import sys
 import traceback
@@ -107,41 +121,6 @@ def get_parser():
 
 
 # ---------------------------------------------------------------------------
-# Marker-environment override — travelled via a legacy env-var pre-T_F.3,
-# now a typed field on the request.  See design doc §3.6.
-# ---------------------------------------------------------------------------
-
-
-def _apply_python_marker_override(python_marker_override: str | None) -> None:
-    """Monkey-patch ``default_environment`` in pip's vendored packaging so
-    marker evaluation uses the project's target Python rather than the
-    interpreter currently executing ``pipenv-resolver``.
-
-    Pre-T_F.3 the override travelled via an environment variable; now it
-    rides on the typed request as ``ResolverRequest.python_marker_override``.
-    See https://github.com/pypa/pipenv/issues/5908.
-    """
-    if not python_marker_override:
-        return
-
-    parts = python_marker_override.split(".")
-    python_version = ".".join(parts[:2])
-    python_full_version = python_marker_override
-
-    import pipenv.patched.pip._vendor.packaging.markers as pip_markers
-
-    _orig = pip_markers.default_environment
-
-    def _patched():
-        env = _orig()
-        env["python_version"] = python_version
-        env["python_full_version"] = python_full_version
-        return env
-
-    pip_markers.default_environment = _patched
-
-
-# ---------------------------------------------------------------------------
 # Result-dict → typed LockedRequirement adapter.
 # ---------------------------------------------------------------------------
 
@@ -211,9 +190,7 @@ def resolve_packages(request):
 
     Replaces the legacy ``resolve_packages(pre, clear, verbose, system,
     write, requirements_dir, packages, pipfile_category, constraints,
-    resolved_default_deps)`` signature.  The in-process branch at
-    ``pipenv/utils/resolver.py:1431`` must adapt to the new shape; that
-    migration is B2's job.
+    resolved_default_deps)`` signature.
     """
     from pipenv.project import Project
     from pipenv.utils.resolver import resolve_deps
@@ -275,21 +252,21 @@ def which(*args, **kwargs):
     """Stub for the ``which`` callable that pipenv's resolver expects.
 
     The subprocess runs *inside* the target venv, so the resolving
-    interpreter is always ``sys.executable``.  Preserved (and ONLY
-    preserved as an in-module function — the legacy module-level
-    ``which`` stub at ``resolver.py:90-91`` is gone) because pipenv's
-    Resolver internals call it as a callback.
+    interpreter is always ``sys.executable``.
     """
     return sys.executable
 
 
 # ---------------------------------------------------------------------------
 # Subprocess entry: --request-file in, --response-file out.
+# Thin adapter around :func:`pipenv.resolver.core.resolve_for_pipenv`
+# (T_F.4 fold).
 # ---------------------------------------------------------------------------
 
 
 def _main(request_file: str, response_file: str) -> int:
-    """Inner entry: returns the intended exit code, never raises.
+    """Subprocess adapter: read request → call :func:`resolve_for_pipenv`
+    → write response.  Returns the intended exit code, never raises.
 
     Split from :func:`main` so callers (and tests) can drive the logic
     without going through ``sys.argv``.  Always writes a structured
@@ -297,19 +274,18 @@ def _main(request_file: str, response_file: str) -> int:
     exceptions still produce a typed ``InternalError`` payload.
     """
     # ``_ensure_modules`` must run BEFORE the first ``pipenv.*`` import:
-    # the subprocess is invoked via the project venv's python against
+    # the subprocess may be invoked via the project venv's python against
     # the absolute path of this file, so ``pipenv`` is not on
     # ``sys.path`` at startup.  Bootstrap it first, then resolve the
     # schema import the normal way.
     _ensure_modules()
 
+    from pipenv.resolver.core import _apply_request_env, resolve_for_pipenv
     from pipenv.resolver.schema import (
         SCHEMA_VERSION,
         InternalError,
-        ResolutionError,
         ResolverRequest,
         ResolverResponse,
-        ResolverSuccess,
     )
 
     def _write_response(response: ResolverResponse) -> None:
@@ -357,66 +333,20 @@ def _main(request_file: str, response_file: str) -> int:
         )
         return 2
 
-    # ---- Stage 3: full typed parse + resolve. ------------------------
+    # ---- Stage 3: full typed parse + delegate to the unified driver. -
     try:
         request = ResolverRequest.from_json_dict(raw)
-        os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
-        os.environ["PYTHONIOENCODING"] = "utf-8"
-        os.environ["PYTHONUNBUFFERED"] = "1"
-        if request.options.verbose:
-            os.environ["PIPENV_VERBOSITY"] = "1"
-            os.environ["PIP_RESOLVER_DEBUG"] = "1"
-        else:
-            logging.getLogger("pipenv").setLevel(logging.WARN)
-
-        _apply_python_marker_override(request.python_marker_override)
-
-        # Dispatch ``resolve_packages`` via attribute lookup on the
-        # package-qualified module rather than the module-local name.
-        # When the entry is invoked as a script path, the script runs
-        # under the ``__main__`` module identity (distinct from
-        # ``pipenv.resolver.main`` in ``sys.modules``); calling via
-        # ``sys.modules["pipenv.resolver.main"].resolve_packages``
-        # means tests + future re-exports can monkey-patch one well-
-        # known location and have it stick regardless of which entry
-        # path Python took.
-        _resolver_main_mod = sys.modules.get("pipenv.resolver.main")
-        if _resolver_main_mod is not None and hasattr(
-            _resolver_main_mod, "resolve_packages"
-        ):
-            _resolve_packages_callable = _resolver_main_mod.resolve_packages
-        else:
-            _resolve_packages_callable = resolve_packages
-        locked, _resolver = _resolve_packages_callable(request)
-
-        _write_response(
-            ResolverResponse(
-                schema_version=SCHEMA_VERSION,
-                result=ResolverSuccess(kind="success", locked=tuple(locked)),
-            )
-        )
-        return 0
-    except Exception as exc:  # noqa: BLE001 — top-level catch-all per plan §B1 step 8
+        _apply_request_env(request)
+        response = resolve_for_pipenv(request)
+        _write_response(response)
+    except Exception as exc:  # noqa: BLE001 — request parsing / response writing only
+        # ``resolve_for_pipenv`` itself never raises; the only ways into
+        # this branch are a malformed-but-schema-version-OK request
+        # (``from_json_dict`` raises ``KeyError``/``ValueError``) or an
+        # I/O error while writing the response file.  Either way, try
+        # to record an InternalError so the parent has structured
+        # detail before bailing.
         tb = traceback.format_exc()
-        # Try to detect resolution-impossible failures so we can emit
-        # ResolutionError rather than InternalError.  The detection is
-        # by class name to avoid a hard import dep on
-        # ``pipenv/utils/resolver.py`` (the parent-side rewrite owns
-        # that module).
-        exc_class_name = type(exc).__name__
-        if exc_class_name in {"ResolutionFailure", "DependencyConflict", "DistributionNotFound"}:
-            _write_response(
-                ResolverResponse(
-                    schema_version=SCHEMA_VERSION,
-                    result=ResolutionError(
-                        kind="resolution_error",
-                        conflicts=(),
-                        pip_message=str(exc),
-                    ),
-                )
-            )
-            return 0
-        # Genuine crash → InternalError + non-zero exit.
         try:
             _write_response(
                 ResolverResponse(
@@ -429,10 +359,17 @@ def _main(request_file: str, response_file: str) -> int:
                 )
             )
         except Exception:  # noqa: BLE001
-            # If we can't even write the response, surface the crash
-            # via stderr and the non-zero exit.
             print(tb, file=sys.stderr)
         return 1
+
+    # ---- Stage 4: pick exit code from the structured response. -------
+    kind = response.result.kind
+    if kind == "internal_error":
+        return 1
+    # success and resolution_error are both exit 0 (structured payload
+    # carries the failure detail — non-zero exit is reserved for
+    # genuine crashes per the plan §B1 contract).
+    return 0
 
 
 def main(argv=None) -> int:
