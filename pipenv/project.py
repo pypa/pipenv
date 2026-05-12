@@ -8,7 +8,6 @@ import operator
 import os
 import re
 import sys
-import urllib.parse
 
 from functools import cached_property
 from json.decoder import JSONDecodeError
@@ -1476,7 +1475,7 @@ class Project:
             return []
 
         # Determine target categories
-        if categories is None or (isinstance(categories, list) and len(categories) == 0):
+        if categories is None or (isinstance(categories, list) and not categories):
             categories = ["dev-packages" if dev else "packages"]
         elif isinstance(categories, str):
             categories = [categories]
@@ -1551,7 +1550,7 @@ class Project:
         return results
 
     def src_name_from_url(self, index_url):
-        location = urllib.parse.urlsplit(index_url).netloc
+        location = parse.urlsplit(index_url).netloc
         if "." in location:
             name, _, tld_guess = location.rpartition(".")
         else:

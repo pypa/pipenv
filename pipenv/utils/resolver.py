@@ -1169,14 +1169,12 @@ def _is_download_status_line(line: str) -> bool:
     """
     stripped = line.strip()
     # Match "Downloading <name>.whl (X MB)" style messages.
-    if stripped.startswith("Downloading ") and (
+    return stripped.startswith("Downloading ") and (
         " MB)" in stripped
         or " kB)" in stripped
         or " KB)" in stripped
         or " GB)" in stripped
-    ):
-        return True
-    return False
+    )
 
 
 def resolve(cmd, st, project):

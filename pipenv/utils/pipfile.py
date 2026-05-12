@@ -322,10 +322,7 @@ class Pipfile:
         return self.__getitem__(k)
 
     def __contains__(self, k):
-        check_pipfile = k in self.extended_keys or self.pipfile.__contains__(k)
-        if check_pipfile:
-            return True
-        return False
+        return k in self.extended_keys or k in self.pipfile
 
     def __getitem__(self, k, *args, **kwargs):
         retval = None
