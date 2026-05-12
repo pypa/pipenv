@@ -22,6 +22,11 @@ class State:
         self.site_packages = None
         self.clear = False
         self.system = False
+        # T_F.5: ``--resolver NAME`` selection.  ``None`` is the
+        # "not specified on the CLI" sentinel that lets the dispatcher
+        # in ``pipenv.resolver.core`` fall through to PIPENV_RESOLVER /
+        # [pipenv] resolver / default.
+        self.resolver = None
         self.project = Project()
         self.installstate = InstallState()
         self.lockoptions = LockOptions()
@@ -303,6 +308,27 @@ def _add_skip_lock_option(p):
     )
 
 
+def _add_resolver_option(p):
+    """T_F.5: pluggable resolver backend selection.
+
+    Maintainer sign-off 2026-05-12 fixed the flag name as ``--resolver
+    NAME``.  The flag is used only for non-default selection; with no
+    flag, no env var, and no Pipfile field the dispatcher picks
+    ``pip`` (the existing behaviour).
+    """
+    p.add_argument(
+        "--resolver",
+        dest="resolver",
+        default=None,
+        metavar="NAME",
+        help=(
+            "Select the resolver backend (T_F.5 scaffolding; pip is the "
+            "only backend shipped today). Overrides PIPENV_RESOLVER and "
+            "the [pipenv] resolver Pipfile setting."
+        ),
+    )
+
+
 # ── Option group composers ────────────────────────────────────────────────────
 
 
@@ -323,6 +349,7 @@ def _add_install_base_options(p):
     _add_common_options(p)
     _add_pre_option(p)
     _add_extra_pip_args(p)
+    _add_resolver_option(p)
 
 
 def _add_sync_options(p):
@@ -869,6 +896,11 @@ def build_state(args):
     state.system = bool(getattr(args, "system", None))
     state.verbose = bool(getattr(args, "verbose", None))
     state.quiet = bool(getattr(args, "quiet", None))
+    # T_F.5: resolver-backend selection.  ``None`` means "not specified
+    # on the CLI"; the dispatcher then falls through to PIPENV_RESOLVER
+    # / [pipenv] resolver / default.
+    raw_resolver = getattr(args, "resolver", None)
+    state.resolver = raw_resolver.strip() if isinstance(raw_resolver, str) and raw_resolver.strip() else None
 
     # ── Validation ───────────────────────────────────────────────────────────
     if state.python:

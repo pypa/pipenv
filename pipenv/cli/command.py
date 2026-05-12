@@ -88,6 +88,7 @@ def cmd_install(args, state):
         requirementstxt=state.installstate.requirementstxt,
         # execution_options
         extra_pip_args=state.installstate.extra_pip_args,
+        resolver=state.resolver,
     )
     do_install(state.project, ctx)
 
@@ -205,6 +206,7 @@ def cmd_lock(args, state):
         # execution_options
         quiet=state.quiet,
         write=True,
+        resolver=state.resolver,
     )
     do_lock(state.project, ctx)
 
@@ -492,7 +494,7 @@ def cmd_verify(args, state):
     if not state.project.pipfile_exists:
         err.print("No Pipfile present at project home.")
         sys.exit(1)
-    if state.project.get_lockfile_hash() != state.project.calculate_pipfile_hash():
+    if state.project.lockfile.hash() != state.project.calculate_pipfile_hash():
         err.print(
             "Pipfile.lock is out-of-date. Run [yellow bold]$ pipenv lock[/yellow bold] to update."
         )
@@ -529,13 +531,13 @@ def cmd_pylock(args, state):
     groups = [g.strip() for g in args.dev_groups.split(",") if g.strip()]
 
     if args.generate:
-        if not project.lockfile_exists:
+        if not project.lockfile.exists:
             err.print("[bold red]No Pipfile.lock found.[/bold red]")
             sys.exit(1)
         try:
-            output_path = args.output or project.pylock_output_path
+            output_path = args.output or project.lockfile.pylock_output_path
             pylock_file = PylockFile.from_lockfile(
-                lockfile_path=project.lockfile_location,
+                lockfile_path=project.lockfile.location,
                 pylock_path=output_path,
                 dev_groups=groups,
             )
@@ -553,7 +555,7 @@ def cmd_pylock(args, state):
             err.print("[bold red]No pyproject.toml found.[/bold red]")
             sys.exit(1)
         try:
-            output_path = args.output or project.pylock_output_path
+            output_path = args.output or project.lockfile.pylock_output_path
             pylock_file = PylockFile.from_pyproject(
                 pyproject_path=pyproject_path,
                 pylock_path=output_path,
@@ -571,7 +573,7 @@ def cmd_pylock(args, state):
             sys.exit(1)
 
     elif args.validate:
-        pylock_path = project.pylock_location
+        pylock_path = project.lockfile.pylock_location
         if not pylock_path:
             err.print("[bold red]No pylock.toml found.[/bold red]")
             sys.exit(1)
@@ -601,7 +603,7 @@ def cmd_pylock(args, state):
             sys.exit(1)
 
     else:
-        pylock_path = project.pylock_location
+        pylock_path = project.lockfile.pylock_location
         if pylock_path:
             try:
                 pylock_file = PylockFile.from_path(pylock_path)

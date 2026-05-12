@@ -128,3 +128,26 @@ class Settings(MutableMapping):
         Was ``Project.use_pylock`` prior to T_D.3.
         """
         return self.get("use_pylock", False)
+
+    @property
+    def resolver(self) -> str | None:
+        """Return the configured resolver backend name from
+        ``[pipenv] resolver = "..."`` in the Pipfile, or ``None`` if
+        unset.
+
+        Introduced by T_F.5 (pluggable resolver backends, scaffolding
+        only).  Per the maintainer sign-off (2026-05-12, answer 1) the
+        Pipfile field is ``resolver`` under the existing ``[pipenv]``
+        section — no new subsection.  Equivalent ``pyproject.toml`` /
+        ``pylock.toml`` plumbing is a separate hook; see
+        ``# TODO(T_F.8)`` markers in those readers.
+
+        The dispatcher in :mod:`pipenv.resolver.core` consults this via
+        :func:`pipenv.resolver.core._resolver_name_from_pipfile`, which
+        applies a precedence chain (CLI > env > Pipfile > default).
+        """
+        value = self.get("resolver")
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
