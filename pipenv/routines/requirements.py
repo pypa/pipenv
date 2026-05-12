@@ -31,7 +31,7 @@ def generate_requirements(
         )
         return
 
-    lockfile = project.load_lockfile(expand_env_vars=False)
+    lockfile = project.lockfile.load(expand_env_vars=False)
     pipfile_package_names = project.pipfile_package_names
 
     # Print index URLs first (unless excluded).

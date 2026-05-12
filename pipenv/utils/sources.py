@@ -7,7 +7,7 @@ relocated into a dedicated ``Sources`` class accessed via the
 back to the owning ``Project`` for two reasons:
 
 1. Reading sources requires read access to ``project.parsed_pipfile``
-   (and, for the ``all`` property, ``project.lockfile_content``).
+   (and, for the ``all`` property, ``project.lockfile.content``).
 2. The single writer in this subsystem
    (:meth:`Sources.add_index_to_pipfile`) needs to call
    ``project.write_toml`` so that the Pipfile cache is invalidated
@@ -265,8 +265,8 @@ class Sources:
         ``Project.sources`` property.
         """
         project = self._project
-        if project.any_lockfile_exists and hasattr(project.lockfile_content, "keys"):
-            meta_ = project.lockfile_content.get("_meta", {})
+        if project.lockfile.any_exists and hasattr(project.lockfile.content, "keys"):
+            meta_ = project.lockfile.content.get("_meta", {})
             sources_ = meta_.get("sources")
             if sources_:
                 return sources_
