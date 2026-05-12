@@ -97,7 +97,13 @@ def test_project_lockfile_returns_lockfile_subsystem(project_bare):
 @pytest.mark.utils
 def test_lockfile_location_is_pipfile_plus_lock(project_bare, tmp_path):
     """``project.lockfile.location`` is ``Pipfile.lock`` next to the Pipfile."""
-    assert project_bare.lockfile.location == f"{tmp_path}/Pipfile.lock"
+    # ``Lockfile.location`` returns ``f"{pipfile.location}.lock"`` — plain
+    # string concatenation, so the separator matches whatever OS produced
+    # ``pipfile.location``.  On Windows that's ``\\``; hard-coding ``/``
+    # in the expected value fails on Windows with a one-character diff
+    # at the final separator.  Build the expected path via ``pathlib``
+    # so the comparison stays platform-native.
+    assert project_bare.lockfile.location == str(tmp_path / "Pipfile.lock")
 
 
 @pytest.mark.utils
