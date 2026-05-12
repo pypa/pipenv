@@ -753,9 +753,23 @@ output file between parallel agents.
   `install.py`. They consume `ctx` rather than threading individual
   parameters.
 - **validation**: Both helpers take `(project, ctx)`; unit suite green.
-- **status**: Not Completed
+- **status**: Completed (commit 776bab9d)
 - **log**:
+  `handle_new_packages` reduced from 11 params to
+  `(project, ctx, *, perform_upgrades=True)` (3 params; `perform_upgrades`
+  stays as a call-site intent kwarg). `handle_lockfile` reduced from
+  10 params to `(project, ctx)`. `do_install` updated to pass `ctx`
+  directly. `do_init` (T_C.7 territory) call site bridged via inline
+  `RoutineContext.from_cli(...)` — bridge will collapse naturally when
+  T_C.7 migrates `do_init` end-to-end.
+
+  Test updates: `tests/unit/test_do_install_context_routing.py` had
+  4 tests refactored to assert against `ctx` fields plus 2 new
+  signature-pin tests added (`TestHandleNewPackagesSignature`,
+  `TestHandleLockfileSignature`). 575 tests pass.
 - **files edited/created**:
+  - `pipenv/routines/install.py`
+  - `tests/unit/test_do_install_context_routing.py`
 
 #### T_C.7: Migrate `do_init`, `do_install_validations`, `do_install_dependencies`
 - **depends_on**: [T_C.6]
@@ -965,9 +979,39 @@ output file between parallel agents.
   design in subsequent tasks.
 - **validation**: Doc describes every field crossing the boundary with
   type and provenance.
-- **status**: Not Completed
+- **status**: Completed (commit 2a7aa81b)
 - **log**:
+  588-line protocol reference covering all 9 required sections.
+  Coverage counts: 10 argv elements (3 dead-surface flags called out);
+  11 explicit env vars + 4 implicit; 12 JSON top-level keys per entry;
+  10 divergent in-process-vs-subprocess helper pairs flagged for
+  T_F.2+ fold-in; 11 decisions deferred to T_F.2.
+
+  Substantive findings worth surfacing independently of T_F.2:
+  - **No subprocess timeout** at `pipenv/utils/resolver.py:1222`
+    (`c.wait()`) — a hung mirror means pipenv hangs forever. This
+    is a real user-facing reliability issue independent of the
+    protocol-typing refactor.
+  - **No schema version, no envelope, no success/failure
+    discriminator** in the current protocol. Non-zero exit is the
+    only failure signal; resolution-impossible vs subprocess-crash
+    are indistinguishable to the parent.
+  - **Three dead argv flags** in `pipenv/resolver.py`:
+    `--parse-only`, `--pipenv-site`, and positional `packages` (always
+    shadowed by `--constraints-file` in production). Cruft to remove
+    independent of T_F.2.
+  - The biggest fold-target between in-process and subprocess paths
+    is **two competing requirement-output formatters**:
+    `Entry.get_cleaned_dict` (subprocess side,
+    `pipenv/resolver.py:288-320`) vs `format_requirement_for_lockfile`
+    (parent side, `pipenv/utils/locking.py:46-160`). They overlap
+    heavily.
+  - The `PIPENV_RESOLVER_PARENT_PYTHON` "in-process" branch is a
+    debug bypass, not architectural cleanliness — both paths still
+    call `resolver.resolve_packages` and diverge only in
+    serialization.
 - **files edited/created**:
+  - `docs/dev/initiative-f-protocol.md` (new, 588 lines)
 
 ---
 
