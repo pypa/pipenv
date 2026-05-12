@@ -226,9 +226,13 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - TTL expiry: with `ttl_seconds=0`, `cache.get(...)` returns `None` immediately after `put`.
   - Schema version mismatch: a manifest written under `schema_version=99` should be ignored (return `None`) when read by a `schema_version=1` cache.
   - Atomic write: kill the process during a `put` (simulated by raising mid-write) → the existing manifest file is unchanged, no partial write visible.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented `pipenv/resolver/manifest_cache.py` per design §5.2. Module exports `CachedManifest` (`@dataclass(frozen=True, slots=True)`) and `ParsedManifestCache` with the four documented methods (`get`, `put`, `invalidate`, `clear_all`) plus `SCHEMA_VERSION = 1` class constant. Cache root is caller-supplied — class does NOT default to `~/.cache/pipenv/...` (that decision lives with T9 / T19 per plan instructions). Disk path layout: `<root>/manifests-v<sv>/<sha256(index_url)>/<canonicalize_name(pkg)>.json` (full 64-char sha256 to avoid prefix collisions per T14's collision test). Atomic write: `tempfile.NamedTemporaryFile(delete=False, dir=parent)` → `tmp.write` → `tmp.flush` → `os.fsync` → `tmp.close` → `os.replace(tmp.name, target)`, with best-effort temp-file cleanup on the failure path. Datetimes are timezone-aware UTC throughout (`datetime.now(timezone.utc)`, never naïve). Serialisation helpers: `_candidate_to_json` flattens `frozenset[Hash]` → sorted `list[list[str, str]]`, `frozenset[Tag]` → sorted `list[str]`, `datetime` → ISO 8601; `_candidate_from_json` reads cached `wheel_tags` directly when present (preserving deterministic round-trips even across `packaging.tags` upgrades) and falls back to `Candidate.from_filename` only when the field is missing (forward-compat shim). RED→GREEN evidence: pre-impl `python -c "from pipenv.resolver.manifest_cache import ParsedManifestCache"` raised `ModuleNotFoundError`; post-impl all four plan acceptance scenarios pass inline (round-trip, ttl_seconds=0, schema_version=99 mismatch ignored, mid-write `os.replace` crash leaves prior payload intact). `grep -n "pip._internal" pipenv/resolver/manifest_cache.py` returns no matches (exit 1). Tests deferred to T14 per the revised plan (no smoke file committed).
+  - Gotcha for T14: writer-vs-writer test — compare the loaded payload to **either** of the two known candidate-sets rather than asserting which one won. `datetime.now(timezone.utc)` can produce equal timestamps on fast hardware, so "later cached_at wins" is not an invariant; the actual invariant is last-`os.replace`-wins, which the test can't observe ordering on without explicit synchronisation.
+  - Gotcha for T14: corruption tests should write raw bytes directly (e.g. `target.write_bytes(b"not json")`) — `get()` swallows `json.JSONDecodeError`, `UnicodeDecodeError`, missing keys, and bad ISO timestamps as misses (returns `None`). The T14 atomic-write test should assert no `<target>.<rand>.tmp` litter on the **success** path; the failure path may legitimately leave one stale temp file behind (documented in the `put` docstring — aggressive cleanup risks racing another writer's temp file in the same directory).
 - **files edited/created**:
+  - Created: `pipenv/resolver/manifest_cache.py` (CachedManifest + ParsedManifestCache + private serialisation helpers; ~391 LOC).
 
 ---
 
@@ -316,9 +320,11 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - `Candidate.from_filename(...)` for wheel filenames → `is_wheel=True`, `wheel_tags` populated; sdist filenames → `is_wheel=False`, `wheel_tags=None`.
   - `Hash` namedtuple equality and frozenset membership.
 - **validation**: `pytest tests/unit/test_candidate.py` passes with ≥95 % coverage of `pipenv/resolver/candidate.py`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Extended T1's 8 smoke tests by 23 new tests grouped into 7 new test classes (`TestAllFieldsConstruction`, `TestEqualitySemantics`, `TestHashabilityForSetDictUse`, `TestHashTupleEquality`, `TestFromFilenameWheelTagVariants`, `TestFromFilenameSdist`, `TestEdgeCases`).  All 31 tests pass.  Coverage of `pipenv/resolver/candidate.py` is **100 %** (36 / 36 statements, 0 missed) — exceeds the ≥95 % floor.  The previously uncovered line (the `ValueError` raised on malformed wheel filenames at module line 169) is now pinned by `TestEdgeCases::test_malformed_wheel_filename_raises_value_error`.  Wheel-tag platform-variant coverage is exhaustive: legacy manylinux2014, PEP 600 `manylinux_X_Y`, musllinux, macosx arm64, win_amd64, pure-Python `py3-none-any`, stable-ABI `cp311-abi3`, and non-manylinux `linux_x86_64` each have their own test.  Sdist branch covered for `.tar.gz` and `.zip`.  Equality + hashability pinned for set / dict use.  `Hash` ↔ plain-tuple equality pinned for O(1) frozenset intersection with Pipfile-pinned hash lists.  Malformed-wheel contract pinned to **propagate `ValueError`** (option (a) — explicit failure over silent tag-less wheel), matching T1's implementation choice.  Zero `pip._internal.*` imports; all `packaging` references go through `pipenv.vendor.packaging.tags`.  T1's 8 smoke tests preserved unchanged.
 - **files edited/created**:
+  - Edited: `tests/unit/test_candidate.py` (8 → 31 tests; +23 tests, +318 lines; T1's smoke tests preserved verbatim).
 
 ---
 
@@ -410,9 +416,48 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
 - **description**:
   Already specified in T6's deliverable.  Listed as a separate task so it can run in parallel with T11–T15.
 - **validation**: `pytest tests/unit/test_resolver_auth.py` passes with ≥95 % coverage of `pipenv/resolver/auth.py`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented `tests/unit/test_resolver_auth.py` on branch
+    `maintenance/code-cleanup-phase5-perf-2026-06`.  28 tests covering the
+    three T6 helpers; 27 run on Linux (1 Windows-only `_netrc` test is
+    `skipif`-gated per pipenv convention).
+    - `extract_url_credentials` (9 tests): no-creds passthrough; plain
+      `user:pass`; URL-encoded creds decoded (`%40`→`@`, `%23`→`#`);
+      empty-URL defensive (`("", None)`); http/ftp schemes preserved;
+      query+fragment preserved; port preserved; username-only-no-colon
+      yields `("user", "")`.
+    - `lookup_netrc_auth` (15 tests, 14 run on Linux): missing-file; empty
+      file; matching host; non-matching host; malformed netrc swallowed
+      (no raise); `OSError` from `netrc.netrc(...)` swallowed via
+      `monkeypatch`; empty-login skipped; `None`-password skipped (via
+      monkeypatched fake `netrc.netrc`); `$NETRC` overrides `~/.netrc`;
+      explicit `netrc_path` arg overrides `$NETRC`; empty `host=""`
+      short-circuits; falls back to `~/.netrc` when no `$NETRC`; skips
+      missing explicit path then uses `$NETRC`; `expanduser("~")` returns
+      `"~"` branch (no-home); Windows-only `_netrc` filename
+      (`skipif(os.name != "nt")`).
+    - `client_cert_from_env` (4 tests): unset → `None`; empty → `None`;
+      single path duplicated → `(value, value)`; whitespace-only
+      `"  "` → returned verbatim as `("  ", "  ")` (pinning T6's choice
+      that whitespace is NOT stripped — the plan's open question;
+      documented in the test docstring so a future strip change can't
+      drift silently).
+    - All tests use `tmp_path` + `monkeypatch`; the user's real `~/.netrc`
+      is never read (verified by always redirecting `$HOME`/`$USERPROFILE`
+      into `tmp_path` for cases where `~` fallback could activate).
+    - Coverage:
+      `python -m pytest tests/unit/test_resolver_auth.py --override-ini="addopts=-ra" --cov=pipenv.resolver.auth --cov-report=term-missing`
+      → `pipenv/resolver/auth.py 53 stmts 2 miss 96% Missing: 84-85`.
+      The 2 missing lines are the Windows-only `_netrc` candidate branch
+      in `_netrc_candidate_paths`, which the `skipif(os.name != "nt")`
+      test correctly exercises on Windows only.  ≥95 % target met on
+      Linux; will be 100 % on the Windows CI lane.
+    - Zero `pip._internal` imports in the test file (per Initiative G
+      gate).
 - **files edited/created**:
+  - Created: `tests/unit/test_resolver_auth.py` (28 tests; 27 run on
+    Linux, 1 Windows-only).
 
 ---
 
