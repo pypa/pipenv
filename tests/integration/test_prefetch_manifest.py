@@ -358,22 +358,34 @@ def test_prefetch_verbose_output_no_url_leak(pipenv_instance_pypi, monkeypatch):
 def test_clear_invalidates_parsed_manifest_cache(
     pipenv_instance_pypi, monkeypatch, tmp_path
 ):
-    """``pipenv lock --clear`` wipes ``<PIPENV_CACHE_DIR>/manifests-v1/``.
+    """``pipenv lock --clear`` wipes the parsed-manifest cache at
+    ``<PIPENV_CACHE_DIR>/pipenv-manifests/manifests-v1/``.
 
     Seeds the cache directory directly (rather than relying on a real
-    network prefetch to populate it) so the test stays hermetic —
-    Test 5 is asserting on T17's ``--clear`` wiring, not on T19's
+    network prefetch to populate it) so the test stays hermetic — this
+    test is asserting on T17's ``--clear`` wiring, not on T19's
     populate behaviour.  A stale parsed-manifest cache that survives
-    ``--clear`` would be a poisoning surface the user can't easily nuke;
-    this test pins the wipe.
+    ``--clear`` would be a poisoning surface the user can't easily
+    nuke; this test pins the wipe.
+
+    Path note: the cache root is
+    ``<PIPENV_CACHE_DIR>/pipenv-manifests/`` (T19 namespaces under
+    ``pipenv-manifests/`` to keep pipenv-owned cache files cleanly
+    separated from anything pip stores in the same dir).
+    ``ParsedManifestCache.SCHEMA_VERSION`` then adds the
+    ``manifests-v1/`` subdir.  T20 originally seeded the wrong path
+    because T17 and T19 disagreed; the path bug was fixed in a
+    follow-up commit and this test now exercises the correct path.
     """
     cache_dir = tmp_path / "pipenv-cache"
     cache_dir.mkdir()
     monkeypatch.setenv("PIPENV_CACHE_DIR", str(cache_dir))
 
-    # Seed the parsed-manifest cache root at the schema-versioned path.
-    seeded_root = cache_dir / "manifests-v1"
-    seeded_root.mkdir()
+    # Seed the parsed-manifest cache at the canonical path: the
+    # namespaced ``pipenv-manifests/`` subdir + the schema-versioned
+    # ``manifests-v1/`` subdir under it.
+    seeded_root = cache_dir / "pipenv-manifests" / "manifests-v1"
+    seeded_root.mkdir(parents=True)
     (seeded_root / "stale-marker").write_text("seeded by T20")
     assert (seeded_root / "stale-marker").exists()
 
