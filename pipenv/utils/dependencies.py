@@ -14,6 +14,7 @@ from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Tuple, 
 from urllib.parse import unquote, urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.exceptions import PipenvUsageError
+from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -37,11 +38,7 @@ from pipenv.utils.fileutils import (
     create_tracked_tempdir,
 )
 from pipenv.utils.requirements import redact_auth_from_url
-from pipenv.utils.requirementslib import (
-    add_ssh_scheme_to_git_uri,
-    get_pip_command,
-    unpack_url,
-)
+from pipenv.utils.requirementslib import unpack_url
 
 from .constants import (
     INSTALLABLE_EXTENSIONS,
@@ -52,7 +49,7 @@ from .constants import (
     VCS_SCHEMES,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
-from .internet import get_host_and_port
+from .internet import get_host_and_port, is_valid_url
 from .markers import PipenvMarkers
 from .pip import get_trusted_hosts
 
@@ -252,6 +249,36 @@ def extract_vcs_url(vcs_url):
     )
 
     return clean_url
+
+
+def add_ssh_scheme_to_git_uri(uri):
+    # type: (S) -> S
+    """Cleans VCS uris from pip format."""
+    if isinstance(uri, str):
+        # Add scheme for parsing purposes, this is also what pip does
+        if uri.startswith("git+") and "://" not in uri:
+            uri = uri.replace("git+", "git+ssh://", 1)
+            parsed = urlparse(uri)
+            if ":" in parsed.netloc:
+                netloc, _, path_start = parsed.netloc.rpartition(":")
+                path = f"/{path_start}{parsed.path}"
+                uri = urlunparse(parsed._replace(netloc=netloc, path=path))
+    return uri
+
+
+def is_vcs(pipfile_entry):
+    # type: (PipfileType) -> bool
+    """Determine if dictionary entry from Pipfile is for a vcs dependency."""
+    if isinstance(pipfile_entry, Mapping):
+        return any(key for key in pipfile_entry if key in VCS_LIST)
+
+    elif isinstance(pipfile_entry, str):
+        if not is_valid_url(pipfile_entry) and pipfile_entry.startswith("git+"):
+            pipfile_entry = add_ssh_scheme_to_git_uri(pipfile_entry)
+
+        parsed_entry = urlsplit(pipfile_entry)
+        return parsed_entry.scheme in VCS_SCHEMES
+    return False
 
 
 def _file_url_to_relative_path(file_url, base_dir):
@@ -891,6 +918,17 @@ def generate_temp_dir_path():
     # Remove the created directory
     os.rmdir(temp_dir)
     return temp_dir
+
+
+def get_pip_command() -> InstallCommand:
+    """Get pip's InstallCommand for configuration management and defaults."""
+    # Use pip's parser for pip.conf management and defaults.
+    # General options (find_links, index_url, extra_index_url, trusted_host,
+    # and pre) are deferred to pip.
+    pip_command = InstallCommand(
+        name="InstallCommand", summary="pipenv pip Install command."
+    )
+    return pip_command
 
 
 def determine_vcs_revision_hash(
@@ -1548,6 +1586,81 @@ BAD_PACKAGES = (
     "setuptools",
     "wheel",
 )
+
+
+def _merge_into(target, source):
+    """Recursively merge ``source`` into ``target`` in place, last-write-wins.
+
+    Mapping-valued keys on both sides are merged recursively; everything
+    else (including lists / tomlkit ``Array`` values) is overwritten by
+    the value from ``source``. Tomlkit container types
+    (``Table``/``InlineTable``) subclass ``dict`` and so are merged like
+    any other mapping; the container type already present on ``target``
+    is preserved, which is what callers downstream of
+    ``tomlkit_value_to_python`` expect.
+    """
+    for key, value in source.items():
+        existing = target.get(key)
+        if isinstance(existing, Mapping) and isinstance(value, Mapping):
+            _merge_into(existing, value)
+        else:
+            target[key] = value
+    return target
+
+
+def _new_container_like(mapping):
+    """Return a fresh empty mapping that matches ``mapping``'s top-level
+    container shape where it's safe to do so.
+
+    Plain dicts (and ``dict`` subclasses that accept a no-arg constructor)
+    are recreated as the same class. Tomlkit ``Table``/``InlineTable``
+    instances cannot be constructed with no args, so they fall back to
+    a plain ``dict`` -- the previous boltons-based implementation also
+    handed back a plain dict at the top level for these inputs in the
+    real call sites (``dict(packages_table)`` is always taken first).
+    """
+    cls = mapping.__class__
+    if cls is dict:
+        return {}
+    try:
+        return cls()
+    except TypeError:
+        return {}
+
+
+def merge_items(target_list, sourced=False):
+    """Recursively merge a list of Pipfile-category dicts, last-write-wins.
+
+    Only the ``sourced=False`` path has callers in pipenv; the
+    ``sourced=True`` branch is preserved for API parity but is not
+    exercised by any in-tree call site.
+
+    For an empty ``target_list``, returns ``None`` to match the
+    historical behaviour of the boltons-backed implementation.
+    """
+    if not target_list:
+        return None if not sourced else (None, {})
+
+    iterator = iter(target_list)
+    if sourced:
+        source_map = {}
+        first_name, first = next(iterator)
+        merged = _new_container_like(first)
+        _merge_into(merged, first)
+        for key in merged:
+            source_map[(key,)] = first_name
+        for t_name, target in iterator:
+            _merge_into(merged, target)
+            for key in target:
+                source_map[(key,)] = t_name
+        return merged, source_map
+
+    first = next(iterator)
+    merged = _new_container_like(first)
+    _merge_into(merged, first)
+    for target in iterator:
+        _merge_into(merged, target)
+    return merged
 
 
 def import_requirements(project, r=None, dev=False, categories=None):

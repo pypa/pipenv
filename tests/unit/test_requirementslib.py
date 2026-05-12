@@ -1,4 +1,5 @@
-"""Tests for :mod:`pipenv.utils.requirementslib`.
+"""Tests for :func:`merge_items` (moved to :mod:`pipenv.utils.dependencies`
+under T_E.3).
 
 The primary subject of this file is :func:`merge_items`, which has three
 real call sites in pipenv: ``pipenv/utils/pipfile.py:318`` and
@@ -10,7 +11,7 @@ Only the ``sourced=False`` signature is exercised: ``sourced=True`` has
 no callers in the pipenv tree.
 """
 
-from pipenv.utils.requirementslib import merge_items
+from pipenv.utils.dependencies import merge_items
 from pipenv.vendor import tomlkit
 
 

@@ -8,10 +8,14 @@ from typing import Any, Dict, List, Optional
 
 from pipenv import environments
 from pipenv.utils import console, err
-from pipenv.utils.dependencies import import_requirements, is_editable
+from pipenv.utils.dependencies import (
+    import_requirements,
+    is_editable,
+    is_vcs,
+    merge_items,
+)
 from pipenv.utils.internet import get_url_name
 from pipenv.utils.markers import RequirementError
-from pipenv.utils.requirementslib import is_vcs, merge_items
 from pipenv.utils.toml import tomlkit_value_to_python
 from pipenv.vendor import tomlkit
 from pipenv.vendor.plette import pipfiles

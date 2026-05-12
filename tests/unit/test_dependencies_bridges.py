@@ -1,10 +1,15 @@
-"""Pinning tests for Pipfile/lockfile bridge functions moved under T_E.2.
+"""Pinning tests for Pipfile/lockfile bridge functions moved under T_E.2,
+plus the four predicate/helper symbols moved under T_E.3.
 
-These tests pin the import-shape and behaviour of the seven symbols
-moved from :mod:`pipenv.utils.requirements` into
-:mod:`pipenv.utils.dependencies` in T_E.2 (per the T_E.1 design +
-sign-off). The old import paths are intentionally NOT preserved — per
-the T_C.3 §9 / T_E.1 sign-off there is no backwards-compat shim.
+T_E.2 moved seven symbols from :mod:`pipenv.utils.requirements` into
+:mod:`pipenv.utils.dependencies` (per the T_E.1 design + sign-off).
+
+T_E.3 moves four more symbols from :mod:`pipenv.utils.requirementslib`
+into :mod:`pipenv.utils.dependencies` (its canonical home):
+``is_vcs``, ``add_ssh_scheme_to_git_uri``, ``merge_items``, and
+``get_pip_command``. The old import paths are intentionally NOT
+preserved — per the T_C.3 §9 / T_E.1 sign-off there is no
+backwards-compat shim.
 
 Coverage focus:
 - import-shape: each moved symbol is importable from the new location.
@@ -13,6 +18,7 @@ Coverage focus:
 - ``BAD_PACKAGES`` is the same tuple at the new location.
 - light behaviour pinning for the lockfile/Pipfile bridges that have
   pure-function code paths.
+- light behaviour pinning for the four T_E.3 helpers.
 """
 
 from unittest.mock import MagicMock
@@ -225,3 +231,123 @@ def test_add_index_to_pipfile_with_trust_check_requires_https_for_untrusted():
     project.sources.add_index_to_pipfile.assert_called_once_with(
         "https://mirror.example.com/simple", verify_ssl=True
     )
+
+
+# ---------------------------------------------------------------------------
+# T_E.3: predicate + helper symbols moved from requirementslib.py
+# ---------------------------------------------------------------------------
+
+
+def test_is_vcs_importable_from_dependencies():
+    from pipenv.utils.dependencies import is_vcs
+
+    assert callable(is_vcs)
+
+
+def test_add_ssh_scheme_to_git_uri_importable_from_dependencies():
+    from pipenv.utils.dependencies import add_ssh_scheme_to_git_uri
+
+    assert callable(add_ssh_scheme_to_git_uri)
+
+
+def test_merge_items_importable_from_dependencies():
+    from pipenv.utils.dependencies import merge_items
+
+    assert callable(merge_items)
+
+
+def test_get_pip_command_importable_from_dependencies():
+    from pipenv.utils.dependencies import get_pip_command
+
+    assert callable(get_pip_command)
+
+
+def test_old_requirementslib_module_no_longer_exports_moved_symbols():
+    """Per the T_C.3 §9 / T_E.1 sign-off, the old import paths fail
+    immediately after T_E.3; no backwards-compat shim is shipped."""
+    import pipenv.utils.requirementslib as old_mod
+
+    for name in (
+        "is_vcs",
+        "add_ssh_scheme_to_git_uri",
+        "merge_items",
+        "get_pip_command",
+    ):
+        assert not hasattr(old_mod, name), (
+            f"{name} should no longer exist on pipenv.utils.requirementslib"
+        )
+
+
+def test_is_vcs_detects_mapping_with_git_key():
+    """A Pipfile entry dict carrying a ``git`` key is a VCS entry."""
+    from pipenv.utils.dependencies import is_vcs
+
+    assert is_vcs({"git": "https://github.com/pypa/pipenv.git"}) is True
+    assert is_vcs({"hg": "https://example.com/repo"}) is True
+    assert is_vcs({"version": "*"}) is False
+
+
+def test_is_vcs_detects_git_plus_ssh_string():
+    """String entries starting with ``git+`` are recognised even
+    when they lack a scheme delimiter — they get the ssh scheme
+    auto-added before urlsplit. Pins the round-trip with
+    ``add_ssh_scheme_to_git_uri``.
+    """
+    from pipenv.utils.dependencies import is_vcs
+
+    assert is_vcs("git+ssh://git@github.com/pypa/pipenv.git") is True
+    # bare git+user@host style — exercises add_ssh_scheme_to_git_uri
+    assert is_vcs("git+git@github.com:pypa/pipenv.git") is True
+    # plain http URL is not VCS
+    assert is_vcs("https://example.com/pkg.tar.gz") is False
+    # non-string, non-mapping returns False
+    assert is_vcs(42) is False
+
+
+def test_add_ssh_scheme_to_git_uri_rewrites_bare_git_uri():
+    """``git+user@host:path`` is rewritten to ``git+ssh://user@host/path``
+    so that pip's URL parser can handle it."""
+    from pipenv.utils.dependencies import add_ssh_scheme_to_git_uri
+
+    out = add_ssh_scheme_to_git_uri("git+git@github.com:pypa/pipenv.git")
+    assert out == "git+ssh://git@github.com/pypa/pipenv.git"
+
+    # Already-schemed URIs pass through unchanged.
+    schemed = "git+https://github.com/pypa/pipenv.git"
+    assert add_ssh_scheme_to_git_uri(schemed) == schemed
+
+    # Non-string input passes through unchanged.
+    assert add_ssh_scheme_to_git_uri(None) is None
+
+
+def test_merge_items_recursive_last_write_wins():
+    """``merge_items`` recursively merges dicts with last-write-wins
+    semantics. Pins the contract used by ``locking.get_deps``."""
+    from pipenv.utils.dependencies import merge_items
+
+    a = {"pkg-a": {"version": "==1.0"}, "shared": {"version": "==1.0"}}
+    b = {"pkg-b": {"version": "==2.0"}, "shared": {"version": "==2.0"}}
+    result = merge_items([a, b])
+    assert result == {
+        "pkg-a": {"version": "==1.0"},
+        "pkg-b": {"version": "==2.0"},
+        "shared": {"version": "==2.0"},
+    }
+
+    # Empty list returns None (the boltons-era contract).
+    assert merge_items([]) is None
+
+
+def test_get_pip_command_returns_install_command():
+    """``get_pip_command`` returns a pip ``InstallCommand`` with a
+    parser ready to consume general options."""
+    from pipenv.patched.pip._internal.commands.install import InstallCommand
+
+    from pipenv.utils.dependencies import get_pip_command
+
+    cmd = get_pip_command()
+    assert isinstance(cmd, InstallCommand)
+    # Parser is the real pip parser; parse_args with no extra args succeeds.
+    options, _ = cmd.parser.parse_args([])
+    # Sanity: pip's install options expose ``index_url`` on the namespace.
+    assert hasattr(options, "index_url")
