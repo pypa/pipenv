@@ -102,14 +102,11 @@ class ResolvedDeps:
 
 @dataclass(frozen=True)
 class RequestMetadata:
-    """Caller-side context.  Strictly non-functional — no field affects
-    resolution.
+    """Caller-side context for the resolver request.
 
-    ``deadline_seconds`` is reserved-but-unenforced in T_F.3 (per the
-    "out of scope" section of the design doc).  A follow-up small PR
-    will wire it to ``Popen.wait(timeout=...)`` with its own news
-    fragment, because the behaviour change (hangs start dying) is
-    user-visible.
+    ``deadline_seconds`` carries the caller-provided timeout budget for
+    the subprocess request and is stamped onto requests as metadata for
+    timeout enforcement in the resolver flow.
     """
 
     pipenv_version: str = ""
