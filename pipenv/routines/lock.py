@@ -67,8 +67,32 @@ def _prefetch_index_manifests_if_enabled(
     before stripping).  When verbose, a single summary line is emitted:
     ``Prefetched N package indexes in M.MMs.``
 
-    Initiative G phase 2 — T19.  See ``initiative-g-phase1-2-plan.md``
-    §T19 for the design rationale.
+    FU2 (Initiative G Phase-3 follow-up #2): per-source ``verify_ssl``
+    fan-out.  T19's first cut built ONE :class:`ParallelFetcher` and
+    routed every target through whichever verify policy was most common
+    among Pipfile sources, so a mixed-policy project (e.g., private
+    self-signed index alongside public PyPI) silently fell through to
+    pip's cold fetch for minority-policy sources.  This refactor builds
+    one fetcher per unique ``verify_ssl`` value among the project's
+    sources and dispatches each target through the fetcher matching its
+    source's policy.
+
+    Single-policy projects (the common case — one PyPI source,
+    ``verify_ssl=true``) see identical behaviour to T19: exactly one
+    fetcher constructed, zero overhead.
+
+    Connection-pool sizing note: each fetcher carries its own
+    :class:`ThreadPoolExecutor` (``max_workers=16``).  For a
+    two-policy project, peak concurrent worker count is therefore 16 +
+    16 = 32, but each worker uses its own ``PipSession`` whose
+    urllib3 pool ceiling is 10.  So real concurrent connections are
+    bounded at 20 (2 sessions x 10 pool slots) even with both
+    executors saturated — well under any kernel ulimit and within
+    urllib3's "Connection pool is full" warning threshold per session.
+
+    Initiative G phase 2 — T19, plus phase-3 follow-up FU2.
+    See ``initiative-g-phase1-2-plan.md`` §T19 for the design rationale
+    and §FU2 for the per-source fan-out brief.
     """
     if clear:
         return
@@ -96,7 +120,9 @@ def _prefetch_index_manifests_if_enabled(
         return
 
     # ------------------------------------------------------------------
-    # Collect (index_url, package_name) targets across categories x sources.
+    # Collect (index_url, package_name, verify_ssl) targets across
+    # categories x sources.  The verify flag rides with each target so
+    # the FU2 fan-out below can group by policy.
     # ------------------------------------------------------------------
     try:
         sources = project.sources.pipfile_sources()
@@ -105,7 +131,7 @@ def _prefetch_index_manifests_if_enabled(
     if not sources:
         return
 
-    targets: list[tuple[str, str]] = []
+    targets: list[tuple[str, str, bool]] = []
     for category in lockfile_categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
         try:
@@ -120,8 +146,10 @@ def _prefetch_index_manifests_if_enabled(
         for package_name in packages.keys():
             for source in sources:
                 index_url = source.get("url", "")
-                if index_url:
-                    targets.append((index_url, package_name))
+                if not index_url:
+                    continue
+                verify = bool(source.get("verify_ssl", True))
+                targets.append((index_url, package_name, verify))
 
     if not targets:
         return
@@ -149,19 +177,48 @@ def _prefetch_index_manifests_if_enabled(
     if not sessions_by_verify:
         return
 
-    # For now, dispatch via whichever verify policy is most common
-    # (defaulting to ``True`` when both exist).  Mixed-verify projects
-    # are rare; the minority sources simply miss the prefetch and fall
-    # back to pip's normal cold fetch — best-effort is the contract.
-    # Per-source per-session fan-out is deferred to Phase 3.
-    primary_verify = True if True in sessions_by_verify else False
-    session = sessions_by_verify[primary_verify]
-
+    # ------------------------------------------------------------------
+    # FU2: build one fetcher per verify policy.  Cache root is shared
+    # across all fetchers (single ``ParsedManifestCache`` instance — the
+    # on-disk schema is identical regardless of which fetcher wrote it,
+    # and ``ParsedManifestCache.put`` already serialises concurrent
+    # writers via atomic ``os.replace``).
+    # ------------------------------------------------------------------
     try:
         cache = ParsedManifestCache(cache_root)
-        client = PEP691Client(session, verify=primary_verify)
-        fetcher = ParallelFetcher(client, cache)
     except Exception:
+        return
+
+    def _build_fetcher(session: object, verify: bool):
+        # One bad policy must not prevent the other from prefetching;
+        # extracted into a helper so the per-policy ``try``/``except``
+        # doesn't sit inside the loop body (ruff PERF203).
+        try:
+            client = PEP691Client(session, verify=verify)
+            return ParallelFetcher(client, cache)
+        except Exception:
+            return None
+
+    fetchers_by_verify: dict[bool, object] = {}
+    for verify, session in sessions_by_verify.items():
+        fetcher = _build_fetcher(session, verify)
+        if fetcher is not None:
+            fetchers_by_verify[verify] = fetcher
+
+    if not fetchers_by_verify:
+        return
+
+    # Group targets by their source's verify policy.  Targets whose
+    # verify value has no matching fetcher (e.g., session construction
+    # failed earlier for that policy) are silently dropped — best-effort
+    # contract: they fall through to pip's cold fetch.
+    targets_by_verify: dict[bool, list[tuple[str, str]]] = {}
+    for index_url, package_name, verify in targets:
+        if verify not in fetchers_by_verify:
+            continue
+        targets_by_verify.setdefault(verify, []).append((index_url, package_name))
+
+    if not targets_by_verify:
         return
 
     try:
@@ -173,18 +230,27 @@ def _prefetch_index_manifests_if_enabled(
     except Exception:
         verbose = False
 
+    def _safe_populate(fetcher, group_targets):
+        # Best-effort per-policy populate: a per-fetcher exception must
+        # not abort the OTHER fetchers' populate.  Extracted from the
+        # loop body so the ``try``/``except`` isn't flagged by ruff
+        # PERF203 — same swallow-and-continue semantics as T19, just
+        # applied per-policy.
+        try:
+            fetcher.populate(group_targets)
+        except Exception:
+            pass
+
     start = time.perf_counter()
-    try:
-        fetcher.populate(targets)
-    except Exception:
-        return
+    for verify, group_targets in targets_by_verify.items():
+        _safe_populate(fetchers_by_verify[verify], group_targets)
     elapsed = time.perf_counter() - start
 
     if verbose and not quiet:
-        # Count unique package names — ``targets`` carries one
-        # (source, name) tuple per source-fan-out, so the raw length
-        # would overstate the work.
-        unique_names = len({name for (_, name) in targets})
+        # Count unique package names across ALL policy groups —
+        # ``targets`` carries one tuple per source-fan-out, so the raw
+        # length would overstate the work.
+        unique_names = len({name for (_, name, _) in targets})
         try:
             err.print(
                 f"[dim]Prefetched {unique_names} package indexes "
