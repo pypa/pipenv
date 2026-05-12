@@ -1233,7 +1233,15 @@ def _is_download_status_line(line: str) -> bool:
     )
 
 
-def resolve(cmd, st, project):
+def resolve(cmd, st, project, *, deadline_seconds=None):
+    """Invoke the resolver subprocess and stream its stdout/stderr.
+
+    The optional ``deadline_seconds`` keyword carries the wall-clock
+    timeout enforced via ``subprocess.wait(timeout=...)`` (T_F.6).  When
+    ``None`` we fall back to the env-var-backed
+    ``Setting.PIPENV_RESOLVER_TIMEOUT_S`` value for back-compat with
+    callers that haven't been updated to thread the deadline through.
+    """
     # cmd is a pre-tokenized list (not a TOML sequence); pass it directly.
     c = subprocess_run([str(x) for x in cmd], block=False, env=os.environ.copy())
     is_verbose = project.s.is_verbose()
@@ -1273,8 +1281,18 @@ def resolve(cmd, st, project):
 
     # Configurable cap on how long we wait for the resolver subprocess. Unbounded
     # waits previously turned hung mirrors / stuck pip downloads into "pipenv
-    # hangs forever" reports. Override with PIPENV_RESOLVER_TIMEOUT_S.
-    resolver_timeout_s = project.s.PIPENV_RESOLVER_TIMEOUT_S
+    # hangs forever" reports.  Precedence (T_F.6):
+    #
+    #   1. ``deadline_seconds`` keyword (request-carried, set by
+    #      ``_build_resolver_request`` from the Pipfile / env / default
+    #      precedence chain).
+    #   2. ``project.s.PIPENV_RESOLVER_TIMEOUT_S`` (env-var-backed
+    #      setting) — fallback for callers that pre-date T_F.6.
+    resolver_timeout_s = (
+        deadline_seconds
+        if deadline_seconds is not None
+        else project.s.PIPENV_RESOLVER_TIMEOUT_S
+    )
 
     try:
         c.wait(timeout=resolver_timeout_s)
@@ -1295,8 +1313,9 @@ def resolve(cmd, st, project):
         st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
         msg = (
             f"Resolver subprocess timed out after {resolver_timeout_s} seconds. "
-            f"Set PIPENV_RESOLVER_TIMEOUT_S=<bigger> to extend, or check that "
-            f"your index/mirror is reachable."
+            f"Set PIPENV_RESOLVER_TIMEOUT_S=<bigger> in your environment (or "
+            f"[pipenv] resolver_timeout_seconds in your Pipfile) to extend, or "
+            f"check that your index/mirror is reachable."
         )
         err.print(f"[red]{msg}[/red]")
         raise ResolutionFailure(msg)
@@ -1342,6 +1361,51 @@ def _set_resolver_netrc(project, req_dir):
 # ---------------------------------------------------------------------------
 # T_F.3 B2: typed-request / typed-response parent-side dispatch
 # ---------------------------------------------------------------------------
+
+
+# --- T_F.6 BEGIN: resolver wall-clock deadline resolution -------------------
+#
+# Owned by T_F.6 (timeout enforcement).  Do not co-mingle with T_F.7's
+# Diagnostics.resolver_log work.
+def _resolve_deadline_seconds(project) -> float:
+    """Resolve the wall-clock deadline (in seconds) for one resolver invocation.
+
+    Precedence (highest first):
+
+    1. Pipfile ``[pipenv] resolver_timeout_seconds`` — per-project override
+       (positive int/float).  Garbage values silently fall through.
+    2. Env-var-backed ``Setting.PIPENV_RESOLVER_TIMEOUT_S`` — the existing
+       phase-2 hotfix knob, defaults to 1800.
+    3. The hardcoded ``1800`` default inside ``Setting`` itself (reached
+       only if both above are missing or invalid).
+
+    Returns
+    -------
+    float
+        A positive deadline in seconds, suitable for
+        ``subprocess.wait(timeout=...)`` and serialization into
+        ``RequestMetadata.deadline_seconds``.
+    """
+    # 1) Pipfile setting — must be a positive number to win.  Strings,
+    # negatives, zero, and ``None`` fall through to the env-backed default.
+    raw = None
+    settings = getattr(project, "settings", None)
+    if settings is not None:
+        try:
+            raw = settings.get("resolver_timeout_seconds")
+        except AttributeError:
+            raw = None
+    if raw is not None:
+        try:
+            candidate = float(raw)
+        except (TypeError, ValueError):
+            candidate = None
+        if candidate is not None and candidate > 0:
+            return candidate
+
+    # 2) Env-var-backed setting (already validated/defaulted by ``Setting``).
+    return float(project.s.PIPENV_RESOLVER_TIMEOUT_S)
+# --- T_F.6 END --------------------------------------------------------------
 
 
 def _build_resolver_request(
@@ -1407,6 +1471,10 @@ def _build_resolver_request(
         metadata=RequestMetadata(
             pipenv_version=getattr(environments, "PIPENV_VERSION", "") or "",
             parent_pid=os.getpid(),
+            # T_F.6: stamp the wall-clock deadline onto the request so the
+            # parent (via subprocess.wait) AND the subprocess (for its
+            # internal logging) see the same value.
+            deadline_seconds=_resolve_deadline_seconds(project),
         ),
     )
 
@@ -1469,7 +1537,15 @@ def _run_resolver_subprocess(*, request, python_executable, project, st):
             "--response-file",
             make_posix(response_path),
         ]
-        c = resolve(cmd, st, project=project)
+        # T_F.6: thread the request-carried deadline through to ``resolve``
+        # so ``subprocess.wait(timeout=...)`` enforces the Pipfile/env/default
+        # precedence chain rather than re-reading the project setting.
+        c = resolve(
+            cmd,
+            st,
+            project=project,
+            deadline_seconds=request.metadata.deadline_seconds,
+        )
 
         # ------------------------------------------------------------
         # Parse + dispatch on the structured response (Q10: response
@@ -1496,6 +1572,10 @@ def _run_resolver_subprocess(*, request, python_executable, project, st):
                 response = None
 
         if response is not None:
+            # T_F.7: surface the structured resolver log to the user
+            # BEFORE dispatching (the dispatcher may raise, and we want
+            # verbose users to see the log even on failure paths).
+            _surface_resolver_log(response, project)
             return _dispatch_resolver_response(response, st)
 
         # No structured response — fall back to the legacy stderr text
@@ -1540,6 +1620,33 @@ def _run_resolver_subprocess(*, request, python_executable, project, st):
         # If a future maintainer wants more aggressive cleanup, route it
         # through ``create_tracked_tempdir`` rather than ad-hoc unlink.
         pass
+
+
+def _surface_resolver_log(response, project) -> None:
+    """T_F.7: print the structured ``Diagnostics.resolver_log`` records
+    when the user opted into verbose mode.
+
+    The records are a *complement* to the existing stderr stream (per
+    Q9 in ``docs/dev/initiative-f-typed-design.md`` §8) — stderr stays
+    the user-facing channel for everything from pip-progress chatter to
+    fatal error tracebacks.  This helper exists so that verbose users
+    can ALSO see the structured trace that resolve emitted (source
+    substitution, timing markers, pip's internal candidate-selection
+    log).
+
+    Non-verbose runs see no behaviour change; this is purely additive.
+    """
+    if response is None:
+        return
+    log = getattr(response.diagnostics, "resolver_log", ()) or ()
+    if not log:
+        return
+    if not project.s.is_verbose():
+        return
+    err.print("[dim]--- resolver log ---[/dim]")
+    for record in log:
+        err.print(f"[dim]{record}[/dim]")
+    err.print("[dim]--- end resolver log ---[/dim]")
 
 
 def _dispatch_resolver_response(response, st):
@@ -1619,7 +1726,7 @@ def _get_cool_down_timedelta(project):
     return _dt.timedelta(days=int(m.group(1)))
 
 
-def _resolve_in_process(request, st):
+def _resolve_in_process(request, st, project=None):
     """In-process adapter around :func:`pipenv.resolver.core.resolve_for_pipenv`.
 
     T_F.4 fold: the ``PIPENV_RESOLVER_PARENT_PYTHON=1`` debug bypass now
@@ -1628,6 +1735,11 @@ def _resolve_in_process(request, st):
     locked entries or raise.  The marker-environment override is handled
     inside the unified driver, so this adapter does NOT wrap a separate
     ``_patched_marker_environment`` context manager.
+
+    Parameter ``project`` (T_F.7) is optional purely for backward
+    compatibility with the existing test suite — when supplied, the
+    structured ``Diagnostics.resolver_log`` is surfaced to stderr in
+    verbose mode via :func:`_surface_resolver_log`.
 
     Returns
     -------
@@ -1645,6 +1757,10 @@ def _resolve_in_process(request, st):
     from pipenv.resolver.core import resolve_for_pipenv
 
     response = resolve_for_pipenv(request)
+    # T_F.7: surface the resolver log before any dispatch (the dispatch
+    # below may raise, and verbose users want the log on failure too).
+    if project is not None:
+        _surface_resolver_log(response, project)
     kind = response.result.kind
     if kind == "success":
         results = _normalize_resolver_results(response.result.locked)
@@ -1815,7 +1931,7 @@ def venv_resolve_deps(
                 # the subprocess entry calls.  The only difference is
                 # that we dispatch on ``response.result.kind`` here
                 # rather than reading a JSON file.
-                results = _resolve_in_process(request, st)
+                results = _resolve_in_process(request, st, project=project)
             else:  # Default/Production behavior is to use project python's resolver
                 st.console.print("Resolving dependencies...")
                 results = _run_resolver_subprocess(

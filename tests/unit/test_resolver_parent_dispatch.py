@@ -234,7 +234,7 @@ class TestSubprocessInvocationArgv:
 
         captured = {}
 
-        def fake_resolve(cmd, st, project):
+        def fake_resolve(cmd, st, project, **_kwargs):
             captured["cmd"] = list(cmd)
             # The response file path is the *last* argv element by our
             # convention.  Write a success response so the dispatcher
@@ -299,7 +299,7 @@ class TestResponseDispatch:
             ),
         )
 
-        def fake_resolve(cmd, st, project):
+        def fake_resolve(cmd, st, project, **_kwargs):
             response_path = cmd[-1]
             Path(response_path).write_text(json.dumps(_success_response_dict()))
             return subprocess.CompletedProcess(cmd, 0, "", "")
@@ -328,7 +328,7 @@ class TestResponseDispatch:
             ),
         )
 
-        def fake_resolve(cmd, st, project):
+        def fake_resolve(cmd, st, project, **_kwargs):
             response_path = cmd[-1]
             Path(response_path).write_text(
                 json.dumps(_resolution_error_response_dict())
@@ -367,7 +367,7 @@ class TestResponseDispatch:
             ),
         )
 
-        def fake_resolve(cmd, st, project):
+        def fake_resolve(cmd, st, project, **_kwargs):
             response_path = cmd[-1]
             Path(response_path).write_text(
                 json.dumps(_internal_error_response_dict())
@@ -407,7 +407,7 @@ class TestResponseDispatch:
             ),
         )
 
-        def fake_resolve(cmd, st, project):
+        def fake_resolve(cmd, st, project, **_kwargs):
             # Note: do NOT write the response file.  The dispatcher must
             # detect this missing-file case.
             return subprocess.CompletedProcess(
