@@ -342,6 +342,7 @@ def cmd_audit(args, state):
 
 
 def cmd_update(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.update import do_update
 
     if state.installstate.all_categories:
@@ -349,26 +350,37 @@ def cmd_update(args, state):
     else:
         apply_default_categories(args, state)
 
-    do_update(
-        state.project,
-        python=state.python,
-        site_packages=state.site_packages,
-        clear=state.clear,
-        pre=state.installstate.pre,
-        pypi_mirror=state.pypi_mirror,
+    # ``--outdated`` and ``--dry-run`` collapse downstream into a single
+    # boolean (``outdated || bool(dry_run)``). ``RoutineContext`` does
+    # not carry an ``outdated`` field of its own, so we OR the two here
+    # and surface the combined intent via ``install_policy.dry_run``.
+    dry_run_intent = bool(getattr(args, "outdated", False)) or bool(
+        getattr(args, "dry_run", False)
+    )
+
+    ctx = RoutineContext.from_cli(
+        # target_env
         system=state.system,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        site_packages=state.site_packages,
+        # install_policy
+        pre=state.installstate.pre,
+        clear=state.clear,
+        lock_only=state.installstate.lock_only,
+        dry_run=dry_run_intent,
+        # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        dev=state.installstate.dev,
-        bare=args.bare,
-        extra_pip_args=state.installstate.extra_pip_args,
         categories=state.installstate.categories,
-        index_url=state.index,
+        dev=state.installstate.dev,
+        index=state.index,
+        # execution_options
+        extra_pip_args=state.installstate.extra_pip_args,
+        bare=args.bare,
         quiet=state.quiet,
-        dry_run=args.dry_run,
-        outdated=args.outdated,
-        lock_only=state.installstate.lock_only,
     )
+    do_update(state.project, ctx)
 
 
 def cmd_graph(args, state):

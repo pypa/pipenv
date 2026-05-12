@@ -8,6 +8,7 @@ from typing import Dict, Set, Tuple
 from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
@@ -25,33 +26,40 @@ from pipenv.utils.resolver import venv_resolve_deps
 from pipenv.vendor import pipdeptree
 
 
-def do_update(
-    project,
-    python=None,
-    pre=False,
-    system=False,
-    packages=None,
-    editable_packages=None,
-    site_packages=False,
-    pypi_mirror=None,
-    dev=False,
-    categories=None,
-    index_url=None,
-    extra_pip_args=None,
-    quiet=False,
-    bare=False,
-    dry_run=None,
-    outdated=False,
-    clear=False,
-    lock_only=False,
-):
-    """Update the virtualenv."""
-    packages = [p for p in (packages or []) if p]
-    editable = [p for p in (editable_packages or []) if p]
-    if not outdated:
-        outdated = bool(dry_run)
+def do_update(project, ctx: RoutineContext):
+    """Update the virtualenv.
 
-    # Handle --system flag
+    Per T_C.8: consumes :class:`~pipenv.routines.context.RoutineContext`
+    for the bundled user-facing inputs (packages / editables / target-env
+    flags / install-policy flags / categories / extra_pip_args /
+    pypi_mirror / index / bare / quiet / dry_run / lock_only). The
+    ``outdated`` intent (CLI ``--outdated``) is overloaded with
+    ``dry_run`` and travels via ``ctx.install_policy.dry_run`` plus the
+    derived bool below.
+
+    Calls into ``do_sync`` (T_C.9's ``sync.py``), ``upgrade`` (also
+    invoked from ``cmd_upgrade`` — out of scope for T_C.8), and
+    ``do_outdated`` retain their existing wide signatures; args are
+    unpacked from ``ctx`` at the call site. T_C.9 will simplify those
+    receivers when it migrates them.
+    """
+    target = ctx.target_env
+    policy = ctx.install_policy
+    sel = ctx.package_selection
+    exec_opts = ctx.execution_options
+
+    packages = [p for p in (sel.packages or []) if p]
+    editable = [p for p in (sel.editable_packages or []) if p]
+    categories = list(sel.categories) if sel.categories else None
+    extra_pip_args = list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else None
+
+    # CLI ``--outdated`` and ``--dry-run`` collapse to a single
+    # downstream intent. Historical behaviour: outdated || bool(dry_run).
+    outdated = bool(policy.dry_run)
+
+    system = target.system
+
+    # Handle --system flag — env propagation mirrors the pre-migration shape.
     if project.s.PIPENV_USE_SYSTEM:
         system = True
     if system:
@@ -60,11 +68,11 @@ def do_update(
 
     ensure_project(
         project,
-        python=python,
-        pypi_mirror=pypi_mirror,
-        warn=(not quiet),
-        site_packages=site_packages,
-        clear=clear,
+        python=target.python,
+        pypi_mirror=target.pypi_mirror,
+        warn=(not exec_opts.quiet),
+        site_packages=target.site_packages,
+        clear=policy.clear,
         system=system,
     )
 
@@ -73,46 +81,46 @@ def do_update(
         if project.any_lockfile_exists:
             do_sync(
                 project,
-                dev=dev,
+                dev=sel.dev,
                 categories=categories,
-                python=python,
-                bare=bare,
-                clear=clear,
-                pypi_mirror=pypi_mirror,
+                python=target.python,
+                bare=exec_opts.bare,
+                clear=policy.clear,
+                pypi_mirror=target.pypi_mirror,
                 extra_pip_args=extra_pip_args,
                 system=system,
             )
         upgrade(
             project,
-            pre=pre,
+            pre=policy.pre,
             system=system,
             packages=packages,
             editable_packages=editable,
-            pypi_mirror=pypi_mirror,
+            pypi_mirror=target.pypi_mirror,
             categories=categories,
-            index_url=index_url,
-            dev=dev,
-            lock_only=lock_only,
+            index_url=sel.index,
+            dev=sel.dev,
+            lock_only=policy.lock_only,
             extra_pip_args=extra_pip_args,
         )
         # Finally sync packages after upgrade
         do_sync(
             project,
-            dev=dev,
+            dev=sel.dev,
             categories=categories,
-            python=python,
-            bare=bare,
-            clear=clear,
-            pypi_mirror=pypi_mirror,
+            python=target.python,
+            bare=exec_opts.bare,
+            clear=policy.clear,
+            pypi_mirror=target.pypi_mirror,
             extra_pip_args=extra_pip_args,
             system=system,
         )
     else:
         do_outdated(
             project,
-            clear=clear,
-            pre=pre,
-            pypi_mirror=pypi_mirror,
+            clear=policy.clear,
+            pre=policy.pre,
+            pypi_mirror=target.pypi_mirror,
         )
 
 
@@ -393,6 +401,8 @@ def _detect_conflicts(package_args, reverse_deps, lockfile):
 
 def _process_package_args(
     project,
+    ctx: RoutineContext,
+    *,
     package_args,
     pipfile_category,
     index_name,
@@ -401,9 +411,17 @@ def _process_package_args(
     category,
     has_package_args,
     requested_packages,
-    lock_only=False,
 ):
-    """Process package arguments and update requested_packages."""
+    """Process package arguments and update requested_packages.
+
+    Per T_C.8: consumes :class:`RoutineContext` for the single
+    user-facing input (``lock_only``). The rest of the args are
+    upgrade-internal data flow (``package_args`` / ``pipfile_category`` /
+    ``index_name`` / ``reverse_deps`` / ``explicitly_requested`` /
+    ``category`` / ``has_package_args`` / ``requested_packages``) and stay
+    as keyword-only direct params (design doc section 3, "other" group).
+    """
+    lock_only = ctx.install_policy.lock_only
     for package in package_args[:]:
         install_req, _ = expansive_install_req_from_line(package, expand_env=True)
 
@@ -466,17 +484,27 @@ def _process_package_args(
 
 def _resolve_and_update_lockfile(
     project,
+    ctx: RoutineContext,
+    *,
     requested_packages,
     pipfile_category,
     category,
     package_args,
-    pre,
-    system,
-    pypi_mirror,
     lockfile,
     resolved_default_deps=None,
 ):
-    """Resolve dependencies and update lockfile."""
+    """Resolve dependencies and update lockfile.
+
+    Per T_C.8: consumes :class:`RoutineContext` for the user-facing
+    inputs (``pre`` / ``system`` / ``pypi_mirror``). Upgrade-internal
+    data flow (``requested_packages`` / ``pipfile_category`` /
+    ``category`` / ``package_args`` / ``lockfile`` /
+    ``resolved_default_deps``) stays as keyword-only direct params
+    (design doc section 3, "other" group).
+    """
+    pre = ctx.install_policy.pre
+    system = ctx.target_env.system
+    pypi_mirror = ctx.target_env.pypi_mirror
     if not requested_packages[pipfile_category]:
         return None
 
@@ -627,7 +655,18 @@ def upgrade(
     lock_only=False,
     extra_pip_args=None,
 ):
-    """Enhanced upgrade command with dependency conflict detection."""
+    """Enhanced upgrade command with dependency conflict detection.
+
+    Retains its pre-T_C.8 wide signature because ``cmd_upgrade`` (out of
+    scope for T_C.8) still calls it positionally. The migrated helpers
+    ``_process_package_args`` and ``_resolve_and_update_lockfile``
+    consume :class:`RoutineContext`; ``upgrade`` constructs a ctx from
+    its own params and threads it through.
+
+    TODO(swarm): A follow-up task can migrate ``upgrade`` itself once
+    ``cmd_upgrade`` is updated to construct ``RoutineContext`` from
+    ``state``.
+    """
     lockfile = project.lockfile()
     # Store the original lockfile for comparison later
     original_lockfile = {
@@ -636,6 +675,17 @@ def upgrade(
 
     if not pre:
         pre = project.settings.get("allow_prereleases")
+
+    # Build a RoutineContext for the migrated helpers
+    # (``_process_package_args`` / ``_resolve_and_update_lockfile``).
+    # The pre-resolved ``pre`` (with ``allow_prereleases`` folded in) is
+    # threaded through, matching the pre-migration behaviour.
+    helper_ctx = RoutineContext.from_cli(
+        system=system,
+        pypi_mirror=pypi_mirror,
+        pre=pre,
+        lock_only=lock_only,
+    )
 
     # Prepare categories
     categories = _prepare_categories(categories, dev, packages)
@@ -701,15 +751,15 @@ def upgrade(
         if package_args:
             _process_package_args(
                 project,
-                package_args,
-                pipfile_category,
-                index_name,
-                reverse_deps,
-                explicitly_requested,
-                category,
-                has_package_args,
-                requested_packages,
-                lock_only=lock_only,
+                helper_ctx,
+                package_args=package_args,
+                pipfile_category=pipfile_category,
+                index_name=index_name,
+                reverse_deps=reverse_deps,
+                explicitly_requested=explicitly_requested,
+                category=category,
+                has_package_args=has_package_args,
+                requested_packages=requested_packages,
             )
 
         # For non-default categories, pass resolved default deps as constraints
@@ -720,14 +770,12 @@ def upgrade(
         # Resolve dependencies and update lockfile
         upgrade_lock_data = _resolve_and_update_lockfile(
             project,
-            requested_packages,
-            pipfile_category,
-            category,
-            package_args,
-            pre,
-            system,
-            pypi_mirror,
-            lockfile,
+            helper_ctx,
+            requested_packages=requested_packages,
+            pipfile_category=pipfile_category,
+            category=category,
+            package_args=package_args,
+            lockfile=lockfile,
             resolved_default_deps=category_default_deps,
         )
 

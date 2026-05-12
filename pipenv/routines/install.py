@@ -235,17 +235,22 @@ def handle_new_packages(
     # Use the update routine for new packages
     if perform_upgrades and (packages or editable_packages):
         try:
-            do_update(
-                project,
-                dev=sel.dev,
-                pre=policy.pre,
-                packages=packages,
-                editable_packages=editable_packages,
+            # Post T_C.8 ``do_update`` consumes ``RoutineContext``. Build
+            # a context that mirrors the pre-migration kwargs verbatim
+            # (dev / pre / packages / editables / pypi_mirror / index /
+            # extra_pip_args / categories) so the post-install upgrade
+            # pass behaves identically.
+            update_ctx = RoutineContext.from_cli(
                 pypi_mirror=target.pypi_mirror,
-                index_url=index,
-                extra_pip_args=extra_pip_args,
-                categories=pipfile_categories,
+                pre=policy.pre,
+                packages=tuple(packages),
+                editable_packages=tuple(editable_packages),
+                categories=tuple(pipfile_categories),
+                dev=sel.dev,
+                index=index,
+                extra_pip_args=tuple(extra_pip_args),
             )
+            do_update(project, update_ctx)
             return new_packages, True
         except Exception:
             for pkg_name, category in new_packages:
