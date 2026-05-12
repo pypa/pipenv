@@ -947,6 +947,120 @@ output file between parallel agents.
   - `tests/unit/test_sources.py` (new, 16 tests)
   - `tests/unit/{test_resolver_regressions,test_utils}.py` (test updates)
 
+#### T_D.3 .. T_D.6: Remaining `Project` subsystem extractions (regenerated)
+
+**Regenerated 2026-05-12 after T_D.2 proved the extraction pattern.**
+Per the T_D.1 §8 sign-off: no delegating wrappers, no
+`DeprecationWarning`, no two-phase rollout — extract AND migrate every
+internal caller in the same PR.
+
+**Parallelism reality**: each of the four remaining subsystem extractions
+heavily modifies `pipenv/project.py` and migrates internal callers
+across many files. Two parallel extractions would race on `project.py`.
+The maintainer asked for "as parallel as possible"; in practice that
+collapses to **strict serialization** for the four tasks. Each is ~1
+working session of agent time; total expected: 4 sequential tasks.
+
+**Order recommendation**: smallest-and-simplest first to keep the
+pattern tight, then ramp up. The four tasks in proposed order:
+
+1. **T_D.3 — Settings (smallest, lowest risk)**
+2. **T_D.4 — VenvLocator**
+3. **T_D.5 — Lockfile** (deferred pylock-awareness per maintainer
+   sign-off: extract `Pipfile.lock`-only behaviour; pylock support
+   addressed in 2027 when the format flip happens)
+4. **T_D.6 — Pipfile (largest, most coupled)**
+
+If a different order is preferred at execution time, it doesn't affect
+the design — the four are independent of each other once the
+`project.sources` precedent is in place.
+
+#### T_D.3: Extract `Settings` subsystem
+- **depends_on**: [T_D.2]
+- **location**: `pipenv/utils/settings.py` (new) + `pipenv/project.py`
+  + every internal caller of the migrating methods.
+- **description**:
+  Extract the 3 `Settings`-classified methods from `Project` into a
+  new `Settings` class under `pipenv/utils/settings.py`. Access via
+  `@cached_property` on `Project`. T_D.1 §2 cluster identified
+  `Settings` as a tight 3-method bucket: settings-related accessors
+  that compose `self.s.PIPENV_*` env-var values with the
+  `[pipenv]` section of the Pipfile.
+- **validation**: `pipenv/project.py` lost the 3 methods (and any
+  associated state); new module has its own test file; every
+  caller updated; unit suite green.
+- **status**: Not Completed
+- **log**:
+- **files edited/created**:
+
+#### T_D.4: Extract `VenvLocator` subsystem
+- **depends_on**: [T_D.3]
+- **location**: `pipenv/utils/venv_locator.py` (new) + `pipenv/project.py`
+  + every internal caller of the migrating methods.
+- **description**:
+  Extract the 13 `VenvLocator`-classified methods from `Project`.
+  Per T_D.1 §6.1: `VenvLocator` is currently read-only (no writers
+  in this bucket; venv *creation* happens in `routines/`), so no
+  split into `Locator` + `Bootstrap` is needed.
+- **validation**: same shape as T_D.3.
+- **status**: Not Completed
+- **log**:
+- **files edited/created**:
+
+#### T_D.5: Extract `Lockfile` subsystem (`Pipfile.lock`-only)
+- **depends_on**: [T_D.4]
+- **location**: `pipenv/utils/lockfile.py` (new) + `pipenv/project.py`
+  + every internal caller.
+- **description**:
+  Extract the 13 `Lockfile`-classified methods from `Project`.
+  **Per T_D.1 §8.1 maintainer sign-off**: pylock.toml support is
+  NOT folded into this extraction. The new `Lockfile` subsystem
+  handles only the legacy `Pipfile.lock` format. When pylock.toml is
+  promoted to first-class (anticipated 2027), the boundary set up
+  here will either grow a per-format dispatch layer or sprout a
+  sibling `PylockLock` class — that's a future-T_D.5 decision, not
+  this one's. Add `TODO(pylock)` tags at the format-detection seams
+  so they're greppable in 2027.
+- **validation**: same shape as T_D.3; plus `TODO(pylock)` tags
+  present at the future format-detection seams.
+- **status**: Not Completed
+- **log**:
+- **files edited/created**:
+
+#### T_D.6: Extract `Pipfile` subsystem (largest, most coupled)
+- **depends_on**: [T_D.5]
+- **location**: `pipenv/utils/pipfile.py` (existing — already contains
+  a partial `Pipfile` scaffolding) + `pipenv/project.py` + every
+  internal caller.
+- **description**:
+  Extract the 38 `Pipfile`-classified methods from `Project`. This
+  is the biggest of the four extractions and the most coupled
+  (cache invalidation via `_parsed_pipfile_mtime_ns`, writer
+  methods consumed by `Sources`/`Settings`, hash computation
+  consumed by `Lockfile`).
+
+  Cross-subsystem references (per T_D.1 §3):
+  - `Pipfile.write_toml` must invalidate `Sources` and `Settings`
+    cached property handles on `Project` (since both `Sources`
+    writers and `Settings` writers route through it).
+  - `Lockfile.get_lockfile_meta` needs `Pipfile.calculate_pipfile_hash`.
+  These are constructor-injected (or `Sources(project=...)` style)
+  rather than via module-level imports.
+
+  Helper-bucket methods (`path_to`, `prepend_hash_types`,
+  `get_file_hash`) per T_D.1 §8.5 — orchestrator's standing
+  recommendation: revisit AFTER T_D.6 lands, when `Project` is at
+  its leanest. By that point most helpers will plausibly want to
+  move to `pipenv/utils/` as free functions; but it's a judgement
+  call to make with the fullest picture.
+- **validation**: same shape as T_D.3; plus `project.py` is at its
+  intended lean shape (probably ≤ 600 lines after this); plus a
+  paragraph in the commit message recording the helper-bucket
+  disposition (move out or keep) and rationale.
+- **status**: Not Completed
+- **log**:
+- **files edited/created**:
+
 #### T_E.1: Define canonical requirement-model API target
 - **depends_on**: [T_B.7]
 - **location**: `docs/dev/initiative-e-design.md` (new, temporary).

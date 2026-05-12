@@ -690,3 +690,47 @@ grep -rn "\bBAD_PACKAGES\b" pipenv/ --include="*.py" \
 
 A reviewer can re-run these to verify nothing shifted between this design
 and the first execution PR (T_E.2).
+
+---
+
+## Maintainer sign-off (2026-05-12)
+
+Recorded answers for the eight §6 decision questions:
+
+1. **Canonical home — APPROVED.** Single canonical home in
+   `pipenv/utils/dependencies.py`. No themed split.
+2. **`requirementslib.py` filename — RETIRE.** The maintainer confirms:
+   "we want to delete that file, it's legacy from when we vendored
+   requirementslib." Sequencing constraint: the file cannot be deleted
+   until the surviving symbols are moved out (T_E.3) and `unpack_url`
+   /`get_http_url` relocated (T_E.4). After T_E.4 the file is empty and
+   deletes cleanly.
+3. **`add_index_to_pipfile` rename — APPROVED as proposed:**
+   `add_index_to_pipfile_with_trust_check`.
+4. **`unpack_url` / `get_http_url` home — APPROVED as proposed:** new
+   `pipenv/utils/unpack.py`.
+5. **`markers.py` fold-in — REJECTED, STAY SEPARATE.** Owned glue over
+   `pipenv.patched.pip._vendor.{distlib,packaging}`; no thematic fit
+   with the requirement model.
+6. **`redact_*` location — STAY in `pipenv/utils/requirements.py`.**
+   Project-owned forks with documented divergence from pip-internal.
+7. **`requirements.py` → `redact.py` rename (T_E.7) — APPROVED
+   conditionally** ("Sure (if it makes sense still)"). After T_E.2
+   moves the bridge functions out, `requirements.py` will be a
+   redacts-only file; at that point the rename is honest and a small
+   PR. If `requirements.py` ends up retaining other content for any
+   reason discovered during T_E.2 execution, defer or skip the rename.
+8. **Test pinning approach — APPROVED as proposed:** per-wave (tests
+   added with each E.X move).
+
+### Ramifications
+
+- **No backwards-compat shim** (consistent with T_C.3 / T_D.1 sign-offs:
+  pipenv's only stable API is the CLI; `pipenv.utils.*` is internal).
+  E.2..E.6 may rewire imports wholesale; no `DeprecationWarning` on
+  removed symbols.
+- **T_E.2 is unblocked.** Move the 6 Pipfile/lockfile bridges +
+  `BAD_PACKAGES` from `pipenv/utils/requirements.py` into
+  `pipenv/utils/dependencies.py`, renaming the module-level
+  `add_index_to_pipfile` to `add_index_to_pipfile_with_trust_check`.
+  Caller migration in the same PR per the no-shim posture.
