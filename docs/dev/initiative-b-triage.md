@@ -1,6 +1,6 @@
 # Initiative B Triage: Inlined-Former-Vendor Modules
 
-This document captures the Initiative B triage decisions for inlined-former-vendor modules under `pipenv/utils/`. Each section flagged a symbol or symbol-group as **adopt**, **vendor**, or **delete**. Section "Execution issues" at the bottom drafts GitHub issue text for each multi-symbol execution group; the maintainer opens issues from that text.
+This document captures the Initiative B triage decisions for inlined-former-vendor modules under `pipenv/utils/`. Each section flagged a symbol or symbol-group as **adopt**, **vendor**, or **delete**. The work is executed directly under Initiative B / Wave 1c rather than tracked as GitHub issues — the per-symbol audit below is the working record.
 
 Scope covered by this synthesis:
 
@@ -13,40 +13,40 @@ Scope covered by this synthesis:
 
 Rows are sorted by Decision (delete, then vendor, then adopt — cheapest first), and alphabetically within each decision group. Caller counts are external call sites; see the per-module sections for grep methodology.
 
-| Symbol or group | Module | Decision | Caller count | Suggested execution issue |
-|---|---|---|---|---|
-| `convert_entry_to_path` | `pipenv/utils/requirementslib.py` | delete | 0 (cascade from `is_installable_file`) | Issue 1 — Delete dead code in `requirementslib.py` |
-| `get_package_finder` | `pipenv/utils/requirementslib.py` | delete | 0 (shadowed by canonical copy in `resolver.py:162`) | Issue 1 — Delete dead code in `requirementslib.py` |
-| `get_setup_paths` | `pipenv/utils/requirementslib.py` | delete | 0 | Issue 1 — Delete dead code in `requirementslib.py` |
-| `is_installable_file` | `pipenv/utils/requirementslib.py` | delete | 0 | Issue 1 — Delete dead code in `requirementslib.py` |
-| `is_star` | `pipenv/utils/requirementslib.py` | delete | 0 (shadowed by canonical copy in `dependencies.py:418`) | Issue 1 — Delete dead code in `requirementslib.py` |
-| `normalize_name` | `pipenv/utils/requirements.py` | delete | 4 (overlaps with `pep423_name`; merge under Initiative E) | Bundled cleanups (flagged to Initiative E) |
-| `prepare_pip_source_args` | `pipenv/utils/requirementslib.py` | delete | 0 (shadowed by canonical copy in `indexes.py:18`) | Issue 1 — Delete dead code in `requirementslib.py` |
-| `strip_ssh_from_git_uri` | `pipenv/utils/requirementslib.py` | delete | 0 | Issue 1 — Delete dead code in `requirementslib.py` |
-| `default_visit` | `pipenv/utils/requirementslib.py` | vendor | 0 external (used by `remap`, `merge_items`) | Issue 2 — Vendor boltons.iterutils subset |
-| `dict_path_enter` | `pipenv/utils/requirementslib.py` | vendor | 0 external (used by `remap`, `merge_items`) | Issue 2 — Vendor boltons.iterutils subset |
-| `dict_path_exit` | `pipenv/utils/requirementslib.py` | vendor | 0 external (used by `remap`, `merge_items`) | Issue 2 — Vendor boltons.iterutils subset |
-| `get_path` | `pipenv/utils/requirementslib.py` | vendor | 0 external (one internal use in `merge_items`) | Issue 2 — Vendor boltons.iterutils subset |
-| `PathAccessError` | `pipenv/utils/requirementslib.py` | vendor | 0 external (used by `get_path`) | Issue 2 — Vendor boltons.iterutils subset |
-| `redact_auth_from_url` | `pipenv/utils/requirements.py` | vendor | 0 external (only by `import_requirements` in this module) | Issue 3 — Document redact_* fork provenance |
-| `redact_netloc` | `pipenv/utils/requirements.py` | vendor | 0 external (only by `redact_auth_from_url`) | Issue 3 — Document redact_* fork provenance |
-| `remap` | `pipenv/utils/requirementslib.py` | vendor | 0 external (used by `merge_items`) | Issue 2 — Vendor boltons.iterutils subset |
-| `add_index_to_pipfile` | `pipenv/utils/requirements.py` | adopt | 2 | Issue 4 — Adopt Pipfile/lockfile bridge helpers |
-| `add_ssh_scheme_to_git_uri` | `pipenv/utils/requirementslib.py` | adopt | 2 | Issue 5 — Adopt Pipfile-schema project predicates |
-| `get_http_url` | `pipenv/utils/requirementslib.py` | adopt | 1 (only internal: `unpack_url`) | Issue 6 — Adopt pip prepare-step helpers (or replace with patched-pip) |
-| `get_pip_command` | `pipenv/utils/requirementslib.py` | adopt | 2 | Issue 5 — Adopt Pipfile-schema project predicates |
-| `import_requirements` | `pipenv/utils/requirements.py` | adopt | 2 | Issue 4 — Adopt Pipfile/lockfile bridge helpers |
-| `is_editable` | `pipenv/utils/requirementslib.py` | adopt | 2 import sites + 4 use sites (also: reconcile near-duplicate in `dependencies.py:1503`) | Issue 5 — Adopt Pipfile-schema project predicates |
-| `is_file_url` | `pipenv/utils/fileutils.py` | adopt | 0 external (gates `file://` branch in `open_file`, `url_to_path`) | Bundled cleanups |
-| `is_vcs` | `pipenv/utils/requirementslib.py` | adopt | 4 import sites + multiple use sites | Issue 5 — Adopt Pipfile-schema project predicates |
-| `merge_items` | `pipenv/utils/requirementslib.py` | adopt | 3 (project's public entry point into the boltons tree) | Issue 5 — Adopt Pipfile-schema project predicates |
-| `path_to_url` | `pipenv/utils/fileutils.py` | adopt | 0 external (only internal caller is `open_file`); duplicate-name hazard in `shell.py:104` flagged to Initiative A | Bundled cleanups |
-| `requirement_from_lockfile` | `pipenv/utils/requirements.py` | adopt | 3 | Issue 4 — Adopt Pipfile/lockfile bridge helpers |
-| `requirement_from_pipfile` | `pipenv/utils/requirements.py` | adopt | 0 external (only by `requirements_from_pipfile`) | Issue 4 — Adopt Pipfile/lockfile bridge helpers |
-| `requirements_from_lockfile` | `pipenv/utils/requirements.py` | adopt | 2 | Issue 4 — Adopt Pipfile/lockfile bridge helpers |
-| `requirements_from_pipfile` | `pipenv/utils/requirements.py` | adopt | 1 | Issue 4 — Adopt Pipfile/lockfile bridge helpers |
-| `unpack_url` | `pipenv/utils/requirementslib.py` | adopt | 2 (verbatim copy of `pip._internal.operations.prepare.unpack_url`) | Issue 6 — Adopt pip prepare-step helpers (or replace with patched-pip) |
-| `url_to_path` | `pipenv/utils/fileutils.py` | adopt | 2 (in `requirementslib.py`); inverse of `path_to_url` | Bundled cleanups |
+| Symbol or group | Module | Decision | Caller count |
+|---|---|---|---|
+| `convert_entry_to_path` | `pipenv/utils/requirementslib.py` | delete | 0 (cascade from `is_installable_file`) |
+| `get_package_finder` | `pipenv/utils/requirementslib.py` | delete | 0 (shadowed by canonical copy in `resolver.py:162`) |
+| `get_setup_paths` | `pipenv/utils/requirementslib.py` | delete | 0 |
+| `is_installable_file` | `pipenv/utils/requirementslib.py` | delete | 0 |
+| `is_star` | `pipenv/utils/requirementslib.py` | delete | 0 (shadowed by canonical copy in `dependencies.py:418`) |
+| `normalize_name` | `pipenv/utils/requirements.py` | delete | 4 (callers migrate to `pep423_name`; `pep423_name`'s dead-`else` bug fixed in the same wave) |
+| `prepare_pip_source_args` | `pipenv/utils/requirementslib.py` | delete | 0 (shadowed by canonical copy in `indexes.py:18`) |
+| `strip_ssh_from_git_uri` | `pipenv/utils/requirementslib.py` | delete | 0 |
+| `default_visit` | `pipenv/utils/requirementslib.py` | replace (purpose-built helper) | 0 external (used by `remap`, `merge_items`) |
+| `dict_path_enter` | `pipenv/utils/requirementslib.py` | replace (purpose-built helper) | 0 external (used by `remap`, `merge_items`) |
+| `dict_path_exit` | `pipenv/utils/requirementslib.py` | replace (purpose-built helper) | 0 external (used by `remap`, `merge_items`) |
+| `get_path` | `pipenv/utils/requirementslib.py` | replace (purpose-built helper) | 0 external (one internal use in `merge_items`) |
+| `PathAccessError` | `pipenv/utils/requirementslib.py` | replace (purpose-built helper) | 0 external (used by `get_path`) |
+| `remap` | `pipenv/utils/requirementslib.py` | replace (purpose-built helper) | 0 external (used by `merge_items`) |
+| `redact_auth_from_url` | `pipenv/utils/requirements.py` | adopt (with provenance docstring) | 0 external (only by `import_requirements` in this module) |
+| `redact_netloc` | `pipenv/utils/requirements.py` | adopt (with provenance docstring) | 0 external (only by `redact_auth_from_url`) |
+| `add_index_to_pipfile` | `pipenv/utils/requirements.py` | adopt | 2 |
+| `add_ssh_scheme_to_git_uri` | `pipenv/utils/requirementslib.py` | adopt | 2 |
+| `get_http_url` | `pipenv/utils/requirementslib.py` | adopt (or delete via patched-pip) | 1 (only internal: `unpack_url`) |
+| `get_pip_command` | `pipenv/utils/requirementslib.py` | adopt | 2 |
+| `import_requirements` | `pipenv/utils/requirements.py` | adopt | 2 |
+| `is_editable` | `pipenv/utils/requirementslib.py` | adopt (collapse duplicate in `dependencies.py:1503`) | 2 import sites + 4 use sites |
+| `is_file_url` | `pipenv/utils/fileutils.py` | adopt | 0 external (gates `file://` branch in `open_file`, `url_to_path`) |
+| `is_vcs` | `pipenv/utils/requirementslib.py` | adopt | 4 import sites + multiple use sites |
+| `merge_items` | `pipenv/utils/requirementslib.py` | adopt (rebuilt on purpose-built helper) | 3 (project's public entry point) |
+| `path_to_url` | `pipenv/utils/fileutils.py` | adopt | 0 external (only internal caller is `open_file`); duplicate-name hazard in `shell.py:104` resolved under Initiative A |
+| `requirement_from_lockfile` | `pipenv/utils/requirements.py` | adopt | 3 |
+| `requirement_from_pipfile` | `pipenv/utils/requirements.py` | adopt | 0 external (only by `requirements_from_pipfile`) |
+| `requirements_from_lockfile` | `pipenv/utils/requirements.py` | adopt | 2 |
+| `requirements_from_pipfile` | `pipenv/utils/requirements.py` | adopt | 1 |
+| `unpack_url` | `pipenv/utils/requirementslib.py` | adopt (or delete via patched-pip) | 2 (verbatim copy of `pip._internal.operations.prepare.unpack_url`) |
+| `url_to_path` | `pipenv/utils/fileutils.py` | adopt | 2 (in `requirementslib.py`); inverse of `path_to_url` |
 
 The `markers.py` module is **not in this table**: T_B.4 found it is owned project glue over `pipenv.patched.pip._vendor.{distlib,packaging}` and has no separate vendor lineage to triage. It is recorded under its own section below so the "is this vendored?" question stays closed.
 
@@ -403,311 +403,3 @@ consolidation) if useful. Recorded here so the "is this vendored?" question
 stays closed.
 
 ---
-
-## Execution issues (drafts)
-
-The blocks below are pre-formatted for `gh issue create`. The maintainer
-reviews, edits if needed, and runs the commands. **No issues are opened
-automatically by this triage step.**
-
-### Issue 1 — Delete dead code in `pipenv/utils/requirementslib.py`
-
-```
-gh issue create \
-  --title "Initiative B: delete dead code in pipenv/utils/requirementslib.py" \
-  --label modernization --label initiative-b --label delete \
-  --body "$(cat <<'EOF'
-Seven public symbols in \`pipenv/utils/requirementslib.py\` are dead
-code or stale duplicates of canonical copies elsewhere in the tree.
-Deleting them drops roughly 180 lines from the module without behaviour
-change and removes two divergent-stale-copy footguns.
-
-## Symbols to delete
-
-- \`strip_ssh_from_git_uri\` — zero importers.
-- \`is_star\` — shadowed by the canonical copy at \`pipenv/utils/dependencies.py:418\`.
-- \`convert_entry_to_path\` — only kept alive by \`is_installable_file\` (also dead); cascade-deletes.
-- \`is_installable_file\` — zero importers.
-- \`get_setup_paths\` — zero importers; pip handles this internally.
-- \`prepare_pip_source_args\` — shadowed by the canonical, more defensively coded copy at \`pipenv/utils/indexes.py:18\` (validates URL presence, uses \`parse_url\` for trusted-host formatting). Real callers all use the indexes.py copy.
-- \`get_package_finder\` — shadowed by the canonical copy at \`pipenv/utils/resolver.py:162\` (adds explicit \`py_version_info\` kwarg). Real callers all use the resolver.py copy.
-
-## Acceptance criteria
-
-- [ ] All seven symbols removed from \`pipenv/utils/requirementslib.py\`.
-- [ ] \`grep -rn '<symbol>' pipenv/ --include='*.py' | grep -v patched | grep -v vendor\` returns no hits for each deleted symbol.
-- [ ] \`python -m pytest tests/unit -x\` exits 0.
-- [ ] \`ruff check pipenv/\` exits 0.
-- [ ] No news fragment required (behavior-preserving dead-code removal).
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` section "Group D — Dead code" under
-\`pipenv/utils/requirementslib.py\` (T_B.1).
-EOF
-)"
-```
-
-### Issue 2 — Vendor boltons.iterutils subset under `pipenv/vendor/`
-
-```
-gh issue create \
-  --title "Initiative B: vendor boltons.iterutils dict-walkers used by merge_items" \
-  --label modernization --label initiative-b --label vendor \
-  --body "$(cat <<'EOF'
-Six symbols in \`pipenv/utils/requirementslib.py\` are an inlined,
-lightly-modified copy of \`boltons.iterutils\`. The package is still
-maintained upstream (https://github.com/mahmoud/boltons). They have zero
-non-pipenv external callers and only one in-tree caller: \`merge_items\`
-(pipenv-owned). Vendoring this subset stops the maintenance treadmill on
-code we should not be modifying.
-
-## Symbols to vendor
-
-- \`PathAccessError\`
-- \`get_path\`
-- \`default_visit\`
-- \`dict_path_enter\`
-- \`dict_path_exit\`
-- \`remap\`
-
-## Pipenv-side modifications to preserve
-
-\`dict_path_enter\` and \`dict_path_exit\` were extended with branches for
-\`tomlkit.items.Table\`, \`tomlkit.items.InlineTable\`, and
-\`tomlkit.items.Array\`. These exist so \`merge_items\` works on tomlkit's
-container types directly. Keep them as a small in-tree adapter on top of
-the vendored boltons code, NOT as edits to the vendored file.
-
-## Acceptance criteria
-
-- [ ] Boltons subset added under \`pipenv/vendor/boltons/\` via the standard vendoring tooling (\`tasks/vendoring.py\`).
-- [ ] \`merge_items\` imports from \`pipenv.vendor.boltons.iterutils\` (or equivalent).
-- [ ] tomlkit-container branches live in a pipenv-owned adapter, not in the vendored file.
-- [ ] Six former-inlined definitions removed from \`pipenv/utils/requirementslib.py\`.
-- [ ] \`python -m pytest tests/unit -x\` exits 0.
-- [ ] \`ruff check pipenv/\` exits 0.
-- [ ] News fragment under \`news/\` of type \`vendor\` describing the addition.
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` section "Group A — Boltons iterutils
-dict-tree walkers" under \`pipenv/utils/requirementslib.py\` (T_B.1).
-EOF
-)"
-```
-
-### Issue 3 — Document redact_* fork provenance in `requirements.py`
-
-```
-gh issue create \
-  --title "Initiative B: document redact_netloc/redact_auth_from_url fork provenance" \
-  --label modernization --label initiative-b --label vendor \
-  --body "$(cat <<'EOF'
-\`redact_netloc\` and \`redact_auth_from_url\` in \`pipenv/utils/requirements.py\`
-are deliberate forks of \`pip._internal.utils.misc.{redact_netloc,redact_auth_from_url}\`,
-not blind copies. The pipenv variants:
-
-1. Preserve \`\${ENV_VAR}\` placeholders in user/password fields. Pipenv
-   users routinely encode credentials with env-var expansion in their
-   Pipfile/lockfile; pip's version rewrites them to \`****\`, losing
-   information the user expects to see after a round-trip.
-2. Preserve standard SSH usernames via \`STANDARD_SSH_USERNAMES = ("git",)\`
-   so \`git@github.com:org/repo.git\` stays readable.
-
-Both behaviors are user-visible (CLI output, generated \`Pipfile.lock\`),
-so swapping in pip's version would be a behavior change rather than a
-refactor. Treat as a project-owned fork and add provenance comments so
-future readers don't try to replace the calls with the pip imports.
-
-## Symbols
-
-- \`redact_netloc\` (pipenv/utils/requirements.py:18)
-- \`redact_auth_from_url\` (pipenv/utils/requirements.py:52)
-
-## Acceptance criteria
-
-- [ ] A docstring or comment on each function noting "Fork of \`pip._internal.utils.misc.<name>\`; preserves env-var placeholders and standard SSH usernames."
-- [ ] No behavior changes.
-- [ ] \`python -m pytest tests/unit -x\` exits 0.
-- [ ] \`ruff check pipenv/\` exits 0.
-- [ ] No news fragment required (comment-only change).
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` section "Why we don't just \`from pip._internal.utils.misc import redact_*\`" under \`pipenv/utils/requirements.py\` (T_B.2).
-EOF
-)"
-```
-
-### Issue 4 — Adopt Pipfile/lockfile bridge helpers in `requirements.py`
-
-```
-gh issue create \
-  --title "Initiative B: adopt Pipfile/lockfile bridge helpers in requirements.py" \
-  --label modernization --label initiative-b --label adopt \
-  --body "$(cat <<'EOF'
-The six Pipfile/lockfile bridge functions in \`pipenv/utils/requirements.py\`
-are project-owned glue between pip's parser and pipenv's lockfile/Pipfile
-schemas. They have no upstream equivalent. This issue confirms their
-"adopt" status so the team can refactor them freely (rename, retype,
-relocate, simplify) under Initiative E without treating them as frozen
-former-vendor code.
-
-## Symbols (all adopt)
-
-- \`import_requirements\` — parse a \`requirements.txt\` with pip's \`parse_requirements\` and batch-add packages to the Pipfile.
-- \`add_index_to_pipfile\` — HTTPS-vs-trusted-host decision; delegates to \`Project.add_index_to_pipfile\`. Consider renaming under Initiative E to disambiguate from the \`Project\` method.
-- \`requirement_from_lockfile\` — convert a single \`(name, locked_info)\` pair into a pip-installable line (VCS / file / PyPI).
-- \`requirements_from_lockfile\` — map \`requirement_from_lockfile\` over a lock dict.
-- \`requirement_from_pipfile\` — convert a single Pipfile entry into a pip-installable line using Pipfile version specifiers.
-- \`requirements_from_pipfile\` — map \`requirement_from_pipfile\` over a Pipfile deps dict.
-
-## Acceptance criteria
-
-- [ ] No code change required by this issue alone; serves as the policy record that these helpers are pipenv-owned.
-- [ ] If a follow-up renames \`add_index_to_pipfile\` (module-level) to disambiguate from \`Project.add_index_to_pipfile\`, that rename happens here OR is split off as an Initiative E task.
-- [ ] No news fragment required for the policy record.
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` section \`pipenv/utils/requirements.py\` (T_B.2).
-EOF
-)"
-```
-
-### Issue 5 — Adopt Pipfile-schema project predicates in `requirementslib.py`
-
-```
-gh issue create \
-  --title "Initiative B: adopt Pipfile-schema project predicates from requirementslib.py" \
-  --label modernization --label initiative-b --label adopt \
-  --body "$(cat <<'EOF'
-Five symbols in \`pipenv/utils/requirementslib.py\` are pipenv-specific:
-they describe "the shape of a Pipfile entry" or wrap pip's options
-parser. They are pipenv's responsibility regardless of upstream status
-and should be refactored freely. This issue is the policy record plus
-two concrete cleanups.
-
-## Symbols (all adopt)
-
-- \`is_vcs\` — True if a Pipfile entry is a VCS dep.
-- \`is_editable\` — True if a Pipfile entry has \`editable: true\` or \`-e \` prefix.
-- \`add_ssh_scheme_to_git_uri\` — add \`ssh://\` scheme so \`urlparse\` works on \`git+user@host:…\` URIs.
-- \`merge_items\` — merge a list of nested Pipfile-category dicts. (Project's public entry point into the boltons tree; will continue to call into the vendored boltons subset after Issue 2 lands.)
-- \`get_pip_command\` — thin wrapper around \`pipenv.patched.pip._internal.commands.install.InstallCommand\`.
-
-## Concrete cleanups
-
-1. **Collapse the \`is_editable\` near-duplicate at \`pipenv/utils/dependencies.py:1503\`.** It drops the \`-e \` string-prefix branch; the requirementslib.py copy has it. Decide intentionally which semantics win across all callers, then keep one copy.
-2. **Decide long-term home.** \`requirementslib.py\` is a historical name; \`pipenv/utils/pipfile_schema.py\` or absorbing these into \`pipenv/utils/pipfile.py\` would be more honest. May be deferred to a separate Initiative E task.
-
-## Acceptance criteria
-
-- [ ] Single \`is_editable\` definition remaining in the codebase; all callers updated.
-- [ ] No behavior changes for typical Pipfile entries.
-- [ ] \`python -m pytest tests/unit -x\` exits 0.
-- [ ] \`ruff check pipenv/\` exits 0.
-- [ ] News fragment under \`news/\` of type \`trivial\` or \`removal\` covering the deduplication.
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` section "Group C — Pipfile-schema project predicates" under \`pipenv/utils/requirementslib.py\` (T_B.1).
-EOF
-)"
-```
-
-### Issue 6 — Adopt pip prepare-step helpers (or replace with patched-pip imports)
-
-```
-gh issue create \
-  --title "Initiative B: adopt or replace unpack_url/get_http_url in requirementslib.py" \
-  --label modernization --label initiative-b --label adopt \
-  --body "$(cat <<'EOF'
-\`unpack_url\` and \`get_http_url\` in \`pipenv/utils/requirementslib.py\`
-are verbatim copies of \`pip._internal.operations.prepare.{unpack_url,get_http_url}\`.
-Pip still ships these functions, so the pair is reachable as
-\`pipenv.patched.pip._internal.operations.prepare.unpack_url\` (and
-\`get_http_url\`). They form a closed pair: \`get_http_url\` has no
-external callers; it exists solely to support \`unpack_url\`.
-
-## Symbols
-
-- \`unpack_url\` (2 external callers: \`pipenv/utils/dependencies.py:40, 910\`)
-- \`get_http_url\` (1 internal caller: \`unpack_url\`)
-
-## Two paths
-
-- **Adopt path.** Mark the pair as project-owned, add a provenance
-  docstring (\"Verbatim copy of pip._internal.operations.prepare.X as of
-  pip vN.M; revisit when patched-pip version changes\") and move on.
-- **Replace path.** Verify that \`pipenv.patched.pip._internal.operations.prepare.unpack_url\`
-  exposes the same surface (same kwargs, same return type, same import
-  side-effects). If yes, both rows can be deleted and the two
-  \`dependencies.py\` call sites updated to import from patched-pip
-  directly. Both rows die together.
-
-## Acceptance criteria
-
-- [ ] Investigation completed: replace-path feasibility documented in the issue thread (signature diff, side-effect check, test run).
-- [ ] EITHER provenance docstring added to both functions (adopt path) OR both functions deleted and call sites migrated to \`pipenv.patched.pip._internal.operations.prepare\` (replace path).
-- [ ] \`python -m pytest tests/unit -x\` exits 0.
-- [ ] \`ruff check pipenv/\` exits 0.
-- [ ] News fragment under \`news/\` of type \`vendor\` if the replace path is taken (user-visible only if behavior diverges; otherwise \`trivial\`).
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` section "Group B — Resurrected pip prepare-step helpers" under \`pipenv/utils/requirementslib.py\` (T_B.1).
-EOF
-)"
-```
-
-### Issue 7 — Bundled cleanups (single-item executions)
-
-```
-gh issue create \
-  --title "Initiative B: bundled cleanups from triage (single-item executions)" \
-  --label modernization --label initiative-b \
-  --body "$(cat <<'EOF'
-Catch-all issue for triage decisions that don't justify their own
-dedicated PR. Each bullet is its own small commit. Items marked
-\"Initiative E flag\" stay flagged here but are executed under Initiative
-E rather than as part of this issue.
-
-## In scope for this issue
-
-- **\`pipenv/utils/fileutils.py\` URL/path triage record.** Confirm
-  \`is_file_url\`, \`url_to_path\`, and \`path_to_url\` stay in
-  \`fileutils.py\` (filesystem-side responsibility under the
-  Initiative A domain boundary rule). No code change; documentation /
-  comment-only if anything.
-- **Second \`path_to_url\` at \`pipenv/utils/shell.py:104\`.** Duplicate-name
-  hazard with no callers; fold into Initiative A's URL/scheme
-  consolidation pass rather than a standalone change.
-
-## Initiative E flags (do NOT execute under this issue)
-
-- \`normalize_name\` (\`pipenv/utils/requirements.py:61\`) overlaps with
-  \`pep423_name\` (\`pipenv/utils/dependencies.py:134\`). Merge under
-  Initiative E (requirement-model consolidation).
-- \`BAD_PACKAGES\` constant in \`pipenv/utils/requirements.py:148\` —
-  co-location question for Initiative E.
-- \`pipenv/utils/markers.py\` — owned project glue over
-  \`pipenv.patched.pip._vendor.{distlib,packaging}\`; refactor freely
-  under Initiative E if useful.
-
-## Acceptance criteria
-
-- [ ] Each in-scope bullet either ships a small commit OR is closed out with a comment recording the rationale for no change.
-- [ ] Initiative E flags transcribed into the Initiative E task list.
-- [ ] \`python -m pytest tests/unit -x\` exits 0.
-- [ ] \`ruff check pipenv/\` exits 0.
-
-## Reference
-
-See \`docs/dev/initiative-b-triage.md\` sections \`pipenv/utils/fileutils.py\`
-(T_B.3), \`pipenv/utils/markers.py\` (T_B.4), and the cross-cutting flags
-at the end of the summary table.
-EOF
-)"
-```
