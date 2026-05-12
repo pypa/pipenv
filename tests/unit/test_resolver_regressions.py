@@ -81,8 +81,8 @@ def _make_hash_resolver():
 @pytest.mark.utils
 def test_collect_hashes_does_not_warn_when_fallback_succeeds(monkeypatch):
     resolver = _make_hash_resolver()
-    resolver.project.get_hashes_from_pypi.return_value = None
-    resolver.project.get_hash_from_link.return_value = "sha256:abc123"
+    resolver.project.sources.get_hashes_from_pypi.return_value = None
+    resolver.project.sources.get_hash_from_link.return_value = "sha256:abc123"
 
     candidate = SimpleNamespace(link=mock.sentinel.link)
     best_candidate_result = SimpleNamespace(applicable_candidates=[candidate])
@@ -109,7 +109,7 @@ def test_collect_hashes_does_not_warn_when_fallback_succeeds(monkeypatch):
 @pytest.mark.utils
 def test_collect_hashes_warns_once_when_all_strategies_fail(monkeypatch):
     resolver = _make_hash_resolver()
-    resolver.project.get_hashes_from_pypi.return_value = None
+    resolver.project.sources.get_hashes_from_pypi.return_value = None
     best_candidate_result = SimpleNamespace(applicable_candidates=[])
     resolver.finder = mock.Mock(
         return_value=SimpleNamespace(

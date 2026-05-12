@@ -387,7 +387,7 @@ class Resolver:
             # stale) lockfile _meta.sources.  This ensures settings like
             # ``verify_ssl = false`` are respected even when an old lockfile
             # still carries ``verify_ssl = true``.  See gh-5665.
-            sources = project.pipfile_sources()
+            sources = project.sources.pipfile_sources()
         packages = project.get_pipfile_section(pipfile_category)
         constraints = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups
@@ -412,7 +412,7 @@ class Resolver:
                 elif index:
                     index_lookup[canonical_package_name] = index
                 else:
-                    index_lookup[canonical_package_name] = project.get_default_index()[
+                    index_lookup[canonical_package_name] = project.sources.get_default_index()[
                         "name"
                     ]
             if install_req.markers:
@@ -906,11 +906,11 @@ class Resolver:
         source = sources[0] if sources else None
         if source:
             if is_pypi_url(source["url"]):
-                hashes = self.project.get_hashes_from_pypi(ireq, source)
+                hashes = self.project.sources.get_hashes_from_pypi(ireq, source)
                 if hashes:
                     return hashes
             else:
-                hashes = self.project.get_hashes_from_remote_index_urls(ireq, source)
+                hashes = self.project.sources.get_hashes_from_remote_index_urls(ireq, source)
                 if hashes:
                     return hashes
 
@@ -921,12 +921,12 @@ class Resolver:
         if best_candidate_result.applicable_candidates:
             return sorted(
                 {
-                    self.project.get_hash_from_link(self.hash_cache, candidate.link)
+                    self.project.sources.get_hash_from_link(self.hash_cache, candidate.link)
                     for candidate in best_candidate_result.applicable_candidates
                 }
             )
         if link:
-            return {self.project.get_hash_from_link(self.hash_cache, link)}
+            return {self.project.sources.get_hash_from_link(self.hash_cache, link)}
 
         if self.project.s.is_verbose():
             err.print(
@@ -1261,7 +1261,7 @@ def _set_resolver_netrc(project, req_dir):
     and expose it via ``NETRC`` so the resolver subprocess can authenticate
     to private indexes without those credentials appearing in pip argv.
     """
-    netrc_path = write_credentials_netrc(project.pipfile_sources(), req_dir)
+    netrc_path = write_credentials_netrc(project.sources.pipfile_sources(), req_dir)
     if netrc_path:
         os.environ["NETRC"] = netrc_path
 
@@ -1398,7 +1398,7 @@ def venv_resolve_deps(
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
             deps = convert_deps_to_pip(
-                deps, project.pipfile_sources(), include_index=True
+                deps, project.sources.pipfile_sources(), include_index=True
             )
 
             # Useful for debugging and hitting breakpoints in the resolver

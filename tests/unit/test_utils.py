@@ -2080,11 +2080,15 @@ class TestResolverCreateCrossGroupIndexLookup:
 
         project.get_package_categories.return_value = all_categories
 
-        project.sources = [
+        # ``project.sources`` is the Sources subsystem (T_D.2); test code
+        # configures its accessors via the MagicMock attribute tree.
+        sources_list = [
             {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True},
             {"name": "private", "url": "https://private.example.com/simple", "verify_ssl": True},
         ]
-        project.get_default_index.return_value = {"name": "pypi", "url": "https://pypi.org/simple"}
+        project.sources.all = sources_list
+        project.sources.pipfile_sources.return_value = sources_list
+        project.sources.get_default_index.return_value = {"name": "pypi", "url": "https://pypi.org/simple"}
         project.s.PIPENV_CACHE_DIR = "/tmp/cache"
         project.s.PIPENV_SPINNER = "dots"
         project.settings.get.return_value = True

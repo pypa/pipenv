@@ -160,7 +160,7 @@ def add_index_to_pipfile(project, index, trusted_hosts=None):
             ],  # also check if hostname without port is in trusted_hosts
         )
     )
-    index_name = project.add_index_to_pipfile(index, verify_ssl=require_valid_https)
+    index_name = project.sources.add_index_to_pipfile(index, verify_ssl=require_valid_https)
     return index_name
 
 

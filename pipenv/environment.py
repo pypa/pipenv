@@ -70,7 +70,7 @@ class Environment:
             sources = []
         self.project = project
         if project and not sources:
-            sources = project.sources
+            sources = project.sources.all
         self.sources = sources
         if project and not pipfile:
             pipfile = project.parsed_pipfile

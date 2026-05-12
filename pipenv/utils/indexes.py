@@ -66,14 +66,14 @@ def get_project_index(
     if trusted_hosts is None:
         trusted_hosts = []
     if isinstance(index, Mapping):
-        return project.find_source(index.get("url"))
+        return project.sources.find_source(index.get("url"))
     try:
-        source = project.find_source(index)
+        source = project.sources.find_source(index)
     except SourceNotFound:
         # If the index is not found and it's not a valid URL, raise an error
         if not is_valid_url(index):
             available_sources = ", ".join(
-                f"'{s.get('name')}'" for s in project.sources if s.get("name")
+                f"'{s.get('name')}'" for s in project.sources.all if s.get("name")
             )
             raise PipenvUsageError(
                 f"Index '{index}' was not found in Pipfile sources and is not a valid URL.\n"
@@ -81,7 +81,7 @@ def get_project_index(
                 f"Hint: Use a valid URL or add the index to your Pipfile [[source]] section."
             )
         index_url = parse_url(index)
-        src_name = project.src_name_from_url(index)
+        src_name = project.sources.src_name_from_url(index)
         verify_ssl = index_url.host not in trusted_hosts
         source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
     return source
@@ -94,7 +94,7 @@ def get_source_list(
     trusted_hosts: list[str] | None = None,
     pypi_mirror: str | None = None,
 ) -> list[TSource]:
-    sources = project.sources[:]
+    sources = project.sources.all[:]
     if index:
         sources.append(get_project_index(project, index))
     if extra_indexes:
@@ -106,7 +106,7 @@ def get_source_list(
             if not sources or extra_src["url"] != sources[0]["url"]:
                 sources.append(extra_src)
 
-        for source in project.sources:
+        for source in project.sources.all:
             if not sources or source["url"] != sources[0]["url"]:
                 sources.append(source)
 

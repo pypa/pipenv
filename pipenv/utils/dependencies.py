@@ -190,7 +190,7 @@ def unearth_hashes_for_dep(project, dep):
 
     index_url = "https://pypi.org/simple/"
     source = "pypi"
-    for source in project.sources:
+    for source in project.sources.all:
         if source.get("name") == dep.get("index"):
             index_url = source.get("url")
             break
@@ -200,9 +200,9 @@ def unearth_hashes_for_dep(project, dep):
     if not install_req or not install_req.req:
         return []
     if "https://pypi.org/simple/" in index_url:
-        hashes = project.get_hashes_from_pypi(install_req, source)
+        hashes = project.sources.get_hashes_from_pypi(install_req, source)
     elif index_url:
-        hashes = project.get_hashes_from_remote_index_urls(install_req, source)
+        hashes = project.sources.get_hashes_from_remote_index_urls(install_req, source)
     if hashes:
         return hashes
 

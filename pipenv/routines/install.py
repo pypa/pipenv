@@ -163,8 +163,8 @@ def handle_new_packages(
                         pkg_line, expand_env=True
                     )
                     if index:
-                        source = project.get_index_by_name(index)
-                        default_index = project.get_default_index()["name"]
+                        source = project.sources.get_index_by_name(index)
+                        default_index = project.sources.get_default_index()["name"]
                         if not source:
                             index_name = add_index_to_pipfile(project, index)
                             if index_name != default_index:
@@ -877,7 +877,7 @@ def batch_install(
         # Sort the dependencies out by index -- include editable/vcs in the default group
         deps_by_index = defaultdict(list)
         for dependency, pip_line in deps_to_install:
-            index = project.sources_default["name"]
+            index = project.sources.default["name"]
             if dependency.name and dependency.name in lockfile_section:
                 entry = lockfile_section[dependency.name]
                 if isinstance(entry, dict) and "index" in entry:
