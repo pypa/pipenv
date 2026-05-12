@@ -199,7 +199,7 @@ def test_write_pylock_file(pylock_write_project):
     project = Project(chdir=False)
 
     # Check that use_pylock is enabled
-    assert project.use_pylock is True
+    assert project.settings.use_pylock is True
 
     # Check that pylock_output_path is correct
     assert project.pylock_output_path == str(pylock_write_project / "pylock.toml")
@@ -336,7 +336,7 @@ def test_write_named_pylock_file(pylock_write_named_project):
     project = Project(chdir=False)
 
     # Check that use_pylock is enabled
-    assert project.use_pylock is True
+    assert project.settings.use_pylock is True
 
     # Check that pylock_name is set
     assert project.settings.get("pylock_name") == "dev"

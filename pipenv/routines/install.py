@@ -12,8 +12,10 @@ from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
+    add_index_to_pipfile_with_trust_check,
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
+    import_requirements,
     install_req_from_pipfile,
     normalize_editable_path_for_pip,
 )
@@ -28,7 +30,6 @@ from pipenv.utils.pip import (
 )
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
-from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 
 
@@ -178,7 +179,7 @@ def handle_new_packages(
                         source = project.sources.get_index_by_name(index)
                         default_index = project.sources.get_default_index()["name"]
                         if not source:
-                            index_name = add_index_to_pipfile(project, index)
+                            index_name = add_index_to_pipfile_with_trust_check(project, index)
                             if index_name != default_index:
                                 pkg_requirement.index = index_name
                         elif source["name"] != default_index:
@@ -230,7 +231,7 @@ def handle_new_packages(
 
         # Update project settings with pre-release preference.
         if policy.pre:
-            project.update_settings({"allow_prereleases": policy.pre})
+            project.settings.update({"allow_prereleases": policy.pre})
 
     # Use the update routine for new packages
     if perform_upgrades and (packages or editable_packages):
@@ -696,7 +697,7 @@ def do_install_dependencies(
                 lockfile_type = (
                     "pylock.toml"
                     if project.pylock_exists
-                    and (project.use_pylock or not project.lockfile_exists)
+                    and (project.settings.use_pylock or not project.lockfile_exists)
                     else "Pipfile.lock"
                 )
                 lockfile_hash = lockfile["_meta"].get("hash", {}).get("sha256", "") or ""

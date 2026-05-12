@@ -62,6 +62,7 @@ from pipenv.utils.shell import (
     looks_like_dir,
     system_which,
 )
+from pipenv.utils.settings import Settings
 from pipenv.utils.sources import SourceNotFound, Sources
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
@@ -672,10 +673,22 @@ class Project:
         build_system = self.parsed_pipfile.get("build-system", {})
         return list(build_system.get("requires", []))
 
-    @property
-    def settings(self) -> tomlkit.items.Table | dict[str, str | bool]:
-        """A dictionary of the settings added to the Pipfile."""
-        return self.parsed_pipfile.get("pipenv", {})
+    @cached_property
+    def settings(self) -> Settings:
+        """The ``Settings`` subsystem (Initiative D, T_D.3).
+
+        Access ``[pipenv]``-section configuration through this accessor.
+        ``Settings`` implements :class:`collections.abc.MutableMapping`
+        so legacy call sites — ``project.settings.get(key, default)``,
+        ``"key" in project.settings``, ``project.settings[key]`` —
+        continue to work unchanged.
+
+        The previous ``Project.update_settings`` method moved to
+        :meth:`Settings.update`. The previous ``Project.use_pylock``
+        property moved to :attr:`Settings.use_pylock`. See T_D.3 and
+        ``docs/dev/initiative-d-inventory.md`` for the cluster boundary.
+        """
+        return Settings(self)
 
     def has_script(self, name: str) -> bool:
         try:
@@ -691,19 +704,6 @@ class Project:
         if extra_args:
             script.extend(extra_args)
         return script
-
-    def update_settings(self, d: dict[str, str | bool]) -> None:
-        settings = self.settings
-        changed = False
-        for new in d.keys():  # noqa: PLC0206
-            if new not in settings:
-                settings[new] = d[new]
-                changed = True
-        if changed:
-            p = self.parsed_pipfile
-            p["pipenv"] = settings
-            # Write the changes to disk.
-            self.write_toml(p)
 
     def lockfile(self, categories=None):
         """Pipfile.lock divided by PyPI and external dependencies."""
@@ -774,7 +774,7 @@ class Project:
     @property
     def lockfile_content(self):
         """Returns the content of the lockfile, checking for pylock.toml first."""
-        if self.pylock_exists or self.use_pylock:
+        if self.pylock_exists or self.settings.use_pylock:
             try:
                 if self.pylock_exists:
                     pylock = PylockFile.from_path(self.pylock_location)
@@ -964,11 +964,6 @@ class Project:
             self._parsed_pipfile_mtime_ns = None
 
     @property
-    def use_pylock(self) -> bool:
-        """Returns True if pylock.toml should be generated."""
-        return self.settings.get("use_pylock", False)
-
-    @property
     def pylock_output_path(self) -> str:
         """Returns the path where pylock.toml should be written."""
         pylock_name = self.settings.get("pylock_name")
@@ -989,7 +984,7 @@ class Project:
                 f.write("\n")
 
         # If use_pylock is enabled, also write a pylock.toml file
-        if self.use_pylock:
+        if self.settings.use_pylock:
             try:
                 from pipenv.utils.pylock import PylockFile
 
