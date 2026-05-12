@@ -37,19 +37,26 @@ this plan picks them up unchanged.
 - News fragment + user-facing docs for `[pipenv] resolver_backend =
   "pure-python"`.
 
-### Open questions to answer pre-execution
+### Decisions baked into this plan (sign-off 2026-05-12)
 
-The design doc §7 lists four (Q-A through Q-D).  Recommendations
-already in the doc; this plan assumes the recommendations hold.  If
-maintainer overrides:
+The design doc §7 catalogues six decisions (Q-A through Q-F).  All are
+now answered; this plan reflects them load-bearingly.
 
-- **Q-A** (sdist handling): plan defaults to **fall back to pip
-  backend** for any resolve that hits an sdist-only candidate.
-- **Q-B** (PEP 658 metadata pre-fetch): plan defaults to **pre-fetch
-  for top-level packages only**, lazy for transitives.
-- **Q-C** (preference parity): plan defaults to **strict mirror with
+- **Q-A** sdist handling → **fail loud** (transparent fallback was
+  considered and rejected; behaviour must be auditable).
+- **Q-B** PEP 658 pre-fetch → **top-level packages only**, transitives
+  lazy.
+- **Q-C** `get_preference` parity → **strict mirror with
   byte-identity gate**.
-- **Q-D** (keyring auth): plan defaults to **no keyring** in Phase 3.
+- **Q-D** keyring auth → **not in Phase 3** (netrc + URL-auth +
+  `PIP_CLIENT_CERT` only).
+- **Q-E** parity-real list → **10 wheel-heavy projects** (django +
+  psycopg[binary], flask + gunicorn, fastapi + uvicorn, requests +
+  httpx, pandas + numpy, pytest + pytest-cov, sqlalchemy + alembic,
+  cryptography + pyopenssl, boto3 + botocore, click + rich).
+- **Q-F** sdist UX → **backend-startup pre-check** on top-level
+  packages with a clear error message; transitive sdists still fail
+  loud per Q-A but rarer.
 
 ---
 
@@ -322,33 +329,61 @@ near the bottom of this document.
 
 ---
 
-### T9: `PurePythonBackend` + sdist fallback
+### T9: `PurePythonBackend` + fail-loud sdist handling + Q-F pre-check
 
 - **depends_on**: `[T8]`
 - **location**: `pipenv/resolver/backends/pure_python.py` (new)
 - **description**:
-  Per design §5.4.  Implements Initiative F's `Backend` protocol.
-  - Translates `ResolverRequest` → `Requirement` set + per-source
-    `ParsedManifestCache` setup → `PurePythonProvider` →
-    `resolvelib.Resolver.resolve(...)` → `ResolverResponse`.
-  - sdist fallback (Q-A recommendation): catch `_SdistEncountered`
-    from `get_dependencies`, log a one-line info message naming the
-    package + version, and re-dispatch the entire resolve through
-    the pip backend.  Log the fallback via `pipenv.utils.err` so
-    users can find it.
-  - Failure mapping per design §5.4:
-    - `ResolutionImpossible` → `ResolutionError` with conflicts.
-    - Network/transient errors during `get_dependencies` →
-      `InternalError`.
-    - Unexpected exceptions → `InternalError` with traceback.
+  Per design §5.4 + Q-A + Q-F decisions.  Implements Initiative F's
+  `Backend` protocol.
+
+  Flow inside `resolve(request)`:
+
+  1. **Pre-fetch** top-level package candidates + metadata (Q-B) via
+     `ParallelFetcher.populate`.
+  2. **Q-F top-level wheel-availability pre-check**: for every
+     top-level Pipfile package in `request.packages.specs`, scan its
+     cached candidates from `ParsedManifestCache`.  If ZERO candidates
+     are wheels matching the target Python + platform, abort:
+     `ResolverResponse.result = ResolutionError(pip_message=<clear
+     error naming the offending package(s) + suggesting either pinning
+     a version that has wheels or ``pipenv lock --backend pip`` for
+     this resolve>, conflicts=[])`.  Catches the common
+     sdist-only-toplevel case at startup, not 30 s into a doomed
+     resolve.
+  3. Build `Requirement` set from `request.packages.specs`.
+  4. Drive `resolvelib.Resolver(PurePythonProvider(...), ...)`.
+  5. **Q-A fail-loud sdist handling**: catch `_SdistEncountered` from
+     `get_dependencies` (raised by T7 when a transitive's only choice
+     is an sdist).  Translate into
+     `ResolverResponse.result = InternalError(message=<package +
+     version + "sdist-only transitive; not supported by pure-python
+     backend in Phase 3.  Either pin to a version with wheels, or
+     switch resolver_backend = 'pip'.">, traceback=...)`.  No silent
+     fallback.
+  6. **Normal failure mapping**:
+     - `resolvelib.ResolutionImpossible` → `ResolutionError` with the
+       conflict list translated.
+     - Network/transient errors during `get_dependencies` (mid-resolve)
+       → `InternalError`.
+     - Other unexpected exceptions → `InternalError` with traceback.
+  7. **Success** → `ResolverSuccess(locked=<typed LockedRequirement
+     tuple translated from the resolved graph>)`.
+
 - **validation**:
-  - Mock `PurePythonProvider` to resolve successfully; backend returns
+  - Mock `PurePythonProvider` to resolve successfully → backend returns
     `ResolverResponse(result=ResolverSuccess(locked=...))`.
-  - Mock provider to raise `ResolutionImpossible`; backend returns
+  - Mock provider to raise `ResolutionImpossible` → backend returns
     `ResolverResponse(result=ResolutionError(conflicts=...))`.
-  - Mock provider to raise `_SdistEncountered`; assert pip backend's
-    `resolve` is called as fallback; info log includes the package
-    name.
+  - Mock provider to raise `_SdistEncountered("foo", "1.2.3")` →
+    backend returns `ResolverResponse(result=InternalError(message=...))`;
+    error message contains both the package name and the version;
+    NO call to pip backend.
+  - Q-F pre-check: construct a mocked cache where top-level package
+    `bar` has zero wheel candidates → backend returns
+    `ResolverResponse(result=ResolutionError(pip_message=...))`;
+    error message names `bar` AND suggests `pipenv lock --backend pip`.
+    `resolvelib.Resolver` is NEVER invoked (verified via mock).
 - **status**: Not Completed
 - **log**:
 - **files edited/created**:
@@ -418,16 +453,20 @@ near the bottom of this document.
 
 ---
 
-### T14: Unit tests — `PurePythonBackend` + sdist fallback
+### T14: Unit tests — `PurePythonBackend` + fail-loud sdist + Q-F pre-check
 
 - **depends_on**: `[T9]`
 - **location**: `tests/unit/test_pure_python_backend.py` (new)
 - **description**:
   - Successful resolve → `ResolverSuccess`.
   - `ResolutionImpossible` → `ResolutionError` with conflict list.
-  - sdist fallback → pip backend invoked; one info-level log emitted;
-    final response is whatever pip returned (asserted via mock pip
-    backend).
+  - `_SdistEncountered` (transitive) → `InternalError` whose message
+    contains the package name + version + "sdist-only" + suggested
+    workaround.  NO call to pip backend (verified via mock).
+  - Q-F top-level pre-check: mocked cache returns zero wheel
+    candidates for a top-level package → `ResolutionError` with a
+    message naming the offending package + suggesting
+    `pipenv lock --backend pip`.  `resolvelib.Resolver` never invoked.
   - Backend is registered (loadable from `get_backend("pure-python")`).
   - Coverage ≥ 90 %.
 - **status**: Not Completed
