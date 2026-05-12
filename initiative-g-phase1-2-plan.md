@@ -79,9 +79,11 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
 - **validation**:
   - `python -c "from pipenv.resolver.candidate import Candidate, Hash; c = Candidate.from_filename('numpy-1.26.0-cp311-cp311-manylinux_2_17_x86_64.whl', name='numpy', version='1.26.0', url='https://...', hashes=frozenset(), requires_python='>=3.9', yanked=False, yanked_reason=None, upload_time=None); print(c.is_wheel, len(c.wheel_tags))"` prints `True` and a non-zero tag count.
   - Zero `pip._internal` imports: `grep -r "pip._internal" pipenv/resolver/candidate.py` returns empty.
-- **status**: Not Completed
-- **log**:
+- **status**: Completed
+- **log**: RED→GREEN.  Wrote 8 smoke tests in `tests/unit/test_candidate.py` covering construction, `frozen=True` mutation rejection, wheel-tag derivation (manylinux + universal `py2.py3-none-any`), sdist branch, and `Hash` namedtuple equality + frozenset membership.  Initial run: 8 `ModuleNotFoundError` failures (module did not exist).  Implemented `pipenv/resolver/candidate.py` as `@dataclass(frozen=True, slots=True)` per design §5.1, with `Hash = NamedTuple(algo, value)` and `Candidate.from_filename` that splits the wheel filename per PEP 427 (`rsplit("-", 3)`), feeds the last three components to `pipenv.vendor.packaging.tags.parse_tag`, and returns `wheel_tags=None` for sdists.  Re-ran: 8/8 GREEN.  Gotchas: (a) the plan's acceptance-criteria one-liner passes `filename` both positionally and as a kwarg, which collides at the Python call-site level — fixed by making the positional argument **positional-only** (`def from_filename(cls, __filename, /, **kwargs)`), letting the caller redundantly pass `filename=` without raising; (b) initial docstring contained a literal "pip._internal" reference that tripped the no-pip-internal grep gate — rewrote as "patched-pip's internal package".  Validation: acceptance one-liner prints `True 1`; `grep -r "pip._internal" pipenv/resolver/candidate.py` exits with code 1 (no matches).
 - **files edited/created**:
+  - Created: `pipenv/resolver/candidate.py` (Candidate dataclass + Hash NamedTuple + `from_filename` classmethod).
+  - Created: `tests/unit/test_candidate.py` (8 smoke tests for T1 acceptance — fuller coverage owned by T11).
 
 ---
 
