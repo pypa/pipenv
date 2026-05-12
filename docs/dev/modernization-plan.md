@@ -872,9 +872,55 @@ output file between parallel agents.
   `graph`, `clean`, `clear`, `shell` — verify) are out of scope.
 - **validation**: Unit suite green; all routines that thread > 3 params
   consume `RoutineContext` instead.
-- **status**: Not Completed
+- **status**: Completed (commit 58ca629b). Companion bug fix:
+  commit 4f5fb81c.
 - **log**:
+  Three routines migrated:
+  - `do_lock` 9 params → `(project, ctx)`.
+  - `do_sync` 11 params → `(project, ctx)`. T_C.7's inline
+    `RoutineContext.from_cli(...)` bridge inside `do_sync` collapsed;
+    T_C.8's bridge for the `do_sync` calls from `update.py` also
+    collapsed.
+  - `do_uninstall` 12 params (including a misnamed Click `ctx=None`
+    passthrough) → `(project, ctx)`. The Click-context passthrough
+    was dropped per the design's "CLI usage-error rendering lives at
+    the CLI layer" — the single use site
+    `PipenvUsageError("No package provided!", ctx=ctx)` just omits
+    the kwarg.
+  - `do_purge` left unchanged (only 3 non-project params, below the
+    threshold).
+
+  Internal callers migrated in the same PR: `install.py`
+  (`handle_outdated_lockfile`, `handle_missing_lockfile`), `uninstall.py`
+  (post-uninstall lock branch), `clean.py` (`ensure_lockfile`),
+  `outdated.py` (`do_outdated`), `update.py` (do_sync sites,
+  collapsing T_C.8's bridge), `cli/command.py` (`cmd_lock`,
+  `cmd_sync`, `cmd_uninstall` via `RoutineContext.from_cli`).
+
+  Pre-existing bug surfaced during T_C.9's test fixturing: `do_lock`
+  referenced `old_lock_data` unconditionally after a
+  `contextlib.suppress(KeyError)` assignment, raising
+  `UnboundLocalError` on first-lock / new-category paths. Fixed in
+  follow-up commit 4f5fb81c (one-line initialization).
+
+  Test updates: 22 new tests in
+  `tests/unit/test_lock_sync_uninstall_context_routing.py` (signature
+  pins + flag routing for all three migrated routines + `do_purge`
+  shape); existing tests in `test_locking_no_mutation.py` and
+  `test_do_update_context_routing.py` adjusted to the new shapes.
+  620 tests pass.
+
+  **Initiative C is structurally complete** for the five
+  `pipenv/routines/*.py` modules in T_C.2's inventory. Routine entry
+  points that legitimately take only `(project, ...few-args...)`
+  (e.g. `graph`, `clean`, `clear`, `shell`) remain on their old
+  signatures per the threshold.
 - **files edited/created**:
+  - `pipenv/routines/{lock,sync,uninstall,install,clean,outdated,update}.py`
+  - `pipenv/cli/command.py`
+  - `tests/unit/test_lock_sync_uninstall_context_routing.py` (new, 22 tests)
+  - `tests/unit/{test_locking_no_mutation,test_do_update_context_routing}.py`
+  - Companion bug fix: `pipenv/routines/lock.py` (commit 4f5fb81c)
 
 ---
 
