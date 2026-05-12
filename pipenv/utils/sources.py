@@ -270,8 +270,10 @@ class Sources:
             sources_ = meta_.get("sources")
             if sources_:
                 return sources_
-        else:
-            return self.pipfile_sources()
+        # Lockfile absent OR present-but-empty-meta — fall back to the
+        # Pipfile's [[source]] tables so callers (default/index_urls/
+        # get_source) always see a list, never None.
+        return self.pipfile_sources()
 
     @property
     def default(self):
@@ -322,9 +324,6 @@ class Sources:
         sources = (self.all, self.pipfile_sources())
         if refresh:
             sources = reversed(sources)
-        # Iterate explicitly so that a None result from the first source list
-        # does not short-circuit the search in the second list.
-        # (Avoids the walrus operator to stay compatible with Python 3.7.)
         found = None
         for _src in sources:
             _result = find_source(_src, name=name, url=url)
