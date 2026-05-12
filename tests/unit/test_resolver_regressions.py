@@ -193,25 +193,50 @@ class _ResolvedRequirement:
 
 
 @pytest.mark.utils
-def test_resolve_constraints_reuses_package_finder():
+def test_resolve_constraints_reads_requires_python_off_resolved_link():
+    """``resolve_constraints`` must read ``result.link.requires_python``
+    directly from the resolved tree — NOT re-query pip's
+    ``PackageFinder.find_best_candidate``.
+
+    Pre-2026-05 perf-cut the method called ``find_best_candidate`` once
+    per resolved package solely to extract ``requires-python`` off the
+    winning candidate's link.  That was an ~8.9 s second-pass index
+    walk on the 100-pkg bench.  pip's resolvelib already stores the
+    chosen candidate on every InstallRequirement it returns, so the
+    same data is one attribute lookup away.  Pin the new behaviour:
+    no ``finder()`` call, no ``find_best_candidate`` call.
+    """
     resolver = Resolver.__new__(Resolver)
-    resolver.resolved_tree = {
-        _ResolvedRequirement("requests"),
-        _ResolvedRequirement("certifi"),
-    }
+
+    # Two resolved entries, each carrying a link with the marker we
+    # expect to flow into self.markers.  Only the second package has a
+    # requires-python advert.
+    req_a = _ResolvedRequirement("requests")
+    req_a.link = SimpleNamespace(requires_python=None)
+    req_b = _ResolvedRequirement("certifi")
+    req_b.link = SimpleNamespace(requires_python=">=3.8")
+    resolver.resolved_tree = {req_a, req_b}
     resolver.markers = {}
     resolver.markers_lookup = {}
     resolver.pipfile_entries = {}
 
-    candidate = SimpleNamespace(link=SimpleNamespace(requires_python=None))
-    finder = mock.MagicMock()
-    finder.find_best_candidate.return_value = SimpleNamespace(best_candidate=candidate)
-    resolver.finder = mock.Mock(return_value=finder)
+    # Guard rail: any call to .finder() OR finder.find_best_candidate
+    # would mean we slipped back into the old slow path.  Make the
+    # finder explosive so the test fails loudly if that regression
+    # ever reappears.
+    resolver.finder = mock.Mock(
+        side_effect=AssertionError(
+            "resolve_constraints must not call self.finder(); read "
+            "result.link.requires_python directly"
+        )
+    )
 
     Resolver.resolve_constraints(resolver)
 
-    resolver.finder.assert_called_once_with()
-    assert finder.find_best_candidate.call_count == 2
+    # certifi's marker landed on the resolver state; requests has no
+    # requires-python advert and therefore no marker.
+    assert "certifi" in resolver.markers
+    assert "requests" not in resolver.markers
 
 
 @pytest.mark.utils
@@ -280,57 +305,42 @@ def test_resolve_hashes_runs_in_parallel():
 
 
 @pytest.mark.utils
-def test_resolve_constraints_runs_candidate_lookup_in_parallel():
-    """resolve_constraints should overlap find_best_candidate calls."""
-    import threading
+def test_resolve_constraints_does_not_walk_package_finder():
+    """``resolve_constraints`` must complete without invoking pip's
+    ``PackageFinder`` at all — the requires-python marker is read off
+    each resolved item's ``link`` attribute.
 
-    from pipenv.patched.pip._internal.req.req_install import InstallRequirement  # noqa: F401
-
+    Replaces the pre-2026-05 parallelism-overlap test that pinned the
+    old ``ThreadPoolExecutor.find_best_candidate`` fan-out.  The new
+    contract is "no second-pass network walk"; concurrency is
+    irrelevant because there is no I/O to overlap.
+    """
     resolver = Resolver.__new__(Resolver)
-    resolver.resolved_tree = {
-        _ResolvedRequirement(f"pkg-{i}") for i in range(16)
-    }
+
+    # Sixteen resolved entries, none carrying a requires-python advert.
+    # The body of resolve_constraints should walk them all without
+    # touching the finder.
+    items = set()
+    for i in range(16):
+        item = _ResolvedRequirement(f"pkg-{i}")
+        item.link = SimpleNamespace(requires_python=None)
+        items.add(item)
+    resolver.resolved_tree = items
     resolver.markers = {}
     resolver.markers_lookup = {}
     resolver.pipfile_entries = {}
 
-    concurrent = 0
-    peak = 0
-    started = 0
-    lock = threading.Lock()
-    overlap_barrier = threading.Barrier(2, timeout=5)
-
-    def slow_find(name, specifier):
-        nonlocal concurrent, peak, started
-        should_wait_for_overlap = False
-        with lock:
-            concurrent += 1
-            peak = max(peak, concurrent)
-            started += 1
-            should_wait_for_overlap = started <= 2
-        try:
-            # Deterministically require the first two calls to overlap instead of
-            # relying on short real-time waits that can be flaky on slow CI.
-            if should_wait_for_overlap:
-                overlap_barrier.wait()
-        except threading.BrokenBarrierError:
-            pytest.fail(
-                "Timed out waiting for two find_best_candidate calls to overlap; "
-                "expected resolver candidate lookup to run in parallel."
-            )
-        finally:
-            with lock:
-                concurrent -= 1
-        return SimpleNamespace(
-            best_candidate=SimpleNamespace(link=SimpleNamespace(requires_python=None))
-        )
-
-    finder = SimpleNamespace(find_best_candidate=slow_find)
-    resolver.finder = mock.Mock(return_value=finder)
+    # Explosive finder catches any regression back to the old slow path.
+    resolver.finder = mock.Mock(
+        side_effect=AssertionError("resolve_constraints must not call self.finder()")
+    )
 
     Resolver.resolve_constraints(resolver)
 
-    assert peak >= 2, "find_best_candidate should have run concurrently"
+    # No markers landed (none of the items advertised requires-python),
+    # and resolver.finder was never invoked.
+    resolver.finder.assert_not_called()
+    assert resolver.markers == {}
 
 
 @pytest.mark.utils
