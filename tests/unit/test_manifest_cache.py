@@ -875,3 +875,227 @@ class TestSerialisationHelpers:
         assert payload["wheel_tags"] is None
         rebuilt = _candidate_from_json(payload)
         assert rebuilt == sdist
+
+
+# ---------------------------------------------------------------------------
+# peek_etag (Initiative G phase-3 follow-up FU1)
+# ---------------------------------------------------------------------------
+
+
+class TestPeekEtag:
+    """``ParsedManifestCache.peek_etag`` reads the on-disk etag regardless
+    of expiry, returning ``None`` for any failure mode.
+
+    The key behavioural difference from :meth:`get` is that ``peek_etag``
+    survives TTL expiry: a stale-but-present cache entry still surfaces
+    its etag so that :class:`ParallelFetcher` can send ``If-None-Match``
+    on the next request and short-circuit a full re-download to a 304.
+
+    Same swallow-everything contract as :meth:`get`: missing file,
+    corrupt JSON, schema mismatch, wrong-typed etag, or empty-string
+    etag → ``None``, never an exception.
+    """
+
+    def test_fresh_entry_with_etag_returns_etag(self, tmp_path):
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put(
+            "https://pypi.org/simple",
+            "numpy",
+            [cand],
+            etag='W/"abc"',
+            ttl_seconds=600,
+        )
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") == 'W/"abc"'
+
+    def test_fresh_entry_without_etag_returns_none(self, tmp_path):
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put(
+            "https://pypi.org/simple",
+            "numpy",
+            [cand],
+            etag=None,
+            ttl_seconds=600,
+        )
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_expired_entry_still_returns_etag(self, tmp_path):
+        """Key behaviour: ``peek_etag`` survives expiry — :meth:`get`
+        does not.  This is what unlocks the FU1 stale-cache short-circuit.
+        """
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put(
+            "https://pypi.org/simple",
+            "numpy",
+            [cand],
+            etag='W/"stale"',
+            ttl_seconds=0,  # immediately expired
+        )
+        # Sanity: ``get`` hides the expired entry.
+        assert cache.get("https://pypi.org/simple", "numpy") is None
+        # But ``peek_etag`` still recovers the etag.
+        assert (
+            cache.peek_etag("https://pypi.org/simple", "numpy") == 'W/"stale"'
+        )
+
+    def test_expired_entry_after_clock_advance_still_returns_etag(
+        self, tmp_path, monkeypatch
+    ):
+        """A clock-driven expiry doesn't hide the etag from ``peek_etag``."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put(
+            "https://pypi.org/simple",
+            "numpy",
+            [cand],
+            etag='W/"future-stale"',
+            ttl_seconds=60,
+        )
+
+        import pipenv.resolver.manifest_cache as mc
+
+        future = datetime.now(timezone.utc) + timedelta(hours=1)
+
+        class _FakeDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):  # type: ignore[override]
+                return future
+
+        monkeypatch.setattr(mc, "datetime", _FakeDatetime)
+
+        # get() now sees an expired entry and hides it.
+        assert cache.get("https://pypi.org/simple", "numpy") is None
+        # peek_etag still surfaces the etag.
+        assert (
+            cache.peek_etag("https://pypi.org/simple", "numpy")
+            == 'W/"future-stale"'
+        )
+
+    def test_no_prior_entry_returns_none(self, tmp_path):
+        cache = ParsedManifestCache(tmp_path)
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_raw_garbage_bytes_returns_none(self, tmp_path):
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        target.write_bytes(b"not json at all")
+
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_invalid_utf8_bytes_returns_none(self, tmp_path):
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        target.write_bytes(b"\xff\xfe\xfd not valid utf-8")
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_payload_not_a_dict_returns_none(self, tmp_path):
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        target.write_text(json.dumps(["not", "a", "dict"]))
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_wrong_schema_version_returns_none(self, tmp_path):
+        """A payload from an incompatible schema version is untrusted:
+        the cached etag was written by another version, so we can't
+        rely on it for an ``If-None-Match``."""
+        cache = ParsedManifestCache(tmp_path, schema_version=1)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        payload = json.loads(target.read_text())
+        payload["schema_version"] = 99
+        target.write_text(json.dumps(payload))
+
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_missing_etag_field_returns_none(self, tmp_path):
+        """Payload missing the ``etag`` key altogether → None."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        payload = json.loads(target.read_text())
+        del payload["etag"]
+        target.write_text(json.dumps(payload))
+
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_etag_null_returns_none(self, tmp_path):
+        """``etag: null`` on disk (the round-trip of ``etag=None``) → None."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag=None)
+
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        payload = json.loads(target.read_text())
+        assert payload["etag"] is None  # sanity
+
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_empty_string_etag_returns_none(self, tmp_path):
+        """Empty-string ``etag`` is treated as absent (defensive against
+        hand-edited caches that store ``""``)."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        payload = json.loads(target.read_text())
+        payload["etag"] = ""
+        target.write_text(json.dumps(payload))
+
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_etag_wrong_type_returns_none(self, tmp_path):
+        """Non-string etag (int, list, etc.) → None."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+
+        target = cache._path_for("https://pypi.org/simple", "numpy")
+        payload = json.loads(target.read_text())
+        payload["etag"] = 12345
+        target.write_text(json.dumps(payload))
+
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_swallows_os_error_on_read(self, tmp_path, monkeypatch):
+        """Permission-denied (or similar OSError) on read → None."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate()
+        cache.put("https://pypi.org/simple", "numpy", [cand], etag="x")
+
+        original_read_bytes = Path.read_bytes
+
+        def _boom_read(self):
+            if self.name == "numpy.json":
+                raise OSError("simulated permission denied")
+            return original_read_bytes(self)
+
+        monkeypatch.setattr(Path, "read_bytes", _boom_read)
+        assert cache.peek_etag("https://pypi.org/simple", "numpy") is None
+
+    def test_canonicalises_package_name(self, tmp_path):
+        """``Foo_Bar`` and ``foo-bar`` resolve to the same on-disk file
+        for ``peek_etag`` too (same path-building helper as ``get``/``put``)."""
+        cache = ParsedManifestCache(tmp_path)
+        cand = _make_wheel_candidate(name="foo-bar", version="1.0")
+        cache.put(
+            "https://pypi.org/simple", "Foo_Bar", [cand], etag='W/"canon"',
+        )
+        # Look it up with the differently-spelt name.
+        assert (
+            cache.peek_etag("https://pypi.org/simple", "foo-bar")
+            == 'W/"canon"'
+        )

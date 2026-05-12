@@ -45,15 +45,21 @@ Stale-but-present etag handling
 -------------------------------
 
 T7's :meth:`ParsedManifestCache.get` returns ``None`` past expiry —
-the on-disk file is still there but the cache layer hides it.  T7
-deliberately does not expose a way to peek at the on-disk etag past
-expiry (the layer treats the file as opaque after TTL).  Per the T9
-brief's note, the simplest-correct phase-1 behaviour is:
+the on-disk file is still there but the cache layer hides it.
+Phase-3 follow-up FU1 added :meth:`ParsedManifestCache.peek_etag`,
+which reads the on-disk etag regardless of expiry.  This module's
+:meth:`ParallelFetcher.populate` now consults it on every cache miss:
 
-* expired cache entry → full re-fetch **without** ``If-None-Match``
-  (we cannot recover the etag through T7's public API);
-* a Phase-3 follow-up may extend T7 with a ``peek_etag(...)`` method
-  to enable the conditional-GET fast path on expired entries.
+* fresh cache hit (``cache.get`` returns a :class:`CachedManifest`) →
+  no fetch, warm-cache fast path.
+* stale-but-present (``cache.get`` returns ``None`` but
+  ``cache.peek_etag`` returns an etag string) → conditional GET with
+  ``If-None-Match: <etag>``.  A 304 from the server hits the
+  ``status="not-modified"`` branch of :meth:`_dispatch_fetch_result`
+  and the existing candidates get their TTL refreshed via T9's
+  option-a re-put.
+* truly missing or corrupt cache (``peek_etag`` returns ``None``) →
+  full GET with ``if_none_match=None``.
 
 Per-target failures
 -------------------
@@ -137,16 +143,19 @@ class ParallelFetcher:
     ) -> dict[str, CachedManifest | FetchError]:
         """Populate the cache for ``targets`` concurrently.
 
-        Algorithm (per T9 brief):
+        Algorithm (per T9 brief, updated with FU1):
 
         1. For each ``(index_url, package_name)``, check the cache.
            A fresh hit records the existing :class:`CachedManifest` in
            the result dict and **does NOT** dispatch a fetch (warm-cache
            fast path).
-        2. For an expired-or-missing entry, dispatch a fetch via
-           :class:`concurrent.futures.ThreadPoolExecutor`.  Per the
-           docstring's "stale-but-present etag" note, we do not send
-           ``If-None-Match`` for expired entries in phase 1.
+        2. For an expired-or-missing entry, recover any stale etag via
+           :meth:`ParsedManifestCache.peek_etag` and dispatch a fetch
+           via :class:`concurrent.futures.ThreadPoolExecutor`.  The
+           stale etag (if any) becomes the ``If-None-Match`` header so
+           a server-side unchanged manifest collapses into a 304 and
+           the existing candidates get their TTL refreshed instead of
+           re-downloading the full body (FU1, see module docstring).
         3. Post-fetch dispatch:
 
            * ``status="fresh"`` → ``cache.put(...)``; re-``cache.get``
@@ -180,9 +189,12 @@ class ParallelFetcher:
         result: dict[str, CachedManifest | FetchError] = {}
 
         # Step 1 + 2: classify targets into "warm-cache hit" vs
-        # "needs-fetch".  Warm hits land in `result` directly; misses go
-        # to the executor.
-        to_fetch: list[tuple[str, str]] = []
+        # "needs-fetch".  Warm hits land in `result` directly; misses
+        # go to the executor.  For misses, recover any stale-but-present
+        # etag via ``peek_etag`` so the worker can send
+        # ``If-None-Match`` and collapse an unchanged manifest into a
+        # 304 (FU1).
+        to_fetch: list[tuple[str, str, str | None]] = []
         for index_url, package_name in targets:
             existing = self._cache.get(index_url, package_name)
             if existing is not None:
@@ -191,7 +203,9 @@ class ParallelFetcher:
                 # here because we iterate `targets` in order).
                 result[package_name] = existing
                 continue
-            to_fetch.append((index_url, package_name))
+            # Miss — see if we have a stale etag we can revalidate with.
+            stale_etag = self._cache.peek_etag(index_url, package_name)
+            to_fetch.append((index_url, package_name, stale_etag))
 
         if not to_fetch:
             return result
@@ -205,8 +219,10 @@ class ParallelFetcher:
             thread_name_prefix="pipenv-fetch",
         ) as ex:
             futures = {
-                ex.submit(self._fetch_one, idx_url, pkg, None): (idx_url, pkg)
-                for (idx_url, pkg) in to_fetch
+                ex.submit(
+                    self._fetch_one, idx_url, pkg, if_none_match
+                ): (idx_url, pkg)
+                for (idx_url, pkg, if_none_match) in to_fetch
             }
             for future in concurrent.futures.as_completed(futures):
                 idx_url, package_name = futures[future]
@@ -370,16 +386,31 @@ class ParallelFetcher:
         Option (a) from the T9 brief: re-``put`` the existing
         candidates with the same etag so ``expires_at`` slides forward.
 
-        We reach this branch only if we had a stale-but-extant cache
-        entry, **except** that phase 1 doesn't actually send
-        ``If-None-Match`` (see module docstring's "stale-but-present
-        etag handling" note).  So in practice this branch is rarely hit
-        in phase 1 — but we still need to handle it correctly because a
-        well-behaved server may emit 304 unsolicited (or a test may
-        simulate one), and because phase 3 will start sending
-        ``If-None-Match`` for stale entries.
+        We reach this branch when:
+
+        * the cache had a fresh entry but the server still emitted
+          304 (unusual — a well-behaved fetcher wouldn't send
+          ``If-None-Match`` for a fresh entry, but tests / odd
+          servers can hit this); or
+        * (after FU1) the cache had a stale-but-extant entry that
+          :meth:`populate` sent through with ``If-None-Match``, and the
+          server confirmed it's still current.  This is the common
+          phase-3 path.
+
+        Source of "existing" candidates: prefer the fresh cache (cheap,
+        in-process), fall back to the stale on-disk payload via
+        :meth:`ParsedManifestCache._load_manifest` so the FU1
+        stale-cache short-circuit can actually refresh the entry's
+        TTL instead of bailing out as a transient.
         """
         existing = self._cache.get(index_url, package_name)
+        if existing is None:
+            # Fresh-cache miss — peek at the (possibly expired) on-disk
+            # payload.  FU1: this is how the stale-cache short-circuit
+            # recovers the previously-stored candidates so option-a
+            # TTL refresh actually does something useful.
+            existing = self._cache._load_manifest(index_url, package_name)
+
         candidates: Sequence[Candidate]
         etag = response.etag
 
@@ -388,7 +419,7 @@ class ParallelFetcher:
             if etag is None:
                 etag = existing.etag
         else:
-            # 304 without a prior cache entry — unusual but well-defined.
+            # 304 without any prior cache entry — unusual but well-defined.
             # We have no candidates to refresh; record a transient so the
             # caller can decide to retry without `If-None-Match` next time.
             _LOGGER.debug(

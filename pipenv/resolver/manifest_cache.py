@@ -114,6 +114,26 @@ class ParsedManifestCache:
           rather than raising — a corrupt cache entry should never
           block a resolve, only force a refetch).
         """
+        manifest = self._load_manifest(index_url, package_name)
+        if manifest is None:
+            return None
+        if datetime.now(timezone.utc) >= manifest.expires_at:
+            # TTL expired — caller will refetch (possibly with
+            # ``If-None-Match`` if they remember the etag).
+            return None
+        return manifest
+
+    def _load_manifest(
+        self, index_url: str, package_name: str
+    ) -> CachedManifest | None:
+        """Read + parse the on-disk payload without checking TTL.
+
+        Shared by :meth:`get` (which adds the expiry filter) and any
+        FU1-style ``peek``-shaped consumer that needs to access stale
+        cache entries.  Returns ``None`` for any failure mode (missing
+        file, OSError on read, corrupt JSON, wrong codec, wrong schema
+        version, malformed payload).
+        """
         target = self._path_for(index_url, package_name)
         try:
             raw = target.read_bytes()
@@ -143,11 +163,6 @@ class ParsedManifestCache:
         except (KeyError, ValueError, TypeError):
             return None
 
-        if datetime.now(timezone.utc) >= expires_at:
-            # TTL expired — caller will refetch (possibly with
-            # ``If-None-Match`` if they remember the etag).
-            return None
-
         try:
             candidates = tuple(
                 _candidate_from_json(entry)
@@ -166,6 +181,56 @@ class ParsedManifestCache:
             cached_at=cached_at,
             expires_at=expires_at,
         )
+
+    def peek_etag(self, index_url: str, package_name: str) -> str | None:
+        """Return the on-disk etag for a possibly-expired entry, or ``None``.
+
+        Unlike :meth:`get`, this reads the file regardless of expiry and
+        returns just the etag field.  Used by
+        :class:`pipenv.resolver.fetcher.ParallelFetcher` to send
+        ``If-None-Match`` on stale entries, short-circuiting to a 304
+        Not Modified response instead of re-downloading the full body.
+
+        Same swallow-everything contract as :meth:`get`: any failure to
+        read or parse the file returns ``None`` rather than raising.
+        A corrupt cache entry should never block a resolve — the worst
+        outcome is a full re-fetch instead of a conditional one.
+
+        Returns ``None`` when:
+
+        * the on-disk file does not exist;
+        * the file is unreadable (``OSError`` / corrupt JSON / wrong
+          codec);
+        * the payload is not a JSON object;
+        * the payload's ``schema_version`` does not match this cache's
+          :attr:`SCHEMA_VERSION` (the cached etag was written by an
+          incompatible version; we can't trust it for ``If-None-Match``);
+        * the payload carries no ``etag`` field, or the field is not a
+          non-empty string (defensive against hand-edited caches that
+          store ``""`` or non-string values).
+        """
+        target = self._path_for(index_url, package_name)
+        try:
+            raw = target.read_bytes()
+        except FileNotFoundError:
+            return None
+        except OSError:
+            return None
+
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return None
+
+        if not isinstance(payload, dict):
+            return None
+        if payload.get("schema_version") != self._schema_version:
+            return None
+
+        etag = payload.get("etag")
+        if not isinstance(etag, str) or not etag:
+            return None
+        return etag
 
     def put(
         self,
