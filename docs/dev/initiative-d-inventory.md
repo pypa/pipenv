@@ -432,3 +432,79 @@ Maintainer questions, ordered from most consequential to least:
   collaborator.
 - Type annotations on the extracted collaborators are a PRD-flagged
   open question (Initiative D §365 in the PRD) — defer to the maintainer.
+
+## 8. Maintainer sign-off (2026-05-12)
+
+Recorded answers for each of the six §6 decision questions:
+
+1. **Five-way split — APPROVED with a forward-looking caveat.** Keep
+   `Pipfile` and `Lockfile` separate (do not collapse into
+   `PipfileBundle`). The maintainer flagged that pipenv also supports
+   `pylock.toml` (PEP 751) and may promote it to first-class in 2027,
+   deprecating the legacy `Pipfile.lock` over time. The `Lockfile`
+   subsystem's extracted shape must therefore be **format-aware**, not
+   `Pipfile.lock`-locked. Options to consider when `Lockfile` actually
+   gets extracted (after T_D.2 proves the pattern with `Sources`):
+   - One `Lockfile` subsystem that internally detects and dispatches
+     to per-format handlers (Pipfile.lock today, pylock.toml in
+     parallel or as the 2027 successor).
+   - Two siblings (`PipfileLock`, `PylockLock`) behind a small format-
+     detection layer.
+   The decision is deferred to that point, but the boundary recorded
+   here should not preclude either option. Add a `TODO(pylock)` tag
+   anywhere the extraction pattern touches lockfile state so we can
+   re-find it in 2027.
+
+2. **Where new subsystem modules live — APPROVED as the existing
+   pattern (`pipenv/utils/sources.py`, etc.).** Also: the maintainer
+   pushed back on the "collaborator" term ("those are people who open
+   PRs"). Future docs in Initiative D should use **"subsystem"**,
+   **"component"**, or just **"class"** instead of "collaborator". This
+   is a terminology fix, not an architecture change. I'll update the
+   PRD and the plan in a follow-up commit; no action required from
+   the executing agent in T_D.2 beyond not echoing "collaborator" in
+   new prose.
+
+3. **First-extraction target — APPROVED as proposed: `Sources`.**
+
+4. **No backwards-compatibility window required.** Consistent with the
+   T_C.3 sign-off ("we only maintain the CLI APIs"). T_D.2 does NOT
+   need to land thin delegating wrappers as a holding pattern: extract
+   `Sources` AND migrate every internal `project.X()` caller to
+   `project.sources.X()` in the same task, single PR. No
+   `DeprecationWarning` on a wrapper, no shipped wrapper.
+
+   **This materially changes T_D.2's scope.** The plan currently
+   describes T_D.2 as "instantiate the new class and delegate via
+   thin wrappers that preserve current call sites without change. No
+   internal caller migrated in this task." That description is
+   superseded by this sign-off. The plan-bookkeeping commit for T_D.1
+   should also amend T_D.2's description.
+
+5. **Helper-bucket methods (`path_to`, `prepend_hash_types`,
+   `get_file_hash`) — executing agent's discretion.** Recommendation
+   from §6.5 stands: leave on `Project` for T_D.2 and revisit during
+   the per-subsystem extractions. Not a blocker for T_D.2.
+
+6. **Bug at `project.py:586` — ALREADY FIXED** in commit `c794cf3c`
+   ("refactor(project): remove dead get_outdated_packages wrapper").
+   The buggy `self.pipfile.get(...)` lived inside a dead wrapper
+   method; removing the wrapper took the bug with it. The orphan
+   `_read_pyproject` flagged alongside was also resolved (commit
+   `fe38d27c` removed the whole dead pyproject.toml subsystem).
+
+### Ramifications of decisions 1 and 4
+
+- **T_D.2 is now a single-PR direct extraction + caller migration.**
+  Net effect on scope: roughly halves the number of follow-up tasks
+  per extracted subsystem. The plan-bookkeeping commit should update
+  T_D.2's description and downstream task descriptions accordingly.
+- **`Lockfile`'s eventual extraction inherits the pylock support
+  question.** Don't extract `Lockfile` without revisiting that
+  decision first. The current plan defers all four non-Sources
+  extractions to "regenerated tasks" anyway, so this is naturally
+  honored, but worth flagging.
+
+T_D.2 may now proceed: extract `Sources` to `pipenv/utils/sources.py`,
+migrate every internal `project.<sources-method>` caller in the same
+PR, no wrappers retained.
