@@ -109,6 +109,64 @@ easiest to use either the `.tar.gz` or universal wheels (ex: `py2.py3-none`). If
 a `.tar.gz` or universal wheel is not available, add wheels for all available
 architectures and platforms.
 
+### Owned code vs. vendored code
+
+Every Python file under `pipenv/` lives in exactly one of two states.
+Knowing which state a file is in tells you who is allowed to edit it and
+under what rules.
+
+- **Owned** — everything under `pipenv/` *except* `pipenv/patched/` and
+  `pipenv/vendor/`. This is project-owned code. Refactor freely. Project
+  conventions, linting (`ruff check pipenv/`), and test coverage apply.
+  There is no upstream to sync against and no expectation of doing so.
+- **Vendored** — `pipenv/patched/` (patched copy of pip) and
+  `pipenv/vendor/` (third-party packages). These trees are managed by
+  the project's vendoring tooling. Do not hand-edit them; let the
+  tooling re-sync from upstream. Updates land via `vendor:`-prefixed
+  commits driven by that tooling, not by direct edits.
+
+**There is no third state.** Inlining upstream code into `pipenv/utils/`
+(or anywhere else outside `pipenv/vendor/`) without owning it is
+explicitly out of policy going forward.
+
+The reason is hard-won: the "worst-of-both-worlds" middle state — code
+that was copy-pasted from an upstream library years ago, never re-synced,
+and silently drifted from the upstream while still being treated as
+"someone else's code we shouldn't touch" — is exactly what the Initiative
+B sweep spent five work units cleaning up. The pipenv project does not
+have the maintainer capacity to chase upstream changes against inlined
+copies that have already drifted. If a piece of upstream code is worth
+keeping in-tree, either re-vendor it under `pipenv/vendor/` (so the
+tooling tracks it) or adopt it (so the project owns it). Pick one.
+
+**Exception: deliberate forks.** It is fine to keep a fork of an upstream
+function in the owned tree when the fork has *intentionally* divergent
+behaviour from the upstream version — but the fork must carry a
+provenance docstring that names the upstream symbol it forked from and
+spells out what divergence is intentional. Two examples shipped as part
+of Initiative B's Wave 1c make good templates:
+
+- `pipenv/utils/requirements.py` — `redact_netloc` and
+  `redact_auth_from_url` are deliberate forks of
+  `pip._internal.utils.misc.redact_netloc` /
+  `redact_auth_from_url`. The divergence (env-var placeholders and
+  standard SSH usernames are preserved instead of being rewritten to
+  `****`) is documented inline.
+- `pipenv/utils/requirementslib.py` — `unpack_url` and `get_http_url`
+  are verbatim adoptions of `pip._internal.operations.prepare.unpack_url`
+  and `get_http_url`. Their docstrings name the upstream symbol and
+  flag the follow-up question of whether the patched-pip copies can be
+  called directly instead.
+
+When you add or substantially refactor a fork, follow the same
+convention: a "Provenance:" paragraph in the docstring naming the
+upstream symbol and the intentional divergence. A reader two years from
+now should never have to guess whether a function is a stale copy or a
+deliberate fork.
+
+For the per-symbol audit that drove this policy, see
+[`docs/dev/initiative-b-triage.md`](./initiative-b-triage.md).
+
 ## News Fragments (Changelog Entries)
 
 Pipenv uses [towncrier](https://towncrier.readthedocs.io/) to manage its changelog.
