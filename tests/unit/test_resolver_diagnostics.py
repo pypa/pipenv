@@ -181,6 +181,81 @@ class TestResolverLogCap:
         assert "records elided" in log[-1]
 
 
+class TestCapturedRecordsDoNotLeakToRoot:
+    """Regression: T_F.7 originally raised the ``pipenv`` logger's level
+    to DEBUG during capture.  That cascaded to every ``pipenv.*`` child
+    (including ``pipenv.patched.pip._internal.configuration``) and made
+    pip's already-installed root handler print VERBOSE config-loader
+    chatter to stderr — which on a multi-category ``pipenv lock``
+    (default then dev) flooded the second resolver subprocess and broke
+    it.  See phase-3 CI run (2026-05-12).
+
+    The fix sets ``lg.propagate = False`` on the captured loggers for
+    the duration of capture so records do NOT bubble up to the root
+    logger's handlers.  These tests pin both halves of the contract:
+    (a) records on captured loggers do not reach root while capture is
+    active; (b) ``propagate`` is restored to its original value after
+    capture exits.
+    """
+
+    def test_records_on_pipenv_logger_do_not_propagate_to_root_during_capture(self):
+        from pipenv.resolver import core
+
+        root = logging.getLogger()
+        captured_at_root: list[logging.LogRecord] = []
+
+        class _RootSink(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                captured_at_root.append(record)
+
+        sink_handler = _RootSink(level=logging.DEBUG)
+        root.addHandler(sink_handler)
+        try:
+
+            def _fake_resolve(_request):
+                logging.getLogger("pipenv").warning("should NOT bubble to root")
+                return ([], None)
+
+            with mock.patch.object(core, "resolve_packages", side_effect=_fake_resolve):
+                core.resolve_for_pipenv(_build_request())
+        finally:
+            root.removeHandler(sink_handler)
+
+        # The record landed on the structured Diagnostics sink (covered
+        # in TestResolverLogCapture) — but it MUST NOT have reached the
+        # root handler via propagation, otherwise the in-process branch
+        # would leak resolver chatter into the user-facing stderr stream
+        # the way the original phase-3 bug did.
+        bubbled = [
+            r
+            for r in captured_at_root
+            if "should NOT bubble to root" in r.getMessage()
+        ]
+        assert bubbled == [], (
+            "captured logger records leaked to root handler "
+            f"(this is the phase-3 regression): {bubbled}"
+        )
+
+    def test_propagate_flag_is_restored_after_capture(self):
+        """After ``resolve_for_pipenv`` returns the captured loggers'
+        ``propagate`` flag is back to whatever it was before — we did
+        not silently lock them into ``propagate=False``.
+        """
+        from pipenv.resolver import core
+
+        captured_loggers = [
+            logging.getLogger(name) for name in core._RESOLVER_LOG_LOGGER_NAMES
+        ]
+        # Snapshot before — these are normal loggers, default propagate=True.
+        propagate_before = {lg.name: lg.propagate for lg in captured_loggers}
+
+        with mock.patch.object(core, "resolve_packages", return_value=([], None)):
+            core.resolve_for_pipenv(_build_request())
+
+        propagate_after = {lg.name: lg.propagate for lg in captured_loggers}
+        assert propagate_before == propagate_after
+
+
 class TestResolverLogDiagnosticsAttachment:
     """The captured records actually land on the typed response's
     ``Diagnostics`` field, not anywhere else.  This is the contract the
