@@ -107,10 +107,15 @@ class TestDoInstallFlagRouting:
         ep = patch_install_pipeline["ensure_project"]
         assert ep.call_args.kwargs["pipfile_categories"] == ["dev-packages"]
 
-        # And do_install_dependencies receives BOTH categories under --dev.
+        # Post T_C.7: do_install_dependencies receives a context whose
+        # package_selection carries both categories under --dev and dev=True.
         did = patch_install_pipeline["do_install_dependencies"]
-        assert did.call_args.kwargs["categories"] == ["packages", "dev-packages"]
-        assert did.call_args.kwargs["dev"] is True
+        deps_ctx = did.call_args.args[1]
+        assert deps_ctx.package_selection.categories == (
+            "packages",
+            "dev-packages",
+        )
+        assert deps_ctx.package_selection.dev is True
 
     def test_explicit_categories_override_default(
         self, project_stub, patch_install_pipeline
@@ -142,11 +147,14 @@ class TestDoInstallFlagRouting:
         assert ep_kwargs["pypi_mirror"] == "https://mirror.example.org/simple"
         assert ep_kwargs["site_packages"] is True
 
-        # do_init mirrors system through to allow_global.
-        di_kwargs = patch_install_pipeline["do_init"].call_args.kwargs
-        assert di_kwargs["system"] is True
-        assert di_kwargs["allow_global"] is True
-        assert di_kwargs["pypi_mirror"] == "https://mirror.example.org/simple"
+        # Post T_C.7: do_init takes (project, ctx); target_env fields
+        # travel via ctx.target_env. allow_global defaults to system.
+        di_ctx = patch_install_pipeline["do_init"].call_args.args[1]
+        assert di_ctx.target_env.system is True
+        assert di_ctx.target_env.allow_global is True
+        assert (
+            di_ctx.target_env.pypi_mirror == "https://mirror.example.org/simple"
+        )
 
     def test_install_policy_fields_route_to_helpers(
         self, project_stub, patch_install_pipeline
@@ -166,25 +174,26 @@ class TestDoInstallFlagRouting:
         assert ep["deploy"] is True
         assert ep["lockfile_only"] is True
 
-        # do_install_validations sees all four.
-        div = patch_install_pipeline["do_install_validations"].call_args.kwargs
-        assert div["pre"] is True
-        assert div["deploy"] is True
-        assert div["skip_lock"] is True
-        assert div["ignore_pipfile"] is True
+        # Post T_C.7: do_install_validations / do_init / do_install_dependencies
+        # all take (project, ctx, ...) — every install_policy field travels
+        # via ctx.install_policy.
+        div_ctx = patch_install_pipeline["do_install_validations"].call_args.args[1]
+        assert div_ctx.install_policy.pre is True
+        assert div_ctx.install_policy.deploy is True
+        assert div_ctx.install_policy.skip_lock is True
+        assert div_ctx.install_policy.ignore_pipfile is True
 
-        # do_init sees deploy / skip_lock / ignore_pipfile.
-        di = patch_install_pipeline["do_init"].call_args.kwargs
-        assert di["deploy"] is True
-        assert di["skip_lock"] is True
-        assert di["ignore_pipfile"] is True
+        di_ctx = patch_install_pipeline["do_init"].call_args.args[1]
+        assert di_ctx.install_policy.deploy is True
+        assert di_ctx.install_policy.skip_lock is True
+        assert di_ctx.install_policy.ignore_pipfile is True
 
         # deploy=True suppresses handle_new_packages entirely.
         assert not patch_install_pipeline["handle_new_packages"].called
 
-        # do_install_dependencies sees skip_lock.
-        did = patch_install_pipeline["do_install_dependencies"].call_args.kwargs
-        assert did["skip_lock"] is True
+        # do_install_dependencies sees skip_lock via ctx.install_policy.
+        did_ctx = patch_install_pipeline["do_install_dependencies"].call_args.args[1]
+        assert did_ctx.install_policy.skip_lock is True
 
     def test_deploy_false_runs_handle_new_packages(
         self, project_stub, patch_install_pipeline
@@ -240,8 +249,11 @@ class TestDoInstallFlagRouting:
         # Post T_C.6: handle_new_packages reads extra_pip_args via ctx.
         hnp_ctx = patch_install_pipeline["handle_new_packages"].call_args.args[1]
         assert hnp_ctx.execution_options.extra_pip_args == ("--no-build-isolation",)
-        did = patch_install_pipeline["do_install_dependencies"].call_args.kwargs
-        assert did["extra_pip_args"] == ["--no-build-isolation"]
+        # Post T_C.7: do_install_dependencies reads extra_pip_args via ctx.
+        did_ctx = patch_install_pipeline["do_install_dependencies"].call_args.args[1]
+        assert did_ctx.execution_options.extra_pip_args == (
+            "--no-build-isolation",
+        )
 
     def test_requirementstxt_routed_to_validations(
         self, project_stub, patch_install_pipeline
@@ -251,8 +263,10 @@ class TestDoInstallFlagRouting:
         ctx = RoutineContext.from_cli(requirementstxt="reqs.txt")
         do_install(project_stub, ctx)
 
-        div = patch_install_pipeline["do_install_validations"].call_args.kwargs
-        assert div["requirementstxt"] == "reqs.txt"
+        # Post T_C.7: do_install_validations takes (project, ctx, requirements_dir);
+        # requirementstxt travels via ctx.package_selection.
+        div_ctx = patch_install_pipeline["do_install_validations"].call_args.args[1]
+        assert div_ctx.package_selection.requirementstxt == "reqs.txt"
 
     def test_editable_packages_are_normalised(
         self, project_stub, patch_install_pipeline
@@ -303,3 +317,124 @@ class TestHandleLockfileSignature:
         sig = inspect.signature(handle_lockfile)
         params = list(sig.parameters)
         assert params == ["project", "ctx"]
+
+
+class TestDoInitSignature:
+    """Post T_C.7 the helper takes (project, ctx)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import do_init
+
+        sig = inspect.signature(do_init)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx"]
+
+
+class TestDoInstallValidationsSignature:
+    """Post T_C.7 the helper takes (project, ctx, requirements_directory)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import do_install_validations
+
+        sig = inspect.signature(do_install_validations)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx", "requirements_directory"]
+
+
+class TestDoInstallDependenciesSignature:
+    """Post T_C.7 the helper takes (project, ctx, requirements_dir)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import do_install_dependencies
+
+        sig = inspect.signature(do_install_dependencies)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx", "requirements_dir"]
+
+
+class TestHandleOutdatedLockfileSignature:
+    """Post T_C.7 the helper takes (project, ctx, *, old_hash, new_hash)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import handle_outdated_lockfile
+
+        sig = inspect.signature(handle_outdated_lockfile)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx", "old_hash", "new_hash"]
+        assert (
+            sig.parameters["old_hash"].kind == inspect.Parameter.KEYWORD_ONLY
+        )
+        assert (
+            sig.parameters["new_hash"].kind == inspect.Parameter.KEYWORD_ONLY
+        )
+
+
+class TestHandleMissingLockfileSignature:
+    """Post T_C.7 the helper takes (project, ctx)."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import handle_missing_lockfile
+
+        sig = inspect.signature(handle_missing_lockfile)
+        params = list(sig.parameters)
+        assert params == ["project", "ctx"]
+
+
+class TestBatchInstallSignature:
+    """Post T_C.7 the helper takes a ctx plus only data-flow args.
+
+    Per design doc section 3, ``deps_list`` / ``lockfile_section`` / ``procs`` /
+    ``requirements_dir`` / ``sequential_deps`` are batch-install bookkeeping
+    and stay as direct parameters rather than going on ``RoutineContext``.
+    """
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import batch_install
+
+        sig = inspect.signature(batch_install)
+        params = list(sig.parameters)
+        assert params == [
+            "project",
+            "ctx",
+            "deps_list",
+            "lockfile_section",
+            "procs",
+            "requirements_dir",
+            "sequential_deps",
+        ]
+        assert (
+            sig.parameters["sequential_deps"].kind
+            == inspect.Parameter.KEYWORD_ONLY
+        )
+
+
+class TestBatchInstallIterationSignature:
+    """Post T_C.7 the helper takes a ctx plus only data-flow args."""
+
+    def test_signature(self):
+        import inspect
+
+        from pipenv.routines.install import batch_install_iteration
+
+        sig = inspect.signature(batch_install_iteration)
+        params = list(sig.parameters)
+        assert params == [
+            "project",
+            "ctx",
+            "deps_to_install",
+            "sources",
+            "procs",
+            "requirements_dir",
+        ]

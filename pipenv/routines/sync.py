@@ -1,6 +1,7 @@
 import os
 
 from pipenv import exceptions
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.install import do_init, do_install_dependencies
 from pipenv.utils import console, fileutils
 from pipenv.utils.project import ensure_project
@@ -45,23 +46,22 @@ def do_sync(
     if system:
         project.s.PIPENV_USE_SYSTEM = True
         os.environ["PIPENV_USE_SYSTEM"] = "1"
-    do_init(
-        project,
-        allow_global=system,
-        ignore_pipfile=True,  # Don't check if Pipfile and lock match.
-        skip_lock=True,  # Don't re-lock
+
+    # T_C.7 migrated do_init / do_install_dependencies to RoutineContext.
+    # do_sync itself is migrated by T_C.9; until then, build a ctx at the
+    # call boundary so behaviour is preserved exactly.
+    sync_ctx = RoutineContext.from_cli(
+        system=system,
         pypi_mirror=pypi_mirror,
         deploy=deploy,
-        system=system,
-    )
-    do_install_dependencies(
-        project,
+        ignore_pipfile=True,  # Don't check if Pipfile and lock match.
+        skip_lock=True,  # Don't re-lock.
         dev=dev,
-        allow_global=system,
-        requirements_dir=requirements_dir,
-        pypi_mirror=pypi_mirror,
-        extra_pip_args=extra_pip_args,
-        categories=categories,
+        categories=tuple(categories) if categories else (),
+        extra_pip_args=tuple(extra_pip_args) if extra_pip_args else (),
+        bare=bare,
     )
+    do_init(project, sync_ctx)
+    do_install_dependencies(project, sync_ctx, requirements_dir)
     if not bare and not project.s.is_quiet():
         console.print("[green]All dependencies are now up-to-date![/green]")
