@@ -1215,11 +1215,43 @@ def resolve(cmd, st, project):
     stdout_thread.start()
     stderr_thread.start()
 
-    # Wait for both threads to complete
+    # Configurable cap on how long we wait for the resolver subprocess. Unbounded
+    # waits previously turned hung mirrors / stuck pip downloads into "pipenv
+    # hangs forever" reports. Override with PIPENV_RESOLVER_TIMEOUT_S.
+    resolver_timeout_s = project.s.PIPENV_RESOLVER_TIMEOUT_S
+
+    try:
+        c.wait(timeout=resolver_timeout_s)
+    except subprocess.TimeoutExpired:
+        # Kill the subprocess and drain reader threads so we don't leak threads
+        # or pipe buffers.
+        try:
+            c.kill()
+        except Exception:
+            pass
+        try:
+            c.wait(timeout=5)
+        except Exception:
+            pass
+        stdout_thread.join(timeout=5)
+        stderr_thread.join(timeout=5)
+
+        st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+        msg = (
+            f"Resolver subprocess timed out after {resolver_timeout_s} seconds. "
+            f"Set PIPENV_RESOLVER_TIMEOUT_S=<bigger> to extend, or check that "
+            f"your index/mirror is reachable."
+        )
+        err.print(f"[red]{msg}[/red]")
+        raise ResolutionFailure(msg)
+
+    # Make sure reader threads have finished draining the now-closed pipes
+    # before we read the buffers below. They are daemons so a missed join
+    # wouldn't deadlock the interpreter, but joining keeps stdout/stderr
+    # collection deterministic.
     stdout_thread.join()
     stderr_thread.join()
 
-    c.wait()
     returncode = c.poll()
 
     out = "".join(stdout_chunks)
@@ -1374,11 +1406,6 @@ def venv_resolve_deps(
         # the resolver subprocess (and the in-process pip session it
         # creates) can still authenticate to private indexes.
         _set_resolver_netrc(project, req_dir)
-        pipenv_site_dir = get_pipenv_sitedir()
-        if pipenv_site_dir is not None:
-            os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
-        else:
-            os.environ.pop("PIPENV_SITE_DIR", None)
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
         # Pass the Pipfile-required Python version to the resolver subprocess

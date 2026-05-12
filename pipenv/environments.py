@@ -429,6 +429,29 @@ class Setting:
         # Internal, for testing the resolver without using subprocess
         self.PIPENV_RESOLVER_PARENT_PYTHON = get_from_env("RESOLVER_PARENT_PYTHON")
 
+        _resolver_timeout_raw = get_from_env(
+            "RESOLVER_TIMEOUT_S", check_for_negation=False, default=1800
+        )
+        try:
+            _resolver_timeout = int(_resolver_timeout_raw)
+            if _resolver_timeout <= 0:
+                _resolver_timeout = 1800
+        except (TypeError, ValueError):
+            _resolver_timeout = 1800
+        self.PIPENV_RESOLVER_TIMEOUT_S = _resolver_timeout
+        """Maximum number of seconds Pipenv will wait for the resolver subprocess
+        to finish before killing it and surfacing a recoverable error.
+
+        Default is 1800 seconds (30 minutes), which is intentionally generous so
+        normal resolutions complete with margin. A stuck/hung mirror or pip
+        download that would previously hang forever now fails after this
+        interval with a clear error naming this variable so users with
+        legitimately large resolutions can extend it.
+
+        If the environment variable is set to a non-positive or non-integer
+        value, the default is used.
+        """
+
         # Internal, tells Pipenv about the surrounding environment.
         self.PIPENV_USE_SYSTEM = False
         self.PIPENV_VIRTUALENV = None
