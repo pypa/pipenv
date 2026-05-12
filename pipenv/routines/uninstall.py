@@ -59,6 +59,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     target = ctx.target_env
     policy = ctx.install_policy
     sel = ctx.package_selection
+    exec_opts = ctx.execution_options
 
     packages = list(sel.packages) if sel.packages else []
     editable_packages = (
@@ -68,6 +69,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     pypi_mirror = target.pypi_mirror
     pre = policy.pre
     lock = policy.lock
+    resolver = exec_opts.resolver
     all_dev = sel.all_dev
     all = sel.all
     categories = list(sel.categories) if sel.categories else None
@@ -144,6 +146,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
                 pre=pre,
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
+                resolver_backend=resolver,
             )
 
             # Determine which dependencies are no longer needed
