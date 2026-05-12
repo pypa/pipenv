@@ -822,9 +822,44 @@ output file between parallel agents.
 - **description**:
   Same migration pattern for `do_update` and its helpers.
 - **validation**: Unit suite green; same shape guarantee as T_C.7.
-- **status**: Not Completed
+- **status**: Completed (commit 0add7dfb)
 - **log**:
+  `do_update` reduced from 17 params to `(project, ctx)`. Two
+  wide-arity helpers also migrated: `_process_package_args` and
+  `_resolve_and_update_lockfile` (both now `(project, ctx, *kw...)`
+  where the keyword-only args are upgrade-internal data flow, not
+  user-facing inputs). `cmd_update` in `pipenv/cli/command.py`
+  constructs the context via `from_cli`.
+
+  `--outdated` and `--dry-run` collapse: `RoutineContext` carries
+  no `outdated` field; `cmd_update` ORs both flags into
+  `install_policy.dry_run` and `do_update` mirrors the historical
+  `outdated = outdated or bool(dry_run)` derivation.
+  Behaviour-preserving.
+
+  Scope-creep (necessary): `pipenv/routines/install.py:handle_new_packages`
+  calls `do_update` after adding new packages. Without a
+  backwards-compat shim (per T_C.3 §9), the only options were
+  (a) leave `do_update`'s old signature (violates acceptance criteria)
+  or (b) update the single call site in install.py. Took (b).
+
+  Out of scope and deferred with `TODO(swarm)`: the `upgrade()`
+  function in `update.py` (10 params; called from `cmd_upgrade` which
+  is itself T_C.8-out-of-scope). It now constructs an internal
+  helper context to feed the migrated helpers but its own signature
+  is unchanged.
+
+  Test updates: 14 new tests in
+  `tests/unit/test_do_update_context_routing.py` (signature pins +
+  flag routing); existing `tests/unit/test_update.py` and
+  `tests/integration/test_update.py` adjusted to the new shapes.
+  598 tests pass.
 - **files edited/created**:
+  - `pipenv/routines/update.py`
+  - `pipenv/cli/command.py`
+  - `pipenv/routines/install.py` (single call-site swap)
+  - `tests/unit/test_update.py`, `tests/unit/test_do_update_context_routing.py` (new),
+    `tests/integration/test_update.py`
 
 #### T_C.9: Migrate `pipenv/routines/uninstall.py`, `lock.py`, `sync.py`
 - **depends_on**: [T_C.4]  (parallel-safe with T_C.5–T_C.8 in principle;
