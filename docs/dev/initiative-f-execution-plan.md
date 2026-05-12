@@ -202,9 +202,13 @@ Wave D (depends on Wave C):                                               │
   - `tests/unit/test_utils.py` no longer references `format_requirement_for_lockfile`
   - Behavioural coverage count: `grep -c "format_requirement_for_lockfile" tests/` was 17 before the task; the equivalent count of `LockedRequirement` / `from_install_requirement` test cases is ≥ 17 after (i.e. coverage did not shrink)
   - `python -m pytest tests/unit/ -q` green
-- **status**: Not Completed
+- **status**: Completed (commit `5e6eca82`)
 - **log**:
+  - 2026-05-12 — Deleted `pipenv.utils.locking.format_requirement_for_lockfile` (legacy parent-side formatter, lines 46-160 of the pre-T_F.3 file). `prepare_lockfile` now consumes `Sequence[LockedRequirement]`, calls `req.to_lockfile_dict()` per entry, then hands the resulting dict through the existing `get_locked_dep` -> `clean_resolved_dep` post-processing chain that still handles project-relative file-URL rewriting (gh-6119), top-level hash unearthing, and `version="*"` fallback. A transitional dict-fallback branch is retained so mid-Wave-B callers don't break before B2 lands. 20 new test cases (8 direct ports + 9 fixture-parametrised parity-gate cases loading A1 golden JSONs + 3 `prepare_lockfile` typed-contract cases) replace the 17 deleted `TestFormatRequirementForLockfile` cases — coverage depth ≥ before.
 - **files edited/created**:
+  - Modified `pipenv/utils/locking.py`
+  - Modified `tests/unit/test_utils.py` (added `TestLockedRequirementFromInstallRequirement` + `TestPrepareLockfileConsumesLockedRequirement`; removed `TestFormatRequirementForLockfile`)
+  - Modified `tests/unit/test_core.py` (updated docstring reference)
 
 ### C1: Schema-dataclass unit tests
 
