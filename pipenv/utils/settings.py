@@ -16,8 +16,47 @@ See ``docs/dev/initiative-d-inventory.md`` for the T_D.1 inventory and
 
 from __future__ import annotations
 
+import os
 from collections.abc import MutableMapping
 from typing import Any, Iterator
+
+from pipenv.utils.shell import env_to_bool
+
+# T18 (Initiative G phase 2): settings whose value may be overridden by
+# an environment variable using pipenv's standard ``PIPENV_<UPPER>``
+# convention.  When the env var is set (to a truthy or falsy string),
+# its boolean value wins over both the Pipfile value and the
+# caller-supplied default.  Keep this mapping small — it's reserved for
+# settings explicitly documented as env-var-overridable so we don't
+# silently turn every Pipfile key into a magic env-var read.
+_ENV_OVERRIDE_KEYS: dict[str, str] = {
+    "prefetch_index_manifests": "PIPENV_PREFETCH_INDEX_MANIFESTS",
+}
+
+
+def _env_override(key: str) -> Any:
+    """Return the boolean value of the env-var override for ``key`` if
+    one is set, else the sentinel ``None`` (meaning "no override —
+    defer to the Pipfile / default").
+
+    Coercion mirrors :func:`pipenv.utils.shell.env_to_bool`; an
+    unparseable value is left alone (returned as the raw string) so
+    callers can surface a useful error rather than silently coercing
+    garbage.
+    """
+    env_name = _ENV_OVERRIDE_KEYS.get(key)
+    if env_name is None:
+        return None
+    raw = os.environ.get(env_name)
+    if raw is None:
+        return None
+    try:
+        return env_to_bool(raw)
+    except ValueError:
+        # Unparseable: return the raw string so callers / tests can
+        # see what was set.  Matches the fallback shape used by
+        # :func:`pipenv.environments.get_from_env`.
+        return raw
 
 
 class Settings(MutableMapping):
@@ -62,6 +101,9 @@ class Settings(MutableMapping):
     # ---- Mapping protocol --------------------------------------------------
 
     def __getitem__(self, key: str) -> Any:
+        override = _env_override(key)
+        if override is not None:
+            return override
         return self._table()[key]
 
     def __setitem__(self, key: str, value: Any) -> None:
@@ -85,7 +127,11 @@ class Settings(MutableMapping):
         # MutableMapping supplies a default implementation via
         # __getitem__/KeyError, but the explicit form is faster and
         # matches the legacy behaviour of ``key in project.settings``
-        # against a tomlkit Table.
+        # against a tomlkit Table.  An env-var override (T18) counts
+        # as "present" so callers checking ``"key" in settings`` see
+        # the same view as ``settings.get(key)`` / ``settings[key]``.
+        if isinstance(key, str) and _env_override(key) is not None:
+            return True
         return key in self._table()
 
     def get(self, key: str, default: Any = None) -> Any:
@@ -93,7 +139,12 @@ class Settings(MutableMapping):
         # ``__getitem__`` and catches KeyError. The explicit override
         # avoids the exception round-trip on the hot read path and
         # mirrors the previous ``dict.get`` / ``tomlkit.Table.get``
-        # signature exactly.
+        # signature exactly.  T18: env-var override (when present)
+        # wins over both Pipfile and the caller-supplied ``default``,
+        # matching pipenv's standard ``PIPENV_<KEY>`` precedence.
+        override = _env_override(key)
+        if override is not None:
+            return override
         return self._table().get(key, default)
 
     # ---- writers -----------------------------------------------------------
