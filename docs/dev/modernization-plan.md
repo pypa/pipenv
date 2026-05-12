@@ -203,9 +203,39 @@ T0.1 ── T0.2 (PRD corrections folded in here + agent ops doc)
     diff).
   - Unit suite green; new news fragment is recognized by the project's
     Towncrier config.
-- **status**: Not Completed
+  - **Strict-mode caveat (added post-execution):** A plain
+    `python -W error::DeprecationWarning -m pytest tests/unit` cannot
+    pass in this environment because `pytest_asyncio` emits a
+    `PytestDeprecationWarning` during `pytest_configure` (which
+    subclasses `DeprecationWarning`). Use the pytest-scoped form
+    instead:
+    `python -m pytest tests/unit -x -W "ignore::pytest.PytestDeprecationWarning" -W "error::DeprecationWarning"`.
+- **status**: Completed (commit b144f64c; sweep follow-up 3a81cce1
+  removed the dead duplicate `path_to_url` in `pipenv/utils/shell.py`
+  that T_A.1 and T_B.3 had flagged)
 - **log**:
+  Replaced the local `is_valid_url` def in `fileutils.py` with a
+  `DeprecationWarning`-emitting shim that re-exports the canonical
+  function from `pipenv.utils.internet`. Rewired the intra-module
+  call in `open_file` to use a module-level
+  `from pipenv.utils.internet import is_valid_url as _is_valid_url`
+  alias so the shim isn't tripped by pipenv itself. Added news fragment
+  `news/+initiative-a-is-valid-url.removal.rst`. TDD: added
+  `test_is_valid_url_fileutils_shim_emits_deprecation` in
+  `tests/unit/test_utils.py` (RED → GREEN). **T_A.3 was folded into
+  this commit** because the strict-mode validation revealed
+  `pipenv/utils/requirementslib.py:23` would trip the shim — the
+  one-line caller migration was needed to keep the validation passing.
+  The sweep commit 3a81cce1 also kept the
+  `from pipenv.utils.shell import normalize_drive` re-export
+  (with `# noqa: F401`) because `tests/integration/test_cli.py:10`
+  binds to `pipenv.utils.shell.normalize_drive` externally.
 - **files edited/created**:
+  - `pipenv/utils/fileutils.py` (shim, intra-module rewire)
+  - `pipenv/utils/requirementslib.py` (import retarget — folded T_A.3)
+  - `pipenv/utils/shell.py` (sweep: dead duplicate path_to_url removed)
+  - `tests/unit/test_utils.py` (new deprecation-warning test)
+  - `news/+initiative-a-is-valid-url.removal.rst` (new Towncrier fragment)
 
 #### T_A.3: Update internal callers to canonical import
 - **depends_on**: [T_A.2]
@@ -230,13 +260,20 @@ T0.1 ── T0.2 (PRD corrections folded in here + agent ops doc)
     still resolve. (Adapt this check to whichever callers the
     plan-execution agent found.)
   - Running the unit suite produces no `DeprecationWarning` from the
-    T_A.2 shim being tripped by an internal caller: invoke pytest with
-    `-W error::DeprecationWarning` on the specific test files that
-    exercise these paths.
+    T_A.2 shim being tripped by an internal caller (use the
+    pytest-scoped `-W` form noted in T_A.2's validation block).
   - Unit suite green.
-- **status**: Not Completed
+- **status**: Completed (folded into T_A.2 — commit b144f64c)
 - **log**:
+  Folded into T_A.2 by necessity: the only internal site importing
+  `is_valid_url` from `pipenv.utils.fileutils` was
+  `pipenv/utils/requirementslib.py:23`, a multi-symbol import line.
+  Retargeting that single name (while preserving the co-imported
+  `normalize_path` and `url_to_path` on the same line) was required
+  for T_A.2's strict-mode `-W error::DeprecationWarning` validation
+  to pass. The task brief explicitly authorised this fold-in.
 - **files edited/created**:
+  - `pipenv/utils/requirementslib.py` (one-line import retarget)
 
 #### T_A.4: Remove `is_valid_url` re-export shim
 - **depends_on**: [T_A.3]
@@ -402,10 +439,32 @@ output file between parallel agents.
   execution group so the work is trackable outside this plan.
 - **validation**: Triage doc has a clean summary table; every "adopt"
   and "vendor" decision has a linked issue; the four per-module sub-files
-  no longer exist in the working tree.
-- **status**: Not Completed
+  no longer exist in the working tree. **Note**: per orchestrator
+  amendment, `gh issue create` is NOT invoked by the agent — issue
+  text is drafted in code-fenced blocks inside the consolidated doc
+  for the maintainer to copy-paste after review.
+- **status**: Completed (commit d3320613)
 - **log**:
+  Consolidated 4 sub-files into `docs/dev/initiative-b-triage.md`
+  (713 lines). Summary table at top: 32 symbol/group rows sorted by
+  decision (8 delete, 6 vendor, 18 adopt). Per-module sections
+  preserve each sub-file's substantive findings. Seven code-fenced
+  `gh issue create` blocks drafted at the bottom for the maintainer:
+  (1) delete dead code in requirementslib, (2) vendor boltons.iterutils
+  subset, (3) document redact_* fork provenance, (4) adopt
+  Pipfile/lockfile bridge in requirements.py, (5) adopt schema
+  predicates in requirementslib, (6) adopt-or-replace decision for
+  unpack_url/get_http_url, (7) bundled single-item cleanups +
+  Initiative E hand-offs. Cross-cutting flags
+  (normalize_name/pep423_name overlap; suspected pep423_name bug;
+  add_index_to_pipfile name collision; BAD_PACKAGES co-location)
+  routed to Initiative E. NO issues opened.
 - **files edited/created**:
+  - `docs/dev/initiative-b-triage.md` (new, consolidated)
+  - `docs/dev/initiative-b-triage-requirementslib.md` (deleted)
+  - `docs/dev/initiative-b-triage-requirements.md` (deleted)
+  - `docs/dev/initiative-b-triage-fileutils.md` (deleted)
+  - `docs/dev/initiative-b-triage-markers.md` (deleted)
 
 #### T_B.7: Execute "delete" decisions from T_B.5
 - **depends_on**: [T_B.5]
