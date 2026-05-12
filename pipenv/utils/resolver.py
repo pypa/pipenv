@@ -1588,7 +1588,29 @@ def _run_resolver_subprocess(*, request, python_executable, project, st):
             # BEFORE dispatching (the dispatcher may raise, and we want
             # verbose users to see the log even on failure paths).
             _surface_resolver_log(response, project)
-            return _dispatch_resolver_response(response, st)
+            locked = _dispatch_resolver_response(response, st)
+            # Forward the subprocess's captured stderr to the parent's
+            # stderr stream on the success path so user-actionable
+            # warnings emitted by the in-subprocess ``Resolver`` (e.g.
+            # ``check_if_package_req_skipped``'s "Could not find a
+            # matching version of <pkg>; <markers>" notice) remain
+            # visible.  The T_F.4 refactor accidentally dropped this:
+            # ``read_stderr`` captures every line into ``stderr_lines``
+            # but only echoes verbose / download-progress lines onward,
+            # so without an explicit forward the warning lands on
+            # ``CompletedProcess.stderr`` in memory and never reaches
+            # the user's terminal — breaking the contract
+            # ``test_resolve_skip_unmatched_requirements`` asserts.
+            # In verbose mode each line was already echoed live by
+            # ``read_stderr``, so skip the bulk re-print to avoid
+            # double-output.
+            if not project.s.is_verbose() and c.stderr and c.stderr.strip():
+                err.print(
+                    f"Warning: {c.stderr.strip()}",
+                    overflow="ignore",
+                    crop=False,
+                )
+            return locked
 
         # No structured response — fall back to the legacy stderr text
         # channel.  This is reached only when the child crashed before

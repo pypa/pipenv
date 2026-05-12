@@ -247,14 +247,31 @@ def resolve_packages(request):
     # ``clean_results`` may return either ``LockedRequirement`` instances
     # (post-B2 typed flow) or raw dicts (transitional skipped-entry
     # path).  Adapt both shapes uniformly.
+    #
+    # Sparse dicts — ``{"name": ...}`` with no version / vcs / file /
+    # path — appear when a package is filtered out by
+    # ``check_if_package_req_skipped`` (markers that don't evaluate on
+    # the host) or has ``skip_resolver=True``.  ``clean_results``
+    # already tolerates the invariant violation by falling back to a
+    # name-only dict (see ``pipenv/utils/resolver.py`` clean_results
+    # ValueError branch).  ``LockedRequirement.__post_init__`` rejects
+    # the same shape, so we cannot lift it onto the typed wire — drop
+    # those entries here.  The user-visible "Could not find a matching
+    # version" warning is already printed by
+    # ``Resolver.check_if_package_req_skipped`` before clean_results
+    # runs, so dropping them does not regress the
+    # ``test_resolve_skip_unmatched_requirements`` contract.
     from pipenv.resolver.schema import LockedRequirement
 
     locked: list[LockedRequirement] = []
     for r in results or []:
         if isinstance(r, LockedRequirement):
             locked.append(r)
-        else:
+            continue
+        try:
             locked.append(_result_dict_to_locked_requirement(r))
+        except ValueError:
+            continue
     return locked, resolver
 
 
