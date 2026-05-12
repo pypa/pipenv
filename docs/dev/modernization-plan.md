@@ -1336,6 +1336,66 @@ the design — the four are independent of each other once the
 - **files edited/created**:
   - `docs/dev/initiative-f-protocol.md` (new, 588 lines)
 
+#### T_F.2: Typed resolver subprocess protocol — design (sign-off gate)
+- **depends_on**: [T_F.1]
+- **location**: `docs/dev/initiative-f-typed-design.md` (new, permanent
+  until superseded by T_F.3 execution).
+- **description**:
+  Design-only proposal for the typed `ResolverRequest` /
+  `ResolverResponse` pair that T_F.3 will introduce. Resolves the 11
+  decisions deferred to T_F.2 by F.1 §9, picks the canonical
+  replacement for the two competing requirement formatters
+  (`Entry.get_cleaned_dict` and `format_requirement_for_lockfile` — a
+  third unified `LockedRequirement.from_install_requirement`
+  constructor that lives in the schema module), specifies the
+  one-shot migration (no backwards-compat shim, per T_C.3 §9 / T_E.1
+  §6), and surfaces 10 numbered open questions for the maintainer.
+- **validation**: Doc-only PR; `python -c "import ast;
+  ast.parse(open('pipenv/resolver.py').read())"` still works because
+  no production code was touched. Doc is 400–800 lines and follows
+  the T_C.3 / T_E.1 sign-off addendum shape.
+- **status**: Completed (commit 921212e5); **awaits maintainer
+  sign-off** before T_F.3 execution begins.
+- **log**:
+  719-line design doc covering envelope, discriminator, canonical
+  formatter, migration path, resolution of F.1's 11 deferred
+  decisions, test plan, and 10 sign-off questions.
+
+  Headline decisions proposed:
+  - Stdlib `@dataclass(frozen=True)` only — no new vendored
+    dependencies (no pydantic, no msgspec, no attrs).
+  - `schema_version: int = 1` as the first field on both envelopes;
+    mismatch is a hard reject (structured `InternalError` response +
+    exit non-zero).
+  - Discriminated `ResolverSuccess | ResolutionError | InternalError`
+    union written to `--response-file` on exit 0; non-zero exit
+    reserved for genuine subprocess crashes.
+  - Single `--request-file <path>` tempfile carries all input;
+    `--pre`, `--clear`, `--system`, `--verbose`, `--category`,
+    `--constraints-file`, `--resolved-default-deps-file`,
+    `--parse-only`, `--pipenv-site`, positional `packages`, and the
+    `which()` stub all deleted in T_F.3.
+  - `PIPENV_RESOLVER_PYTHON_VERSION`, `PIPENV_EXTRA_PIP_ARGS`,
+    `PIPENV_SITE_DIR` env-var hops fold into typed request fields.
+  - Two output formatters collapse into one new
+    `LockedRequirement.from_install_requirement` constructor;
+    both `Entry.get_cleaned_dict` and `format_requirement_for_lockfile`
+    are deleted.
+  - In-process branch (`PIPENV_RESOLVER_PARENT_PYTHON=1`) preserved
+    untouched in T_F.3; fold deferred to T_F.4 / T_F.5.
+  - Wall-clock timeout reserved on schema (`deadline_seconds`) but
+    not enforced in T_F.3.
+
+  Open questions for sign-off (10): schema module home (resolver-as-
+  package vs. utils file); schema-version-mismatch behaviour;
+  `to_lockfile_dict` return type; news-fragment policy; `no_binary`
+  field vs. recompute; whether T_F.3 also folds the in-process
+  branch; constraints comma-escape regression test; schema-version
+  bump policy on additive fields; `Diagnostics.resolver_log` vs.
+  stderr; one or two tempfiles.
+- **files edited/created**:
+  - `docs/dev/initiative-f-typed-design.md` (new, 719 lines)
+
 ---
 
 ## Parallel Execution Groups
@@ -1360,6 +1420,7 @@ the design — the four are independent of each other once the
 | 3-poc  | T_D.2 | T_D.1 complete |
 | 3-seed | T_E.1 | T_B.7 complete |
 | 4-seed | T_F.1 | T_E.1 complete |
+| 4-design | T_F.2 | T_F.1 complete (design only; awaits sign-off) |
 
 **Maximum parallelism at any moment** is bounded by review bandwidth, not
 by the graph. The graph allows ~5 tasks to run concurrently in the early
