@@ -192,7 +192,7 @@ the first argument to nearly every routine and utility, which makes it the
 de-facto application context.
 
 **Target state.** `Project` becomes a thin coordinator that composes
-focused collaborators:
+focused subsystems:
 
 - `Pipfile` — read/write/parse of `Pipfile` (some scaffolding already in
   `pipenv/utils/pipfile.py`).
@@ -201,10 +201,10 @@ focused collaborators:
 - `VenvLocator` — virtualenv discovery and creation.
 - `Settings` — environment variable / `[pipenv]` section resolution.
 
-Each collaborator owns its data and exposes a small, documented surface.
+Each subsystem owns its data and exposes a small, documented surface.
 `Project` holds references to them but delegates.
 
-**Approach (per collaborator).**
+**Approach (per subsystem).**
 
 1. Identify a coherent slice of `Project` to extract (start with
    `Sources` — smallest and most self-contained).
@@ -218,7 +218,7 @@ Each collaborator owns its data and exposes a small, documented surface.
 
 **Acceptance criteria.**
 - `pipenv/project.py` is materially smaller (target: ≤ 800 lines).
-- Each extracted collaborator has its own test module.
+- Each extracted subsystem has its own test module.
 - Test suite green; no public method signature on `Project` changes during
   the extraction (deprecation removal comes in a separate release).
 

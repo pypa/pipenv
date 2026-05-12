@@ -792,10 +792,10 @@ output file between parallel agents.
 - **location**: `docs/dev/initiative-d-inventory.md` (new, temporary).
 - **description**:
   Cluster the methods of `pipenv/project.py` (1850 lines) into the five
-  proposed collaborators (`Pipfile`, `Lockfile`, `Sources`, `VenvLocator`,
+  proposed subsystems (`Pipfile`, `Lockfile`, `Sources`, `VenvLocator`,
   `Settings`) plus a residual "coordinator" group. Identify cross-
-  collaborator references that would become tight coupling after
-  extraction. Identify which collaborator should be extracted first
+  subsystem references that would become tight coupling after
+  extraction. Identify which subsystem should be extracted first
   (PRD suggests `Sources` for self-containedness; verify or revise).
 - **validation**: Inventory table exists; first extraction target
   identified with rationale.
@@ -809,11 +809,11 @@ output file between parallel agents.
   Sums to 93.
 
   **First-extraction recommendation: `Sources`** (confirms PRD's
-  nomination). Smallest of the four "real" collaborators (Pipfile /
+  nomination). Smallest of the four "real" subsystems (Pipfile /
   Lockfile / Sources / VenvLocator), single outbound write
   (`add_index_to_pipfile`), no env-var coupling on its core methods.
 
-  Six decision questions for maintainer sign-off: collaborator-split
+  Six decision questions for maintainer sign-off: subsystem-split
   correctness, module location, first-target sign-off,
   deprecation-warning timing for the delegating-wrapper window,
   helper-bucket disposition, and resolution of the `self.pipfile`
@@ -830,20 +830,30 @@ output file between parallel agents.
 - **files edited/created**:
   - `docs/dev/initiative-d-inventory.md` (new, 434 lines)
 
-#### T_D.2: First extraction proof-of-concept (`Sources` or per-T_D.1 winner)
+#### T_D.2: First extraction (`Sources`)
 - **depends_on**: [T_D.1]
-- **location**: per T_D.1's decision; likely `pipenv/utils/sources.py`
-  (new) + `pipenv/project.py`.
+- **location**: `pipenv/utils/sources.py` (new) + `pipenv/project.py`
+  + every internal caller of the migrating methods.
 - **description**:
-  Extract the chosen collaborator as a single new module. Have
-  `Project` instantiate it lazily (cached property) and delegate the
-  relevant methods via thin wrappers that preserve current call sites.
-  **No internal caller migrated in this task** — the wrappers are the
-  whole point of the proof-of-concept. Migration happens in follow-up
-  tasks regenerated after this lands.
+  Extract `Sources` as a single new module under `pipenv/utils/sources.py`
+  (matches the existing `pipenv/utils/pipfile.py` precedent per T_D.1
+  sign-off §8.2). **Per the T_D.1 §8.4 sign-off, this task does NOT
+  land delegating wrappers as a holding pattern.** Extract `Sources`
+  AND migrate every internal `project.<sources-method>` caller to
+  `project.sources.<method>` (or whatever access shape we settle on)
+  in the same PR. No `DeprecationWarning`, no shipped wrapper, no
+  two-phase rollout — the maintainer's standing posture is that
+  pipenv's only stable API is the CLI, so internal Python surface
+  changes do not need a deprecation window.
+
+  Helper-bucket methods (`path_to`, `prepend_hash_types`,
+  `get_file_hash`) stay on `Project` for this task; revisit during
+  per-subsystem extractions (T_D.1 §8.5).
 - **validation**: `pipenv/project.py` lost roughly the right number of
-  lines (≥ 80 net reduction expected for `Sources`); new module has
-  its own test file; unit suite green.
+  lines (≥ 80 net reduction expected for `Sources` plus its callers'
+  imports retargeting); new module has its own test file; every
+  former `project.<sources-method>` caller now uses the new path;
+  unit suite green.
 - **status**: Not Completed
 - **log**:
 - **files edited/created**:
