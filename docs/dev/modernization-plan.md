@@ -1208,9 +1208,34 @@ the design — the four are independent of each other once the
   so they're greppable in 2027.
 - **validation**: same shape as T_D.3; plus `TODO(pylock)` tags
   present at the future format-detection seams.
-- **status**: Not Completed
+- **status**: Completed (2026-05-12)
 - **log**:
+  - 2026-05-12: Extracted `Lockfile` subsystem to
+    `pipenv/utils/lockfile.py` (354 lines). 13 methods relocated:
+    `lockfile_location` -> `location`, `lockfile_exists` -> `exists`,
+    `any_lockfile_exists` -> `any_exists`, `pylock_location` /
+    `pylock_exists` / `pylock_output_path` (unchanged names),
+    `lockfile_content` -> `content`, `lockfile_package_names` ->
+    `package_names`, `lockfile(categories=...)` ->
+    `as_dict(categories=...)` (callable-method to subsystem-method
+    rename to free up `project.lockfile` for the subsystem accessor),
+    `get_lockfile_meta` -> `meta`, `get_lockfile_hash` -> `hash`,
+    `load_lockfile` -> `load`, `write_lockfile` -> `write`. The
+    orchestrating `get_or_create_lockfile` stays on `Project`
+    (coordinator bucket per T_D.1 §2). `pipenv/project.py` shrinks
+    by 173 net lines (1281 -> 1108). 10 distinct `# TODO(pylock):`
+    annotations placed at the format-detection seams in the new
+    module. 17 new unit tests in `tests/unit/test_lockfile.py`;
+    full unit suite green (816 passed, 9 skipped). `pipenv lock`
+    smoke test produces a valid `Pipfile.lock`.
 - **files edited/created**:
+  - `pipenv/utils/lockfile.py` (new, 354 lines)
+  - `tests/unit/test_lockfile.py` (new, 228 lines, 17 tests)
+  - `pipenv/project.py` (-173 net lines)
+  - `pipenv/help.py`, `pipenv/utils/sources.py`,
+    `pipenv/routines/{audit,check,clean,install,lock,requirements,scan,sync,uninstall,update}.py`
+  - `tests/integration/{test_install_markers,test_lockfile,test_pylock}.py`,
+    `tests/unit/{test_do_update_context_routing,test_lock_sync_uninstall_context_routing,test_pylock}.py`
 
 #### T_D.6: Extract `Pipfile` subsystem (largest, most coupled)
 - **depends_on**: [T_D.5]
