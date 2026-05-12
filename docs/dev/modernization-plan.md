@@ -1795,6 +1795,69 @@ the design — the four are independent of each other once the
     stubs widened to `**_kwargs` to accept the new keyword)
   - `news/T_F.6.behavior.rst` (new)
 
+#### T_F.7: Populate `Diagnostics.resolver_log` with structured resolve records
+- **depends_on**: [T_F.3, T_F.4]
+- **location**: `pipenv/resolver/core.py` (capture handler +
+  context manager + integration into `resolve_for_pipenv`),
+  `pipenv/utils/resolver.py` (verbose-mode surfacing), new
+  `tests/unit/test_resolver_diagnostics.py`.
+- **description**:
+  Replaces the reserved-but-empty `Diagnostics.resolver_log` slot
+  (queued in T_F.3 design Q9 / §8) with a structured logging-handler
+  capture wired into the unified `resolve_for_pipenv` driver. A new
+  `_BoundedListHandler` (capped at 500 records) is attached to the
+  `pipenv` and `pip._internal.resolution` loggers for the duration of
+  the resolve via a `_capture_resolver_log` context manager that
+  restores handler state and original level on exit (even on
+  exception). Captured records are formatted as `[LEVELNAME] message`
+  strings and land on `response.diagnostics.resolver_log`; truncation
+  appends a `... (N records elided)` sentinel.
+
+  Parent-side surfacing in `pipenv/utils/resolver.py`: a new
+  `_surface_resolver_log(response, project)` helper iterates the
+  records and prints each via `err.print` when `project.s.is_verbose()`
+  is true. Stderr behaviour in non-verbose mode is unchanged — the
+  structured log is a complement, not a replacement (per Q9).
+  Pip download chatter (`pip._internal.network` /
+  `pip._internal.operations.prepare`) is intentionally NOT captured;
+  stderr remains the appropriate channel for that.
+
+  Both adapters (in-process debug bypass + subprocess) share the same
+  capture because it lives inside `resolve_for_pipenv`. The schema
+  field already existed (no schema bump); JSON round-trip preserves
+  the records via the existing `to_json_dict` / `from_json_dict`
+  envelope.
+- **validation**:
+  - 9 new tests in `tests/unit/test_resolver_diagnostics.py` cover:
+    `pipenv` logger capture; `pip._internal.resolution` logger
+    capture; `[LEVELNAME] message` formatting; empty resolve yields
+    empty tuple; handler removed after resolve (clean exit and
+    exception path); flood test asserts 500-record cap +
+    `records elided` sentinel; Diagnostics dataclass + tuple typing;
+    JSON round-trip preserves the records.
+  - Full unit suite green: 780 passed, 9 skipped.
+- **status**: Completed (branch
+  `maintenance/code-cleanup-phase4-resolver-followups-2026-05`).
+- **log**:
+  - 2026-05-12 — Wired logging capture into `resolve_for_pipenv`;
+    surfaced verbose-mode log in `pipenv/utils/resolver.py`. Sibling
+    agent T_F.6 (deadline enforcement) ran concurrently on the same
+    two files; the resolve-flow integration commits landed under
+    T_F.6's two commits (`165bdb2f`, `e550e7f3`) which include the
+    T_F.7 `_BoundedListHandler` / `_capture_resolver_log` /
+    `_surface_resolver_log` helpers. This T_F.7 commit completes the
+    bookkeeping (new test file + plan entry).
+- **files edited/created**:
+  - `pipenv/resolver/core.py` (`_BoundedListHandler`,
+    `_capture_resolver_log` context manager, integration into
+    `resolve_for_pipenv` success / resolution-error / internal-error
+    branches)
+  - `pipenv/utils/resolver.py` (`_surface_resolver_log` helper;
+    call sites in `_run_resolver_subprocess` and `_resolve_in_process`;
+    `_resolve_in_process` gains optional `project` parameter for the
+    verbose surface)
+  - `tests/unit/test_resolver_diagnostics.py` (new, 9 tests)
+
 ---
 
 ## Parallel Execution Groups
