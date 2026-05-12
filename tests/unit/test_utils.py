@@ -2262,6 +2262,34 @@ def test_expand_url_credentials_unset_var_left_unchanged():
 
 
 @pytest.mark.utils
+def test_is_virtual_environment_returns_false_for_directory_without_bindir(tmp_path):
+    """``is_virtual_environment`` must tolerate a directory that exists
+    but lacks both ``bin`` and ``Scripts`` subdirectories.
+
+    On Unix, ``Path.glob`` on a non-existent directory returns an empty
+    iterator. On Windows, it raises ``FileNotFoundError`` — pipenv's
+    venv-name resolver iterates ``WORKON_HOME`` and calls this function
+    on every child, so a partially torn-down sibling venv (left over
+    from a parallel test run) crashed `pipenv install` on Windows /
+    Python 3.10 (PR #6665 CI run 25744107117). The fix guards each
+    bindir's existence before globbing; this test pins it.
+    """
+    # Directory exists but contains no bin/ or Scripts/ subdirectory.
+    assert shell.is_virtual_environment(tmp_path) is False
+
+
+@pytest.mark.utils
+def test_is_virtual_environment_returns_true_for_real_venv_layout(tmp_path):
+    """Sanity: when ``bin`` exists with a ``python`` executable, return True."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    python = bindir / "python"
+    python.write_text("#!/usr/bin/env python\n")
+    python.chmod(0o755)
+    assert shell.is_virtual_environment(tmp_path) is True
+
+
+@pytest.mark.utils
 def test_safe_expandvars_with_explicit_env_does_not_leak_ambient_vars(monkeypatch):
     monkeypatch.setenv("PIPENV_PROJECT_DIR", "/outer/project")
     path_value = "/usr/bin:/bin"

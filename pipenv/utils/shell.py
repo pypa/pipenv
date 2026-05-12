@@ -407,7 +407,15 @@ def is_virtual_environment(path):
     if not path.is_dir():
         return False
     for bindir_name in ("bin", "Scripts"):
-        for python in path.joinpath(bindir_name).glob("python*"):
+        bindir = path.joinpath(bindir_name)
+        # Windows' Path.glob raises FileNotFoundError when the directory
+        # does not exist (Unix returns an empty iterator). Guard explicitly
+        # so a directory under WORKON_HOME that lacks a bindir — e.g. a
+        # partially torn-down sibling venv during a parallel test run —
+        # is treated as "not a virtualenv" instead of crashing the caller.
+        if not bindir.is_dir():
+            continue
+        for python in bindir.glob("python*"):
             try:
                 exeness = python.is_file() and os.access(str(python), os.X_OK)
             except OSError:
