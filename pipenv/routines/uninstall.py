@@ -1,9 +1,11 @@
 import shutil
 import sys
+from dataclasses import replace
 
 from pipenv import exceptions
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.project import Project
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console
 from pipenv.utils.dependencies import (
@@ -40,23 +42,39 @@ def _uninstall_from_environment(project: Project, package, system=False):
     return True
 
 
-def do_uninstall(
-    project: Project,
-    packages=None,
-    editable_packages=None,
-    python=False,
-    system=False,
-    lock=False,
-    all_dev=False,
-    all=False,
-    pre=False,
-    pypi_mirror=None,
-    ctx=None,
-    categories=None,
-):
+def do_uninstall(project: Project, ctx: RoutineContext):
+    """Uninstall packages from the project.
+
+    Per T_C.9: consumes :class:`~pipenv.routines.context.RoutineContext`
+    for every user-facing input (``packages`` / ``editable_packages`` /
+    ``python`` / ``system`` / ``lock`` / ``all_dev`` / ``all`` / ``pre`` /
+    ``pypi_mirror`` / ``categories``).
+
+    The old ``ctx`` keyword (a Click context, distinct from
+    :class:`RoutineContext`) was a CLI-error-rendering passthrough that
+    ``cmd_uninstall`` never supplied; it has been dropped per design doc
+    section 3, and CLI usage errors at the click layer will fall back to
+    Click's default presentation.
+    """
+    target = ctx.target_env
+    policy = ctx.install_policy
+    sel = ctx.package_selection
+
+    packages = list(sel.packages) if sel.packages else []
+    editable_packages = (
+        list(sel.editable_packages) if sel.editable_packages else []
+    )
+    system = target.system
+    pypi_mirror = target.pypi_mirror
+    pre = policy.pre
+    lock = policy.lock
+    all_dev = sel.all_dev
+    all = sel.all
+    categories = list(sel.categories) if sel.categories else None
+
     # Initialization similar to the upgrade function
     if not any([packages, editable_packages, all_dev, all]):
-        raise exceptions.PipenvUsageError("No package provided!", ctx=ctx)
+        raise exceptions.PipenvUsageError("No package provided!")
 
     if not categories:
         categories = ["default"]
@@ -155,7 +173,15 @@ def do_uninstall(
         _uninstall_from_environment(project, package, system=system)
 
     if lock:
-        do_lock(project, system=system, pypi_mirror=pypi_mirror)
+        # Build a lock-only ctx carrying the target env + pre flag from
+        # the uninstall ctx; clear the package selection so do_lock
+        # spans every configured Pipfile section.
+        lock_ctx = replace(
+            ctx,
+            install_policy=replace(policy, pre=pre, lock=False),
+            package_selection=replace(sel, categories=()),
+        )
+        do_lock(project, lock_ctx)
 
     sys.exit(int(failure))
 

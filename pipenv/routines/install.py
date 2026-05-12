@@ -335,14 +335,17 @@ def handle_outdated_lockfile(
             style="bold yellow",
         )
         if not policy.skip_lock:
-            do_lock(
-                project,
-                system=target.system,
-                pre=policy.pre,
-                write=True,
-                pypi_mirror=target.pypi_mirror,
-                categories=None,
+            # do_lock honours ctx.execution_options.write (defaults True).
+            # Drop the categories selection so the lock spans every
+            # configured Pipfile section, matching the pre-T_C.9 call
+            # that passed ``categories=None`` explicitly.
+            lock_ctx = replace(
+                ctx,
+                package_selection=replace(
+                    ctx.package_selection, categories=()
+                ),
             )
+            do_lock(project, lock_ctx)
 
 
 def handle_missing_lockfile(project, ctx: RoutineContext):
@@ -352,7 +355,6 @@ def handle_missing_lockfile(project, ctx: RoutineContext):
     target-env / install-policy flags.
     """
     target = ctx.target_env
-    policy = ctx.install_policy
 
     if (target.system or target.allow_global) and not project.s.PIPENV_VIRTUALENV:
         raise exceptions.PipenvOptionsError(
@@ -367,13 +369,17 @@ def handle_missing_lockfile(project, ctx: RoutineContext):
                 "Pipfile.lock not found, creating...",
                 style="bold",
             )
-        do_lock(
-            project,
-            system=target.system,
-            pre=policy.pre,
-            write=True,
-            pypi_mirror=target.pypi_mirror,
+        # do_lock honours ctx.execution_options.write (defaults True).
+        # The pre-T_C.9 call here omitted ``categories`` so the lock
+        # spans every configured Pipfile section; ensure ctx mirrors
+        # that by clearing any category selection from the parent ctx.
+        lock_ctx = replace(
+            ctx,
+            package_selection=replace(
+                ctx.package_selection, categories=()
+            ),
         )
+        do_lock(project, lock_ctx)
 
 
 def do_install(project, ctx: RoutineContext) -> None:

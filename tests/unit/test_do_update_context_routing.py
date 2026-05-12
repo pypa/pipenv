@@ -167,11 +167,15 @@ class TestDoUpdateFlagRouting:
         assert ep["pypi_mirror"] == "https://mirror.example.org/simple"
         assert ep["site_packages"] is True
 
-        # do_sync gets sandwiched around upgrade.
-        sync_kwargs = patch_update_pipeline["do_sync"].call_args.kwargs
-        assert sync_kwargs["system"] is True
-        assert sync_kwargs["python"] == "3.12"
-        assert sync_kwargs["pypi_mirror"] == "https://mirror.example.org/simple"
+        # do_sync gets sandwiched around upgrade. Post T_C.9 do_sync
+        # consumes a RoutineContext (positional arg 1 after project).
+        sync_ctx = patch_update_pipeline["do_sync"].call_args.args[1]
+        assert sync_ctx.target_env.system is True
+        assert sync_ctx.target_env.python == "3.12"
+        assert (
+            sync_ctx.target_env.pypi_mirror
+            == "https://mirror.example.org/simple"
+        )
 
         up_kwargs = patch_update_pipeline["upgrade"].call_args.kwargs
         assert up_kwargs["system"] is True
@@ -196,8 +200,8 @@ class TestDoUpdateFlagRouting:
         assert up_kwargs["pre"] is True
         assert up_kwargs["lock_only"] is True
 
-        sync_kwargs = patch_update_pipeline["do_sync"].call_args.kwargs
-        assert sync_kwargs["clear"] is True
+        sync_ctx = patch_update_pipeline["do_sync"].call_args.args[1]
+        assert sync_ctx.install_policy.clear is True
 
     def test_packages_and_editables_routed_to_upgrade(
         self, project_stub, patch_update_pipeline
@@ -232,9 +236,12 @@ class TestDoUpdateFlagRouting:
         assert up_kwargs["categories"] == ["packages", "docs"]
         assert up_kwargs["dev"] is True
 
-        sync_kwargs = patch_update_pipeline["do_sync"].call_args.kwargs
-        assert sync_kwargs["categories"] == ["packages", "docs"]
-        assert sync_kwargs["dev"] is True
+        sync_ctx = patch_update_pipeline["do_sync"].call_args.args[1]
+        assert list(sync_ctx.package_selection.categories) == [
+            "packages",
+            "docs",
+        ]
+        assert sync_ctx.package_selection.dev is True
 
     def test_extra_pip_args_routed_to_upgrade_and_sync(
         self, project_stub, patch_update_pipeline
@@ -249,8 +256,10 @@ class TestDoUpdateFlagRouting:
         up_kwargs = patch_update_pipeline["upgrade"].call_args.kwargs
         assert up_kwargs["extra_pip_args"] == ["--no-build-isolation"]
 
-        sync_kwargs = patch_update_pipeline["do_sync"].call_args.kwargs
-        assert sync_kwargs["extra_pip_args"] == ["--no-build-isolation"]
+        sync_ctx = patch_update_pipeline["do_sync"].call_args.args[1]
+        assert list(sync_ctx.execution_options.extra_pip_args) == [
+            "--no-build-isolation"
+        ]
 
     def test_quiet_inverts_warn_flag(self, project_stub, patch_update_pipeline):
         from pipenv.routines.update import do_update
@@ -267,8 +276,8 @@ class TestDoUpdateFlagRouting:
         ctx = RoutineContext.from_cli(bare=True)
         do_update(project_stub, ctx)
 
-        sync_kwargs = patch_update_pipeline["do_sync"].call_args.kwargs
-        assert sync_kwargs["bare"] is True
+        sync_ctx = patch_update_pipeline["do_sync"].call_args.args[1]
+        assert sync_ctx.execution_options.bare is True
 
     def test_dry_run_routes_to_do_outdated(
         self, project_stub, patch_update_pipeline

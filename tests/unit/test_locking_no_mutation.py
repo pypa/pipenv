@@ -11,6 +11,7 @@ from unittest import mock
 import pytest
 
 from pipenv.project import Project
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import locking
 
@@ -91,7 +92,7 @@ def test_missing_lock_then_write_toml_keeps_cached_pipfile_entries(
     with mock.patch.object(project.s, "PIPENV_RESOLVER_PARENT_PYTHON", True), mock.patch(
         "pipenv.resolver.resolve_packages", side_effect=_fake_resolve_packages
     ):
-        do_lock(project, write=False, quiet=True)
+        do_lock(project, RoutineContext.from_cli(write=False, quiet=True))
 
     project.add_pipfile_entry_to_pipfile(
         "colorama", "colorama", "*", category="packages"

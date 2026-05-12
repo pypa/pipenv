@@ -2,6 +2,7 @@ import json
 import os
 import sys
 from collections import defaultdict
+from dataclasses import replace
 from pathlib import Path
 from typing import Dict, Set, Tuple
 
@@ -37,11 +38,13 @@ def do_update(project, ctx: RoutineContext):
     ``dry_run`` and travels via ``ctx.install_policy.dry_run`` plus the
     derived bool below.
 
-    Calls into ``do_sync`` (T_C.9's ``sync.py``), ``upgrade`` (also
-    invoked from ``cmd_upgrade`` — out of scope for T_C.8), and
-    ``do_outdated`` retain their existing wide signatures; args are
-    unpacked from ``ctx`` at the call site. T_C.9 will simplify those
-    receivers when it migrates them.
+    Post T_C.9: ``do_sync`` consumes :class:`RoutineContext`; the
+    pre-T_C.9 inline ``RoutineContext.from_cli(...)`` bridge for the
+    ``do_sync`` calls below has collapsed into a single
+    ``dataclasses.replace`` on the incoming ctx. ``upgrade`` (also
+    invoked from ``cmd_upgrade``) and ``do_outdated`` retain their
+    existing wide signatures; args are unpacked from ``ctx`` at the call
+    site.
     """
     target = ctx.target_env
     policy = ctx.install_policy
@@ -77,19 +80,19 @@ def do_update(project, ctx: RoutineContext):
     )
 
     if not outdated:
+        # Build a ctx for do_sync that mirrors the pre-T_C.9 keyword
+        # forwarding: the do_update ctx's target_env (with the possibly
+        # PIPENV_USE_SYSTEM-overridden ``system``), policy.clear,
+        # selection (dev + categories), and execution (bare +
+        # extra_pip_args). All other fields default appropriately;
+        # do_sync itself pins ignore_pipfile/skip_lock via replace().
+        sync_ctx = replace(
+            ctx,
+            target_env=replace(target, system=system, allow_global=system),
+        )
         # Pre-sync packages for pipdeptree resolution to avoid conflicts
         if project.any_lockfile_exists:
-            do_sync(
-                project,
-                dev=sel.dev,
-                categories=categories,
-                python=target.python,
-                bare=exec_opts.bare,
-                clear=policy.clear,
-                pypi_mirror=target.pypi_mirror,
-                extra_pip_args=extra_pip_args,
-                system=system,
-            )
+            do_sync(project, sync_ctx)
         upgrade(
             project,
             pre=policy.pre,
@@ -104,17 +107,7 @@ def do_update(project, ctx: RoutineContext):
             extra_pip_args=extra_pip_args,
         )
         # Finally sync packages after upgrade
-        do_sync(
-            project,
-            dev=sel.dev,
-            categories=categories,
-            python=target.python,
-            bare=exec_opts.bare,
-            clear=policy.clear,
-            pypi_mirror=target.pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            system=system,
-        )
+        do_sync(project, sync_ctx)
     else:
         do_outdated(
             project,

@@ -149,6 +149,7 @@ def cmd_upgrade(args, state):
 
 
 def cmd_uninstall(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.uninstall import do_uninstall
 
     # --dev means "operate on dev-packages"; translate it to a category so that
@@ -158,26 +159,28 @@ def cmd_uninstall(args, state):
 
     apply_default_categories(args, state)
 
-    pre = state.installstate.pre
-
-    retcode = do_uninstall(
-        state.project,
+    ctx = RoutineContext.from_cli(
+        # target_env
+        system=state.system,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        # install_policy
+        pre=state.installstate.pre,
+        lock=False,
+        # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        python=state.python,
-        system=state.system,
-        lock=False,
+        categories=state.installstate.categories,
         all_dev=args.all_dev,
         all=args.all,
-        pre=pre,
-        pypi_mirror=state.pypi_mirror,
-        categories=state.installstate.categories,
     )
+    retcode = do_uninstall(state.project, ctx)
     if retcode:
         sys.exit(retcode)
 
 
 def cmd_lock(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.lock import do_lock
     from pipenv.utils.project import ensure_project
 
@@ -191,16 +194,19 @@ def cmd_lock(args, state):
         site_packages=state.site_packages,
     )
 
-    pre = state.installstate.pre
-    do_lock(
-        state.project,
-        clear=state.clear,
-        pre=pre,
+    ctx = RoutineContext.from_cli(
+        # target_env
         pypi_mirror=state.pypi_mirror,
-        write=True,
-        quiet=state.quiet,
+        # install_policy
+        pre=state.installstate.pre,
+        clear=state.clear,
+        # package_selection
         categories=state.installstate.categories,
+        # execution_options
+        quiet=state.quiet,
+        write=True,
     )
+    do_lock(state.project, ctx)
 
 
 def cmd_shell(args, state):
@@ -426,6 +432,7 @@ def cmd_open(args, state):
 
 
 def cmd_sync(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.sync import do_sync
 
     if state.installstate.all_categories:
@@ -433,18 +440,22 @@ def cmd_sync(args, state):
     else:
         apply_default_categories(args, state)
 
-    retcode = do_sync(
-        state.project,
-        dev=state.installstate.dev,
-        python=state.python,
-        bare=args.bare,
-        clear=state.clear,
-        pypi_mirror=state.pypi_mirror,
+    ctx = RoutineContext.from_cli(
+        # target_env
         system=state.system,
-        extra_pip_args=state.installstate.extra_pip_args,
-        categories=state.installstate.categories,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
         site_packages=state.site_packages,
+        # install_policy
+        clear=state.clear,
+        # package_selection
+        categories=state.installstate.categories,
+        dev=state.installstate.dev,
+        # execution_options
+        extra_pip_args=state.installstate.extra_pip_args,
+        bare=args.bare,
     )
+    retcode = do_sync(state.project, ctx)
     if retcode:
         sys.exit(1)
 
