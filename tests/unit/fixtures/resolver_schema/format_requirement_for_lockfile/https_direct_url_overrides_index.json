@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "file": "https://private-repo.com/packages/my_dep-1.0.0.whl",
+    "index": "my-private-index",
+    "name": "my-dep"
+  },
+  "name": "my-dep"
+}

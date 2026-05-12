@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "editable": true,
+    "name": "local-pkg",
+    "path": "./vendor/local-pkg"
+  },
+  "name": "local-pkg"
+}

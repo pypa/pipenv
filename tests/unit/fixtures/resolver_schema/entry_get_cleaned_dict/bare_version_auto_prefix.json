@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "name": "foo",
+    "version": "==1.2.3"
+  },
+  "name": "foo"
+}

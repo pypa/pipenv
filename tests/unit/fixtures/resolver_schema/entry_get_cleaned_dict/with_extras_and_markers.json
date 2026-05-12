@@ -1,0 +1,12 @@
+{
+  "entry": {
+    "extras": [
+      "security",
+      "socks"
+    ],
+    "markers": "sys_platform == \"linux\"",
+    "name": "requests",
+    "version": "==2.28.1"
+  },
+  "name": "requests"
+}

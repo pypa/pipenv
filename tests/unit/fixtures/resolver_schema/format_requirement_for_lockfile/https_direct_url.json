@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "file": "https://my-private-artifactory.com/api/pypi/repo/my-package/1.0.0/my_package-1.0.0-py3-none-any.whl",
+    "name": "my-package"
+  },
+  "name": "my-package"
+}

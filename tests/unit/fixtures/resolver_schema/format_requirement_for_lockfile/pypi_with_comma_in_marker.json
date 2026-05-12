@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "markers": "python_version >= '3.10' and sys_platform == 'linux'",
+    "name": "linux-only",
+    "version": "==1.0"
+  },
+  "name": "linux-only"
+}

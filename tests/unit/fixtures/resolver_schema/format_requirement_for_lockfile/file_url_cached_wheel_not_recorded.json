@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "name": "atomicwrites",
+    "version": "==1.4.1"
+  },
+  "name": "atomicwrites"
+}

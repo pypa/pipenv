@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "file": "http://internal-server.local/packages/my_package-2.0.0.tar.gz",
+    "name": "my-package"
+  },
+  "name": "my-package"
+}

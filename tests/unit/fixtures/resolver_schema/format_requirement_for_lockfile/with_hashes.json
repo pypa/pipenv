@@ -1,0 +1,11 @@
+{
+  "entry": {
+    "hashes": [
+      "sha256:aa",
+      "sha256:bb"
+    ],
+    "name": "hashy",
+    "version": "==1.0.0"
+  },
+  "name": "hashy"
+}
