@@ -296,6 +296,13 @@ def _main(request_file: str, response_file: str) -> int:
     response to ``response_file`` — schema-version mismatch and uncaught
     exceptions still produce a typed ``InternalError`` payload.
     """
+    # ``_ensure_modules`` must run BEFORE the first ``pipenv.*`` import:
+    # the subprocess is invoked via the project venv's python against
+    # the absolute path of this file, so ``pipenv`` is not on
+    # ``sys.path`` at startup.  Bootstrap it first, then resolve the
+    # schema import the normal way.
+    _ensure_modules()
+
     from pipenv.resolver.schema import (
         SCHEMA_VERSION,
         InternalError,
@@ -353,7 +360,6 @@ def _main(request_file: str, response_file: str) -> int:
     # ---- Stage 3: full typed parse + resolve. ------------------------
     try:
         request = ResolverRequest.from_json_dict(raw)
-        _ensure_modules()
         os.environ["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
         os.environ["PYTHONIOENCODING"] = "utf-8"
         os.environ["PYTHONUNBUFFERED"] = "1"
