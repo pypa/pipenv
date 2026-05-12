@@ -1600,6 +1600,76 @@ the design — the four are independent of each other once the
   - `tests/unit/test_core.py` (docstring reference updated)
   - `docs/dev/initiative-f-execution-plan.md` (entry-by-entry log of each wave commit)
 
+#### T_F.5a: Pluggable resolver backends — design (sign-off gate)
+- **depends_on**: [T_F.3]
+- **location**: `docs/dev/initiative-f-backends-design.md` (new, 948 lines).
+- **description**:
+  Design-only document specifying the T_F.5 architecture: a `Backend` protocol
+  with pip/uv implementations under `pipenv/resolver/backends/`, a name-keyed
+  registry with dispatch precedence (CLI > env > Pipfile > default), single-
+  `Pipfile.lock` output with `_meta.resolver_backend` discriminator, system-uv
+  (no vendoring) posture, and an 8-task execution plan (T_F.5.1 .. T_F.5.8).
+  Resolves the four open questions from `initiative-f-typed-design.md` §6a
+  (opt-in section, dispatch mechanism, lockfile-format discriminator,
+  vendoring posture) and surfaces 10 numbered sign-off questions gating
+  T_F.5 execution. Maps the WIP `origin/uv-backend` commit `22359624`
+  (~969-line `pipenv/utils/uv.py` + ~241-line patches across
+  routines/environments) to the post-T_F.3-schema shape; the port shrinks
+  to ~450 lines of `backends/uv.py` + ~40 lines for a new
+  `LockedRequirement.from_uv_package` constructor.
+
+  Key recommendations (each requires sign-off before T_F.5 execution starts):
+  Pipfile opt-in via `[pipenv] resolver_backend = "<name>"`; CLI flag
+  `--backend NAME`; lockfile remains single `Pipfile.lock` with additive
+  `_meta.resolver_backend` field (uv-backend lockfiles only; pip omits);
+  missing-backend behaviour fails loud with install instructions; cross-
+  backend re-locking is full re-resolve (lockfile is input-only); no new
+  schema fields (`LockedRequirement.resolver_backend` /
+  `Diagnostics.resolver_name` deferred); uv is detected via `shutil.which`,
+  never vendored; test matrix runs a representative subset under both
+  backends with full dual-backend coverage on a nightly cron; news fragment
+  category is `.feature`.
+
+  Explicitly out of scope for T_F.5: uv as a wheel-install backend
+  (resolve-only); PEP 751 `pylock.toml` emission; entry-point plugin
+  discovery; poetry/conda/pdm backends; performance benchmarking;
+  `Diagnostics.resolver_log` population; structured `ConflictRecord`
+  extraction from uv stderr; pipenv → uv direct-invocation (still goes
+  pipenv → `pipenv-resolver` → uv until T_F.4 fold lands).
+- **status**: Completed (commit `727b6540`; awaits maintainer sign-off
+  before T_F.5 execution begins).
+- **log**:
+  - 2026-05-12 — Design doc landed (948 lines). 10 sign-off questions
+    numbered for maintainer answer. Sibling agent T_F.4 (in-process /
+    subprocess fold) running concurrently on the same branch; no file
+    collision (T_F.4 touches `pipenv/resolver/main.py` + `pipenv/utils/
+    resolver.py` + new `pipenv/resolver/core.py`; T_F.5a touches docs only).
+- **files edited/created**:
+  - `docs/dev/initiative-f-backends-design.md` (new, 948 lines)
+
+#### T_F.5: Pluggable resolver backends — execution
+- **depends_on**: [T_F.5a maintainer sign-off]
+- **location**: NEW `pipenv/resolver/backends/__init__.py`,
+  `pipenv/resolver/backends/base.py`, `pipenv/resolver/backends/pip.py`,
+  `pipenv/resolver/backends/uv.py`; +1 classmethod on
+  `pipenv/resolver/schema.py :: LockedRequirement.from_uv_package`;
+  `pipenv/utils/project_settings.py` (`Settings.resolver_backend`);
+  `pipenv/utils/resolver.py` (dispatch); `pipenv/cli/options.py` +
+  `pipenv/cli/command.py` (`--backend` flag); `pipenv/utils/locking.py`
+  (`_meta.resolver_backend`); tests; `news/T_F.5.feature.rst`;
+  `docs/concepts/resolver_backends.md`.
+- **description**:
+  Eight-task execution split per `initiative-f-backends-design.md` §7
+  (T_F.5.1 protocol+registry skeleton; T_F.5.2 pip wrapper; T_F.5.3
+  `from_uv_package` constructor; T_F.5.4 uv backend port from
+  `origin/uv-backend`; T_F.5.5 dispatch wiring + CLI flag + `Settings`;
+  T_F.5.6 `_meta.resolver_backend` discriminator; T_F.5.7 missing-backend
+  error path; T_F.5.8 docs + news fragment). Six-wave dependency graph;
+  max 2 concurrent agents (waves B and E).
+- **status**: Not Started (awaits T_F.5a sign-off).
+- **log**:
+- **files edited/created**:
+
 ---
 
 ## Parallel Execution Groups
