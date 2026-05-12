@@ -14,7 +14,7 @@ Behaviour is preserved verbatim from the previous in-``Project``
 implementation; this is a relocation, not a rewrite. ``VenvLocator``
 holds a back-reference to the owning ``Project`` so it can read
 ``project.s.*`` (the ``Settings`` proper), ``project.pipfile.parsed``,
-``project.pipfile.project_directory``, ``project.name``, and
+``project.pipfile.project_directory``, ``project.pipfile.name``, and
 ``project.pipfile.location`` without redefining their lazy-init
 semantics.
 
