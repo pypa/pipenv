@@ -158,29 +158,59 @@ def _capture_resolver_log() -> Iterator[list[str]]:
 
     Logger level handling: pipenv's ``pipenv`` logger and pip's
     ``pip._internal.resolution`` logger both default to ``WARNING`` (or
-    inherit it from the root logger) outside verbose mode, which would
-    drop INFO/DEBUG resolver-trace records before our handler ever
-    sees them.  We temporarily lower each captured logger's level to
-    ``DEBUG`` for the duration of capture, and restore the original
-    level on exit.  This is a per-logger level change, not a root-level
-    one — other consumers of the same logger keep their own handlers
-    and continue to filter at whatever level they were configured for.
+    inherit a non-DEBUG level from root in pytest / pipenv-launched
+    contexts), which would drop INFO resolver-trace records before our
+    handler ever sees them.  We lower each captured logger's level to
+    ``INFO`` for the duration of capture — **NOT DEBUG**.  Pre-fix this
+    function used ``DEBUG`` and cascaded the lowered level to every
+    ``pipenv.*`` child (including ``pipenv.patched.pip._internal.*``),
+    which made pip's verbose config-loader DEBUG records pass their
+    effective-level filter.  Those records then bubbled to pip's
+    already-installed root handler (with its ``VERBOSE:logger:message``
+    formatter) and flooded stderr — on a multi-category ``pipenv lock``
+    (default then dev) the second resolver subprocess drowned in that
+    noise and exited non-zero, breaking phase-3 CI consistently
+    (see ``tests/unit/test_resolver_diagnostics.py``'s regression
+    suite below).  ``INFO`` is the floor pipenv's actual resolver-side
+    log emissions use; DEBUG records (pip-internal chatter) stay
+    filtered.
+
+    **Propagation discipline** — additionally we set
+    ``lg.propagate = False`` while the handler is attached and restore
+    the original ``propagate`` flag on exit.  Defence in depth: even if
+    an INFO record reaches our handler, ``propagate=False`` prevents
+    it from continuing up to root, so pip's already-installed root
+    handler can't print a "VERBOSE:" version of the same line as a side
+    effect of being captured.
+
+    Pipenv's primary user-facing log channel is the pip-vendored Rich
+    consoles in ``pipenv.utils.__init__`` (``console``, ``err``), not
+    Python ``logging`` — so this capture is best-effort.  The field
+    stays reserved-but-mostly-empty in non-verbose runs, consistent
+    with T_F.7 Q9.
     """
     sink: list[str] = []
     handler = _BoundedListHandler(sink, _RESOLVER_LOG_CAP)
-    # ``(logger, original_level)`` tuples so we can restore each logger
-    # individually.  Levels are integers; ``logger.level`` of ``0``
-    # means NOTSET (inherits from parent).
-    touched: list[tuple[logging.Logger, int]] = []
+    # ``(logger, original_level, original_propagate)`` tuples so we can
+    # restore each logger individually.  Levels are integers;
+    # ``logger.level`` of ``0`` means NOTSET (inherits from parent).
+    touched: list[tuple[logging.Logger, int, bool]] = []
     try:
         for name in _RESOLVER_LOG_LOGGER_NAMES:
             lg = logging.getLogger(name)
-            touched.append((lg, lg.level))
+            touched.append((lg, lg.level, lg.propagate))
             lg.addHandler(handler)
-            lg.setLevel(logging.DEBUG)
+            # INFO, not DEBUG — see docstring for the phase-3 regression
+            # that DEBUG caused.  INFO captures resolver-trace records
+            # pipenv actually emits; DEBUG opens the floodgates on
+            # ``pipenv.patched.pip._internal.*`` config-loader chatter.
+            lg.setLevel(logging.INFO)
+            # Defence in depth: prevent records that DO pass the INFO
+            # filter from bubbling to pip's root handler as a side effect.
+            lg.propagate = False
         yield sink
     finally:
-        for lg, original_level in touched:
+        for lg, original_level, original_propagate in touched:
             try:
                 lg.removeHandler(handler)
             except ValueError:
@@ -189,6 +219,7 @@ def _capture_resolver_log() -> Iterator[list[str]]:
                 # protecting against.
                 pass
             lg.setLevel(original_level)
+            lg.propagate = original_propagate
         if handler.dropped:
             sink.append(f"... ({handler.dropped} records elided)")
 
