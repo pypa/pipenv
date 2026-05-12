@@ -151,9 +151,19 @@ Wave D (depends on Wave C):                                               │
   - Schema-version mismatch path (request file with `schema_version: 999`) produces structured `InternalError` response AND non-zero exit
   - `grep -nE -- "--parse-only|--pipenv-site|--constraints-file|--resolved-default-deps-file|--category" pipenv/resolver/main.py` returns zero hits
   - `grep -nE "PIPENV_RESOLVER_PYTHON_VERSION|PIPENV_EXTRA_PIP_ARGS|PIPENV_SITE_DIR" pipenv/resolver/main.py` returns zero hits
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `d1563a1e` `refactor(resolver): subprocess entry consumes typed ResolverRequest, produces typed ResolverResponse`.  TDD cycle: 3 subprocess-level tests in `tests/unit/test_resolver_protocol_smoke.py` (stubbed happy-path, schema-version mismatch, live-resolve against PyPI) failed RED before the rewrite, all GREEN after.  Full unit suite: 713 passed / 9 skipped (was 694 / 9 prior to wave B).  All three acceptance grep gates clean.  Live-subprocess smoke: tempfile-based hand-built `ResolverRequest` for `pytz==2024.1` returned a valid `ResolverResponse` with `result.kind == "success"` and the expected `LockedRequirement` (sha256 hashes + version).
+  - **Race-with-sibling note**: pre-commit's `Stashing/Restoring unstaged files` mechanism interacted with B2's concurrent staging — B2's `pipenv/utils/resolver.py` rewrite and B2's `tests/unit/test_resolver_parent_dispatch.py` were swept into this B1 commit because B2 had staged them in the same window pre-commit was stashing.  Net effect: B1+B2 landed in one commit instead of two.  Functionally consistent (full unit suite green); the orchestrator should be aware that B2's commit hash collapsed into this one rather than landing separately.
+  - **Stub-injection note for the smoke test**: the unit smoke test invokes the subprocess via `python -m pipenv.resolver.main` (not via script-path as production does) so that a `sitecustomize`-stubbed `pipenv.resolver.main.resolve_packages` takes effect.  The script-path form loads the file under the `__main__` module identity, separate from `pipenv.resolver.main` in `sys.modules`, which would defeat the stub.  The production code path (script-path invocation) is exercised end-to-end by C2's integration test.  A small helper at the call-site of `resolve_packages` from `_main` looks up the function via `sys.modules["pipenv.resolver.main"].resolve_packages` so future test injections can patch a single well-known location regardless of which entry path Python took.
 - **files edited/created**:
+  - **REWRITTEN** `pipenv/resolver/main.py` — typed-envelope subprocess entry; deleted `Entry` / `PackageRequirement` / `PackageSource` dataclasses, `process_resolver_results` function, module-level `which()` stub, and all legacy argparse flags
+  - **EDITED** `pipenv/resolver/__init__.py` — pruned re-exports of deleted symbols; only `_main`, `main`, `resolve_packages`, `which` remain
+  - **EDITED** `pyproject.toml` — `scripts.pipenv-resolver = "pipenv.resolver.main:main"` (was `pipenv.resolver:main`); developers must run `pip install -e . --force-reinstall` to re-link
+  - **EDITED** `tests/unit/test_dependencies.py` — deleted the three `test_entry_get_cleaned_dict_*` tests + the `_make_entry` helper + the `Entry` import (equivalent coverage lives in `test_resolver_schema.py` and the A1 golden snapshots)
+  - **EDITED** `tests/unit/test_resolver_regressions.py` — deleted `test_process_resolver_results_does_not_scan_reverse_dependencies` (function gone; regression structurally impossible)
+  - **EDITED** `tests/unit/test_locking_no_mutation.py` — updated `_fake_resolve_packages` to return `(locked, resolver)` with typed `LockedRequirement` instances
+  - **CREATED** `tests/unit/test_resolver_protocol_smoke.py` — 3 subprocess-level tests gating the wire protocol
 
 ### B2: Parent-side rewrite — `pipenv/utils/resolver.py :: venv_resolve_deps` + `resolve` + in-process branch
 
