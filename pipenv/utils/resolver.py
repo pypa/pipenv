@@ -17,7 +17,13 @@ from pipenv import environments
 from pipenv.exceptions import ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.cli.cmdoptions import check_release_control_exclusive
-from pipenv.patched.pip._internal.commands.install import InstallCommand
+
+# ``InstallCommand`` is only constructed in :meth:`Resolver._get_pip_command`
+# (one call site) — defer the import so loading ``pipenv.utils.resolver``
+# doesn't drag in pip's command/network/CLI machinery (~79 ms cum) until
+# the resolver actually instantiates the command.  The resolver subprocess
+# pays this cost on every ``pipenv lock`` invocation; the in-process
+# debug path pays it once per session.
 from pipenv.patched.pip._internal.exceptions import InstallationError
 from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
@@ -359,6 +365,8 @@ class Resolver:
 
     @staticmethod
     def _get_pip_command():
+        from pipenv.patched.pip._internal.commands.install import InstallCommand
+
         return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
     @property

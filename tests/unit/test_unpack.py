@@ -85,15 +85,25 @@ def test_legacy_requirementslib_module_is_gone():
 
 
 def test_dependencies_imports_unpack_url_from_new_location():
-    """The sole caller of ``unpack_url`` -- ``determine_package_name`` in
-    ``pipenv.utils.dependencies`` -- must source the symbol from the
+    """The sole caller of ``unpack_url`` — ``determine_package_name`` in
+    ``pipenv.utils.dependencies`` — must source the symbol from the
     new module after T_E.4.
+
+    As of the phase-5 startup-perf work, ``unpack_url`` is imported
+    *inside* ``determine_package_name`` rather than at module top
+    (``pipenv.utils.unpack`` transitively pulls in pip's network
+    machinery; the eager import was ~26 ms cumulative on every
+    ``pipenv`` invocation).  We verify the wiring by inspecting the
+    function source for the import path, plus a behavioural smoke
+    that the symbol is callable at the documented location.
     """
+    import inspect
+
     from pipenv.utils import dependencies, unpack
 
-    # ``unpack_url`` is exposed as a module attribute on ``dependencies``
-    # because that module imports it at the top level.
-    assert dependencies.unpack_url is unpack.unpack_url
+    src = inspect.getsource(dependencies.determine_package_name)
+    assert "from pipenv.utils.unpack import unpack_url" in src
+    assert callable(unpack.unpack_url)
 
 
 # ---------------------------------------------------------------------------
