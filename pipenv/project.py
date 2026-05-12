@@ -75,11 +75,6 @@ from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor import plette, tomlkit
 
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
-
 if is_type_checking():
     from typing import Dict, List, Union
 
@@ -581,9 +576,6 @@ class Project:
             allow_global = self.s.PIPENV_USE_SYSTEM
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
-
-    def get_outdated_packages(self) -> list[importlib_metadata.Distribution]:
-        return self.environment.get_outdated_packages(pre=self.pipfile.get("pre", False))
 
     @classmethod
     def _sanitize(cls, name: str) -> tuple[str, str]:
