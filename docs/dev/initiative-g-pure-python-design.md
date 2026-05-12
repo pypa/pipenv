@@ -1,10 +1,16 @@
 # Initiative G — Pure-Python Resolver Backend Design
 
-Status: **Phase 1 shipped; phases 2–4 awaiting maintainer sign-off.**
+Status: **Phases 1 + 2 shipped (Phase 2 with CI bench gate skipped);
+phases 3–4 awaiting maintainer sign-off.**
 Phase 1 (the standalone PEP 691 client + parsed-manifest cache +
 parallel fetcher) is on `main` as of T17 (see §11 below for the
-per-criterion sign-off).  Phases 2–4 remain at design stage pending
-the bench-data sign-off described in §11.
+per-criterion sign-off).  Phase 2 (the prefetch bridge that wires the
+parallel fetcher into `do_lock` behind the opt-in
+`[pipenv] prefetch_index_manifests` setting) shipped at T22 **without**
+the originally-planned CI bench measurement gate (T21) — see the
+Phase-2 sign-off note in §11a for the explicit scoping decision and the
+honest "claim is theoretical, not measured" caveat.  Phases 3–4 remain
+at design stage pending the bench-data sign-off described in §11.
 
 Companion documents:
 
@@ -754,9 +760,47 @@ working.  How much of pip's auth handling do we replicate?
   merge time.
 
 ### Phase 2
-- All phase 1 criteria still hold.
-- CI lock-warm bench ≥10 % wall-time reduction vs phase-5 baseline.
-- Existing integration tests pass with prefetch enabled.
+*Shipped at T22 on branch `maintenance/code-cleanup-phase5-perf-2026-06`.
+The CI bench measurement gate (T21) is **deferred** — see the Phase-2
+sign-off note in §11a for the scoping rationale.*
+
+- [x] All phase 1 criteria still hold.  (Phase-1 acceptance items
+  above remain green; phase-2 work did not regress any of them — the
+  prefetch bridge is purely additive and gated off-by-default.)
+- [ ] CI lock-warm bench ≥10 % wall-time reduction vs phase-5
+  baseline.  *(deferred — maintainer scoped Phase-2 to ship without
+  a CI bench gate; see note below)*
+- [x] Existing integration tests pass with prefetch enabled.  (T19
+  unit coverage of the wiring + T20 integration test in
+  `tests/integration/test_prefetch_manifest.py` verify lockfile
+  parity, best-effort failure handling, `--clear` short-circuiting,
+  and no URL leakage at any verbosity level.)
+
+### Phase 2a — sign-off note (T22)
+
+Phase 2 ships **without** the CI bench measurement gate (T21).  The
+maintainer scoped T21 out during execution review (no appetite for a
+multi-run statistically-guarded CI bench step at this time).  The
+Phase-2 perf claim is therefore **theoretical** rather than measured
+against the current CI baseline:
+
+- The prefetch path is functionally correct (T19 + T20 verify
+  lockfile parity, best-effort failure handling, `--clear`
+  short-circuiting, and no URL leakage at any verbosity level).
+- The underlying perf hypothesis — that parallel parent-side
+  pre-fetching warms pip's HTTP cache faster than pip's serial
+  per-package fetch — is sound but unmeasured on the current
+  benchmark suite.
+- The setting ships **opt-in** (default `false`) specifically because
+  the phase-5 parallel-prefetch experiment was empirically
+  net-harmful on warm-cache dev machines.  Users with cold-cache
+  workflows (typical CI without persisted pip cache) are the target
+  beneficiaries.
+
+If future maintainer interest produces real benchmark data, the
+Phase-2 acceptance criteria should be revisited and the bench gate
+re-spec'd.  Until then, this is shipped as a low-risk opt-in feature
+gated on user opt-in via `[pipenv] prefetch_index_manifests = true`.
 
 ### Phase 3
 - Parity test suite (§9.3) passes for pip versions N-1, N, N+1.
