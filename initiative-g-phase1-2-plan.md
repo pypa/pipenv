@@ -141,9 +141,13 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
 - **validation**:
   - `python -c "from pipenv.resolver.pep691_types import SimplePageResponse, FetchError; r = SimplePageResponse(candidates=(), etag=None, last_modified=None, raw_meta={}, status='missing'); print(r.status)"` prints `missing`.
   - `grep -r "pip._internal" pipenv/resolver/pep691_types.py` returns empty.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: RED→GREEN.  Pre-implementation `python -c "from pipenv.resolver.pep691_types import SimplePageResponse, FetchError"` failed with `ModuleNotFoundError: No module named 'pipenv.resolver.pep691_types'`.  Implemented `pipenv/resolver/pep691_types.py` per design §5.1: two `@dataclass(frozen=True, slots=True)` types (`SimplePageResponse`, `FetchError`) plus two `Literal` aliases (`SimplePageStatus`, `FetchErrorKind`).  `FetchError.original` defaults to `None` (callers that only have an HTTP status — e.g., a clean 401 — needn't synthesise an exception).  `raw_meta` typed as bare `dict` (not `dict[str, Any]`) per the plan brief, so forward-compat PyPI fields land in this bucket without a type-check failure.  No mutable default value: `raw_meta` is a required positional argument, matching the design-doc spec.
+  - GREEN evidence: (a) acceptance one-liner `python -c "from pipenv.resolver.pep691_types import SimplePageResponse, FetchError; r = SimplePageResponse(candidates=(), etag=None, last_modified=None, raw_meta={}, status='missing'); print(r.status)"` prints `missing`.  (b) `grep "pip._internal" pipenv/resolver/pep691_types.py` exits with code 1 (no matches).  (c) extended smoke confirms: `r.status = 'missing'` on a frozen instance raises `dataclasses.FrozenInstanceError`; `FetchError(kind='missing', url='...', message='...')` constructs with `original=None`; both classes have proper `__slots__` (no `__dict__`).  Tests land transitively in T13 (PEP691Client tests), so no test file is committed for this task.
+  - No regressions: zero `pip._internal` references, zero new runtime dependencies, mirrors `Candidate`'s `frozen=True, slots=True` style.
 - **files edited/created**:
+  - Created: `pipenv/resolver/pep691_types.py` (two frozen dataclasses + two Literal aliases).
 
 ---
 
@@ -455,9 +459,35 @@ The visual is approximate; see the **Parallel Execution Groups** table below for
   - `project.settings.get("prefetch_index_manifests", False)` returns `False` by default.
   - Setting `[pipenv] prefetch_index_manifests = true` in a Pipfile + reloading the project → returns `True`.
   - `PIPENV_PREFETCH_INDEX_MANIFESTS=1 python -c "from pipenv.project import Project; print(Project().settings.get('prefetch_index_manifests'))"` prints `True`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented on branch `maintenance/code-cleanup-phase5-perf-2026-06`.
+    - Added a small `_ENV_OVERRIDE_KEYS` registry + `_env_override` helper to
+      `pipenv/utils/settings.py`; wired `Settings.get` / `Settings.__getitem__`
+      / `Settings.__contains__` to consult it.  Env-var override wins over
+      both Pipfile and caller-supplied default (matches pipenv's existing
+      `PIPENV_<KEY>` precedence convention used elsewhere).
+    - Added `PIPENV_PREFETCH_INDEX_MANIFESTS` to `pipenv/environments.py`
+      via the existing `get_from_env(...)` helper, with the verbatim
+      docstring from the plan.  `check_for_negation=False` is deliberate
+      so the boolean read flows through a single conventional env name.
+    - Added 4 unit tests (default-False, Pipfile=true, env=1 override,
+      env=0 override) in `tests/unit/test_settings.py` under a new
+      T18 section.  TDD: RED on the two env-var-override cases (the
+      default-False and Pipfile-true cases happened to pass before the
+      helper was wired because they just go through `_table().get`),
+      GREEN after implementation.
+    - Manually verified the three plan acceptance one-liners against
+      `/tmp/test-prefetch-default/Pipfile` (no `[pipenv]` section) and
+      `/tmp/test-prefetch-setting/Pipfile` (`prefetch_index_manifests = true`):
+      - default-False: `Project().settings.get('prefetch_index_manifests', False)` -> `False`.
+      - Pipfile=true: same call against the second Pipfile -> `True`.
+      - `PIPENV_PREFETCH_INDEX_MANIFESTS=1 python -c "..."` -> `True`.
+    - Full unit suite green: 872 passed, 9 Windows-only skips, 0 failures.
 - **files edited/created**:
+  - edited: `pipenv/utils/settings.py` (env-override helper + wiring into `get` / `__getitem__` / `__contains__`)
+  - edited: `pipenv/environments.py` (new `PIPENV_PREFETCH_INDEX_MANIFESTS` setting)
+  - edited: `tests/unit/test_settings.py` (4 new tests covering the three plan acceptance criteria + the falsy-env-override case)
 
 ---
 
