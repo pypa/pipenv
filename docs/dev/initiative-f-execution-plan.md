@@ -178,9 +178,15 @@ Wave D (depends on Wave C):                                               │
   - Manual: `pipenv lock` on a tiny test Pipfile produces a valid lockfile (no crash, no malformed JSON)
   - Manual with `PIPENV_RESOLVER_PARENT_PYTHON=1`: same `pipenv lock` produces an identical lockfile via the in-process branch
   - `grep -nE "PIPENV_RESOLVER_PYTHON_VERSION|PIPENV_EXTRA_PIP_ARGS|PIPENV_SITE_DIR" pipenv/utils/resolver.py` returns zero hits
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — B2's diff landed as part of commit `d1563a1e` (the wave-B atomic commit that also carries B1's subprocess rewrite — the harness rolled the two staged trees together when the pre-commit ruff hook on `pipenv/resolver/main.py` interrupted the planned dual-commit sequence). The B2-owned diff is internally consistent: 517-line delta to `pipenv/utils/resolver.py` (typed-request builder, response-file dispatch, in-process branch migrated to B1's `resolve_packages(request)` signature, `Resolver.clean_results` routed through `LockedRequirement.from_install_requirement(...).to_lockfile_dict()`, `Resolver.prepare_pip_args` consumes `extra_pip_args` from the instance instead of the deleted env-var hop) plus the 427-line NEW `tests/unit/test_resolver_parent_dispatch.py` (8 parametrized tests covering request-envelope building, argv-shape contract, and response-dispatch on each `result.kind`).
+  - Acceptance grep clean: `grep -nE "PIPENV_RESOLVER_PYTHON_VERSION|PIPENV_EXTRA_PIP_ARGS|PIPENV_SITE_DIR" pipenv/utils/resolver.py` returns zero hits. Subprocess argv carries only `--request-file` / `--response-file` (no `--pre`, `--clear`, `--system`, `--verbose`, `--category`, `--constraints-file`, `--resolved-default-deps-file`, `--parse-only`, `--pipenv-site`, `--write`).
+  - Manual smoke: `pipenv lock` on a tiny `six` Pipfile produces a byte-identical lockfile via both the default subprocess path and `PIPENV_RESOLVER_PARENT_PYTHON=1`'s in-process branch (lockfile sha = ae1993be... in both runs).
+  - Full unit suite: 713 passed / 9 skipped (platform).
 - **files edited/created**:
+  - **EDITED** `pipenv/utils/resolver.py` (parent-side typed-request build + response dispatch; in-process branch migrated to B1's signature; `Resolver` instance carries `extra_pip_args` directly; `Resolver.clean_results` produces flat lockfile-dict via `LockedRequirement.to_lockfile_dict()`)
+  - **CREATED** `tests/unit/test_resolver_parent_dispatch.py` (8 tests for request build, argv shape, response dispatch on each `result.kind`)
 
 ### B3: Lockfile writer consumes `LockedRequirement`; delete old formatters; port test coverage
 
