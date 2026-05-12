@@ -24,6 +24,21 @@ def redact_netloc(netloc: str) -> str:
         - "accesstoken@example.com" returns "****@example.com"
         - "${ENV_VAR}:pass@example.com" returns "${ENV_VAR}:****@example.com" if ${ENV_VAR} is an environment variable
         - "git@github.com" returns "git@github.com" (standard SSH username preserved)
+
+    Provenance: deliberate fork of
+    ``pip._internal.utils.misc.redact_netloc``. Two intentional
+    behavioural divergences from the pip-internal version:
+
+    1. ``${ENV_VAR}`` placeholders in user/password are preserved
+       (pip's version unconditionally rewrites both to ``****``).
+    2. Standard SSH usernames (``git``) are preserved
+       (pip's version has no such allowlist).
+
+    Both divergences are user-visible (they appear in CLI output and in
+    the generated ``Pipfile.lock``). Do not replace with the
+    pip-internal version -- see ``docs/dev/initiative-b-triage.md``,
+    section "Why we don't just ``from pip._internal.utils.misc import
+    redact_*``", for the full rationale.
     """
     # Standard SSH usernames that should not be redacted
     STANDARD_SSH_USERNAMES = ("git",)
@@ -50,7 +65,16 @@ def redact_netloc(netloc: str) -> str:
 
 
 def redact_auth_from_url(url: str) -> str:
-    """Replace the password in a given url with ****."""
+    """Replace the password in a given url with ****.
+
+    Provenance: deliberate fork of
+    ``pip._internal.utils.misc.redact_auth_from_url``. This is a
+    one-line wrapper around ``redact_netloc``; the divergence from
+    pip's version lives in our :func:`redact_netloc` (env-var
+    placeholders preserved; standard SSH usernames like ``git``
+    preserved). Do not replace with the pip-internal version -- see
+    ``docs/dev/initiative-b-triage.md`` for the full rationale.
+    """
 
     def _redact_netloc_wrapper(netloc: str) -> Tuple[str]:
         return (redact_netloc(netloc),)
