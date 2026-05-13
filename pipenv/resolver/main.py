@@ -49,6 +49,7 @@ import json
 import os
 import sys
 import traceback
+from pathlib import Path
 from typing import Any
 
 
@@ -61,12 +62,14 @@ def _ensure_modules() -> None:
     import fires.
     """
     if "typing_extensions" not in sys.modules:
-        typing_ext_path = os.path.join(
-            os.path.dirname(__file__),
-            "patched",
-            "pip",
-            "_vendor",
-            "typing_extensions.py",
+        # __file__ is pipenv/resolver/main.py; parents[1] is the pipenv/
+        # package root (one level above the resolver/ sub-package).
+        typing_ext_path = str(
+            Path(__file__).resolve().parents[1]
+            / "patched"
+            / "pip"
+            / "_vendor"
+            / "typing_extensions.py"
         )
         if os.path.exists(typing_ext_path):
             spec = importlib.util.spec_from_file_location(
