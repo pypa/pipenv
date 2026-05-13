@@ -563,9 +563,13 @@ class PurePythonBackend:
           ``None`` when neither source contributes.  See
           :func:`_requires_python_to_marker` and
           :func:`_introducing_marker_for` for the per-source rules.
-        * ``hashes``     ← ``tuple(sorted("<algo>:<value>"))`` from
-          ``candidate.hashes`` (frozenset of :class:`Hash`
-          NamedTuples).
+        * ``hashes``     ← ``tuple(sorted("<algo>:<value>"))`` unioned
+          from every cache sibling whose ``version`` matches the
+          resolved candidate's, across every configured index URL
+          (T_S5 — pip-parity: lockfile lists hashes for ALL distfiles
+          of the resolved version, not just the chosen candidate).
+          Falls back to ``candidate.hashes`` alone when the cache has
+          no siblings (cold-cache / test-fixture-injected workflows).
         * ``index``      ← source NAME (e.g. ``"pypi"``) when
           ``default_index`` (the first URL in ``index_urls``) appears
           in ``url_to_name``; otherwise the URL is emitted verbatim as
@@ -614,17 +618,43 @@ class PurePythonBackend:
                 # would otherwise crash the LockedRequirement constructor.
                 continue
 
-            # Hash translation: Candidate.hashes is frozenset[Hash]
-            # where Hash = NamedTuple(algo, value).  The lockfile wire
-            # shape is a sorted tuple of "<algo>:<value>" strings —
-            # mirrors ``Entry.get_cleaned_dict`` output.
-            hashes_iter = []
-            for h in getattr(candidate, "hashes", frozenset()) or ():
-                algo = getattr(h, "algo", None)
-                value = getattr(h, "value", None)
-                if algo and value:
-                    hashes_iter.append(f"{algo}:{value}")
-            hashes_tuple = tuple(sorted(set(hashes_iter)))
+            # Hash translation (T_S5 — Initiative G Phase 3b):
+            # mirror pip's lockfile convention by emitting hashes for
+            # EVERY distfile of the resolved version (wheel + sdist +
+            # any cross-platform wheel variants), not just the chosen
+            # candidate's single hash.  Walk every configured index and
+            # union the ``hashes`` frozensets of cache siblings whose
+            # ``version`` matches the resolved one.
+            #
+            # Dedup is set-driven: identical ``(algo, value)`` pairs
+            # served by multiple indexes collapse to one entry.
+            #
+            # Fallback (defensive): when no sibling-candidate scan
+            # turned up anything (cold cache / a test fixture that
+            # injects candidates straight into the result without
+            # populating the cache), fall back to the resolved
+            # candidate's own ``hashes``.  Preserves Phase 3a
+            # fixture-injected-only workflows.
+            hashes_iter: set[str] = set()
+            for idx in index_urls:
+                manifest = self._cache.get(idx, cand_name)
+                if manifest is None:
+                    continue
+                for sibling in getattr(manifest, "candidates", ()) or ():
+                    if getattr(sibling, "version", None) != cand_version:
+                        continue
+                    for h in getattr(sibling, "hashes", frozenset()) or ():
+                        algo = getattr(h, "algo", None)
+                        value = getattr(h, "value", None)
+                        if algo and value:
+                            hashes_iter.add(f"{algo}:{value}")
+            if not hashes_iter:
+                for h in getattr(candidate, "hashes", frozenset()) or ():
+                    algo = getattr(h, "algo", None)
+                    value = getattr(h, "value", None)
+                    if algo and value:
+                        hashes_iter.add(f"{algo}:{value}")
+            hashes_tuple = tuple(sorted(hashes_iter))
 
             extras_tuple = tuple(sorted(extras_set or frozenset()))
 
