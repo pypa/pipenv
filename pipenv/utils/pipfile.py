@@ -1177,7 +1177,17 @@ class Pipfile:
     # ---- casing -----------------------------------------------------------
 
     def recase(self) -> None:
-        """Walk packages/dev-packages and fix any incorrect casing."""
+        """Walk packages/dev-packages and fix any incorrect casing.
+
+        Off by default: ``ensure_proper_casing`` makes one synchronous PyPI
+        HTTP probe per unknown package name (see
+        :func:`pipenv.utils.internet.proper_case`), which costs several
+        seconds on a fresh ``install -r requirements.txt`` of any size.
+        Opt back in via ``PIPENV_RECASE_PIPFILE=1`` if you need pipenv to
+        rewrite Pipfile names to match PyPI's display capitalization.
+        """
+        if not self._project.s.PIPENV_RECASE_PIPFILE:
+            return
         if self.ensure_proper_casing():
             self.write_toml(self.parsed)
 
