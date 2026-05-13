@@ -842,7 +842,7 @@ class TestDefensiveBranches:
         # Path-traversal validation catches the linkname.
         assert "traversal" in str(excinfo.value).lower() or "absolute" in str(excinfo.value).lower()
 
-    def test_archive_extracts_to_nothing_rejected(self, monkeypatch):
+    def test_archive_extracts_to_nothing_rejected(self, tmp_path):
         """An archive that extracts to zero entries → SdistBuildError."""
         from pipenv.resolver.pure_python_sdist import (
             SdistBuildError,
@@ -851,15 +851,8 @@ class TestDefensiveBranches:
 
         # _locate_source_root inspects the destination dir; we hand it
         # an empty dir to exercise the "extracted to nothing" branch.
-        empty = Path("/dev/shm/nonexistent-dir-for-empty-test")
-        if empty.exists():
-            for p in empty.iterdir():
-                p.unlink()
-        else:
-            empty.mkdir(parents=True)
-        try:
-            with pytest.raises(SdistBuildError) as excinfo:
-                _locate_source_root(empty, "empty-1.0.tar.gz")
-            assert "extracted to nothing" in str(excinfo.value)
-        finally:
-            empty.rmdir()
+        empty = tmp_path / "empty-extract"
+        empty.mkdir()
+        with pytest.raises(SdistBuildError) as excinfo:
+            _locate_source_root(empty, "empty-1.0.tar.gz")
+        assert "extracted to nothing" in str(excinfo.value)
