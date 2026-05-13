@@ -1,6 +1,7 @@
 import logging
 import os
 import queue
+import shutil
 import sys
 import warnings
 from collections import defaultdict
@@ -991,7 +992,6 @@ def batch_install(
         # The directory is created by prefetch_wheels() with tempfile.mkdtemp()
         # and must be removed to avoid leaving pipenv-prefetch-* dirs in /tmp.
         if find_links_dir:
-            import shutil
             shutil.rmtree(find_links_dir, ignore_errors=True)
 
 
