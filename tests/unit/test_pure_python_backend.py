@@ -372,3 +372,23 @@ class TestQFPreCheck:
         msg = response.result.pip_message
         assert "brokenpkg" in msg
         assert "pipenv lock --backend pip" in msg
+
+
+# ----------------------------------------------------------------------
+# T10: Backend registration
+# ----------------------------------------------------------------------
+#
+# These tests verify the pure-python backend is wired into the
+# Initiative F registry (``pipenv/resolver/backends/__init__.py``) under
+# the name ``"pure-python"``.  T9 built the class; T10 makes it
+# discoverable via ``get_backend``.
+class TestBackendRegistration:
+    def test_get_backend_returns_pure_python(self):
+        from pipenv.resolver.backends import get_backend
+        backend = get_backend("pure-python")
+        assert backend.name == "pure-python"
+
+    def test_pure_python_backend_is_available(self):
+        from pipenv.resolver.backends import get_backend
+        backend = get_backend("pure-python")
+        assert backend.is_available() is True

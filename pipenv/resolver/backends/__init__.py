@@ -18,6 +18,7 @@ from __future__ import annotations
 
 from pipenv.resolver.backends.base import REGISTRY, Backend
 from pipenv.resolver.backends.pip import PipBackend
+from pipenv.resolver.backends.pure_python import PurePythonBackend
 
 # Default backend used when no explicit selection has been made via CLI,
 # env var, or Pipfile.  Kept at module scope so the dispatcher in
@@ -29,6 +30,12 @@ DEFAULT_BACKEND_NAME = "pip"
 # monkey-patch via ``mock.patch.dict`` see the same dict no matter
 # which module they reach for.
 REGISTRY["pip"] = PipBackend
+# Initiative G phase 3 T10: register the pure-Python resolver backend.
+# Pip stays the default — see ``DEFAULT_BACKEND_NAME`` above.  The
+# pure-python class is zero-arg-constructible (collaborators default to
+# ``None``); the dispatcher injects cache/fetcher/session/metadata_cache
+# before invoking ``.resolve()`` (Phase 4 wiring).
+REGISTRY["pure-python"] = PurePythonBackend
 
 
 def get_backend(name: str) -> Backend:
@@ -80,6 +87,7 @@ __all__ = [
     "Backend",
     "DEFAULT_BACKEND_NAME",
     "PipBackend",
+    "PurePythonBackend",
     "REGISTRY",
     "get_backend",
     "list_backends",

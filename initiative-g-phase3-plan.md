@@ -865,9 +865,39 @@ near the bottom of this document.
   - `python -c "from pipenv.resolver.backends import get_backend; b = get_backend('pure-python'); print(b.name, b.is_available())"` prints `pure-python True`.
   - `pipenv lock --backend pure-python` smoke-runs against the 30-pkg
     fixture (not parity-checked yet; just no crashes).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Registered `PurePythonBackend` under name `"pure-python"` in
+    `pipenv/resolver/backends/__init__.py`.  Pip remains the default
+    via `DEFAULT_BACKEND_NAME = "pip"`.
+  - Relaxed `PurePythonBackend.__init__` to make all collaborators
+    (`cache`, `fetcher`, `session`, `metadata_cache`) optional
+    (defaulting to `None`) so the class is zero-arg-constructible.
+    The Initiative F registry's `get_backend` helper invokes `cls()`
+    for class-shaped entries; the dispatcher injects collaborators
+    before calling `.resolve()` (Phase 4 wiring).  All four existing
+    T9 tests still pass their collaborators via keyword args — fully
+    backward compatible.
+  - Added `PurePythonBackend` to the package `__all__`.
+  - TDD: added `TestBackendRegistration` (2 tests) to
+    `tests/unit/test_pure_python_backend.py` — RED→GREEN cycle
+    confirmed.
+  - Validation smoke: command from acceptance criterion 1 prints
+    `pure-python True`.  `get_backend("pip")` and
+    `get_backend("pure-python")` both succeed; unknown names still
+    raise `KeyError` listing both registered backends.
+  - Regression: full `tests/unit/test_pure_python_backend.py` (6
+    tests) and `tests/unit/test_resolver_backends.py` (9 tests) both
+    pass — 15 / 15.
+  - Smoke run of `pipenv lock --backend pure-python` is deferred to
+    T_BENCH / T15 (per orchestrator instruction).
 - **files edited/created**:
+  - `pipenv/resolver/backends/__init__.py` (registered backend, added
+    to `__all__`).
+  - `pipenv/resolver/backends/pure_python.py` (relaxed `__init__`
+    defaults to support zero-arg construction).
+  - `tests/unit/test_pure_python_backend.py` (appended
+    `TestBackendRegistration` class — 2 new tests).
 
 ---
 
