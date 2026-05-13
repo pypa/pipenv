@@ -508,26 +508,29 @@ a top-level package has **zero** candidates of any kind, surfacing
 a "no distfiles available" error at lock-startup rather than mid-resolve
 (T_S4).
 
-**No-build-isolation tradeoff**: the sdist build path runs in the
-**current process**, not a fresh isolated venv. This is a deliberate
-deviation from pip's `--isolated-build` default and trades:
+**Build isolation**: the sdist build path uses
+:class:`build.env.DefaultIsolatedEnv` to create a throwaway venv for
+each sdist's PEP 517 hooks. This matches pip's `--use-pep517` default
+and ensures that package-specific build backends (poetry-core,
+hatchling, flit-core, ...) do not crash on import when they are not
+installed in pipenv's own interpreter.
 
-- *Win*: ≥ 5x faster sdist resolves (no venv creation per package),
-  and no transient PyPI dependency to bootstrap `build`/`setuptools`
-  in the sandbox.
-- *Loss*: a malicious or buggy sdist's build hooks observe the
-  pipenv process environment (sys.path, env vars). Mitigations:
-  - Path-traversal validation on every tar / zip member name
-    before extraction (`pure_python_sdist._validate_member_name`).
-  - Device / symlink / fifo members are hard-rejected.
-  - The build runs in a temp directory; the cache stores the
-    extracted `METADATA` only, never the build sandbox.
-  - Users who require true isolation can still pin
-    `resolver_backend = "pip"` for that resolve.
+The isolated environment:
 
-Phase 4 may revisit isolated builds (`build --no-isolation=false`
-fallback) once we have CI dogfood data on which sdists actually
-exercise this path in practice.
+- Installs `[build-system].requires` plus
+  `get_requires_for_build_wheel` dependencies into a fresh venv
+  before invoking the backend's `prepare_metadata_for_build_wheel`
+  hook.
+- Runs in a temp directory; the cache stores the extracted `METADATA`
+  only, never the build sandbox.
+- Includes path-traversal validation on every tar / zip member name
+  before extraction (`pure_python_sdist._validate_member_name`).
+- Hard-rejects device / symlink / fifo members.
+- Is wrapped in a 300-second timeout to prevent wedged build backends
+  from blocking resolution indefinitely.
+
+Users who prefer pip's resolver can still pin
+`resolver_backend = "pip"` for that resolve.
 
 ## 9. Out of scope
 
