@@ -298,9 +298,33 @@ waits on both.
     `LockedRequirement.index == "pypi"`.
   - URL not in `request.sources` → emit the URL as-is (defensive
     fallback documented).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Built `url_to_name = {s.url: s.name for s in
+    request.sources}` at the top of `resolve()`; widened
+    `_translate_mapping(self, result, index_urls, url_to_name=None)`
+    (kept `url_to_name` keyword-defaulted so legacy fixtures that call
+    the helper directly still work).  Inside the candidate loop the
+    translator now emits `index = url_to_name.get(default_index,
+    default_index)` — source NAME when mapped, URL verbatim as the
+    defensive fallback when no source matches (Phase 3 Candidate
+    doesn't track per-candidate provenance; Phase 4 follow-up will).
+  - TDD RED→GREEN: added `TestTranslateMappingIndexName` (3 cases:
+    URL→name mapping, unmatched-URL fallback, empty-sources fallback).
+    Updated `TestTranslateMappingEdges::test_candidate_with_extras_and_multiple_hashes`
+    which had pinned the old URL-as-index behaviour (now pins `"pypi"`).
+  - Smoke (mandatory): `cd /tmp/t-puret-smoke && rm -f Pipfile.lock &&
+    PIPENV_VERBOSITY=-1 timeout 60 python -m pipenv lock --backend
+    pure-python` ⇒ `index: pypi`, `markers: python_version >= '3.10'`
+    (pip-parity confirmed).
+  - 38/38 tests pass in `tests/unit/test_pure_python_backend.py`;
+    coverage on `pipenv/resolver/backends/pure_python.py` = 96 %
+    (well above the 90 % gate).
+  - `grep -n "pip\._internal" pipenv/resolver/backends/pure_python.py`
+    = 0 matches (no patched-pip internals coupling introduced).
 - **files edited/created**:
+  - `pipenv/resolver/backends/pure_python.py` (modified)
+  - `tests/unit/test_pure_python_backend.py` (modified)
 
 ---
 

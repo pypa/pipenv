@@ -1096,8 +1096,10 @@ class TestTranslateMappingEdges:
         assert tuple(entry.hashes) == tuple(sorted(entry.hashes))
         # Extras sorted alphabetically.
         assert entry.extras == ("argon2", "bcrypt")
-        # Index stays Phase-3-default (first URL).
-        assert entry.index == _INDEX
+        # T_M4: ``_build_request`` advertises ``Source(name="pypi",
+        # url=_INDEX)`` ⇒ the URL maps to the source NAME ``"pypi"``
+        # (pip-parity); pre-T_M4 this was the URL verbatim.
+        assert entry.index == "pypi"
 
     def test_empty_specs_yields_empty_locked(self):
         """A request with an empty ``packages.specs`` is a degenerate
@@ -1377,6 +1379,210 @@ class TestTranslateMappingMarkers:
         # The bad ``requires_python`` produced no marker; no introducing
         # marker either → final ``markers`` is ``None``.
         assert entry.markers is None
+
+
+# ----------------------------------------------------------------------
+# T_M4 (Initiative G Phase 3b): _translate_mapping emits source NAME for
+# the ``index`` field, not the URL.
+# ----------------------------------------------------------------------
+#
+# Pip's lockfile writes ``index=<source-name>`` (e.g. ``"pypi"``) per the
+# Pipfile ``[[source]]`` block's ``name`` key — NOT the raw URL.  Pre-T_M4
+# the pure-python backend wrote ``index=<index-url>`` because the Phase 3
+# Candidate doesn't track which configured source served it (T4 walks
+# every ``index_url`` and concatenates).
+#
+# T_M4 closes the gap by building a ``url → name`` map from
+# ``request.sources`` and looking up the source name at translate time.
+# When the URL doesn't match any configured source (defensive fallback —
+# Phase 4 will track per-candidate source attribution), the URL is
+# emitted as-is.  When ``request.sources`` is empty (subprocess fixtures
+# sometimes omit it), the backend's configured default-URL is used
+# directly (still a URL — no source list ⇒ no mapping possible).
+class TestTranslateMappingIndexName:
+    """T_M4: ``LockedRequirement.index`` carries the source NAME when the
+    candidate's index-URL matches a configured ``[[source]]`` block;
+    otherwise the URL is emitted verbatim as a defensive fallback.
+    """
+
+    def test_url_maps_to_source_name(self):
+        """``request.sources = [Source(name="pypi", url="https://pypi.org/simple")]``
+        + candidate from that URL ⇒ ``index == "pypi"`` (pip-parity)."""
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        cache = _FakeCache(
+            {(_INDEX, "click"): (_wheel_candidate("click", "8.3.3"),)}
+        )
+        resolved = _wheel_candidate("click", "8.3.3")
+        fake_result = _FakeResult(
+            mapping={("click", frozenset()): resolved}
+        )
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        # _build_request() already produces sources=(Source(name="pypi",
+        # url=_INDEX, verify_ssl=True),) — the canonical single-source
+        # case.
+        request = _build_request({"click": "*"})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        # Source NAME, not URL: pip writes ``"pypi"``, not the URL.
+        assert locked[0].index == "pypi"
+
+    def test_unmatched_url_falls_back_to_url(self):
+        """``request.sources`` carries a single source whose URL does NOT
+        match the backend's configured ``index_urls`` ⇒ the URL is
+        emitted verbatim as a defensive fallback.
+
+        Construction: pass ``index_urls`` explicitly so the resolve path
+        consults that URL while ``request.sources`` advertises a
+        different one.  The URL→name map built from ``request.sources``
+        therefore has no entry for the default URL ⇒ fallback fires.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        # Backend's default index — the URL the resolve path lands on.
+        unmatched_url = "https://pypi.org/simple"
+        # request.sources advertises a different URL under a custom name.
+        # The URL→name map built from ``request.sources`` will only
+        # contain ``https://other.example/simple -> "custom"`` — no entry
+        # for the unmatched_url default, so the fallback fires.
+        custom_source = Source(
+            name="custom", url="https://other.example/simple", verify_ssl=True
+        )
+        cache = _FakeCache(
+            {
+                (unmatched_url, "pkg"): (_wheel_candidate("pkg", "1.0.0"),),
+                # Also seed the request-source URL so the prefetch path
+                # has something to find (not strictly required but
+                # mirrors a realistic production cache).
+                (custom_source.url, "pkg"): (
+                    _wheel_candidate("pkg", "1.0.0"),
+                ),
+            }
+        )
+        resolved = _wheel_candidate("pkg", "1.0.0")
+        fake_result = _FakeResult(
+            mapping={("pkg", frozenset()): resolved}
+        )
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+            # Force the resolve path to land on unmatched_url as the
+            # default_index even though request.sources advertises
+            # custom_source.url.  We achieve this by building a request
+            # whose sources contain ONLY custom_source — then
+            # request_index_urls is (custom_source.url,) and
+            # default_index is custom_source.url, which IS in url_to_name
+            # ⇒ wrong test.  Reverse: supply request.sources with a
+            # source whose URL doesn't match the default_index — but
+            # default_index IS the first source URL.  So the path can
+            # only produce an unmatched default_index when the URL→name
+            # map omits it.  Concretely: the test exercises the
+            # defensive branch via the dict.get fallback semantic — see
+            # below.
+        )
+        # Build a request whose sources advertise custom_source.  The
+        # backend will set ``request_index_urls = (custom_source.url,)``
+        # and ``default_index = custom_source.url``.  ``url_to_name``
+        # maps ``custom_source.url -> "custom"`` ⇒ this is the
+        # HAPPY-path mapping, not the fallback.
+        #
+        # To exercise the FALLBACK we instead force ``default_index`` to
+        # a URL absent from ``url_to_name`` by hand-patching the
+        # translator: we want a unit-level assertion on the defensive
+        # branch, so call ``_translate_mapping`` directly with a mocked
+        # url_to_name that omits the default_index.
+        from pipenv.resolver.schema import LockedRequirement
+
+        url_to_name = {custom_source.url: custom_source.name}
+        # default_index = unmatched_url which is NOT in url_to_name.
+        criteria: dict = {}
+        from pipenv.resolver.backends.pure_python import PurePythonBackend as _B
+
+        translator_backend = _B(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+
+        class _StubResult:
+            def __init__(self):
+                self.mapping = {("pkg", frozenset()): resolved}
+                self.criteria = criteria
+
+        locked = translator_backend._translate_mapping(
+            _StubResult(),
+            (unmatched_url,),  # index_urls[0] = unmatched_url
+            url_to_name,
+        )
+        assert len(locked) == 1
+        # Defensive fallback: no source matched ⇒ emit URL verbatim.
+        assert isinstance(locked[0], LockedRequirement)
+        assert locked[0].index == unmatched_url
+
+    def test_no_sources_emits_url(self):
+        """``request.sources == ()`` (subprocess fixtures sometimes omit
+        the source list) ⇒ ``url_to_name`` is empty ⇒ defensive fallback
+        emits the default-index URL verbatim.  No source list ⇒ no
+        mapping is possible.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+        from pipenv.resolver.schema import (
+            PackageSpecs,
+            ResolverOptions,
+            ResolverRequest,
+        )
+
+        cache = _FakeCache(
+            {(_INDEX, "lonely"): (_wheel_candidate("lonely", "1.0.0"),)}
+        )
+        resolved = _wheel_candidate("lonely", "1.0.0")
+        fake_result = _FakeResult(
+            mapping={("lonely", frozenset()): resolved}
+        )
+        # Build a request with an EMPTY sources tuple — the backend
+        # falls through to its configured default ``index_urls``.
+        request = ResolverRequest(
+            schema_version=SCHEMA_VERSION,
+            category="default",
+            packages=PackageSpecs(specs={"lonely": "*"}),
+            options=ResolverOptions(),
+            sources=(),
+        )
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+            index_urls=(_INDEX,),
+        )
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        # No sources ⇒ no URL→name mapping possible ⇒ emit URL.
+        assert locked[0].index == _INDEX
 
 
 # ----------------------------------------------------------------------
