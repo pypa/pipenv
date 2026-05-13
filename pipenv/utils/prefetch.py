@@ -378,8 +378,8 @@ def _download_and_verify(
         return False
     try:
         try:
-            from pipenv.patched.pip._vendor.urllib3 import Timeout as _Timeout
-            _timeout = _Timeout(connect=_CONNECT_TIMEOUT, read=_READ_TIMEOUT)
+            from pipenv.patched.pip._vendor.urllib3 import Timeout as Urllib3Timeout
+            _timeout = Urllib3Timeout(connect=_CONNECT_TIMEOUT, read=_READ_TIMEOUT)
         except ImportError:
             _timeout = (_CONNECT_TIMEOUT, _READ_TIMEOUT)
         response = session.request(

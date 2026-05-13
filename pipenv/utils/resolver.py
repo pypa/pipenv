@@ -1203,7 +1203,7 @@ def _generate_resolution_cache_key(
     # the "default path byte-identical" acceptance criterion.
     # Also include the PIPENV_RESOLVER env var so that a pure-python
     # lookup via env var never reuses a pip-backend cache entry.
-    effective_backend = (resolver_backend or "").strip() or os.environ.get("PIPENV_RESOLVER", "").strip()
+    effective_backend = (resolver_backend or os.environ.get("PIPENV_RESOLVER") or "").strip()
     if effective_backend:
         key_components.append(f"backend={effective_backend}")
 
