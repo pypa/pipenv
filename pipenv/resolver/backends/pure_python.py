@@ -458,11 +458,32 @@ class PurePythonBackend:
 
         The wire format is a full pip argument string like
         ``"requests==2.31.0"``, ``"urllib3[brotli]>=2 -i https://…"``,
-        or just the package name (``"requests"`` ⇒ "any version").
-        Pip flags (``-i``, ``--index-url``, ``--trusted-host``, etc.)
-        appear after a whitespace separator; the backend handles index
-        URLs via ``request.options.indexes``, so we drop everything
-        past the first whitespace token before extracting the specifier.
+        ``"psycopg[binary]"``, or just the package name (``"requests"``
+        ⇒ "any version").  Pip flags (``-i``, ``--index-url``,
+        ``--trusted-host``, etc.) appear after a whitespace separator;
+        the backend handles index URLs via
+        ``request.options.indexes``, so we drop everything past the
+        first whitespace token before extracting the specifier.
+
+        Return shape: a plain specifier string when the wire-shape
+        carries no extras (preserves backwards compatibility with the
+        existing test contract), or a dict with ``version`` + ``extras``
+        keys when ``name[extra1,extra2]`` is present.  The Pipfile
+        parser at :meth:`Requirement.from_pipfile_entry` accepts both
+        shapes — dict-form is how it normally consumes
+        ``pkg = { version = "*", extras = [...] }`` from a TOML file.
+
+        T_PARITY_REAL bench trigger (project 01 — ``psycopg[binary]``):
+        before this fix, the wire-shape ``"psycopg[binary]"`` returned
+        ``"*"`` outright (the bracketed extras section contains no
+        specifier-marker character, so the loop fell through), which
+        silently dropped the extras from the resulting
+        :class:`Requirement` and made the resolvelib identifier
+        ``("psycopg", frozenset())`` rather than
+        ``("psycopg", frozenset({"binary"}))``.  Without the right
+        identifier, T7's :meth:`get_dependencies` evaluated
+        ``Requires-Dist`` markers under ``extra=""`` and the
+        ``psycopg-binary; extra == "binary"`` transitive disappeared.
         """
         line = (spec_value or "").strip()
         if not line:
@@ -471,15 +492,34 @@ class PurePythonBackend:
         # ``name[extras]<specifier>`` part; everything after is pip
         # CLI flags which the backend doesn't consume here.
         first_token = line.split(None, 1)[0]
+        # Strip ``[extras]`` from the name segment (if present) BEFORE
+        # scanning for specifier markers; otherwise the inner bracket
+        # contents (e.g. ``security,brotli``) can confuse the scan and
+        # we'd lose the extras anyway.
+        extras: list[str] = []
+        bracket_open = first_token.find("[")
+        if bracket_open != -1:
+            bracket_close = first_token.find("]", bracket_open + 1)
+            if bracket_close != -1:
+                extras = [
+                    e.strip()
+                    for e in first_token[bracket_open + 1 : bracket_close].split(",")
+                    if e.strip()
+                ]
+                # Rejoin around the bracket span so the specifier scan
+                # below works on a flat ``name<specifier>`` shape.
+                first_token = (
+                    first_token[:bracket_open] + first_token[bracket_close + 1 :]
+                )
+        specifier = "*"
         for marker_char in ("==", ">=", "<=", "~=", "!=", ">", "<"):
             idx = first_token.find(marker_char)
             if idx != -1:
-                # Everything from the marker onward is the specifier.
-                return first_token[idx:]
-        # No specifier chars — bare package name (with or without
-        # extras) ⇒ "*".  Anything stranger (URL, VCS reference)
-        # also defaults to "*"; constraint shape is handled elsewhere.
-        return "*"
+                specifier = first_token[idx:]
+                break
+        if extras:
+            return {"version": specifier, "extras": extras}
+        return specifier
 
     def _resolved_target_env(self) -> dict:
         """Return a marker-environment dict for the provider.
