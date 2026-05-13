@@ -463,6 +463,103 @@ class TestFindMatchesRequiresPythonFilter:
         assert versions == ["4.2.0", "4.0.0"]
 
 
+class TestFindMatchesPrefersWheelOverSdistAtSameVersion:
+    """When a release has both a wheel and an sdist, ``find_matches``
+    must put the wheel first so the resolver prefers it — mirrors pip's
+    ``PackageFinder`` ordering.
+
+    Regression test for the bench-fixture failures where
+    ``python3-saml 1.16.0``, ``redis-py-cluster 2.1.3``, and friends
+    all advertise both a wheel AND an sdist at the picked version, but
+    pure-python's version-only sort key routed to the sdist artifact —
+    forcing a PEP 517 build for nothing (and crashing on packages
+    whose sdist build backend isn't trivially installable).
+    """
+
+    def test_wheel_sorts_before_sdist_at_same_version(self):
+        # Wheel-priority sort + per-version sdist suppression: when
+        # both a wheel and an sdist exist at the same release, only
+        # the wheel is returned (the sdist is dropped — see
+        # ``test_sdist_dropped_when_wheel_exists_at_same_version``).
+        cands = [
+            _cand(name="python3-saml", version="1.16.0", is_wheel=False),
+            _cand(name="python3-saml", version="1.16.0", is_wheel=True),
+        ]
+        cache = _FakeCache({(_INDEX, "python3-saml"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("python3-saml", frozenset())
+        req = _make_requirement(name="python3-saml", spec=">=1.15")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert [c.is_wheel for c in result] == [True]
+
+    def test_higher_version_wins_over_artifact_kind(self):
+        # 1.17.0 sdist still beats 1.16.0 wheel — version is the
+        # primary sort key; artifact preference is the tiebreaker.
+        # 1.16.0 sdist is suppressed (per-version sdist drop) because
+        # 1.16.0 also has a wheel; 1.17.0 sdist survives (no wheel
+        # for that release).
+        cands = [
+            _cand(name="pkg", version="1.16.0", is_wheel=True),
+            _cand(name="pkg", version="1.17.0", is_wheel=False),
+        ]
+        cache = _FakeCache({(_INDEX, "pkg"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("pkg", frozenset())
+        req = _make_requirement(name="pkg", spec=">=1.15")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert [(c.version, c.is_wheel) for c in result] == [
+            ("1.17.0", False),
+            ("1.16.0", True),
+        ]
+
+    def test_sdist_dropped_when_wheel_exists_at_same_version(self):
+        # Per-version sdist suppression: returning both a wheel and an
+        # sdist at the same release lets ``resolvelib`` try the sdist
+        # as a backtrack candidate after a downstream conflict on the
+        # wheel — same metadata, same conflict, wasted PEP 517 builds.
+        # Mirrors pip's ``PackageFinder`` (one canonical Link per
+        # version).  Bench-fixture trigger: ``sentry-protos`` /
+        # ``grpcio-status`` exploding into dozens of sdist builds as
+        # the resolver backtracked.
+        cands = [
+            _cand(name="sentry-protos", version="0.8.32", is_wheel=True),
+            _cand(name="sentry-protos", version="0.8.32", is_wheel=False),
+            _cand(name="sentry-protos", version="0.8.31", is_wheel=True),
+            _cand(name="sentry-protos", version="0.8.31", is_wheel=False),
+            _cand(name="sentry-protos", version="0.8.30", is_wheel=False),
+        ]
+        cache = _FakeCache({(_INDEX, "sentry-protos"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("sentry-protos", frozenset())
+        req = _make_requirement(name="sentry-protos", spec=">=0.8")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        # 0.8.32 → wheel (sdist dropped); 0.8.31 → wheel (sdist
+        # dropped); 0.8.30 → sdist (no wheel exists for it).
+        assert [(c.version, c.is_wheel) for c in result] == [
+            ("0.8.32", True),
+            ("0.8.31", True),
+            ("0.8.30", False),
+        ]
+
+
 class TestFindMatchesYankedFilter:
     """PEP 592: yanked candidates are filtered from automatic selection
     unless the user explicitly pins to that exact version via ``==``.

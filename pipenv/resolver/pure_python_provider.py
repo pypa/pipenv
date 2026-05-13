@@ -309,6 +309,26 @@ class PurePythonProvider(AbstractProvider):
             seen.add(key)
             unique.append(cand)
 
+        # Step 5b: per-version sdist suppression.  When a release has a
+        # wheel anywhere in the cache (even if that wheel later gets
+        # rejected by ``rejected`` / requires_python / yanked filters),
+        # the sdist is not a useful alternative — it's the same package,
+        # same metadata, and would produce the same downstream conflict
+        # at the cost of a PEP 517 build.  Pip's ``PackageFinder``
+        # publishes one canonical Link per version (wheel preferred);
+        # we mirror that here by dropping sdists whose version has a
+        # wheel companion BEFORE the reject/satisfies filtering, so
+        # backtracking past the wheel doesn't rediscover the sdist.
+        # Bench fixture trigger: ``sentry-protos`` / ``grpcio-status``
+        # exploding into dozens of sdist builds during backtracking.
+        wheel_versions_in_cache = {
+            c.version for c in unique if c.is_wheel
+        }
+        unique = [
+            c for c in unique
+            if c.is_wheel or c.version not in wheel_versions_in_cache
+        ]
+
         # Step 6: rejected set, keyed on ``(name, version, filename)``
         # so an incompatibility from a different cache copy still
         # matches by identity tuple.
@@ -335,12 +355,27 @@ class PurePythonProvider(AbstractProvider):
                 continue
             filtered.append(cand)
 
-        # Step 8: sort by Version descending.  ``InvalidVersion`` is
-        # surfaced as a parse error rather than silently sorting last —
-        # an unparseable version in the cache is a bug upstream
-        # (PEP 691 parser should have rejected it) and we want loud
-        # failure here.
-        filtered.sort(key=lambda c: Version(c.version), reverse=True)
+        # Step 8: sort by ``(Version, is_wheel)`` descending.  Highest
+        # version wins; within a version, wheel beats sdist
+        # (``True > False`` and ``reverse=True`` lifts wheels above
+        # sdists at the same version).  Mirrors pip's
+        # ``PackageFinder._sort_links_by_priority`` behaviour: when an
+        # artifact exists as both a wheel and an sdist at the same
+        # release, the wheel is the canonical pick — picking the sdist
+        # forces a PEP 517 build for nothing and (worse) can break
+        # resolution when the sdist's build backend isn't installable
+        # (see ``python3-saml 1.16.0`` / ``redis-py-cluster 2.1.3`` on
+        # the bench fixture, both wheel-available but pure-python was
+        # silently routing to the sdist build path).
+        #
+        # ``InvalidVersion`` is surfaced as a parse error rather than
+        # silently sorting last — an unparseable version in the cache
+        # is a bug upstream (PEP 691 parser should have rejected it)
+        # and we want loud failure here.
+        filtered.sort(
+            key=lambda c: (Version(c.version), bool(c.is_wheel)),
+            reverse=True,
+        )
         return filtered
 
     # -- T4 helpers -----------------------------------------------------
