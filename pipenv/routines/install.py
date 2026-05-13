@@ -947,44 +947,52 @@ def batch_install(
         ),
     )
 
-    if search_all_sources:
-        dependencies = [pip_line for _, pip_line in deps_to_install]
-        batch_install_iteration(
-            project,
-            iter_ctx,
-            dependencies,
-            sources,
-            procs,
-            requirements_dir,
-        )
-    else:
-        # Sort the dependencies out by index -- include editable/vcs in the default group
-        deps_by_index = defaultdict(list)
-        for dependency, pip_line in deps_to_install:
-            index = project.sources.default["name"]
-            if dependency.name and dependency.name in lockfile_section:
-                entry = lockfile_section[dependency.name]
-                if isinstance(entry, dict) and "index" in entry:
-                    index = entry["index"]
-            deps_by_index[index].append(pip_line)
-        # Treat each index as its own pip install phase
-        for index_name, dependencies in deps_by_index.items():
-            try:
-                install_source = next(filter(lambda s: s["name"] == index_name, sources))
-                batch_install_iteration(
-                    project,
-                    iter_ctx,
-                    dependencies,
-                    [install_source],
-                    procs,
-                    requirements_dir,
-                )
-            except StopIteration:  # noqa: PERF203
-                console.print(
-                    f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
-                    style="bold red",
-                )
-                sys.exit(1)
+    try:
+        if search_all_sources:
+            dependencies = [pip_line for _, pip_line in deps_to_install]
+            batch_install_iteration(
+                project,
+                iter_ctx,
+                dependencies,
+                sources,
+                procs,
+                requirements_dir,
+            )
+        else:
+            # Sort the dependencies out by index -- include editable/vcs in the default group
+            deps_by_index = defaultdict(list)
+            for dependency, pip_line in deps_to_install:
+                index = project.sources.default["name"]
+                if dependency.name and dependency.name in lockfile_section:
+                    entry = lockfile_section[dependency.name]
+                    if isinstance(entry, dict) and "index" in entry:
+                        index = entry["index"]
+                deps_by_index[index].append(pip_line)
+            # Treat each index as its own pip install phase
+            for index_name, dependencies in deps_by_index.items():
+                try:
+                    install_source = next(filter(lambda s: s["name"] == index_name, sources))
+                    batch_install_iteration(
+                        project,
+                        iter_ctx,
+                        dependencies,
+                        [install_source],
+                        procs,
+                        requirements_dir,
+                    )
+                except StopIteration:  # noqa: PERF203
+                    console.print(
+                        f"Unable to find {index_name} in sources, please check dependencies: {dependencies}",
+                        style="bold red",
+                    )
+                    sys.exit(1)
+    finally:
+        # Clean up the prefetch temp directory after pip has consumed it.
+        # The directory is created by prefetch_wheels() with tempfile.mkdtemp()
+        # and must be removed to avoid leaving pipenv-prefetch-* dirs in /tmp.
+        if find_links_dir:
+            import shutil
+            shutil.rmtree(find_links_dir, ignore_errors=True)
 
 
 def _cleanup_procs(project, procs):
