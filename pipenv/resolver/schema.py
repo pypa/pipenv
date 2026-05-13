@@ -81,12 +81,19 @@ class ResolverOptions:
     (F.1 §3.1).  Verbosity translates on the child side to the
     ``PIPENV_VERBOSITY`` / ``PIP_RESOLVER_DEBUG`` pip env-vars after
     receipt — those env-vars are pip's own, not part of *this* protocol.
+
+    ``backend`` (T_F.5) carries the explicit ``--resolver NAME``
+    selection across the wire.  Empty string is the "unset" sentinel
+    (no CLI override; the dispatcher falls through to env var / Pipfile
+    / default).  Additive default — SCHEMA_VERSION stays at 1 per the
+    design's §8 "additive default" rule.
     """
 
     pre: bool = False
     clear: bool = False
     system: bool = False
     verbose: bool = False
+    backend: str = ""
 
 
 @dataclass(frozen=True)
@@ -639,11 +646,18 @@ class ResolverRequest:
 
     def to_json_dict(self) -> dict:
         """Return a deterministic JSON-ready dict (no None values)."""
+        options_dict = _dataclass_to_dict(self.options)
+        # T_F.5: ``backend`` is an additive field defaulting to the empty
+        # string (the "unset / use default" sentinel).  Suppress it on
+        # the wire when empty so older fixtures and wire-shape goldens
+        # stay byte-identical when the user hasn't selected a backend.
+        if options_dict.get("backend", "") == "":
+            options_dict.pop("backend", None)
         out: dict = {
             "schema_version": self.schema_version,
             "category": self.category,
             "packages": {"specs": dict(sorted(self.packages.specs.items()))},
-            "options": _dataclass_to_dict(self.options),
+            "options": options_dict,
             "sources": [_dataclass_to_dict(s) for s in self.sources],
         }
         if self.python_marker_override is not None:

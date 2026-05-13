@@ -1,3 +1,26 @@
+"""Pip-internal-fork unpack helpers (T_E.4).
+
+This module hosts :func:`unpack_url` and :func:`get_http_url`, two
+forks of helpers in :mod:`pip._internal.operations.prepare` (reachable
+in our patched tree as :mod:`pipenv.patched.pip._internal.operations.prepare`).
+
+Provenance: relocated verbatim under T_E.4 from
+``pipenv/utils/requirementslib.py`` (which is deleted in the same PR).
+The pair carries load-bearing behavioural divergence from upstream pip
+that is documented in each function's docstring. Do not replace these
+forks with the patched-pip versions without auditing the sole caller
+(:func:`pipenv.utils.dependencies.determine_package_name`); see
+``docs/dev/initiative-b-triage.md`` and ``docs/dev/initiative-e-design.md``
+§T_E.4 for rationale.
+
+The local :data:`VCS_SCHEMES` set is unique to this module's
+VCS-link detection and intentionally differs from
+:data:`pipenv.utils.constants.VCS_SCHEMES` (a list of ``vcs+transport``
+strings only). This set additionally contains the bare ``git``/``hg``/
+``svn``/``bzr`` schemes that `unpack_url` may encounter on real-world
+requirement links.
+"""
+
 from typing import Optional
 
 from pipenv.patched.pip._internal.models.link import Link

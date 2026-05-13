@@ -90,10 +90,10 @@ def _get_pipfile_python_override(project):
     suitable for passing as an environment override, or *None* if no override
     is needed.
     """
-    if not project.pipfile_exists:
+    if not project.pipfile.exists:
         return None
 
-    requires = project.parsed_pipfile.get("requires", {})
+    requires = project.pipfile.parsed.get("requires", {})
     python_full = requires.get("python_full_version")
     python_ver = requires.get("python_version")
 
@@ -402,7 +402,7 @@ class Resolver:
             markers_lookup = {}
         original_deps = {}
         install_reqs = {}
-        pipfile_entries = project.get_pipfile_section(pipfile_category)
+        pipfile_entries = project.pipfile.get_section(pipfile_category)
         skipped = {}
         if sources is None:
             # Always read sources from the Pipfile, not from the (potentially
@@ -410,7 +410,7 @@ class Resolver:
             # ``verify_ssl = false`` are respected even when an old lockfile
             # still carries ``verify_ssl = true``.  See gh-5665.
             sources = project.sources.pipfile_sources()
-        packages = project.get_pipfile_section(pipfile_category)
+        packages = project.pipfile.get_section(pipfile_category)
         constraints = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups
             if not dep:
@@ -454,10 +454,10 @@ class Resolver:
         # locking [dev-packages] would fail because ``private_lib`` was not in
         # index_lookup and pip therefore tried the default (PyPI) index only.
         if pipfile_category and pipfile_category != "packages":
-            for other_category in project.get_package_categories():
+            for other_category in project.pipfile.get_package_categories():
                 if other_category == pipfile_category:
                     continue
-                other_packages = project.get_pipfile_section(other_category)
+                other_packages = project.pipfile.get_section(other_category)
                 for pkg_name, pkg_entry in other_packages.items():
                     canonical_pkg_name = canonicalize_name(pkg_name)
                     # Don't override entries already set for the current category
@@ -552,7 +552,7 @@ class Resolver:
                 self.resolved_default_deps
             )
         else:
-            default_constraints = get_constraints_from_deps(self.project.packages)
+            default_constraints = get_constraints_from_deps(self.project.pipfile.packages)
         default_constraint_filename = prepare_constraint_file(
             default_constraints,
             directory=self.req_dir,
@@ -1102,14 +1102,14 @@ def _generate_resolution_cache_key(
     """Generate a cache key for resolution results."""
     # Get lockfile and pipfile modification times
     lockfile_mtime = "no-lock"
-    if project.lockfile_location:
-        lockfile_path = Path(project.lockfile_location)
+    if project.lockfile.location:
+        lockfile_path = Path(project.lockfile.location)
         if lockfile_path.exists():
             lockfile_mtime = str(lockfile_path.stat().st_mtime)
 
     pipfile_mtime = "no-pipfile"
-    if project.pipfile_location:
-        pipfile_path = Path(project.pipfile_location)
+    if project.pipfile.location:
+        pipfile_path = Path(project.pipfile.location)
         if pipfile_path.exists():
             pipfile_mtime = str(pipfile_path.stat().st_mtime)
 
@@ -1126,7 +1126,7 @@ def _generate_resolution_cache_key(
     deps_str = json.dumps(deps, sort_keys=True) if isinstance(deps, dict) else str(deps)
 
     key_components = [
-        str(project.project_directory),
+        str(project.pipfile.project_directory),
         lockfile_mtime,
         pipfile_mtime,
         deps_str,
@@ -1428,6 +1428,7 @@ def _build_resolver_request(
     extra_pip_args,
     resolved_default_deps,
     project,
+    resolver_backend=None,
 ):
     """Build a :class:`ResolverRequest` from the parent-side inputs.
 
@@ -1470,6 +1471,10 @@ def _build_resolver_request(
             clear=bool(clear),
             system=bool(allow_global),
             verbose=bool(verbose),
+            # T_F.5: pluggable-backend selection from the CLI / caller.
+            # Empty string is the "unset" sentinel; the dispatcher then
+            # falls through to env / Pipfile / default.
+            backend=str(resolver_backend or ""),
         ),
         sources=typed_sources,
         python_marker_override=python_marker_override,
@@ -1829,6 +1834,7 @@ def venv_resolve_deps(
     old_lock_data=None,
     extra_pip_args=None,
     resolved_default_deps=None,
+    resolver_backend=None,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -1855,13 +1861,13 @@ def venv_resolve_deps(
     """
     lockfile_category = get_lockfile_section_using_pipfile_category(pipfile_category)
 
-    deps = deps or (project.parsed_pipfile.get(pipfile_category, {}) if project.pipfile_exists else {})
+    deps = deps or (project.pipfile.parsed.get(pipfile_category, {}) if project.pipfile.exists else {})
     if not deps:
         return {}
 
     pipfile = pipfile or getattr(project, pipfile_category, {})
     if lockfile is None:
-        lockfile = project.lockfile(categories=[pipfile_category])
+        lockfile = project.lockfile.as_dict(categories=[pipfile_category])
     if old_lock_data is None:
         old_lock_data = lockfile.get(lockfile_category, {})
 
@@ -1950,6 +1956,7 @@ def venv_resolve_deps(
                 extra_pip_args=extra_pip_args,
                 resolved_default_deps=resolved_default_deps,
                 project=project,
+                resolver_backend=resolver_backend,
             )
 
             # Useful for debugging and hitting breakpoints in the resolver

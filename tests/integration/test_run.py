@@ -55,11 +55,11 @@ multicommand = "bash -c \"cd docs && make html\""
 
         project = Project()
 
-        script = project.build_script("multicommand")
+        script = project.pipfile.build_script("multicommand")
         assert script.command == "bash"
         assert script.args == ["-c", "cd docs && make html"]
 
-        script = project.build_script("appendscript", ["a", "b"])
+        script = project.pipfile.build_script("appendscript", ["a", "b"])
         assert script.command == "cmd"
         assert script.args == ["arg1", "a", "b"]
 

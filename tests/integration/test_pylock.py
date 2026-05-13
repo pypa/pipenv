@@ -76,12 +76,12 @@ def test_project_pylock_integration(pylock_project):
     project = Project(chdir=False)
 
     # Check that pylock.toml is detected
-    assert project.pylock_exists
-    assert project.pylock_location is not None
-    assert Path(project.pylock_location).name == "pylock.toml"
+    assert project.lockfile.pylock_exists
+    assert project.lockfile.pylock_location is not None
+    assert Path(project.lockfile.pylock_location).name == "pylock.toml"
 
-    # Check that lockfile_content returns the converted pylock content
-    lockfile_content = project.lockfile_content
+    # Check that lockfile.content returns the converted pylock content
+    lockfile_content = project.lockfile.content
     assert "_meta" in lockfile_content
     assert "default" in lockfile_content
     assert "requests" in lockfile_content["default"]
@@ -202,13 +202,13 @@ def test_write_pylock_file(pylock_write_project):
     assert project.settings.use_pylock is True
 
     # Check that pylock_output_path is correct
-    assert project.pylock_output_path == str(pylock_write_project / "pylock.toml")
+    assert project.lockfile.pylock_output_path == str(pylock_write_project / "pylock.toml")
 
     # Load the lockfile content
-    lockfile_content = project.lockfile_content
+    lockfile_content = project.lockfile.content
 
     # Write the lockfile (which should also write pylock.toml)
-    project.write_lockfile(lockfile_content)
+    project.lockfile.write(lockfile_content)
 
     # Check that pylock.toml was created
     pylock_path = pylock_write_project / "pylock.toml"
@@ -342,13 +342,13 @@ def test_write_named_pylock_file(pylock_write_named_project):
     assert project.settings.get("pylock_name") == "dev"
 
     # Check that pylock_output_path is correct
-    assert project.pylock_output_path == str(pylock_write_named_project / "pylock.dev.toml")
+    assert project.lockfile.pylock_output_path == str(pylock_write_named_project / "pylock.dev.toml")
 
     # Load the lockfile content
-    lockfile_content = project.lockfile_content
+    lockfile_content = project.lockfile.content
 
     # Write the lockfile (which should also write pylock.dev.toml)
-    project.write_lockfile(lockfile_content)
+    project.lockfile.write(lockfile_content)
 
     # Check that pylock.dev.toml was created
     pylock_path = pylock_write_named_project / "pylock.dev.toml"

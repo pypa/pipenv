@@ -335,8 +335,8 @@ def _make_project_with_pipfile(packages_section=None, dev_packages_section=None)
     def fake_get_package_categories():
         return ["packages", "dev-packages"]
 
-    project.get_pipfile_entry.side_effect = fake_get_pipfile_entry
-    project.get_package_categories.return_value = ["packages", "dev-packages"]
+    project.pipfile.get_entry.side_effect = fake_get_pipfile_entry
+    project.pipfile.get_package_categories.return_value = ["packages", "dev-packages"]
     return project
 
 
@@ -349,7 +349,7 @@ def test_process_package_args_does_not_cross_contaminate_categories():
         packages_section={},
         dev_packages_section={"mypy": "==1.4.1"},
     )
-    project.generate_package_pipfile_entry.return_value = ("mypy", "mypy", "==1.5.1")
+    project.pipfile.generate_entry.return_value = ("mypy", "mypy", "==1.5.1")
 
     requested_packages = {"packages": {}}
     explicitly_requested = {"mypy": ["default"]}  # user said no --dev
@@ -374,7 +374,7 @@ def test_process_package_args_does_not_cross_contaminate_categories():
     # The lockfile resolution dict should be populated…
     assert "mypy" in requested_packages["packages"]
     # …but the Pipfile should NOT have been written to [packages]
-    project.add_pipfile_entry_to_pipfile.assert_not_called()
+    project.pipfile.add_entry.assert_not_called()
 
 
 def test_process_package_args_writes_to_pipfile_when_package_in_correct_category():
@@ -385,7 +385,7 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
         packages_section={"requests": "==2.28.0"},
         dev_packages_section={},
     )
-    project.generate_package_pipfile_entry.return_value = (
+    project.pipfile.generate_entry.return_value = (
         "requests",
         "requests",
         "==2.31.0",
@@ -412,7 +412,7 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
         )
 
     assert "requests" in requested_packages["packages"]
-    project.add_pipfile_entry_to_pipfile.assert_called_once_with(
+    project.pipfile.add_entry.assert_called_once_with(
         "requests", "requests", "==2.31.0", category="packages"
     )
 
