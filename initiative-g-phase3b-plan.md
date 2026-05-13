@@ -289,9 +289,46 @@ waits on both.
   - Build failure (sdist with a syntax error or unbuildable
     `pyproject.toml`) → `SdistBuildError` with the backend's stderr
     visible.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: TDD RED→GREEN — wrote 27 tests covering the 7-case
+    matrix from the plan brief (happy path, cache round-trip, HTTP
+    failure, corrupt archive, build-backend failure, no-pyproject
+    legacy fallback, path traversal) plus 9 defensive-branch tests
+    (zip happy path, empty body, non-string backend, backend-path
+    handling, empty zip member, missing METADATA, non-UTF-8 METADATA,
+    cache write OSError, filename-from-URL edge cases, timeout via
+    monkeypatched hook caller).
+  - PEP 517 frontend: vendored
+    `pipenv.patched.pip._vendor.pyproject_hooks.BuildBackendHookCaller`
+    (constructor: `source_dir, build_backend, backend_path=None,
+    runner=None, python_executable=None`).
+    `prepare_metadata_for_build_wheel(metadata_directory)` returns the
+    relative dist-info subfolder name as a `str`.
+  - **No build isolation** in Phase 3b: the vendored
+    `BuildBackendHookCaller` has no isolation knob; its `runner`
+    callable simply subprocess-spawns the in-process hook script using
+    `sys.executable` in the current Python env.  Build-time deps must
+    be carried by the resolver user's environment.  Documented in the
+    module docstring.
+  - Timeout: 300 s via `concurrent.futures.ThreadPoolExecutor`; surfaces
+    as `SdistBuildError("sdist build timed out after 300s ...")`.
+  - Path-traversal protection: manual pre-extract validation of every
+    member name — reject empties, absolute paths, and any `..`
+    segment — applied uniformly to both tar (`tarfile`) and zip
+    (`zipfile`) archives.  Tar extraction also uses Python 3.12+'s
+    `filter="data"` for defense in depth.
+  - Source-root enforcement: sdist convention requires exactly one
+    top-level directory; multi-dir / file-at-root tarballs reject.
+  - Coverage: 94 % on the new module (target was ≥ 90 %).  Remaining
+    misses are the py3.10 tomli fallback, the older-Python tar filter
+    `TypeError` rescue, and a few tarfile-only defensive branches
+    (symlink/dev/fifo) that are awkward to portably construct.
+  - Adjacent suites unaffected: `tests/unit/test_pure_python_metadata.py`
+    65/65 still green.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_sdist.py` (new, 150 statements)
+  - `tests/unit/test_pure_python_sdist.py` (new, 27 tests)
 
 ---
 
