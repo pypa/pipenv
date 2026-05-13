@@ -159,6 +159,17 @@ class PurePythonBackend:
         # to the backend's configured default.
         request_index_urls = tuple(s.url for s in request.sources) or self._index_urls
 
+        # T_M4 (Initiative G Phase 3b): URL→name map for the lockfile
+        # ``index`` field.  Pip writes ``index=<source-name>`` (e.g.
+        # ``"pypi"``) per the Pipfile ``[[source]]`` block, NOT the raw
+        # URL.  We build the map here so the translator can look up the
+        # source name for each resolved candidate.  Empty when
+        # ``request.sources`` is empty (no mapping possible — the
+        # translator falls back to emitting the URL verbatim).
+        url_to_name: dict[str, str] = {
+            s.url: s.name for s in request.sources
+        }
+
         # Top-level names per the typed schema:
         # ``request.packages.specs`` is a Mapping[str, str].
         top_level_names = tuple(sorted(request.packages.specs.keys()))
@@ -299,7 +310,12 @@ class PurePythonBackend:
         # ``criteria`` side-channel from the resolvelib ``Result`` to
         # emit ``markers`` clauses, so we hand it the full Result rather
         # than just ``.mapping``.
-        locked = self._translate_mapping(result, request_index_urls)
+        # T_M4 (Initiative G Phase 3b): thread the URL→name map so the
+        # translator can emit the source NAME for the ``index`` field
+        # instead of the URL (pip-parity).
+        locked = self._translate_mapping(
+            result, request_index_urls, url_to_name
+        )
         return ResolverResponse(
             schema_version=SCHEMA_VERSION,
             result=ResolverSuccess(kind="success", locked=locked),
@@ -527,6 +543,7 @@ class PurePythonBackend:
         self,
         result: Any,
         index_urls: Sequence[str],
+        url_to_name: dict[str, str] | None = None,
     ) -> tuple[LockedRequirement, ...]:
         """Translate the resolvelib ``Result`` into typed
         :class:`LockedRequirement` entries.
@@ -557,20 +574,31 @@ class PurePythonBackend:
         * ``hashes``     ← ``tuple(sorted("<algo>:<value>"))`` from
           ``candidate.hashes`` (frozenset of :class:`Hash`
           NamedTuples).
-        * ``index``      ← first URL in ``index_urls`` (Phase 3
-          single-index simplification; T_M4 will swap to source-name
-          lookup).
+        * ``index``      ← source NAME (e.g. ``"pypi"``) when
+          ``default_index`` (the first URL in ``index_urls``) appears
+          in ``url_to_name``; otherwise the URL is emitted verbatim as
+          a defensive fallback (Phase 3b simplification — Phase 4 will
+          track which configured source actually served each candidate
+          via per-Candidate provenance).
 
         Backward-compat: callers that hand us a bare ``.mapping`` dict
         (older test fixtures pre-T_M3 used ``_FakeResult(mapping=...)``
         without criteria) get ``criteria = {}`` and markers fall back
         to the Requires-Python contribution only.  Callers that hand
         us a plain ``dict`` (no ``.mapping`` attribute) are also
-        supported — we treat it as the mapping directly.
+        supported — we treat it as the mapping directly.  Callers that
+        omit ``url_to_name`` get an empty map ⇒ all candidates fall
+        through to the URL-verbatim fallback (back-compat for legacy
+        fixtures from before T_M4 introduced the third parameter).
         """
         # Default index for the lockfile entries — Phase 3 takes the
-        # first configured URL.  T_M4 follow-up: map URL→source-name.
+        # first configured URL.
         default_index = index_urls[0] if index_urls else None
+        # T_M4: empty mapping when callers omit ``url_to_name`` (older
+        # test fixtures and the pre-T_M4 signature).  An empty map ⇒
+        # ``dict.get`` always falls back to the URL verbatim, preserving
+        # the pre-T_M4 behaviour for those callers.
+        url_to_name = url_to_name or {}
 
         # Tolerate both the resolvelib ``Result`` shape (with ``.mapping``
         # and ``.criteria``) and a bare-dict mapping (pre-T_M3 tests).
@@ -621,6 +649,18 @@ class PurePythonBackend:
                 [requires_python_marker, introducing_marker]
             )
 
+            # T_M4: emit source NAME when the URL maps to a configured
+            # source; fall back to the URL verbatim if no source matches
+            # (defensive — the Phase 3 Candidate doesn't track WHICH
+            # configured source served it, so this lookup is approximate.
+            # Phase 4 will track per-candidate index provenance for
+            # exact attribution across multi-source resolutions).
+            index_value = (
+                url_to_name.get(default_index, default_index)
+                if default_index is not None
+                else None
+            )
+
             locked.append(
                 LockedRequirement(
                     name=cand_name,
@@ -628,7 +668,7 @@ class PurePythonBackend:
                     extras=extras_tuple,
                     markers=marker_string,
                     hashes=hashes_tuple,
-                    index=default_index,
+                    index=index_value,
                 )
             )
 
