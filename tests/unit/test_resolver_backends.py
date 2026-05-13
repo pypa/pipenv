@@ -438,11 +438,15 @@ class TestVenvResolveDepsBackendPropagation:
         )
         assert request.options.backend == "pure-python"
 
-    def test_build_resolver_request_defaults_backend_to_empty(self):
-        """No ``resolver_backend`` kwarg → empty-string wire sentinel.
-        The dispatcher then falls through to env / Pipfile / default,
-        and the JSON encoder strips the empty field so the request
-        envelope stays byte-identical to pre-T_F.5 shape.
+    def test_build_resolver_request_defaults_backend_to_pip(self):
+        """No ``resolver_backend`` kwarg + no env / Pipfile override →
+        ``"pip"``.  Per commit ``0bf0c192``
+        (``fix(resolver): stamp selected backend onto resolver requests``),
+        the parent now resolves the full
+        precedence chain (CLI/caller > env > Pipfile > default) and
+        stamps the result onto the request before sending — so the
+        subprocess no longer has to rediscover the project's Pipfile to
+        make the same decision.  The default-fallback value is ``"pip"``.
         """
         from pipenv.utils.resolver import _build_resolver_request
 
@@ -459,11 +463,10 @@ class TestVenvResolveDepsBackendPropagation:
             resolved_default_deps=None,
             project=self._fake_project(),
         )
-        assert request.options.backend == ""
-        # And the empty field is stripped from the wire dict so the
-        # default-path JSON shape stays byte-identical to pre-T_F.5.
+        assert request.options.backend == "pip"
+        # The wire dict carries the resolved backend.
         wire = request.to_json_dict()
-        assert "backend" not in wire["options"]
+        assert wire["options"].get("backend") == "pip"
 
 
 class TestResolverSubprocessDispatch:
