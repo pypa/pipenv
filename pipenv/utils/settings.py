@@ -193,9 +193,9 @@ class Settings(MutableMapping):
         ``pylock.toml`` plumbing is a separate hook; see
         ``# TODO(T_F.8)`` markers in those readers.
 
-        The dispatcher in :mod:`pipenv.resolver.core` consults this via
-        :func:`pipenv.resolver.core._resolver_name_from_pipfile`, which
-        applies a precedence chain (CLI > env > Pipfile > default).
+        The parent-side resolver request builder consults this when it
+        stamps the effective backend onto the wire request using the
+        precedence chain CLI > env > Pipfile > default.
         """
         value = self.get("resolver")
         if value is None:

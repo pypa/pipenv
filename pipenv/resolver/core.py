@@ -627,13 +627,13 @@ def _resolver_name_from_pipfile() -> str | None:
     """Return the ``[pipenv] resolver`` value from the current project
     Pipfile, or ``None`` if absent / unreadable.
 
-    Best-effort: this is called from the resolver-call layer in the
-    parent.  The subprocess child does NOT call this (it consults
-    ``request.options.backend`` only — the parent has already made the
-    selection by the time the wire request goes out).  If the project
-    isn't accessible (e.g. running unit tests with no Pipfile on disk),
-    return ``None`` silently and let the caller fall through to the
-    default.
+    Best-effort fallback: the parent-side request builder normally stamps
+    the selected backend onto ``request.options.backend`` before the wire
+    request is written, so the subprocess usually never needs this read.
+    Keep the Pipfile lookup here for direct callers / tests that still
+    pass an empty backend field.  If the project isn't accessible (e.g.
+    running unit tests with no Pipfile on disk), return ``None``
+    silently and let the caller fall through to the default.
     """
     try:
         from pipenv.project import Project
@@ -661,10 +661,12 @@ def _selected_backend_name(request: ResolverRequest) -> str:
     """Apply the precedence chain CLI > env > Pipfile > default and
     return the backend name to dispatch to.
 
-    Reads only from ``request.options.backend`` (the CLI / explicit
-    selection), :func:`_resolver_name_from_env`, and
-    :func:`_resolver_name_from_pipfile`.  All four levels of the chain
-    are individually monkey-patchable by tests.
+    ``request.options.backend`` is the fast path: the parent-side request
+    builder stamps the effective backend there before spawning the child,
+    so the subprocess usually returns immediately without re-reading env
+    vars or the Pipfile.  The env/Pipfile/default fallbacks remain for
+    direct callers / tests that still pass an empty backend field.  All
+    four levels of the chain are individually monkey-patchable by tests.
     """
     # 1. CLI / explicit request override: ``ResolverOptions.backend`` is
     # the wire-level home for ``--resolver NAME``.  Empty / unset / the
