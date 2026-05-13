@@ -35,7 +35,9 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -287,7 +289,7 @@ class ParsedManifestCache:
                 os.fsync(tmp.fileno())
             finally:
                 tmp.close()
-            os.replace(tmp.name, str(target))
+            _replace_with_windows_retry(tmp.name, str(target))
         except BaseException:
             # os.replace failed (or any earlier step did).  Best-effort
             # cleanup of the temp file — if this also fails (rare), the
@@ -451,6 +453,38 @@ def _datetime_from_iso(value: str) -> datetime:
     bare form for naïve ones, so a round-trip is lossless.
     """
     return datetime.fromisoformat(value)
+
+
+_REPLACE_RETRY_ATTEMPTS = 5
+_REPLACE_RETRY_BACKOFF_S = 0.010
+
+
+def _replace_with_windows_retry(src: str, dst: str) -> None:
+    """``os.replace`` with a brief retry loop for Windows file-sharing.
+
+    On POSIX this is a single ``os.replace`` call.  On Windows
+    ``os.replace`` raises ``PermissionError`` (``ERROR_ACCESS_DENIED``)
+    when the destination is held open by another process — including a
+    well-behaved concurrent reader doing ``open(target, "rb")``.  The
+    contention window is short (the reader closes the handle after
+    ``read_bytes``), so we retry a handful of times with a small linear
+    backoff.  POSIX takes the no-retry happy path on the first call.
+    """
+    if sys.platform != "win32":
+        os.replace(src, dst)
+        return
+    last_exc: PermissionError | None = None
+    for attempt in range(_REPLACE_RETRY_ATTEMPTS):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError as exc:  # noqa: PERF203 — retry-on-exception is the point
+            last_exc = exc
+            if attempt + 1 == _REPLACE_RETRY_ATTEMPTS:
+                break
+            time.sleep(_REPLACE_RETRY_BACKOFF_S * (attempt + 1))
+    assert last_exc is not None
+    raise last_exc
 
 
 __all__ = ["CachedManifest", "ParsedManifestCache"]
