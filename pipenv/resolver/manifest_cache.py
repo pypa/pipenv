@@ -35,7 +35,9 @@ import hashlib
 import json
 import os
 import shutil
+import sys
 import tempfile
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -287,7 +289,7 @@ class ParsedManifestCache:
                 os.fsync(tmp.fileno())
             finally:
                 tmp.close()
-            os.replace(tmp.name, str(target))
+            _replace_with_windows_retry(tmp.name, str(target))
         except BaseException:
             # os.replace failed (or any earlier step did).  Best-effort
             # cleanup of the temp file — if this also fails (rare), the
@@ -451,6 +453,53 @@ def _datetime_from_iso(value: str) -> datetime:
     bare form for naïve ones, so a round-trip is lossless.
     """
     return datetime.fromisoformat(value)
+
+
+_REPLACE_RETRY_BUDGET_S = 2.0
+_REPLACE_RETRY_INITIAL_BACKOFF_S = 0.005
+_REPLACE_RETRY_MAX_BACKOFF_S = 0.100
+
+
+def _replace_with_windows_retry(src: str, dst: str) -> None:
+    """``os.replace`` with a wall-clock retry budget for Windows file sharing.
+
+    On POSIX this is a single ``os.replace`` call.  On Windows
+    ``os.replace`` raises ``PermissionError`` (``ERROR_ACCESS_DENIED``)
+    when the destination is held open by another process — including a
+    well-behaved concurrent reader doing ``open(target, "rb")``.
+
+    The earlier 5-attempt × 10 ms-linear scheme (~100 ms total) was
+    exhausted on the Windows CI runner by
+    :func:`test_reader_never_sees_partial_payload`, which runs a reader
+    in a tight ``while not stop_event.is_set()`` loop for ~100 ms — the
+    reader's open/close cycle compounds across thousands of iterations
+    and the writer can't squeeze a rename in within the old budget.
+
+    The new scheme is a wall-clock budget (default 2 s) with exponential
+    backoff capped at 100 ms.  On Windows the writer keeps retrying
+    until the deadline; on POSIX the first call always succeeds and we
+    return immediately.  2 s is generous for production (manifest
+    writes are rare) and well within
+    ``test_reader_never_sees_partial_payload``'s 5 s join timeout.
+    """
+    if sys.platform != "win32":
+        os.replace(src, dst)
+        return
+    deadline = time.monotonic() + _REPLACE_RETRY_BUDGET_S
+    backoff = _REPLACE_RETRY_INITIAL_BACKOFF_S
+    last_exc: PermissionError | None = None
+    while True:
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError as exc:  # noqa: PERF203 — retry-on-exception is the point
+            last_exc = exc
+            if time.monotonic() >= deadline:
+                break
+            time.sleep(backoff)
+            backoff = min(backoff * 2, _REPLACE_RETRY_MAX_BACKOFF_S)
+    assert last_exc is not None
+    raise last_exc
 
 
 __all__ = ["CachedManifest", "ParsedManifestCache"]
