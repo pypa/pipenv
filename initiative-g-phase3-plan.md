@@ -900,9 +900,28 @@ near the bottom of this document.
   `is_satisfied_by`, `get_dependencies`.  Use mock cache + mock
   metadata fetcher.  Edge cases per T3–T7 validation lists.  Coverage
   ≥ 90 %.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Extended `tests/unit/test_pure_python_provider.py` from
+    43 -> 60 tests (17 added) covering the audit list in T13:
+    duck-typed `Candidate` in `identify`; `find_matches` dedup,
+    `populate`-less fetcher, `InvalidVersion` skip, `allow_prereleases`
+    on/off, `target_python=None`, `InvalidSpecifier` in
+    `requires_python`; `get_preference` `specifier=None`,
+    `backtrack_causes` skip-when-`requirement-None` /
+    different-identifier / `identify`-raises;
+    `is_satisfied_by` unparseable version + marker-raises;
+    `get_dependencies` blank `Requires-Dist`, marker-raises with
+    parent-extras + without parent-extras.  Coverage on
+    `pipenv/resolver/pure_python_provider.py`: 88 % -> 99 %
+    (98.96 % exact; 2 uncovered lines are a deliberately defensive
+    `InvalidVersion` branch in `_candidate_requires_python_ok` that
+    cannot be reached against the current vendored `packaging` --
+    `SpecifierSet.contains` returns `False` on malformed versions
+    rather than raising; documented in-file).  All 60 unit tests +
+    2 smoke tests pass.
 - **files edited/created**:
+  - tests/unit/test_pure_python_provider.py
 
 ---
 
