@@ -59,6 +59,7 @@ re-using patched-pip's vendored frontend rather than re-vendoring it.
 from __future__ import annotations
 
 import concurrent.futures
+import hashlib
 import logging
 import tarfile
 import tempfile
@@ -239,7 +240,6 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
     expected_hashes = getattr(candidate, "hashes", None) or {}
     sha256_hashes = expected_hashes.get("sha256", [])
     if sha256_hashes:
-        import hashlib
         computed = hashlib.sha256(bytes(body)).hexdigest()
         if computed not in sha256_hashes:
             raise SdistBuildError(
