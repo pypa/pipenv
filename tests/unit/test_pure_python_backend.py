@@ -2025,6 +2025,288 @@ class TestTranslateMappingIndexName:
 
 
 # ----------------------------------------------------------------------
+# T_M5 (Initiative G Phase 3b): belt-and-braces edge cases for marker /
+# index / hash translation.  Coverage on _translate_mapping is already at
+# 96 % after T_M3 + T_M4 + T_S5; these tests close the scope by pinning
+# tricky combinations that crossed the boundary between the three tracks
+# (e.g. full combo of all three contributions, exotic Requires-Python
+# operators, whitespace tolerance, and cross-pollination between
+# resolved candidates).
+# ----------------------------------------------------------------------
+class TestTranslateMappingT_M5Edges:
+    """T_M5 — combinational edge cases that exercise the
+    Requires-Python ↔ introducing-marker ↔ multi-distfile-hashes
+    intersections built up across T_M3, T_M4, and T_S5.
+    """
+
+    @staticmethod
+    def _wheel_with(
+        name: str,
+        version: str,
+        *,
+        requires_python: str | None = None,
+        hash_value: str = "0" * 64,
+    ) -> Candidate:
+        filename = f"{name}-{version}-py3-none-any.whl"
+        return Candidate(
+            name=name,
+            version=version,
+            url=f"{_INDEX}/{name}/{filename}",
+            filename=filename,
+            hashes=frozenset({Hash("sha256", hash_value)}),
+            requires_python=requires_python,
+            yanked=False,
+            yanked_reason=None,
+            upload_time=None,
+            is_wheel=True,
+            wheel_tags=None,
+            extras=frozenset(),
+        )
+
+    @staticmethod
+    def _sdist_with(
+        name: str,
+        version: str,
+        *,
+        requires_python: str | None = None,
+        hash_value: str = "1" * 64,
+    ) -> Candidate:
+        filename = f"{name}-{version}.tar.gz"
+        return Candidate(
+            name=name,
+            version=version,
+            url=f"{_INDEX}/{name}/{filename}",
+            filename=filename,
+            hashes=frozenset({Hash("sha256", hash_value)}),
+            requires_python=requires_python,
+            yanked=False,
+            yanked_reason=None,
+            upload_time=None,
+            is_wheel=False,
+            wheel_tags=None,
+            extras=frozenset(),
+        )
+
+    @staticmethod
+    def _info_rows(*requirements):
+        from pipenv.patched.pip._vendor.resolvelib.structs import (
+            RequirementInformation,
+        )
+
+        return tuple(
+            RequirementInformation(requirement=r, parent=None)
+            for r in requirements
+        )
+
+    def test_full_combo_marker_requires_python_and_multi_distfile_hashes(self):
+        """All three contributions in one lockfile entry:
+
+        * ``Requires-Python`` (``>=3.10``) → ``python_version >= '3.10'``
+        * ``introducing_marker`` (``sys_platform == 'darwin'``) → propagates
+        * Multi-distfile hashes — wheel + sdist siblings both emit hashes.
+
+        Pins that the three independent paths inside ``_translate_mapping``
+        compose cleanly (T_M3's marker join + T_S5's hash union + T_M4's
+        source-name lookup).  This is the "everything at once" smoke gate
+        — a regression in any one path surfaces here.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        wheel_hash = "a" * 64
+        sdist_hash = "b" * 64
+        # Wheel chosen as the resolved candidate; sdist sibling at the
+        # same version contributes its hash to the lockfile entry.
+        wheel = self._wheel_with(
+            "combo", "1.0", requires_python=">=3.10", hash_value=wheel_hash
+        )
+        sdist = self._sdist_with(
+            "combo", "1.0", requires_python=">=3.10", hash_value=sdist_hash
+        )
+        cache = _FakeCache({(_INDEX, "combo"): (wheel, sdist)})
+
+        # Introducing requirement carries a marker — T_M2 contract.
+        intro_req = Requirement(
+            name="combo",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="some-parent",
+            introducing_marker=Marker("sys_platform == 'darwin'"),
+        )
+
+        identifier = ("combo", frozenset())
+        fake_result = _FakeResult(
+            mapping={identifier: wheel},
+            criteria={identifier: _FakeCriterion(self._info_rows(intro_req))},
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request({"combo": "*"})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        entry = locked[0]
+
+        # All three fields populated:
+        # 1. markers: AND-join of Requires-Python + introducing marker.
+        #    Requires-Python uses single-quoted repr; ``Marker.__str__``
+        #    uses double-quoted form (matches T_M3's pin).
+        assert entry.markers == (
+            "python_version >= '3.10' and sys_platform == \"darwin\""
+        )
+        # 2. hashes: wheel + sdist siblings unioned, sorted.
+        assert tuple(entry.hashes) == (
+            f"sha256:{wheel_hash}",
+            f"sha256:{sdist_hash}",
+        )
+        # 3. index: T_M4 source-name lookup from ``request.sources``.
+        assert entry.index == "pypi"
+
+    def test_requires_python_not_equal_operator_emits_marker(self):
+        """``requires_python="!=3.11"`` → marker emits
+        ``python_version != '3.11'``.  Pins the rare-but-real
+        ``!=`` operator path through ``_requires_python_to_marker``.
+        """
+        from pipenv.resolver.backends.pure_python import (
+            _requires_python_to_marker,
+        )
+
+        # Direct helper assertion — the translator just delegates to
+        # this function for the Requires-Python contribution.
+        assert _requires_python_to_marker("!=3.11") == "python_version != '3.11'"
+
+    def test_requires_python_compatible_release_operator_emits_marker(self):
+        """``requires_python="~=3.10"`` (PEP 440 compatible-release)
+        → marker emits ``python_version ~= '3.10'``.
+
+        We pin whatever the implementation does today: the helper renders
+        each ``Specifier`` verbatim as ``python_version <op> <ver!r>``,
+        so ``~=`` survives as-is.  A future canonicaliser that expands
+        ``~=`` to a lower+upper bound pair would break this assertion —
+        which is intentional: that change has lockfile-shape implications
+        and warrants a deliberate gate flip.
+        """
+        from pipenv.resolver.backends.pure_python import (
+            _requires_python_to_marker,
+        )
+
+        assert _requires_python_to_marker("~=3.10") == "python_version ~= '3.10'"
+
+    def test_requires_python_with_whitespace_emits_canonical(self):
+        """``requires_python=">= 3.10"`` (whitespace around the operator)
+        → marker emits the canonical ``python_version >= '3.10'``.
+
+        ``SpecifierSet`` accepts whitespace inside an operator/version
+        spec and normalises on parse — the marker translator's output
+        must therefore not carry the user's stray whitespace through.
+        """
+        from pipenv.resolver.backends.pure_python import (
+            _requires_python_to_marker,
+        )
+
+        assert _requires_python_to_marker(">= 3.10") == "python_version >= '3.10'"
+
+    def test_multiple_candidates_with_same_requires_python_no_cross_pollination(
+        self,
+    ):
+        """Two resolved candidates that happen to share the same
+        ``Requires-Python`` value each get their own marker, computed
+        independently.  Pins that the translator does not accidentally
+        memoise / reuse the marker string across mapping entries
+        (which would create a cross-pollination bug if one candidate's
+        introducing marker leaked into another's).
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        # Both candidates pin Requires-Python ``>=3.10`` — the marker
+        # contribution from that source is identical.  The introducing
+        # marker is DIFFERENT per candidate so we can detect any leak.
+        cand_a = self._wheel_with("a-pkg", "1.0", requires_python=">=3.10")
+        cand_b = self._wheel_with("b-pkg", "2.0", requires_python=">=3.10")
+        cache = _FakeCache(
+            {
+                (_INDEX, "a-pkg"): (cand_a,),
+                (_INDEX, "b-pkg"): (cand_b,),
+            }
+        )
+
+        intro_a = Requirement(
+            name="a-pkg",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="root",
+            introducing_marker=Marker("sys_platform == 'linux'"),
+        )
+        intro_b = Requirement(
+            name="b-pkg",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="root",
+            introducing_marker=Marker("sys_platform == 'win32'"),
+        )
+
+        id_a = ("a-pkg", frozenset())
+        id_b = ("b-pkg", frozenset())
+        fake_result = _FakeResult(
+            mapping={id_a: cand_a, id_b: cand_b},
+            criteria={
+                id_a: _FakeCriterion(self._info_rows(intro_a)),
+                id_b: _FakeCriterion(self._info_rows(intro_b)),
+            },
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request({"a-pkg": "*", "b-pkg": "*"})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked_by_name = {l.name: l for l in response.result.locked}
+        # Each candidate's marker mentions its own platform — no
+        # cross-pollination.
+        marker_a = locked_by_name["a-pkg"].markers
+        marker_b = locked_by_name["b-pkg"].markers
+        assert marker_a is not None and marker_b is not None
+        assert "linux" in marker_a and "win32" not in marker_a
+        assert "win32" in marker_b and "linux" not in marker_b
+        # Both still carry the shared Requires-Python contribution.
+        assert "python_version >= '3.10'" in marker_a
+        assert "python_version >= '3.10'" in marker_b
+
+
+# ----------------------------------------------------------------------
 # T10: Backend registration
 # ----------------------------------------------------------------------
 #
