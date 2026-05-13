@@ -235,7 +235,7 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
     # filename containing path separators or an absolute path cannot
     # write outside the temporary directory.
     archive_name = Path(archive_name).name
-    if not archive_name or archive_name in (".", ".."):
+    if not archive_name.strip() or archive_name in (".", ".."):
         raise SdistBuildError(
             f"sdist download failed: invalid archive filename derived from {url!r}"
         )
