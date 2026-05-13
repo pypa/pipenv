@@ -91,9 +91,50 @@ waits on both.
     constructs, equals itself, hashes.
   - `Requirement.from_pipfile_entry` accepts an optional
     `introducing_marker` kwarg.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Added `introducing_marker: Marker | None = None` to the
+    `Requirement` frozen dataclass after the existing `parent`
+    field, preserving `__init__` argument order for all existing
+    callers (the new field is defaulted, so positional construction
+    sites continue to work unchanged).
+  - `from_pipfile_entry` was deliberately NOT widened — the helper
+    only constructs top-level Pipfile constraints, which never
+    carry an introducing marker. Transitives are built via the
+    direct `Requirement(...)` call in
+    `PurePythonProvider.get_dependencies` (T_M2's job).
+  - `Marker` is hashable out of the box in `pipenv.vendor.packaging`
+    (`markers.py:329`) — no `__hash__` override needed; the
+    frozen-dataclass derived `__hash__` continues to work for
+    `frozenset[Requirement]` membership with the new field.
+  - Added a new `TestRequirementIntroducingMarker` test class (9
+    tests) to `tests/unit/test_pure_python_requirement.py`
+    covering: default-to-None on `from_pipfile_entry`, default-to-None
+    on direct construction without the kwarg, round-trip with the
+    kwarg, equality / inequality / hash semantics across same /
+    different / None markers, `frozenset` membership, the
+    `dataclasses.replace` round-trip pattern T_M2 will use, and the
+    pin that `from_pipfile_entry` rejects the kwarg.
+  - Added a new `TestRequiresPythonPreservation` test class (2
+    tests) to `tests/unit/test_candidate.py` pinning that
+    `Candidate.requires_python` survives end-to-end from the PEP 691
+    JSON parse (`_parse_pep691_json`) verbatim — both the
+    populated (`">=3.10"`) and `None` paths. This is the
+    dependency that T_M3's marker emission relies on.
+  - Coverage on `pipenv/resolver/pure_python_requirement.py` is
+    100 % (37 / 37 statements); the grep gate
+    `grep -n "pip\._internal" ...` returns 0 matches.
+  - All 44 tests in `test_pure_python_requirement.py` (35 existing
+    + 9 new) and all 33 tests in `test_candidate.py` (31 existing
+    + 2 new) pass.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_requirement.py` (added
+    `introducing_marker` field and docstring section)
+  - `tests/unit/test_pure_python_requirement.py` (added
+    `TestRequirementIntroducingMarker`)
+  - `tests/unit/test_candidate.py` (added
+    `TestRequiresPythonPreservation`)
+  - `initiative-g-phase3b-plan.md` (this entry)
 
 ---
 
