@@ -329,6 +329,18 @@ class Setting:
         [Requests docs](https://requests.readthedocs.io/en/latest/user/advanced/#timeouts).
         """
 
+        self.PIPENV_RECASE_PIPFILE = bool(get_from_env("RECASE_PIPFILE"))
+        """If set, Pipenv will rewrite Pipfile package names to match the
+        capitalization advertised by PyPI's project metadata.
+
+        Default is unset (disabled).  When enabled, every fresh package name
+        triggers a synchronous PyPI lookup to learn its display casing — for a
+        ``pipenv install -r requirements.txt`` of ~100 packages this adds
+        several seconds of sequential network latency on top of the resolve.
+        Names are PEP 503-equivalent regardless, so leaving this off has no
+        effect on resolution; only the literal text in your ``Pipfile`` differs.
+        """
+
         self.PIPENV_VENV_IN_PROJECT = get_from_env("VENV_IN_PROJECT")
         """ When set True, will create or use the ``.venv`` in your project directory.
         When Set False, will ignore the .venv in your project directory even if it exists.
