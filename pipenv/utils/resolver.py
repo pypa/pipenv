@@ -1458,6 +1458,36 @@ def _resolve_deadline_seconds(project) -> float:
 # --- T_F.6 END --------------------------------------------------------------
 
 
+def _selected_backend_for_request(project, resolver_backend=None):
+    """Return the resolver backend the parent should stamp onto the request.
+
+    The parent computes the full precedence chain (CLI/caller > env >
+    current project's Pipfile > default) before serializing the request so
+    the resolver subprocess does not need to rediscover a Pipfile from its
+    cwd just to make the same decision again.
+    """
+    backend = str(resolver_backend or "").strip()
+    if backend:
+        return backend
+
+    backend = str(os.environ.get("PIPENV_RESOLVER") or "").strip()
+    if backend:
+        return backend
+
+    pipfile_backend = None
+    settings = getattr(project, "settings", None)
+    if settings is not None:
+        try:
+            pipfile_backend = getattr(settings, "resolver", None)
+            if pipfile_backend is None and hasattr(settings, "get"):
+                pipfile_backend = settings.get("resolver")
+        except Exception:  # noqa: BLE001 - unreadable settings fall through
+            pipfile_backend = None
+
+    backend = str(pipfile_backend or "").strip()
+    return backend or "pip"
+
+
 def _build_resolver_request(
     *,
     deps,
@@ -1478,7 +1508,9 @@ def _build_resolver_request(
     Replaces the argv + env-var + constraints-tempfile +
     resolved-default-deps-tempfile cocktail (F.1 §3.1–3.2) with one
     typed envelope.  ``deps`` is the post-``convert_deps_to_pip`` mapping
-    of ``name -> pip-install-argument-string``.
+    of ``name -> pip-install-argument-string``.  The parent also stamps
+    the selected resolver backend onto the request so the subprocess can
+    dispatch without re-reading Pipfile state from disk.
     """
     typed_sources = tuple(
         ResolverSource(
@@ -1514,10 +1546,10 @@ def _build_resolver_request(
             clear=bool(clear),
             system=bool(allow_global),
             verbose=bool(verbose),
-            # T_F.5: pluggable-backend selection from the CLI / caller.
-            # Empty string is the "unset" sentinel; the dispatcher then
-            # falls through to env / Pipfile / default.
-            backend=str(resolver_backend or ""),
+            # T_F.5: stamp the effective backend chosen by the parent onto
+            # the wire request so the subprocess can dispatch without
+            # rediscovering env / Pipfile state.
+            backend=_selected_backend_for_request(project, resolver_backend),
         ),
         sources=typed_sources,
         python_marker_override=python_marker_override,

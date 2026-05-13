@@ -201,6 +201,52 @@ class TestBuildResolverRequest:
         names = {e.name for e in request.resolved_default_deps.entries}
         assert "requests" in names
 
+    def test_request_stamps_default_backend(self, tmp_path, monkeypatch):
+        """The parent stamps the default backend onto the request so the
+        subprocess does not need to rediscover Pipfile state.
+        """
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        request = resolver_mod._build_resolver_request(
+            deps={"requests": "requests==2.31.0"},
+            sources=[
+                {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
+            ],
+            category="default",
+            pre=False,
+            clear=False,
+            allow_global=False,
+            verbose=False,
+            python_marker_override=None,
+            extra_pip_args=[],
+            resolved_default_deps=None,
+            project=_stub_project(tmp_path),
+        )
+        assert request.options.backend == "pip"
+
+    def test_request_stamps_pipfile_selected_backend(self, tmp_path, monkeypatch):
+        """The parent serializes the Pipfile-selected backend onto the wire
+        request so the child does not construct another Project().
+        """
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        project = _stub_project(tmp_path)
+        project.settings = {"resolver": "uv"}
+        request = resolver_mod._build_resolver_request(
+            deps={"requests": "requests==2.31.0"},
+            sources=[
+                {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
+            ],
+            category="default",
+            pre=False,
+            clear=False,
+            allow_global=False,
+            verbose=False,
+            python_marker_override=None,
+            extra_pip_args=[],
+            resolved_default_deps=None,
+            project=project,
+        )
+        assert request.options.backend == "uv"
+
 
 # ---------------------------------------------------------------------------
 # Subprocess invocation argv shape

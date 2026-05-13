@@ -82,11 +82,13 @@ class ResolverOptions:
     ``PIPENV_VERBOSITY`` / ``PIP_RESOLVER_DEBUG`` pip env-vars after
     receipt — those env-vars are pip's own, not part of *this* protocol.
 
-    ``backend`` (T_F.5) carries the explicit ``--resolver NAME``
-    selection across the wire.  Empty string is the "unset" sentinel
-    (no CLI override; the dispatcher falls through to env var / Pipfile
-    / default).  Additive default — SCHEMA_VERSION stays at 1 per the
-    design's §8 "additive default" rule.
+    ``backend`` (T_F.5) carries the backend selected by the parent
+    across the wire.  An explicit ``--resolver NAME`` flag seeds that
+    choice, but the parent also stamps env / Pipfile / default fallbacks
+    so the subprocess can dispatch without rediscovering project state.
+    Empty string is still accepted from older callers/tests as the
+    "compute it locally" sentinel.  Additive default — SCHEMA_VERSION
+    stays at 1 per the design's §8 "additive default" rule.
     """
 
     pre: bool = False
