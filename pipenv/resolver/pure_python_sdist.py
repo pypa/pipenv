@@ -231,6 +231,14 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
     # path uses — so the file's extension survives intact and the
     # extractor in step 2 can dispatch on it.
     archive_name = getattr(candidate, "filename", None) or _filename_from_url(url)
+    # Sanitise: strip any directory components so a malformed simple-API
+    # filename containing path separators or an absolute path cannot
+    # write outside the temporary directory.
+    archive_name = Path(archive_name).name
+    if not archive_name or archive_name in (".", ".."):
+        raise SdistBuildError(
+            f"sdist download failed: invalid archive filename derived from {url!r}"
+        )
     archive_path = dest_dir / archive_name
     try:
         archive_path.write_bytes(bytes(body))
