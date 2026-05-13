@@ -29,7 +29,6 @@ dynamic = [
   "version",
 ]
 dependencies = [
-  "build>=1.0",
   "certifi",
   "packaging>=22",
   "setuptools>=67",

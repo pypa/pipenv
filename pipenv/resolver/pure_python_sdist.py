@@ -454,8 +454,8 @@ def _build_metadata_in_isolated_env(
     :mod:`build` is imported lazily so wheel-only resolves never pay
     the import cost.
     """
-    from build import ProjectBuilder
-    from build.env import DefaultIsolatedEnv
+    from pipenv.vendor.build import ProjectBuilder
+    from pipenv.vendor.build.env import DefaultIsolatedEnv
 
     with DefaultIsolatedEnv() as env:
         builder = ProjectBuilder.from_isolated_env(env, str(source_root))
