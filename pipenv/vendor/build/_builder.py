@@ -13,7 +13,7 @@ import zipfile
 from collections.abc import Iterator
 from typing import Any, Mapping, Sequence, TypeVar
 
-import pyproject_hooks
+import pipenv.vendor.pyproject_hooks as pyproject_hooks
 
 from . import _ctx, env
 from ._compat import tomllib
