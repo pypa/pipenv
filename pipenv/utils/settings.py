@@ -210,11 +210,9 @@ class Settings(MutableMapping):
         ``None`` if unset.
 
         Introduced by T_PLUMBING (Initiative G phase 3, 2026-05-12).
-        The user-facing Pipfile setting name documented in
-        ``docs/pipfile.md`` and the T_SHIP follow-up.  Coexists with
-        the T_F.5 ``[pipenv] resolver`` accessor as the back-compat
-        alias; the lock routine prefers ``resolver_backend`` over
-        ``resolver`` when both are present.
+        Coexists with the T_F.5 ``[pipenv] resolver`` accessor as the
+        back-compat alias; the lock routine prefers
+        ``resolver_backend`` over ``resolver`` when both are present.
 
         Accepted values: ``"pip"`` (default), ``"pure-python"``.
         Unknown values still produce a structured ``InternalError``
