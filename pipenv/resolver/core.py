@@ -640,7 +640,7 @@ def _resolver_name_from_pipfile() -> str | None:
     except Exception:  # noqa: BLE001 — defensive against import issues
         return None
     try:
-        project = Project()
+        project = Project(chdir=False)
         # T_PLUMBING (Initiative G phase 3): prefer the documented
         # ``resolver_backend`` key over the T_F.5 back-compat alias
         # ``resolver``.  Either may be present; the documented spelling

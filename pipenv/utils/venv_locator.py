@@ -14,7 +14,7 @@ Behaviour is preserved verbatim from the previous in-``Project``
 implementation; this is a relocation, not a rewrite. ``VenvLocator``
 holds a back-reference to the owning ``Project`` so it can read
 ``project.s.*`` (the ``Settings`` proper), ``project.pipfile.parsed``,
-``project.pipfile.project_directory``, ``project.name``, and
+``project.pipfile.project_directory``, ``project.pipfile.name``, and
 ``project.pipfile.location`` without redefining their lazy-init
 semantics.
 
@@ -381,8 +381,7 @@ class VenvLocator:
         """
         from pipenv.utils.shell import project_python
 
-        # ``project_python`` calls back into ``project._which`` — preserve
-        # the existing API by forwarding the project reference.
+        # Preserve the existing API by forwarding the project reference.
         return project_python(self._project, system=system)
 
     def _which(self, command, location=None, allow_global=False):
