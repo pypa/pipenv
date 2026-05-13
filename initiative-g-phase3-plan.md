@@ -433,9 +433,68 @@ near the bottom of this document.
   - Pipfile vs transitive: Pipfile-direct sorts before transitive.
   - Backtrack: an identifier appearing in `backtrack_causes` 3 times
     sorts after one appearing 0 times.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Read pip's `PipProvider.get_preference` in
+    `pipenv/patched/pip/_internal/resolution/resolvelib/provider.py`
+    end-to-end.  pip's tuple is a 7-tuple at the time of this commit:
+    `(not conflict_promoted, not direct, not pinned, not upper_bounded,
+    requested_order, not unfree, identifier)`.  Three of the seven
+    components depend on pip-internal state we don't carry in Phase 3
+    — see parity-divergence candidates below.
+  - Confirmed `resolvelib.AbstractProvider.get_preference` signature
+    from `pipenv/patched/pip/_vendor/resolvelib/providers.py:33-90` and
+    the `RequirementInformation = namedtuple(..., ["requirement",
+    "parent"])` shape from
+    `pipenv/patched/pip/_vendor/resolvelib/structs.py:27-40`.
+  - Tuple shape this commit returns (low = preferred):
+    `(backtrack_count, not is_pipfile, not is_pinned, not is_upper_bounded,
+    not is_unfree, identifier_key)` where `identifier_key = (name,
+    tuple(sorted(extras)))` for deterministic tie-breaking.  Mirrors
+    the four leading axes the plan T5 validation matrix calls out
+    plus the `upper_bounded` and `unfree` slots that fall out of the
+    same operator scan (free win — same operator pass).
+  - RED→GREEN evidence: 6 new tests landed in
+    `tests/unit/test_pure_python_provider.py` covering pinned-vs-range,
+    `==4.*` not-pinned, Pipfile-vs-transitive, backtrack-count,
+    lexicographic tie-break, and the empty-information defensive path.
+    Initial run with the stub: `NotImplementedError("T5:
+    PurePythonProvider.get_preference")` on first test.  Post-impl:
+    all 18 tests pass (T3's 8 + T4's 4 + T5's 6).  `ruff check` clean.
+    `grep -nE "^[[:space:]]*(from|import)[[:space:]]+pipenv\.patched\.pip\._internal"
+    pipenv/resolver/pure_python_provider.py` shows zero matches.
+  - Parity-divergence candidates (recorded here for T_PARITY_MATRIX
+    follow-up; pip-side components we deliberately do NOT mirror today):
+    1. `conflict_promoted` flag — pip maintains a `_conflict_promoted`
+       set populated by `narrow_requirement_selection` (provider.py
+       lines 120-174); we don't ship `narrow_requirement_selection`
+       in Phase 3 so we render the raw backtrack-cause count instead.
+       Same ordering intent (frequently-backtracking identifiers
+       deferred), different storage model.
+    2. `direct` flag — pip's `direct` is `isinstance(r,
+       ExplicitRequirement)` (URL-direct entries).  Our typed
+       `Requirement` doesn't carry URL-direct yet; we render the
+       closest analog as `source == "pipfile"`.  When the dataclass
+       gains URL-direct (Phase 4 work, not scoped here), the slot
+       upgrades to a strict mirror.
+    3. `requested_order` integer — pip's `_user_requested` map keys
+       identifiers to user-CLI-input ordering with `math.inf`
+       fallback.  Initiative G doesn't track CLI-order today
+       (Pipfile is the source of truth, not argv); the slot is
+       omitted.  Likely doesn't affect lockfile byte-identity for
+       Pipfile-only workflows; T15 / T_PARITY_REAL is the gate.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (extended:
+    `get_preference` body replaces the `T5` `NotImplementedError`
+    stub; method-level docstring cites pip's source file +
+    function for side-by-side audit)
+  - `tests/unit/test_pure_python_provider.py` (extended: 6 new
+    T5 tests + an `_ri()` helper that builds the vendored
+    `RequirementInformation` namedtuple; module docstring
+    refreshed to call out T5 scope)
+  - `initiative-g-phase3-plan.md` (this entry: status →
+    Completed, log + files filled in, parity-divergence
+    candidates recorded)
 
 ---
 

@@ -392,23 +392,156 @@ class PurePythonProvider(AbstractProvider):
             return True
 
     # ------------------------------------------------------------------
-    # T5 — get_preference (NOT YET IMPLEMENTED)
+    # T5 — get_preference (Q-C strict mirror of pip's tuple shape)
     # ------------------------------------------------------------------
 
     def get_preference(
         self,
-        identifier,
-        resolutions,
-        candidates,
-        information,
-        backtrack_causes,
-    ):
+        identifier: Identifier,
+        resolutions: Mapping[Identifier, Any],
+        candidates: Mapping[Identifier, Iterable[Any]],
+        information: Mapping[Identifier, Iterable[Any]],
+        backtrack_causes: Sequence[Any],
+    ) -> tuple:
         """Return a sort key driving ``resolvelib``'s ordering — strict
-        mirror of pip's ``get_preference`` per Q-C.
+        mirror of pip's ``get_preference`` per Initiative G Phase 3 Q-C.
 
-        Owned by T5.  Lands in a subsequent commit on this same module.
+        Source (side-by-side audit reference)
+        -------------------------------------
+        pip's canonical implementation lives at
+        ``pipenv/patched/pip/_internal/resolution/resolvelib/provider.py``
+        in ``PipProvider.get_preference`` (around line 176 — the line
+        number drifts with pip-vendor updates).  The pip tuple in
+        ``return``-order at the time of writing (low = preferred):
+
+        1. ``not conflict_promoted`` — identifiers that have repeatedly
+           caused conflicts get promoted to the front via the separate
+           ``narrow_requirement_selection`` callback.
+        2. ``not direct`` — ``ExplicitRequirement`` (URL-direct) entries.
+        3. ``not pinned`` — ``==<version>`` with no wildcard.
+        4. ``not upper_bounded`` — ``<``, ``<=``, ``~=``, ``==<ver>.*``.
+        5. ``requested_order`` — integer rank of the identifier in
+           ``_user_requested`` (``math.inf`` when not user-requested).
+        6. ``not unfree`` — has at least one operator.
+        7. ``identifier`` — lexicographic tie-breaker.
+
+        Our mirror — Q-C and the design §5.3 summary
+        --------------------------------------------
+        We render the four leading axes called out in the plan T5
+        validation matrix.  See the parity-divergence bullet on the
+        T5 plan entry for the components we deliberately do NOT
+        mirror today (and why):
+
+        * ``not conflict_promoted`` — derived directly from
+          ``backtrack_causes`` here, NOT from a separate promoted-set
+          maintained by ``narrow_requirement_selection``.  We don't
+          ship ``narrow_requirement_selection`` in Phase 3, so the
+          backtrack count is the closest signal available.
+        * ``not direct`` — pip's "direct" is ``ExplicitRequirement``
+          (URL-direct).  Our :class:`Requirement` doesn't model
+          URL-direct yet (T1's ``source`` is one of
+          ``{"pipfile", "transitive", "constraint"}``); we render
+          the closest analog by treating ``source == "pipfile"`` as
+          Pipfile-direct.  Same ordering intent: user-declared beats
+          transitive.
+        * ``not upper_bounded`` — kept (matches pip's slot).
+        * ``requested_order`` — pip's ``_user_requested`` map isn't
+          available to us; omitted.  Lockfile parity is still gated
+          on T15 / T_PARITY_REAL which will surface any user-visible
+          divergence.
+
+        Tuple shape this method returns (low = preferred):
+
+            (backtrack_count,            # 0 best; ≥1 worse
+             not is_pipfile,             # False (pipfile) first
+             not is_pinned,              # False (pinned) first
+             not is_upper_bounded,       # False (has <,<=,~=,==*) first
+             not is_unfree,              # False (has any op) first
+             identifier_name)            # alphabetical tie-break
+
+        See ``docs/dev/initiative-g-phase3-design.md`` §5.3 and
+        ``initiative-g-phase3-plan.md`` T5 for rationale.
         """
-        raise NotImplementedError("T5: PurePythonProvider.get_preference")
+        # Step 1: collect the ``RequirementInformation`` rows for this
+        # identifier.  Mirrors pip's ``has_information`` guard at
+        # ``provider.py`` lines 207-227: information may be absent
+        # transiently between state transitions and we must not blow
+        # up on that.
+        info_rows = list(information.get(identifier, []))
+
+        # Step 2: source-flag — ``source == "pipfile"`` is our analog
+        # of pip's ``direct``.  See divergence note above.
+        is_pipfile = any(
+            getattr(row.requirement, "source", None) == "pipfile"
+            for row in info_rows
+        )
+
+        # Step 3: walk every ``SpecifierSet`` attached to any of the
+        # requirement rows and break it into a list of ``(operator,
+        # version)`` tuples — mirrors pip's ``operators`` comprehension
+        # at provider.py lines 230-234.
+        operators: list[tuple[str, str]] = []
+        for row in info_rows:
+            spec_set = getattr(row.requirement, "specifier", None)
+            if spec_set is None:
+                continue
+            operators.extend(
+                (spec.operator, spec.version) for spec in spec_set
+            )
+
+        # Step 4: derive pinned / upper-bounded / unfree from the
+        # operator list — mirrors provider.py lines 236-241 verbatim.
+        # ``op[:2] == "=="`` covers both ``==`` and ``===`` (the latter
+        # is pip's arbitrary-equality, also pin-shaped).
+        is_pinned = any(
+            (op[:2] == "==") and ("*" not in ver)
+            for op, ver in operators
+        )
+        is_upper_bounded = any(
+            (op in ("<", "<=", "~=")) or (op == "==" and "*" in ver)
+            for op, ver in operators
+        )
+        is_unfree = bool(operators)
+
+        # Step 5: backtrack-cause count for this identifier.  Pip
+        # routes this through ``narrow_requirement_selection`` +
+        # ``_conflict_promoted`` (see divergence note above); we render
+        # the raw count here, lower = better.  Match on the identifier
+        # tuple via ``self.identify`` so a ``RequirementInformation``
+        # whose requirement has the same ``(name, extras)`` counts.
+        backtrack_count = 0
+        for row in backtrack_causes:
+            req = getattr(row, "requirement", None)
+            if req is None:
+                continue
+            try:
+                row_id = self.identify(req)
+            except Exception:
+                # Defensive: a malformed requirement in the backtrack
+                # list shouldn't crash preference computation — skip
+                # it and let resolution proceed.  ``resolvelib``
+                # invariants say this can't happen, but pip applies
+                # the same defensiveness around ``ireqs`` parsing.
+                continue
+            if row_id == identifier:
+                backtrack_count += 1
+
+        # Step 6: identifier name for the lexicographic tie-break.  Our
+        # identifier is a ``(name, frozenset(extras))`` tuple — we sort
+        # on ``name`` first then ``sorted(extras)`` so the order is
+        # deterministic across runs.  Same intent as pip's trailing
+        # ``identifier`` slot.
+        name, extras = identifier
+        identifier_key = (name, tuple(sorted(extras)))
+
+        return (
+            backtrack_count,
+            not is_pipfile,
+            not is_pinned,
+            not is_upper_bounded,
+            not is_unfree,
+            identifier_key,
+        )
 
     # ------------------------------------------------------------------
     # T6 — is_satisfied_by (NOT YET IMPLEMENTED)

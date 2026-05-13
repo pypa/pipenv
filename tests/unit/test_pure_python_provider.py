@@ -1,9 +1,10 @@
 """Focused RED→GREEN tests for :class:`PurePythonProvider` methods
-(Initiative G phase 3, T3 + T4).
+(Initiative G phase 3, T3 + T4 + T5).
 
-Scope: T3 (``identify``) + T4 (``find_matches``).  T13 will extend this
-file with full per-method coverage of ``get_preference``,
-``is_satisfied_by``, and ``get_dependencies`` (T5–T7 deliverables).
+Scope: T3 (``identify``) + T4 (``find_matches``) + T5
+(``get_preference``).  T13 will extend this file with full per-method
+coverage of ``is_satisfied_by`` and ``get_dependencies`` (T6 + T7
+deliverables).
 
 T3 bullets:
 
@@ -458,3 +459,279 @@ class TestFindMatchesRequiresPythonFilter:
         # 5.0.0 is excluded (requires_python=">=4.0" rejects "3.12").
         # 4.2.0 (no requires_python) and 4.0.0 (>=3.10 accepts 3.12) remain.
         assert versions == ["4.2.0", "4.0.0"]
+
+
+# ---------------------------------------------------------------------------
+# T5 — get_preference (Q-C strict mirror of pip's tuple shape)
+# ---------------------------------------------------------------------------
+
+
+def _ri(requirement, parent=None):
+    """Build a ``RequirementInformation`` namedtuple as ``resolvelib``
+    hands one to ``get_preference``.
+
+    The vendored ``resolvelib.structs.RequirementInformation`` is a
+    ``namedtuple("RequirementInformation", ["requirement", "parent"])``
+    — we instantiate the vendored type so the tests exercise the same
+    shape ``resolvelib.Resolver`` produces at runtime.
+    """
+    from pipenv.patched.pip._vendor.resolvelib.structs import (
+        RequirementInformation,
+    )
+
+    return RequirementInformation(requirement=requirement, parent=parent)
+
+
+class TestGetPreferencePinnedVsRange:
+    """Bullet 1 (per plan T5 validation matrix): a pinned requirement
+    (``==4.0.1``) sorts before a range requirement (``>=4.0``).
+
+    Q-C strict mirror: in pip's tuple, ``not pinned`` is one of the
+    leading components — ``False < True``, so pinned (False) sorts
+    before non-pinned (True).  Our mirror keeps the same ordering.
+    """
+
+    def test_pinned_sorts_before_range(self):
+        provider = _make_provider()
+        pinned_id = ("alpha", frozenset())
+        range_id = ("beta", frozenset())
+        pinned_req = _make_requirement(name="alpha", spec="==4.0.1")
+        range_req = _make_requirement(name="beta", spec=">=4.0")
+        information = {
+            pinned_id: iter([_ri(pinned_req)]),
+            range_id: iter([_ri(range_req)]),
+        }
+        pref_pinned = provider.get_preference(
+            pinned_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        # Rebuild information — iterators are one-shot.
+        information = {
+            pinned_id: iter([_ri(pinned_req)]),
+            range_id: iter([_ri(range_req)]),
+        }
+        pref_range = provider.get_preference(
+            range_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        assert pref_pinned < pref_range
+
+    def test_wildcard_eq_is_not_pinned(self):
+        """``==4.*`` is a wildcard equality — pip treats it as
+        upper-bounded, not pinned.  Mirror that: a wildcard-equality
+        requirement does NOT get the pinned-first preference."""
+        provider = _make_provider()
+        wildcard_id = ("alpha", frozenset())
+        pinned_id = ("beta", frozenset())
+        wildcard_req = _make_requirement(name="alpha", spec="==4.*")
+        pinned_req = _make_requirement(name="beta", spec="==4.0.1")
+        information = {
+            wildcard_id: iter([_ri(wildcard_req)]),
+            pinned_id: iter([_ri(pinned_req)]),
+        }
+        pref_wildcard = provider.get_preference(
+            wildcard_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        information = {
+            wildcard_id: iter([_ri(wildcard_req)]),
+            pinned_id: iter([_ri(pinned_req)]),
+        }
+        pref_pinned = provider.get_preference(
+            pinned_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        # Pinned (==4.0.1, no wildcard) sorts before wildcard (==4.*).
+        assert pref_pinned < pref_wildcard
+
+
+class TestGetPreferencePipfileVsTransitive:
+    """Bullet 2: a Pipfile-direct requirement sorts before a transitive
+    requirement on the same axis.
+
+    Note on Q-C strict mirror: pip's "direct" component refers to
+    ``ExplicitRequirement`` (URL-based / direct-reference requirements),
+    NOT Pipfile-direct.  Our typed :class:`Requirement` doesn't model
+    URL-direct yet (T1 only encodes ``source`` ∈
+    ``{"pipfile", "transitive", "constraint"}``), so we mirror pip's
+    "direct" slot by treating ``source == "pipfile"`` as the
+    closest-available analog — this is the design-doc summary's
+    rendering of the same idea (see plan T5 + design §5.3).  When T1
+    gains a URL-direct shape (Phase 4 work), the parity-divergence
+    note in the T5 plan entry tracks the upgrade.
+    """
+
+    def test_pipfile_sorts_before_transitive(self):
+        provider = _make_provider()
+        pipfile_id = ("alpha", frozenset())
+        transitive_id = ("beta", frozenset())
+        pipfile_req = _make_requirement(
+            name="alpha", spec=">=1.0", source="pipfile"
+        )
+        transitive_req = _make_requirement(
+            name="beta",
+            spec=">=1.0",
+            source="transitive",
+            parent="some-parent",
+        )
+        information = {
+            pipfile_id: iter([_ri(pipfile_req)]),
+            transitive_id: iter([_ri(transitive_req)]),
+        }
+        pref_pipfile = provider.get_preference(
+            pipfile_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        information = {
+            pipfile_id: iter([_ri(pipfile_req)]),
+            transitive_id: iter([_ri(transitive_req)]),
+        }
+        pref_transitive = provider.get_preference(
+            transitive_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        assert pref_pipfile < pref_transitive
+
+
+class TestGetPreferenceBacktrackCount:
+    """Bullet 3: an identifier appearing 3 times in ``backtrack_causes``
+    sorts AFTER one appearing 0 times.
+
+    Q-C strict mirror caveat: pip itself doesn't put the raw count in
+    its preference tuple — it uses a separate ``_conflict_promoted``
+    set populated by ``narrow_requirement_selection`` and exposes the
+    boolean ``not conflict_promoted`` at the head of the tuple.  We
+    don't ship ``narrow_requirement_selection`` yet (no T-task assigned
+    in Phase 3), so we render the same ordering signal directly off
+    the ``backtrack_causes`` arg.  Recorded in the parity-divergence
+    bullet on the T5 plan entry.
+    """
+
+    def test_more_backtracks_sorts_later(self):
+        provider = _make_provider()
+        causing_id = ("alpha", frozenset())
+        clean_id = ("beta", frozenset())
+        causing_req = _make_requirement(name="alpha", spec=">=1.0")
+        clean_req = _make_requirement(name="beta", spec=">=1.0")
+        # ``alpha`` shows up 3x in backtrack_causes; ``beta`` 0x.
+        backtrack_causes = (
+            _ri(causing_req),
+            _ri(causing_req),
+            _ri(causing_req),
+        )
+        information = {
+            causing_id: iter([_ri(causing_req)]),
+            clean_id: iter([_ri(clean_req)]),
+        }
+        pref_causing = provider.get_preference(
+            causing_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=backtrack_causes,
+        )
+        information = {
+            causing_id: iter([_ri(causing_req)]),
+            clean_id: iter([_ri(clean_req)]),
+        }
+        pref_clean = provider.get_preference(
+            clean_id,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=backtrack_causes,
+        )
+        # Backtrack-causing identifier sorts AFTER the clean one.
+        assert pref_clean < pref_causing
+
+
+class TestGetPreferenceLexicographicTieBreak:
+    """Bonus bullet: identifiers that tie on every other axis fall
+    back to alphabetical name order — same as pip's tuple's trailing
+    ``identifier`` component.  Stable order across runs is what makes
+    lockfile output deterministic (the Q-C parity gate's eventual
+    requirement)."""
+
+    def test_alphabetical_order_on_full_tie(self):
+        provider = _make_provider()
+        id_a = ("alpha", frozenset())
+        id_b = ("beta", frozenset())
+        req_a = _make_requirement(name="alpha", spec=">=1.0")
+        req_b = _make_requirement(name="beta", spec=">=1.0")
+        information = {
+            id_a: iter([_ri(req_a)]),
+            id_b: iter([_ri(req_b)]),
+        }
+        pref_a = provider.get_preference(
+            id_a,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        information = {
+            id_a: iter([_ri(req_a)]),
+            id_b: iter([_ri(req_b)]),
+        }
+        pref_b = provider.get_preference(
+            id_b,
+            resolutions={},
+            candidates={},
+            information=information,
+            backtrack_causes=(),
+        )
+        assert pref_a < pref_b
+
+
+class TestGetPreferenceEmptyInformation:
+    """Defensive: ``get_preference`` is callable with no information for
+    the identifier (``resolvelib`` can do this transiently between
+    state transitions).  Should not raise, should return a sortable
+    tuple whose pinned / direct flags reflect "unknown" (treated as
+    not-pinned / not-direct, matching pip's ``has_information=False``
+    branch)."""
+
+    def test_no_information_returns_sortable_tuple(self):
+        provider = _make_provider()
+        identifier = ("alpha", frozenset())
+        # Empty iterator — same shape pip's ``has_information`` branch
+        # protects against.
+        pref = provider.get_preference(
+            identifier,
+            resolutions={},
+            candidates={},
+            information={identifier: iter([])},
+            backtrack_causes=(),
+        )
+        # Just confirm we got a tuple back that's orderable against
+        # another preference tuple (same shape).
+        other_id = ("beta", frozenset())
+        other_req = _make_requirement(name="beta", spec="==1.0")
+        other_pref = provider.get_preference(
+            other_id,
+            resolutions={},
+            candidates={},
+            information={other_id: iter([_ri(other_req)])},
+            backtrack_causes=(),
+        )
+        # Comparison must succeed (orderable).  The pinned-beta sorts
+        # before the unknown-alpha.
+        assert other_pref < pref
