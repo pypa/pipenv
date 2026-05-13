@@ -349,6 +349,9 @@ class TestPrefetchWheelsHappyPath:
                     status=200, body=body_by_url.get(url, b"")
                 )
 
+            def clear(self):
+                pass
+
         monkeypatch.setattr(
             "pipenv.patched.pip._vendor.urllib3.PoolManager",
             lambda **_kw: _FakeSession(),

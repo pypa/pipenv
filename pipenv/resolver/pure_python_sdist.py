@@ -502,10 +502,14 @@ def _run_prepare_metadata(
     Wrapped in a :class:`ThreadPoolExecutor` with a hard 300-second
     timeout — :mod:`build` itself has no timeout knob.  The subprocess
     the hook caller spawns continues running on timeout (we can't kill
-    it without a runner swap), but the executor frees us to surface
-    :class:`SdistBuildError` rather than block resolve forever.
+    it without a runner swap), but using ``shutdown(wait=False)`` in
+    a ``finally`` clause means we return to the caller immediately
+    rather than blocking for the full duration of a wedged build.  The
+    background thread is a daemon thread that will be reaped when the
+    process exits.
     """
-    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+    pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    try:
         future = pool.submit(
             _build_metadata_in_isolated_env, source_root, metadata_dir
         )
@@ -526,6 +530,11 @@ def _run_prepare_metadata(
             raise SdistBuildError(
                 f"build backend failed: {backend!r}: {exc}"
             ) from exc
+    finally:
+        # Always shut down without waiting: if the future completed
+        # normally there is nothing pending to wait for; if it timed out
+        # or raised, blocking here would defeat the timeout entirely.
+        pool.shutdown(wait=False)
 
     metadata_path = dist_info_path / "METADATA"
     try:
