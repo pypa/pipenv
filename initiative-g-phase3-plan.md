@@ -515,9 +515,98 @@ near the bottom of this document.
   - `==4.0.1` requirement, candidate version `4.0.2` → False.
   - `requirement.marker = Marker("python_version < '3.10'")` and
     `target_env = {"python_version": "3.12"}` → False.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Implemented per design §5.3.  Replaced the
+    `NotImplementedError("T6: ...")` stub with the three-check
+    predicate the plan calls out.  Body cites pip's source for the
+    audit trail: `SpecifierRequirement.is_satisfied_by` at
+    `pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py:121`
+    and `PipProvider.is_satisfied_by` at
+    `pipenv/patched/pip/_internal/resolution/resolvelib/provider.py:300`.
+  - **Check 1 (version)**: `spec.contains(Version(candidate.version),
+    prereleases=True)`.  Pip-parity rationale: pip passes
+    `prereleases=True` unconditionally at the predicate because
+    `PackageFinder` filtered prereleases out upstream.  T4's
+    `find_matches` plays the same `PackageFinder` role for us
+    (applies the `allow_prereleases` + per-specifier policy), so this
+    predicate must not re-filter — otherwise a candidate
+    `find_matches` legitimately handed back would be silently
+    rejected.  `InvalidVersion` returns `False` (same loud-failure
+    stance as T4's sort step).
+  - **Check 2 (extras, lazy-metadata stance)**: when
+    `candidate.extras` is empty we treat it as "metadata not yet
+    loaded" and admit the candidate; when non-empty we require
+    `requirement.extras <= candidate.extras`.  Phase-3 audit of pip's
+    `SpecifierRequirement.is_satisfied_by` shows pip itself does NOT
+    check extras at the predicate — it relies on the `(name, extras)`
+    identifier grouping in `identify` (T3) to prevent `django` ever
+    being matched against `django[argon2]`.  Our identifier grouping
+    is identical, so the lazy-metadata "admit" is the conservative
+    mirror of pip; the strict check on populated `extras` is a free
+    upgrade for tests / future paths that synthesise extras-bearing
+    candidates.  Recorded as parity-divergence candidate #4 below for
+    T_PARITY_MATRIX follow-up.
+  - **Check 3 (marker)**: `marker.evaluate(self._marker_environment())`
+    where `_marker_environment` overlays `self._target_env` onto
+    `packaging.markers.default_environment()`.  T7 will reuse the
+    same helper to filter transitive deps.  Pip-parity divergence:
+    pip does NOT evaluate markers at this predicate — marker
+    filtering happens upstream in `iter_dependencies`.  Our typed
+    `Requirement` doesn't pre-filter (T7 will, but the predicate
+    must still handle a Pipfile-direct requirement carrying a
+    marker), so we evaluate defensively.  Strictly more conservative
+    than pip (admits a strict subset of what pip admits) — recorded
+    as parity-divergence candidate #5 below.
+  - **Helper extracted**: `_marker_environment(self)` returns the
+    overlay dict.  Lives on the provider so T7 reuses it instead of
+    re-deriving the overlay logic.  Unevaluable markers are caught
+    in a broad `except Exception:` returning `False` — same defensive
+    stance pip applies around marker parsing in `req_install`.
+  - RED→GREEN: 14 new tests landed in
+    `tests/unit/test_pure_python_provider.py` covering the three plan
+    bullets plus the extras-lazy-metadata phase-3 decision, prerelease
+    pip-parity, empty-specifier, marker-true / marker-None /
+    target-env override paths.  Initial RED with the stub:
+    `NotImplementedError("T6: ...")` on first test.  Post-impl: all 32
+    tests pass (T3's 8 + T4's 4 + T5's 6 + T6's 14).  `ruff check`
+    clean.  `grep -nE
+    "^[[:space:]]*(from|import)[[:space:]]+pipenv\.patched\.pip\._internal"
+    pipenv/resolver/pure_python_provider.py` shows zero matches.
+  - Parity-divergence candidates (additions to the T5 list for
+    T_PARITY_MATRIX follow-up):
+    4. Extras-at-predicate strictness — pip's
+       `SpecifierRequirement.is_satisfied_by` is specifier-only; we
+       admit when `candidate.extras` is empty (lazy-metadata mirror)
+       AND strict-check when populated.  Same logical result on the
+       common path; the strict-check is an extra safety net for
+       future code that synthesises extras-bearing candidates.
+    5. Marker evaluation at predicate — pip filters markers upstream
+       in `iter_dependencies`; we evaluate at the predicate.  Result:
+       we may reject a candidate pip would have admitted in a
+       contrived case where a Pipfile-direct requirement carries an
+       always-false marker.  Strictly more conservative; unlikely to
+       affect lockfile parity in practice (Pipfile-direct markers are
+       rare).
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (extended:
+    `is_satisfied_by` body replaces the `T6` stub; new
+    `_marker_environment` private helper; method-level docstring
+    cites pip's source files for the side-by-side audit trail; no
+    new top-level imports — `default_environment` is imported lazily
+    inside `_marker_environment` to avoid widening the module-import
+    surface for a function that runs only when a requirement carries
+    a marker)
+  - `tests/unit/test_pure_python_provider.py` (extended: 14 new T6
+    tests across three test classes — `TestIsSatisfiedByVersion`
+    (7 tests: exact pin / range / empty spec / prerelease admit
+    parity), `TestIsSatisfiedByMarker` (4 tests: marker-false /
+    marker-true / marker-None / target-env override), and
+    `TestIsSatisfiedByExtras` (4 tests pinning the lazy-metadata
+    Phase-3 decision: unknown / superset / disjoint / no-extras-
+    requested); module docstring refreshed to call out T6 scope)
+  - `initiative-g-phase3-plan.md` (this entry: status → Completed;
+    log + files filled in; parity-divergence #4 + #5 recorded)
 
 ---
 
