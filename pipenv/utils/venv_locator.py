@@ -381,8 +381,7 @@ class VenvLocator:
         """
         from pipenv.utils.shell import project_python
 
-        # ``project_python`` calls back into ``project._which`` — preserve
-        # the existing API by forwarding the project reference.
+        # Preserve the existing API by forwarding the project reference.
         return project_python(self._project, system=system)
 
     def _which(self, command, location=None, allow_global=False):
