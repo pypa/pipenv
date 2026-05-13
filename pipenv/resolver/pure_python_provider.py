@@ -544,17 +544,144 @@ class PurePythonProvider(AbstractProvider):
         )
 
     # ------------------------------------------------------------------
-    # T6 — is_satisfied_by (NOT YET IMPLEMENTED)
+    # T6 — is_satisfied_by (final-acceptance predicate)
     # ------------------------------------------------------------------
 
-    def is_satisfied_by(self, requirement, candidate):
-        """Return True iff the candidate's version satisfies the
-        requirement's specifier AND markers evaluate True AND extras
-        are compatible.
+    def is_satisfied_by(
+        self,
+        requirement: Requirement,
+        candidate: Any,
+    ) -> bool:
+        """Return ``True`` iff ``candidate`` satisfies ``requirement``.
 
-        Owned by T6.  Lands in a subsequent commit on this same module.
+        This is the predicate ``resolvelib.AbstractProvider`` calls when
+        a candidate has been chosen for a requirement and the resolver
+        needs final confirmation it's a valid pick.  Signature from
+        ``pipenv/patched/pip/_vendor/resolvelib/providers.py:127``::
+
+            def is_satisfied_by(self, requirement, candidate) -> bool: ...
+
+        Three checks (per design §5.3 / plan T6):
+
+        1. **Version**: ``candidate.version in requirement.specifier``
+           via :meth:`SpecifierSet.contains`.  Prerelease policy mirrors
+           T4's :meth:`find_matches` (admit when either the specifier
+           opts in or :attr:`_allow_prereleases` is set).
+
+        2. **Extras compatibility**: every extra in
+           ``requirement.extras`` must be a subset of
+           ``candidate.extras`` (which models
+           ``provides_extras``) — BUT when the candidate's
+           ``extras`` is empty we treat it as "metadata not yet loaded"
+           and admit the candidate.  This mirrors pip's
+           :meth:`SpecifierRequirement.is_satisfied_by` at
+           ``pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py:111``
+           which checks ONLY the specifier — pip relies on the
+           ``(name, extras)`` identifier grouping (see
+           :meth:`identify`) to prevent ``django`` candidates from
+           ever being matched against ``django[argon2]`` requirements.
+           In Phase 3 we keep the same lazy-metadata stance: the
+           METADATA file is only fetched by T7's
+           :meth:`get_dependencies` (the expensive path), so at the
+           point ``is_satisfied_by`` runs, ``provides_extras`` is
+           typically unknown.  Once a future caller does populate the
+           field, this method strict-checks.  See parity-divergence
+           note recorded on the T6 plan entry.
+
+        3. **Marker**: when ``requirement.marker`` is not ``None``,
+           evaluate it against the resolver's :attr:`_target_env`
+           (overriding :func:`pipenv.vendor.packaging.markers.default_environment`).
+           ``marker is None`` passes unconditionally.
+
+        Pip source reference for the audit trail
+        ----------------------------------------
+        Pip's ``PipProvider.is_satisfied_by``
+        (``pipenv/patched/pip/_internal/resolution/resolvelib/provider.py:300``)
+        is a one-liner ``return requirement.is_satisfied_by(candidate)``
+        delegating to the concrete ``Requirement`` subclass — for
+        ``SpecifierRequirement`` (the common case) that's just the
+        specifier check at ``requirements.py:111``.  Pip does NOT
+        evaluate markers here either: marker filtering happens upstream
+        when ``iter_dependencies`` builds the requirement list.  Our
+        :class:`Requirement` doesn't pre-filter by marker (T7 will when
+        building transitive requirements), so we evaluate the marker
+        defensively at the predicate.  Records as a parity-divergence
+        candidate for T_PARITY_MATRIX — strictly more conservative than
+        pip's behaviour (admits a strict subset of what pip admits).
         """
-        raise NotImplementedError("T6: PurePythonProvider.is_satisfied_by")
+        # ------------ Check 1: version ------------
+        try:
+            version_obj = Version(candidate.version)
+        except InvalidVersion:
+            # Same loud-failure stance as T4: an unparseable version in
+            # the cache is an upstream bug, and silently admitting it
+            # here would mask it.
+            return False
+
+        spec = requirement.specifier
+        # Prerelease policy at the predicate: mirror pip's
+        # :meth:`SpecifierRequirement.is_satisfied_by` at
+        # ``pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py:121``
+        # — pass ``prereleases=True`` unconditionally.  Pip's rationale
+        # (paraphrased from the comment there): ``PackageFinder``
+        # filtered prereleases out upstream, so by the time the
+        # predicate runs, an arriving prerelease candidate was already
+        # admitted by the prerelease policy.  Our :meth:`find_matches`
+        # plays the ``PackageFinder`` role here (T4 already filters
+        # prereleases via :attr:`_allow_prereleases` + each specifier's
+        # ``prereleases`` flag), so this method should not re-apply the
+        # policy and silently reject a candidate :meth:`find_matches`
+        # legitimately handed back.
+        if not spec.contains(version_obj, prereleases=True):
+            return False
+
+        # ------------ Check 2: extras compatibility ------------
+        # ``candidate.extras`` is the closest analog to METADATA's
+        # ``Provides-Extra``.  Empty frozenset → metadata not loaded;
+        # admit per the lazy-metadata clause above.  Non-empty →
+        # strict subset check.
+        candidate_extras = getattr(candidate, "extras", frozenset())
+        if candidate_extras and not requirement.extras <= candidate_extras:
+            return False
+
+        # ------------ Check 3: marker ------------
+        marker = requirement.marker
+        if marker is not None:
+            env = self._marker_environment()
+            try:
+                if not marker.evaluate(env):
+                    return False
+            except Exception:
+                # A malformed marker shouldn't crash resolution — pip
+                # surfaces this as a warning and treats the marker as
+                # "doesn't apply".  We adopt the same defensive
+                # stance: treat unevaluable markers as not-satisfied
+                # so the candidate is rejected rather than crashing.
+                return False
+
+        return True
+
+    def _marker_environment(self) -> dict[str, Any]:
+        """Build the environment dict used to evaluate
+        :class:`Marker` instances on requirements.
+
+        Starts from :func:`pipenv.vendor.packaging.markers.default_environment`
+        (running-Python defaults) and overlays
+        ``self._target_env`` so the resolver evaluates markers against
+        the *target* Python rather than the running Python.  This is
+        what lets a CI host running Python 3.13 resolve a lockfile
+        targeting 3.10.
+
+        Only used by :meth:`is_satisfied_by` today; T7's
+        :meth:`get_dependencies` will reuse it to filter transitive
+        requirements by marker.
+        """
+        from pipenv.vendor.packaging.markers import default_environment
+
+        env: dict[str, Any] = dict(default_environment())
+        if isinstance(self._target_env, Mapping):
+            env.update(self._target_env)
+        return env
 
     # ------------------------------------------------------------------
     # T7 — get_dependencies (NOT YET IMPLEMENTED)

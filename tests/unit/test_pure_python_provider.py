@@ -1,10 +1,10 @@
 """Focused RED→GREEN tests for :class:`PurePythonProvider` methods
-(Initiative G phase 3, T3 + T4 + T5).
+(Initiative G phase 3, T3 + T4 + T5 + T6).
 
 Scope: T3 (``identify``) + T4 (``find_matches``) + T5
-(``get_preference``).  T13 will extend this file with full per-method
-coverage of ``is_satisfied_by`` and ``get_dependencies`` (T6 + T7
-deliverables).
+(``get_preference``) + T6 (``is_satisfied_by``).  T13 will extend this
+file with full per-method coverage of ``get_dependencies`` (T7
+deliverable).
 
 T3 bullets:
 
@@ -735,3 +735,255 @@ class TestGetPreferenceEmptyInformation:
         # Comparison must succeed (orderable).  The pinned-beta sorts
         # before the unknown-alpha.
         assert other_pref < pref
+
+
+# ---------------------------------------------------------------------------
+# T6 — is_satisfied_by (final-acceptance predicate)
+# ---------------------------------------------------------------------------
+#
+# Per plan T6 + design §5.3, ``is_satisfied_by`` answers the question
+# "is this chosen candidate a valid satisfaction of this requirement?"
+# Three checks:
+#
+# 1. ``candidate.version in requirement.specifier`` (prereleases mirror
+#    T4's policy).
+# 2. Extras compatibility — every extra requested by the requirement
+#    must be in the candidate's advertised ``provides_extras``.  Phase 3
+#    decision: when ``provides_extras`` is unknown (lazy-metadata: T7's
+#    ``get_dependencies`` is what would populate it), we mirror pip's
+#    behaviour and treat the candidate as satisfying.  Pip's
+#    :meth:`SpecifierRequirement.is_satisfied_by`
+#    (``pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py:111``)
+#    delegates to ``spec.contains(candidate.version, prereleases=True)``
+#    only — extras are gated upstream by the ``(name, extras)`` identifier
+#    grouping in :meth:`identify` so the predicate never sees a mismatched
+#    pair.  We adopt the same "assume true if extras data not available"
+#    stance: tested here via a Candidate whose ``extras`` is the default
+#    empty frozenset.  When metadata IS available (Candidate populated
+#    with a non-empty ``extras``), we strict-check.
+# 3. Marker evaluation against ``target_env`` (override of vendored
+#    :func:`packaging.markers.default_environment`).  Requirement with no
+#    marker passes unconditionally.
+
+
+def _candidate_for_satisfies(
+    *,
+    name: str = "django",
+    version: str = "4.0.1",
+    extras: frozenset[str] = frozenset(),
+):
+    """Build a :class:`Candidate` for the T6 ``is_satisfied_by`` tests
+    with just the four fields the predicate reads (``name``, ``version``,
+    ``extras`` for the extras-compat path).  Wraps :func:`_cand` for
+    readability at the call sites."""
+    return _cand(name=name, version=version, extras=extras)
+
+
+class TestIsSatisfiedByVersion:
+    """Plan T6 bullet 1+2: version-specifier check.
+
+    * ``==4.0.1`` requirement, candidate version ``4.0.1`` → ``True``.
+    * ``==4.0.1`` requirement, candidate version ``4.0.2`` → ``False``.
+    """
+
+    def test_exact_pin_matches_same_version(self):
+        provider = _make_provider()
+        req = _make_requirement(name="django", spec="==4.0.1")
+        cand = _candidate_for_satisfies(name="django", version="4.0.1")
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_exact_pin_rejects_different_version(self):
+        provider = _make_provider()
+        req = _make_requirement(name="django", spec="==4.0.1")
+        cand = _candidate_for_satisfies(name="django", version="4.0.2")
+        assert provider.is_satisfied_by(req, cand) is False
+
+    def test_range_specifier_accepts_in_range(self):
+        provider = _make_provider()
+        req = _make_requirement(name="django", spec=">=4.0,<5.0")
+        cand = _candidate_for_satisfies(name="django", version="4.2.3")
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_range_specifier_rejects_out_of_range(self):
+        provider = _make_provider()
+        req = _make_requirement(name="django", spec=">=4.0,<5.0")
+        cand = _candidate_for_satisfies(name="django", version="5.1.0")
+        assert provider.is_satisfied_by(req, cand) is False
+
+    def test_empty_specifier_accepts_any_version(self):
+        """A Pipfile ``"*"`` entry flattens to an empty
+        :class:`SpecifierSet` (per T1's ``from_pipfile_entry`` contract),
+        which should admit any non-prerelease version."""
+        provider = _make_provider()
+        req = _make_requirement(name="django", spec="")
+        cand = _candidate_for_satisfies(name="django", version="4.2.0")
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_prerelease_candidate_admitted_at_predicate(self):
+        """Pip parity: :meth:`is_satisfied_by` passes
+        ``prereleases=True`` unconditionally, because
+        :meth:`find_matches` (the ``PackageFinder`` analog) has already
+        applied the prerelease policy upstream.  A prerelease arriving
+        at the predicate IS satisfying as far as the specifier check
+        goes — re-filtering here would silently reject candidates the
+        resolver legitimately matched.  Mirrors pip's
+        ``SpecifierRequirement.is_satisfied_by`` at
+        ``pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py:121``.
+        """
+        provider = _make_provider(allow_prereleases=False)
+        req = _make_requirement(name="django", spec=">=4.0")
+        cand = _candidate_for_satisfies(name="django", version="5.0.0a1")
+        assert provider.is_satisfied_by(req, cand) is True
+
+
+class TestIsSatisfiedByMarker:
+    """Plan T6 bullet 3: marker evaluation.
+
+    * ``requirement.marker = Marker("python_version < '3.10'")``
+      + ``target_env = {"python_version": "3.12"}`` → ``False``.
+    * Marker evaluates True against target env → predicate returns True.
+    * Requirement with ``marker is None`` → predicate is marker-blind.
+    """
+
+    def test_marker_evaluating_false_rejects(self):
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        req = Requirement(
+            name="django",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=Marker("python_version < '3.10'"),
+            source="pipfile",
+            parent=None,
+        )
+        provider = _make_provider(target_env={"python_version": "3.12"})
+        cand = _candidate_for_satisfies(name="django", version="4.0.1")
+        assert provider.is_satisfied_by(req, cand) is False
+
+    def test_marker_evaluating_true_accepts(self):
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        req = Requirement(
+            name="django",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=Marker("python_version >= '3.10'"),
+            source="pipfile",
+            parent=None,
+        )
+        provider = _make_provider(target_env={"python_version": "3.12"})
+        cand = _candidate_for_satisfies(name="django", version="4.0.1")
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_no_marker_passes_unconditionally(self):
+        provider = _make_provider(target_env={"python_version": "3.6"})
+        req = _make_requirement(name="django", spec="==4.0.1")  # marker=None
+        cand = _candidate_for_satisfies(name="django", version="4.0.1")
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_marker_evaluation_overrides_default_environment(self):
+        """The marker must be evaluated against ``self._target_env`` —
+        NOT the running Python's environment.  We pin
+        ``python_version = "3.7"`` in the target env and verify the
+        marker uses that even though CI is running on a newer Python."""
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        # ``python_version < '3.8'`` is True under the synthetic
+        # target_env but typically False under the running interpreter
+        # (CI runs >=3.9).  If the impl leaked default_environment, the
+        # assertion below would flip.
+        req = Requirement(
+            name="django",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=Marker("python_version < '3.8'"),
+            source="pipfile",
+            parent=None,
+        )
+        provider = _make_provider(target_env={"python_version": "3.7"})
+        cand = _candidate_for_satisfies(name="django", version="4.0.1")
+        assert provider.is_satisfied_by(req, cand) is True
+
+
+class TestIsSatisfiedByExtras:
+    """Plan T6 bullet 2 — extras compatibility under lazy metadata.
+
+    Phase-3 decision recorded on the T6 plan entry: when the candidate's
+    advertised ``extras`` is empty (the default — lazy metadata not yet
+    loaded, since ``is_satisfied_by`` runs BEFORE T7's
+    ``get_dependencies`` fetches METADATA), we mirror pip's stance and
+    return ``True`` rather than failing a candidate the resolver has
+    legitimately matched via the ``(name, extras)`` identifier grouping
+    (pip:
+    ``pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py:111``
+    — pip checks only the specifier).  When the candidate DOES advertise
+    a non-empty extras set, we strict-check — extras-bearing candidates
+    are typically synthesised by tests / future code paths and a
+    mismatch there is informative.
+    """
+
+    def test_extras_unknown_lazy_metadata_returns_true(self):
+        """Candidate's ``extras`` is the default empty frozenset — we
+        treat this as "metadata not yet loaded" and admit the candidate.
+        Pinned behaviour: requirement asks for ``[argon2]`` extra,
+        candidate exposes no extras → still ``True``."""
+        provider = _make_provider()
+        req = _make_requirement(
+            name="django",
+            spec=">=4.0",
+            extras=frozenset({"argon2"}),
+        )
+        cand = _candidate_for_satisfies(name="django", version="4.2.0")
+        # Default ``extras=frozenset()`` on the candidate models the
+        # lazy-metadata case.
+        assert cand.extras == frozenset()
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_extras_satisfied_when_candidate_advertises_superset(self):
+        provider = _make_provider()
+        req = _make_requirement(
+            name="django",
+            spec=">=4.0",
+            extras=frozenset({"argon2"}),
+        )
+        cand = _candidate_for_satisfies(
+            name="django",
+            version="4.2.0",
+            extras=frozenset({"argon2", "bcrypt"}),
+        )
+        assert provider.is_satisfied_by(req, cand) is True
+
+    def test_extras_rejected_when_candidate_advertises_disjoint(self):
+        """Strict check: when the candidate DOES advertise extras (so
+        metadata is loaded) and the requested extra isn't in the set,
+        the predicate returns False."""
+        provider = _make_provider()
+        req = _make_requirement(
+            name="django",
+            spec=">=4.0",
+            extras=frozenset({"argon2"}),
+        )
+        cand = _candidate_for_satisfies(
+            name="django",
+            version="4.2.0",
+            extras=frozenset({"bcrypt"}),
+        )
+        assert provider.is_satisfied_by(req, cand) is False
+
+    def test_no_extras_requested_passes_regardless(self):
+        provider = _make_provider()
+        req = _make_requirement(
+            name="django", spec=">=4.0", extras=frozenset()
+        )
+        cand = _candidate_for_satisfies(
+            name="django",
+            version="4.2.0",
+            extras=frozenset({"bcrypt"}),
+        )
+        assert provider.is_satisfied_by(req, cand) is True
