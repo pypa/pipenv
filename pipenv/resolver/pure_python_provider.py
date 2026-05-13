@@ -331,6 +331,8 @@ class PurePythonProvider(AbstractProvider):
                 continue
             if not self._candidate_requires_python_ok(cand, target_python):
                 continue
+            if self._candidate_is_skippable_yanked(cand, reqs):
+                continue
             filtered.append(cand)
 
         # Step 8: sort by Version descending.  ``InvalidVersion`` is
@@ -429,6 +431,47 @@ class PurePythonProvider(AbstractProvider):
             return spec.contains(target_python, prereleases=True)
         except InvalidVersion:
             return True
+
+    def _candidate_is_skippable_yanked(
+        self,
+        candidate: Any,
+        reqs: Sequence[Requirement],
+    ) -> bool:
+        """Return ``True`` for a yanked candidate that should be filtered out.
+
+        PEP 592: a yanked release is excluded from automatic selection.
+        Clients SHOULD only install yanked files when the user explicitly
+        pins to that exact version — i.e. at least one ``Requirement``
+        carries an ``==<exact version>`` specifier matching the
+        candidate's version.
+
+        Mirrors pip's behaviour
+        (:meth:`pip._internal.index.collector.LinkCollector` filters
+        yanked links unless the requirement is an exact-version pin).
+
+        Returns ``False`` for non-yanked candidates (no skipping needed).
+        Returns ``False`` for yanked candidates that *are* explicitly
+        pinned (the user opted in).  Returns ``True`` only when a
+        yanked candidate would be picked unintentionally.
+        """
+        if not getattr(candidate, "yanked", False):
+            return False
+        try:
+            cand_ver = Version(candidate.version)
+        except InvalidVersion:
+            # Unparseable version — defer to the version-sort step's
+            # loud-failure path; don't second-guess here.
+            return False
+        for req in reqs:
+            for spec in req.specifier:
+                if spec.operator != "==":
+                    continue
+                try:
+                    if Version(spec.version) == cand_ver:
+                        return False
+                except InvalidVersion:
+                    continue
+        return True
 
     # ------------------------------------------------------------------
     # T5 — get_preference (Q-C strict mirror of pip's tuple shape)
@@ -963,7 +1006,7 @@ def _drive_resolver(
     provider: PurePythonProvider,
     *,
     reporter: Any = None,
-    max_rounds: int = 100,
+    max_rounds: int = 200_000,
 ) -> Any:
     """Convenience wrapper around :class:`resolvelib.Resolver` for
     unit and integration tests.
@@ -995,11 +1038,14 @@ def _drive_resolver(
         :class:`BaseReporter` (no-op callbacks) when ``None`` is passed.
         T9 may pass a logging reporter; tests use the default.
     max_rounds:
-        Forwarded verbatim to :meth:`Resolver.resolve`.  Resolvelib's
-        own default is 100; we mirror it so callers see the same
-        behaviour without re-reading the resolvelib source.  Raise
-        only if a real lock genuinely needs more rounds — bumping
-        usually masks a circular-dep bug upstream.
+        Forwarded verbatim to :meth:`Resolver.resolve`.  Mirrors pip's
+        ``limit_how_complex_resolution_can_be = 200_000`` from
+        :mod:`pip._internal.resolution.resolvelib.resolver` — the
+        100-round resolvelib default trips on real-world Pipfiles
+        (the ~100-package bench fixture exhausts it inside the first
+        category) and pip-backend parity demands the same headroom.
+        Raise only if a real lock genuinely needs more rounds —
+        bumping further usually masks a circular-dep bug upstream.
 
     Returns
     -------
