@@ -980,6 +980,41 @@ class TestSpecValueTranslation:
             "requests", "something-weird"
         ) == "*"
 
+    def test_pip_flags_after_specifier_are_stripped(self):
+        """``convert_deps_to_pip`` emits the full pip-install argv as
+        the wire-shape ``spec_value`` — including ``-i <index_url>`` and
+        any ``--trusted-host``/``--extra-index-url`` flags.  These belong
+        on ``request.options.indexes``, not in the version specifier;
+        feeding them to ``SpecifierSet`` raises ``InvalidSpecifier``.
+
+        Regression test for the bench-fixture lock failure where
+        ``urllib3 = {extras = ["brotli"], version = ">=2"}`` produced
+        the wire-shape ``"urllib3[brotli]>=2 -i https://pypi.org/simple"``
+        and the parser tried to treat ``">=2 -i https://pypi.org/simple"``
+        as a single version specifier.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        assert PurePythonBackend._spec_value_to_pipfile_entry(
+            "urllib3", "urllib3[brotli]>=2 -i https://pypi.org/simple"
+        ) == ">=2"
+        assert PurePythonBackend._spec_value_to_pipfile_entry(
+            "requests",
+            "requests==2.31.0 --index-url https://internal.example/simple",
+        ) == "==2.31.0"
+        assert PurePythonBackend._spec_value_to_pipfile_entry(
+            "requests",
+            "requests --trusted-host pypi.example",
+        ) == "*"
+
+    def test_extras_with_no_specifier_returns_star(self):
+        """``name[extras]`` with no version pin should be ``"*"``."""
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        assert PurePythonBackend._spec_value_to_pipfile_entry(
+            "urllib3", "urllib3[brotli]"
+        ) == "*"
+
 
 class TestTargetEnvCaching:
     """:meth:`PurePythonBackend._resolved_target_env` is supposed to
