@@ -27,17 +27,15 @@ Flow per call to :func:`extract_metadata_from_sdist`:
    ``[build-system]`` table for ``build-backend`` (and the optional
    ``backend-path``).  If absent or no backend declared, fall back to
    the PEP 517 §10 legacy default ``setuptools.build_meta:__legacy__``.
-5. **Drive** :meth:`BuildBackendHookCaller.prepare_metadata_for_build_wheel`.
-   The hook caller subprocess-spawns the build backend using
-   ``sys.executable`` and runs in the current Python's environment.
-
-   **NO build isolation in Phase 3b** — the vendored
-   :class:`BuildBackendHookCaller` simply doesn't offer an isolation
-   knob (its ``runner`` is a plain subprocess-spawner; pip's
-   :class:`pip._internal.utils.misc.BuildEnvironment` is what builds
-   the isolation layer on top of it).  This means we rely on the
-   resolver user's environment to carry build-time deps, which matches
-   the design-doc tradeoff for this phase.  Phase 3c can revisit.
+5. **Drive** the PEP 517 ``prepare_metadata_for_build_wheel`` hook
+   inside an isolated build env created by :mod:`build` (the PyPA
+   PEP 517 frontend).  ``DefaultIsolatedEnv`` spins up a throwaway
+   venv, installs the project's ``[build-system].requires`` plus any
+   ``get_requires_for_build_wheel`` extras, then invokes the backend.
+   Without this isolation the hook subprocess uses pipenv's own
+   interpreter, which doesn't carry package-specific build backends
+   like ``poetry-core`` or ``hatchling`` — surfaced when the bench
+   fixture hit ``python3-saml`` and ``redis-py-cluster``.
 
 6. **Timeout** the build at 300 seconds via
    :mod:`concurrent.futures`.  A wedged backend (rare but observed on
@@ -73,7 +71,6 @@ try:  # py3.11+
 except ImportError:  # py3.10 fallback — pipenv supports >=3.10
     from pipenv.patched.pip._vendor import tomli as _toml_loader  # type: ignore[no-redef]
 
-from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller
 from pipenv.resolver.pure_python_metadata import (
     CoreMetadata,
     MetadataCache,
@@ -440,49 +437,89 @@ def _resolve_build_backend(source_root: Path) -> tuple[str, list[str] | None]:
 # ---------------------------------------------------------------------------
 
 
+def _build_metadata_in_isolated_env(
+    source_root: Path, metadata_dir: Path
+) -> Path:
+    """Build the project's ``.dist-info`` in a throwaway PEP 517 venv.
+
+    Returns the on-disk path to the produced ``.dist-info`` directory
+    (the directory itself, not the ``METADATA`` file inside it).
+
+    Extracted as a module-level function so tests can monkeypatch it
+    in lieu of orchestrating a real isolated venv (which would add
+    multi-second setup overhead per test).  Production callers go
+    through :func:`_run_prepare_metadata` which wraps this in a
+    timeout-bounded :class:`ThreadPoolExecutor`.
+
+    :mod:`build` is imported lazily so wheel-only resolves never pay
+    the import cost.
+    """
+    from build import ProjectBuilder
+    from build.env import DefaultIsolatedEnv
+
+    with DefaultIsolatedEnv() as env:
+        builder = ProjectBuilder.from_isolated_env(env, str(source_root))
+        env.install(builder.build_system_requires)
+        # ``get_requires_for_build`` accepts ``"sdist"`` or ``"wheel"``;
+        # metadata extraction shares the wheel-build dependency set in
+        # PEP 517, so install those too before calling ``metadata_path``.
+        env.install(builder.get_requires_for_build("wheel"))
+        return Path(builder.metadata_path(str(metadata_dir)))
+
+
 def _run_prepare_metadata(
     source_root: Path,
     backend: str,
     backend_path: list[str] | None,
     metadata_dir: Path,
 ) -> CoreMetadata:
-    """Invoke ``prepare_metadata_for_build_wheel`` and parse the result.
+    """Drive PEP 517 ``prepare_metadata_for_build_wheel`` in an isolated env.
+
+    Uses :class:`build.env.DefaultIsolatedEnv` to create a throwaway
+    venv, installs the project's ``[build-system].requires`` plus any
+    ``get_requires_for_build_wheel`` extras into it, then invokes the
+    backend's ``prepare_metadata_for_build_wheel`` hook.  Without the
+    isolation step, package-specific build backends (poetry-core,
+    hatchling, flit-core, …) crash on import because pipenv's own
+    interpreter doesn't carry them — that surfaced when the bench
+    fixture hit ``python3-saml`` and ``redis-py-cluster``.
+
+    The ``backend`` and ``backend_path`` arguments are accepted for
+    error-reporting symmetry with :func:`_resolve_build_backend` but
+    the canonical pyproject-table read is performed inside
+    :class:`build.ProjectBuilder` itself, so any divergence between the
+    two reads would point at a ``build``-version mismatch worth
+    surfacing.
 
     Wrapped in a :class:`ThreadPoolExecutor` with a hard 300-second
-    timeout — pyproject_hooks itself has no timeout knob, so we wear
-    the indirection cost.  The subprocess the hook caller spawns
-    continues running on timeout (we can't kill it without a runner
-    swap), but the executor frees us to surface
+    timeout — :mod:`build` itself has no timeout knob.  The subprocess
+    the hook caller spawns continues running on timeout (we can't kill
+    it without a runner swap), but the executor frees us to surface
     :class:`SdistBuildError` rather than block resolve forever.
     """
-    caller = BuildBackendHookCaller(
-        source_dir=str(source_root),
-        build_backend=backend,
-        backend_path=backend_path,
-    )
-
     with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
         future = pool.submit(
-            caller.prepare_metadata_for_build_wheel, str(metadata_dir)
+            _build_metadata_in_isolated_env, source_root, metadata_dir
         )
         try:
-            relative_dist_info = future.result(timeout=_BUILD_TIMEOUT_SECONDS)
+            dist_info_path = future.result(timeout=_BUILD_TIMEOUT_SECONDS)
         except concurrent.futures.TimeoutError as exc:
             raise SdistBuildError(
                 f"sdist build timed out after {int(_BUILD_TIMEOUT_SECONDS)}s "
                 f"(backend={backend!r})"
             ) from exc
         except Exception as exc:
-            # Any backend-side exception (BackendUnavailable,
-            # HookMissing, CalledProcessError, etc.) flattens to a
-            # single SdistBuildError so callers don't have to teach
-            # themselves the patched-pip vendor hierarchy.  The
-            # original exception stays attached via __cause__.
+            # Backend hook failures (BackendUnavailable, HookMissing,
+            # CalledProcessError) and env-setup failures (BuildException
+            # / BuildBackendException from :mod:`build`) all flatten
+            # into a single typed error so callers don't have to learn
+            # the :mod:`build` exception hierarchy.  The original
+            # exception stays attached via ``__cause__``.
             raise SdistBuildError(
                 f"build backend failed: {backend!r}: {exc}"
             ) from exc
 
-    metadata_path = metadata_dir / relative_dist_info / "METADATA"
+    metadata_path = dist_info_path / "METADATA"
     try:
         raw = metadata_path.read_bytes()
     except OSError as exc:
