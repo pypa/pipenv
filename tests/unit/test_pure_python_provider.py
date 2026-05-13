@@ -994,7 +994,8 @@ class TestIsSatisfiedByExtras:
 # wheels; marker filtering with parent-extras context)
 # ---------------------------------------------------------------------------
 #
-# Validation matrix (per ``initiative-g-phase3-plan.md`` T7 + design §5.3):
+# Validation matrix (per ``initiative-g-phase3-plan.md`` T7 + design §5.3,
+# updated by Initiative G Phase 3b T_S3):
 #
 # 1. Wheel candidate with ``Requires-Dist: numpy>=1.20,<2.0`` →
 #    ``[Requirement(name="numpy", specifier=">=1.20,<2.0",
@@ -1005,8 +1006,12 @@ class TestIsSatisfiedByExtras:
 # 3. Wheel candidate with ``Requires-Dist: pytest; extra=='dev'`` and
 #    the candidate DID request the ``[dev]`` extra → marker evaluates
 #    True under ``{"extra": "dev"}``; req kept.
-# 4. Sdist-only candidate (``.tar.gz`` filename) → raises
-#    ``_SdistEncountered(candidate)`` (Q-A fail-loud).
+# 4. Sdist candidate (``.tar.gz`` filename) → routes through
+#    ``self._metadata_fetcher`` like a wheel does; the stubbed fetcher
+#    returns a synthetic :class:`CoreMetadata` and the transitive
+#    :class:`Requirement` set is returned.  (Phase 3a raised
+#    ``_SdistEncountered`` here; Phase 3b T_S3 removed that gate now
+#    that T_S2 routes sdists through T_S1's PEP 517 builder.)
 #
 # Implementation reference (pip's analog, cited in production code):
 # ``pipenv/patched/pip/_internal/metadata/importlib/_dists.py:224`` —
@@ -1219,72 +1224,104 @@ class TestGetDependenciesMarkerFilter:
         assert names == ["sqlparse"]
 
 
-class TestGetDependenciesSdistFailLoud:
-    """Plan T7 bullet 4 (Q-A fail-loud): sdist-only candidate raises
-    ``_SdistEncountered`` carrying the candidate.
+class TestGetDependenciesSdistRoutesThroughMetadataFetcher:
+    """Phase 3b T_S3: ``get_dependencies`` no longer raises
+    :class:`_SdistEncountered` on a non-wheel candidate.  Instead it
+    routes the candidate through ``self._metadata_fetcher`` exactly
+    like a wheel candidate — T_S2's
+    :meth:`MetadataFetcher.fetch_metadata` is responsible for branching
+    on ``candidate.is_wheel`` and routing sdists through T_S1's PEP
+    517 builder.
 
-    Sdist detection: per design §5.3 + plan T7, ``candidate.is_wheel``
-    is the authoritative flag (T1 derives it from the filename).  A
-    ``.tar.gz`` / ``.zip`` / ``.tar.bz2`` filename is an sdist.
+    These tests stub the metadata fetcher in-memory so no PEP 517
+    build runs; the assertion is that the provider treats sdist and
+    wheel candidates symmetrically at the ``get_dependencies`` layer.
     """
 
-    def test_sdist_candidate_raises_sdist_encountered(self):
-        from pipenv.resolver.pure_python_provider import _SdistEncountered
-
+    def test_sdist_candidate_routes_through_metadata_fetcher(self):
+        """An sdist candidate's transitives flow through the stubbed
+        metadata fetcher the same way a wheel's would — no exception
+        is raised; the returned :class:`Requirement` objects mirror
+        the ``Requires-Dist`` entries supplied via the stub.
+        """
         cand = _cand(
             name="legacy", version="0.1", is_wheel=False
         )
-        # No metadata fetcher should be consulted -- the sdist check is
-        # a fail-loud guard BEFORE any I/O.  A misconfigured stub that
-        # would otherwise raise an ``AssertionError`` makes that
-        # explicit.
+        # The stub returns a synthetic CoreMetadata as if T_S1 had
+        # built the sdist on the fly.
+        meta = _metadata(
+            name="legacy",
+            version="0.1",
+            requires_dist=("six>=1.16",),
+        )
         provider = _make_provider(
-            metadata_fetcher=_metadata_fetcher_stub({}),
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
             target_env={"python_version": "3.12"},
         )
 
-        try:
-            provider.get_dependencies(cand)
-        except _SdistEncountered as exc:
-            assert exc.candidate is cand
-            # The exception message names the candidate so T9's
-            # ``InternalError`` translation surfaces a useful error.
-            assert "legacy" in str(exc)
-        else:  # pragma: no cover - acceptance criterion
-            raise AssertionError(
-                "_SdistEncountered was not raised for an sdist candidate"
-            )
+        deps = list(provider.get_dependencies(cand))
 
-    def test_sdist_check_does_not_invoke_metadata_fetcher(self):
-        """Belt-and-braces: confirm the fail-loud guard short-circuits
-        BEFORE the (potentially network-bound) metadata fetch -- the
-        stub records calls and we assert zero."""
-        from pipenv.resolver.pure_python_provider import _SdistEncountered
+        assert len(deps) == 1
+        dep = deps[0]
+        assert dep.name == "six"
+        assert dep.source == "transitive"
+        assert dep.parent == "legacy"
+        # SpecifierSet stringification — pin the spec set explicitly so
+        # a future packaging-version bump that reorders the repr can't
+        # silently regress the assertion.
+        assert str(dep.specifier) == ">=1.16"
 
+    def test_sdist_invokes_metadata_fetcher_exactly_once(self):
+        """The provider must consult the fetcher for an sdist candidate
+        — pinning the post-T_S3 contract that there is no longer a
+        short-circuit gate before the call.
+        """
         cand = _cand(
             name="legacy", version="0.1", is_wheel=False
         )
 
         call_log: list = []
 
-        def trapping_fetcher(c):
+        def recording_fetcher(c):
             call_log.append(c)
-            raise AssertionError(
-                "metadata_fetcher must not be called for an sdist"
+            from pipenv.resolver.pure_python_metadata import CoreMetadata
+
+            return CoreMetadata(
+                name="legacy",
+                version="0.1",
+                requires_python=None,
+                requires_dist=(),
+                provides_extras=frozenset(),
+                summary=None,
             )
 
         provider = _make_provider(
-            metadata_fetcher=trapping_fetcher,
+            metadata_fetcher=recording_fetcher,
             target_env={"python_version": "3.12"},
         )
 
-        try:
-            provider.get_dependencies(cand)
-        except _SdistEncountered:
-            pass
-        else:  # pragma: no cover - acceptance criterion
-            raise AssertionError("_SdistEncountered was not raised")
-        assert call_log == []
+        deps = list(provider.get_dependencies(cand))
+        # Empty Requires-Dist → no transitives.
+        assert deps == []
+        # The fetcher fired exactly once, with the sdist candidate.
+        assert len(call_log) == 1
+        assert call_log[0] is cand
+
+    def test_sdist_encountered_still_importable(self):
+        """Back-compat pin: the :class:`_SdistEncountered` class is no
+        longer raised from production code (T_S3) but remains
+        importable for external test suites that referenced the
+        Phase 3a contract.  See its docstring for the deprecation
+        notice.
+        """
+        from pipenv.resolver.pure_python_provider import _SdistEncountered
+
+        assert issubclass(_SdistEncountered, Exception)
+        # The constructor still accepts a candidate object — preserves
+        # the Phase 3a public shape so legacy ``try/except`` blocks
+        # that catch + introspect the exception keep working.
+        instance = _SdistEncountered(_cand(name="x", version="0", is_wheel=False))
+        assert instance.candidate.name == "x"
 
 
 class TestGetDependenciesMalformedRequiresDist:
