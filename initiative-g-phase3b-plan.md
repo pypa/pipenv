@@ -778,9 +778,29 @@ waits on both.
   - CI job appears in the workflow.
   - At least one PR push triggers the matrix entry and produces
     a result (pass or fail) — failure doesn't block merge.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Audited the existing dispatcher: the env-var path is already
+    wired as `PIPENV_RESOLVER` (read by
+    `pipenv.resolver.core._resolver_name_from_env`), honoured by
+    `_selected_backend_name` after the parent-side CLI / Pipfile
+    chain falls through. No code change was needed beyond the
+    workflow file — the plan's aspirational
+    `PIPENV_RESOLVER_BACKEND` name was renamed to the existing
+    `PIPENV_RESOLVER` wire to avoid introducing a second env-var
+    surface (maintenance discipline).
+  - Smoke-verified: `PIPENV_RESOLVER=pure-python pipenv lock`
+    produces a byte-identical Pipfile.lock to
+    `pipenv lock --backend pure-python`.
+  - Added new job `tests-pure-python-backend` to
+    `.github/workflows/ci.yaml`: Ubuntu + Python 3.12,
+    `continue-on-error: true`, modelled on `tests-smoke`'s shape
+    but with `PIPENV_RESOLVER: pure-python` in the test env. Job
+    depends on `tests-smoke` so failures don't pre-empt the regular
+    matrix path. Timeout raised to 45 min for the full-suite run.
+  - YAML lint clean.
 - **files edited/created**:
+  - `.github/workflows/ci.yaml` (extended)
 
 ---
 
