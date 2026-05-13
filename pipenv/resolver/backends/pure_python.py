@@ -62,6 +62,10 @@ from pipenv.resolver.schema import (
     ResolverResponse,
     ResolverSuccess,
 )
+from pipenv.vendor.packaging.specifiers import (
+    InvalidSpecifier,
+    SpecifierSet,
+)
 
 
 class PurePythonBackend:
@@ -313,7 +317,11 @@ class PurePythonBackend:
             )
 
         # ---- Step 6: translate resolved mapping ------------------------
-        locked = self._translate_mapping(result.mapping, request_index_urls)
+        # T_M3 (Initiative G Phase 3b): the translator now reads the
+        # ``criteria`` side-channel from the resolvelib ``Result`` to
+        # emit ``markers`` clauses, so we hand it the full Result rather
+        # than just ``.mapping``.
+        locked = self._translate_mapping(result, request_index_urls)
         return ResolverResponse(
             schema_version=SCHEMA_VERSION,
             result=ResolverSuccess(kind="success", locked=locked),
@@ -539,21 +547,17 @@ class PurePythonBackend:
 
     def _translate_mapping(
         self,
-        mapping: dict,
+        result: Any,
         index_urls: Sequence[str],
     ) -> tuple[LockedRequirement, ...]:
-        """Translate the resolved ``identifier -> Candidate`` mapping
-        into a tuple of :class:`LockedRequirement` entries.
+        """Translate the resolvelib ``Result`` into typed
+        :class:`LockedRequirement` entries.
 
-        The Phase 3 wire-shape is conservative — we populate the four
-        fields we have first-class data for (``name``, ``version``,
-        ``hashes``, ``index``) and leave the rest at their defaults.
-        Markers and ``requires_python`` are *not* propagated in
-        Phase 3 because the resolved candidate is already the
-        materialised pick — markers were evaluated during resolution
-        and ``requires_python`` constrains compatibility (it's a
-        compatibility filter, not a lockfile field per the
-        :class:`LockedRequirement` schema).
+        ``result`` is the :class:`resolvelib.resolvers.abstract.Result`
+        namedtuple ``(mapping, graph, criteria)``.  Today we read
+        ``mapping`` (resolved candidates) and ``criteria`` (per-identifier
+        :class:`Criterion` whose ``.information`` is the list of
+        :class:`RequirementInformation` rows that selected each candidate).
 
         Field mapping (per :class:`LockedRequirement` in
         ``pipenv/resolver/schema.py``):
@@ -563,17 +567,37 @@ class PurePythonBackend:
           existing pip-backend lockfile shape — see
           ``Entry.get_cleaned_dict`` / ``_clean_version``).
         * ``extras``     ← ``tuple(sorted(candidate.extras))``
+        * ``markers``    ← ``and``-join of:
+            - the Requires-Python marker derived from
+              ``candidate.requires_python`` (T_M3), and
+            - the ``or``-join of every ``Requirement.introducing_marker``
+              attached to the criterion's ``information`` rows (T_M2 +
+              T_M3).
+          ``None`` when neither source contributes.  See
+          :func:`_requires_python_to_marker` and
+          :func:`_introducing_marker_for` for the per-source rules.
         * ``hashes``     ← ``tuple(sorted("<algo>:<value>"))`` from
           ``candidate.hashes`` (frozenset of :class:`Hash`
           NamedTuples).
         * ``index``      ← first URL in ``index_urls`` (Phase 3
-          single-index simplification; multi-index resolution
-          follow-up).
+          single-index simplification; T_M4 will swap to source-name
+          lookup).
+
+        Backward-compat: callers that hand us a bare ``.mapping`` dict
+        (older test fixtures pre-T_M3 used ``_FakeResult(mapping=...)``
+        without criteria) get ``criteria = {}`` and markers fall back
+        to the Requires-Python contribution only.  Callers that hand
+        us a plain ``dict`` (no ``.mapping`` attribute) are also
+        supported — we treat it as the mapping directly.
         """
         # Default index for the lockfile entries — Phase 3 takes the
-        # first configured URL.  Multi-index propagation (recording
-        # WHICH index supplied each candidate) is a Phase 4 follow-up.
+        # first configured URL.  T_M4 follow-up: map URL→source-name.
         default_index = index_urls[0] if index_urls else None
+
+        # Tolerate both the resolvelib ``Result`` shape (with ``.mapping``
+        # and ``.criteria``) and a bare-dict mapping (pre-T_M3 tests).
+        mapping = getattr(result, "mapping", result)
+        criteria = getattr(result, "criteria", {}) or {}
 
         locked: list[LockedRequirement] = []
         for identifier, candidate in mapping.items():
@@ -606,18 +630,133 @@ class PurePythonBackend:
 
             extras_tuple = tuple(sorted(extras_set or frozenset()))
 
+            # T_M3 — marker emission.
+            requires_python_marker = _requires_python_to_marker(
+                getattr(candidate, "requires_python", None)
+            )
+            criterion = criteria.get(identifier)
+            criterion_information = (
+                getattr(criterion, "information", ()) if criterion is not None else ()
+            )
+            introducing_marker = _introducing_marker_for(criterion_information)
+            marker_string = _combine_markers(
+                [requires_python_marker, introducing_marker]
+            )
+
             locked.append(
                 LockedRequirement(
                     name=cand_name,
                     version=f"=={cand_version}",
                     extras=extras_tuple,
-                    markers=None,
+                    markers=marker_string,
                     hashes=hashes_tuple,
                     index=default_index,
                 )
             )
 
         return tuple(locked)
+
+
+# ---------------------------------------------------------------------------
+# T_M3 — marker translation helpers (Initiative G Phase 3b)
+# ---------------------------------------------------------------------------
+
+
+def _requires_python_to_marker(requires_python: str | None) -> str | None:
+    """Translate a ``Requires-Python`` specifier-set string into a
+    canonical marker string.
+
+    Examples::
+
+        ">=3.10"     → "python_version >= '3.10'"
+        ">=3.8,<4"   → "python_version < '4' and python_version >= '3.8'"
+        None / ""    → None
+        unparseable  → None  (defensive — mirrors T4's behaviour for
+                              malformed ``Requires-Python`` strings on
+                              index manifests)
+
+    Specs are joined in sorted lexicographic order so the emitted
+    marker string is stable across runs (resolvelib doesn't guarantee
+    spec-set iteration order — :class:`SpecifierSet` is backed by a
+    ``frozenset``).
+    """
+    if not requires_python:
+        return None
+    try:
+        spec_set = SpecifierSet(requires_python)
+    except (InvalidSpecifier, ValueError):
+        return None
+    parts: list[str] = []
+    for spec in spec_set:
+        op = spec.operator  # one of '==', '!=', '<=', '>=', '<', '>', '~=', '==='
+        ver = spec.version
+        parts.append(f"python_version {op} {ver!r}")
+    if not parts:
+        return None
+    # Stable order across runs: ``SpecifierSet`` iterates a frozenset
+    # under the hood, so iteration order is unspecified.  Sort here so
+    # the lockfile output is byte-identical on every invocation.
+    parts.sort()
+    return " and ".join(parts)
+
+
+def _introducing_marker_for(criterion_information: Any) -> str | None:
+    """OR-combine ``introducing_marker`` strings from every requirement
+    that selected the candidate (T_M2 populates the slot on each
+    transitive :class:`Requirement`).
+
+    Rationale for the OR-join (with parentheses on each clause):
+    a candidate is admitted to the lockfile because *every* introducing
+    requirement was active in the resolver's environment.  At install
+    time, the candidate is needed if ANY of those requirements is
+    active.  The lockfile's ``markers`` clause therefore encodes the
+    union of preconditions — a logical ``or``.  Parentheses preserve
+    precedence when a downstream consumer AND-merges this with another
+    marker clause (e.g. the Requires-Python contribution combined in
+    :meth:`_translate_mapping`).
+
+    Empty / all-None ``information`` → returns ``None`` (no
+    contribution).  Single non-None marker → its string verbatim (no
+    parens — readability over uniformity, matches what pip emits).
+    Duplicates (same marker string from multiple parents) are
+    deduplicated, preserving insertion order so the output is
+    fixture-stable.
+    """
+    markers_seen: list[str] = []
+    for info in criterion_information or ():
+        req = getattr(info, "requirement", None)
+        intro = getattr(req, "introducing_marker", None)
+        if intro is None:
+            continue
+        text = str(intro).strip()
+        if not text:
+            continue
+        if text in markers_seen:
+            continue
+        markers_seen.append(text)
+    if not markers_seen:
+        return None
+    if len(markers_seen) == 1:
+        return markers_seen[0]
+    return " or ".join(f"({m})" for m in markers_seen)
+
+
+def _combine_markers(parts: Sequence[str | None]) -> str | None:
+    """AND-join non-None marker strings.  Returns ``None`` when every
+    contribution is ``None`` / empty.
+
+    Single non-None part → that part verbatim (no surrounding
+    parens — keeps the simple ``python_version >= '3.10'`` form for the
+    common "Requires-Python only" case).  Multiple parts → joined with
+    ``" and "`` in the supplied order (caller controls ordering; the
+    translator passes Requires-Python first then introducing markers).
+    """
+    non_none = [p for p in parts if p]
+    if not non_none:
+        return None
+    if len(non_none) == 1:
+        return non_none[0]
+    return " and ".join(non_none)
 
 
 __all__ = ["PurePythonBackend"]
