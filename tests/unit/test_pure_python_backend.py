@@ -991,13 +991,15 @@ class TestSpecValueTranslation:
         ``urllib3 = {extras = ["brotli"], version = ">=2"}`` produced
         the wire-shape ``"urllib3[brotli]>=2 -i https://pypi.org/simple"``
         and the parser tried to treat ``">=2 -i https://pypi.org/simple"``
-        as a single version specifier.
+        as a single version specifier.  Extras now surface in the
+        dict-form return (T_PARITY_REAL fix); CLI flags after the
+        specifier-bearing token still get dropped.
         """
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
         assert PurePythonBackend._spec_value_to_pipfile_entry(
             "urllib3", "urllib3[brotli]>=2 -i https://pypi.org/simple"
-        ) == ">=2"
+        ) == {"version": ">=2", "extras": ["brotli"]}
         assert PurePythonBackend._spec_value_to_pipfile_entry(
             "requests",
             "requests==2.31.0 --index-url https://internal.example/simple",
@@ -1007,13 +1009,29 @@ class TestSpecValueTranslation:
             "requests --trusted-host pypi.example",
         ) == "*"
 
-    def test_extras_with_no_specifier_returns_star(self):
-        """``name[extras]`` with no version pin should be ``"*"``."""
+    def test_extras_with_no_specifier_returns_dict(self):
+        """``name[extras]`` with no version pin now surfaces the extras
+        in the dict-form return.  Previously the function returned
+        ``"*"`` (extras silently dropped); the T_PARITY_REAL fix routes
+        the extras into the Requirement so the resolvelib identifier
+        becomes ``(name, frozenset({"extra"}))`` instead of
+        ``(name, frozenset())``.  Without this, marker-gated
+        ``Requires-Dist`` entries (e.g. ``psycopg-binary; extra=binary``
+        on ``psycopg[binary]``) silently disappear from the lockfile.
+        """
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
         assert PurePythonBackend._spec_value_to_pipfile_entry(
             "urllib3", "urllib3[brotli]"
-        ) == "*"
+        ) == {"version": "*", "extras": ["brotli"]}
+
+    def test_extras_multi_value_split(self):
+        """Multiple extras (``pkg[a,b,c]``) round-trip as a list."""
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        assert PurePythonBackend._spec_value_to_pipfile_entry(
+            "requests", "requests[security,socks]>=2.31"
+        ) == {"version": ">=2.31", "extras": ["security", "socks"]}
 
 
 class TestTargetEnvCaching:

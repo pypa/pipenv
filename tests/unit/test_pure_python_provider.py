@@ -786,20 +786,29 @@ class TestGetPreferencePipfileVsTransitive:
 
 
 class TestGetPreferenceBacktrackCount:
-    """Bullet 3: an identifier appearing 3 times in ``backtrack_causes``
-    sorts AFTER one appearing 0 times.
+    """Bullet 3: an identifier appearing in ``backtrack_causes`` is
+    PROMOTED — sorts BEFORE an identifier that has not caused
+    backtracking.
 
-    Q-C strict mirror caveat: pip itself doesn't put the raw count in
-    its preference tuple — it uses a separate ``_conflict_promoted``
-    set populated by ``narrow_requirement_selection`` and exposes the
-    boolean ``not conflict_promoted`` at the head of the tuple.  We
-    don't ship ``narrow_requirement_selection`` yet (no T-task assigned
-    in Phase 3), so we render the same ordering signal directly off
-    the ``backtrack_causes`` arg.  Recorded in the parity-divergence
-    bullet on the T5 plan entry.
+    Mirrors pip's ``not conflict_promoted`` slot in
+    ``PipProvider.get_preference`` — pip puts the promoted-set signal
+    at the head of the tuple so a conflict-causing identifier surfaces
+    its conflict early, instead of pinning a wide unconflicted layer
+    only to roll it all back later.  Our analog uses the
+    ``backtrack_causes`` arg as the "promoted" signal (we don't ship
+    ``narrow_requirement_selection``'s separate promoted set).
+
+    Bench-fixture trigger (2026-05-13, T_PARITY_REAL extras work):
+    with the extras-roundtrip fix admitting ``protobuf<6`` from
+    ``sentry-protos`` plus ``protobuf<7,>=4.25`` from google-cloud-*,
+    a clean-record-first preference thrashed through dozens of
+    sentry-kafka-schemas / sentry-protos candidates before
+    backtracking far enough to find the conflict-free
+    sentry-kafka-schemas 0.1.x line.  Promote-to-front matches pip's
+    behaviour and lets the resolver converge.
     """
 
-    def test_more_backtracks_sorts_later(self):
+    def test_backtrack_causing_identifier_sorts_first(self):
         provider = _make_provider()
         causing_id = ("alpha", frozenset())
         clean_id = ("beta", frozenset())
@@ -833,8 +842,8 @@ class TestGetPreferenceBacktrackCount:
             information=information,
             backtrack_causes=backtrack_causes,
         )
-        # Backtrack-causing identifier sorts AFTER the clean one.
-        assert pref_clean < pref_causing
+        # Backtrack-causing identifier sorts BEFORE the clean one.
+        assert pref_causing < pref_clean
 
 
 class TestGetPreferenceLexicographicTieBreak:
@@ -1083,6 +1092,45 @@ class TestIsSatisfiedByMarker:
         provider = _make_provider(target_env={"python_version": "3.7"})
         cand = _candidate_for_satisfies(name="django", version="4.0.1")
         assert provider.is_satisfied_by(req, cand) is True
+
+    def test_strip_extras_helper_drops_extra_clause(self):
+        """T_PARITY_REAL bench regression (project 01 — ``psycopg[binary]``).
+
+        Transitive requirements emitted by T7's
+        :meth:`get_dependencies` get their ``extra == X`` clauses
+        stripped from the runtime marker via :func:`_strip_extra_clauses`.
+        Otherwise re-evaluating the marker in :meth:`is_satisfied_by`
+        against the plain target env (no ``extra`` key) would collapse
+        the clause to False and reject every candidate — exactly the
+        ``google-api-core[grpc]`` → ``grpcio<2.0 ; ... and extra == "grpc"``
+        cascade that hung the sentry-base bench fixture.
+
+        The strip preserves all non-extras clauses
+        (``python_version``, ``sys_platform``, etc.), so install-time
+        gates still fire.
+        """
+        from pipenv.resolver.pure_python_provider import _strip_extra_clauses
+        from pipenv.vendor.packaging.markers import Marker
+
+        # Compound marker — extras clause stripped, python_version kept.
+        stripped = _strip_extra_clauses(
+            Marker('python_version >= "3.11" and extra == "grpc"')
+        )
+        assert stripped is not None
+        assert str(stripped) == 'python_version >= "3.11"'
+
+        # Single extras clause — entire marker collapses to None.
+        assert (
+            _strip_extra_clauses(Marker('extra == "binary"')) is None
+        )
+
+        # Marker with no extras clause — returned unchanged
+        # (semantically; the helper re-parses so identity differs).
+        unchanged = _strip_extra_clauses(
+            Marker('python_version >= "3.11"')
+        )
+        assert unchanged is not None
+        assert str(unchanged) == 'python_version >= "3.11"'
 
 
 class TestIsSatisfiedByExtras:
@@ -1363,14 +1411,33 @@ class TestGetDependenciesMarkerFilter:
             target_env={"python_version": "3.12"},
         )
         deps = list(provider.get_dependencies(cand))
-        assert len(deps) == 1
-        assert deps[0].name == "pytest"
-        assert deps[0].parent == "django"
-        assert deps[0].source == "transitive"
-        # The marker is preserved on the transitive requirement so a
-        # later :meth:`is_satisfied_by` re-evaluation against
-        # ``target_env`` stays consistent.
-        assert deps[0].marker is not None
+        # When parent_extras is non-empty, get_dependencies emits a
+        # synthetic base-version pin FIRST (mirrors pip's
+        # :class:`ExtrasCandidate.iter_dependencies`) — strip it for
+        # the assertion below, which is about the marker-gated
+        # transitive.
+        non_pin = [d for d in deps if d.name != "django"]
+        assert len(non_pin) == 1
+        assert non_pin[0].name == "pytest"
+        assert non_pin[0].parent == "django"
+        assert non_pin[0].source == "transitive"
+        # Runtime marker is None: the ``extra == "dev"`` clause was
+        # already consumed at emission time (the gate that made this
+        # requirement survive :meth:`_marker_active_for_extras`), and
+        # carrying it onto :attr:`Requirement.marker` would make T6's
+        # :meth:`is_satisfied_by` re-evaluate it against the plain
+        # target env (no ``extra`` key) and reject every pytest
+        # candidate.  ``introducing_marker`` keeps the original for
+        # the lockfile emitter (T_M3).
+        assert non_pin[0].marker is None
+        assert non_pin[0].introducing_marker is not None
+        assert str(non_pin[0].introducing_marker) == 'extra == "dev"'
+        # Synthetic base-pin: ``django==4.2.0`` with no extras.
+        pin = next((d for d in deps if d.name == "django"), None)
+        assert pin is not None
+        assert str(pin.specifier) == "==4.2.0"
+        assert pin.extras == frozenset()
+        assert pin.marker is None
 
     def test_non_extra_marker_evaluated_against_target_env(self):
         """A non-extra marker (e.g. ``python_version < '3.8'``) is
@@ -1944,9 +2011,10 @@ class TestGetPreferenceDefensiveBranches:
             information={identifier: iter([_ri(req)])},
             backtrack_causes=(rogue_row,),
         )
-        # ``backtrack_count`` slot (index 0) must be 0 -- the rogue row
-        # didn't bump the count.
-        assert pref[0] == 0
+        # ``not has_backtracked`` slot (index 0) must be True --
+        # the rogue row didn't bump the count, so the identifier
+        # stays "clean record" and sorts AFTER any promoted rows.
+        assert pref[0] is True
 
     def test_backtrack_cause_for_different_identifier_not_counted(self):
         provider = _make_provider()
@@ -1964,7 +2032,9 @@ class TestGetPreferenceDefensiveBranches:
             information={identifier_a: iter([_ri(req_a)])},
             backtrack_causes=causes,
         )
-        assert pref_alpha[0] == 0  # zero backtracks for alpha
+        # No backtracks for alpha -> slot 0 (``not has_backtracked``)
+        # is True (clean record, sorts AFTER promoted identifiers).
+        assert pref_alpha[0] is True
 
     def test_backtrack_cause_with_unidentifiable_requirement_skipped(self):
         """If ``self.identify`` raises on a backtrack-causes row, the
@@ -1988,7 +2058,8 @@ class TestGetPreferenceDefensiveBranches:
         broken_row = RequirementInformation(
             requirement=_BrokenReq(), parent=None
         )
-        # Should NOT raise; ``backtrack_count`` for ``alpha`` stays 0.
+        # Should NOT raise; backtrack count for ``alpha`` stays 0,
+        # so slot 0 (``not has_backtracked``) is True.
         pref = provider.get_preference(
             identifier,
             resolutions={},
@@ -1996,7 +2067,7 @@ class TestGetPreferenceDefensiveBranches:
             information={identifier: iter([_ri(req)])},
             backtrack_causes=(broken_row,),
         )
-        assert pref[0] == 0
+        assert pref[0] is True
 
 
 class TestIsSatisfiedByVersionUnparseable:
@@ -2147,7 +2218,11 @@ class TestGetDependenciesMarkerEvaluationException:
         )
         deps = list(provider.get_dependencies(cand))
         # Both extras-context evaluations raise -- treated as inactive.
-        assert deps == []
+        # The only entry that survives is the synthetic base-version
+        # pin (`django==4.2.0`) emitted because parent_extras is
+        # non-empty; the marker-gated pytest transitive is dropped.
+        non_pin = [d for d in deps if d.name != "django"]
+        assert non_pin == []
 
 
 class TestGetDependenciesIntroducingMarker:
@@ -2276,8 +2351,11 @@ class TestGetDependenciesIntroducingMarker:
             target_env={"python_version": "3.12"},
         )
         deps = list(provider.get_dependencies(cand))
-        assert len(deps) == 1
-        dep = deps[0]
+        # Filter out the synthetic base-version pin emitted because
+        # parent_extras is non-empty.
+        non_pin = [d for d in deps if d.name != "django"]
+        assert len(non_pin) == 1
+        dep = non_pin[0]
         assert dep.name == "pytest"
         assert dep.parent == "django"
         assert dep.source == "transitive"
@@ -2410,8 +2488,11 @@ class TestGetDependenciesT_M5IntroducingMarkerCompound:
         deps = list(provider.get_dependencies(cand))
         # Filter kept the entry (both halves of the AND are True under
         # the parent_extras=={'dev'} + python_version=='3.12' overlay).
-        assert len(deps) == 1
-        dep = deps[0]
+        # Filter out the synthetic base-version pin emitted because
+        # parent_extras is non-empty.
+        non_pin = [d for d in deps if d.name != "django"]
+        assert len(non_pin) == 1
+        dep = non_pin[0]
         assert dep.name == "pytest"
         assert dep.parent == "django"
         assert dep.source == "transitive"

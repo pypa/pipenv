@@ -39,16 +39,103 @@ matrix.
 
 from __future__ import annotations
 
+from dataclasses import replace as _dataclass_replace
 from typing import Any, Iterable, Mapping, Sequence
 
 from pipenv.patched.pip._vendor.resolvelib.providers import AbstractProvider
 from pipenv.resolver.pure_python_requirement import Requirement
+from pipenv.vendor.packaging.markers import Marker
 from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
 from pipenv.vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.packaging.version import InvalidVersion, Version
 
 __all__ = ["PurePythonProvider", "_SdistEncountered", "_drive_resolver"]
+
+
+def _strip_extra_clauses(marker: Marker) -> Marker | None:
+    """Return a copy of ``marker`` with every ``extra == X`` /
+    ``extra != X`` clause removed.
+
+    Used by T7's :meth:`PurePythonProvider.get_dependencies` to scrub
+    the extras-gating clauses out of a transitive's marker once the
+    parent's extras context has already accepted the requirement.
+    The remaining clauses (e.g. ``python_version >= '3.11'``,
+    ``sys_platform == 'linux'``) stay so the runtime
+    :meth:`is_satisfied_by` check still enforces them.
+
+    Returns ``None`` when nothing of substance remains — e.g. the
+    input was ``extra == "foo"`` alone, or every clause referenced
+    ``extra``.  ``None`` matches the existing
+    :attr:`Requirement.marker` shape for the "no runtime marker"
+    case.
+
+    Walks :attr:`Marker._markers` — a recursive
+    ``list[tuple | str | list]`` structure where tuples are
+    ``(Variable, Op, Value)`` comparisons, ``str`` slots are the
+    boolean joiners ``"and"`` / ``"or"``, and nested lists are
+    parenthesised sub-expressions.  After filtering, dangling
+    joiners (a leading ``"and"`` or trailing ``"or"``) are dropped
+    so the re-serialised marker string parses cleanly.
+    """
+    def _is_extra_clause(node: Any) -> bool:
+        if not isinstance(node, tuple) or len(node) != 3:
+            return False
+        lhs, _op, rhs = node
+        lhs_name = getattr(lhs, "value", None)
+        rhs_name = getattr(rhs, "value", None)
+        return lhs_name == "extra" or rhs_name == "extra"
+
+    def _walk(markers: list[Any]) -> list[Any]:
+        out: list[Any] = []
+        for node in markers:
+            if isinstance(node, list):
+                sub = _walk(node)
+                if sub:
+                    out.append(sub)
+            elif isinstance(node, tuple):
+                if _is_extra_clause(node):
+                    continue
+                out.append(node)
+            else:
+                # Boolean joiner string ("and" / "or") — keep for now;
+                # tidy up dangling joiners below.
+                out.append(node)
+        # Drop a leading / trailing joiner left behind by a stripped
+        # clause at the edge of the list.
+        while out and isinstance(out[0], str):
+            out.pop(0)
+        while out and isinstance(out[-1], str):
+            out.pop()
+        # Collapse runs of consecutive joiner strings (can happen when
+        # both sides of an ``and``/``or`` were stripped) — keep the
+        # first.  This is rare; most stripped clauses sit at one end.
+        cleaned: list[Any] = []
+        prev_joiner = False
+        for node in out:
+            is_joiner = isinstance(node, str)
+            if is_joiner and prev_joiner:
+                continue
+            cleaned.append(node)
+            prev_joiner = is_joiner
+        return cleaned
+
+    stripped = _walk(marker._markers)
+    if not stripped:
+        return None
+    # Re-serialise and re-parse so the returned object is a fresh
+    # :class:`Marker` whose internal state is consistent with its
+    # string form (consumers like the lockfile emitter rely on
+    # ``str(marker)`` matching the parsed structure).
+    from pipenv.vendor.packaging.markers import _format_marker
+
+    try:
+        return Marker(_format_marker(stripped))
+    except Exception:  # noqa: BLE001
+        # Defensive: a malformed re-serialisation falls back to None
+        # (no runtime marker) — pip's stance on unparseable markers
+        # is the same.
+        return None
 
 
 class _SdistEncountered(Exception):
@@ -159,6 +246,21 @@ class PurePythonProvider(AbstractProvider):
         # specifier itself opts in (e.g. ``>=2.0a1``) — same semantics
         # as pip's ``--pre``.
         self._allow_prereleases: bool = bool(allow_prereleases)
+        # T_PARITY_REAL extras-work follow-up (2026-05-13): track
+        # conflict-promotion state across :meth:`narrow_requirement_selection`
+        # calls.  Mirrors pip's ``_conflict_counts`` /
+        # ``_conflict_promoted`` pair in
+        # ``pipenv/patched/pip/_internal/resolution/resolvelib/provider.py``.
+        # Without these, ``get_preference``'s ``backtrack_causes``-only
+        # signal is too local — by the time a high-conflict identifier
+        # gets enough backtrack causes to register, the resolver has
+        # already pinned a wide unconflicted layer that has to be
+        # rolled back.  ``narrow_requirement_selection`` provides the
+        # eager promote-on-first-conflict path.
+        from collections import defaultdict
+
+        self._conflict_counts: dict[Identifier, int] = defaultdict(int)
+        self._conflict_promoted: set[Identifier] = set()
 
     # ------------------------------------------------------------------
     # T3 — identify
@@ -393,6 +495,34 @@ class PurePythonProvider(AbstractProvider):
             key=lambda c: (Version(c.version), bool(c.is_wheel)),
             reverse=True,
         )
+
+        # Step 9: propagate the identifier's extras onto each candidate.
+        # The PEP 691 simple-API doesn't report ``provides_extras``, so
+        # the cache's :class:`Candidate.extras` always parses as
+        # ``frozenset()``.  Pip's :class:`ExtrasCandidate` wraps a base
+        # candidate with the requested extras so that
+        # :meth:`get_dependencies` can iterate marker-gated
+        # ``Requires-Dist`` entries against the right
+        # ``extra=<name>`` context (see
+        # ``pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py``).
+        # Our pure-python analog: when the resolvelib identifier carries
+        # extras (the user wrote ``pkg = { extras = [...], ... }`` or a
+        # transitive issued ``pkg[extras]``), clone the filtered
+        # candidates so ``candidate.extras`` matches the identifier.
+        # T7's :meth:`get_dependencies` reads ``candidate.extras`` as
+        # ``parent_extras`` and feeds it into
+        # :meth:`_marker_active_for_extras`; without this step the
+        # ``extra == "<name>"`` marker on the transitive line
+        # (e.g. ``psycopg-binary; extra == "binary"`` on
+        # ``psycopg[binary]``) evaluates False under ``extra=""`` and
+        # the transitive silently disappears from the lockfile.
+        # T_PARITY_REAL bench trigger: project 01 (``django`` +
+        # ``psycopg[binary]``) — pp's lock was missing
+        # ``psycopg-binary``.
+        if _extras:
+            filtered = [
+                _dataclass_replace(cand, extras=_extras) for cand in filtered
+            ]
         return filtered
 
     # -- T4 helpers -----------------------------------------------------
@@ -617,12 +747,36 @@ class PurePythonProvider(AbstractProvider):
 
         Tuple shape this method returns (low = preferred):
 
-            (backtrack_count,            # 0 best; ≥1 worse
+            (not has_backtracked,        # False (has caused backtracks) first
              not is_pipfile,             # False (pipfile) first
              not is_pinned,              # False (pinned) first
              not is_upper_bounded,       # False (has <,<=,~=,==*) first
              not is_unfree,              # False (has any op) first
              identifier_name)            # alphabetical tie-break
+
+        T_PARITY_REAL extras-roundtrip note (2026-05-13)
+        ------------------------------------------------
+        The ``not has_backtracked`` slot used to be a bare
+        ``backtrack_count`` ascending — i.e. identifiers with zero
+        backtracks sorted FIRST, identifiers that had caused
+        conflicts sorted LAST.  That's the inverse of pip's intent:
+        pip's ``not promoted`` (``PipProvider.get_preference``, the
+        first slot) puts conflict-promoted identifiers FIRST so the
+        resolver surfaces the conflict early and prunes the
+        backtrack tree, instead of pinning a wide unconflicted
+        layer only to roll it all back later.  Flipping to a
+        boolean signal — ``False`` (has backtracked) sorts before
+        ``True`` (clean record) — matches pip's promote-to-front
+        intent.  Bench-fixture trigger: with the extras-roundtrip
+        fix in place, the constraint graph picks up
+        ``protobuf<6`` (from ``sentry-protos``) plus
+        ``grpcio-status<2,>=1.49.1`` (from
+        ``google-api-core[grpc]``) plus the rest of the
+        google-cloud-* ``protobuf<7,>=4.25`` constraints; without
+        promote-to-front, the resolver thrashes through dozens of
+        sentry-kafka-schemas / sentry-protos combinations before
+        backtracking far enough to pick ``sentry-kafka-schemas
+        0.1.x`` (which doesn't pull sentry-protos at all).
 
         See ``docs/dev/initiative-g-phase3-design.md`` §5.3 and
         ``initiative-g-phase3-plan.md`` T5 for rationale.
@@ -699,14 +853,137 @@ class PurePythonProvider(AbstractProvider):
         name, extras = identifier
         identifier_key = (name, tuple(sorted(extras)))
 
+        # Promote-to-front: identifiers that have already caused
+        # backtracking (either in the current cycle via
+        # ``backtrack_count > 0`` or persistently via
+        # :attr:`_conflict_promoted`, populated by
+        # :meth:`narrow_requirement_selection`) get a False here
+        # (sorts before True), matching pip's ``not conflict_promoted``
+        # slot.  Backtracking is expensive when it propagates through a
+        # wide unconflicted layer; resolving high-conflict identifiers
+        # earlier prunes the search tree.
+        has_backtracked = (
+            backtrack_count > 0 or identifier in self._conflict_promoted
+        )
+
         return (
-            backtrack_count,
+            not has_backtracked,
             not is_pipfile,
             not is_pinned,
             not is_upper_bounded,
             not is_unfree,
             identifier_key,
         )
+
+    # ------------------------------------------------------------------
+    # T_PARITY_REAL extras-work follow-up (2026-05-13)
+    # — narrow_requirement_selection: focus the resolver on
+    # conflict-prone identifiers per pip's
+    # ``PipProvider.narrow_requirement_selection``.
+    # ------------------------------------------------------------------
+
+    # Mirror pip's ``_CONFLICT_PRIORITY_THRESHOLD``
+    # (``pipenv/patched/pip/_internal/resolution/resolvelib/provider.py``)
+    # — an identifier needs to appear as an unresolved backtrack cause
+    # at least this many times before it gets promoted persistently.
+    _CONFLICT_PRIORITY_THRESHOLD = 8
+
+    def narrow_requirement_selection(
+        self,
+        identifiers: Iterable[Identifier],
+        resolutions: Mapping[Identifier, Any],
+        candidates: Mapping[Identifier, Iterable[Any]],
+        information: Mapping[Identifier, Iterable[Any]],
+        backtrack_causes: Sequence[Any],
+    ) -> Iterable[Identifier]:
+        """Return a subset of ``identifiers`` to focus on first.
+
+        Mirrors pip's
+        :meth:`PipProvider.narrow_requirement_selection` algorithm
+        (``pipenv/patched/pip/_internal/resolution/resolvelib/provider.py``
+        line 120) — called O(1) times per backtrack step (vs.
+        :meth:`get_preference` which is O(n)) so it's the right place
+        to do filtering that involves walking ``backtrack_causes``.
+
+        Three-tier strategy, lifted verbatim from pip:
+
+        1. **Active backtrack causes** — if any
+           ``backtrack_causes`` row points at an identifier that's
+           also in the current selection AND not yet pinned, return
+           ONLY those identifiers.  Forces the resolver to surface
+           the conflict immediately rather than pinning unrelated
+           packages first.
+
+        2. **Conflict-promoted** — identifiers that have crossed the
+           :attr:`_CONFLICT_PRIORITY_THRESHOLD` (i.e. have been a
+           backtrack cause that many times) stay promoted across
+           backtrack steps.  Returned next.
+
+        3. **Default** — return the full ``identifiers`` iterable
+           unchanged.
+
+        Bench-fixture trigger (2026-05-13): the
+        ``sentry-kafka-schemas`` ↔ ``sentry-protos`` ↔ ``protobuf``
+        ↔ ``grpcio`` ↔ ``grpcio-status`` constraint web that the
+        extras-roundtrip fix surfaces.  Without narrowing,
+        ``get_preference`` is called per-identifier and the resolver
+        thrashes through dozens of unrelated candidates before
+        learning to pin the conflict packages first.  Narrowing
+        focuses the search.
+        """
+        # Resolvelib hands us a fresh iterator each call — materialise
+        # so we can pre-flight checks AND fall through to "all"
+        # without re-iterating a one-shot view.
+        identifiers = list(identifiers)
+        if not identifiers:
+            return identifiers
+
+        # Step 1: walk backtrack_causes, track per-identifier conflict
+        # counts, populate ``_conflict_promoted`` once an identifier
+        # crosses the threshold.  Mirrors pip lines 142-152.
+        backtrack_idents: set[Identifier] = set()
+        for info in backtrack_causes:
+            req = getattr(info, "requirement", None)
+            parent = getattr(info, "parent", None)
+            for source in (req, parent):
+                if source is None:
+                    continue
+                try:
+                    name = self.identify(source)
+                except Exception:  # noqa: BLE001
+                    continue
+                backtrack_idents.add(name)
+                # Only bump the persistent counter for identifiers
+                # that are NOT already pinned — pinning resolves a
+                # conflict; only unresolved ones deserve promotion.
+                if name not in resolutions:
+                    self._conflict_counts[name] += 1
+                    if (
+                        self._conflict_counts[name]
+                        >= self._CONFLICT_PRIORITY_THRESHOLD
+                    ):
+                        self._conflict_promoted.add(name)
+
+        # Step 2: collect the live backtrack causes that are also
+        # currently-considered identifiers AND already-promoted
+        # identifiers.  Mirrors pip lines 154-166.
+        current_backtrack_causes: list[Identifier] = []
+        promoted: list[Identifier] = []
+        for identifier in identifiers:
+            if identifier in backtrack_idents:
+                current_backtrack_causes.append(identifier)
+                continue
+            if identifier in self._conflict_promoted:
+                promoted.append(identifier)
+
+        # Step 3: prefer the live backtrack causes; fall back to
+        # persistently-promoted; finally the full list.  Pip's
+        # exact precedence at lines 168-174.
+        if current_backtrack_causes:
+            return current_backtrack_causes
+        if promoted:
+            return promoted
+        return identifiers
 
     # ------------------------------------------------------------------
     # T6 — is_satisfied_by (final-acceptance predicate)
@@ -971,6 +1248,36 @@ class PurePythonProvider(AbstractProvider):
         )
 
         deps: list[Requirement] = []
+
+        # Synthetic base-version requirement (mirrors pip's
+        # :class:`ExtrasCandidate.iter_dependencies` shape at
+        # ``pipenv/patched/pip/_internal/resolution/resolvelib/candidates.py``
+        # line 533 — ``yield factory.make_requirement_from_candidate(self.base)``).
+        # When the parent candidate carries extras, emit a tie-down
+        # FIRST that pins the BARE ``(name, frozenset())`` identifier
+        # to the exact version of THIS candidate.  Without this, the
+        # bare and extras-flavoured identifiers explore version space
+        # independently and backtracking explodes when any unrelated
+        # transitive pulls the bare name (sentry-bench fixture: many
+        # google-cloud-* packages pull ``google-api-core[grpc]``
+        # while the user pulled bare ``google-api-core>=2.15.0``,
+        # producing two streams that diverge on every backtrack).
+        # Pip yields this FIRST, before the extras-gated transitives,
+        # so resolvelib sees the version pin before exploring the
+        # cascade — order matters for convergence speed.
+        cand_version = getattr(candidate, "version", None)
+        if parent_extras and cand_version:
+            deps.append(
+                Requirement(
+                    name=parent_name,
+                    specifier=SpecifierSet(f"=={cand_version}"),
+                    extras=frozenset(),
+                    marker=None,
+                    source="transitive",
+                    parent=parent_name,
+                )
+            )
+
         for raw_spec in metadata.requires_dist:
             # ``packaging.requirements.Requirement`` parses the line.
             # We pre-strip leading/trailing whitespace defensively;
@@ -1011,12 +1318,31 @@ class PurePythonProvider(AbstractProvider):
             # them distinct preserves the existing T7 contract while
             # letting T_M3 evolve marker-canonicalisation independently
             # of the resolver's evaluator semantics.
+            # Strip any ``extra == X`` / ``extra != X`` clauses from
+            # the marker before attaching it to the resulting
+            # :class:`Requirement`.  The extras-gating role has already
+            # been consumed at this point (the requirement only made it
+            # past :meth:`_marker_active_for_extras` because the
+            # parent's extras context satisfied the clause), and
+            # keeping the clause on the runtime marker means T6's
+            # :meth:`is_satisfied_by` would re-evaluate it under the
+            # plain target env (no ``extra`` key) and reject every
+            # candidate — pip dodges this by emitting requirements
+            # without the extras clause once the gate has passed.
+            # ``introducing_marker`` keeps the ORIGINAL marker so the
+            # lockfile emitter (T_M3 :func:`_introducing_marker_for`)
+            # still records the precise ``Requires-Dist`` text.
+            runtime_marker = (
+                _strip_extra_clauses(parsed.marker)
+                if parsed.marker is not None
+                else None
+            )
             deps.append(
                 Requirement(
                     name=canonicalize_name(parsed.name),
                     specifier=parsed.specifier,
                     extras=frozenset(parsed.extras),
-                    marker=parsed.marker,
+                    marker=runtime_marker,
                     source="transitive",
                     parent=parent_name,
                     introducing_marker=parsed.marker,
