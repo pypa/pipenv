@@ -487,3 +487,25 @@ def test_ensure_proper_casing_returns_false_when_no_change_needed(
         # when proper_case can't resolve a name).
         changed = project_with_packages.pipfile.ensure_proper_casing()
         assert changed is False
+
+
+@pytest.mark.utils
+def test_recase_is_noop_by_default(project_with_packages):
+    # ``recase`` must not touch the network unless the user opts in via
+    # PIPENV_RECASE_PIPFILE — protects ``pipenv install -r`` from
+    # per-package PyPI HTTP probes.
+    with mock.patch("pipenv.utils.pipfile.proper_case") as probe:
+        project_with_packages.pipfile.recase()
+        probe.assert_not_called()
+
+
+@pytest.mark.utils
+def test_recase_runs_when_opted_in(project_with_packages, monkeypatch):
+    monkeypatch.setattr(
+        project_with_packages.s, "PIPENV_RECASE_PIPFILE", True
+    )
+    with mock.patch(
+        "pipenv.utils.pipfile.proper_case", side_effect=OSError
+    ) as probe:
+        project_with_packages.pipfile.recase()
+        assert probe.called
