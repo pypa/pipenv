@@ -483,3 +483,206 @@ def test_from_pipfile_entry_source_literal_passthrough() -> None:
         "django", "*", source="bogus"  # type: ignore[arg-type]
     )
     assert req.source == "bogus"
+
+
+# ---------------------------------------------------------------------------
+# T_M1 — ``introducing_marker`` field (Initiative G Phase 3b)
+# ---------------------------------------------------------------------------
+#
+# T_M1 adds an optional ``introducing_marker: Marker | None = None`` slot
+# to :class:`Requirement` so T_M2 can populate it from each
+# ``Requires-Dist`` line (e.g. ``pytest; python_version < '3.10'``) and
+# T_M3 can read it in ``_translate_mapping`` when emitting markers on
+# the lockfile entry.  ``from_pipfile_entry`` is *not* widened — the
+# helper is only called for top-level Pipfile entries (which never
+# carry an introducing marker by definition); transitives are built via
+# direct ``Requirement(...)`` construction in
+# :meth:`PurePythonProvider.get_dependencies`.
+
+
+class TestRequirementIntroducingMarker:
+    """Pin the T_M1 contract for ``Requirement.introducing_marker``."""
+
+    def test_introducing_marker_defaults_to_none(self) -> None:
+        """Pipfile-shape construction (the only path through
+        :meth:`Requirement.from_pipfile_entry`) leaves
+        ``introducing_marker`` as ``None`` — the helper is not widened
+        and the field defaults to ``None`` on the dataclass."""
+        req = Requirement.from_pipfile_entry("django", "*")
+        assert req.introducing_marker is None
+
+    def test_introducing_marker_field_round_trip(self) -> None:
+        """Direct construction with an ``introducing_marker`` round-trips
+        the same :class:`Marker` instance back out."""
+        m = Marker("python_version < '3.10'")
+        req = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=m,
+        )
+        assert req.introducing_marker is m
+
+    def test_introducing_marker_defaults_to_none_on_direct_construction(
+        self,
+    ) -> None:
+        """Existing call sites that build :class:`Requirement` without
+        the new kwarg get ``introducing_marker=None`` for free — proves
+        the field's default and preserves backwards-compatible
+        kwarg-style construction."""
+        req = Requirement(
+            name="urllib3",
+            specifier=SpecifierSet(">=1.26"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="requests",
+        )
+        assert req.introducing_marker is None
+
+    def test_introducing_marker_equality_same_marker(self) -> None:
+        """Two Requirements with the same ``introducing_marker`` value
+        (constructed independently from equal marker strings) compare
+        equal."""
+        a = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=Marker("python_version < '3.10'"),
+        )
+        b = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=Marker("python_version < '3.10'"),
+        )
+        assert a == b
+        assert hash(a) == hash(b)
+
+    def test_introducing_marker_inequality_different_marker(self) -> None:
+        """Different ``introducing_marker`` values produce unequal
+        Requirements — T_M3 relies on this when collapsing multiple
+        introductions of the same transitive."""
+        a = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=Marker("python_version < '3.10'"),
+        )
+        b = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=Marker("python_version >= '3.10'"),
+        )
+        assert a != b
+
+    def test_introducing_marker_inequality_none_vs_marker(self) -> None:
+        """``introducing_marker=None`` vs a populated marker is an
+        inequality — pins that the field participates in dataclass
+        equality."""
+        a = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=None,
+        )
+        b = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=Marker("python_version < '3.10'"),
+        )
+        assert a != b
+
+    def test_introducing_marker_frozenset_membership(self) -> None:
+        """Requirements carrying an ``introducing_marker`` are still
+        hashable — :class:`Marker` is hashable in
+        ``pipenv.vendor.packaging`` (markers.py:329) so the frozen
+        dataclass's derived ``__hash__`` works without an override."""
+        m = Marker("python_version < '3.10'")
+        a = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=m,
+        )
+        b = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=Marker("python_version < '3.10'"),
+        )
+        bag = frozenset({a, b})
+        # Equal Requirements (including their introducing markers)
+        # collapse to a single member.
+        assert len(bag) == 1
+        assert a in bag
+
+    def test_introducing_marker_dataclass_replace_preserves_field(
+        self,
+    ) -> None:
+        """``dataclasses.replace`` round-trips ``introducing_marker``
+        — T_M2 uses this pattern when rebuilding a marker-aware variant
+        of a transitive Requirement."""
+        import dataclasses as _dc
+
+        original = Requirement(
+            name="pytest",
+            specifier=SpecifierSet(">=7"),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="django",
+            introducing_marker=None,
+        )
+        m = Marker("python_version < '3.10'")
+        updated = _dc.replace(original, introducing_marker=m)
+        assert updated.introducing_marker is m
+        # The replace produced a *new* instance; the original stays
+        # unmodified (frozen-dataclass guarantee).
+        assert original.introducing_marker is None
+
+    def test_from_pipfile_entry_does_not_accept_introducing_marker_kwarg(
+        self,
+    ) -> None:
+        """``from_pipfile_entry`` is deliberately NOT widened with an
+        ``introducing_marker`` kwarg — the helper only builds top-level
+        Pipfile constraints, never transitives.  Calling it with the
+        kwarg raises :class:`TypeError` from Python's
+        keyword-argument-handling, pinning the design decision."""
+        with pytest.raises(TypeError):
+            Requirement.from_pipfile_entry(
+                "django",
+                "*",
+                introducing_marker=Marker(  # type: ignore[call-arg]
+                    "python_version < '3.10'"
+                ),
+            )
