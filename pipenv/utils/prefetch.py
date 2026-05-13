@@ -377,10 +377,15 @@ def _download_and_verify(
     if not url or not filename:
         return False
     try:
+        try:
+            from pipenv.patched.pip._vendor.urllib3 import Timeout as _Timeout
+            _timeout = _Timeout(connect=_CONNECT_TIMEOUT, read=_READ_TIMEOUT)
+        except ImportError:
+            _timeout = (_CONNECT_TIMEOUT, _READ_TIMEOUT)
         response = session.request(
             "GET",
             url,
-            timeout=(_CONNECT_TIMEOUT, _READ_TIMEOUT),
+            timeout=_timeout,
             preload_content=True,
         )
     except Exception as exc:  # noqa: BLE001
