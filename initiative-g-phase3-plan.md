@@ -1039,9 +1039,33 @@ near the bottom of this document.
     `pipenv lock --backend pip`.  `resolvelib.Resolver` never invoked.
   - Backend is registered (loadable from `get_backend("pure-python")`).
   - Coverage ≥ 90 %.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - T9 seeded the file with 4 acceptance tests (success / conflict /
+    sdist / Q-F).  Initial coverage measured at **88 %** (18 missed
+    lines).  T14 extended the suite with 20 additional focused tests
+    distributed across 9 new classes — `TestIsAvailable`,
+    `TestPrefetchExceptionTolerated`, `TestQFPreCheckEdges`,
+    `TestGenericExceptionTranslatedToInternalError`,
+    `TestResolutionImpossibleFormattingEdges`,
+    `TestSpecValueTranslation`, `TestTargetEnvCaching`,
+    `TestMetadataFetcherClosure`, `TestTranslateMappingEdges` —
+    each pinning a previously-uncovered branch (Q-B fetcher exception
+    tolerance, empty-cache Q-F skip, mixed sdist+wheel Q-F skip,
+    `python_marker_override` formatting, generic exception →
+    `InternalError`, empty / root-parent / opaque-parent
+    `ResolutionImpossible` rendering, spec-value translation across
+    all marker chars + bare-name + empty + unparseable shapes, lazy
+    vs explicit `target_env`, metadata-fetcher closure forwarding,
+    non-tuple identifier fallback, version-less candidate skip,
+    extras + multi-hash propagation, and the empty-`packages.specs`
+    degenerate request).  Final coverage measured at **100 %** (0
+    missed lines); all 24 T9+T14 tests pass alongside T10's 2
+    `TestBackendRegistration` rows.  No bugs found in T9's
+    implementation; the typed-schema field shapes lined up with the
+    backend's translations without surprise.
 - **files edited/created**:
+  - tests/unit/test_pure_python_backend.py (extended)
 
 ---
 
