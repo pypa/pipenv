@@ -842,12 +842,34 @@ near the bottom of this document.
     pipenv/resolver/backends/pure_python.py` returns ZERO matches.
     Only patched-pip import is the resolvelib exception type from
     `pipenv.patched.pip._vendor.resolvelib` (vendor, permitted).
+  - 2026-05-12 (T9b follow-up): T10 defaulted the four `__init__`
+    collaborators to `None` so the registry path
+    (`get_backend("pure-python")`) could call `cls()` with no args.
+    That left `resolve()` NPE-ing on `self._fetcher.populate(...)`
+    when arriving via the registry.  Added
+    `_bootstrap_from_request(request)` (called at the top of
+    `resolve()`) that self-constructs the four collaborators from the
+    `ResolverRequest` envelope when they're `None` on `self`:
+    `PEP691Client(session, verify=...)` + `ParallelFetcher(client,
+    cache)` + `ParsedManifestCache(PIPENV_CACHE_DIR/pipenv-manifests)`
+    + `MetadataCache(PIPENV_CACHE_DIR/pipenv-manifests/metadata-v1)`.
+    Bootstrap is idempotent — pre-injected (test) collaborators win.
+    Session built via `pipenv.utils.internet.get_requests_session`
+    (the same factory the production prefetch path uses) with a
+    `PoolManager` fallback for sandboxed paths.  Cache-dir resolution
+    mirrors `routines/lock.py::_prefetch_index_manifests_if_enabled`.
+    Added 2 unit tests (`TestBootstrapFromRequest`) — all 28 tests in
+    `test_pure_python_backend.py` pass; zero `pip._internal` matches
+    survive.
 - **files edited/created**:
   - `pipenv/resolver/backends/pure_python.py` (replaced stub with
-    `PurePythonBackend` class)
+    `PurePythonBackend` class; T9b: added `_bootstrap_from_request` +
+    `_cache_dir_from_request`)
   - `tests/unit/test_pure_python_backend.py` (new — 4 acceptance
     tests covering success path, `ResolutionImpossible`, fail-loud
-    `_SdistEncountered`, and the Q-F top-level wheel pre-check)
+    `_SdistEncountered`, and the Q-F top-level wheel pre-check;
+    T9b: appended `TestBootstrapFromRequest` with 2 rows pinning the
+    bootstrap path and the pre-injection-wins idempotency contract)
 
 ---
 

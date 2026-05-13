@@ -37,7 +37,9 @@ sits on the typed schema surface, not on patched-pip internals.
 """
 from __future__ import annotations
 
+import os
 import traceback
+from pathlib import Path
 from typing import Any, Sequence
 
 from pipenv.resolver.pure_python_metadata import (
@@ -137,6 +139,15 @@ class PurePythonBackend:
         translated to structured ``result`` variants rather than raised
         out of the backend (per the Initiative F ``Backend`` contract).
         """
+        # Bootstrap collaborators from the request when not pre-injected
+        # (T9b, 2026-05-12).  Production code arrives here via the
+        # Initiative F registry's ``get_backend("pure-python")`` helper
+        # which calls ``cls()`` with no args (T10) — so the four
+        # collaborators are ``None`` on ``self``.  Unit tests still
+        # inject them via ``__init__`` kwargs; the bootstrap is
+        # idempotent and only fills fields that are currently ``None``.
+        self._bootstrap_from_request(request)
+
         # --- index URLs from request.sources ----------------------------
         # request.sources is the post-mirror-substitution source list;
         # if empty (subprocess fixtures sometimes omit it) fall through
@@ -308,6 +319,121 @@ class PurePythonBackend:
             result=ResolverSuccess(kind="success", locked=locked),
             diagnostics=Diagnostics(),
         )
+
+    # ------------------------------------------------------------------
+    # Bootstrap (T9b — 2026-05-12)
+    # ------------------------------------------------------------------
+
+    def _bootstrap_from_request(self, request: ResolverRequest) -> None:
+        """Populate missing collaborators from the request envelope.
+
+        Idempotent: only fills fields that are currently ``None`` on
+        ``self``.  Tests that pass collaborators via ``__init__``
+        kwargs are unaffected — their pre-injected values short-circuit
+        every branch below.
+
+        Production wiring (the Initiative F registry path) lands here
+        with all four fields at ``None`` because
+        :func:`pipenv.resolver.backends.get_backend` invokes ``cls()``
+        with no args (T10).  Constructor signatures are pinned to the
+        existing modules:
+
+        * :class:`pipenv.resolver.pep691.PEP691Client` — ``(session,
+          *, netrc_path, cert, verify)``.
+        * :class:`pipenv.resolver.fetcher.ParallelFetcher` — ``(client,
+          cache, *, max_workers, default_ttl)``.
+        * :class:`pipenv.resolver.manifest_cache.ParsedManifestCache` —
+          ``(root, schema_version)``.
+        * :class:`pipenv.resolver.pure_python_metadata.MetadataCache` —
+          ``(root)``.
+
+        Cache-dir resolution mirrors the production prefetch path at
+        ``pipenv/routines/lock.py::_prefetch_index_manifests_if_enabled``:
+        ``$PIPENV_CACHE_DIR / "pipenv-manifests"`` for the manifest
+        cache root.  ``ResolverRequest`` carries no ``cache_dir`` field
+        of its own (see ``pipenv/resolver/schema.py``), so we fall back
+        to the environment variable with a user-cache default — this
+        matches the convention :class:`pipenv.environments.Setting`
+        uses to resolve :attr:`PIPENV_CACHE_DIR` on the parent side.
+
+        ``verify_ssl`` is taken from the *first* source on the request
+        (Phase 3 single-policy simplification).  Multi-policy fan-out
+        across heterogeneous source sets is the lock-route's
+        responsibility — when the dispatcher constructs the backend
+        with collaborators pre-built, the FU2 per-policy fan-out at
+        ``lock.py`` applies and this branch is skipped entirely.
+        """
+        # Session: a urllib3 PoolManager (production) or a duck-typed
+        # mock (tests).  We follow ``pipenv.utils.internet.get_requests_session``
+        # — the same factory the production prefetch path uses — so
+        # cert/verify/cache-dir wiring is shared between the prefetcher
+        # and this backend.  Failure here is *not* fatal: if pip's
+        # internals aren't importable for any reason (e.g. a sandboxed
+        # test path), fall back to a bare PoolManager and surface the
+        # error downstream via the fetcher's own error envelope.
+        if self._session is None:
+            verify = bool(request.sources[0].verify_ssl) if request.sources else True
+            try:
+                from pipenv.utils.internet import get_requests_session
+
+                self._session = get_requests_session(verify_ssl=verify)
+            except Exception:  # noqa: BLE001 — last-resort fallback.
+                from pipenv.patched.pip._vendor.urllib3 import PoolManager
+
+                self._session = PoolManager()
+
+        # Manifest cache: filesystem-backed, rooted under PIPENV_CACHE_DIR.
+        if self._cache is None:
+            from pipenv.resolver.manifest_cache import ParsedManifestCache
+
+            cache_root = self._cache_dir_from_request(request) / "pipenv-manifests"
+            self._cache = ParsedManifestCache(cache_root)
+
+        # Parallel fetcher: needs a PEP691Client wrapping the session +
+        # the manifest cache built above.  ``verify`` is sourced from
+        # the first request source (Phase 3 single-policy default).
+        if self._fetcher is None:
+            from pipenv.resolver.fetcher import ParallelFetcher
+            from pipenv.resolver.pep691 import PEP691Client
+
+            verify = bool(request.sources[0].verify_ssl) if request.sources else True
+            client = PEP691Client(self._session, verify=verify)
+            self._fetcher = ParallelFetcher(client, self._cache)
+
+        # Metadata cache: separate filesystem cache (different on-disk
+        # schema vs. manifest cache, so a sibling directory rather than
+        # nesting under ``pipenv-manifests``).
+        if self._metadata_cache is None:
+            metadata_root = (
+                self._cache_dir_from_request(request)
+                / "pipenv-manifests"
+                / "metadata-v1"
+            )
+            self._metadata_cache = MetadataCache(metadata_root)
+
+    @staticmethod
+    def _cache_dir_from_request(request: ResolverRequest) -> Path:
+        """Resolve the on-disk cache root.
+
+        ``ResolverRequest`` does not carry a ``cache_dir`` field today;
+        we mirror the parent-side default chain used by
+        :class:`pipenv.environments.Setting`::
+
+            $PIPENV_CACHE_DIR
+              → pip's USER_CACHE_DIR (fallback to ~/.cache/pipenv on
+                POSIX, %LOCALAPPDATA%/pipenv/Cache on Windows)
+
+        We deliberately do NOT import pip-internal locations here —
+        that's the coupling Initiative G exists to break.  The
+        ``~/.cache/pipenv`` fallback is the Linux default of pip's
+        USER_CACHE_DIR and is good enough for the bootstrap path;
+        production runs always have ``PIPENV_CACHE_DIR`` set by the
+        parent.
+        """
+        env_value = os.environ.get("PIPENV_CACHE_DIR")
+        if env_value:
+            return Path(env_value)
+        return Path.home() / ".cache" / "pipenv"
 
     # ------------------------------------------------------------------
     # Internal helpers
