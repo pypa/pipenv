@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "hg": "https://example.com/hg-pkg",
+    "name": "hg-pkg",
+    "ref": "tip"
+  },
+  "name": "hg-pkg"
+}

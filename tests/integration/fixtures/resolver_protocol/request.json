@@ -1,0 +1,28 @@
+{
+  "category": "packages",
+  "metadata": {
+    "deadline_seconds": "<redacted>",
+    "parent_pid": 0,
+    "pipenv_version": "<redacted>"
+  },
+  "options": {
+    "clear": false,
+    "pre": false,
+    "system": false,
+    "verbose": false
+  },
+  "packages": {
+    "specs": {
+      "pytz": "pytz==2024.1",
+      "six": "six==1.16.0"
+    }
+  },
+  "schema_version": 1,
+  "sources": [
+    {
+      "name": "pypi",
+      "url": "https://pypi.org/simple",
+      "verify_ssl": true
+    }
+  ]
+}

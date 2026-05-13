@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "file": "file:///tmp/my_package-1.0.0-py3-none-any.whl",
+    "name": "my-package"
+  },
+  "name": "my-package"
+}

@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "name": "binary-only",
+    "no_binary": true,
+    "version": "==1.0.0"
+  },
+  "name": "binary-only"
+}

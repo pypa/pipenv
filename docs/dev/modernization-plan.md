@@ -1548,6 +1548,316 @@ the design — the four are independent of each other once the
 - **files edited/created**:
   - `docs/dev/initiative-f-typed-design.md` (new, 719 lines)
 
+#### T_F.3: Execute the typed resolver subprocess schema
+- **depends_on**: [T_F.2]
+- **location**: `pipenv/resolver/` (new package — `schema.py`, `main.py`, `__init__.py`); `pipenv/utils/resolver.py`; `pipenv/utils/locking.py`; `pyproject.toml` (console-script entry); tests under `tests/unit/test_resolver_schema.py`, `tests/unit/test_resolver_parent_dispatch.py`, `tests/unit/test_resolver_protocol_smoke.py`, `tests/integration/test_resolver_protocol.py`; golden fixtures under `tests/unit/fixtures/resolver_schema/` and `tests/integration/fixtures/resolver_protocol/`; `news/T_F.3.behavior.rst`.
+- **description**:
+  Single-PR execution of the T_F.2 design. Introduces the typed
+  `ResolverRequest` / `ResolverResponse` envelope + discriminated
+  `ResolverResult`; folds `Entry.get_cleaned_dict` and
+  `format_requirement_for_lockfile` into the new unified
+  `LockedRequirement.from_install_requirement` constructor; drops the
+  three env-var hops and the dead argv flags; rewrites both the
+  subprocess entry and the parent dispatcher around the typed envelope;
+  migrates the in-process branch to the new types (without folding it
+  with the subprocess branch — that's T_F.4); pins the JSON wire shape
+  with a golden-fixture integration test + a `PIPENV_REGEN_PROTOCOL_FIXTURES`
+  regen mechanism. Execution structured as a 4-wave swarm (`docs/dev/initiative-f-execution-plan.md`).
+- **validation**:
+  - 758 unit tests pass (was 677 baseline pre-T_F.3). +81 tests from the schema + parity + dispatch + comma-in-marker + protocol-smoke + parent-dispatch suites.
+  - Integration test pins the JSON wire shape (3 consecutive runs ~1.1s each).
+  - `pipenv lock` smoke produces byte-identical lockfiles via subprocess AND `PIPENV_RESOLVER_PARENT_PYTHON=1` in-process paths.
+  - Acceptance greps clean: zero `Entry.get_cleaned_dict`, zero `format_requirement_for_lockfile`, zero `PIPENV_RESOLVER_PYTHON_VERSION`/`PIPENV_EXTRA_PIP_ARGS`/`PIPENV_SITE_DIR` references, zero `--parse-only`/`--pipenv-site`/`--constraints-file`/`--resolved-default-deps-file`/`--category` argv references in `pipenv/resolver/main.py`.
+- **status**: Completed (commits listed below; branch `maintenance/code-cleanup-phase3-resolver-typed-schema-2026-05`).
+- **log**:
+  Wave A (foundation): `85993ca4` schema module + canonical formatter + 27 golden snapshots (16 `format_requirement_for_lockfile` cases + 11 `entry_get_cleaned_dict` cases); A2 absorbed into A1 because Python's import system makes `pipenv/resolver.py` and `pipenv/resolver/` mutually exclusive. Re-export shim at `pipenv/resolver/__init__.py` kept every legacy import path working.
+
+  Wave B (parallel 3-agent): `5e6eca82` B3 (lockfile writer + 17 → 20 ported test cases); `d1563a1e` B1+B2 (subprocess entry + parent rewrite collapsed into one commit due to pre-commit stash race — functionally clean; both reviewer-friendly diffs reflected in commit message). `bfbecba4` later fixed a wave-B bug where `_main` imported the schema before `_ensure_modules()` populated `sys.path`.
+
+  Wave C (parallel 3-agent): `0c4a11a9` schema `from_lockfile_dict` touch-up; `de3edea9` C1 + C3 (45 new schema tests including parity-against-golden + comma-in-marker per Q7); `706b7ab9` C2 integration test + golden request/response fixtures + `PIPENV_REGEN_PROTOCOL_FIXTURES` regen branch; `e891c888` C4 news fragment.
+
+  Wave D: this entry.
+
+  Bugs surfaced + fixed along the way: bootstrap-order bug in `_main` (`bfbecba4`) that affected any subprocess invocation lacking pipenv on `sys.path` — wave-B unit smokes missed it because `python -m pipenv.resolver.main` invocation pre-populates the path; the integration test caught it.
+
+  Out of scope (intentionally; deferred to follow-up tasks): T_F.4 (fold in-process and subprocess branches into one implementation per the PRD acceptance criterion), wall-clock-timeout enforcement (`RequestMetadata.deadline_seconds` reserved on schema but not enforced), populating `Diagnostics.resolver_log` (reserved-but-empty per Q9), pluggable alternative resolver backends (uv etc — design shape preserves the option per typed-design §6a but explicitly not in F).
+- **files edited/created**:
+  - `pipenv/resolver/__init__.py` (new, re-export shim — trimmed after Wave B)
+  - `pipenv/resolver/main.py` (moved from `pipenv/resolver.py`; rewritten to consume `ResolverRequest` and produce `ResolverResponse`)
+  - `pipenv/resolver/schema.py` (new, 14 dataclasses + `SCHEMA_VERSION` + `from_install_requirement` + `from_lockfile_dict` / `to_lockfile_dict`)
+  - `pipenv/utils/resolver.py` (parent-side rewrite — typed envelope build + dispatch + in-process-branch type migration)
+  - `pipenv/utils/locking.py` (deleted `format_requirement_for_lockfile`; `prepare_lockfile` consumes `Sequence[LockedRequirement]`)
+  - `pyproject.toml` (`scripts.pipenv-resolver = "pipenv.resolver.main:main"`)
+  - `tests/unit/test_resolver_schema.py` (new, 62 tests covering invariants, envelope round-trip, golden-fixture parity, dispatch, schema-version-mismatch, VCS pins, comma-in-marker regression)
+  - `tests/unit/test_resolver_parent_dispatch.py` (new, parent-side typed-dispatch tests)
+  - `tests/unit/test_resolver_protocol_smoke.py` (new, subprocess-side typed-envelope smoke)
+  - `tests/unit/fixtures/resolver_schema/{format_requirement_for_lockfile,entry_get_cleaned_dict}/*.json` (27 golden snapshots)
+  - `tests/integration/test_resolver_protocol.py` (new, JSON wire-shape canary with regen branch)
+  - `tests/integration/fixtures/resolver_protocol/{request,response}.json` (new, committed goldens)
+  - `news/T_F.3.behavior.rst` (new, one-line behavior fragment)
+  - `tests/unit/test_dependencies.py`, `tests/unit/test_resolver_regressions.py`, `tests/unit/test_locking_no_mutation.py` (legacy `Entry` / `process_resolver_results` test cases removed; mock updated for new return shape)
+  - `tests/unit/test_utils.py` (17 `format_requirement_for_lockfile` cases ported to 20 typed cases)
+  - `tests/unit/test_core.py` (docstring reference updated)
+  - `docs/dev/initiative-f-execution-plan.md` (entry-by-entry log of each wave commit)
+
+#### T_F.4: Fold in-process and subprocess resolver paths into one implementation
+- **depends_on**: [T_F.3]
+- **location**: `pipenv/resolver/core.py` (new); `pipenv/resolver/main.py` (subprocess adapter shrinks); `pipenv/utils/resolver.py` (in-process adapter); `tests/unit/test_resolver_core.py` (new, 6 tests).
+- **description**:
+  Completes the PRD acceptance criterion "one resolver implementation,
+  two thin adapters" for Initiative F. T_F.3 introduced the typed
+  `ResolverRequest` / `ResolverResponse` schema but left two near-duplicate
+  plumbing chains: the subprocess entry's `_main` (marker patch +
+  `resolve_packages` call + ResolverResponse wrap + exit codes) and the
+  in-process debug bypass at `PIPENV_RESOLVER_PARENT_PYTHON=1` (its own
+  marker patch + `resolve_packages` + exception propagation).
+
+  This task extracts the shared logic into
+  `pipenv.resolver.core.resolve_for_pipenv(request) -> ResolverResponse` —
+  a single function that applies the python_marker_override via a
+  context manager, dispatches to `resolve_packages` through `sys.modules`
+  (so existing stub patterns keep working), and ALWAYS returns a typed
+  response (never raises). Both adapters become thin wrappers:
+
+  * Subprocess (`pipenv/resolver/main.py:_main`): read request → call
+    `resolve_for_pipenv` → write response → exit code on `result.kind`.
+    The duplicate `_apply_python_marker_override` helper is deleted.
+  * In-process (`pipenv/utils/resolver.py:_resolve_in_process`):
+    new ~28-line helper that dispatches on `response.result.kind` to
+    return locked entries or raise `ResolutionFailure` / `RuntimeError`.
+    The `PIPENV_RESOLVER_PARENT_PYTHON` arm of `venv_resolve_deps` is
+    now one delegating line; the orphaned `from pipenv import resolver`
+    import is removed.
+
+  The unified path leaves explicit room for two queued follow-ups:
+  `request.metadata.deadline_seconds` (T_F.6 timeout enforcement) and
+  `Diagnostics.resolver_log` (T_F.7 structured logging). Neither is
+  implemented here; both fields are already on the schema and the
+  fold target consumes/emits them so future patches are additive.
+- **validation**:
+  - 764 unit tests pass (758 pre-fold + 6 new in `test_resolver_core.py`
+    covering success → ResolverSuccess, ResolutionFailure → ResolutionError,
+    arbitrary exception → InternalError, marker override applied + restored).
+  - Integration test `tests/integration/test_resolver_protocol.py` (JSON
+    wire-shape canary) still passes — the wire schema is untouched.
+  - Manual `pipenv lock` smoke on a tiny Pipfile produces byte-identical
+    lockfiles (same `_meta.hash`) via the default subprocess path AND
+    `PIPENV_RESOLVER_PARENT_PYTHON=1`.
+- **status**: Completed (commit `22921044`; branch
+  `maintenance/code-cleanup-phase4-resolver-followups-2026-05`).
+- **log**:
+  - 2026-05-12 — Fold landed in one commit. Sibling agent T_F.5a
+    (pluggable-backends design doc) ran concurrently on the same branch
+    with no file collision (T_F.5a touched `docs/dev/` only; T_F.4
+    touched code only).
+- **files edited/created**:
+  - `pipenv/resolver/core.py` (new, ~250 lines: `resolve_for_pipenv`,
+    `_patched_marker_environment` context manager,
+    `_apply_request_env`, `_dispatch_resolve_packages`)
+  - `pipenv/resolver/main.py` (subprocess adapter — `_main` now reads/
+    writes JSON around a single `resolve_for_pipenv` call;
+    `_apply_python_marker_override` deleted; net -54 lines)
+  - `pipenv/utils/resolver.py` (in-process adapter — new
+    `_resolve_in_process` helper; `PIPENV_RESOLVER_PARENT_PYTHON`
+    branch in `venv_resolve_deps` reduces to one delegating line;
+    orphaned `from pipenv import resolver` import removed)
+  - `tests/unit/test_resolver_core.py` (new, 6 tests for the fold target)
+
+#### T_F.5a: Pluggable resolver backends — design (sign-off gate)
+- **depends_on**: [T_F.3]
+- **location**: `docs/dev/initiative-f-backends-design.md` (new, 948 lines).
+- **description**:
+  Design-only document specifying the T_F.5 architecture: a `Backend` protocol
+  with pip/uv implementations under `pipenv/resolver/backends/`, a name-keyed
+  registry with dispatch precedence (CLI > env > Pipfile > default), single-
+  `Pipfile.lock` output with `_meta.resolver_backend` discriminator, system-uv
+  (no vendoring) posture, and an 8-task execution plan (T_F.5.1 .. T_F.5.8).
+  Resolves the four open questions from `initiative-f-typed-design.md` §6a
+  (opt-in section, dispatch mechanism, lockfile-format discriminator,
+  vendoring posture) and surfaces 10 numbered sign-off questions gating
+  T_F.5 execution. Maps the WIP `origin/uv-backend` commit `22359624`
+  (~969-line `pipenv/utils/uv.py` + ~241-line patches across
+  routines/environments) to the post-T_F.3-schema shape; the port shrinks
+  to ~450 lines of `backends/uv.py` + ~40 lines for a new
+  `LockedRequirement.from_uv_package` constructor.
+
+  Key recommendations (each requires sign-off before T_F.5 execution starts):
+  Pipfile opt-in via `[pipenv] resolver_backend = "<name>"`; CLI flag
+  `--backend NAME`; lockfile remains single `Pipfile.lock` with additive
+  `_meta.resolver_backend` field (uv-backend lockfiles only; pip omits);
+  missing-backend behaviour fails loud with install instructions; cross-
+  backend re-locking is full re-resolve (lockfile is input-only); no new
+  schema fields (`LockedRequirement.resolver_backend` /
+  `Diagnostics.resolver_name` deferred); uv is detected via `shutil.which`,
+  never vendored; test matrix runs a representative subset under both
+  backends with full dual-backend coverage on a nightly cron; news fragment
+  category is `.feature`.
+
+  Explicitly out of scope for T_F.5: uv as a wheel-install backend
+  (resolve-only); PEP 751 `pylock.toml` emission; entry-point plugin
+  discovery; poetry/conda/pdm backends; performance benchmarking;
+  `Diagnostics.resolver_log` population; structured `ConflictRecord`
+  extraction from uv stderr; pipenv → uv direct-invocation (still goes
+  pipenv → `pipenv-resolver` → uv until T_F.4 fold lands).
+- **status**: Completed (commit `727b6540`; awaits maintainer sign-off
+  before T_F.5 execution begins).
+- **log**:
+  - 2026-05-12 — Design doc landed (948 lines). 10 sign-off questions
+    numbered for maintainer answer. Sibling agent T_F.4 (in-process /
+    subprocess fold) running concurrently on the same branch; no file
+    collision (T_F.4 touches `pipenv/resolver/main.py` + `pipenv/utils/
+    resolver.py` + new `pipenv/resolver/core.py`; T_F.5a touches docs only).
+- **files edited/created**:
+  - `docs/dev/initiative-f-backends-design.md` (new, 948 lines)
+
+#### T_F.5: Pluggable resolver backends — execution
+- **depends_on**: [T_F.5a maintainer sign-off]
+- **location**: NEW `pipenv/resolver/backends/__init__.py`,
+  `pipenv/resolver/backends/base.py`, `pipenv/resolver/backends/pip.py`,
+  `pipenv/resolver/backends/uv.py`; +1 classmethod on
+  `pipenv/resolver/schema.py :: LockedRequirement.from_uv_package`;
+  `pipenv/utils/project_settings.py` (`Settings.resolver_backend`);
+  `pipenv/utils/resolver.py` (dispatch); `pipenv/cli/options.py` +
+  `pipenv/cli/command.py` (`--backend` flag); `pipenv/utils/locking.py`
+  (`_meta.resolver_backend`); tests; `news/T_F.5.feature.rst`;
+  `docs/concepts/resolver_backends.md`.
+- **description**:
+  Eight-task execution split per `initiative-f-backends-design.md` §7
+  (T_F.5.1 protocol+registry skeleton; T_F.5.2 pip wrapper; T_F.5.3
+  `from_uv_package` constructor; T_F.5.4 uv backend port from
+  `origin/uv-backend`; T_F.5.5 dispatch wiring + CLI flag + `Settings`;
+  T_F.5.6 `_meta.resolver_backend` discriminator; T_F.5.7 missing-backend
+  error path; T_F.5.8 docs + news fragment). Six-wave dependency graph;
+  max 2 concurrent agents (waves B and E).
+- **status**: Not Started (awaits T_F.5a sign-off).
+- **log**:
+- **files edited/created**:
+
+#### T_F.6: Enforce wall-clock timeout via `request.metadata.deadline_seconds`
+- **depends_on**: [T_F.3, T_F.4]
+- **location**: `pipenv/utils/resolver.py` (subprocess deadline plumbing
+  + new `_resolve_deadline_seconds` helper), `pipenv/resolver/core.py`
+  (`_wall_clock_deadline` SIGALRM guard for the in-process branch),
+  `news/T_F.6.behavior.rst`, `tests/unit/test_resolver_timeout.py`.
+- **description**:
+  Replaces the reserved-but-unenforced `RequestMetadata.deadline_seconds`
+  slot (queued in T_F.3 design Q11 / §5 decision 11) with a fully wired
+  enforcement path. Resolution precedence: `[pipenv] resolver_timeout_seconds`
+  in the Pipfile > `PIPENV_RESOLVER_TIMEOUT_S` env var > default
+  (1800s, set by `Setting`). The resolved deadline is stamped on every
+  `ResolverRequest.metadata.deadline_seconds` by `_build_resolver_request`
+  so the wire envelope carries the same value the parent uses for
+  `subprocess.wait(timeout=...)`. The existing phase-2 hotfix
+  (`PIPENV_RESOLVER_TIMEOUT_S` knob; commit `577a12a8`) is preserved as
+  the env-var precedence rung — its `subprocess.TimeoutExpired` path
+  now reads from the new request-carried deadline, with a fallback to
+  `project.s.PIPENV_RESOLVER_TIMEOUT_S` for back-compat with any caller
+  not updated to thread the deadline through. The in-process debug
+  branch (`PIPENV_RESOLVER_PARENT_PYTHON=1`) enforces the same deadline
+  via a `signal.SIGALRM` guard installed by a new
+  `_wall_clock_deadline` context manager in `resolver/core.py`; on
+  expiry, `resolve_for_pipenv` returns an `InternalError` variant whose
+  message names the elapsed deadline. Windows skips the in-process
+  guard (no `SIGALRM`); the subprocess path remains the production
+  enforcement path on all platforms. User-facing timeout error message
+  updated to name BOTH the env var and the new Pipfile setting.
+- **validation**:
+  - 7 new tests in `tests/unit/test_resolver_timeout.py` cover:
+    subprocess `TimeoutExpired` → `ResolutionFailure` with both
+    overrides named; default deadline falls back to
+    `PIPENV_RESOLVER_TIMEOUT_S`; Pipfile setting wins over env-backed
+    default; invalid Pipfile values fall back; `_build_resolver_request`
+    stamps `metadata.deadline_seconds`; `resolve()` honours the
+    request-carried deadline; in-process branch returns
+    `InternalError` on SIGALRM-mediated timeout.
+  - Existing `test_resolver_regressions.py` timeout tests continue to
+    pass unchanged.
+  - Full unit suite green (780 passed, 9 skipped).
+- **status**: Completed (branch
+  `maintenance/code-cleanup-phase4-resolver-followups-2026-05`).
+- **log**:
+  - 2026-05-12 — Wired deadline through `_build_resolver_request` →
+    `request.metadata.deadline_seconds` → `resolve()` → `subprocess.wait`.
+    Added SIGALRM-based in-process guard. Sibling agent T_F.7
+    (`Diagnostics.resolver_log`) ran concurrently on the same two files
+    with no logical collision: T_F.6 owns timeout wiring and the
+    deadline-related lines; T_F.7 owns log capture.
+- **files edited/created**:
+  - `pipenv/utils/resolver.py` (`_resolve_deadline_seconds` helper;
+    `_build_resolver_request` stamps `metadata.deadline_seconds`;
+    `resolve()` accepts `deadline_seconds=` keyword;
+    `_run_resolver_subprocess` threads request deadline through;
+    timeout error message names both overrides)
+  - `pipenv/resolver/core.py` (`_wall_clock_deadline` context manager;
+    `resolve_for_pipenv` wraps the resolve in the SIGALRM guard)
+  - `tests/unit/test_resolver_timeout.py` (new, 7 tests)
+  - `tests/unit/test_resolver_parent_dispatch.py` (existing `fake_resolve`
+    stubs widened to `**_kwargs` to accept the new keyword)
+  - `news/T_F.6.behavior.rst` (new)
+
+#### T_F.7: Populate `Diagnostics.resolver_log` with structured resolve records
+- **depends_on**: [T_F.3, T_F.4]
+- **location**: `pipenv/resolver/core.py` (capture handler +
+  context manager + integration into `resolve_for_pipenv`),
+  `pipenv/utils/resolver.py` (verbose-mode surfacing), new
+  `tests/unit/test_resolver_diagnostics.py`.
+- **description**:
+  Replaces the reserved-but-empty `Diagnostics.resolver_log` slot
+  (queued in T_F.3 design Q9 / §8) with a structured logging-handler
+  capture wired into the unified `resolve_for_pipenv` driver. A new
+  `_BoundedListHandler` (capped at 500 records) is attached to the
+  `pipenv` and `pip._internal.resolution` loggers for the duration of
+  the resolve via a `_capture_resolver_log` context manager that
+  restores handler state and original level on exit (even on
+  exception). Captured records are formatted as `[LEVELNAME] message`
+  strings and land on `response.diagnostics.resolver_log`; truncation
+  appends a `... (N records elided)` sentinel.
+
+  Parent-side surfacing in `pipenv/utils/resolver.py`: a new
+  `_surface_resolver_log(response, project)` helper iterates the
+  records and prints each via `err.print` when `project.s.is_verbose()`
+  is true. Stderr behaviour in non-verbose mode is unchanged — the
+  structured log is a complement, not a replacement (per Q9).
+  Pip download chatter (`pip._internal.network` /
+  `pip._internal.operations.prepare`) is intentionally NOT captured;
+  stderr remains the appropriate channel for that.
+
+  Both adapters (in-process debug bypass + subprocess) share the same
+  capture because it lives inside `resolve_for_pipenv`. The schema
+  field already existed (no schema bump); JSON round-trip preserves
+  the records via the existing `to_json_dict` / `from_json_dict`
+  envelope.
+- **validation**:
+  - 9 new tests in `tests/unit/test_resolver_diagnostics.py` cover:
+    `pipenv` logger capture; `pip._internal.resolution` logger
+    capture; `[LEVELNAME] message` formatting; empty resolve yields
+    empty tuple; handler removed after resolve (clean exit and
+    exception path); flood test asserts 500-record cap +
+    `records elided` sentinel; Diagnostics dataclass + tuple typing;
+    JSON round-trip preserves the records.
+  - Full unit suite green: 780 passed, 9 skipped.
+- **status**: Completed (branch
+  `maintenance/code-cleanup-phase4-resolver-followups-2026-05`).
+- **log**:
+  - 2026-05-12 — Wired logging capture into `resolve_for_pipenv`;
+    surfaced verbose-mode log in `pipenv/utils/resolver.py`. Sibling
+    agent T_F.6 (deadline enforcement) ran concurrently on the same
+    two files; the resolve-flow integration commits landed under
+    T_F.6's two commits (`165bdb2f`, `e550e7f3`) which include the
+    T_F.7 `_BoundedListHandler` / `_capture_resolver_log` /
+    `_surface_resolver_log` helpers. This T_F.7 commit completes the
+    bookkeeping (new test file + plan entry).
+- **files edited/created**:
+  - `pipenv/resolver/core.py` (`_BoundedListHandler`,
+    `_capture_resolver_log` context manager, integration into
+    `resolve_for_pipenv` success / resolution-error / internal-error
+    branches)
+  - `pipenv/utils/resolver.py` (`_surface_resolver_log` helper;
+    call sites in `_run_resolver_subprocess` and `_resolve_in_process`;
+    `_resolve_in_process` gains optional `project` parameter for the
+    verbose surface)
+  - `tests/unit/test_resolver_diagnostics.py` (new, 9 tests)
+
 ---
 
 ## Parallel Execution Groups

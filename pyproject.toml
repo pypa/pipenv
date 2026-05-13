@@ -60,7 +60,7 @@ urls.Documentation = "https://pipenv.pypa.io/en/latest/"
 urls.Homepage = "https://github.com/pypa/pipenv"
 urls.Source = "https://github.com/pypa/pipenv.git"
 scripts.pipenv = "pipenv:cli"
-scripts.pipenv-resolver = "pipenv.resolver:main"
+scripts.pipenv-resolver = "pipenv.resolver.main:main"
 
 [tool.setuptools.packages.find]
 where = [ "." ]
