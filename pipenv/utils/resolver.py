@@ -1201,8 +1201,11 @@ def _generate_resolution_cache_key(
     # would still hash differently than the no-component shape),
     # which would invalidate pre-T_PLUMBING on-disk caches and break
     # the "default path byte-identical" acceptance criterion.
-    if resolver_backend:
-        key_components.append(f"backend={resolver_backend}")
+    # Also include the PIPENV_RESOLVER env var so that a pure-python
+    # lookup via env var never reuses a pip-backend cache entry.
+    effective_backend = (resolver_backend or "").strip() or os.environ.get("PIPENV_RESOLVER", "").strip()
+    if effective_backend:
+        key_components.append(f"backend={effective_backend}")
 
     key_string = "|".join(key_components)
     return hashlib.sha256(key_string.encode()).hexdigest()
