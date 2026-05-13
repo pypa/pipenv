@@ -1969,12 +1969,15 @@ def venv_resolve_deps(
 
     extra_pip_args = list(extra_pip_args or [])
 
+    selected_backend = _selected_backend_for_request(project, resolver_backend)
+    cache_backend = selected_backend if selected_backend != "pip" else None
+
     # Check cache before expensive resolution
-    # T_PLUMBING (Initiative G phase 3): include resolver_backend in the
-    # cache key so a pip-resolved cache entry can't satisfy a
-    # pure-python lookup (and vice versa).  ``None`` collapses to the
-    # empty string so the default path's cache key is byte-identical
-    # to pre-T_PLUMBING.
+    # T_PLUMBING (Initiative G phase 3): include the effective
+    # backend (CLI/env/Pipfile precedence) in the cache key so a
+    # pip-resolved cache entry can't satisfy a pure-python lookup
+    # (and vice versa). Keep the default "pip" path un-stamped so
+    # the cache key is byte-identical to pre-T_PLUMBING.
     cache_key = _generate_resolution_cache_key(
         deps,
         project,
@@ -1984,7 +1987,7 @@ def venv_resolve_deps(
         allow_global,
         pypi_mirror,
         extra_pip_args,
-        resolver_backend=resolver_backend,
+        resolver_backend=cache_backend,
     )
 
     if _should_use_resolution_cache(cache_key, clear):
@@ -2061,11 +2064,8 @@ def venv_resolve_deps(
                 # T_PLUMBING (Initiative G phase 3): stamp the
                 # parent-resolved backend name onto the typed request
                 # so both the subprocess and in-process branches see
-                # the same selection.  ``None`` becomes the empty
-                # string in ``_build_resolver_request`` — the
-                # dispatcher then falls through to the env/Pipfile
-                # chain on the child side.
-                resolver_backend=resolver_backend,
+                # the same selection.
+                resolver_backend=selected_backend,
             )
 
             # Useful for debugging and hitting breakpoints in the resolver
