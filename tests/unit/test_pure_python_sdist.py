@@ -33,6 +33,52 @@ from unittest.mock import MagicMock
 import pytest
 
 # ---------------------------------------------------------------------------
+# Test infrastructure: skip the PEP 517 isolated venv
+# ---------------------------------------------------------------------------
+# Production builds sdists in a throwaway venv via :mod:`build`'s
+# ``DefaultIsolatedEnv`` so package-specific build backends
+# (poetry-core, hatchling, …) can be installed.  Spinning up that
+# venv per-test would add multi-second overhead and pull a real
+# network of build-requires into unit tests.  Replace the helper
+# with a pyproject_hooks call that runs in the test process's own
+# Python — same surface, microseconds instead of seconds, and the
+# happy-path fixtures only need ``setuptools`` which the test env
+# already carries.
+# ---------------------------------------------------------------------------
+
+
+def _no_isolation_build(source_root: Path, metadata_dir: Path) -> Path:
+    from pipenv.patched.pip._vendor.pyproject_hooks import (
+        BuildBackendHookCaller,
+    )
+    from pipenv.resolver.pure_python_sdist import _resolve_build_backend
+
+    backend, backend_path = _resolve_build_backend(source_root)
+    caller = BuildBackendHookCaller(
+        source_dir=str(source_root),
+        build_backend=backend,
+        backend_path=backend_path,
+    )
+    relative = caller.prepare_metadata_for_build_wheel(str(metadata_dir))
+    return Path(metadata_dir) / relative
+
+
+@pytest.fixture(autouse=True)
+def _patch_isolated_build(monkeypatch):
+    """Default test-wide override of the isolated-build helper.
+
+    Tests that need to inject specific failure modes (timeout,
+    missing METADATA, non-UTF-8 METADATA, raised exception) override
+    this fixture's effect with their own ``monkeypatch.setattr``.
+    """
+    from pipenv.resolver import pure_python_sdist
+
+    monkeypatch.setattr(
+        pure_python_sdist, "_build_metadata_in_isolated_env", _no_isolation_build
+    )
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -497,7 +543,7 @@ class TestExtractionShape:
 
 class TestTimeout:
     def test_hook_caller_timeout_raises_sdist_build_error(self, monkeypatch):
-        """Patch ``BuildBackendHookCaller`` to hang past the timeout."""
+        """Patch the isolated-build helper to hang past the timeout."""
         from pipenv.resolver import pure_python_sdist
         from pipenv.resolver.pure_python_sdist import (
             SdistBuildError,
@@ -507,19 +553,16 @@ class TestTimeout:
         # Shrink the timeout dramatically so we don't pay 5 minutes.
         monkeypatch.setattr(pure_python_sdist, "_BUILD_TIMEOUT_SECONDS", 0.2)
 
-        class _HangingCaller:
-            def __init__(self, *args, **kwargs):
-                pass
+        def _hanging_build(source_root, metadata_dir):
+            import time
 
-            def prepare_metadata_for_build_wheel(self, *args, **kwargs):
-                import time
-
-                # Sleep well past the timeout.
-                time.sleep(5)
-                return "never-returned"
+            time.sleep(5)
+            return Path(metadata_dir)
 
         monkeypatch.setattr(
-            pure_python_sdist, "BuildBackendHookCaller", _HangingCaller
+            pure_python_sdist,
+            "_build_metadata_in_isolated_env",
+            _hanging_build,
         )
 
         sdist = _build_sdist_tarball(
@@ -669,24 +712,22 @@ class TestDefensiveBranches:
         assert "corrupt" in str(excinfo.value).lower()
 
     def test_build_backend_returns_missing_metadata_file(self, monkeypatch):
-        """Patch the caller to claim success but produce no METADATA."""
+        """Patch the build helper to return a path with no METADATA."""
         from pipenv.resolver import pure_python_sdist
         from pipenv.resolver.pure_python_sdist import (
             SdistBuildError,
             extract_metadata_from_sdist,
         )
 
-        class _LyingCaller:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def prepare_metadata_for_build_wheel(self, metadata_directory):
-                # Return a dist-info path that doesn't actually exist
-                # on disk.  The post-call read will fail.
-                return "ghost-1.0.dist-info"
+        def _ghost_build(source_root, metadata_dir):
+            # Return a dist-info path that doesn't actually exist on
+            # disk.  The post-call ``read_bytes`` will fail.
+            return Path(metadata_dir) / "ghost-1.0.dist-info"
 
         monkeypatch.setattr(
-            pure_python_sdist, "BuildBackendHookCaller", _LyingCaller
+            pure_python_sdist,
+            "_build_metadata_in_isolated_env",
+            _ghost_build,
         )
 
         sdist = _build_sdist_tarball(
@@ -702,26 +743,24 @@ class TestDefensiveBranches:
         assert "METADATA file not produced" in str(excinfo.value)
 
     def test_build_backend_emits_non_utf8_metadata(self, monkeypatch, tmp_path):
-        """Patch the caller to produce a non-UTF-8 METADATA blob."""
+        """Patch the build helper to produce a non-UTF-8 METADATA blob."""
         from pipenv.resolver import pure_python_sdist
         from pipenv.resolver.pure_python_sdist import (
             SdistBuildError,
             extract_metadata_from_sdist,
         )
 
-        class _BadEncodingCaller:
-            def __init__(self, *args, **kwargs):
-                pass
-
-            def prepare_metadata_for_build_wheel(self, metadata_directory):
-                dist_info = Path(metadata_directory) / "bad-1.0.dist-info"
-                dist_info.mkdir()
-                # 0xFF is not valid UTF-8 in a header position.
-                (dist_info / "METADATA").write_bytes(b"\xff\xfe not utf-8")
-                return "bad-1.0.dist-info"
+        def _bad_encoding_build(source_root, metadata_dir):
+            dist_info = Path(metadata_dir) / "bad-1.0.dist-info"
+            dist_info.mkdir(parents=True, exist_ok=True)
+            # 0xFF is not valid UTF-8 in a header position.
+            (dist_info / "METADATA").write_bytes(b"\xff\xfe not utf-8")
+            return dist_info
 
         monkeypatch.setattr(
-            pure_python_sdist, "BuildBackendHookCaller", _BadEncodingCaller
+            pure_python_sdist,
+            "_build_metadata_in_isolated_env",
+            _bad_encoding_build,
         )
 
         sdist = _build_sdist_tarball(
