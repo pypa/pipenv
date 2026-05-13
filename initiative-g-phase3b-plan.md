@@ -217,9 +217,67 @@ waits on both.
     a canonically-equivalent form).
   - Candidate with no `requires_python`, no introducing marker →
     `markers is None`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: TDD RED→GREEN — added `TestTranslateMappingMarkers`
+    (7 tests) covering the full validation matrix: Requires-Python
+    alone, Requires-Python range (multi-spec `>=3.8,<4`), introducing
+    marker alone, both sources combined (AND), multiple introducing
+    markers (OR-joined with parentheses), neither source contributes
+    (`markers is None`), unparseable `requires_python` falls back to
+    `None`.  Three tests were RED at the start; two passed vacuously
+    because the pre-T_M3 backend already emitted `markers=None` and
+    the test asserted that exact shape — those remain in the suite as
+    pinned regression markers (T_M4 cannot accidentally start emitting
+    a marker on a no-source candidate without tripping them).
+  - **Signature change**: `_translate_mapping` now accepts the full
+    `resolvelib.Result` namedtuple (was `mapping: dict`).  Backward-
+    compat shim — if the caller hands us a bare dict, we treat it as
+    the mapping with empty criteria (used by `_FakeResult(mapping=...)`
+    fixtures still hanging around in `TestTranslateMappingEdges`).
+  - Three new module-level helpers carry the marker-translation logic
+    out of the per-candidate loop body:
+    - `_requires_python_to_marker(requires_python)` — `SpecifierSet`
+      iteration with sorted, stable output and defensive
+      `InvalidSpecifier`/`ValueError` fallback to `None`.
+    - `_introducing_marker_for(criterion_information)` — walks
+      `Criterion.information` rows, pulls non-`None`
+      `introducing_marker` strings, dedupes preserving insertion
+      order; single marker → verbatim, multiple → parenthesised
+      `or`-join (rationale documented inline: union of preconditions).
+    - `_combine_markers([reqpy, intro])` — `and`-join non-`None`
+      contributions; single contribution returned verbatim.
+  - **Multi-introducing-marker join rule**: `or` (parenthesised per
+    clause).  A candidate is admitted to the lockfile because every
+    introducing requirement was active during resolution, but at
+    install time the candidate is needed if any of them is active —
+    hence the union (logical OR) of preconditions.  Parentheses
+    preserve precedence when downstream consumers AND-merge this with
+    other marker clauses (e.g. the Requires-Python contribution
+    itself, or T_M4's future per-source markers).
+  - **Quoting note**: Requires-Python contributions use Python `repr`
+    (single quotes) while introducing markers come through
+    `packaging.markers.Marker.__str__` (double quotes).  Both are PEP
+    508 valid; we preserve each source's canonical form rather than
+    normalising — keeps the translator allocation-free on the hot
+    path.  Tests pin the exact output strings for stability.
+  - End-to-end smoke (`/tmp/t-puret-smoke`, `click=*` Pipfile): lock
+    emits `"markers": "python_version >= '3.10'"` matching pip's
+    `python_version >= '3.10'` output.  Was `null` pre-T_M3.
+  - Coverage on `pipenv/resolver/backends/pure_python.py` rose from
+    ~93% (T9 baseline) to 96.43% with the new T_M3 helpers + tests
+    folded in.  The 8 remaining uncovered lines are bootstrap-only
+    branches (PEP691Client construction, session-fallback paths) that
+    only fire in the registry production path — not T_M3's surface.
+  - `grep -n "pip\._internal" pipenv/resolver/backends/pure_python.py`
+    → 0 matches.
 - **files edited/created**:
+  - `pipenv/resolver/backends/pure_python.py` (extended
+    `_translate_mapping` signature + body; added 3 module-level marker
+    helpers; updated `resolve()` call site).
+  - `tests/unit/test_pure_python_backend.py` (extended `_FakeResult`
+    with optional `criteria` kwarg + new `_FakeCriterion` helper;
+    added `TestTranslateMappingMarkers` class with 7 tests).
 
 ---
 
