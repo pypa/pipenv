@@ -573,9 +573,36 @@ waits on both.
   - Top-level package with only sdists → resolves (no pre-check
     fire). T14's Q-F test is converted: pass a top-level package
     with ZERO candidates → still fails loud with the new message.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Repurposed step 2 of `PurePythonBackend.resolve`
+    from "Q-F top-level wheel-availability pre-check" to
+    "top-level emptiness pre-check".  Renamed the loop's working
+    list `sdist_only_top` → `empty_top_level` and replaced the
+    inner wheel-detection (`is_wheel`) with a presence check via
+    `any(True for _ in manifest.candidates)`.  The new
+    `pip_message` reads "no candidates found in the configured
+    index[es]" with singular/plural toggling on
+    `len(request_index_urls)` and recommends
+    `pipenv lock --backend pip`.  Phase 3a's now-dead
+    `_describe_target_python` / `_describe_target_platform`
+    helpers were removed (their only callers were the Q-F error
+    formatter).  Tests: rewrote `TestQFPreCheck` to pin two rows
+    (sdist-only top-level resolves; zero-candidate top-level
+    fails); rewrote `TestQFPreCheckEdges` to pin four rows
+    (mixed sdist+wheel resolves; sdist-only across all indexes
+    resolves; multi-top-level with one empty fires naming only
+    the empty offender; multi-index plural-spelling).  No
+    `pip._internal` import (grep clean).  Click smoke
+    (`test_url_maps_to_source_name`) still passes — pre-check
+    correctly does not preempt wheel-bearing top-levels.
 - **files edited/created**:
+  - `pipenv/resolver/backends/pure_python.py` (resolve step 2
+    refactor, module docstring updated, dead `_describe_target_*`
+    helpers removed)
+  - `tests/unit/test_pure_python_backend.py` (`TestQFPreCheck` and
+    `TestQFPreCheckEdges` rewritten; module docstring updated)
+  - `initiative-g-phase3b-plan.md` (this entry)
 
 ---
 

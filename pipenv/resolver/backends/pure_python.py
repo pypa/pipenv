@@ -10,12 +10,15 @@ Flow inside :meth:`PurePythonBackend.resolve`:
 
 1. **Pre-fetch** top-level package candidates via
    :meth:`ParallelFetcher.populate` (Q-B).
-2. **Q-F top-level wheel-availability pre-check**: scan cached
+2. **Top-level emptiness pre-check** (Phase 3b T_S4): scan cached
    candidates for each top-level package; abort with a structured
-   :class:`ResolutionError` if any top-level has candidates but ZERO
-   are wheels.  Catches the common sdist-only-toplevel case at startup
-   instead of 30 s into a doomed resolve.  (T_S4 will repurpose this
-   gate now that T_S3 makes sdists resolvable.)
+   :class:`ResolutionError` if any top-level has ZERO candidates
+   across every configured index.  Catches typos, yanked-only
+   releases, and cold-cache + total-fetch-failure cases at startup
+   instead of 30 s into a doomed resolve.  Phase 3a's older
+   wheel-availability variant of this gate (which fired on
+   sdist-only top-levels) is gone — T_S2/T_S3 build sdists
+   transparently so sdist-only top-levels resolve normally.
 3. Build :class:`Requirement` set from ``request.packages.specs``.
 4. Drive :class:`resolvelib.Resolver` via
    :func:`pipenv.resolver.pure_python_provider._drive_resolver`; any
@@ -186,43 +189,50 @@ class PurePythonBackend:
             # Pre-fetch failures are non-fatal in production (Q-B says
             # the provider falls through to lazy ``populate`` on cache
             # miss).  Surface the error to diagnostics-style behaviour
-            # but continue — let ``find_matches`` retry on miss.
-            # (We do NOT abort; that's what the Q-F pre-check below
-            # is for, and resolvelib's own error path handles "no
-            # candidates available".)
+            # but continue — let ``find_matches`` retry on miss.  The
+            # top-level emptiness pre-check below catches the case
+            # where pre-fetch *and* every lazy retry leave the cache
+            # empty for some top-level (typo / yanked-only / total
+            # network blackout); resolvelib's own error path covers
+            # the "candidates exist but none satisfy" case.
             pass
 
-        # ---- Step 2: Q-F top-level wheel-availability pre-check --------
+        # ---- Step 2: top-level emptiness pre-check (T_S4) --------------
         # For each top-level package, scan cached candidates across
-        # configured indexes.  If candidates exist AND none are wheels
-        # → fail loud BEFORE driving resolvelib.
-        sdist_only_top: list[str] = []
+        # configured indexes.  If a top-level has ZERO candidates on
+        # *every* configured index → fail loud BEFORE driving
+        # resolvelib.  This catches typos, yanked-only releases, and
+        # cold-cache + every-fetch-failed cases with a clear message
+        # instead of letting resolvelib raise its own opaque
+        # "no candidates available" error 30 s later.
+        #
+        # NB Phase 3a fired this gate on sdist-only top-levels too;
+        # T_S2 (sdists build via PEP 517) and T_S3 (no fail-loud on
+        # sdist encounter) made that branch obsolete and it was
+        # removed in T_S4 — sdist-only top-levels now resolve
+        # normally.
+        empty_top_level: list[str] = []
         for name in top_level_names:
             saw_any = False
-            saw_wheel = False
             for idx in request_index_urls:
                 manifest = self._cache.get(idx, name)
                 if manifest is None:
                     continue
-                for cand in getattr(manifest, "candidates", ()):
+                if any(True for _ in getattr(manifest, "candidates", ())):
                     saw_any = True
-                    if getattr(cand, "is_wheel", False):
-                        saw_wheel = True
-                        break
-                if saw_wheel:
                     break
-            if saw_any and not saw_wheel:
-                sdist_only_top.append(name)
+            if not saw_any:
+                empty_top_level.append(name)
 
-        if sdist_only_top:
-            names = sorted(sdist_only_top)
-            target_python = self._describe_target_python(request)
-            target_platform = self._describe_target_platform()
+        if empty_top_level:
+            names = sorted(empty_top_level)
+            index_plural = "es" if len(request_index_urls) > 1 else ""
             pip_message = (
-                f"Pure-python backend cannot resolve {names!r}: no wheel available "
-                f"for Python {target_python} on {target_platform}.  "
-                f"Pin to a version with wheels, or retry with "
-                f"`pipenv lock --backend pip`."
+                f"Pure-python backend cannot resolve {names!r}: no candidates "
+                f"found in the configured index{index_plural}.  "
+                f"Check the package name (typo?), confirm releases on the index, "
+                f"or retry with `pipenv lock --backend pip` if the package is "
+                f"available through pip's resolver but not the simple-API."
             )
             return ResolverResponse(
                 schema_version=SCHEMA_VERSION,
@@ -472,24 +482,6 @@ class PurePythonBackend:
             return "*"
         return "*"
 
-    @staticmethod
-    def _describe_target_python(request: ResolverRequest) -> str:
-        """Best-effort label for the target Python version, for the
-        Q-F error message only.  Defaults to the running interpreter
-        when no marker override is set.
-        """
-        if request.python_marker_override:
-            return request.python_marker_override
-        import sys
-
-        return f"{sys.version_info.major}.{sys.version_info.minor}"
-
-    @staticmethod
-    def _describe_target_platform() -> str:
-        import sys
-
-        return sys.platform
-
     def _resolved_target_env(self) -> dict:
         """Return a marker-environment dict for the provider.
 
@@ -517,7 +509,7 @@ class PurePythonBackend:
 
         Each cause is rendered as ``"  - <parent> requires <name><spec>"``
         so the user can locate the conflict without parsing resolvelib
-        internals.  Mirrors the design's Q-F formatting.
+        internals.
         """
         lines = ["Resolution impossible — conflicting constraints:"]
         causes = getattr(exc, "causes", None) or ()
