@@ -1873,3 +1873,140 @@ class TestGetDependenciesMarkerEvaluationException:
         deps = list(provider.get_dependencies(cand))
         # Both extras-context evaluations raise -- treated as inactive.
         assert deps == []
+
+
+class TestGetDependenciesIntroducingMarker:
+    """Plan T_M2 (Initiative G Phase 3b): when ``get_dependencies``
+    builds a transitive :class:`Requirement` from a ``Requires-Dist``
+    line, the parser's ``.marker`` is threaded through into the new
+    ``introducing_marker`` slot (T_M1 addition).  T_M3 will read this
+    field in ``_translate_mapping`` to emit a ``markers=...`` clause
+    on the lockfile entry; this test class pins the upstream contract.
+
+    Note on the dual marker fields on :class:`Requirement`:
+
+    * ``marker`` — populated by ``Requirement.from_pipfile_entry`` for
+      top-level Pipfile entries (constraint-side marker) AND, today,
+      by ``get_dependencies`` for transitives (mirrors the parser's
+      ``.marker`` directly).  The legacy T7 unit-test contract
+      (``TestGetDependenciesMarkerFilter::
+      test_extra_marker_kept_when_parent_requested_that_extra``) pins
+      this behaviour.
+    * ``introducing_marker`` — populated here (T_M2); represents the
+      *Requires-Dist-side* marker that introduced a transitive, read
+      by T_M3's ``_translate_mapping`` to emit a ``markers=...``
+      clause on the lockfile entry.  Splitting the field from
+      ``marker`` preserves the T7 contract while letting T_M3 evolve
+      independently (e.g. T_M3 may choose to canonicalise / normalise
+      the marker string differently from how the resolver evaluates
+      it).
+    """
+
+    def test_transitive_with_marker_carries_introducing_marker(self):
+        """``Requires-Dist: pytest; python_version < '3.10'`` parsed
+        under target_env ``python_version='3.9'`` (so the
+        marker-extras-active filter keeps the entry) -> resulting
+        :class:`Requirement.introducing_marker` equals the parsed
+        :class:`Marker`."""
+        from pipenv.vendor.packaging.markers import Marker
+
+        cand = _cand(name="django", version="4.2.0", is_wheel=True)
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("pytest ; python_version < '3.10'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            # Pin target_env to a Python version that makes the marker
+            # evaluate True -- otherwise the marker-extras-active filter
+            # drops the requirement before we see it.
+            target_env={"python_version": "3.9"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        assert len(deps) == 1
+        dep = deps[0]
+        # introducing_marker carries the parsed marker (T_M2 contract).
+        assert dep.introducing_marker is not None
+        # Marker comparison: ``packaging``'s ``Marker.__str__`` is
+        # stable for the canonical form -- compare via string round-trip.
+        expected = Marker("python_version < '3.10'")
+        assert str(dep.introducing_marker) == str(expected)
+
+    def test_transitive_without_marker_has_introducing_marker_none(self):
+        """``Requires-Dist: numpy>=1.20`` (no marker clause) -> the
+        resulting :class:`Requirement.introducing_marker` is ``None``."""
+        cand = _cand(name="django", version="4.2.0", is_wheel=True)
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("numpy>=1.20",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        assert len(deps) == 1
+        dep = deps[0]
+        assert dep.name == "numpy"
+        assert dep.introducing_marker is None
+
+    def test_marker_extras_filter_unaffected(self):
+        """``Requires-Dist: pytest; extra=='dev'`` with parent
+        ``extras=frozenset()`` still drops the requirement -- the
+        T_M2 addition is strictly additive and must not bypass the
+        existing T7 marker-extras-active filter."""
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset(),  # parent did NOT request [dev]
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("pytest ; extra == 'dev'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        # Filter drops the entry -- behaviour identical to the existing
+        # ``TestGetDependenciesMarkerFilter`` case.  introducing_marker
+        # is irrelevant here because the Requirement is never built.
+        assert deps == []
+
+    def test_marker_with_parent_extras_active_carries_marker(self):
+        """``Requires-Dist: pytest; extra=='dev'`` with parent
+        ``extras=frozenset({'dev'})`` -> requirement yielded AND
+        ``introducing_marker`` equals the parsed ``Marker("extra ==
+        'dev'")``."""
+        from pipenv.vendor.packaging.markers import Marker
+
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset({"dev"}),  # parent DID request [dev]
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("pytest>=7 ; extra == 'dev'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        assert len(deps) == 1
+        dep = deps[0]
+        assert dep.name == "pytest"
+        assert dep.parent == "django"
+        assert dep.source == "transitive"
+        # introducing_marker carries the original parsed marker.
+        assert dep.introducing_marker is not None
+        expected = Marker("extra == 'dev'")
+        assert str(dep.introducing_marker) == str(expected)

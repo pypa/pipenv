@@ -162,9 +162,28 @@ waits on both.
     transitive's `introducing_marker` equals the parsed marker.
   - Mock `Requires-Dist: numpy>=1.20` (no marker) → transitive's
     `introducing_marker is None`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Threaded `parsed.marker` into the new
+    `introducing_marker` slot when `get_dependencies` constructs a
+    transitive `Requirement`. The legacy `marker` field stays
+    populated with `parsed.marker` too — the existing T7 contract
+    (`TestGetDependenciesMarkerFilter::test_extra_marker_kept_when_parent_requested_that_extra`)
+    pins it; the two fields coexist for Phase 3b so T_M3 can read
+    `introducing_marker` for lockfile emission without disturbing
+    T6's `is_satisfied_by` evaluator path. Added a dual-marker
+    comment block at the construction site documenting the split.
+    RED→GREEN via 4 new tests in
+    `TestGetDependenciesIntroducingMarker`; 62/62 unit tests pass;
+    module coverage 97% (floor 90%); zero `pip._internal` imports.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (extended
+    `get_dependencies` Requirement construction with
+    `introducing_marker=parsed.marker` + dual-marker comment block).
+  - `tests/unit/test_pure_python_provider.py` (added
+    `TestGetDependenciesIntroducingMarker` with 4 tests covering
+    marker present, marker absent, extras-filter unchanged, and
+    extras-context active marker).
 
 ---
 

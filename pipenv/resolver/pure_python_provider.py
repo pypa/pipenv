@@ -869,6 +869,24 @@ class PurePythonProvider(AbstractProvider):
             # Translate parser-side fields into our T1 dataclass.
             # ``packaging``'s ``.extras`` is a ``set`` (mutable); freeze
             # so the dataclass's ``__hash__`` is well-defined.
+            #
+            # Dual-marker note (Initiative G Phase 3b, T_M2):
+            # We populate BOTH ``marker`` and ``introducing_marker``
+            # with the parser's ``.marker`` because the two fields play
+            # different roles downstream:
+            #   * ``marker`` — the constraint-side marker used by T6's
+            #     :meth:`is_satisfied_by` when evaluating a candidate
+            #     against this transitive.  The legacy T7 test contract
+            #     (``test_extra_marker_kept_when_parent_requested_that_extra``)
+            #     pins this to the parser's marker on transitives.
+            #   * ``introducing_marker`` — the Requires-Dist-side marker
+            #     read by T_M3's ``_translate_mapping`` to emit a
+            #     ``markers="..."`` clause on the lockfile entry so the
+            #     pure-python lockfile output matches pip.
+            # The two fields could in principle be unified, but keeping
+            # them distinct preserves the existing T7 contract while
+            # letting T_M3 evolve marker-canonicalisation independently
+            # of the resolver's evaluator semantics.
             deps.append(
                 Requirement(
                     name=canonicalize_name(parsed.name),
@@ -877,6 +895,7 @@ class PurePythonProvider(AbstractProvider):
                     marker=parsed.marker,
                     source="transitive",
                     parent=parent_name,
+                    introducing_marker=parsed.marker,
                 )
             )
 
