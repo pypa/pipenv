@@ -166,65 +166,81 @@ def prefetch_wheels(
         # Tag query failed — bail rather than guess and waste downloads.
         return None
 
-    # Step 3: shared urllib3 session + parallel metadata fetch.  Reuses
-    # the resolver's PEP691Client + ParallelFetcher so auth / netrc /
-    # cert handling stays in one place.
+    # Step 3: use a requests-compatible session for PEP 691 metadata
+    # fetches, because PEP691Client passes per-request verify/cert
+    # kwargs that bare urllib3.PoolManager.request() does not accept.
+    # Keep urllib3 for wheel downloads so the existing download path
+    # remains unchanged.
     cache_dir_holder = tempfile.mkdtemp(prefix="pipenv-prefetch-cache-")
     download_dir = Path(tempfile.mkdtemp(prefix="pipenv-prefetch-"))
     try:
-        session = urllib3.PoolManager(
+        import requests
+
+        manifest_session = requests.Session()
+        manifest_adapter = requests.adapters.HTTPAdapter(
+            pool_connections=max_workers,
+            pool_maxsize=max_workers,
+        )
+        manifest_session.mount("http://", manifest_adapter)
+        manifest_session.mount("https://", manifest_adapter)
+
+        download_session = urllib3.PoolManager(
             num_pools=max_workers,
             maxsize=max_workers,
         )
-        cache = ParsedManifestCache(Path(cache_dir_holder))
-        client = PEP691Client(session)
-        fetcher = ParallelFetcher(client, cache, max_workers=max_workers)
+        try:
+            cache = ParsedManifestCache(Path(cache_dir_holder))
+            client = PEP691Client(manifest_session)
+            fetcher = ParallelFetcher(client, cache, max_workers=max_workers)
 
-        fetch_targets = [
-            (idx, name) for idx in index_urls for name, _, _ in targets
-        ]
-        fetcher.populate(fetch_targets)
-
-        # Step 4: pick the right wheel per target.  Filter by target
-        # tags FIRST (skip incompatible wheels), then match hash
-        # against the lockfile.
-        download_plan: list[tuple[str, str, str]] = []
-        for name, version, expected_hashes in targets:
-            picked = _pick_wheel(
-                name, version, expected_hashes, cache, index_urls, target_tags
-            )
-            if picked is not None:
-                download_plan.append(picked)
-
-        if not download_plan:
-            shutil.rmtree(download_dir, ignore_errors=True)
-            return None
-
-        # Step 5: parallel download + hash verify.
-        successes = 0
-        with concurrent.futures.ThreadPoolExecutor(
-            max_workers=max_workers
-        ) as ex:
-            futs = [
-                ex.submit(_download_and_verify, session, item, download_dir)
-                for item in download_plan
+            fetch_targets = [
+                (idx, name) for idx in index_urls for name, _, _ in targets
             ]
-            for fut in concurrent.futures.as_completed(futs):
-                ok = _safe_future_result(fut)
-                if ok:
-                    successes += 1
+            fetcher.populate(fetch_targets)
 
-        if successes == 0:
-            shutil.rmtree(download_dir, ignore_errors=True)
-            return None
+            # Step 4: pick the right wheel per target.  Filter by target
+            # tags FIRST (skip incompatible wheels), then match hash
+            # against the lockfile.
+            download_plan: list[tuple[str, str, str]] = []
+            for name, version, expected_hashes in targets:
+                picked = _pick_wheel(
+                    name, version, expected_hashes, cache, index_urls, target_tags
+                )
+                if picked is not None:
+                    download_plan.append(picked)
 
-        _LOGGER.info(
-            "Pre-fetched %d/%d wheels in parallel to %s",
-            successes,
-            len(download_plan),
-            download_dir,
-        )
-        return str(download_dir)
+            if not download_plan:
+                shutil.rmtree(download_dir, ignore_errors=True)
+                return None
+
+            # Step 5: parallel download + hash verify.
+            successes = 0
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as ex:
+                futs = [
+                    ex.submit(_download_and_verify, download_session, item, download_dir)
+                    for item in download_plan
+                ]
+                for fut in concurrent.futures.as_completed(futs):
+                    ok = _safe_future_result(fut)
+                    if ok:
+                        successes += 1
+
+            if successes == 0:
+                shutil.rmtree(download_dir, ignore_errors=True)
+                return None
+
+            _LOGGER.info(
+                "Pre-fetched %d/%d wheels in parallel to %s",
+                successes,
+                len(download_plan),
+                download_dir,
+            )
+            return str(download_dir)
+        finally:
+            manifest_session.close()
+            download_session.clear()
     finally:
         # The manifest cache temp dir is throwaway scratch; the
         # download_dir survives (consumed by pip via --find-links) or
