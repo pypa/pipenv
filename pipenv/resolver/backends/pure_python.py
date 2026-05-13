@@ -456,30 +456,29 @@ class PurePythonBackend:
         """Translate a wire-shape pip-install line into a value that
         :meth:`Requirement.from_pipfile_entry` understands.
 
-        The wire format is a pip argument string like
-        ``"requests==2.31.0"`` or ``"requests>=2,<3"`` — sometimes just
-        the package name (``"requests"`` ⇒ "any version").  We strip
-        the leading package name (if present) and pass the remainder
-        as the specifier string; bare names map to ``"*"``.
+        The wire format is a full pip argument string like
+        ``"requests==2.31.0"``, ``"urllib3[brotli]>=2 -i https://…"``,
+        or just the package name (``"requests"`` ⇒ "any version").
+        Pip flags (``-i``, ``--index-url``, ``--trusted-host``, etc.)
+        appear after a whitespace separator; the backend handles index
+        URLs via ``request.options.indexes``, so we drop everything
+        past the first whitespace token before extracting the specifier.
         """
         line = (spec_value or "").strip()
         if not line:
             return "*"
-        # Pip-install lines that lead with the package name followed
-        # by a specifier: split on the first specifier-introducing
-        # char.  We do this conservatively — if no specifier char is
-        # present, treat the whole line as either "name only" (⇒ "*")
-        # or a bare specifier.
+        # First whitespace-separated token is the
+        # ``name[extras]<specifier>`` part; everything after is pip
+        # CLI flags which the backend doesn't consume here.
+        first_token = line.split(None, 1)[0]
         for marker_char in ("==", ">=", "<=", "~=", "!=", ">", "<"):
-            idx = line.find(marker_char)
+            idx = first_token.find(marker_char)
             if idx != -1:
                 # Everything from the marker onward is the specifier.
-                return line[idx:]
-        # No specifier chars — either the bare package name or some
-        # other shape (URL, VCS).  Bare names ⇒ "*"; anything else
-        # we forward verbatim and let the parser raise.
-        if line.lower() == name.lower():
-            return "*"
+                return first_token[idx:]
+        # No specifier chars — bare package name (with or without
+        # extras) ⇒ "*".  Anything stranger (URL, VCS reference)
+        # also defaults to "*"; constraint shape is handled elsewhere.
         return "*"
 
     def _resolved_target_env(self) -> dict:
