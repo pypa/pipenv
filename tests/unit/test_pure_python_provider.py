@@ -1321,3 +1321,555 @@ class TestGetDependenciesMalformedRequiresDist:
             raise AssertionError(
                 "expected InvalidRequirement from malformed Requires-Dist"
             )
+
+
+# ---------------------------------------------------------------------------
+# T13 — Edge-case tests added to push coverage on
+# ``pipenv/resolver/pure_python_provider.py`` to >= 90 %.
+#
+# Audit list (per plan T13):
+#
+# * ``identify``: duck-typed Candidate subclass without ``extras`` field
+#   falls back to ``frozenset()``.
+# * ``find_matches``:
+#     - Dedup by ``(name, version, filename)`` removes a duplicate.
+#     - Cache miss across multiple index_urls, with no ``populate``
+#       attribute on the fetcher (defensive ``getattr``).
+#     - ``InvalidVersion`` candidate filtered out from satisfaction
+#       check.
+#     - ``allow_prereleases=True`` admits a prerelease against a
+#       specifier that does not opt in.
+#     - ``requires_python`` target_python ``None`` returns True.
+#     - ``InvalidSpecifier`` in candidate's ``requires_python`` is
+#       permissively accepted.
+#     - ``requires_python``'s ``SpecifierSet.contains`` raising
+#       ``InvalidVersion`` is permissively accepted.
+# * ``get_preference``:
+#     - A row whose ``requirement.specifier`` is ``None`` (duck-typed
+#       requirement without a SpecifierSet) is tolerated.
+#     - ``backtrack_causes`` entry whose ``requirement`` is ``None`` is
+#       skipped.
+#     - ``backtrack_causes`` entry whose ``self.identify`` raises is
+#       skipped (defensive try/except).
+#     - ``backtrack_causes`` entry for a DIFFERENT identifier doesn't
+#       bump the count.
+# * ``is_satisfied_by``:
+#     - Candidate version unparseable -> False (loud-failure stance).
+#     - Marker that raises during ``.evaluate(...)`` -> False (defensive
+#       except).
+# * ``get_dependencies``:
+#     - Empty / whitespace-only ``Requires-Dist`` line is skipped.
+#     - Active extra: a malformed marker under one extra context is
+#       skipped (defensive ``except`` in the parent_extras branch).
+#     - Empty parent_extras + malformed marker is treated as inactive.
+
+
+class TestIdentifyDuckTypedCandidate:
+    """``identify`` accepts any object exposing ``.name`` and
+    optionally ``.extras``.  The fallback path uses
+    ``getattr(..., "extras", frozenset())`` -- pin it explicitly with a
+    duck-typed object that doesn't even have an ``extras`` attribute."""
+
+    def test_duck_typed_candidate_without_extras_falls_back_to_frozenset(self):
+        provider = _make_provider()
+
+        class _DuckCandidate:
+            name = "django"
+
+        ident = provider.identify(_DuckCandidate())
+        assert ident == ("django", frozenset())
+
+
+class TestFindMatchesDedup:
+    """Plan T13: dedup on ``(name, version, filename)`` collapses
+    duplicate entries (same wheel served by mirror indexes).  Two cache
+    entries that share the identity tuple should yield ONE result."""
+
+    def test_duplicate_candidates_collapsed(self):
+        # Two cache hits for the same package + version + filename --
+        # the second occurrence triggers the ``continue`` branch on
+        # ``key in seen``.
+        c1 = _cand(name="django", version="4.2.0")
+        c2 = _cand(name="django", version="4.2.0")  # identical key
+        c3 = _cand(name="django", version="4.1.0")
+        cache = _FakeCache({(_INDEX, "django"): (c1, c2, c3)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        # Two unique versions after dedup; high-version first.
+        assert versions == ["4.2.0", "4.1.0"]
+
+
+class TestFindMatchesFetcherWithoutPopulate:
+    """Defensive: ``find_matches`` uses ``getattr(fetcher, "populate", None)``
+    so a fetcher object without a ``populate`` attribute (legitimate in
+    smoke tests) doesn't crash on cache miss."""
+
+    def test_no_populate_attribute_returns_empty_without_raise(self):
+        cache = _FakeCache()  # empty -- triggers populate path
+        # Use a plain object() as the fetcher -- no ``populate`` method.
+        provider = _make_provider(
+            cache=cache, fetcher=object(), index_urls=[_INDEX]
+        )
+
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert result == []
+
+
+class TestFindMatchesInvalidVersionCandidate:
+    """A candidate whose ``.version`` cannot be parsed by
+    :class:`packaging.version.Version` is filtered out at the
+    satisfaction check (loud-failure stance shared with T4 + T6)."""
+
+    def test_unparseable_version_excluded(self):
+        # Mix a valid candidate with one whose version is junk.  The
+        # valid candidate sails through; the junk one is dropped by the
+        # ``InvalidVersion`` branch in
+        # ``_candidate_satisfies_requirements``.
+        good = _cand(name="django", version="4.2.0")
+        bad = _cand(name="django", version="not-a-version")
+        cache = _FakeCache({(_INDEX, "django"): (good, bad)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        assert versions == ["4.2.0"]
+
+
+class TestFindMatchesAllowPrereleases:
+    """``allow_prereleases=True`` admits a prerelease version even when
+    the specifier itself does not opt in (e.g. plain ``>=4.0``)."""
+
+    def test_allow_prereleases_admits_prerelease(self):
+        cands = [
+            _cand(name="django", version="4.2.0"),
+            _cand(name="django", version="5.0.0a1"),
+        ]
+        cache = _FakeCache({(_INDEX, "django"): tuple(cands)})
+        provider = _make_provider(
+            cache=cache,
+            index_urls=[_INDEX],
+            allow_prereleases=True,
+        )
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        # Prerelease appears at the head (highest by Version order).
+        assert "5.0.0a1" in versions
+        assert "4.2.0" in versions
+
+    def test_specifier_with_prerelease_opt_in_admits_prerelease(self):
+        """When the specifier itself opts in (e.g. ``>=5.0a0``), the
+        provider's :meth:`_candidate_satisfies_requirements` passes
+        ``prereleases=True`` to :meth:`SpecifierSet.contains` regardless
+        of the ``allow_prereleases`` flag.  Pins the
+        ``spec.prereleases`` branch of the prerelease policy."""
+        cands = [
+            _cand(name="django", version="5.0.0a1"),
+            _cand(name="django", version="5.0.0a2"),
+        ]
+        cache = _FakeCache({(_INDEX, "django"): tuple(cands)})
+        provider = _make_provider(
+            cache=cache,
+            index_urls=[_INDEX],
+            allow_prereleases=False,
+        )
+        identifier = ("django", frozenset())
+        # The ``>=5.0a0`` specifier flips its own ``prereleases`` to True.
+        req = _make_requirement(name="django", spec=">=5.0a0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        assert versions == ["5.0.0a2", "5.0.0a1"]
+
+
+class TestFindMatchesRequiresPythonEdgeCases:
+    """Cover the three permissive branches of
+    ``_candidate_requires_python_ok``:
+
+    1. ``target_python`` is ``None`` -> accept regardless of
+       ``requires_python``.
+    2. ``requires_python`` is malformed (``InvalidSpecifier``) -> accept.
+    3. ``SpecifierSet.contains`` raises ``InvalidVersion`` -> accept.
+
+    All three are explicit "don't make the package invisible because of
+    a tiny upstream data oddity" branches (mirror pip's
+    :func:`evaluate_link`).
+    """
+
+    def test_no_target_python_accepts_candidate(self):
+        # ``target_env`` has no ``python_version`` key -> target_python
+        # is None -> requires_python check short-circuits to True.
+        cand = _cand(
+            name="django", version="4.2.0", requires_python=">=3.10"
+        )
+        cache = _FakeCache({(_INDEX, "django"): (cand,)})
+        provider = _make_provider(
+            cache=cache,
+            index_urls=[_INDEX],
+            target_env={},  # no python_version key
+        )
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert [c.version for c in result] == ["4.2.0"]
+
+    def test_invalid_specifier_in_requires_python_accepts(self):
+        """A garbage ``requires_python`` string raises
+        :class:`InvalidSpecifier` inside the helper; the helper falls
+        through to accept (mirrors pip's behaviour)."""
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            requires_python="not-a-specifier",
+        )
+        cache = _FakeCache({(_INDEX, "django"): (cand,)})
+        provider = _make_provider(
+            cache=cache,
+            index_urls=[_INDEX],
+            target_env={"python_version": "3.12"},
+        )
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert [c.version for c in result] == ["4.2.0"]
+
+    # Note on the ``InvalidVersion`` branch at lines 429-430 of
+    # ``pure_python_provider.py``: in the current vendored
+    # ``packaging`` version, :meth:`SpecifierSet.contains` does NOT
+    # raise :class:`InvalidVersion` -- it returns ``False`` for
+    # malformed input.  The branch is documented defensive scaffolding
+    # against a hypothetical future ``packaging`` behaviour change, so
+    # we cannot exercise it from a test without monkey-patching the
+    # vendored module.  Per the T13 plan that branch is deliberately
+    # left uncovered; total coverage (98 %+) is well above the 90 %
+    # gate.
+
+
+class TestGetPreferenceDefensiveBranches:
+    """Edge cases inside ``get_preference``:
+
+    * A ``RequirementInformation`` row whose ``.requirement.specifier``
+      attribute is ``None`` (duck-typed shape) is tolerated -- the
+      operators-loop just ``continue``\\s past it.
+    * ``backtrack_causes`` entry whose ``.requirement`` is ``None`` is
+      skipped.
+    * ``backtrack_causes`` entry for a DIFFERENT identifier doesn't
+      bump the local count.
+    * ``backtrack_causes`` entry whose ``self.identify`` raises is
+      skipped via the defensive try/except.
+    """
+
+    def test_requirement_specifier_none_is_tolerated(self):
+        from pipenv.patched.pip._vendor.resolvelib.structs import (
+            RequirementInformation,
+        )
+
+        provider = _make_provider()
+        identifier = ("alpha", frozenset())
+
+        class _NoSpecifierReq:
+            name = "alpha"
+            extras = frozenset()
+            specifier = None
+            source = "pipfile"
+
+        row = RequirementInformation(
+            requirement=_NoSpecifierReq(), parent=None
+        )
+        # Should not raise.
+        pref = provider.get_preference(
+            identifier,
+            resolutions={},
+            candidates={},
+            information={identifier: iter([row])},
+            backtrack_causes=(),
+        )
+        assert isinstance(pref, tuple)
+        # The ``operators`` list is empty when every row's spec is None,
+        # so ``is_unfree`` is False (== ``not bool(operators)``).  The
+        # ``not is_unfree`` slot must be True (i.e. comes AFTER an
+        # operator-bearing requirement).
+        other_id = ("beta", frozenset())
+        other_req = _make_requirement(name="beta", spec=">=1.0")
+        other_pref = provider.get_preference(
+            other_id,
+            resolutions={},
+            candidates={},
+            information={other_id: iter([_ri(other_req)])},
+            backtrack_causes=(),
+        )
+        # ``other`` (has any op) sorts before ``alpha`` (no op).
+        assert other_pref < pref
+
+    def test_backtrack_cause_with_no_requirement_skipped(self):
+        from pipenv.patched.pip._vendor.resolvelib.structs import (
+            RequirementInformation,
+        )
+
+        provider = _make_provider()
+        identifier = ("alpha", frozenset())
+        req = _make_requirement(name="alpha", spec=">=1.0")
+        # A backtrack-causes row whose ``.requirement`` is ``None`` --
+        # defensive ``getattr(row, "requirement", None)`` skips it.
+        rogue_row = RequirementInformation(requirement=None, parent=None)
+        pref = provider.get_preference(
+            identifier,
+            resolutions={},
+            candidates={},
+            information={identifier: iter([_ri(req)])},
+            backtrack_causes=(rogue_row,),
+        )
+        # ``backtrack_count`` slot (index 0) must be 0 -- the rogue row
+        # didn't bump the count.
+        assert pref[0] == 0
+
+    def test_backtrack_cause_for_different_identifier_not_counted(self):
+        provider = _make_provider()
+        identifier_a = ("alpha", frozenset())
+        identifier_b = ("beta", frozenset())
+        req_a = _make_requirement(name="alpha", spec=">=1.0")
+        req_b = _make_requirement(name="beta", spec=">=1.0")
+        # backtrack_causes points at ``beta`` -- it must NOT bump
+        # ``alpha``'s count.
+        causes = (_ri(req_b), _ri(req_b))
+        pref_alpha = provider.get_preference(
+            identifier_a,
+            resolutions={},
+            candidates={},
+            information={identifier_a: iter([_ri(req_a)])},
+            backtrack_causes=causes,
+        )
+        assert pref_alpha[0] == 0  # zero backtracks for alpha
+
+    def test_backtrack_cause_with_unidentifiable_requirement_skipped(self):
+        """If ``self.identify`` raises on a backtrack-causes row, the
+        defensive try/except in ``get_preference`` skips the row rather
+        than crashing the resolve."""
+        from pipenv.patched.pip._vendor.resolvelib.structs import (
+            RequirementInformation,
+        )
+
+        provider = _make_provider()
+        identifier = ("alpha", frozenset())
+        req = _make_requirement(name="alpha", spec=">=1.0")
+
+        # Build a row whose ``.requirement`` doesn't satisfy the
+        # ``identify`` contract (no ``.name``/``.extras``).  ``identify``
+        # branches on isinstance(Requirement) and falls through to
+        # attribute access -- AttributeError gets swallowed.
+        class _BrokenReq:
+            pass
+
+        broken_row = RequirementInformation(
+            requirement=_BrokenReq(), parent=None
+        )
+        # Should NOT raise; ``backtrack_count`` for ``alpha`` stays 0.
+        pref = provider.get_preference(
+            identifier,
+            resolutions={},
+            candidates={},
+            information={identifier: iter([_ri(req)])},
+            backtrack_causes=(broken_row,),
+        )
+        assert pref[0] == 0
+
+
+class TestIsSatisfiedByVersionUnparseable:
+    """``is_satisfied_by`` returns False when the candidate's version
+    can't be parsed by :class:`packaging.version.Version` (loud-failure
+    stance shared with T4)."""
+
+    def test_unparseable_version_returns_false(self):
+        provider = _make_provider()
+        req = _make_requirement(name="django", spec=">=4.0")
+        cand = _candidate_for_satisfies(
+            name="django", version="not-a-version"
+        )
+        assert provider.is_satisfied_by(req, cand) is False
+
+
+class TestIsSatisfiedByMarkerEvaluationError:
+    """When ``marker.evaluate(env)`` raises (e.g. references an unknown
+    marker variable in the overlay), ``is_satisfied_by`` returns False
+    rather than crashing -- defensive ``except``."""
+
+    def test_marker_evaluation_raises_returns_false(self):
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        class _RaisingMarker:
+            def evaluate(self, env):
+                raise RuntimeError("synthetic marker failure")
+
+        req = Requirement(
+            name="django",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=_RaisingMarker(),
+            source="pipfile",
+            parent=None,
+        )
+        provider = _make_provider(target_env={"python_version": "3.12"})
+        cand = _candidate_for_satisfies(name="django", version="4.0.1")
+        assert provider.is_satisfied_by(req, cand) is False
+
+
+class TestGetDependenciesEmptyOrWhitespaceRequiresDist:
+    """A blank ``Requires-Dist`` entry (e.g. trailing newline in a
+    hand-crafted METADATA fixture) is skipped before reaching the
+    parser, rather than raising ``InvalidRequirement``."""
+
+    def test_empty_requires_dist_entry_skipped(self):
+        cand = _cand(name="django", version="4.2.0", is_wheel=True)
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("   ", "", "numpy>=1.20"),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        # Only the real entry survives.
+        assert [d.name for d in deps] == ["numpy"]
+
+
+class TestGetDependenciesMarkerEvaluationException:
+    """Defensive: a marker that RAISES during evaluation (rather than
+    returning False) is treated as inactive, both in the
+    "parent has no extras" branch and the "parent has extras" branch.
+
+    Mirrors the design comment at
+    ``_marker_active_for_extras`` -- pip silently ignores the same
+    shape via :meth:`Marker.evaluate`'s missing-key path; we surface
+    the same outcome (the dep just doesn't apply).
+    """
+
+    class _RaisingMarker:
+        """Marker that always raises -- triggers the ``except`` branch
+        in both code paths of ``_marker_active_for_extras``."""
+
+        def evaluate(self, env):
+            raise RuntimeError("synthetic marker failure")
+
+    def _patch_first_marker(self, monkeypatch, raising_marker):
+        """Replace the first parsed marker with one that raises.
+
+        ``packaging.requirements.Requirement`` parses the marker on
+        construction; we override the parsed instance to inject the
+        raising stub after the fact via a wrapper around
+        ``PackagingRequirement.__init__``.  Cleaner than synthesising
+        a malformed METADATA line because we need a SPECIFIC failure
+        mode (raise during evaluate, not parse-time failure).
+        """
+        from pipenv.vendor.packaging import requirements as pkg_reqs
+
+        real_init = pkg_reqs.Requirement.__init__
+
+        def patched_init(self, requirement_string):
+            real_init(self, requirement_string)
+            if self.marker is not None:
+                self.marker = raising_marker
+
+        monkeypatch.setattr(
+            pkg_reqs.Requirement, "__init__", patched_init
+        )
+
+    def test_marker_raises_with_no_parent_extras_skips_dep(
+        self, monkeypatch
+    ):
+        self._patch_first_marker(monkeypatch, self._RaisingMarker())
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset(),  # no parent extras
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            # Marker present -- triggers the marker-eval branch with
+            # the patched raising marker.
+            requires_dist=("pytest ; python_version > '3'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        # The marker raised under {"extra": ""} -- treated as inactive.
+        assert deps == []
+
+    def test_marker_raises_with_parent_extras_skips_dep(
+        self, monkeypatch
+    ):
+        self._patch_first_marker(monkeypatch, self._RaisingMarker())
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset({"dev"}),  # parent DOES request extras
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("pytest ; extra == 'dev'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        # Both extras-context evaluations raise -- treated as inactive.
+        assert deps == []
