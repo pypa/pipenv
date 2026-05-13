@@ -777,9 +777,77 @@ near the bottom of this document.
     `ResolverResponse(result=ResolutionError(pip_message=...))`;
     error message names `bar` AND suggests `pipenv lock --backend pip`.
     `resolvelib.Resolver` is NEVER invoked (verified via mock).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Implemented `PurePythonBackend` adapter wrapping the
+    `PurePythonProvider` (T3-T8) + `MetadataFetcher` (T2) +
+    `Requirement` (T1) chain.  7-step `resolve(request)` flow per
+    design §5.4:
+    1. Pre-fetch top-level candidates via
+       `ParallelFetcher.populate([(index, name) for name in
+       top_level])`.  Errors are silently swallowed — `find_matches`
+       retries on cache miss.
+    2. Q-F top-level wheel-availability pre-check: scan cached
+       candidates across configured indexes for each top-level; abort
+       with `ResolutionError` if any top-level has candidates but
+       ZERO are wheels.  `_drive_resolver` is never invoked in this
+       case (verified in `TestQFPreCheck`).
+    3. Build `Requirement` set via
+       `Requirement.from_pipfile_entry(name, spec)`; helper
+       `_spec_value_to_pipfile_entry` extracts the specifier suffix
+       from wire-shape pip-install lines (`"requests==2.31.0"`
+       → `"==2.31.0"`).
+    4. Construct `PurePythonProvider` with a `_metadata_fetcher`
+       closure binding the configured `session` + `MetadataCache`
+       around `fetch_metadata`.  `allow_prereleases` is sourced from
+       `request.options.pre`.
+    5. Drive `_drive_resolver(reqs, provider)`.  Three exception
+       handlers translate to typed responses:
+       - `_SdistEncountered` → `InternalError` (Q-A fail-loud, **no
+         pip-backend fallback**); message names the candidate
+         `<name>=='<version>'` + recovery instruction.
+       - `ResolutionImpossible` (from
+         `pipenv.patched.pip._vendor.resolvelib`) →
+         `ResolutionError` with a multi-line `pip_message` formatted
+         by `_format_resolution_impossible`; one line per cause:
+         `"  - <parent> requires <name><specifier>"`.  `conflicts`
+         is left empty because `ConflictRecord(package, version,
+         requires)` doesn't map 1:1 to resolvelib's
+         `RequirementInformation` shape — `pip_message` carries the
+         data instead.
+       - Any other `Exception` → `InternalError` with traceback.
+    6. Success path: translate the resolved
+       `identifier → Candidate` mapping into
+       `tuple[LockedRequirement, ...]` via `_translate_mapping`:
+       - `name`     ← `candidate.name`
+       - `version`  ← `f"=={candidate.version}"` (mirrors the
+         pip-backend `_clean_version` auto-prefix at schema.py
+         lines 213-224)
+       - `extras`   ← `tuple(sorted(identifier[1]))`
+       - `hashes`   ← `tuple(sorted("<algo>:<value>"))` from
+         `candidate.hashes`
+       - `index`    ← first configured index URL (Phase 3
+         single-index simplification)
+       - `markers`/`requires_python`/etc. left at defaults — Phase 3
+         conservative shape.
+    7. Returns `ResolverResponse(schema_version=SCHEMA_VERSION,
+       result=ResolverSuccess(kind="success", locked=<tuple>),
+       diagnostics=Diagnostics())`.
+  - 2026-05-12: TDD RED → GREEN.  Wrote 4 acceptance tests in
+    `tests/unit/test_pure_python_backend.py`, verified RED via
+    `ImportError`, implemented backend, all 4 tests pass.  Provider
+    suite (60 tests) + smoke (2 tests) + Initiative F backend tests
+    (9 tests) all still pass — no regressions.
+  - 2026-05-12: Verified `grep -n "pip\._internal"
+    pipenv/resolver/backends/pure_python.py` returns ZERO matches.
+    Only patched-pip import is the resolvelib exception type from
+    `pipenv.patched.pip._vendor.resolvelib` (vendor, permitted).
 - **files edited/created**:
+  - `pipenv/resolver/backends/pure_python.py` (replaced stub with
+    `PurePythonBackend` class)
+  - `tests/unit/test_pure_python_backend.py` (new — 4 acceptance
+    tests covering success path, `ResolutionImpossible`, fail-loud
+    `_SdistEncountered`, and the Q-F top-level wheel pre-check)
 
 ---
 
