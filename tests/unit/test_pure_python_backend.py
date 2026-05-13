@@ -1114,3 +1114,92 @@ class TestBackendRegistration:
         from pipenv.resolver.backends import get_backend
         backend = get_backend("pure-python")
         assert backend.is_available() is True
+
+
+# ----------------------------------------------------------------------
+# T9b: Bootstrap-from-request (2026-05-12)
+# ----------------------------------------------------------------------
+#
+# T10 made ``PurePythonBackend.__init__`` zero-arg-constructible by
+# defaulting the four collaborators (``cache``, ``fetcher``, ``session``,
+# ``metadata_cache``) to ``None``.  That left a gap: the registry path
+# (``get_backend("pure-python")``) lands inside ``resolve()`` with every
+# collaborator set to ``None``, so ``self._fetcher.populate(targets)``
+# would NPE.  T9b closes the gap by adding ``_bootstrap_from_request``
+# which constructs sensible defaults from the request envelope when
+# fields are missing.  These tests pin the bootstrap path; the existing
+# kwarg-injection path is unaffected (regression-covered by the 24
+# tests above).
+class TestBootstrapFromRequest:
+    """:meth:`PurePythonBackend._bootstrap_from_request` populates the
+    four collaborators from the :class:`ResolverRequest` when they are
+    ``None`` on ``self``.  Pre-injected collaborators win — the
+    bootstrap is idempotent and never overwrites a non-None field.
+    """
+
+    def test_bootstrap_populates_missing_collaborators(self):
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+        from pipenv.resolver.fetcher import ParallelFetcher
+        from pipenv.resolver.manifest_cache import ParsedManifestCache
+        from pipenv.resolver.pure_python_metadata import MetadataCache
+
+        backend = PurePythonBackend()  # zero-arg path (registry shape)
+        # Every collaborator starts as ``None`` — pins the precondition
+        # T10 introduced (without it, the bootstrap test would be
+        # vacuously true).
+        assert backend._cache is None
+        assert backend._fetcher is None
+        assert backend._session is None
+        assert backend._metadata_cache is None
+
+        request = _build_request({"requests": "*"})
+        backend._bootstrap_from_request(request)
+
+        # All four collaborators are now populated with concrete
+        # instances of the canonical classes.
+        assert isinstance(backend._cache, ParsedManifestCache)
+        assert isinstance(backend._fetcher, ParallelFetcher)
+        assert backend._session is not None
+        assert isinstance(backend._metadata_cache, MetadataCache)
+
+        # Idempotency: a second call must not rebuild any collaborator
+        # (sentinel-by-identity on each of the four).
+        prior_cache = backend._cache
+        prior_fetcher = backend._fetcher
+        prior_session = backend._session
+        prior_metadata_cache = backend._metadata_cache
+        backend._bootstrap_from_request(request)
+        assert backend._cache is prior_cache
+        assert backend._fetcher is prior_fetcher
+        assert backend._session is prior_session
+        assert backend._metadata_cache is prior_metadata_cache
+
+    def test_bootstrap_preserves_injected_collaborators(self):
+        """Tests that pass collaborators via ``__init__`` kwargs must
+        not have them silently replaced by the bootstrap step.  Pinned
+        explicitly because the regression vector here is invisible —
+        a future "always rebuild" refactor would pass every other test
+        in this file while breaking the kwarg-injection contract that
+        the rest of the suite (24 tests) relies on.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        sentinel_cache = _FakeCache({})
+        sentinel_fetcher = _FakeFetcher()
+        sentinel_session = mock.MagicMock(name="session-sentinel")
+        sentinel_metadata_cache = mock.MagicMock(name="metadata-cache-sentinel")
+
+        backend = PurePythonBackend(
+            cache=sentinel_cache,
+            fetcher=sentinel_fetcher,
+            session=sentinel_session,
+            metadata_cache=sentinel_metadata_cache,
+        )
+        backend._bootstrap_from_request(_build_request({"requests": "*"}))
+
+        # Every pre-injected collaborator survived unchanged (identity
+        # check — same object, not "equal").
+        assert backend._cache is sentinel_cache
+        assert backend._fetcher is sentinel_fetcher
+        assert backend._session is sentinel_session
+        assert backend._metadata_cache is sentinel_metadata_cache
