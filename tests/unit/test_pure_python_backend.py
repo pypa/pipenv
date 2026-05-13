@@ -135,10 +135,23 @@ class _FakeFetcher:
 
 
 class _FakeResult:
-    """Synthetic stand-in for ``resolvelib.Result`` carrying ``.mapping``."""
+    """Synthetic stand-in for ``resolvelib.Result`` carrying ``.mapping``
+    and optionally ``.criteria`` (T_M3 — marker emission reads
+    ``Result.criteria[identifier].information``).
+    """
 
-    def __init__(self, mapping: dict) -> None:
+    def __init__(self, mapping: dict, criteria: dict | None = None) -> None:
         self.mapping = mapping
+        self.criteria = criteria or {}
+
+
+class _FakeCriterion:
+    """Synthetic stand-in for ``resolvelib.resolvers.criterion.Criterion``;
+    only the ``.information`` collection is read by T_M3's translator.
+    """
+
+    def __init__(self, information) -> None:
+        self.information = tuple(information)
 
 
 # ---------------------------------------------------------------------------
@@ -1094,6 +1107,257 @@ class TestTranslateMappingEdges:
         assert drive.called
         assert isinstance(response.result, ResolverSuccess)
         assert tuple(response.result.locked) == ()
+
+
+# ----------------------------------------------------------------------
+# T_M3 (Initiative G Phase 3b): _translate_mapping emits ``markers`` on
+# LockedRequirement.
+# ----------------------------------------------------------------------
+#
+# The translator combines two marker sources:
+#
+# 1. **Requires-Python** — derived from ``candidate.requires_python``
+#    (a ``SpecifierSet``-shaped string like ``">=3.10"``).  Each spec is
+#    rendered as ``python_version <op> '<ver>'`` and joined with
+#    ``and``.
+# 2. **Introducing markers** — the ``introducing_marker`` slot
+#    populated by T_M2 on every transitive ``Requirement``.  Pulled
+#    from ``Result.criteria[identifier].information`` (the
+#    ``RequirementInformation`` rows that selected this candidate).
+#    Multiple introducing markers OR-join with parentheses (set theory:
+#    a candidate satisfies the union of preconditions when any one
+#    requirement holds).
+#
+# Combined with ``and`` when both sources contribute; ``None`` when
+# neither does.
+class TestTranslateMappingMarkers:
+    """T_M3 marker emission on :meth:`PurePythonBackend._translate_mapping`."""
+
+    @staticmethod
+    def _candidate_with_requires_python(name: str, version: str, requires_python):
+        """Build a wheel :class:`Candidate` overriding ``requires_python``."""
+        filename = f"{name}-{version}-py3-none-any.whl"
+        return Candidate(
+            name=name,
+            version=version,
+            url=f"{_INDEX}/{name}/{filename}",
+            filename=filename,
+            hashes=frozenset({Hash("sha256", "0" * 64)}),
+            requires_python=requires_python,
+            yanked=False,
+            yanked_reason=None,
+            upload_time=None,
+            is_wheel=True,
+            wheel_tags=None,
+            extras=frozenset(),
+        )
+
+    @staticmethod
+    def _info_rows(*requirements):
+        """Build a tuple of ``RequirementInformation`` rows; parent is
+        irrelevant for T_M3 (only ``.requirement.introducing_marker`` is
+        consulted)."""
+        from pipenv.patched.pip._vendor.resolvelib.structs import (
+            RequirementInformation,
+        )
+
+        return tuple(
+            RequirementInformation(requirement=r, parent=None)
+            for r in requirements
+        )
+
+    def _resolve_for(self, *, candidate, criteria_info, top_name="pkg"):
+        """Run :meth:`PurePythonBackend.resolve` with a synthetic
+        ``_drive_resolver`` return value carrying ``mapping`` + the
+        provided ``criteria_info``.  Returns the single
+        :class:`LockedRequirement` emitted (asserts exactly one).
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        identifier = (top_name, frozenset())
+        cache = _FakeCache({(_INDEX, top_name): (candidate,)})
+        fake_result = _FakeResult(
+            mapping={identifier: candidate},
+            criteria={identifier: _FakeCriterion(criteria_info)},
+        )
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request({top_name: "*"})
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        return locked[0]
+
+    def test_requires_python_emits_marker(self):
+        """``requires_python=">=3.10"`` alone → markers carries the
+        translated ``python_version >= '3.10'`` clause."""
+        cand = self._candidate_with_requires_python("click", "8.3.3", ">=3.10")
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=(),  # no introducing markers
+            top_name="click",
+        )
+        assert entry.markers == "python_version >= '3.10'"
+
+    def test_requires_python_range_emits_combined_marker(self):
+        """``requires_python=">=3.8,<4"`` → ``python_version`` lower-
+        and upper-bound joined with ``and`` in stable sorted order.
+        """
+        cand = self._candidate_with_requires_python("foo", "1.0", ">=3.8,<4")
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=(),
+            top_name="foo",
+        )
+        # The translator sorts specs to keep cross-run output stable.
+        # ``"python_version < '4'"`` sorts before ``"python_version >= '3.8'"``
+        # under default string comparison (``<`` (0x3c) < ``>`` (0x3e)).
+        assert entry.markers == "python_version < '4' and python_version >= '3.8'"
+
+    def test_introducing_marker_alone_emits_marker(self):
+        """Candidate has no ``requires_python``; one ``Requirement``
+        with a non-None ``introducing_marker`` selected it → its marker
+        string is the sole contribution."""
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        intro = Marker("python_version < '3.10'")
+        req = Requirement(
+            name="bar",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="some-parent",
+            introducing_marker=intro,
+        )
+        cand = self._candidate_with_requires_python("bar", "1.0", None)
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=self._info_rows(req),
+            top_name="bar",
+        )
+        # The marker text is rendered by ``packaging.markers.Marker.__str__``
+        # which uses double quotes around literal values.  We accept the
+        # canonical packaging-rendered form as-is rather than normalising
+        # to single quotes — both are PEP 508 valid and semantically
+        # identical, and matching the upstream form keeps the translator
+        # zero-allocation on the hot path.
+        assert entry.markers == 'python_version < "3.10"'
+
+    def test_requires_python_and_introducing_marker_combined(self):
+        """Both sources contribute → joined with ``and``."""
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        intro = Marker("python_version < '3.12'")
+        req = Requirement(
+            name="baz",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="some-parent",
+            introducing_marker=intro,
+        )
+        cand = self._candidate_with_requires_python("baz", "1.0", ">=3.8")
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=self._info_rows(req),
+            top_name="baz",
+        )
+        # Combined with ``and`` (no parentheses for a single
+        # introducing marker — only the multi-intro form parenthesises).
+        # The Requires-Python contribution uses single-quoted literals
+        # (``repr(str)``) while the introducing-marker contribution
+        # comes through ``packaging.markers.Marker.__str__`` which
+        # uses double quotes.  Two quoting conventions live side-by-side
+        # in the same output — both are PEP 508 valid and we deliberately
+        # preserve each source's canonical form rather than normalising.
+        assert entry.markers == (
+            "python_version >= '3.8' and python_version < \"3.12\""
+        )
+
+    def test_multiple_introducing_markers_or_joined(self):
+        """Two requirements with distinct ``introducing_marker``s selected
+        the same candidate → markers OR-joined with parentheses (a
+        candidate satisfies the *union* of its requirements)."""
+        from pipenv.resolver.pure_python_requirement import Requirement
+        from pipenv.vendor.packaging.markers import Marker
+        from pipenv.vendor.packaging.specifiers import SpecifierSet
+
+        intro_a = Marker("python_version < '3.10'")
+        intro_b = Marker("python_version >= '3.12'")
+        req_a = Requirement(
+            name="multi",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="parent-a",
+            introducing_marker=intro_a,
+        )
+        req_b = Requirement(
+            name="multi",
+            specifier=SpecifierSet(""),
+            extras=frozenset(),
+            marker=None,
+            source="transitive",
+            parent="parent-b",
+            introducing_marker=intro_b,
+        )
+        cand = self._candidate_with_requires_python("multi", "1.0", None)
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=self._info_rows(req_a, req_b),
+            top_name="multi",
+        )
+        assert entry.markers is not None
+        # Order-stable: insertion-order of ``information`` rows is
+        # preserved by the translator so a fixture-driven assertion is
+        # robust.  Marker strings come through
+        # ``packaging.markers.Marker.__str__`` (double-quoted literals).
+        assert entry.markers == (
+            '(python_version < "3.10") or (python_version >= "3.12")'
+        )
+
+    def test_no_requires_python_no_introducing_marker_emits_none(self):
+        """No ``requires_python`` AND no introducing marker → ``markers``
+        stays ``None`` on the lockfile entry."""
+        cand = self._candidate_with_requires_python("nada", "1.0", None)
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=(),
+            top_name="nada",
+        )
+        assert entry.markers is None
+
+    def test_invalid_requires_python_falls_back_to_none(self):
+        """An unparseable ``requires_python`` is treated as no
+        contribution (defensive — mirrors T4's behaviour around bad
+        ``Requires-Python`` advertisements on index manifests)."""
+        cand = self._candidate_with_requires_python(
+            "weirdpkg", "1.0", ">>not-a-spec<<"
+        )
+        entry = self._resolve_for(
+            candidate=cand,
+            criteria_info=(),
+            top_name="weirdpkg",
+        )
+        # The bad ``requires_python`` produced no marker; no introducing
+        # marker either → final ``markers`` is ``None``.
+        assert entry.markers is None
 
 
 # ----------------------------------------------------------------------
