@@ -819,9 +819,25 @@ waits on both.
 - **validation**:
   - Doc renders cleanly.
   - Phase 3b row added to acceptance matrix.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Extended `docs/dev/initiative-g-phase3-design.md` §8 with a
+    Phase 3b sub-section containing:
+    - Phase 3b acceptance-gate table (resolver-module coverage,
+      static byte-identity smoke, T15 100-pkg bench, and the new
+      CI dogfood job) with current status.
+    - Q-A flip documentation: "fail loud" → "build transparently
+      via PEP 517", with pointers to T_S1 / T_S2 implementation.
+    - Q-F survives in repurposed form (T_S4 — emptiness check).
+    - No-build-isolation tradeoff with win/loss bullets and the
+      four mitigations actually shipped (path-traversal validation,
+      device/symlink/fifo rejection, tmp-dir scope, opt-out via
+      `resolver_backend = "pip"`).
+  - Updated §9 Out-of-scope: struck through "sdist resolution"
+    with a back-reference to the Phase 3b row; added "isolated-environment
+    sdist builds" as the Phase 4 follow-up.
 - **files edited/created**:
+  - `docs/dev/initiative-g-phase3-design.md` (extended)
 
 ---
 

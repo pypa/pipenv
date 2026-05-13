@@ -470,11 +470,73 @@ Phase 3 ships when:
 - News fragment + user-facing docs for the new `resolver_backend`
   selector.
 
+### Phase 3b — sdist + markers + CI dogfood (maintainer sign-off 2026-05-12)
+
+Phase 3a's static parity gate (byte-identity on a 100-package bench)
+is preserved as a sub-criterion; the **strong gate for Phase 3b is
+CI dogfood** — the entire pipenv test suite must run under the
+new backend and produce a result on every PR.
+
+| Gate                            | Source                  | Blocking? | Status (2026-05-12) |
+| ------------------------------- | ----------------------- | --------- | ------------------- |
+| Resolver-module unit coverage ≥ 90 % | `resolver-module-coverage` CI job | Yes       | Green (98 % aggregate post-T_S6)        |
+| Lockfile byte-identity on `click=*` smoke | Local smoke (Phase 3a) | Yes (regression-tripwire) | Green (post-T_S5)   |
+| Lockfile byte-identity on T15 100-package bench | `tests/integration` benchmark | Sub-criterion of CI dogfood | Pending bench refresh         |
+| Full test suite under `PIPENV_RESOLVER=pure-python` | `tests-pure-python-backend` CI job (T_CI1) | **No (non-blocking)** until consistently green | Wired (T_CI1, 2026-05-12)   |
+
+The `tests-pure-python-backend` job carries `continue-on-error: true`.
+It is a **dogfood gate**, not a release gate, until the backend
+demonstrates a clean run for ≥ 2 consecutive weeks of PR traffic. At
+that point the flag is flipped (separate one-line PR) and the gate
+becomes blocking.
+
+**Q-A flip (Phase 3a → Phase 3b)**: Q-A originally locked sdist
+handling at "fail loud" — `_SdistEncountered` raised by
+`get_dependencies` and translated to `InternalError`. Phase 3b
+**flips this to "build transparently via PEP 517"**: the backend
+now resolves sdist-only candidates by downloading, extracting, and
+invoking the project's PEP 517 build backend (or
+`setuptools.build_meta:__legacy__` fallback) to recover `METADATA`.
+The transparent build is implemented in
+`pipenv/resolver/pure_python_sdist.py` and routed via
+`pipenv/resolver/pure_python_metadata.py::fetch_metadata`'s `.tar.*`
+/ `.zip` branch (T_S1, T_S2).
+
+The Q-F backend-startup pre-check survives in repurposed form: it
+no longer flags sdists (those now resolve), but it still fires when
+a top-level package has **zero** candidates of any kind, surfacing
+a "no distfiles available" error at lock-startup rather than mid-resolve
+(T_S4).
+
+**No-build-isolation tradeoff**: the sdist build path runs in the
+**current process**, not a fresh isolated venv. This is a deliberate
+deviation from pip's `--isolated-build` default and trades:
+
+- *Win*: ≥ 5x faster sdist resolves (no venv creation per package),
+  and no transient PyPI dependency to bootstrap `build`/`setuptools`
+  in the sandbox.
+- *Loss*: a malicious or buggy sdist's build hooks observe the
+  pipenv process environment (sys.path, env vars). Mitigations:
+  - Path-traversal validation on every tar / zip member name
+    before extraction (`pure_python_sdist._validate_member_name`).
+  - Device / symlink / fifo members are hard-rejected.
+  - The build runs in a temp directory; the cache stores the
+    extracted `METADATA` only, never the build sandbox.
+  - Users who require true isolation can still pin
+    `resolver_backend = "pip"` for that resolve.
+
+Phase 4 may revisit isolated builds (`build --no-isolation=false`
+fallback) once we have CI dogfood data on which sdists actually
+exercise this path in practice.
+
 ## 9. Out of scope
 
-- sdist resolution (Phase 4).
+- ~~sdist resolution (Phase 4).~~ Resolved in Phase 3b via PEP 517
+  build (see §8 Phase 3b row + Q-A flip).
 - Removing pip backend (Phase 4).
 - HTTP/2 transport.
 - Replacing `resolvelib`.
 - Cross-platform lockfiles.
 - Keyring auth (deferred per Q-D above).
+- Isolated-environment sdist builds (Phase 4 — see §8 Phase 3b
+  "no-build-isolation tradeoff").
