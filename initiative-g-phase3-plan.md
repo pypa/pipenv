@@ -634,9 +634,44 @@ near the bottom of this document.
     requirement didn't request `dev` extra → marker evaluates False;
     dep filtered out.
   - sdist-only candidate → raises `_SdistEncountered(candidate)`.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: TDD RED→GREEN.  Added 9 new tests across 5 classes
+    (`TestGetDependenciesWheelRequiresDist`,
+    `TestGetDependenciesMarkerFilter`,
+    `TestGetDependenciesSdistFailLoud`,
+    `TestGetDependenciesMalformedRequiresDist`) covering all 4 plan
+    acceptance bullets + extras-active + multi-Requires-Dist + leaf
+    (empty Requires-Dist) + non-extra marker + sdist-no-fetcher-call +
+    malformed Requires-Dist propagates `InvalidRequirement`.
+  - Implementation: `_SdistEncountered` (`__init__` stores
+    `.candidate`, message `f"sdist-only candidate {name} {version!r}"`);
+    `get_dependencies` gates on `candidate.is_wheel` (T1-derived) →
+    raises `_SdistEncountered` for sdists; for wheels invokes
+    `self._metadata_fetcher(candidate)` (callable shape — T9 binds
+    session+cache around T2's `fetch_metadata`); parses each
+    `Requires-Dist` entry via `packaging.requirements.Requirement`;
+    marker-filter via `_marker_active_for_extras` mirroring pip's
+    `pipenv/patched/pip/_internal/metadata/importlib/_dists.py:224`
+    (no-marker → yield; no parent extras → eval under `{"extra": ""}`;
+    parent extras → OR-eval per extra); translates parser fields into
+    T1 `Requirement(source="transitive", parent=<canonical name>)`.
+  - Zero `pip._internal.*` imports confirmed
+    (`grep -n "pip\._internal" pipenv/resolver/pure_python_provider.py`
+    returns empty).  Full provider suite: 41 passed (32 prior + 9 new).
+    Full unit suite: 1405 passed.
+  - Parity-divergence candidates recorded in the `get_dependencies`
+    docstring for T_PARITY_MATRIX: (a) pip's `ExtrasCandidate`
+    self-dependency synthesis (`candidates.py:533`) is implicit in our
+    `(name, extras)` identifier scheme rather than a separate
+    requirement; (b) propagation of `InvalidRequirement` matches pip's
+    `_dists.py:224` behaviour.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (replaced T7 stub +
+    added `_SdistEncountered` class + `_marker_active_for_extras`
+    helper)
+  - `tests/unit/test_pure_python_provider.py` (+9 tests across 5
+    new classes)
 
 ---
 

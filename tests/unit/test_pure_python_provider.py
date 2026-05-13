@@ -987,3 +987,337 @@ class TestIsSatisfiedByExtras:
             extras=frozenset({"bcrypt"}),
         )
         assert provider.is_satisfied_by(req, cand) is True
+
+
+# ---------------------------------------------------------------------------
+# T7 — get_dependencies (Q-A fail-loud for sdist; Requires-Dist parsing for
+# wheels; marker filtering with parent-extras context)
+# ---------------------------------------------------------------------------
+#
+# Validation matrix (per ``initiative-g-phase3-plan.md`` T7 + design §5.3):
+#
+# 1. Wheel candidate with ``Requires-Dist: numpy>=1.20,<2.0`` →
+#    ``[Requirement(name="numpy", specifier=">=1.20,<2.0",
+#    source="transitive", parent=<candidate.name>)]``.
+# 2. Wheel candidate with ``Requires-Dist: pytest; extra=='dev'`` and the
+#    candidate did NOT request the ``[dev]`` extra → marker evaluates
+#    False against the empty-extras context; req filtered out.
+# 3. Wheel candidate with ``Requires-Dist: pytest; extra=='dev'`` and
+#    the candidate DID request the ``[dev]`` extra → marker evaluates
+#    True under ``{"extra": "dev"}``; req kept.
+# 4. Sdist-only candidate (``.tar.gz`` filename) → raises
+#    ``_SdistEncountered(candidate)`` (Q-A fail-loud).
+#
+# Implementation reference (pip's analog, cited in production code):
+# ``pipenv/patched/pip/_internal/metadata/importlib/_dists.py:224`` —
+# ``BaseDistribution.iter_dependencies(extras)`` — three-branch logic:
+# no-marker → yield; no requested extras + ``marker.evaluate({"extra":
+# ""})`` → yield; else yield iff any ``{"extra": e}`` makes the marker
+# True.
+
+
+def _metadata(
+    *,
+    name: str = "django",
+    version: str = "4.2.0",
+    requires_dist: tuple[str, ...] = (),
+    requires_python: str | None = None,
+    provides_extras: frozenset[str] = frozenset(),
+    summary: str | None = None,
+):
+    """Build a :class:`CoreMetadata` for T7 tests.
+
+    Wraps :class:`pipenv.resolver.pure_python_metadata.CoreMetadata` so
+    each test names only the field it cares about; the rest take inert
+    defaults.
+    """
+    from pipenv.resolver.pure_python_metadata import CoreMetadata
+
+    return CoreMetadata(
+        name=name,
+        version=version,
+        requires_python=requires_python,
+        requires_dist=requires_dist,
+        provides_extras=provides_extras,
+        summary=summary,
+    )
+
+
+def _metadata_fetcher_stub(mapping: dict):
+    """Return a ``metadata_fetcher`` callable suitable for the provider.
+
+    ``mapping`` is ``{candidate_url: CoreMetadata}``.  The callable
+    matches the shape the provider expects:
+    ``metadata_fetcher(candidate) -> CoreMetadata``.  T9 builds the
+    real wiring around :func:`fetch_metadata`; tests use this stub
+    so no HTTP I/O runs.
+    """
+
+    def fetch(candidate):
+        try:
+            return mapping[candidate.url]
+        except KeyError as exc:
+            raise AssertionError(
+                f"test stub: no metadata seeded for {candidate.url}"
+            ) from exc
+
+    return fetch
+
+
+class TestGetDependenciesWheelRequiresDist:
+    """Plan T7 bullet 1: wheel candidate's ``Requires-Dist`` becomes a
+    list of :class:`Requirement`\\ s with ``source="transitive"`` and
+    ``parent=<candidate.name>``."""
+
+    def test_single_requires_dist_returns_one_requirement(self):
+        cand = _cand(name="django", version="4.2.0", is_wheel=True)
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("numpy>=1.20,<2.0",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+
+        deps = list(provider.get_dependencies(cand))
+
+        assert len(deps) == 1
+        dep = deps[0]
+        assert dep.name == "numpy"
+        # SpecifierSet's str form is stable across orderings — compare
+        # via the underlying spec strings sorted.
+        assert sorted(str(s) for s in dep.specifier) == sorted(
+            (">=1.20", "<2.0")
+        )
+        assert dep.source == "transitive"
+        assert dep.parent == "django"
+        assert dep.marker is None
+
+    def test_multiple_requires_dist_returns_all(self):
+        cand = _cand(name="flask", version="2.3.0", is_wheel=True)
+        meta = _metadata(
+            name="flask",
+            version="2.3.0",
+            requires_dist=("werkzeug>=2.3", "jinja2>=3.0"),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+
+        deps = list(provider.get_dependencies(cand))
+        names = sorted(d.name for d in deps)
+        assert names == ["jinja2", "werkzeug"]
+        assert all(d.source == "transitive" for d in deps)
+        assert all(d.parent == "flask" for d in deps)
+
+    def test_empty_requires_dist_returns_empty_list(self):
+        """A wheel with no ``Requires-Dist`` headers — a leaf in the
+        graph — must yield zero requirements (NOT raise)."""
+        cand = _cand(name="six", version="1.16.0", is_wheel=True)
+        meta = _metadata(
+            name="six", version="1.16.0", requires_dist=()
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        assert list(provider.get_dependencies(cand)) == []
+
+
+class TestGetDependenciesMarkerFilter:
+    """Plan T7 bullet 2 + 3: marker evaluation with parent-extras context.
+
+    Mirrors pip's three-branch logic at
+    ``pipenv/patched/pip/_internal/metadata/importlib/_dists.py:224``:
+
+    * No marker -> yield.
+    * Marker present + no parent extras -> yield iff
+      ``marker.evaluate({"extra": ""})`` is True.
+    * Marker present + parent extras non-empty -> yield iff
+      ``marker.evaluate({"extra": e})`` is True for any e in extras.
+    """
+
+    def test_extra_marker_filtered_out_when_parent_has_no_extras(self):
+        """Plan T7 bullet 2: ``Requires-Dist: pytest; extra=='dev'``
+        with parent candidate's ``extras == frozenset()`` -> marker
+        evaluates False under ``{"extra": ""}``; req filtered out."""
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset(),  # parent did NOT ask for [dev]
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("pytest ; extra == 'dev'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        assert deps == []
+
+    def test_extra_marker_kept_when_parent_requested_that_extra(self):
+        """Plan T7 bullet 3 (active-extras case):
+        ``Requires-Dist: pytest; extra=='dev'`` with parent candidate's
+        ``extras == frozenset({"dev"})`` -> marker evaluates True under
+        ``{"extra": "dev"}``; req kept with ``parent=<candidate.name>``.
+        """
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset({"dev"}),  # parent DID ask for [dev]
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=("pytest>=7 ; extra == 'dev'",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        assert len(deps) == 1
+        assert deps[0].name == "pytest"
+        assert deps[0].parent == "django"
+        assert deps[0].source == "transitive"
+        # The marker is preserved on the transitive requirement so a
+        # later :meth:`is_satisfied_by` re-evaluation against
+        # ``target_env`` stays consistent.
+        assert deps[0].marker is not None
+
+    def test_non_extra_marker_evaluated_against_target_env(self):
+        """A non-extra marker (e.g. ``python_version < '3.8'``) is
+        evaluated against the provider's ``target_env`` overlay -- pinning
+        ``python_version = "3.12"`` filters a ``< '3.8'`` marker out."""
+        cand = _cand(
+            name="django", version="4.2.0", is_wheel=True
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=(
+                "typing_extensions ; python_version < '3.8'",
+                "sqlparse>=0.3",
+            ),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+        deps = list(provider.get_dependencies(cand))
+        names = [d.name for d in deps]
+        # typing_extensions filtered out -- its marker is False under
+        # python_version=3.12.  sqlparse survives (no marker).
+        assert names == ["sqlparse"]
+
+
+class TestGetDependenciesSdistFailLoud:
+    """Plan T7 bullet 4 (Q-A fail-loud): sdist-only candidate raises
+    ``_SdistEncountered`` carrying the candidate.
+
+    Sdist detection: per design §5.3 + plan T7, ``candidate.is_wheel``
+    is the authoritative flag (T1 derives it from the filename).  A
+    ``.tar.gz`` / ``.zip`` / ``.tar.bz2`` filename is an sdist.
+    """
+
+    def test_sdist_candidate_raises_sdist_encountered(self):
+        from pipenv.resolver.pure_python_provider import _SdistEncountered
+
+        cand = _cand(
+            name="legacy", version="0.1", is_wheel=False
+        )
+        # No metadata fetcher should be consulted -- the sdist check is
+        # a fail-loud guard BEFORE any I/O.  A misconfigured stub that
+        # would otherwise raise an ``AssertionError`` makes that
+        # explicit.
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({}),
+            target_env={"python_version": "3.12"},
+        )
+
+        try:
+            provider.get_dependencies(cand)
+        except _SdistEncountered as exc:
+            assert exc.candidate is cand
+            # The exception message names the candidate so T9's
+            # ``InternalError`` translation surfaces a useful error.
+            assert "legacy" in str(exc)
+        else:  # pragma: no cover - acceptance criterion
+            raise AssertionError(
+                "_SdistEncountered was not raised for an sdist candidate"
+            )
+
+    def test_sdist_check_does_not_invoke_metadata_fetcher(self):
+        """Belt-and-braces: confirm the fail-loud guard short-circuits
+        BEFORE the (potentially network-bound) metadata fetch -- the
+        stub records calls and we assert zero."""
+        from pipenv.resolver.pure_python_provider import _SdistEncountered
+
+        cand = _cand(
+            name="legacy", version="0.1", is_wheel=False
+        )
+
+        call_log: list = []
+
+        def trapping_fetcher(c):
+            call_log.append(c)
+            raise AssertionError(
+                "metadata_fetcher must not be called for an sdist"
+            )
+
+        provider = _make_provider(
+            metadata_fetcher=trapping_fetcher,
+            target_env={"python_version": "3.12"},
+        )
+
+        try:
+            provider.get_dependencies(cand)
+        except _SdistEncountered:
+            pass
+        else:  # pragma: no cover - acceptance criterion
+            raise AssertionError("_SdistEncountered was not raised")
+        assert call_log == []
+
+
+class TestGetDependenciesMalformedRequiresDist:
+    """Defensive: a malformed ``Requires-Dist`` entry (parser raises)
+    surfaces as an error rather than silently dropping the dep.
+
+    Pip's ``iter_dependencies`` at
+    ``pipenv/patched/pip/_internal/metadata/importlib/_dists.py:224``
+    propagates ``InvalidRequirement`` from ``packaging`` -- we mirror.
+    """
+
+    def test_invalid_requires_dist_raises_invalid_requirement(self):
+        from pipenv.vendor.packaging.requirements import InvalidRequirement
+
+        cand = _cand(
+            name="django", version="4.2.0", is_wheel=True
+        )
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            # ``!@#`` is not a legal requirement spec -- parser raises.
+            requires_dist=("!@# not a real spec",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+
+        try:
+            list(provider.get_dependencies(cand))
+        except InvalidRequirement:
+            pass  # expected
+        else:  # pragma: no cover - acceptance criterion
+            raise AssertionError(
+                "expected InvalidRequirement from malformed Requires-Dist"
+            )
