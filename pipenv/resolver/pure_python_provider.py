@@ -43,10 +43,48 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from pipenv.patched.pip._vendor.resolvelib.providers import AbstractProvider
 from pipenv.resolver.pure_python_requirement import Requirement
+from pipenv.vendor.packaging.requirements import Requirement as PackagingRequirement
 from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
+from pipenv.vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.packaging.version import InvalidVersion, Version
 
-__all__ = ["PurePythonProvider"]
+__all__ = ["PurePythonProvider", "_SdistEncountered"]
+
+
+class _SdistEncountered(Exception):
+    """Internal signal raised when a non-wheel candidate must be expanded.
+
+    Per Initiative G Phase 3 Q-A (sign-off 2026-05-12): the pure-Python
+    backend deliberately does NOT build sdists.  When the resolver tries
+    to expand a candidate whose only artifact is an sdist, the provider
+    raises this exception; T9's :class:`PurePythonBackend.resolve`
+    catches it and translates it into a structured
+    :class:`InternalError` response so the user can decide whether to
+    pin a wheel-bearing version or fall back via
+    ``pipenv lock --backend pip``.
+
+    The exception carries the offending :class:`Candidate` (via
+    :attr:`candidate`) so T9 can populate the error message with the
+    package name, version, and filename — enough for the user to find
+    the bad transitive without re-running the resolve.
+
+    See also: design §5.3 (sdist handling), design §7 Q-A
+    (rationale: fail-loud over silent fallback), plan T7 +
+    T9 (validation matrices).
+    """
+
+    def __init__(self, candidate: Any) -> None:
+        # Stored as attribute so T9's catch site can read it back
+        # without parsing the exception message.
+        self.candidate = candidate
+        # Message shape mirrors the design §7 Q-A example: name +
+        # version is the minimum context a user needs to find the
+        # offending Pipfile entry / transitive parent chain.
+        name = getattr(candidate, "name", "<unknown>")
+        version = getattr(candidate, "version", "<unknown>")
+        super().__init__(
+            f"sdist-only candidate {name} {version!r}"
+        )
 
 
 # Identifier shape — matches the design §5.3 contract: a 2-tuple of
@@ -684,15 +722,215 @@ class PurePythonProvider(AbstractProvider):
         return env
 
     # ------------------------------------------------------------------
-    # T7 — get_dependencies (NOT YET IMPLEMENTED)
+    # T7 — get_dependencies (transitive requirement expansion)
     # ------------------------------------------------------------------
 
-    def get_dependencies(self, candidate):
-        """Return an iterable of :class:`Requirement` instances for the
-        candidate's ``Requires-Dist`` — fetches metadata via the
-        :class:`MetadataFetcher`.  Raises ``_SdistEncountered`` for
-        sdist-only candidates (Q-A fail-loud path).
+    def get_dependencies(self, candidate: Any) -> list[Requirement]:
+        """Return the candidate's transitive :class:`Requirement` set.
 
-        Owned by T7.  Lands in a subsequent commit on this same module.
+        Signature contract — :class:`AbstractProvider` from
+        ``pipenv/patched/pip/_vendor/resolvelib/providers.py:138``::
+
+            def get_dependencies(self, candidate) -> Iterable[Requirement]: ...
+
+        Algorithm (per design §5.3 + plan T7):
+
+        1. **Q-A fail-loud gate**: if ``candidate.is_wheel`` is ``False``
+           (i.e. the artifact is an sdist), raise
+           :class:`_SdistEncountered` carrying the candidate.  T9
+           translates this into a structured ``InternalError`` response.
+           Detection uses :attr:`Candidate.is_wheel` directly — T1
+           already derives the boolean from the filename suffix
+           (``pipenv/resolver/candidate.py:171``), so this method does
+           not need its own ``endswith('.whl')`` check.
+        2. **Wheel path**: invoke ``self._metadata_fetcher(candidate)``
+           — a caller-supplied callable that returns a
+           :class:`pipenv.resolver.pure_python_metadata.CoreMetadata`.
+           T9 wires the production stack so that this callable is a
+           thin closure around :func:`fetch_metadata` with the session
+           + cache bound in advance.  Tests supply a stub mapping
+           ``candidate.url`` → ``CoreMetadata``.
+        3. **Parse + filter** each entry in ``metadata.requires_dist``:
+           - Parse via :class:`pipenv.vendor.packaging.requirements.Requirement`
+             — that's the packaging parser (NOT this module's T1
+             :class:`Requirement` dataclass; the parser yields
+             ``name / extras / specifier / marker`` which we then
+             translate INTO our T1 model).
+           - Skip the entry if its marker is non-``None`` and evaluates
+             False under the candidate's extras (see below).
+           - Otherwise build a new :class:`Requirement` with
+             ``source="transitive"`` and
+             ``parent=<canonicalised candidate name>``.
+        4. **Return** as a list.  ``resolvelib`` accepts any iterable;
+           list is cheapest to consume and avoids accidental
+           single-pass-iterator bugs in downstream callers.
+
+        Marker semantics (parent-extras context)
+        ----------------------------------------
+        We mirror pip's three-branch logic at
+        ``pipenv/patched/pip/_internal/metadata/importlib/_dists.py:224``::
+
+            if not req.marker:
+                yield req
+            elif not extras and req.marker.evaluate({"extra": ""}):
+                yield req
+            elif any(req.marker.evaluate({"extra": e}) for e in extras):
+                yield req
+
+        i.e. the requirement's marker is evaluated against a marker
+        environment that includes ``extra``: when the parent candidate
+        requested no extras, ``extra=""`` is the context; when it
+        requested ``[dev]``, ``extra="dev"`` is the context.  This is
+        what makes ``Requires-Dist: pytest; extra=='dev'`` correctly
+        survive only when the parent was ``django[dev]``.
+
+        Non-extra markers (e.g. ``python_version < '3.8'``) are
+        evaluated against the same overlay; pip and we both rely on
+        the marker's ``extra=`` clause being a top-level conjunct, so
+        an env with ``extra=""`` doesn't accidentally satisfy a
+        ``python_version`` marker that's actually False.
+
+        Parity-divergence note for T_PARITY_MATRIX
+        ------------------------------------------
+        Pip ALSO synthesises a "depends on the exact base" requirement
+        (``factory.make_requirement_from_candidate(self.base)`` at
+        ``candidates.py:533``) when expanding an
+        :class:`ExtrasCandidate`.  We don't model :class:`ExtrasCandidate`
+        as a separate node yet (T1's :class:`Requirement` carries
+        ``extras`` directly and our :meth:`identify` partitions on
+        ``(name, extras)``); the equivalent constraint emerges from the
+        ``(name, frozenset())`` identifier sharing candidates with
+        ``(name, frozenset({"dev"}))`` via the cache.  Records as a
+        candidate divergence for the T_PARITY_MATRIX doc; lockfile
+        byte-identity in T15 / T_PARITY_REAL is the gate.
+
+        Pip ALSO swallows malformed ``Requires-Dist`` lines at
+        ``_dists.py:224`` (the ``get_requirement`` call raises
+        :class:`InvalidRequirement`; pip doesn't catch).  We propagate
+        the same exception — a malformed METADATA body is a wheel-side
+        bug worth surfacing rather than silently dropping a real dep.
         """
-        raise NotImplementedError("T7: PurePythonProvider.get_dependencies")
+        # --------------- Q-A fail-loud (sdist gate) ----------------
+        # is_wheel is the authoritative bool — T1 derives it from the
+        # filename suffix at construction time, so we don't re-check
+        # ``.endswith('.whl')`` here.  ``getattr`` defaults to ``False``
+        # so a duck-typed Candidate without the field is treated as an
+        # sdist (safer than treating it as a wheel and silently
+        # producing wrong metadata).
+        if not getattr(candidate, "is_wheel", False):
+            raise _SdistEncountered(candidate)
+
+        # --------------- Wheel: fetch + parse ----------------------
+        # ``self._metadata_fetcher`` is a callable (see __init__
+        # docstring).  T9 binds a session + cache around T2's
+        # :func:`fetch_metadata`; tests pass a dict-backed stub.
+        metadata = self._metadata_fetcher(candidate)
+
+        # Canonicalise the parent name once — multiple Requires-Dist
+        # entries will share it.  Mirrors T1's
+        # :meth:`Requirement.from_pipfile_entry` behaviour
+        # (canonicalisation at construction time so resolvelib's
+        # ``(name, extras)`` identifier groups by canonical name).
+        parent_name = canonicalize_name(getattr(candidate, "name", ""))
+
+        # Marker environment: the SAME overlay used by T6's
+        # :meth:`is_satisfied_by` (built from
+        # :func:`packaging.markers.default_environment` overlaid with
+        # ``self._target_env``).  The ``extra=`` slot is added per
+        # requirement below.
+        base_env = self._marker_environment()
+
+        # Parent extras (frozenset) — drives the marker-context fork.
+        # Empty frozenset → use ``extra=""`` context (single iteration).
+        parent_extras: frozenset[str] = getattr(
+            candidate, "extras", frozenset()
+        )
+
+        deps: list[Requirement] = []
+        for raw_spec in metadata.requires_dist:
+            # ``packaging.requirements.Requirement`` parses the line.
+            # We pre-strip leading/trailing whitespace defensively;
+            # CoreMetadata already does this on construction
+            # (pure_python_metadata.py:592-596), but a stray empty
+            # line in a hand-crafted test fixture shouldn't crash the
+            # parser.
+            raw_spec = raw_spec.strip()
+            if not raw_spec:
+                continue
+            parsed = PackagingRequirement(raw_spec)
+
+            # Marker filter — mirror pip's _dists.py:230-235.
+            if parsed.marker is not None:
+                if not self._marker_active_for_extras(
+                    parsed.marker, base_env, parent_extras
+                ):
+                    continue
+
+            # Translate parser-side fields into our T1 dataclass.
+            # ``packaging``'s ``.extras`` is a ``set`` (mutable); freeze
+            # so the dataclass's ``__hash__`` is well-defined.
+            deps.append(
+                Requirement(
+                    name=canonicalize_name(parsed.name),
+                    specifier=parsed.specifier,
+                    extras=frozenset(parsed.extras),
+                    marker=parsed.marker,
+                    source="transitive",
+                    parent=parent_name,
+                )
+            )
+
+        return deps
+
+    def _marker_active_for_extras(
+        self,
+        marker: Any,
+        base_env: Mapping[str, Any],
+        parent_extras: frozenset[str],
+    ) -> bool:
+        """Return ``True`` iff ``marker`` evaluates True for the parent's
+        extras context (mirrors pip's _dists.py:230-235).
+
+        Branch logic:
+
+        * **No parent extras** (``parent_extras == frozenset()``):
+          evaluate once under ``{"extra": ""}``.  This is what makes a
+          plain ``Requires-Dist: foo; python_version<'3.8'`` survive
+          (the marker has no ``extra==`` clause and ``extra=""`` is
+          irrelevant to it) while a ``Requires-Dist: foo; extra=='dev'``
+          is filtered out (the marker's ``extra=='dev'`` is False under
+          ``extra=""``).
+        * **Parent has extras**: evaluate the marker once per extra,
+          ORing the results.  Pip uses ``any(...)`` over
+          ``[{"extra": e} for e in extras]``; we match exactly.
+
+        Defensive: a malformed marker (e.g. references an unknown
+        marker variable) is treated as inactive — same loud-failure
+        stance as T6's :meth:`is_satisfied_by` (better to surface the
+        issue via "this dep didn't apply" than to crash mid-resolve).
+        Pip silently ignores the same shape per
+        :meth:`Marker.evaluate`'s "missing key" path.
+        """
+        # Build a fresh environment per evaluation so we don't mutate
+        # the caller's ``base_env`` (which is shared across all
+        # Requires-Dist lines in a single get_dependencies call).
+        if not parent_extras:
+            env = dict(base_env)
+            env["extra"] = ""
+            try:
+                return bool(marker.evaluate(env))
+            except Exception:  # noqa: BLE001
+                return False
+
+        for extra in parent_extras:
+            env = dict(base_env)
+            env["extra"] = extra
+            try:
+                if marker.evaluate(env):
+                    return True
+            except Exception:  # noqa: BLE001
+                # Continue trying other extras — a marker that's
+                # malformed under one extra context may still evaluate
+                # successfully under another (rare but possible).
+                continue
+        return False
