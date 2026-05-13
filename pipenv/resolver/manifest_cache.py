@@ -455,34 +455,49 @@ def _datetime_from_iso(value: str) -> datetime:
     return datetime.fromisoformat(value)
 
 
-_REPLACE_RETRY_ATTEMPTS = 5
-_REPLACE_RETRY_BACKOFF_S = 0.010
+_REPLACE_RETRY_BUDGET_S = 2.0
+_REPLACE_RETRY_INITIAL_BACKOFF_S = 0.005
+_REPLACE_RETRY_MAX_BACKOFF_S = 0.100
 
 
 def _replace_with_windows_retry(src: str, dst: str) -> None:
-    """``os.replace`` with a brief retry loop for Windows file-sharing.
+    """``os.replace`` with a wall-clock retry budget for Windows file sharing.
 
     On POSIX this is a single ``os.replace`` call.  On Windows
     ``os.replace`` raises ``PermissionError`` (``ERROR_ACCESS_DENIED``)
     when the destination is held open by another process — including a
-    well-behaved concurrent reader doing ``open(target, "rb")``.  The
-    contention window is short (the reader closes the handle after
-    ``read_bytes``), so we retry a handful of times with a small linear
-    backoff.  POSIX takes the no-retry happy path on the first call.
+    well-behaved concurrent reader doing ``open(target, "rb")``.
+
+    The earlier 5-attempt × 10 ms-linear scheme (~100 ms total) was
+    exhausted on the Windows CI runner by
+    :func:`test_reader_never_sees_partial_payload`, which runs a reader
+    in a tight ``while not stop_event.is_set()`` loop for ~100 ms — the
+    reader's open/close cycle compounds across thousands of iterations
+    and the writer can't squeeze a rename in within the old budget.
+
+    The new scheme is a wall-clock budget (default 2 s) with exponential
+    backoff capped at 100 ms.  On Windows the writer keeps retrying
+    until the deadline; on POSIX the first call always succeeds and we
+    return immediately.  2 s is generous for production (manifest
+    writes are rare) and well within
+    ``test_reader_never_sees_partial_payload``'s 5 s join timeout.
     """
     if sys.platform != "win32":
         os.replace(src, dst)
         return
+    deadline = time.monotonic() + _REPLACE_RETRY_BUDGET_S
+    backoff = _REPLACE_RETRY_INITIAL_BACKOFF_S
     last_exc: PermissionError | None = None
-    for attempt in range(_REPLACE_RETRY_ATTEMPTS):
+    while True:
         try:
             os.replace(src, dst)
             return
         except PermissionError as exc:  # noqa: PERF203 — retry-on-exception is the point
             last_exc = exc
-            if attempt + 1 == _REPLACE_RETRY_ATTEMPTS:
+            if time.monotonic() >= deadline:
                 break
-            time.sleep(_REPLACE_RETRY_BACKOFF_S * (attempt + 1))
+            time.sleep(backoff)
+            backoff = min(backoff * 2, _REPLACE_RETRY_MAX_BACKOFF_S)
     assert last_exc is not None
     raise last_exc
 
