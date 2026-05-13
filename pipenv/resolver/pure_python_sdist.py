@@ -207,8 +207,13 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
     """GET ``candidate.url`` and write the body to a file in ``dest_dir``.
 
     Returns the on-disk archive path.  Raises :class:`SdistBuildError`
-    on any non-2xx response or empty body — both are non-recoverable
-    for the extraction step that follows.
+    on any non-2xx response, empty body, or hash mismatch — all are
+    non-recoverable for the extraction step that follows.
+
+    If the candidate carries SHA-256 hashes (PEP 691 / PyPI simple API),
+    the downloaded body is verified against them before writing to disk.
+    A mismatch raises :class:`SdistBuildError` to prevent executing
+    tampered artifacts in the PEP 517 build hooks.
     """
     url = candidate.url
     response = _http_request(session, "GET", url)
@@ -226,6 +231,21 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
         raise SdistBuildError(
             f"sdist download failed: GET {url} returned empty body"
         )
+
+    # Hash verification: if the candidate advertises SHA-256 hashes
+    # (PEP 691 / PyPI simple API), verify the downloaded body before
+    # writing it to disk.  A mismatch is a security boundary — we
+    # MUST NOT execute a tampered sdist's PEP 517 hooks.
+    expected_hashes = getattr(candidate, "hashes", None) or {}
+    sha256_hashes = expected_hashes.get("sha256", [])
+    if sha256_hashes:
+        import hashlib
+        computed = hashlib.sha256(bytes(body)).hexdigest()
+        if computed not in sha256_hashes:
+            raise SdistBuildError(
+                f"sdist download failed: SHA-256 mismatch for {url} "
+                f"(computed={computed}, expected one of {sha256_hashes})"
+            )
 
     # Filename comes from candidate.filename — same source the wheel
     # path uses — so the file's extension survives intact and the
@@ -458,6 +478,15 @@ def _build_metadata_in_isolated_env(
     multi-second setup overhead per test).  Production callers go
     through :func:`_run_prepare_metadata` which wraps this in a
     timeout-bounded :class:`ThreadPoolExecutor`.
+
+    **Known limitation**: the isolated environment installs
+    ``[build-system].requires`` using pip's default index configuration
+    (PyPI).  For sdists whose build backend dependencies live on a
+    private index or require custom sources, metadata extraction will
+    fail or fall back to PyPI.  Threading the resolver request's source
+    configuration into this build-isolation install path is deferred to
+    a future phase to avoid coupling the sdist extractor to the
+    resolver's request schema.
 
     :mod:`build` is imported lazily so wheel-only resolves never pay
     the import cost.
