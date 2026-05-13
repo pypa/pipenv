@@ -485,9 +485,49 @@ waits on both.
   - The 9 T7 unit tests stay green; the one that expected
     `_SdistEncountered` is converted to assert the new behaviour
     (no exception, transitives returned via T_S2).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Provider: removed the `if not candidate.is_wheel: raise
+    _SdistEncountered(candidate)` guard from
+    `PurePythonProvider.get_dependencies`; sdist candidates now flow
+    through `self._metadata_fetcher` symmetrically with wheels.  The
+    `_SdistEncountered` class is preserved with a deprecation docstring
+    pointing at T_S1+T_S2.  `_drive_resolver` docstring updated to drop
+    the `_SdistEncountered` Raises clause.
+  - Backend: deleted the `except _SdistEncountered` block in
+    `PurePythonBackend.resolve` and removed `_SdistEncountered` from
+    the import list; the module-level docstring flow narrative now
+    points step 4 at T_S1+T_S2's transparent sdist build path.
+  - Tests rewritten as positive tests (no exception, transitive
+    `Requirement` set returned via the metadata fetcher); added a
+    back-compat importability pin for the deprecated class.
+  - Validation: 100/100 unit tests across
+    `test_pure_python_provider.py`, `test_pure_python_backend.py`,
+    and `test_pure_python_provider_smoke.py` pass.  Smoke
+    `pipenv lock --backend pure-python` against a `click="*"`
+    Pipfile still completes successfully.  Zero `pip._internal`
+    imports remain in either file.
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (removed raise site,
+    deprecated `_SdistEncountered` class docstring, updated
+    `get_dependencies` + `_drive_resolver` docstrings)
+  - `pipenv/resolver/backends/pure_python.py` (removed
+    `_SdistEncountered` import + `except` handler, updated module
+    docstring flow narrative)
+  - `tests/unit/test_pure_python_provider.py`
+    (`TestGetDependenciesSdistFailLoud` →
+    `TestGetDependenciesSdistRoutesThroughMetadataFetcher`; converted
+    `test_sdist_candidate_raises_sdist_encountered` →
+    `test_sdist_candidate_routes_through_metadata_fetcher`,
+    `test_sdist_check_does_not_invoke_metadata_fetcher` →
+    `test_sdist_invokes_metadata_fetcher_exactly_once`; added
+    `test_sdist_encountered_still_importable` back-compat pin)
+  - `tests/unit/test_pure_python_backend.py`
+    (`TestSdistEncounteredFailLoud` →
+    `TestSdistTransitiveResolvesThroughMetadataFetcher`; converted
+    `test_sdist_encountered_translates_to_internal_error` →
+    `test_sdist_transitive_resolves_through_metadata_fetcher`)
+  - `initiative-g-phase3b-plan.md` (this entry)
 
 ---
 

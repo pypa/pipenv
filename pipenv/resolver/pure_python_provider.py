@@ -52,25 +52,26 @@ __all__ = ["PurePythonProvider", "_SdistEncountered", "_drive_resolver"]
 
 
 class _SdistEncountered(Exception):
-    """Internal signal raised when a non-wheel candidate must be expanded.
+    """DEPRECATED (Phase 3b T_S3).  Phase 3a's fail-loud sdist signal.
 
-    Per Initiative G Phase 3 Q-A (sign-off 2026-05-12): the pure-Python
-    backend deliberately does NOT build sdists.  When the resolver tries
-    to expand a candidate whose only artifact is an sdist, the provider
-    raises this exception; T9's :class:`PurePythonBackend.resolve`
-    catches it and translates it into a structured
-    :class:`InternalError` response so the user can decide whether to
-    pin a wheel-bearing version or fall back via
-    ``pipenv lock --backend pip``.
+    Phase 3b builds sdists transparently via T_S1 (PEP 517 METADATA
+    extraction in :mod:`pipenv.resolver.pure_python_sdist`) and T_S2
+    (the routing branch in :meth:`MetadataFetcher.fetch_metadata`),
+    so this exception is no longer raised from production code.
 
-    The exception carries the offending :class:`Candidate` (via
-    :attr:`candidate`) so T9 can populate the error message with the
-    package name, version, and filename — enough for the user to find
-    the bad transitive without re-running the resolve.
+    The class is preserved as an importable symbol for back-compat
+    with external test suites that referenced the Phase 3a contract;
+    the constructor still accepts a candidate and records it on
+    :attr:`candidate` so a legacy caller that constructs (but does
+    not re-raise) the exception keeps working.
 
-    See also: design §5.3 (sdist handling), design §7 Q-A
-    (rationale: fail-loud over silent fallback), plan T7 +
-    T9 (validation matrices).
+    History (for the audit trail): in Phase 3a, per the design Q-A
+    sign-off 2026-05-12, :meth:`PurePythonProvider.get_dependencies`
+    raised this when handed a non-wheel candidate and T9's
+    :class:`PurePythonBackend.resolve` translated it into a
+    structured :class:`InternalError` response.  The Phase 3b T_S3
+    work (commit landing this docstring) removed both the raise site
+    and the corresponding handler.
     """
 
     def __init__(self, candidate: Any) -> None:
@@ -733,24 +734,26 @@ class PurePythonProvider(AbstractProvider):
 
             def get_dependencies(self, candidate) -> Iterable[Requirement]: ...
 
-        Algorithm (per design §5.3 + plan T7):
+        Algorithm (per design §5.3 + plan T7, updated in Phase 3b T_S3):
 
-        1. **Q-A fail-loud gate**: if ``candidate.is_wheel`` is ``False``
-           (i.e. the artifact is an sdist), raise
-           :class:`_SdistEncountered` carrying the candidate.  T9
-           translates this into a structured ``InternalError`` response.
-           Detection uses :attr:`Candidate.is_wheel` directly — T1
-           already derives the boolean from the filename suffix
-           (``pipenv/resolver/candidate.py:171``), so this method does
-           not need its own ``endswith('.whl')`` check.
-        2. **Wheel path**: invoke ``self._metadata_fetcher(candidate)``
-           — a caller-supplied callable that returns a
+        1. **Metadata fetch (wheel OR sdist)**: invoke
+           ``self._metadata_fetcher(candidate)`` — a caller-supplied
+           callable that returns a
            :class:`pipenv.resolver.pure_python_metadata.CoreMetadata`.
            T9 wires the production stack so that this callable is a
-           thin closure around :func:`fetch_metadata` with the session
-           + cache bound in advance.  Tests supply a stub mapping
-           ``candidate.url`` → ``CoreMetadata``.
-        3. **Parse + filter** each entry in ``metadata.requires_dist``:
+           thin closure around :func:`fetch_metadata`, which itself
+           routes wheel candidates to RANGE-fetched ``METADATA`` files
+           and sdist candidates through T_S1's PEP 517 build path —
+           both producing the same :class:`CoreMetadata` shape.  Tests
+           supply a stub mapping ``candidate.url`` → ``CoreMetadata``.
+
+           Phase 3a (pre-T_S3) had a fail-loud guard here that raised
+           :class:`_SdistEncountered` on non-wheel candidates and
+           T9 translated to :class:`InternalError`; that guard is gone
+           in Phase 3b — sdists now resolve transparently.  The
+           :class:`_SdistEncountered` class remains importable for
+           back-compat (see its docstring).
+        2. **Parse + filter** each entry in ``metadata.requires_dist``:
            - Parse via :class:`pipenv.vendor.packaging.requirements.Requirement`
              — that's the packaging parser (NOT this module's T1
              :class:`Requirement` dataclass; the parser yields
@@ -761,7 +764,7 @@ class PurePythonProvider(AbstractProvider):
            - Otherwise build a new :class:`Requirement` with
              ``source="transitive"`` and
              ``parent=<canonicalised candidate name>``.
-        4. **Return** as a list.  ``resolvelib`` accepts any iterable;
+        3. **Return** as a list.  ``resolvelib`` accepts any iterable;
            list is cheapest to consume and avoids accidental
            single-pass-iterator bugs in downstream callers.
 
@@ -810,19 +813,14 @@ class PurePythonProvider(AbstractProvider):
         the same exception — a malformed METADATA body is a wheel-side
         bug worth surfacing rather than silently dropping a real dep.
         """
-        # --------------- Q-A fail-loud (sdist gate) ----------------
-        # is_wheel is the authoritative bool — T1 derives it from the
-        # filename suffix at construction time, so we don't re-check
-        # ``.endswith('.whl')`` here.  ``getattr`` defaults to ``False``
-        # so a duck-typed Candidate without the field is treated as an
-        # sdist (safer than treating it as a wheel and silently
-        # producing wrong metadata).
-        if not getattr(candidate, "is_wheel", False):
-            raise _SdistEncountered(candidate)
-
-        # --------------- Wheel: fetch + parse ----------------------
-        # ``self._metadata_fetcher`` is a callable (see __init__
-        # docstring).  T9 binds a session + cache around T2's
+        # --------------- Metadata fetch (wheel OR sdist) -----------
+        # Phase 3b T_S3: dropped the ``if not candidate.is_wheel: raise
+        # _SdistEncountered(candidate)`` guard.  Sdist candidates now
+        # resolve transparently because T_S2's
+        # :meth:`MetadataFetcher.fetch_metadata` branches on
+        # ``candidate.is_wheel`` and routes sdists through T_S1's PEP
+        # 517 builder.  ``self._metadata_fetcher`` is a callable (see
+        # __init__ docstring); T9 binds a session + cache around T2's
         # :func:`fetch_metadata`; tests pass a dict-backed stub.
         metadata = self._metadata_fetcher(candidate)
 
@@ -973,9 +971,12 @@ def _drive_resolver(
     Production code (T9's :class:`PurePythonBackend`) calls this helper
     too, so the wiring of provider → reporter → :meth:`Resolver.resolve`
     lives in exactly one place.  Translation of
-    :class:`ResolutionImpossible` / :class:`_SdistEncountered` into the
-    backend's :class:`ResolverResponse` shape is T9's concern — this
-    helper deliberately does not catch either exception.
+    :class:`ResolutionImpossible` into the backend's
+    :class:`ResolverResponse` shape is T9's concern — this helper
+    deliberately does not catch the exception.  (Phase 3b T_S3 removed
+    :class:`_SdistEncountered` from the production path; sdist
+    METADATA is now built transparently inside the provider's
+    :meth:`get_dependencies` via T_S1+T_S2.)
 
     Parameters
     ----------
@@ -1013,10 +1014,6 @@ def _drive_resolver(
     :class:`resolvelib.ResolutionImpossible`
         Propagated from :meth:`Resolver.resolve` when no satisfying
         assignment exists.  T9 catches and translates.
-    :class:`_SdistEncountered`
-        Propagated from :meth:`PurePythonProvider.get_dependencies`
-        when the resolver tries to expand an sdist-only candidate.
-        T9 catches and translates per the Q-A fail-loud policy.
     """
     from pipenv.patched.pip._vendor.resolvelib import BaseReporter, Resolver
 

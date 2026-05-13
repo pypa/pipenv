@@ -14,18 +14,20 @@ Flow inside :meth:`PurePythonBackend.resolve`:
    candidates for each top-level package; abort with a structured
    :class:`ResolutionError` if any top-level has candidates but ZERO
    are wheels.  Catches the common sdist-only-toplevel case at startup
-   instead of 30 s into a doomed resolve.
+   instead of 30 s into a doomed resolve.  (T_S4 will repurpose this
+   gate now that T_S3 makes sdists resolvable.)
 3. Build :class:`Requirement` set from ``request.packages.specs``.
 4. Drive :class:`resolvelib.Resolver` via
-   :func:`pipenv.resolver.pure_python_provider._drive_resolver`.
-5. **Q-A fail-loud sdist handling**: catch
-   :class:`_SdistEncountered` from
-   :meth:`PurePythonProvider.get_dependencies` (raised by T7 when a
-   transitive's only choice is an sdist).  Translate into
-   :class:`InternalError` — **no silent fallback to pip backend**.
-6. Other exception → :class:`InternalError`; otherwise translate the
-   resolved candidate mapping into a tuple of
-   :class:`LockedRequirement` and return :class:`ResolverSuccess`.
+   :func:`pipenv.resolver.pure_python_provider._drive_resolver`; any
+   sdist METADATA needed during expansion is built transparently via
+   T_S2's :meth:`MetadataFetcher.fetch_metadata` routing (Phase 3b
+   T_S3 removed the Phase 3a ``_SdistEncountered`` handler — sdists
+   no longer reach an error path).
+5. :class:`resolvelib.ResolutionImpossible` →
+   :class:`ResolutionError`; any other exception →
+   :class:`InternalError`; otherwise translate the resolved candidate
+   mapping into a tuple of :class:`LockedRequirement` and return
+   :class:`ResolverSuccess`.
 
 See ``docs/dev/initiative-g-phase3-design.md`` §5.4 and
 ``initiative-g-phase3-plan.md`` T9.
@@ -49,7 +51,6 @@ from pipenv.resolver.pure_python_metadata import (
 from pipenv.resolver.pure_python_provider import (
     PurePythonProvider,
     _drive_resolver,
-    _SdistEncountered,
 )
 from pipenv.resolver.pure_python_requirement import Requirement
 from pipenv.resolver.schema import (
@@ -263,29 +264,6 @@ class PurePythonBackend:
 
         try:
             result = _drive_resolver(requirements, provider)
-        except _SdistEncountered as exc:
-            # Q-A fail-loud: do NOT fall back to pip backend.  The user
-            # made an explicit choice; surface the offending sdist so
-            # they can decide between pinning a wheel-bearing version
-            # and switching backends.
-            candidate = exc.candidate
-            cand_name = getattr(candidate, "name", "<unknown>")
-            cand_version = getattr(candidate, "version", "<unknown>")
-            message = (
-                f"sdist-only transitive dependency {cand_name}=={cand_version!r}: "
-                f"pure-python backend (Phase 3) does not build sdists.  "
-                f"Pin to a version with wheels, or switch "
-                f"resolver_backend = 'pip'."
-            )
-            return ResolverResponse(
-                schema_version=SCHEMA_VERSION,
-                result=InternalError(
-                    kind="internal_error",
-                    message=message,
-                    traceback=traceback.format_exc(),
-                ),
-                diagnostics=Diagnostics(),
-            )
         except ResolutionImpossible as exc:
             pip_message = self._format_resolution_impossible(exc)
             return ResolverResponse(
