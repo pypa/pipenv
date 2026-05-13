@@ -1177,10 +1177,6 @@ class TestTranslateMappingEdges:
     def test_candidate_with_extras_and_multiple_hashes(self):
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
-        cache = _FakeCache(
-            {(_INDEX, "django"): (_wheel_candidate("django", "5.0.0"),)}
-        )
-
         # Candidate carries two hashes + one extra — both should
         # propagate into the LockedRequirement.
         candidate_with_extras = Candidate(
@@ -1201,6 +1197,15 @@ class TestTranslateMappingEdges:
             is_wheel=True,
             wheel_tags=None,
             extras=frozenset({"argon2", "bcrypt"}),
+        )
+        # T_S5: the translator looks up cache siblings at the resolved
+        # (name, version) and unions their hashes.  Cache the
+        # candidate itself so the multi-hash assertion below survives
+        # the all-distfile-collection semantics (single artifact, two
+        # hashes — e.g. an index advertising md5 and sha256 for one
+        # wheel).
+        cache = _FakeCache(
+            {(_INDEX, "django"): (candidate_with_extras,)}
         )
         fake_result = _FakeResult(
             mapping={
@@ -1266,6 +1271,302 @@ class TestTranslateMappingEdges:
         assert drive.called
         assert isinstance(response.result, ResolverSuccess)
         assert tuple(response.result.locked) == ()
+
+
+# ----------------------------------------------------------------------
+# T_S5 (Initiative G Phase 3b): _translate_mapping collects hashes from
+# every distfile sibling at the resolved (name, version).
+# ----------------------------------------------------------------------
+#
+# Pip's lockfile convention emits hashes for ALL distfiles of the
+# resolved version (wheel + sdist + any cross-platform wheel variants),
+# not just the chosen candidate's single hash.  The translator therefore
+# walks the manifest cache across every configured index URL, picks out
+# every cached ``Candidate`` whose ``version`` matches the resolved one,
+# and unions their ``hashes`` frozensets.
+#
+# Fallback semantics: when the cache returns no sibling candidates
+# (cold cache / test fixture that injects candidates straight into the
+# result without populating the cache), the translator falls back to
+# the resolved candidate's own ``hashes`` so Phase 3a-style fixtures
+# keep working.
+class TestTranslateMappingAllDistfileHashes:
+    """T_S5 — :meth:`PurePythonBackend._translate_mapping` collects
+    hashes from every distfile sibling at the resolved (name, version).
+    """
+
+    @staticmethod
+    def _wheel_with_hash(name: str, version: str, hash_value: str) -> Candidate:
+        filename = f"{name}-{version}-py3-none-any.whl"
+        return Candidate(
+            name=name,
+            version=version,
+            url=f"{_INDEX}/{name}/{filename}",
+            filename=filename,
+            hashes=frozenset({Hash("sha256", hash_value)}),
+            requires_python=None,
+            yanked=False,
+            yanked_reason=None,
+            upload_time=None,
+            is_wheel=True,
+            wheel_tags=None,
+            extras=frozenset(),
+        )
+
+    @staticmethod
+    def _sdist_with_hash(name: str, version: str, hash_value: str) -> Candidate:
+        filename = f"{name}-{version}.tar.gz"
+        return Candidate(
+            name=name,
+            version=version,
+            url=f"{_INDEX}/{name}/{filename}",
+            filename=filename,
+            hashes=frozenset({Hash("sha256", hash_value)}),
+            requires_python=None,
+            yanked=False,
+            yanked_reason=None,
+            upload_time=None,
+            is_wheel=False,
+            wheel_tags=None,
+            extras=frozenset(),
+        )
+
+    def test_collects_hashes_from_wheel_and_sdist_siblings(self):
+        """Cache holds two candidates at v1.0 (wheel + sdist);
+        resolved candidate is the wheel.  Both hashes must appear.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        wheel_hash = "a" * 64
+        sdist_hash = "b" * 64
+        wheel = self._wheel_with_hash("foo", "1.0", wheel_hash)
+        sdist = self._sdist_with_hash("foo", "1.0", sdist_hash)
+        cache = _FakeCache({(_INDEX, "foo"): (wheel, sdist)})
+
+        fake_result = _FakeResult(
+            mapping={("foo", frozenset()): wheel}
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request({"foo": "*"})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        entry = locked[0]
+        # Both hashes propagated, sorted lexicographically.
+        assert tuple(entry.hashes) == (
+            f"sha256:{wheel_hash}",
+            f"sha256:{sdist_hash}",
+        )
+
+    def test_only_matching_version_siblings_contribute(self):
+        """Cache holds candidates at v1.0 AND v2.0; resolved is v1.0.
+        Only v1.0 distfile hashes contribute.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        v1_wheel_hash = "1" * 64
+        v1_sdist_hash = "2" * 64
+        v2_wheel_hash = "3" * 64
+        v1_wheel = self._wheel_with_hash("foo", "1.0", v1_wheel_hash)
+        v1_sdist = self._sdist_with_hash("foo", "1.0", v1_sdist_hash)
+        v2_wheel = self._wheel_with_hash("foo", "2.0", v2_wheel_hash)
+        cache = _FakeCache(
+            {(_INDEX, "foo"): (v1_wheel, v1_sdist, v2_wheel)}
+        )
+
+        fake_result = _FakeResult(
+            mapping={("foo", frozenset()): v1_wheel}
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request({"foo": "*"})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        entry = locked[0]
+        # v2 hash NEVER appears.
+        assert f"sha256:{v2_wheel_hash}" not in entry.hashes
+        # Both v1 hashes appear.
+        assert tuple(entry.hashes) == (
+            f"sha256:{v1_wheel_hash}",
+            f"sha256:{v1_sdist_hash}",
+        )
+
+    def test_multi_index_dedup(self):
+        """Two index URLs both serve the same wheel ⇒ wheel hash
+        appears once in the lockfile (deduplicated by (algo, value)).
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        alt_index = "https://alt.example.com/simple"
+        wheel_hash = "c" * 64
+        wheel_a = self._wheel_with_hash("foo", "1.0", wheel_hash)
+        wheel_b = self._wheel_with_hash("foo", "1.0", wheel_hash)
+        cache = _FakeCache(
+            {
+                (_INDEX, "foo"): (wheel_a,),
+                (alt_index, "foo"): (wheel_b,),
+            }
+        )
+
+        fake_result = _FakeResult(
+            mapping={("foo", frozenset()): wheel_a}
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+            # Both indexes are configured on the backend so the
+            # translator scans both.
+            index_urls=(_INDEX, alt_index),
+        )
+        # The request's sources only list ``_INDEX``; the backend's
+        # ``request_index_urls`` derivation prefers request.sources when
+        # populated.  To exercise multi-index scanning we widen the
+        # request sources here.
+        request = ResolverRequest(
+            schema_version=SCHEMA_VERSION,
+            category="default",
+            packages=PackageSpecs(specs={"foo": "*"}),
+            options=ResolverOptions(),
+            sources=(
+                Source(name="pypi", url=_INDEX, verify_ssl=True),
+                Source(name="alt", url=alt_index, verify_ssl=True),
+            ),
+        )
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        entry = locked[0]
+        # Dedup: the same (sha256, hash_value) pair from both indexes
+        # collapses to one entry.
+        assert tuple(entry.hashes) == (f"sha256:{wheel_hash}",)
+
+    def test_no_cache_falls_back_to_candidate_hashes(self):
+        """Cache returns ``None`` (cold cache / fixture-injected
+        candidate).  Translator falls back to the resolved candidate's
+        own hashes — Phase 3a behaviour preserved as a fallback.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        wheel_hash = "d" * 64
+        wheel = self._wheel_with_hash("foo", "1.0", wheel_hash)
+        # Cache is empty — every ``get`` returns None.
+        cache = _FakeCache({})
+
+        fake_result = _FakeResult(
+            mapping={("foo", frozenset()): wheel}
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        # Note: T_S4's emptiness pre-check fires when the top-level
+        # name has zero cached candidates across configured indexes —
+        # so we bypass the pre-check by handing the backend an EMPTY
+        # request packages.specs.  The fake _drive_resolver mock then
+        # returns a candidate directly (fixture-injected workflow).
+        request = _build_request({})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        entry = locked[0]
+        # Fallback path emitted the candidate's own hash.
+        assert tuple(entry.hashes) == (f"sha256:{wheel_hash}",)
+
+    def test_candidate_with_no_hashes_emits_empty_tuple(self):
+        """Resolved candidate has an empty ``hashes`` frozenset and the
+        cache has no sibling candidates ⇒ ``LockedRequirement.hashes``
+        is an empty tuple (no crash, no synthesised data).
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        # Candidate with NO hashes (frozenset()).
+        hashless = Candidate(
+            name="foo",
+            version="1.0",
+            url=f"{_INDEX}/foo/foo-1.0-py3-none-any.whl",
+            filename="foo-1.0-py3-none-any.whl",
+            hashes=frozenset(),
+            requires_python=None,
+            yanked=False,
+            yanked_reason=None,
+            upload_time=None,
+            is_wheel=True,
+            wheel_tags=None,
+            extras=frozenset(),
+        )
+        cache = _FakeCache({})
+
+        fake_result = _FakeResult(
+            mapping={("foo", frozenset()): hashless}
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        # Empty specs ⇒ bypass T_S4 emptiness pre-check (see neighbouring
+        # test for the rationale).
+        request = _build_request({})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ):
+            response = backend.resolve(request)
+
+        assert isinstance(response.result, ResolverSuccess)
+        locked = tuple(response.result.locked)
+        assert len(locked) == 1
+        entry = locked[0]
+        assert tuple(entry.hashes) == ()
 
 
 # ----------------------------------------------------------------------
