@@ -19,11 +19,15 @@ behaviours validated below:
   proceeds normally.  This replaced the Phase 3a fail-loud
   :class:`_SdistEncountered` path which raised an
   :class:`InternalError`.
-* **Q-F top-level wheel-availability pre-check** — when a top-level
-  package has candidates but ZERO are wheels (sdist-only top-level),
-  the backend aborts BEFORE driving resolvelib, returning a
-  :class:`ResolutionError` whose ``pip_message`` names the offending
-  package and suggests ``pipenv lock --backend pip``.
+* **Top-level emptiness pre-check** (Phase 3b T_S4) — when a top-level
+  package has ZERO candidates across every configured index (typo /
+  yanked-only / cold-cache + every-fetch-failed), the backend aborts
+  BEFORE driving resolvelib, returning a :class:`ResolutionError`
+  whose ``pip_message`` names the offending package and suggests
+  ``pipenv lock --backend pip``.  (Phase 3a fired the same gate on
+  sdist-only top-levels; T_S2/T_S3 made sdists transparently
+  resolvable so that branch is gone — see
+  ``TestQFPreCheck.test_sdist_only_top_level_resolves_after_t_s4``.)
 
 Mocks everything (no HTTP, no real resolvelib drive).
 """
@@ -361,17 +365,35 @@ class TestSdistTransitiveResolvesThroughMetadataFetcher:
 
 
 class TestQFPreCheck:
-    """Mock cache with a top-level package whose only candidates are
-    sdists → backend returns :class:`ResolutionError` naming the package
-    and suggesting ``pipenv lock --backend pip``.  :func:`_drive_resolver`
-    is NEVER invoked (Q-F pre-check fires before resolution).
+    """Top-level emptiness pre-check (Phase 3b T_S4).
+
+    Two rows pinned here:
+
+    * **Sdist-only top-level** (post-T_S4) — resolution must succeed.
+      Phase 3a fired ``ResolutionError`` on this shape because no wheel
+      meant no resolvable METADATA; T_S2 made ``MetadataFetcher`` build
+      sdist METADATA via PEP 517, so the pre-check no longer treats
+      sdist-only as a failure.  We pin :class:`ResolverSuccess`.
+    * **Zero candidates across all indexes** — the new pre-check fires
+      with a ``ResolutionError`` whose message names the offending
+      package and suggests ``pipenv lock --backend pip``.
+      :func:`_drive_resolver` is NEVER invoked.
     """
 
-    def test_sdist_only_top_level_aborts_before_drive(self):
+    def test_sdist_only_top_level_resolves_after_t_s4(self):
+        """Post-T_S4 (Phase 3b): a top-level package with ONLY sdist
+        candidates must resolve normally — the obsolete Phase 3a
+        wheel-availability gate is gone.
+
+        The sdist gets built transparently via T_S2's
+        :class:`MetadataFetcher` route (the actual PEP 517 invocation
+        is exercised in ``test_pure_python_sdist.py``; here we just
+        confirm the backend no longer fires the pre-check).
+        """
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
-        # ``brokenpkg`` has only an sdist candidate.  The Q-F pre-check
-        # must fire and abort BEFORE resolvelib runs.
+        # ``brokenpkg`` has only an sdist candidate.  In Phase 3a this
+        # would have fired the Q-F gate; post-T_S4 it must NOT.
         cache = _FakeCache(
             {
                 (_INDEX, "brokenpkg"): (
@@ -379,6 +401,56 @@ class TestQFPreCheck:
                 ),
             }
         )
+        fetcher = _FakeFetcher()
+
+        # Mock _drive_resolver to return a synthetic success — we are
+        # pinning the *backend's* behaviour around the pre-check, not
+        # the full provider chain (which is covered in T_S2/T_S3
+        # acceptance tests).  The mock proves the pre-check did NOT
+        # short-circuit and the backend reached the resolution step.
+        resolved = _sdist_candidate("brokenpkg", "1.0.0")
+        fake_result = _FakeResult(
+            mapping={("brokenpkg", frozenset()): resolved}
+        )
+
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=fetcher,
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request({"brokenpkg": "*"})
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ) as drive:
+            response = backend.resolve(request)
+
+        # _drive_resolver WAS called — the pre-check did not
+        # short-circuit on sdist-only top-level.
+        assert drive.called
+
+        assert isinstance(response, ResolverResponse)
+        assert isinstance(response.result, ResolverSuccess)
+        locked = list(response.result.locked)
+        assert len(locked) == 1
+        assert locked[0].name == "brokenpkg"
+
+    def test_zero_candidates_top_level_aborts_before_drive(self):
+        """A top-level package with ZERO candidates across every
+        configured index → backend fires the new emptiness pre-check
+        and aborts BEFORE driving resolvelib.
+
+        This is the typo / yanked-only / total-network-failure path:
+        we want a clear "no candidates found" message rather than a
+        30-second wait followed by resolvelib's opaque
+        "no candidates available" error.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        # Empty cache: every (index, name) lookup returns None.
+        cache = _FakeCache({})
         fetcher = _FakeFetcher()
 
         backend = PurePythonBackend(
@@ -394,14 +466,15 @@ class TestQFPreCheck:
         ) as drive:
             response = backend.resolve(request)
 
-        # _drive_resolver MUST NOT have been called — the pre-check
-        # short-circuits before resolvelib runs.
+        # _drive_resolver MUST NOT have been called — the emptiness
+        # pre-check short-circuits before resolvelib runs.
         assert not drive.called
 
         assert isinstance(response, ResolverResponse)
         assert isinstance(response.result, ResolutionError)
         msg = response.result.pip_message
         assert "brokenpkg" in msg
+        assert "no candidates found" in msg
         assert "pipenv lock --backend pip" in msg
 
 
@@ -481,63 +554,29 @@ class TestPrefetchExceptionTolerated:
 
 
 class TestQFPreCheckEdges:
-    """Q-F top-level wheel-availability pre-check edge cases beyond the
-    plain sdist-only top-level path covered by ``TestQFPreCheck``.
+    """Top-level emptiness pre-check edge cases (Phase 3b T_S4) beyond
+    the two-row baseline covered by ``TestQFPreCheck``.
 
-    Three rows pinned here:
+    Four rows pinned here:
 
-    1. Cache miss across every index (``manifest is None`` for every
-       lookup) — the pre-check must NOT fire.  This is the "different
-       failure" path: zero candidates means resolvelib will surface
-       its own "no candidates available" error; Q-F should not preempt
-       that with a misleading sdist-only-top message.
-    2. Mixed sdist + wheel candidates — Q-F must NOT fire because a
-       wheel IS available (we only block when the top-level is
-       sdist-only).
-    3. Multi-top-level with one wheel-bearing + one sdist-only package
-       — Q-F fires for the offender and the message references it
-       specifically.
+    1. Mixed sdist + wheel candidates — pre-check must NOT fire (one
+       top-level has candidates, period; their artifact mix is the
+       provider's problem now).
+    2. Sdist-only candidates across all configured indexes — pre-check
+       must NOT fire (post-T_S4: sdists are resolvable).
+    3. Multi-top-level with two healthy packages + one empty package —
+       the new pre-check fires and the message names ONLY the empty
+       one (not the healthy siblings).
+    4. Multi-index plural-spelling — "indexes" appears in the error
+       message when more than one index is configured.
     """
 
-    def test_empty_cache_does_not_fire_qf(self):
-        from pipenv.resolver.backends.pure_python import PurePythonBackend
-
-        # Cache returns None for every (index, name) lookup → manifest
-        # is None → the inner ``continue`` branch (line 179) is exercised
-        # and Q-F does NOT fire.  resolvelib is still called and we let
-        # its synthetic result come through unimpeded.
-        cache = _FakeCache({})  # empty
-        fetcher = _FakeFetcher()
-
-        # A synthetic empty mapping so the post-resolve translation
-        # path returns an empty locked tuple.
-        fake_result = _FakeResult(mapping={})
-        backend = PurePythonBackend(
-            cache=cache,
-            fetcher=fetcher,
-            session=mock.MagicMock(),
-            metadata_cache=mock.MagicMock(),
-        )
-        request = _build_request({"ghostpkg": "*"})
-
-        with mock.patch(
-            "pipenv.resolver.backends.pure_python._drive_resolver",
-            return_value=fake_result,
-        ) as drive:
-            response = backend.resolve(request)
-
-        # _drive_resolver WAS called — Q-F did not short-circuit.
-        assert drive.called
-        # And the result is success (empty mapping → empty locked).
-        assert isinstance(response.result, ResolverSuccess)
-        assert tuple(response.result.locked) == ()
-
-    def test_mixed_sdist_and_wheel_does_not_fire_qf(self):
+    def test_mixed_sdist_and_wheel_does_not_fire_emptiness(self):
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
         # Mixed candidates: a sdist AND a wheel for the same package.
-        # The Q-F pre-check should see ``saw_wheel=True`` on the wheel
-        # and NOT mark the top-level as sdist-only.
+        # The emptiness pre-check sees ``saw_any=True`` on the first
+        # candidate (the sdist) — it never reaches the wheel check.
         cache = _FakeCache(
             {
                 (_INDEX, "mixed"): (
@@ -568,21 +607,120 @@ class TestQFPreCheckEdges:
         assert drive.called
         assert isinstance(response.result, ResolverSuccess)
 
-    def test_qf_message_includes_python_marker_override(self):
-        """When ``request.python_marker_override`` is set the Q-F error
-        message must use it instead of the running interpreter — line
-        354 of the backend.  Pin this so the (rarely-tested) marker
-        override path keeps formatting correctly.
+    def test_sdist_only_across_all_indexes_does_not_fire_emptiness(self):
+        """Two indexes, both serving only sdists — the emptiness gate
+        treats those candidates as present and does NOT fire.  T_S4
+        decoupled the gate from artifact type, so the multi-index
+        sdist-only shape (Phase 3a's worst-case) now resolves.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        idx_primary = "https://primary.example/simple"
+        idx_secondary = "https://secondary.example/simple"
+
+        cache = _FakeCache(
+            {
+                (idx_primary, "sdistonly"): (
+                    _sdist_candidate("sdistonly", "1.0.0"),
+                ),
+                (idx_secondary, "sdistonly"): (
+                    _sdist_candidate("sdistonly", "1.0.0"),
+                ),
+            }
+        )
+        fetcher = _FakeFetcher()
+        resolved = _sdist_candidate("sdistonly", "1.0.0")
+        fake_result = _FakeResult(
+            mapping={("sdistonly", frozenset()): resolved}
+        )
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=fetcher,
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = ResolverRequest(
+            schema_version=SCHEMA_VERSION,
+            category="default",
+            packages=PackageSpecs(specs={"sdistonly": "*"}),
+            options=ResolverOptions(),
+            sources=(
+                Source(name="primary", url=idx_primary, verify_ssl=True),
+                Source(name="secondary", url=idx_secondary, verify_ssl=True),
+            ),
+        )
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver",
+            return_value=fake_result,
+        ) as drive:
+            response = backend.resolve(request)
+
+        assert drive.called
+        assert isinstance(response.result, ResolverSuccess)
+
+    def test_mixed_top_level_names_only_empty_one_in_message(self):
+        """Three top-level packages: two have candidates (wheels), one
+        has zero across every index.  The pre-check must fire naming
+        ONLY the empty offender — the healthy siblings must not appear
+        in the error message.
         """
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
         cache = _FakeCache(
             {
-                (_INDEX, "brokenpkg"): (
-                    _sdist_candidate("brokenpkg", "1.0.0"),
+                (_INDEX, "healthy_one"): (
+                    _wheel_candidate("healthy_one", "1.0.0"),
                 ),
+                (_INDEX, "healthy_two"): (
+                    _wheel_candidate("healthy_two", "2.0.0"),
+                ),
+                # ``ghostpkg`` is missing from the cache entirely.
             }
         )
+        backend = PurePythonBackend(
+            cache=cache,
+            fetcher=_FakeFetcher(),
+            session=mock.MagicMock(),
+            metadata_cache=mock.MagicMock(),
+        )
+        request = _build_request(
+            {
+                "healthy_one": "*",
+                "healthy_two": "*",
+                "ghostpkg": "*",
+            }
+        )
+
+        with mock.patch(
+            "pipenv.resolver.backends.pure_python._drive_resolver"
+        ) as drive:
+            response = backend.resolve(request)
+
+        # Pre-check short-circuited — resolvelib never ran.
+        assert not drive.called
+        assert isinstance(response.result, ResolutionError)
+        msg = response.result.pip_message
+        # Only the empty offender is named.
+        assert "ghostpkg" in msg
+        assert "healthy_one" not in msg
+        assert "healthy_two" not in msg
+        # Single-index spelling (one source on the request).
+        assert "configured index." in msg or "configured index " in msg
+        assert "configured indexes" not in msg
+
+    def test_multi_index_uses_plural_spelling(self):
+        """When more than one index is configured the error message
+        uses the plural "indexes" form.  Pin this small grammatical
+        detail so a refactor that drops the conditional doesn't leak
+        ungrammatical English to users.
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        idx_a = "https://a.example/simple"
+        idx_b = "https://b.example/simple"
+
+        cache = _FakeCache({})  # empty across both indexes
         backend = PurePythonBackend(
             cache=cache,
             fetcher=_FakeFetcher(),
@@ -592,18 +730,18 @@ class TestQFPreCheckEdges:
         request = ResolverRequest(
             schema_version=SCHEMA_VERSION,
             category="default",
-            packages=PackageSpecs(specs={"brokenpkg": "*"}),
+            packages=PackageSpecs(specs={"ghostpkg": "*"}),
             options=ResolverOptions(),
-            sources=(Source(name="pypi", url=_INDEX, verify_ssl=True),),
-            python_marker_override="3.11",
+            sources=(
+                Source(name="a", url=idx_a, verify_ssl=True),
+                Source(name="b", url=idx_b, verify_ssl=True),
+            ),
         )
 
         response = backend.resolve(request)
 
         assert isinstance(response.result, ResolutionError)
-        # The override string itself is woven into the user-facing
-        # message body (rather than the running interpreter version).
-        assert "3.11" in response.result.pip_message
+        assert "configured indexes" in response.result.pip_message
 
 
 class TestGenericExceptionTranslatedToInternalError:
