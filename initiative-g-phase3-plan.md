@@ -692,9 +692,33 @@ near the bottom of this document.
   - Resolve a conflict scenario (`a` requires `b<2`; `c` requires
     `b>=2`); assert `resolvelib.ResolutionImpossible` raises with
     both causes listed.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Added module-level `_drive_resolver(requirements, provider, *,
+    reporter=None, max_rounds=100)` helper at the bottom of
+    `pure_python_provider.py`.  Imports `BaseReporter` + `Resolver`
+    lazily from `pipenv.patched.pip._vendor.resolvelib` (`_vendor`,
+    not `_internal` — gate clean).  Forwards `max_rounds` defaulting
+    to resolvelib's own 100.  Does NOT catch `ResolutionImpossible`
+    or `_SdistEncountered` — T9's backend owns translation.
+  - Added `tests/unit/test_pure_python_provider_smoke.py` with two
+    integration scenarios per the plan T8 validation matrix:
+    happy-path 3-package resolve (`requests` 2.32.0 +
+    `certifi` 2024.2.2 + `urllib3` 2.2.0 expected pins) and conflict
+    (`a→b<2` vs `c→b>=2` → `ResolutionImpossible` with both causes
+    + parents recorded).
+  - RED→GREEN evidence: initial run failed with `ImportError:
+    cannot import name '_drive_resolver'` on both tests (2 failed);
+    post-implementation run: 2 passed in 0.20s.  Existing 41
+    `test_pure_python_provider.py` tests stay green.
+  - `grep -n "pip\._internal" pipenv/resolver/pure_python_provider.py`
+    → zero matches (`_vendor.resolvelib` only).
+  - T9 + T13 unblocked (wave 6).
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_provider.py` (added `_drive_resolver`
+    helper + exported via `__all__`)
+  - `tests/unit/test_pure_python_provider_smoke.py` (new — 2 tests,
+    2 classes)
 
 ---
 
