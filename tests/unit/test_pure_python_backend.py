@@ -12,9 +12,13 @@ behaviours validated below:
   into a :class:`ResolutionError` whose ``pip_message`` names BOTH
   conflicting causes (so the user can find the bad pin without reading
   resolvelib internals).
-* **Sdist fail-loud** (:class:`_SdistEncountered`, Q-A) — translated
-  into :class:`InternalError`; the pip backend is NOT invoked as a
-  fallback (deliberate fail-loud per design Q-A 2026-05-12).
+* **Sdist transitive transparent resolution** (Phase 3b T_S3) — when
+  resolvelib expands a transitive whose only artifact is an sdist,
+  the provider routes it through ``MetadataFetcher.fetch_metadata``
+  (T_S2) which builds METADATA via PEP 517 (T_S1) and resolution
+  proceeds normally.  This replaced the Phase 3a fail-loud
+  :class:`_SdistEncountered` path which raised an
+  :class:`InternalError`.
 * **Q-F top-level wheel-availability pre-check** — when a top-level
   package has candidates but ZERO are wheels (sdist-only top-level),
   the backend aborts BEFORE driving resolvelib, returning a
@@ -281,34 +285,50 @@ class TestResolutionImpossible:
         assert ">=2" in msg
 
 
-class TestSdistEncounteredFailLoud:
-    """Mock :func:`_drive_resolver` to raise :class:`_SdistEncountered`
-    → backend returns :class:`InternalError` whose ``message`` contains
-    the package name, version, "sdist-only", and "pipenv lock".
+class TestSdistTransitiveResolvesThroughMetadataFetcher:
+    """Phase 3b T_S3: a transitive sdist no longer crashes the backend.
 
-    Critically: the pip backend is NEVER invoked as a fallback
-    (Initiative G phase 3 Q-A: fail-loud, no silent fallback).  We
-    assert this by checking the result is exactly :class:`InternalError`
-    — a pip-fallback would have returned :class:`ResolverSuccess`.
+    The provider's :meth:`get_dependencies` now routes every candidate
+    through ``self._metadata_fetcher`` regardless of ``is_wheel`` —
+    T_S2's :meth:`MetadataFetcher.fetch_metadata` branches on
+    ``is_wheel`` and builds sdist METADATA via T_S1's PEP 517 path.
+
+    The Phase 3a ``_SdistEncountered`` → :class:`InternalError` branch
+    in :meth:`PurePythonBackend.resolve` is gone; this test pins the
+    new behaviour by feeding the backend a synthetic resolvelib
+    ``Result`` whose ``mapping`` includes a sdist candidate alongside
+    a wheel.  The translator must produce :class:`ResolverSuccess`
+    with both entries locked.
+
+    Critically: a Phase 3a regression here would have produced an
+    :class:`InternalError`; we assert :class:`ResolverSuccess`.
     """
 
-    def test_sdist_encountered_translates_to_internal_error(self):
+    def test_sdist_transitive_resolves_through_metadata_fetcher(self):
         from pipenv.resolver.backends.pure_python import PurePythonBackend
-        from pipenv.resolver.pure_python_provider import _SdistEncountered
 
         cache = _FakeCache(
             {
                 # Top-level "broken" has a wheel candidate so the Q-F
-                # pre-check passes; the sdist failure is TRANSITIVE.
+                # pre-check passes; the sdist appears as a TRANSITIVE.
                 (_INDEX, "broken"): (_wheel_candidate("broken", "1.0.0"),),
             }
         )
         fetcher = _FakeFetcher()
 
-        # Build the offending sdist candidate the provider would have
-        # tried to expand.
-        offending = _sdist_candidate("legacy-dep", "0.9.0")
-        sdist_exc = _SdistEncountered(offending)
+        # Synthetic resolved mapping: the top-level wheel plus a
+        # transitive sdist that — Phase 3a — would have raised
+        # _SdistEncountered.  T_S3 means the provider expanded it
+        # transparently via T_S2 and resolvelib produced a clean
+        # mapping.
+        resolved_top = _wheel_candidate("broken", "1.0.0")
+        resolved_sdist = _sdist_candidate("legacy-dep", "0.9.0")
+        fake_result = _FakeResult(
+            mapping={
+                ("broken", frozenset()): resolved_top,
+                ("legacy-dep", frozenset()): resolved_sdist,
+            }
+        )
 
         backend = PurePythonBackend(
             cache=cache,
@@ -320,26 +340,24 @@ class TestSdistEncounteredFailLoud:
 
         with mock.patch(
             "pipenv.resolver.backends.pure_python._drive_resolver",
-            side_effect=sdist_exc,
+            return_value=fake_result,
         ) as drive:
             response = backend.resolve(request)
 
-        # _drive_resolver IS called in the transitive-sdist case (the
-        # Q-F pre-check only fires for sdist-only TOP-LEVEL packages).
         assert drive.called
-
         assert isinstance(response, ResolverResponse)
-        # Fail-loud: InternalError, NOT ResolverSuccess.  A silent
-        # pip-backend fallback would have produced ResolverSuccess.
-        assert isinstance(response.result, InternalError)
-        msg = response.result.message
-        assert "legacy-dep" in msg
-        assert "0.9.0" in msg
-        assert "sdist-only" in msg
-        # Per the Q-A 2026-05-12 sign-off, the message must direct the
-        # user to switch backends — recovery path.
-        assert "resolver_backend" in msg
-        assert "pip" in msg
+        # Post-T_S3: ResolverSuccess, NOT InternalError.  The transitive
+        # sdist did not derail resolution.
+        assert isinstance(response.result, ResolverSuccess)
+        locked_names = sorted(lr.name for lr in response.result.locked)
+        assert locked_names == ["broken", "legacy-dep"]
+        # The sdist transitive is locked at its version per the
+        # standard ``==<version>`` translation; pin so a regression
+        # that silently drops the sdist entry is caught.
+        sdist_entry = next(
+            lr for lr in response.result.locked if lr.name == "legacy-dep"
+        )
+        assert sdist_entry.version == "==0.9.0"
 
 
 class TestQFPreCheck:
@@ -590,12 +608,13 @@ class TestQFPreCheckEdges:
 
 class TestGenericExceptionTranslatedToInternalError:
     """A truly unexpected exception out of :func:`_drive_resolver` (not
-    :class:`ResolutionImpossible`, not :class:`_SdistEncountered`)
-    must be caught and translated into an :class:`InternalError` with
-    the original message AND a non-empty traceback.  This is the
-    catch-all branch at lines 293-294 — it stops a stray bug deep in
-    the provider from crashing the resolver subprocess with an
-    untranslated stack trace.
+    :class:`ResolutionImpossible`) must be caught and translated into
+    an :class:`InternalError` with the original message AND a
+    non-empty traceback.  This is the catch-all branch — it stops a
+    stray bug deep in the provider from crashing the resolver
+    subprocess with an untranslated stack trace.  (Phase 3b T_S3
+    removed the Phase 3a :class:`_SdistEncountered` clause that used
+    to sit between :class:`ResolutionImpossible` and this catch-all.)
     """
 
     def test_unexpected_exception_yields_internal_error(self):
