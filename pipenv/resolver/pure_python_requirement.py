@@ -93,15 +93,37 @@ class Requirement:
         for diagnostics — when a conflict arises ``resolvelib`` reports
         the offending requirement and the parent chain is what the
         user needs to understand "why is this in my graph?".
+    introducing_marker:
+        Optional :class:`Marker` carried over from the ``Requires-Dist``
+        line that introduced this transitive — for example,
+        ``Requires-Dist: pytest; python_version < '3.10'`` produces a
+        ``Marker("python_version < '3.10'")`` on the transitive
+        :class:`Requirement` even after the existing marker-evaluator
+        filter has decided to keep the entry under the target
+        environment.  T_M2 populates the slot in
+        :meth:`PurePythonProvider.get_dependencies`; T_M3 reads it in
+        ``_translate_mapping`` to emit a ``markers="..."`` clause on
+        the resulting :class:`LockedRequirement` so the pure-python
+        lockfile matches pip's marker output (Initiative G Phase 3b).
+        ``None`` (the default) means the introducing ``Requires-Dist``
+        line carried no marker — or the requirement isn't a
+        transitive at all (Pipfile / constraint sources).
+
+        The slot is deliberately *not* exposed via
+        :meth:`from_pipfile_entry` — that helper only builds top-level
+        Pipfile constraints (which never carry an introducing marker
+        by definition); transitives are constructed via the direct
+        ``Requirement(...)`` call inside the provider.
 
     Hashability
     -----------
-    Both :class:`SpecifierSet` and :class:`Marker` are hashable in
+    :class:`SpecifierSet` and :class:`Marker` are both hashable in
     ``pipenv.vendor.packaging`` (specifiers.py:842, markers.py:329) —
     the dataclass-derived ``__hash__`` from ``frozen=True`` therefore
-    works out of the box, no custom override needed.  Phase-3
-    callers rely on ``frozenset[Requirement]`` membership, so this
-    is verified explicitly by the T1 / T11 test suite.
+    works out of the box for every field on the class, including the
+    new :attr:`introducing_marker` slot (also a :class:`Marker | None`).
+    Phase-3 callers rely on ``frozenset[Requirement]`` membership, so
+    this is verified explicitly by the T1 / T11 / T_M1 test suite.
     """
 
     name: str
@@ -110,6 +132,13 @@ class Requirement:
     marker: Marker | None
     source: SourceLiteral
     parent: str | None = None
+    # Introduced in Initiative G Phase 3b (T_M1) — populated for
+    # transitives by T_M2, read by T_M3 in ``_translate_mapping``.
+    # Defaults to ``None`` so existing call sites keep working without
+    # changes; ``from_pipfile_entry`` does not expose this kwarg
+    # because top-level Pipfile entries never carry an introducing
+    # marker.
+    introducing_marker: Marker | None = None
 
     @classmethod
     def from_pipfile_entry(
