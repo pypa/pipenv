@@ -492,7 +492,7 @@ def _discover_wheel_length(session: Any, wheel_url: str) -> int:
     """
     head_response = _http_request(session, "HEAD", wheel_url)
     if head_response is not None:
-        status = getattr(head_response, "status", 0)
+        status = _response_status(head_response)
         if status == 200:
             length = _content_length(head_response)
             if length > 0:
@@ -506,7 +506,7 @@ def _discover_wheel_length(session: Any, wheel_url: str) -> int:
         raise MetadataFetchError(
             f"HEAD and probing GET both failed for {wheel_url}"
         )
-    status = getattr(probe_response, "status", 0)
+    status = _response_status(probe_response)
     if status not in (200, 206):
         raise MetadataFetchError(
             f"probing GET for {wheel_url} returned HTTP {status}"
@@ -646,15 +646,43 @@ def _http_request(
         return None
 
 
+def _response_status(response: Any) -> int:
+    """Status int from urllib3-style (``.status``) or requests-style
+    (``.status_code``) responses.  Production uses
+    :class:`PipSession` (requests); the Phase 1+2 unit tests use a
+    urllib3-style mock — pick by attribute *presence* so explicit
+    ``None`` values on a urllib3-style mock aren't silently re-interpreted
+    as a requests response."""
+    if hasattr(response, "status"):
+        status = response.status
+    elif hasattr(response, "status_code"):
+        status = response.status_code
+    else:
+        status = None
+    return int(status) if status is not None else 0
+
+
+def _response_body(response: Any) -> bytes | None:
+    """Body bytes from urllib3-style (``.data``) or requests-style
+    (``.content``) responses.  Pick by attribute *presence* so an
+    explicit ``None`` on a urllib3-style mock isn't silently re-read
+    as ``.content``."""
+    if hasattr(response, "data"):
+        return response.data
+    if hasattr(response, "content"):
+        return response.content
+    return None
+
+
 def _http_get(session: Any, url: str) -> bytes:
     """GET ``url`` and return the body bytes, or raise ``MetadataFetchError``."""
     response = _http_request(session, "GET", url)
     if response is None:
         raise MetadataFetchError(f"GET {url} failed (no response)")
-    status = getattr(response, "status", 0)
+    status = _response_status(response)
     if status not in (200, 206):
         raise MetadataFetchError(f"GET {url} returned HTTP {status}")
-    data = getattr(response, "data", None)
+    data = _response_body(response)
     if data is None:
         raise MetadataFetchError(f"GET {url} returned no body")
     return bytes(data)
@@ -677,12 +705,12 @@ def _http_get_range(
     response = _http_request(session, "GET", url, headers=headers)
     if response is None:
         raise MetadataFetchError(f"range GET {url} failed (no response)")
-    status = getattr(response, "status", 0)
+    status = _response_status(response)
     if status not in (200, 206):
         raise MetadataFetchError(
             f"range GET {url} returned HTTP {status}"
         )
-    data = getattr(response, "data", None)
+    data = _response_body(response)
     if data is None:
         raise MetadataFetchError(f"range GET {url} returned no body")
     return bytes(data)
