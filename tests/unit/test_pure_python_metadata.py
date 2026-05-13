@@ -1656,3 +1656,199 @@ class TestPartialFile:
         pf.seek(10)
         with pytest.raises(MetadataFetchError, match="short range read"):
             pf.read(10)
+
+
+# ---------------------------------------------------------------------------
+# T_S2 — sdist routing inside fetch_metadata
+# ---------------------------------------------------------------------------
+
+
+def _make_sdist_candidate(
+    name: str = "examplepkg",
+    version: str = "1.0.0",
+    *,
+    url: str = "https://example.org/sdists/examplepkg-1.0.0.tar.gz",
+) -> Candidate:
+    """Build a sdist :class:`Candidate` (``is_wheel == False``).
+
+    Mirrors :func:`_make_wheel_candidate` but with a ``.tar.gz``
+    filename, so :meth:`Candidate.from_filename` derives
+    ``is_wheel = False`` and ``wheel_tags = None``.
+    """
+    filename = url.rsplit("/", 1)[-1]
+    return Candidate.from_filename(
+        filename,
+        name=name,
+        version=version,
+        url=url,
+        hashes=frozenset(),
+        requires_python=">=3.9",
+        yanked=False,
+        yanked_reason=None,
+        upload_time=None,
+    )
+
+
+class TestFetchMetadataSdistRouting:
+    """T_S2 — ``fetch_metadata`` branches on ``candidate.is_wheel``.
+
+    Wheel candidates keep the existing PEP 658 + wheel-head fallback
+    paths; sdist candidates delegate to T_S1's
+    :func:`pipenv.resolver.pure_python_sdist.extract_metadata_from_sdist`.
+    Cache is shared — same :class:`MetadataCache` keyed by URL sha256.
+    """
+
+    def test_sdist_candidate_routes_to_sdist_extractor(self):
+        """``is_wheel=False`` candidate → extract_metadata_from_sdist invoked.
+
+        No HTTP HEAD/GET is performed on the sdist URL: the wheel-head
+        fallback machinery must not fire on a sdist candidate.  The
+        session router has zero routes, so any attempted HTTP call
+        would raise ``AssertionError`` — passing this test confirms the
+        wheel path is bypassed entirely.
+        """
+        from unittest.mock import patch
+
+        from pipenv.resolver.pure_python_metadata import (
+            CoreMetadata,
+            fetch_metadata,
+        )
+
+        candidate = _make_sdist_candidate()
+        assert candidate.is_wheel is False  # sanity-check the helper
+
+        session = _make_session_router([])  # no HTTP expected at all
+
+        expected_metadata = CoreMetadata(
+            name="examplepkg",
+            version="1.0.0",
+            requires_python=None,
+            requires_dist=(),
+            provides_extras=frozenset(),
+            summary=None,
+        )
+
+        with patch(
+            "pipenv.resolver.pure_python_sdist.extract_metadata_from_sdist",
+            return_value=expected_metadata,
+        ) as mock_extract:
+            result = fetch_metadata(candidate, session)
+
+        mock_extract.assert_called_once()
+        # First positional arg is the candidate; second is the session.
+        call_args, call_kwargs = mock_extract.call_args
+        assert call_args[0] is candidate
+        assert call_args[1] is session
+        # cache kwarg is forwarded (None when not supplied by caller).
+        assert call_kwargs.get("cache") is None
+        # Result is propagated verbatim — same dataclass instance.
+        assert result is expected_metadata
+        # Hard guarantee: no HTTP traffic on the sdist URL.
+        assert session.request.call_count == 0
+
+    def test_wheel_candidate_does_not_route_to_sdist(self):
+        """``is_wheel=True`` ⇒ wheel path; sdist extractor never invoked.
+
+        Pin via a ``patch`` on ``extract_metadata_from_sdist`` whose
+        ``side_effect`` raises if called — combined with a regular
+        PEP 658 happy path, this proves the wheel branch is preserved.
+        """
+        from unittest.mock import patch
+
+        from pipenv.resolver.pure_python_metadata import fetch_metadata
+
+        body = NUMPY_METADATA_TEXT.encode("utf-8")
+        body_hash = hashlib.sha256(body).hexdigest()
+
+        candidate = _make_wheel_candidate()
+        assert candidate.is_wheel is True  # sanity-check the helper
+
+        metadata_url = candidate.url + ".metadata"
+        response = _make_response(status=200, data=body)
+        session = _make_session_router(
+            [("GET", metadata_url, response)],
+        )
+
+        def _explode(*_args, **_kwargs):
+            raise AssertionError(
+                "extract_metadata_from_sdist must not be called for a wheel"
+            )
+
+        with patch(
+            "pipenv.resolver.pure_python_sdist.extract_metadata_from_sdist",
+            side_effect=_explode,
+        ) as mock_extract:
+            result = fetch_metadata(
+                candidate,
+                session,
+                metadata_url=metadata_url,
+                metadata_hash={"sha256": body_hash},
+            )
+
+        mock_extract.assert_not_called()
+        # Result came from the wheel path — parsed real METADATA.
+        assert result.name == "numpy"
+        assert result.version == "1.26.0"
+
+    def test_sdist_cache_passed_through(self, tmp_path):
+        """``cache`` kwarg is forwarded to the sdist extractor.
+
+        T_S1 honours / populates the shared :class:`MetadataCache`
+        internally; T_S2 only needs to pass it through so the on-disk
+        cache key (``sha256(candidate.url)``) is shared across wheel
+        and sdist routes.  Also covers the cache short-circuit: a
+        pre-populated cache entry must skip both the sdist extractor
+        and any HTTP traffic.
+        """
+        from unittest.mock import patch
+
+        from pipenv.resolver.pure_python_metadata import (
+            CoreMetadata,
+            MetadataCache,
+            fetch_metadata,
+        )
+
+        candidate = _make_sdist_candidate()
+        session = _make_session_router([])
+
+        cache = MetadataCache(tmp_path / "metadata-cache")
+
+        # --- first call: miss → extractor invoked → cache kwarg forwarded.
+        expected_metadata = CoreMetadata(
+            name="examplepkg",
+            version="1.0.0",
+            requires_python=None,
+            requires_dist=(),
+            provides_extras=frozenset(),
+            summary=None,
+        )
+
+        with patch(
+            "pipenv.resolver.pure_python_sdist.extract_metadata_from_sdist",
+            return_value=expected_metadata,
+        ) as mock_extract:
+            result = fetch_metadata(candidate, session, cache=cache)
+
+        mock_extract.assert_called_once()
+        _, call_kwargs = mock_extract.call_args
+        assert call_kwargs.get("cache") is cache
+        assert result is expected_metadata
+
+        # --- second call: pre-populated cache → extractor never invoked.
+        # T_S1 owns its own cache.put; emulate that here so we can
+        # exercise fetch_metadata's own cache short-circuit branch
+        # without depending on the real extractor's I/O.
+        cache.put(candidate.url, expected_metadata)
+
+        with patch(
+            "pipenv.resolver.pure_python_sdist.extract_metadata_from_sdist",
+            side_effect=AssertionError(
+                "extractor must not be called on a cache hit"
+            ),
+        ) as mock_extract2:
+            cached_result = fetch_metadata(candidate, session, cache=cache)
+
+        mock_extract2.assert_not_called()
+        assert cached_result == expected_metadata
+        # Still no HTTP traffic.
+        assert session.request.call_count == 0

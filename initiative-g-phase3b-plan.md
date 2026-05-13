@@ -350,9 +350,39 @@ waits on both.
   - Sdist candidate routes through T_S1; result is a
     `CoreMetadata` indistinguishable in shape from a wheel result.
   - Cache hit on a sdist doesn't re-build.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Branch sits after the cache short-circuit and before the wheel
+    PEP 658 / wheel-head paths. Wheel path is byte-identical to
+    pre-T_S2; sdist path delegates to
+    `pure_python_sdist.extract_metadata_from_sdist(candidate,
+    session, cache=cache)` via a local import (so `pyproject_hooks`
+    + `tarfile` + `zipfile` aren't paid for on wheel-only resolves).
+  - Cache lookup happens in `fetch_metadata` first, so a populated
+    entry short-circuits both the heavy import AND the extractor
+    entirely. T_S1 also calls `cache.get` internally — that's the
+    intentional "double-dip" the plan calls out; the second call
+    only fires on a cold-cache sdist, where the cost is dwarfed by
+    the download + build step that follows.
+  - 3 new tests in `TestFetchMetadataSdistRouting`:
+    `test_sdist_candidate_routes_to_sdist_extractor` (no HTTP
+    issued on sdist URL; result propagated verbatim),
+    `test_wheel_candidate_does_not_route_to_sdist` (extractor
+    patched to raise — never invoked on wheel candidate),
+    `test_sdist_cache_passed_through` (cache kwarg forwarded;
+    pre-populated cache short-circuits extractor entirely).
+  - Coverage on `pure_python_metadata.py` is 96 % (≥ 90 % gate). All
+    65 pre-existing tests still pass; T_S1's 27 sdist tests still
+    pass (untouched).
+  - `grep "pip\._internal" pipenv/resolver/pure_python_metadata.py` →
+    0 import matches (one docstring mention of the constraint
+    survives, by design).
 - **files edited/created**:
+  - `pipenv/resolver/pure_python_metadata.py` (added sdist branch +
+    docstring section in `fetch_metadata`)
+  - `tests/unit/test_pure_python_metadata.py` (added
+    `_make_sdist_candidate` helper + `TestFetchMetadataSdistRouting`
+    class with 3 tests)
 
 ---
 
