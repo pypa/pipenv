@@ -198,6 +198,8 @@ def _cand(
     requires_python: str | None = None,
     is_wheel: bool = True,
     extras: frozenset[str] = frozenset(),
+    yanked: bool = False,
+    yanked_reason: str | None = None,
 ):
     """Build a :class:`Candidate` for T4 tests with the four fields
     ``find_matches`` actually reads (``name``, ``version``,
@@ -214,8 +216,8 @@ def _cand(
         filename=filename,
         hashes=frozenset(),
         requires_python=requires_python,
-        yanked=False,
-        yanked_reason=None,
+        yanked=yanked,
+        yanked_reason=yanked_reason,
         upload_time=None,
         is_wheel=is_wheel,
         wheel_tags=None,
@@ -459,6 +461,81 @@ class TestFindMatchesRequiresPythonFilter:
         # 5.0.0 is excluded (requires_python=">=4.0" rejects "3.12").
         # 4.2.0 (no requires_python) and 4.0.0 (>=3.10 accepts 3.12) remain.
         assert versions == ["4.2.0", "4.0.0"]
+
+
+class TestFindMatchesYankedFilter:
+    """PEP 592: yanked candidates are filtered from automatic selection
+    unless the user explicitly pins to that exact version via ``==``.
+
+    Regression test for the bench-fixture lock failure where
+    ``sentry-relay==1.1.4`` (every artifact yanked with reason
+    "accidental release") got picked as the highest-version match for
+    the spec ``sentry-relay>=0.8.45`` and crashed the sdist build.
+    Pip's resolver skips it; pure-python now does too.
+    """
+
+    def test_yanked_excluded_from_range_spec(self):
+        cands = [
+            _cand(name="sentry-relay", version="1.1.4", yanked=True),
+            _cand(name="sentry-relay", version="0.9.27"),
+            _cand(name="sentry-relay", version="0.8.45"),
+        ]
+        cache = _FakeCache({(_INDEX, "sentry-relay"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("sentry-relay", frozenset())
+        req = _make_requirement(name="sentry-relay", spec=">=0.8.45")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        # 1.1.4 (yanked) must NOT appear; 0.9.27 sorts first, then 0.8.45.
+        assert versions == ["0.9.27", "0.8.45"]
+
+    def test_yanked_kept_when_exact_pinned(self):
+        # An explicit ``==1.1.4`` pin opts in to the yanked release —
+        # PEP 592 §"the user explicitly references it by version".
+        cands = [
+            _cand(name="sentry-relay", version="1.1.4", yanked=True),
+            _cand(name="sentry-relay", version="0.9.27"),
+        ]
+        cache = _FakeCache({(_INDEX, "sentry-relay"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("sentry-relay", frozenset())
+        req = _make_requirement(name="sentry-relay", spec="==1.1.4")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert [c.version for c in result] == ["1.1.4"]
+
+    def test_yanked_excluded_when_pinned_to_other_version(self):
+        # ``==0.9.27`` doesn't license the yanked 1.1.4 either —
+        # ``_candidate_satisfies_requirements`` rejects 1.1.4 already,
+        # but the yanked filter is the load-bearing one when the spec
+        # is permissive.
+        cands = [
+            _cand(name="sentry-relay", version="1.1.4", yanked=True),
+            _cand(name="sentry-relay", version="0.9.27"),
+        ]
+        cache = _FakeCache({(_INDEX, "sentry-relay"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("sentry-relay", frozenset())
+        req = _make_requirement(name="sentry-relay", spec="==0.9.27")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        assert [c.version for c in result] == ["0.9.27"]
 
 
 # ---------------------------------------------------------------------------
