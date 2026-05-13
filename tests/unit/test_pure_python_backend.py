@@ -2413,3 +2413,59 @@ class TestBootstrapFromRequest:
         assert backend._fetcher is sentinel_fetcher
         assert backend._session is sentinel_session
         assert backend._metadata_cache is sentinel_metadata_cache
+
+    def test_bootstrap_falls_back_to_poolmanager_when_session_factory_fails(
+        self, monkeypatch
+    ):
+        """If ``get_requests_session`` import explodes, bootstrap must
+        fall back to a bare ``urllib3.PoolManager`` rather than crash.
+        Pinned because this last-resort branch only fires in unusual
+        sandboxed test paths (T_S6 — defensive bootstrap edge).
+        """
+        import sys
+
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+        from pipenv.patched.pip._vendor.urllib3 import PoolManager
+
+        # Force the canonical-factory import to fail by shadowing the
+        # parent module with a broken stub that raises at attribute time.
+        broken_module = mock.MagicMock()
+        broken_module.get_requests_session = mock.MagicMock(
+            side_effect=ImportError("simulated sandbox: factory unavailable")
+        )
+        monkeypatch.setitem(sys.modules, "pipenv.utils.internet", broken_module)
+
+        backend = PurePythonBackend()
+        request = _build_request({"requests": "*"})
+        backend._bootstrap_from_request(request)
+
+        assert isinstance(backend._session, PoolManager)
+
+    def test_cache_dir_honours_pipenv_cache_dir_env_var(
+        self, monkeypatch, tmp_path
+    ):
+        """``_cache_dir_from_request`` reads ``PIPENV_CACHE_DIR`` from
+        the environment when set (T_S6 — bootstrap cache root edge).
+        """
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        custom = tmp_path / "custom-cache"
+        monkeypatch.setenv("PIPENV_CACHE_DIR", str(custom))
+
+        request = _build_request({"requests": "*"})
+        resolved = PurePythonBackend._cache_dir_from_request(request)
+        assert resolved == custom
+
+    def test_cache_dir_default_when_env_var_unset(self, monkeypatch):
+        """Without ``PIPENV_CACHE_DIR``, default path is
+        ``~/.cache/pipenv`` (T_S6 — bootstrap cache root edge).
+        """
+        from pathlib import Path as _Path
+
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
+
+        monkeypatch.delenv("PIPENV_CACHE_DIR", raising=False)
+
+        request = _build_request({"requests": "*"})
+        resolved = PurePythonBackend._cache_dir_from_request(request)
+        assert resolved == _Path.home() / ".cache" / "pipenv"
