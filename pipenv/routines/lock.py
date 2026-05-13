@@ -280,6 +280,7 @@ def do_lock(project, ctx: RoutineContext):
     pre = policy.pre
     quiet = exec_opts.quiet
     write = exec_opts.write
+    resolver = exec_opts.resolver
     extra_pip_args = (
         list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else None
     )
@@ -416,6 +417,7 @@ def do_lock(project, ctx: RoutineContext):
                 old_lock_data=old_lock_data,
                 extra_pip_args=extra_pip_args,
                 resolved_default_deps=category_default_deps,
+                resolver_backend=resolver,
             )
         except RuntimeError:
             sys.exit(1)

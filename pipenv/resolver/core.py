@@ -640,7 +640,7 @@ def _resolver_name_from_pipfile() -> str | None:
     except Exception:  # noqa: BLE001 — defensive against import issues
         return None
     try:
-        project = Project()
+        project = Project(chdir=False)
         resolver = project.settings.get("resolver")
     except Exception:  # noqa: BLE001 — any read failure → default
         return None

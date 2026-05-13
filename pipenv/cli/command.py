@@ -151,6 +151,7 @@ def cmd_upgrade(args, state):
         system=state.system,
         lock_only=state.installstate.lock_only,
         extra_pip_args=state.installstate.extra_pip_args,
+        resolver=state.resolver,
     )
 
 
