@@ -5,7 +5,7 @@ from __future__ import annotations
 import pathlib
 import tempfile
 
-import pyproject_hooks
+import pipenv.vendor.pyproject_hooks as pyproject_hooks
 
 from . import ProjectBuilder
 from ._compat import importlib
