@@ -146,11 +146,23 @@ def pip_install_deps(
             get_runnable_pip(),
             "install",
         ]
+        # ``--upgrade`` was hardcoded True historically; this is the
+        # safety-net that ensured a sync re-installation downgraded an
+        # already-installed package to the lockfile pin.  With
+        # ``--no-deps`` + explicit ``pkg==X.Y.Z`` lines and the
+        # ``is_satisfied`` filter that already runs upstream (see
+        # ``batch_install``), ``--upgrade`` is now redundant on cold
+        # installs — pip otherwise does a per-package metadata check
+        # that costs measurable wall time on a clean venv with N=151
+        # packages.  We DO still pass ``--upgrade`` when not running
+        # under ``--no-deps`` so the historical behaviour of ``pipenv
+        # install`` (Pipfile-driven, may need to downgrade) is
+        # preserved.
         pip_args = get_pip_args(
             project,
             pre=project.settings.get("allow_prereleases", False),
             verbose=False,  # When True, the subprocess fails to recognize the EOF when reading stdout.
-            upgrade=True,
+            upgrade=not no_deps,
             no_use_pep517=not use_pep517,
             no_deps=no_deps,
             extra_pip_args=extra_pip_args,
