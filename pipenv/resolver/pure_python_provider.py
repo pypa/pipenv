@@ -48,7 +48,7 @@ from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
 from pipenv.vendor.packaging.utils import canonicalize_name
 from pipenv.vendor.packaging.version import InvalidVersion, Version
 
-__all__ = ["PurePythonProvider", "_SdistEncountered"]
+__all__ = ["PurePythonProvider", "_SdistEncountered", "_drive_resolver"]
 
 
 class _SdistEncountered(Exception):
@@ -934,3 +934,75 @@ class PurePythonProvider(AbstractProvider):
                 # successfully under another (rare but possible).
                 continue
         return False
+
+
+# ---------------------------------------------------------------------------
+# T8 — _drive_resolver: thin wrapper around resolvelib.Resolver
+# ---------------------------------------------------------------------------
+
+
+def _drive_resolver(
+    requirements: Iterable[Requirement],
+    provider: PurePythonProvider,
+    *,
+    reporter: Any = None,
+    max_rounds: int = 100,
+) -> Any:
+    """Convenience wrapper around :class:`resolvelib.Resolver` for
+    unit and integration tests.
+
+    Production code (T9's :class:`PurePythonBackend`) calls this helper
+    too, so the wiring of provider → reporter → :meth:`Resolver.resolve`
+    lives in exactly one place.  Translation of
+    :class:`ResolutionImpossible` / :class:`_SdistEncountered` into the
+    backend's :class:`ResolverResponse` shape is T9's concern — this
+    helper deliberately does not catch either exception.
+
+    Parameters
+    ----------
+    requirements:
+        Iterable of top-level :class:`Requirement` instances (typically
+        the parsed Pipfile entries).  Consumed eagerly inside resolvelib;
+        no need to re-yield.
+    provider:
+        Configured :class:`PurePythonProvider`.  All five
+        ``AbstractProvider`` methods (T3–T7) must be functional —
+        :func:`_drive_resolver` does not patch around half-implemented
+        providers.
+    reporter:
+        Optional :class:`resolvelib.BaseReporter` subclass (or
+        compatible duck-type).  Defaults to a freshly-instantiated
+        :class:`BaseReporter` (no-op callbacks) when ``None`` is passed.
+        T9 may pass a logging reporter; tests use the default.
+    max_rounds:
+        Forwarded verbatim to :meth:`Resolver.resolve`.  Resolvelib's
+        own default is 100; we mirror it so callers see the same
+        behaviour without re-reading the resolvelib source.  Raise
+        only if a real lock genuinely needs more rounds — bumping
+        usually masks a circular-dep bug upstream.
+
+    Returns
+    -------
+    A :class:`resolvelib.resolvers.abstract.Result` namedtuple with
+    ``.mapping`` (resolved candidates keyed on the provider's
+    identifier tuple), ``.graph`` (dep DAG), and ``.criteria``
+    (per-identifier resolution metadata).  Callers typically only need
+    ``.mapping``.
+
+    Raises
+    ------
+    :class:`resolvelib.ResolutionImpossible`
+        Propagated from :meth:`Resolver.resolve` when no satisfying
+        assignment exists.  T9 catches and translates.
+    :class:`_SdistEncountered`
+        Propagated from :meth:`PurePythonProvider.get_dependencies`
+        when the resolver tries to expand an sdist-only candidate.
+        T9 catches and translates per the Q-A fail-loud policy.
+    """
+    from pipenv.patched.pip._vendor.resolvelib import BaseReporter, Resolver
+
+    if reporter is None:
+        reporter = BaseReporter()
+    return Resolver(provider, reporter).resolve(
+        requirements, max_rounds=max_rounds
+    )
