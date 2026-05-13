@@ -1731,6 +1731,70 @@ class TestFindMatchesAllowPrereleases:
         assert versions == ["5.0.0a2", "5.0.0a1"]
 
 
+class TestFindMatchesPrereleaseStrictExclusion:
+    """Bench-fixture regression: a plain ``>=X`` specifier must NOT
+    admit prereleases when stable versions matching the constraint are
+    also available.
+
+    Pip mirrors PEP 440 §"Pre-releases" via
+    :meth:`SpecifierSet.filter` over the FULL candidate list (so the
+    "no final release matched" fallback fires only when zero stables
+    pass).  Pure-python's per-candidate
+    :meth:`SpecifierSet.contains(v, prereleases=None)` short-circuited
+    on a one-element iterable inside ``filter`` and silently admitted
+    every prerelease — picking ``billiard 4.3.0rc1``,
+    ``hiredis 3.4.0.dev0``, and ``sentry-sdk 3.0.0a7`` instead of the
+    stables pip selected on the same bench fixture.
+    """
+
+    def test_prerelease_excluded_when_stable_matches(self):
+        cands = [
+            _cand(name="billiard", version="4.2.4"),
+            _cand(name="billiard", version="4.3.0rc1"),
+        ]
+        cache = _FakeCache({(_INDEX, "billiard"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("billiard", frozenset())
+        # Plain stable spec — no prerelease opt-in.
+        req = _make_requirement(name="billiard", spec=">=4.2.1,<5.0")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        # 4.3.0rc1 is filtered out — pip's strict-prerelease pass.
+        assert versions == ["4.2.4"]
+
+    def test_pep440_fallback_when_only_prereleases_available(self):
+        # Mirrors pip's ``get_applicable_candidates`` fallback: when
+        # the strict pass yields zero candidates, retry admitting
+        # prereleases.  Trigger: a package with only prerelease
+        # artifacts at or above the lower bound.
+        cands = [
+            _cand(name="alpha-only", version="3.0.0a1"),
+            _cand(name="alpha-only", version="3.0.0a2"),
+        ]
+        cache = _FakeCache({(_INDEX, "alpha-only"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        identifier = ("alpha-only", frozenset())
+        # ``>=2.5`` is a plain stable spec but both prereleases satisfy
+        # it numerically (``3.0.0a1 >= 2.5``).  Strict pass yields
+        # nothing; fallback admits the prereleases.
+        req = _make_requirement(name="alpha-only", spec=">=2.5")
+        result = list(
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+        )
+        versions = [c.version for c in result]
+        assert versions == ["3.0.0a2", "3.0.0a1"]
+
+
 class TestFindMatchesRequiresPythonEdgeCases:
     """Cover the three permissive branches of
     ``_candidate_requires_python_ok``:

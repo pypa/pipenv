@@ -337,23 +337,40 @@ class PurePythonProvider(AbstractProvider):
             for c in incompatibilities.get(identifier, [])
         }
 
-        # Step 7: filter.
+        # Step 7: filter.  Two-pass prerelease policy mirrors pip's
+        # ``get_applicable_candidates``
+        # (``pipenv/patched/pip/_internal/index/package_finder.py``):
+        # the strict pass rejects every prerelease unconditionally; if
+        # it yields zero candidates AND ``_allow_prereleases`` isn't
+        # set, the PEP-440 fallback pass re-runs with prereleases
+        # admitted.  See :meth:`_candidate_satisfies_requirements` for
+        # the per-spec ``prereleases`` handling and the rationale for
+        # not using the broken ``prereleases=None`` per-item shape.
         target_python = None
         if isinstance(self._target_env, Mapping):
             target_python = self._target_env.get("python_version")
 
-        filtered: list[Any] = []
-        for cand in unique:
-            cand_key = (cand.name, cand.version, cand.filename)
-            if cand_key in rejected:
-                continue
-            if not self._candidate_satisfies_requirements(cand, reqs):
-                continue
-            if not self._candidate_requires_python_ok(cand, target_python):
-                continue
-            if self._candidate_is_skippable_yanked(cand, reqs):
-                continue
-            filtered.append(cand)
+        def _filter_pass(strict_prereleases: bool) -> list[Any]:
+            out: list[Any] = []
+            for cand in unique:
+                cand_key = (cand.name, cand.version, cand.filename)
+                if cand_key in rejected:
+                    continue
+                if not self._candidate_satisfies_requirements(
+                    cand, reqs, strict_prereleases=strict_prereleases
+                ):
+                    continue
+                if not self._candidate_requires_python_ok(cand, target_python):
+                    continue
+                if self._candidate_is_skippable_yanked(cand, reqs):
+                    continue
+                out.append(cand)
+            return out
+
+        filtered = _filter_pass(strict_prereleases=True)
+        if not filtered and not self._allow_prereleases:
+            # PEP-440 fallback: no stables matched, admit prereleases.
+            filtered = _filter_pass(strict_prereleases=False)
 
         # Step 8: sort by ``(Version, is_wheel)`` descending.  Highest
         # version wins; within a version, wheel beats sdist
@@ -397,6 +414,8 @@ class PurePythonProvider(AbstractProvider):
         self,
         candidate: Any,
         reqs: Sequence[Requirement],
+        *,
+        strict_prereleases: bool = True,
     ) -> bool:
         """Return ``True`` iff the candidate version satisfies every
         ``req.specifier`` in ``reqs``.
@@ -406,11 +425,38 @@ class PurePythonProvider(AbstractProvider):
         requirements registered for the identifier yet (the identifier
         is in the graph but every constraint has already been pruned).
 
-        Prerelease policy: if any requirement's specifier opts in
-        (``specifier.prereleases is True``) OR
-        :attr:`_allow_prereleases` is set, prereleases are admitted.
-        Otherwise the default :meth:`SpecifierSet.contains` semantics
-        apply (admit only if no non-prerelease can satisfy).
+        Prerelease policy: ``_allow_prereleases`` (the ``--pre`` flag
+        analog) or ``specifier.prereleases is True`` (the specifier
+        itself opts in, e.g. ``>=2.0a1``) admits prereleases for that
+        requirement.  Otherwise, ``strict_prereleases`` decides:
+
+        * ``True`` (default, the first :meth:`find_matches` pass) —
+          pass ``prereleases=False`` to :meth:`SpecifierSet.contains`,
+          which strictly rejects every prerelease.  This mirrors pip's
+          ``get_applicable_candidates`` first pass.
+
+        * ``False`` (the PEP-440 fallback pass) — pass
+          ``prereleases=True`` so prereleases are admitted when the
+          strict pass yielded nothing.
+
+        Why we don't use ``prereleases=None``
+        -------------------------------------
+        ``SpecifierSet.contains(v, prereleases=None)`` is implemented
+        via :meth:`SpecifierSet.filter` over a SINGLE-element iterable.
+        The filter then applies PEP-440's "no final release matched,
+        so accept prereleases" fallback on that one-element list and
+        admits the prerelease unconditionally.  Pip avoids this trap
+        by calling ``specifier.filter()`` over the FULL candidate list
+        at once (see
+        ``pipenv/patched/pip/_internal/index/package_finder.py``
+        ``get_applicable_candidates``), where the fallback only
+        triggers when zero stables matched.  Our per-candidate shape
+        can't replicate that semantics with ``prereleases=None`` —
+        the two-pass scheme in :meth:`find_matches` is the equivalent.
+        Bench fixture trigger: ``billiard 4.3.0rc1``,
+        ``hiredis 3.4.0.dev0``, ``sentry-sdk 3.0.0a7`` all admitted
+        under transitive ``>=X`` constraints when pip picked the
+        stable below.
         """
         try:
             version_obj = Version(candidate.version)
@@ -420,11 +466,13 @@ class PurePythonProvider(AbstractProvider):
             return False
         for req in reqs:
             spec = req.specifier
-            prereleases: bool | None
+            prereleases: bool
             if self._allow_prereleases or spec.prereleases:
                 prereleases = True
+            elif strict_prereleases:
+                prereleases = False
             else:
-                prereleases = None  # default policy
+                prereleases = True
             if not spec.contains(version_obj, prereleases=prereleases):
                 return False
         return True
