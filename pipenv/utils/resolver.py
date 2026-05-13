@@ -1140,9 +1140,24 @@ _resolution_cache_timestamp = {}
 
 
 def _generate_resolution_cache_key(
-    deps, project, pipfile_category, pre, clear, allow_global, pypi_mirror, extra_pip_args
+    deps,
+    project,
+    pipfile_category,
+    pre,
+    clear,
+    allow_global,
+    pypi_mirror,
+    extra_pip_args,
+    resolver_backend=None,
 ):
-    """Generate a cache key for resolution results."""
+    """Generate a cache key for resolution results.
+
+    T_PLUMBING (Initiative G phase 3): ``resolver_backend`` participates
+    in the key so a pip-resolved cache entry can't satisfy a
+    pure-python lookup.  ``None`` collapses to the empty string so the
+    default-backend cache key is byte-identical to pre-T_PLUMBING (the
+    pre-existing on-disk caches are still valid for the default path).
+    """
     # Get lockfile and pipfile modification times
     lockfile_mtime = "no-lock"
     if project.lockfile.location:
@@ -1179,6 +1194,15 @@ def _generate_resolution_cache_key(
         str(allow_global),
         "|".join(env_factors),
     ]
+    # T_PLUMBING (Initiative G phase 3): backend selection
+    # participates in the cache key — but ONLY when a non-default
+    # backend is selected.  Appending unconditionally would change
+    # the cache key for every default-path call (the empty string
+    # would still hash differently than the no-component shape),
+    # which would invalidate pre-T_PLUMBING on-disk caches and break
+    # the "default path byte-identical" acceptance criterion.
+    if resolver_backend:
+        key_components.append(f"backend={resolver_backend}")
 
     key_string = "|".join(key_components)
     return hashlib.sha256(key_string.encode()).hexdigest()
@@ -1877,6 +1901,7 @@ def venv_resolve_deps(
     old_lock_data=None,
     extra_pip_args=None,
     resolved_default_deps=None,
+    resolver_backend=None,
 ):
     """
     Resolve dependencies for a pipenv project, acts as a portal to the target environment.
@@ -1916,6 +1941,11 @@ def venv_resolve_deps(
     extra_pip_args = list(extra_pip_args or [])
 
     # Check cache before expensive resolution
+    # T_PLUMBING (Initiative G phase 3): include resolver_backend in the
+    # cache key so a pip-resolved cache entry can't satisfy a
+    # pure-python lookup (and vice versa).  ``None`` collapses to the
+    # empty string so the default path's cache key is byte-identical
+    # to pre-T_PLUMBING.
     cache_key = _generate_resolution_cache_key(
         deps,
         project,
@@ -1925,6 +1955,7 @@ def venv_resolve_deps(
         allow_global,
         pypi_mirror,
         extra_pip_args,
+        resolver_backend=resolver_backend,
     )
 
     if _should_use_resolution_cache(cache_key, clear):
@@ -1998,6 +2029,14 @@ def venv_resolve_deps(
                 extra_pip_args=extra_pip_args,
                 resolved_default_deps=resolved_default_deps,
                 project=project,
+                # T_PLUMBING (Initiative G phase 3): stamp the
+                # parent-resolved backend name onto the typed request
+                # so both the subprocess and in-process branches see
+                # the same selection.  ``None`` becomes the empty
+                # string in ``_build_resolver_request`` — the
+                # dispatcher then falls through to the env/Pipfile
+                # chain on the child side.
+                resolver_backend=resolver_backend,
             )
 
             # Useful for debugging and hitting breakpoints in the resolver

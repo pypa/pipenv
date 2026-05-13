@@ -641,7 +641,15 @@ def _resolver_name_from_pipfile() -> str | None:
         return None
     try:
         project = Project()
-        resolver = project.settings.get("resolver")
+        # T_PLUMBING (Initiative G phase 3): prefer the documented
+        # ``resolver_backend`` key over the T_F.5 back-compat alias
+        # ``resolver``.  Either may be present; the documented spelling
+        # wins to match the parent-side precedence in
+        # :func:`pipenv.routines.lock.do_lock`.
+        resolver = (
+            project.settings.get("resolver_backend")
+            or project.settings.get("resolver")
+        )
     except Exception:  # noqa: BLE001 — any read failure → default
         return None
     if not resolver:

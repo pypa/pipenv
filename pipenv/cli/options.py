@@ -329,6 +329,35 @@ def _add_resolver_option(p):
     )
 
 
+def _add_backend_option(p):
+    """T_PLUMBING (Initiative G phase 3): constrained backend selector.
+
+    User-facing surface for the pluggable resolver-backend dispatcher.
+    ``--backend NAME`` is the documented spelling on ``pipenv lock``;
+    accepted values are ``pip`` (default) and ``pure-python``.  Unlike
+    ``--resolver NAME`` (kept for back-compat with T_F.5 scaffolding),
+    this flag validates the value at parse time via ``choices=`` so
+    typos fail with an actionable error instead of falling through to
+    the dispatcher's KeyError → InternalError translation.
+
+    When both flags are supplied, ``--backend`` wins (it's the
+    constrained form; ``--resolver`` is a free-form passthrough kept
+    for the older T_F.5 surface).  When neither is set, the dispatcher
+    falls through to PIPENV_RESOLVER / ``[pipenv] resolver_backend`` /
+    ``[pipenv] resolver`` / ``"pip"``.
+    """
+    p.add_argument(
+        "--backend",
+        dest="backend",
+        choices=("pip", "pure-python"),
+        default=None,
+        help=(
+            "Resolver backend to use.  Defaults to "
+            "[pipenv] resolver_backend in Pipfile, then 'pip'."
+        ),
+    )
+
+
 # ── Option group composers ────────────────────────────────────────────────────
 
 
@@ -375,6 +404,11 @@ def _add_lock_options(p):
     _add_dev_option(p, help_text="Generate both develop and default requirements.")
     _add_dev_only_flag(p)
     _add_categories_option(p)
+    # T_PLUMBING (Initiative G phase 3): constrained backend selector.
+    # ``--backend pure-python`` routes through PurePythonBackend; the
+    # default ``--backend pip`` (or no flag at all) preserves
+    # byte-identical pre-T_PLUMBING behaviour.
+    _add_backend_option(p)
 
 
 def _add_uninstall_options(p):
@@ -896,11 +930,17 @@ def build_state(args):
     state.system = bool(getattr(args, "system", None))
     state.verbose = bool(getattr(args, "verbose", None))
     state.quiet = bool(getattr(args, "quiet", None))
-    # T_F.5: resolver-backend selection.  ``None`` means "not specified
-    # on the CLI"; the dispatcher then falls through to PIPENV_RESOLVER
-    # / [pipenv] resolver / default.
+    # T_F.5 / T_PLUMBING: resolver-backend selection.  ``None`` means
+    # "not specified on the CLI"; the dispatcher then falls through to
+    # PIPENV_RESOLVER / [pipenv] resolver_backend / [pipenv] resolver
+    # / default.  The constrained ``--backend NAME`` flag (T_PLUMBING,
+    # Initiative G phase 3) takes precedence over the free-form
+    # ``--resolver NAME`` flag (T_F.5 scaffolding) when both are
+    # supplied — ``--backend`` is the documented user-facing surface.
+    raw_backend = getattr(args, "backend", None)
     raw_resolver = getattr(args, "resolver", None)
-    state.resolver = raw_resolver.strip() if isinstance(raw_resolver, str) and raw_resolver.strip() else None
+    chosen = raw_backend if raw_backend else raw_resolver
+    state.resolver = chosen.strip() if isinstance(chosen, str) and chosen.strip() else None
 
     # ── Validation ───────────────────────────────────────────────────────────
     if state.python:
