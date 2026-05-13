@@ -760,3 +760,106 @@ class TestDefensiveBranches:
         # The result is still returned despite the cache.put OSError.
         result = extract_metadata_from_sdist(candidate, session, cache=cache)
         assert result.name == "cachefail"
+
+    def test_archive_write_oserror_surfaces_as_sdist_build_error(
+        self, monkeypatch
+    ):
+        """Disk write failure during sdist download → SdistBuildError."""
+        from pipenv.resolver.pure_python_sdist import (
+            SdistBuildError,
+            extract_metadata_from_sdist,
+        )
+
+        sdist = _build_sdist_tarball(
+            pkg_name="diskfull",
+            version="0.1",
+            pyproject_toml=None,
+        )
+        session = _make_session(sdist)
+        candidate = _make_candidate("diskfull-0.1.tar.gz")
+
+        real_write_bytes = Path.write_bytes
+
+        def _explode(self: Path, data):
+            if self.name == "diskfull-0.1.tar.gz":
+                raise OSError("disk full")
+            return real_write_bytes(self, data)
+
+        monkeypatch.setattr(Path, "write_bytes", _explode)
+
+        with pytest.raises(SdistBuildError) as excinfo:
+            extract_metadata_from_sdist(candidate, session)
+        assert "could not write" in str(excinfo.value)
+
+    def test_tar_member_with_device_type_is_rejected(self):
+        """Tar containing a block/char/fifo member → SdistBuildError."""
+        from pipenv.resolver.pure_python_sdist import (
+            SdistBuildError,
+            extract_metadata_from_sdist,
+        )
+
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+            top = tarfile.TarInfo(name="evil-1.0/")
+            top.type = tarfile.DIRTYPE
+            tf.addfile(top)
+            dev = tarfile.TarInfo(name="evil-1.0/devnull")
+            dev.type = tarfile.CHRTYPE
+            dev.devmajor = 1
+            dev.devminor = 3
+            tf.addfile(dev)
+
+        session = _make_session(buf.getvalue())
+        candidate = _make_candidate("evil-1.0.tar.gz")
+
+        with pytest.raises(SdistBuildError) as excinfo:
+            extract_metadata_from_sdist(candidate, session)
+        msg = str(excinfo.value).lower()
+        assert "corrupt" in msg and "non-regular" in msg
+
+    def test_tar_member_symlink_with_traversal_linkname_rejected(self):
+        """Tar symlink whose linkname escapes the root → rejected."""
+        from pipenv.resolver.pure_python_sdist import (
+            SdistBuildError,
+            extract_metadata_from_sdist,
+        )
+
+        buf = io.BytesIO()
+        with tarfile.open(fileobj=buf, mode="w:gz") as tf:
+            top = tarfile.TarInfo(name="symlinky-1.0/")
+            top.type = tarfile.DIRTYPE
+            tf.addfile(top)
+            link = tarfile.TarInfo(name="symlinky-1.0/bad")
+            link.type = tarfile.SYMTYPE
+            link.linkname = "../../../etc/passwd"
+            tf.addfile(link)
+
+        session = _make_session(buf.getvalue())
+        candidate = _make_candidate("symlinky-1.0.tar.gz")
+
+        with pytest.raises(SdistBuildError) as excinfo:
+            extract_metadata_from_sdist(candidate, session)
+        # Path-traversal validation catches the linkname.
+        assert "traversal" in str(excinfo.value).lower() or "absolute" in str(excinfo.value).lower()
+
+    def test_archive_extracts_to_nothing_rejected(self, monkeypatch):
+        """An archive that extracts to zero entries → SdistBuildError."""
+        from pipenv.resolver.pure_python_sdist import (
+            SdistBuildError,
+            _locate_source_root,
+        )
+
+        # _locate_source_root inspects the destination dir; we hand it
+        # an empty dir to exercise the "extracted to nothing" branch.
+        empty = Path("/dev/shm/nonexistent-dir-for-empty-test")
+        if empty.exists():
+            for p in empty.iterdir():
+                p.unlink()
+        else:
+            empty.mkdir(parents=True)
+        try:
+            with pytest.raises(SdistBuildError) as excinfo:
+                _locate_source_root(empty, "empty-1.0.tar.gz")
+            assert "extracted to nothing" in str(excinfo.value)
+        finally:
+            empty.rmdir()
