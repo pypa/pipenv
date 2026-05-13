@@ -1973,6 +1973,8 @@ def venv_resolve_deps(
     extra_pip_args = list(extra_pip_args or [])
 
     selected_backend = _selected_backend_for_request(project, resolver_backend)
+    # Preserve pre-T_PLUMBING cache-key shape for the default path:
+    # default "pip" remains unstamped (None) for byte-identical keys.
     cache_backend = selected_backend if selected_backend != "pip" else None
 
     # Check cache before expensive resolution
