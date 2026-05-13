@@ -2047,3 +2047,144 @@ class TestGetDependenciesIntroducingMarker:
         assert dep.introducing_marker is not None
         expected = Marker("extra == 'dev'")
         assert str(dep.introducing_marker) == str(expected)
+
+
+# ----------------------------------------------------------------------
+# T_M5 (Initiative G Phase 3b): belt-and-braces edge cases for the
+# compound-marker shapes that cross the boundary between
+# get_dependencies's marker-filter and the introducing_marker
+# propagation slot.  Coverage on pure_python_provider.py is already at
+# 97 %; these tests close the scope by pinning the two tricky cases the
+# audit list calls out: a compound platform-AND-python marker (no
+# ``extra`` clause) and a compound extra-AND-platform marker (parent
+# extras active).
+# ----------------------------------------------------------------------
+class TestGetDependenciesT_M5IntroducingMarkerCompound:
+    """T_M5 — pin that ``get_dependencies`` propagates the FULL parsed
+    ``Marker`` into ``introducing_marker`` even for compound markers
+    that combine multiple clauses (``and`` / ``or``).  The marker is
+    NOT split into per-clause Requirements — it round-trips intact so
+    T_M3's translator can re-emit it as a single ``markers=...`` clause.
+    """
+
+    def test_compound_python_and_platform_marker_preserved_intact(self):
+        """``Requires-Dist: pytest; python_version >= '3.10' and
+        sys_platform == 'darwin'`` (no ``extra`` clause; parent has no
+        extras) -> ONE :class:`Requirement` emitted whose
+        ``introducing_marker`` is the parsed compound :class:`Marker`,
+        preserving BOTH clauses.
+
+        Pins:
+        * The compound marker survives the
+          ``_marker_active_for_extras`` filter under the ``{"extra":
+          ""}`` overlay (a marker without an ``extra==`` clause is
+          unaffected by the extras context — that's what makes a plain
+          ``python_version`` marker on a Requires-Dist line survive).
+        * The marker is NOT split into per-clause requirements — it's
+          carried verbatim so T_M3 can emit a single ``markers=...``
+          clause on the lockfile entry.
+        """
+        from pipenv.vendor.packaging.markers import Marker
+
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset(),  # parent has no extras
+        )
+        compound = "python_version >= '3.10' and sys_platform == 'darwin'"
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=(f"pytest ; {compound}",),
+        )
+        # Target_env overlay activates BOTH halves so the filter keeps
+        # the requirement.  python_version >= 3.10 is True for 3.12 and
+        # sys_platform overlay matches the marker clause exactly.
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={
+                "python_version": "3.12",
+                "sys_platform": "darwin",
+            },
+        )
+
+        deps = list(provider.get_dependencies(cand))
+        assert len(deps) == 1
+        dep = deps[0]
+        assert dep.name == "pytest"
+        # ``introducing_marker`` carries the FULL compound marker
+        # verbatim (round-trip through ``Marker.__str__``).
+        assert dep.introducing_marker is not None
+        expected = Marker(compound)
+        assert str(dep.introducing_marker) == str(expected)
+        # Belt-and-braces: BOTH clauses appear in the marker string
+        # (a regression that split the marker would emit only one).
+        marker_str = str(dep.introducing_marker)
+        assert "python_version" in marker_str
+        assert "sys_platform" in marker_str
+
+    def test_extra_and_platform_compound_marker_passes_filter_and_propagates(
+        self,
+    ):
+        """``Requires-Dist: pytest; extra == 'dev' and python_version
+        >= '3.10'`` with parent ``extras=frozenset({'dev'})`` and
+        target_env Python >= 3.10 -> requirement YIELDED AND
+        ``introducing_marker`` carries the full compound marker.
+
+        Pins the intersection of the T7 extras-filter and the T_M2
+        introducing-marker propagation:
+
+        * The ``extra=='dev'`` half of the marker is satisfied because
+          parent extras contain ``'dev'`` (``_marker_active_for_extras``
+          evaluates the marker under ``{"extra": "dev"}``).
+        * The ``python_version >= '3.10'`` half evaluates True under
+          the target_env overlay.
+        * Both halves AND-True -> the marker is "active" -> requirement
+          survives the filter.
+        * Critically, the ENTIRE compound marker (including the
+          ``extra==`` clause) is preserved on ``introducing_marker`` —
+          T_M3 will downstream emit the marker verbatim, including the
+          ``extra==`` clause.  This is intentional: the lockfile
+          consumer (pip install) re-evaluates the marker in the install
+          environment, where the same ``extra==`` clause filters the
+          dep at install-time.
+        """
+        from pipenv.vendor.packaging.markers import Marker
+
+        cand = _cand(
+            name="django",
+            version="4.2.0",
+            is_wheel=True,
+            extras=frozenset({"dev"}),  # parent DID request [dev]
+        )
+        compound = "extra == 'dev' and python_version >= '3.10'"
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=(f"pytest>=7 ; {compound}",),
+        )
+        provider = _make_provider(
+            metadata_fetcher=_metadata_fetcher_stub({cand.url: meta}),
+            target_env={"python_version": "3.12"},
+        )
+
+        deps = list(provider.get_dependencies(cand))
+        # Filter kept the entry (both halves of the AND are True under
+        # the parent_extras=={'dev'} + python_version=='3.12' overlay).
+        assert len(deps) == 1
+        dep = deps[0]
+        assert dep.name == "pytest"
+        assert dep.parent == "django"
+        assert dep.source == "transitive"
+        # Compound marker preserved end-to-end — including the
+        # ``extra==`` clause that the filter consumed.  ``Marker.__str__``
+        # is order-stable for the canonical form so a string round-trip
+        # compares cleanly.
+        assert dep.introducing_marker is not None
+        expected = Marker(compound)
+        assert str(dep.introducing_marker) == str(expected)
+        # Belt-and-braces: BOTH clauses appear in the marker.
+        marker_str = str(dep.introducing_marker)
+        assert "extra" in marker_str
+        assert "python_version" in marker_str
