@@ -255,6 +255,9 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
     # filename containing path separators or an absolute path cannot
     # write outside the temporary directory.
     archive_name = Path(archive_name).name
+    # Path("..").name == ".." and Path(".").name == ".", so these checks
+    # are reachable: an index returning "filename=.." would pass the
+    # Path.name strip but still write to a confusing location.
     if not archive_name.strip() or archive_name in (".", ".."):
         raise SdistBuildError(
             f"sdist download failed: invalid archive filename derived from {url!r}"
@@ -538,6 +541,9 @@ def _run_prepare_metadata(
     process exits.
     """
     pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+    # Note: ThreadPoolExecutor uses daemon threads by default, so any
+    # worker that outlives this function (e.g. on timeout) will be
+    # reaped automatically when the process exits.
     try:
         future = pool.submit(
             _build_metadata_in_isolated_env, source_root, metadata_dir
