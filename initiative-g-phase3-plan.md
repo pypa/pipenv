@@ -1212,6 +1212,83 @@ near the bottom of this document.
 
 ---
 
+### T_PLUMBING: User-facing `--backend` + `[pipenv] resolver_backend` dispatcher
+
+- **depends_on**: `[T10, T14]`
+- **location**:
+  - `pipenv/cli/options.py` (new `--backend` flag on `lock`)
+  - `pipenv/cli/command.py` (no logic change; ctx already carries
+    `resolver`)
+  - `pipenv/routines/lock.py` (read `exec_opts.resolver` ->
+    `project.settings.resolver_backend` -> `project.settings.resolver`,
+    pass down)
+  - `pipenv/utils/resolver.py` (`venv_resolve_deps(resolver_backend=)`,
+    `_build_resolver_request(resolver_backend=)`, cache-key inclusion)
+  - `pipenv/utils/settings.py` (`Settings.resolver_backend` accessor)
+  - `pipenv/resolver/core.py` (child-side
+    `_resolver_name_from_pipfile` prefers `resolver_backend` over
+    `resolver`)
+  - `tests/unit/test_resolver_backends.py` (4 new test classes:
+    `TestPipfileResolverBackendSetting`, `TestBackendCLIFlag`,
+    `TestVenvResolveDepsBackendPropagation`,
+    `TestResolverSubprocessDispatch`)
+- **description**:
+  Wave 7.75 follow-up — adds the user-facing dispatcher T_F.5 left
+  unwired:
+  - `pipenv lock --backend [pip|pure-python]` (constrained ``choices=``
+    via argparse; typos fail at parse time, NOT at the dispatcher's
+    KeyError translation),
+  - `[pipenv] resolver_backend = "pip" | "pure-python"` Pipfile setting
+    (typed via `Settings.resolver_backend`; coexists with T_F.5's
+    `[pipenv] resolver` back-compat alias — `resolver_backend` wins
+    when both are present),
+  - parent-side resolution of the precedence chain CLI > Pipfile
+    (`resolver_backend` then `resolver`) > `None` inside `do_lock`,
+    stamping the result on `ResolverRequest.options.backend` via
+    `venv_resolve_deps(resolver_backend=...)`.
+  Default behaviour (no flag, no setting) is byte-identical to
+  pre-T_PLUMBING: the wire-shape stays empty-string, the cache key
+  omits the backend component, and `Pipfile.lock` content is identical
+  byte-for-byte (verified during 2026-05-12 smoke test on a
+  one-package fixture).
+  Unblocks T15 / T_PARITY_REAL / T_BENCH to run against the
+  production CLI surface rather than via in-process `get_backend()`
+  calls.
+- **validation**:
+  - `pipenv lock --help` shows `--backend {pip,pure-python}`.
+  - Smoke test on `click = "*"` fixture: `--backend pip` succeeds with
+    a Pipfile.lock; the no-flag path produces an identical lockfile;
+    `--backend pure-python` invokes `PurePythonBackend.resolve(...)`
+    end-to-end (surfaces a backend-side `ResolutionFailure` on `click *`
+    that is unrelated to plumbing — see Surprises in commit msg).
+  - 24 unit tests pass under
+    `tests/unit/test_resolver_backends.py` (15 new + 9 pre-existing).
+  - `pytest tests/unit/test_pure_python_backend.py` (28 tests),
+    `pytest tests/unit/test_resolver_core.py` and the rest of the
+    resolver / settings / lock suites all still green.
+- **status**: Completed (2026-05-12)
+- **log**:
+  - 2026-05-12 (Wave 7.75 follow-up): Implemented the CLI flag,
+    Pipfile setting, and parent-side dispatch chain.  All 1439
+    relevant unit tests pass.  Smoke test on `click = "*"` confirms
+    default-path byte-identity and end-to-end backend invocation;
+    pure-python backend itself returns a structured `ResolutionError`
+    that is a backend-side correctness issue, NOT a plumbing failure
+    (the typed `pip_message` propagates cleanly to the parent's
+    `ResolutionFailure` formatter, exactly the Q-F structured-error
+    shape the design specifies).  STOP-and-report per task spec
+    rather than chasing the backend bug here.
+- **files edited/created**:
+  - `pipenv/cli/options.py`
+  - `pipenv/routines/lock.py`
+  - `pipenv/utils/resolver.py`
+  - `pipenv/utils/settings.py`
+  - `pipenv/resolver/core.py`
+  - `tests/unit/test_resolver_backends.py`
+  - `initiative-g-phase3-plan.md` (this entry)
+
+---
+
 ### T_SHIP: Phase 3 ship-bundle
 
 - **depends_on**: `[T_BENCH, T_PARITY_MATRIX]`
