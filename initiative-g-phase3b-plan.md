@@ -343,9 +343,63 @@ waits on both.
   - Index-name lookup tests covering URL→name + the defensive
     fallback.
 - **validation**: coverage stays ≥ 90 % on the two modules.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12: Coverage audit pre-T_M5 was already 96 % on
+    `pure_python.py` (218 stmts, 8 miss) and 97 % on
+    `pure_python_provider.py` (190 stmts, 6 miss) — well above the
+    90 % gate.  T_M5 closed the formal scope by pinning belt-and-
+    braces edge cases that cross the T_M3 / T_M4 / T_S5 boundaries
+    rather than chasing additional coverage on already-tested paths.
+  - Added 5 backend edge-case tests
+    (`TestTranslateMappingT_M5Edges`):
+      * **Full combo** — `requires_python=">=3.10"` + an introducing
+        marker (`sys_platform == 'darwin'`) + wheel+sdist sibling
+        hashes + URL→name source mapping all compose in a single
+        `LockedRequirement`.  Smoke gate over the entire translator.
+      * **`!=` operator** — `requires_python="!=3.11"` →
+        `python_version != '3.11'`.  Pins the rare-but-real
+        not-equal operator path.
+      * **`~=` compatible-release** — `requires_python="~=3.10"` →
+        `python_version ~= '3.10'`.  Pins the implementation's
+        verbatim rendering (a future canonicaliser that expanded
+        `~=` to a lower+upper-bound pair would break this gate
+        deliberately).
+      * **Whitespace tolerance** — `">= 3.10"` (stray whitespace
+        around the operator) → canonical
+        `python_version >= '3.10'` (`SpecifierSet` normalises on
+        parse).
+      * **No cross-pollination** — two resolved candidates sharing
+        the same `requires_python` value get independent markers;
+        a per-candidate introducing marker on one does NOT leak
+        into the other's lockfile entry.
+  - Added 2 provider edge-case tests
+    (`TestGetDependenciesT_M5IntroducingMarkerCompound`):
+      * **Compound python+platform marker preserved intact** —
+        `Requires-Dist: pytest; python_version >= '3.10' and
+        sys_platform == 'darwin'` with parent extras=∅ ⇒ ONE
+        `Requirement` whose `introducing_marker` is the FULL
+        compound `Marker` (both clauses round-trip; not split).
+      * **Compound extra+platform marker, parent extras active** —
+        `Requires-Dist: pytest; extra == 'dev' and python_version
+        >= '3.10'` with parent `extras=frozenset({'dev'})` ⇒
+        requirement YIELDED AND `introducing_marker` carries the
+        FULL compound marker including the `extra==` clause that
+        the extras filter just consumed (intentional — pip
+        install re-evaluates at install-time).
+  - **Post-T_M5 coverage**: 96 % on `pure_python.py` (218 stmts,
+    8 miss; missing lines are PoolManager fallback, PIPENV_CACHE_DIR
+    env-var branch, and three defensive branches inside
+    `_introducing_marker_for` — all outside the T_M3/T_M4/T_S5
+    scope) and 97 % on `pure_python_provider.py` (190 stmts, 6
+    miss; missing lines are `_drive_resolver`'s no-reporter
+    default and an `InvalidVersion` branch in
+    `_candidate_requires_python_ok` — both outside T_M5 scope).
+    115 tests pass (108 pre-T_M5 + 7 new).  No production-code
+    changes; no real bugs surfaced.
 - **files edited/created**:
+  - `tests/unit/test_pure_python_backend.py` (modified)
+  - `tests/unit/test_pure_python_provider.py` (modified)
 
 ---
 
