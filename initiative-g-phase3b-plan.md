@@ -633,9 +633,30 @@ waits on both.
     actually saw" semantic (vs pip's "we hash whatever the index
     advertises", which is the same thing in practice — the cache
     IS the index slice we've read).
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Replaced the single-candidate hash-collection block
+    in `_translate_mapping` with an all-distfile scan that walks
+    every configured `index_url` and unions `hashes` frozensets from
+    cache siblings whose `version` matches the resolved candidate's.
+    Defensive fallback: if the sibling scan turns up nothing (cold
+    cache / test-fixture-injected workflow) we emit the resolved
+    candidate's own hashes, preserving Phase 3a fixture flows.
+    Added `TestTranslateMappingAllDistfileHashes` (5 cases) covering
+    wheel+sdist siblings, version-scoped matching, multi-index
+    dedup, cold-cache fallback, and the empty-hashes edge.  End-to-end
+    smoke on `click=*` now emits both wheel and sdist hashes
+    (`sha256:398329ad…` + `sha256:a2bf429b…`) — byte-equal to pip's
+    lockfile.  The legacy
+    `TestTranslateMappingEdges.test_candidate_with_extras_and_multiple_hashes`
+    cache fixture moved from a stub `_wheel_candidate` (single
+    `0*64` hash) to the test's `candidate_with_extras` (two hashes,
+    sha256 a/b) so the semantic shift doesn't drop a real test
+    assertion.  Coverage on `pure_python.py`: 96 % (≥ 90 % gate).
 - **files edited/created**:
+  - `pipenv/resolver/backends/pure_python.py`
+  - `tests/unit/test_pure_python_backend.py`
+  - `initiative-g-phase3b-plan.md`
 
 ---
 
