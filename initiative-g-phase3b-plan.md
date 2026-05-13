@@ -727,9 +727,30 @@ waits on both.
     multiple hashes, cross-index dedup).
   - Coverage gate stays ≥ 90 % on both modules.
 - **validation**: tests pass; coverage gate maintained.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - Audited existing coverage post-T_S5/T_M5: sdist 94 %, backend 96 %.
+    Both already above the 90 % floor; explicit T_S6 deliverables
+    (synthetic sdist build, cache round-trip, build-failure path,
+    hash-collection edges) were already present via earlier waves'
+    test files.
+  - Added four defensive gap-fill tests to
+    `tests/unit/test_pure_python_sdist.py::TestDefensiveBranches`
+    pinning the remaining sdist branches: archive write OSError,
+    tar device-type member rejection, tar symlink traversal,
+    and `_locate_source_root` empty-extraction.
+  - Added three bootstrap-edge tests to
+    `tests/unit/test_pure_python_backend.py::TestBootstrapFromRequest`
+    for the PoolManager fallback and the `PIPENV_CACHE_DIR`
+    env-var path.
+  - Post-gap-fill coverage: sdist 94 → 97 %, backend 96 → 98 %.
+    Remaining missing lines are the py3.10 `tomli` / older
+    `tarfile.extractall` fallbacks plus three marker-translation
+    guards — none of them are sdist or hash-collection code paths.
+  - Full resolver unit suite: 261 passed, zero regressions.
 - **files edited/created**:
+  - `tests/unit/test_pure_python_sdist.py` (extended)
+  - `tests/unit/test_pure_python_backend.py` (extended)
 
 ---
 
