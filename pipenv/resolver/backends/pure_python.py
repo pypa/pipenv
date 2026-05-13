@@ -96,13 +96,22 @@ class PurePythonBackend:
     def __init__(
         self,
         *,
-        cache: Any,
-        fetcher: Any,
-        session: Any,
-        metadata_cache: MetadataCache | Any,
+        cache: Any = None,
+        fetcher: Any = None,
+        session: Any = None,
+        metadata_cache: MetadataCache | Any = None,
         target_env: dict | None = None,
         index_urls: Sequence[str] = ("https://pypi.org/simple",),
     ) -> None:
+        # All collaborators default to ``None`` so the class is
+        # zero-arg-constructible — the Initiative F registry's
+        # :func:`pipenv.resolver.backends.get_backend` helper invokes
+        # ``cls()`` for class-shaped registry entries (see T10).  A
+        # backend created without collaborators answers ``.name`` and
+        # ``.is_available()`` correctly; ``.resolve()`` requires the
+        # dispatcher to inject collaborators (production wiring lives
+        # in the Phase 4 dispatcher work).  Tests pass collaborators
+        # explicitly via keyword args.
         self._cache = cache
         self._fetcher = fetcher
         self._session = session
