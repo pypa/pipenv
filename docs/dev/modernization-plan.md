@@ -1117,9 +1117,80 @@ the design — the four are independent of each other once the
   in this bucket; venv *creation* happens in `routines/`), so no
   split into `Locator` + `Bootstrap` is needed.
 - **validation**: same shape as T_D.3.
-- **status**: Not Completed
+- **status**: Completed (commit `cb349450`).
 - **log**:
+  Third Initiative D extraction. The 13 `VenvLocator`-classified
+  methods + 4 private helpers (`_sanitize`, `_get_virtualenv_hash`,
+  `_pipfile_venv_in_project`, `_which`) moved into a new
+  `pipenv.utils.venv_locator.VenvLocator` class accessed via the
+  `@cached_property` `Project.venv_locator`.
+
+  **Naming-collision resolution: Option B (rename the API surface)**,
+  matching the T_D.2 Sources pattern. The `virtualenv_` prefix on
+  the old `Project` surface drops because the subsystem itself is
+  named `venv_locator`:
+
+  - `project.virtualenv_location` → `project.venv_locator.location`
+  - `project.virtualenv_exists` → `project.venv_locator.exists`
+  - `project.virtualenv_name` → `project.venv_locator.name`
+  - `project.virtualenv_src_location` → `project.venv_locator.src_location`
+  - `project.virtualenv_scripts_location` → `project.venv_locator.scripts_location`
+  - `project.download_location` → `project.venv_locator.download_location`
+  - `project.proper_names_db_path` → `project.venv_locator.proper_names_db_path`
+  - `project.is_venv_in_project()` → `project.venv_locator.is_venv_in_project()`
+  - `project.get_location_for_virtualenv()` → `project.venv_locator.get_location()`
+  - `project.finders` / `.finder` → `project.venv_locator.finders` / `.finder`
+  - `project.which(...)` / `.python(...)` → `project.venv_locator.which(...)` / `.python(...)`
+  - `project._which(...)` → `project.venv_locator._which(...)`
+
+  The three `__init__`-set cache attributes (`_virtualenv_location`,
+  `_download_location`, `_proper_names_db_path`) moved to
+  `VenvLocator` instance state. The `proper_names` and
+  `register_proper_name` methods stayed on `Project` (Pipfile-bucket
+  per T_D.1 inventory) but now read the proper-names DB path through
+  `self.venv_locator.proper_names_db_path`.
+
+  Caller migration in the same PR per T_D.1 §8.4 sign-off — no
+  holding-pattern wrappers. ~38 sites migrated across
+  `pipenv/cli/command.py`, `pipenv/routines/{graph,install,lock,
+  shell,uninstall,update}.py`, `pipenv/utils/{pip,pipfile,project,
+  resolver,shell,virtualenv}.py`, `tests/integration/test_project.py`,
+  and three `tests/unit/` mock-side migrations.
+
+  `pipenv/project.py` shrinks by 245 net lines (1526 → 1281).
+  `VenvLocator` is 431 lines in `pipenv/utils/venv_locator.py`.
+  Module-level imports purged from `project.py`: `base64`, `fnmatch`,
+  `operator`, `re`, `find_windows_executable`, `get_workon_home`,
+  `is_virtual_environment`, `looks_like_dir`, `system_which`,
+  `virtualenv_scripts_dir`.
+
+  Behaviour-preserving: every method's logic is a relocation. Same
+  env-var precedence (`VIRTUAL_ENV` short-circuit, then
+  `PIPENV_VENV_IN_PROJECT`, then Pipfile `[pipenv]` setting, then
+  `.venv` autodetect). Same Pipfile-hash seed in `_get_virtualenv_hash`.
+  Same mkdir-on-access for `src_location` / `download_location` /
+  `proper_names_db_path`.
+
+  17 new tests in `tests/unit/test_venv_locator.py` covering the
+  constructor, the `@cached_property` accessor, env-var-vs-Pipfile
+  precedence for `is_venv_in_project`, the `VIRTUAL_ENV`
+  short-circuit, `location` caching, mkdir-on-access semantics,
+  `PIPENV_CUSTOM_VENV_NAME` / `PIPENV_PYTHON` name hooks, and
+  `which` / `_which` fallback paths. Full unit suite green
+  (677 passed, 9 skipped).
 - **files edited/created**:
+  - `pipenv/utils/venv_locator.py` (new, 431 lines)
+  - `pipenv/project.py` (-245 lines net; 1526 → 1281)
+  - `pipenv/cli/command.py` (6 migration sites)
+  - `pipenv/routines/{graph,install,lock,shell,uninstall,update}.py`
+    (10 migration sites)
+  - `pipenv/utils/{pip,pipfile,project,resolver,shell,virtualenv}.py`
+    (15 migration sites)
+  - `tests/integration/test_project.py` (1 migration site)
+  - `tests/unit/test_credential_safety.py`,
+    `tests/unit/test_install_error_context.py`,
+    `tests/unit/test_utils.py` (mock-side migrations)
+  - `tests/unit/test_venv_locator.py` (new, 17 tests)
 
 #### T_D.5: Extract `Lockfile` subsystem (`Pipfile.lock`-only)
 - **depends_on**: [T_D.4]
@@ -1290,6 +1361,87 @@ the design — the four are independent of each other once the
   - `tests/unit/test_dependencies_bridges.py` (new, 21 tests)
   - `tests/integration/{test_import_requirements,test_requirements,test_lockfile}.py` (test imports)
 
+#### T_E.3: Move predicates and helpers out of `requirementslib.py`
+- **depends_on**: [T_E.2]
+- **location**: `pipenv/utils/requirementslib.py` (source),
+  `pipenv/utils/dependencies.py` (destination), plus caller files
+  `pipenv/utils/{locking,pipfile}.py`, `pipenv/project.py`,
+  `tests/unit/{test_requirementslib,test_utils,test_dependencies_bridges}.py`.
+- **description**:
+  Per T_E.1 sign-off §3: move four single-line/short helpers
+  (`is_vcs`, `add_ssh_scheme_to_git_uri`, `merge_items`,
+  `get_pip_command`) from `requirementslib.py` into `dependencies.py`
+  (canonical home). `merge_items` brings its two private helpers
+  (`_merge_into`, `_new_container_like`) with it. Caller migration
+  in the same PR per the no-shim posture. After this commit
+  `requirementslib.py` contains only the `unpack_url`/`get_http_url`
+  pip-internal fork pair (plus the `VCS_SCHEMES` constant they need);
+  T_E.4 will relocate that pair to a new `pipenv/utils/unpack.py`
+  and delete the empty `requirementslib.py` shell.
+- **validation**: every moved symbol importable from
+  `pipenv.utils.dependencies`; `requirementslib.py` reduced to the
+  two pip-internal forks; unit suite green for the moved-symbol
+  tests; the four removed symbols no longer exist on
+  `pipenv.utils.requirementslib`.
+- **status**: Completed
+- **log**:
+  Four symbols moved (six lines of code including the two private
+  helpers that travel with `merge_items`):
+  - `is_vcs` (~14 lines) — placed alongside `extract_vcs_url` since
+    it shares VCS-URL semantics. Uses the existing `typing.Mapping`
+    import in `dependencies.py` (works with isinstance in Py3.9+);
+    `is_valid_url` newly imported from `.internet`.
+  - `add_ssh_scheme_to_git_uri` (~14 lines) — placed with `is_vcs`
+    (intra-module dependency; the existing cross-module import in
+    `dependencies.py` becomes a local reference).
+  - `merge_items` (~33 lines) + `_merge_into` (~17 lines) +
+    `_new_container_like` (~17 lines) — placed just before
+    `import_requirements` (the next dict-merge-shaped routine).
+  - `get_pip_command` (~9 lines) — placed near `determine_package_name`
+    (its only in-tree caller, intra-module after the move);
+    `InstallCommand` newly imported.
+
+  Caller migrations across 5 files:
+  - `pipenv/utils/locking.py` (folded `is_vcs`, `merge_items` into
+    the existing `from pipenv.utils.dependencies import (...)` block)
+  - `pipenv/utils/pipfile.py` (same — folded into existing
+    `dependencies` import block)
+  - `pipenv/project.py` (one-line late-import edit at
+    `_get_vcs_packages`; narrow scoped to that import line only
+    to avoid T_D.4 conflicts)
+  - `tests/unit/test_requirementslib.py` (docstring + import re-target)
+  - `tests/unit/test_utils.py` (the `test_is_vcs` late import)
+
+  `requirementslib.py` shrank from 275 lines to 144 (-131 lines).
+  After T_E.3 only one importer of `requirementslib` remains in the
+  in-tree codebase (`dependencies.py` for `unpack_url`); T_E.4
+  will close that out.
+
+  10 new tests in `tests/unit/test_dependencies_bridges.py`: 4
+  import-shape pins, 1 sanity check that the old paths are gone,
+  and 5 light behavioural pins (`is_vcs` mapping + string-with-ssh
+  branches, `add_ssh_scheme_to_git_uri` round-trip, `merge_items`
+  recursive last-write-wins + empty-list contract, `get_pip_command`
+  returns a usable `InstallCommand`).
+- **files edited/created**:
+  - `pipenv/utils/dependencies.py` (gains 4 moved symbols + 2
+    private helpers; new `InstallCommand` + `is_valid_url` imports;
+    drops the cross-module `requirementslib` import for the moved
+    symbols)
+  - `pipenv/utils/requirementslib.py` (-131 lines; now 144 lines
+    holding only the `unpack_url`/`get_http_url` fork pair + the
+    `VCS_SCHEMES` constant they need)
+  - `pipenv/utils/{locking,pipfile}.py` (caller imports folded
+    into the existing `dependencies` import block)
+  - `pipenv/project.py` (one-line late-import edit at
+    `_get_vcs_packages`)
+  - `tests/unit/test_dependencies_bridges.py` (extended with 10
+    T_E.3 tests; module docstring updated)
+  - `tests/unit/test_requirementslib.py` (docstring + import
+    re-target to the new location)
+  - `tests/unit/test_utils.py` (one-line late-import edit in
+    `test_is_vcs`)
+
 #### T_F.1: Document current subprocess resolver protocol
 - **depends_on**: [T_E.1]  (gated on E's design so we know what data
   shape will cross the boundary)
@@ -1336,6 +1488,66 @@ the design — the four are independent of each other once the
 - **files edited/created**:
   - `docs/dev/initiative-f-protocol.md` (new, 588 lines)
 
+#### T_F.2: Typed resolver subprocess protocol — design (sign-off gate)
+- **depends_on**: [T_F.1]
+- **location**: `docs/dev/initiative-f-typed-design.md` (new, permanent
+  until superseded by T_F.3 execution).
+- **description**:
+  Design-only proposal for the typed `ResolverRequest` /
+  `ResolverResponse` pair that T_F.3 will introduce. Resolves the 11
+  decisions deferred to T_F.2 by F.1 §9, picks the canonical
+  replacement for the two competing requirement formatters
+  (`Entry.get_cleaned_dict` and `format_requirement_for_lockfile` — a
+  third unified `LockedRequirement.from_install_requirement`
+  constructor that lives in the schema module), specifies the
+  one-shot migration (no backwards-compat shim, per T_C.3 §9 / T_E.1
+  §6), and surfaces 10 numbered open questions for the maintainer.
+- **validation**: Doc-only PR; `python -c "import ast;
+  ast.parse(open('pipenv/resolver.py').read())"` still works because
+  no production code was touched. Doc is 400–800 lines and follows
+  the T_C.3 / T_E.1 sign-off addendum shape.
+- **status**: Completed (commit 921212e5); **awaits maintainer
+  sign-off** before T_F.3 execution begins.
+- **log**:
+  719-line design doc covering envelope, discriminator, canonical
+  formatter, migration path, resolution of F.1's 11 deferred
+  decisions, test plan, and 10 sign-off questions.
+
+  Headline decisions proposed:
+  - Stdlib `@dataclass(frozen=True)` only — no new vendored
+    dependencies (no pydantic, no msgspec, no attrs).
+  - `schema_version: int = 1` as the first field on both envelopes;
+    mismatch is a hard reject (structured `InternalError` response +
+    exit non-zero).
+  - Discriminated `ResolverSuccess | ResolutionError | InternalError`
+    union written to `--response-file` on exit 0; non-zero exit
+    reserved for genuine subprocess crashes.
+  - Single `--request-file <path>` tempfile carries all input;
+    `--pre`, `--clear`, `--system`, `--verbose`, `--category`,
+    `--constraints-file`, `--resolved-default-deps-file`,
+    `--parse-only`, `--pipenv-site`, positional `packages`, and the
+    `which()` stub all deleted in T_F.3.
+  - `PIPENV_RESOLVER_PYTHON_VERSION`, `PIPENV_EXTRA_PIP_ARGS`,
+    `PIPENV_SITE_DIR` env-var hops fold into typed request fields.
+  - Two output formatters collapse into one new
+    `LockedRequirement.from_install_requirement` constructor;
+    both `Entry.get_cleaned_dict` and `format_requirement_for_lockfile`
+    are deleted.
+  - In-process branch (`PIPENV_RESOLVER_PARENT_PYTHON=1`) preserved
+    untouched in T_F.3; fold deferred to T_F.4 / T_F.5.
+  - Wall-clock timeout reserved on schema (`deadline_seconds`) but
+    not enforced in T_F.3.
+
+  Open questions for sign-off (10): schema module home (resolver-as-
+  package vs. utils file); schema-version-mismatch behaviour;
+  `to_lockfile_dict` return type; news-fragment policy; `no_binary`
+  field vs. recompute; whether T_F.3 also folds the in-process
+  branch; constraints comma-escape regression test; schema-version
+  bump policy on additive fields; `Diagnostics.resolver_log` vs.
+  stderr; one or two tempfiles.
+- **files edited/created**:
+  - `docs/dev/initiative-f-typed-design.md` (new, 719 lines)
+
 ---
 
 ## Parallel Execution Groups
@@ -1360,6 +1572,7 @@ the design — the four are independent of each other once the
 | 3-poc  | T_D.2 | T_D.1 complete |
 | 3-seed | T_E.1 | T_B.7 complete |
 | 4-seed | T_F.1 | T_E.1 complete |
+| 4-design | T_F.2 | T_F.1 complete (design only; awaits sign-off) |
 
 **Maximum parallelism at any moment** is bounded by review bandwidth, not
 by the graph. The graph allows ~5 tasks to run concurrently in the early

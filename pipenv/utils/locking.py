@@ -17,6 +17,8 @@ from pipenv.utils.dependencies import (
     determine_vcs_revision_hash,
     expansive_install_req_from_line,
     is_editable,
+    is_vcs,
+    merge_items,
     normalize_vcs_url,
     pep423_name,
     translate_markers,
@@ -27,7 +29,6 @@ from pipenv.utils.exceptions import (
     PipfileNotFound,
 )
 from pipenv.utils.pipfile import DEFAULT_NEWLINES, ProjectFile
-from pipenv.utils.requirementslib import is_vcs, merge_items
 from pipenv.vendor.plette import lockfiles
 
 

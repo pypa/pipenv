@@ -8,10 +8,14 @@ from typing import Any, Dict, List, Optional
 
 from pipenv import environments
 from pipenv.utils import console, err
-from pipenv.utils.dependencies import import_requirements, is_editable
+from pipenv.utils.dependencies import (
+    import_requirements,
+    is_editable,
+    is_vcs,
+    merge_items,
+)
 from pipenv.utils.internet import get_url_name
 from pipenv.utils.markers import RequirementError
-from pipenv.utils.requirementslib import is_vcs, merge_items
 from pipenv.utils.toml import tomlkit_value_to_python
 from pipenv.vendor import tomlkit
 from pipenv.vendor.plette import pipfiles
@@ -78,7 +82,7 @@ def ensure_pipfile(
 
     # Assert Pipfile exists.
     python = (
-        project._which("python")
+        project.venv_locator._which("python")
         if not (project.s.USING_DEFAULT_PYTHON or system)
         else None
     )
@@ -119,7 +123,7 @@ def ensure_pipfile(
             # Create the pipfile if it doesn't exist.
             project.create_pipfile(python=python)
     # Validate the Pipfile's contents.
-    if validate and project.virtualenv_exists and not project.s.PIPENV_SKIP_VALIDATION:
+    if validate and project.venv_locator.exists and not project.s.PIPENV_SKIP_VALIDATION:
         # Ensure that Pipfile is using proper casing.
         p = project.parsed_pipfile
         changed = project.ensure_proper_casing()

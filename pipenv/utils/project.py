@@ -66,7 +66,7 @@ def ensure_project(
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     # Automatically use an activated virtualenv.
-    if project.s.PIPENV_USE_SYSTEM or project.virtualenv_exists:
+    if project.s.PIPENV_USE_SYSTEM or project.venv_locator.exists:
         system_or_exists = True
     else:
         system_or_exists = system  # default to False
@@ -94,12 +94,12 @@ def ensure_project(
     # Python version, allow ensure_virtualenv to handle recreation.
     if (
         python
-        and project.virtualenv_exists
+        and project.venv_locator.exists
         and not system
         and not project.s.PIPENV_USE_SYSTEM
     ):
         try:
-            venv_python_path = project._which("python") or project._which("py")
+            venv_python_path = project.venv_locator._which("python") or project.venv_locator._which("py")
             if venv_python_path:
                 venv_python_ver = python_version(str(venv_python_path))
                 if os.path.isabs(python):
@@ -143,7 +143,7 @@ def ensure_project(
 
                 path_to_python = system_which("python3") or system_which("python")
         else:
-            path_to_python = project._which("python") or project._which("py")
+            path_to_python = project.venv_locator._which("python") or project.venv_locator._which("py")
 
         if path_to_python and not _python_version_matches_required(
             python_version(path_to_python) or "", project.required_python_version
@@ -174,4 +174,4 @@ def ensure_project(
             system=system,
             pipfile_categories=pipfile_categories,
         )
-    os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
+    os.environ["PIP_PYTHON_PATH"] = project.venv_locator.python(system=system)

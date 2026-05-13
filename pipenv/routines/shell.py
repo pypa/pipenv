@@ -33,7 +33,7 @@ def do_shell(
         err.print("Launching subshell in virtual environment...")
 
     fork_args = (
-        project.virtualenv_location,
+        project.venv_locator.location,
         project.project_directory,
         shell_args,
     )
@@ -96,9 +96,9 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
 
     path = env.get("PATH", "")
     # Only modify PATH for virtualenv if not using --system
-    if not system and project.virtualenv_location:
-        # Get the exact string representation of virtualenv_location
-        virtualenv_location = str(project.virtualenv_location)
+    if not system and project.venv_locator.location:
+        # Get the exact string representation of venv_locator.location
+        virtualenv_location = str(project.venv_locator.location)
 
         new_path = str(virtualenv_scripts_dir(virtualenv_location))
 

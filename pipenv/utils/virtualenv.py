@@ -149,15 +149,16 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         raise exceptions.VirtualenvCreationException(extra=f"[red]{error}[/red]")
 
     # Associate project directory with the environment.
-    virtualenv_path = Path(project.virtualenv_location)
+    virtualenv_path = Path(project.venv_locator.location)
     project_file_path = virtualenv_path / ".project"
     project_file_path.write_text(project.project_directory)
 
     from pipenv.environment import Environment
 
     sources = project.sources.pipfile_sources()
-    # project.get_location_for_virtualenv is only for if we are creating a new virtualenv
-    # whereas virtualenv_location is for the current path to the runtime
+    # project.venv_locator.get_location is only for if we are creating a new
+    # virtualenv whereas venv_locator.location is for the current path to the
+    # runtime.
     project._environment = Environment(
         prefix=str(virtualenv_path),
         is_venv=True,
@@ -179,7 +180,7 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
         cmd.append(f"--creator={project.s.PIPENV_VIRTUALENV_CREATOR}")
     cmd.append(f"--prompt={project.name}")
     cmd.append(f"--python={python}")
-    cmd.append(project.get_location_for_virtualenv())
+    cmd.append(project.venv_locator.get_location())
     if project.s.PIPENV_VIRTUALENV_COPIES:
         cmd.append("--copies")
 
@@ -207,7 +208,7 @@ def _create_builtin_venv_cmd(project, python, site_packages=False):
     ]
     if site_packages:
         cmd.append("--system-site-packages")
-    cmd.append(project.get_location_for_virtualenv())
+    cmd.append(project.venv_locator.get_location())
     return cmd
 
 
@@ -219,7 +220,7 @@ def ensure_virtualenv(project, python=None, site_packages=None, pypi_mirror=None
     if project.s.PIPENV_USE_SYSTEM:
         return
 
-    if not project.virtualenv_exists:
+    if not project.venv_locator.exists:
         try:
             # Ensure environment variables are set properly.
             ensure_environment()
@@ -280,10 +281,10 @@ def cleanup_virtualenv(project, bare=True):
         console.print("[red]Environment creation aborted.[/red]")
     try:
         # Delete the virtualenv.
-        shutil.rmtree(project.virtualenv_location)
+        shutil.rmtree(project.venv_locator.location)
     except OSError as e:
         err.print(
-            f"[bold][red]Error:[/red][/bold] An error occurred while removing [green]{project.virtualenv_location}[/green]!"
+            f"[bold][red]Error:[/red][/bold] An error occurred while removing [green]{project.venv_locator.location}[/green]!"
         )
         err.print(f"[cyan]{e}[/cyan]")
 
@@ -630,7 +631,7 @@ def do_where(project, virtualenv=False, bare=True):
         else:
             console.print(project.project_directory)
     else:
-        location = project.virtualenv_location
+        location = project.venv_locator.location
         if not bare:
             _width = err.width
             err.width = 1000
@@ -641,7 +642,7 @@ def do_where(project, virtualenv=False, bare=True):
 
 
 def inline_activate_virtual_environment(project):
-    root = project.virtualenv_location
+    root = project.venv_locator.location
     virtualenv_path = Path(root)
 
     if (virtualenv_path / "pyvenv.cfg").exists():
@@ -661,7 +662,7 @@ def _inline_activate_venv(project):
 
     See: https://bugs.python.org/issue21496#msg218455
     """
-    virtualenv_path = Path(project.virtualenv_location)
+    virtualenv_path = Path(project.venv_locator.location)
     components = []
 
     for name in ("bin", "Scripts"):
@@ -677,7 +678,7 @@ def _inline_activate_venv(project):
 
 def _inline_activate_virtualenv(project):
     try:
-        activate_this = project._which("activate_this.py")
+        activate_this = project.venv_locator._which("activate_this.py")
         activate_path = Path(activate_this) if activate_this else None
 
         if not activate_path or not activate_path.exists():

@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-import base64
-import fnmatch
 import hashlib
 import json
-import operator
 import os
-import re
 import sys
 
 from functools import cached_property
@@ -56,16 +52,11 @@ from pipenv.utils.pylock import PylockFile, find_pylock_file
 from pipenv.utils.shell import (
     expand_url_credentials,
     find_requirements,
-    find_windows_executable,
-    get_workon_home,
-    is_virtual_environment,
-    looks_like_dir,
-    system_which,
 )
 from pipenv.utils.settings import Settings
 from pipenv.utils.sources import Sources
 from pipenv.utils.toml import cleanup_toml, convert_toml_outline_tables
-from pipenv.utils.virtualenv import virtualenv_scripts_dir
+from pipenv.utils.venv_locator import VenvLocator
 from pipenv.vendor import plette, tomlkit
 
 if is_type_checking():
@@ -199,9 +190,9 @@ class Project:
 
     def __init__(self, python_version=None, chdir=True):
         self._name = None
-        self._virtualenv_location = None
-        self._download_location = None
-        self._proper_names_db_path = None
+        # The venv-location / download-dir / proper-names-db caches moved
+        # to :class:`pipenv.utils.venv_locator.VenvLocator` in T_D.4.
+        # Access them via ``project.venv_locator``.
         self._pipfile_location = None
         self._pipfile_newlines = DEFAULT_NEWLINES
         self._parsed_pipfile_cache = None
@@ -321,87 +312,6 @@ class Project:
     def requirements_exists(self) -> bool:
         return bool(self.requirements_location)
 
-    def _pipfile_venv_in_project(self) -> bool | None:
-        """Check the [pipenv] section of the Pipfile for venv_in_project setting.
-
-        Returns True/False if explicitly set, None if not set.
-        """
-        if self.pipfile_exists:
-            value = self.parsed_pipfile.get("pipenv", {}).get("venv_in_project")
-            if value is not None:
-                return bool(value)
-        return None
-
-    def is_venv_in_project(self) -> bool:
-        # Environment variable takes precedence over Pipfile setting.
-        if self.s.PIPENV_VENV_IN_PROJECT is False:
-            return False
-        if self.s.PIPENV_VENV_IN_PROJECT is True:
-            return True
-        # If env var is not set, check Pipfile [pipenv] section.
-        pipfile_setting = self._pipfile_venv_in_project()
-        if pipfile_setting is not None:
-            return pipfile_setting
-        # Fall back to auto-detection of .venv directory.
-        return bool(self.project_directory and Path(self.project_directory, ".venv").is_dir())
-
-    @property
-    def virtualenv_exists(self) -> bool:
-        venv_path = Path(self.virtualenv_location)
-
-        scripts_dir = self.virtualenv_scripts_location
-
-        if venv_path.exists():
-            # existence of active.bat is dependent on the platform path prefix
-            # scheme, not platform itself. This handles special cases such as
-            # Cygwin/MinGW identifying as 'nt' platform, yet preferring a
-            # 'posix' path prefix scheme.
-            if scripts_dir.name == "Scripts":
-                activate_path = scripts_dir / "activate.bat"
-            else:
-                activate_path = scripts_dir / "activate"
-            return activate_path.is_file()
-
-        return False
-
-    def get_location_for_virtualenv(self) -> Path:
-        # If there's no project yet, set location based on config.
-        if not self.project_directory:
-            if self.is_venv_in_project():
-                return Path(".venv").absolute()
-            return get_workon_home().joinpath(self.virtualenv_name)
-
-        dot_venv = Path(self.project_directory) / ".venv"
-
-        # If there's no .venv in project root or it is a folder, set location based on config.
-        if not dot_venv.exists() or dot_venv.is_dir():
-            if self.is_venv_in_project():
-                # When PIPENV_VENV_IN_PROJECT is not explicitly set, the .venv dir
-                # was detected automatically. If a pipenv-managed virtualenv already
-                # exists in WORKON_HOME (e.g. created before the user independently
-                # ran `python -m venv .venv`), prefer that one so that `pipenv --rm`
-                # does not accidentally remove the user-created .venv directory.
-                if not self.s.PIPENV_VENV_IN_PROJECT and not self._pipfile_venv_in_project():
-                    workon_home_venv = get_workon_home() / self.virtualenv_name
-                    if workon_home_venv.exists():
-                        return workon_home_venv
-                return dot_venv
-            return get_workon_home().joinpath(self.virtualenv_name)
-
-        # Now we assume .venv in project root is a file. Use its content.
-        name = dot_venv.read_text().strip()
-
-        # If .venv file is empty, set location based on config.
-        if not name:
-            return get_workon_home().joinpath(self.virtualenv_name)
-
-        # If content looks like a path, use it as a relative path.
-        # Otherwise, use directory named after content in WORKON_HOME.
-        if looks_like_dir(name):
-            path = Path(self.project_directory) / name
-            return path.absolute()
-        return get_workon_home().joinpath(name)
-
     @property
     def installed_packages(self):
         return self.environment.get_installed_packages()
@@ -439,7 +349,7 @@ class Project:
             prefix = sys.prefix
             python = sys.executable
         else:
-            prefix = self.virtualenv_location
+            prefix = self.venv_locator.location
             python = None
         sources = self.sources.all if self.sources.all else [self.default_source]
         environment = Environment(
@@ -459,129 +369,31 @@ class Project:
             self._environment = self.get_environment(allow_global=allow_global)
         return self._environment
 
-    @classmethod
-    def _sanitize(cls, name: str) -> tuple[str, str]:
-        # Replace dangerous characters into '_'. The length of the sanitized
-        # project name is limited as 42 because of the limit of linux kernel
-        #
-        # 42 = 127 - len('/home//.local/share/virtualenvs//bin/python2') - 32 - len('-HASHHASH')
-        #
-        #      127 : BINPRM_BUF_SIZE - 1
-        #       32 : Maximum length of username
-        #
-        # References:
-        #   https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html
-        #   http://www.tldp.org/LDP/abs/html/special-chars.html#FIELDREF
-        #   https://github.com/torvalds/linux/blob/2bfe01ef/include/uapi/linux/binfmts.h#L18
-        return re.sub(r'[ &$`!*@"()\[\]\\\r\n\t]', "_", name)[0:42]
+    @cached_property
+    def venv_locator(self) -> VenvLocator:
+        """The ``VenvLocator`` subsystem (Initiative D, T_D.4).
 
-    def _get_virtualenv_hash(self, name: str) -> str:
-        """Get the name of the virtualenv adjusted for windows if needed
+        Access venv-related operations through this accessor — e.g.
+        ``project.venv_locator.location`` (was ``virtualenv_location``),
+        ``project.venv_locator.exists`` (was ``virtualenv_exists``),
+        ``project.venv_locator.is_venv_in_project()``,
+        ``project.venv_locator.which("python")``,
+        ``project.venv_locator.python()``, etc.
 
-        Returns (name, encoded_hash)
+        Per the T_D.1 inventory the bucket is read-only against the venv
+        (creation lives in ``pipenv/utils/virtualenv.py``); no writers
+        live here. See ``docs/dev/initiative-d-inventory.md``.
         """
-
-        def get_name(name, location):
-            name = self._sanitize(name)
-            hash = hashlib.sha256(location.encode()).digest()[:6]
-            encoded_hash = base64.urlsafe_b64encode(hash).decode()
-            return name, encoded_hash[:8]
-
-        clean_name, encoded_hash = get_name(name, self.pipfile_location)
-        venv_name = f"{clean_name}-{encoded_hash}"
-
-        # This should work most of the time for
-        #   Case-sensitive filesystems,
-        #   In-project venv
-        #   "Proper" path casing (on non-case-sensitive filesystems).
-        if not fnmatch.fnmatch("A", "a") or self.is_venv_in_project() or get_workon_home().joinpath(venv_name).exists():
-            return clean_name, encoded_hash
-
-        # Check for different capitalization of the same project.
-        for path in get_workon_home().iterdir():
-            if not is_virtual_environment(path):
-                continue
-            try:
-                env_name, hash_ = path.name.rsplit("-", 1)
-            except ValueError:
-                continue
-            if len(hash_) != 8 or env_name.lower() != name.lower():
-                continue
-            return get_name(env_name, self.pipfile_location.replace(name, env_name))
-
-        # Use the default if no matching env exists.
-        return clean_name, encoded_hash
+        return VenvLocator(self)
 
     @property
-    def virtualenv_name(self) -> str:
-        custom_name = self.s.PIPENV_CUSTOM_VENV_NAME
-        if custom_name:
-            return custom_name
-        sanitized, encoded_hash = self._get_virtualenv_hash(self.name)
-        suffix = ""
-        if self.s.PIPENV_PYTHON:
-            if Path(self.s.PIPENV_PYTHON).is_absolute():
-                suffix = f"-{Path(self.s.PIPENV_PYTHON).name}"
-            else:
-                suffix = f"-{self.s.PIPENV_PYTHON}"
-
-        # If the pipfile was located at '/home/user/MY_PROJECT/Pipfile',
-        # the name of its virtualenv will be 'my-project-wyUfYPqE'
-        return sanitized + "-" + encoded_hash + suffix
-
-    @property
-    def virtualenv_location(self) -> str:
-        # if VIRTUAL_ENV is set, use that.
-        virtualenv_env = os.getenv("VIRTUAL_ENV")
-        if "PIPENV_ACTIVE" not in os.environ and not self.s.PIPENV_IGNORE_VIRTUALENVS and virtualenv_env:
-            return Path(virtualenv_env)
-
-        if not self._virtualenv_location:  # Use cached version, if available.
-            if not self.project_directory:
-                raise RuntimeError("Project location not created nor specified")
-            location = self.get_location_for_virtualenv()
-            self._virtualenv_location = Path(location)
-        return self._virtualenv_location
-
-    @property
-    def virtualenv_src_location(self) -> Path:
-        if self.virtualenv_location:
-            loc = Path(self.virtualenv_location) / "src"
-        else:
-            loc = Path(self.project_directory) / "src"
-        loc.mkdir(parents=True, exist_ok=True)
-        return loc
-
-    @property
-    def virtualenv_scripts_location(self) -> Path:
-        return virtualenv_scripts_dir(self.virtualenv_location)
-
-    @property
-    def download_location(self) -> Path:
-        if self._download_location is None:
-            loc = Path(self.virtualenv_location) / "downloads"
-            self._download_location = loc
-        # Create the directory, if it doesn't exist.
-        self._download_location.mkdir(parents=True, exist_ok=True)
-        return self._download_location
-
-    @property
-    def proper_names_db_path(self) -> str:
-        if self._proper_names_db_path is None:
-            self._proper_names_db_path = Path(self.virtualenv_location, "pipenv-proper-names.txt")
-        # Ensure the parent directory exists before touching the file
-        self._proper_names_db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._proper_names_db_path.touch()  # Ensure the file exists.
-        return self._proper_names_db_path
-
-    @property
-    def proper_names(self) -> str:
-        with self.proper_names_db_path.open() as f:
+    def proper_names(self) -> list[str]:
+        with self.venv_locator.proper_names_db_path.open() as f:
             return f.read().splitlines()
 
     def register_proper_name(self, name: str) -> None:
         """Registers a proper name to the database."""
-        with self.proper_names_db_path.open("a") as f:
+        with self.venv_locator.proper_names_db_path.open("a") as f:
             f.write(f"{name}\n")
 
     @property
@@ -789,7 +601,7 @@ class Project:
         return packages
 
     def _get_vcs_packages(self, dev=False):
-        from pipenv.utils.requirementslib import is_vcs
+        from pipenv.utils.dependencies import is_vcs
 
         section = "dev-packages" if dev else "packages"
         packages = {k: v for k, v in self.parsed_pipfile.get(section, {}).items() if is_vcs(v) or is_vcs(k)}
@@ -855,10 +667,10 @@ class Project:
             # find_all_python_versions() chose).  That disagreement causes a
             # spurious "Pipfile requires X but you are using Y" warning on
             # every subsequent pipenv invocation.  See GH-6571.
-            if self.virtualenv_exists:
-                required_python = self._which("python") or self.which("python")
+            if self.venv_locator.exists:
+                required_python = self.venv_locator._which("python") or self.venv_locator.which("python")
             else:
-                required_python = self.which("python")
+                required_python = self.venv_locator.which("python")
         version = python_version(required_python) or self.s.PIPENV_DEFAULT_PYTHON_VERSION
         if version:
             data["requires"] = {"python_version": ".".join(version.split(".")[:2])}
@@ -1464,63 +1276,6 @@ class Project:
         # Return whether or not values have been changed.
         return changed_values
 
-    @cached_property
-    def finders(self):
-        from .vendor.pythonfinder import Finder
-
-        finders = [Finder(path=str(self.virtualenv_scripts_location), global_search=gs, system=False) for gs in (False, True)]
-        return finders
-
-    @property
-    def finder(self):
-        return next(iter(self.finders), None)
-
-    def which(self, search):
-        find = operator.methodcaller("which", search)
-        result = next(iter(filter(None, (find(finder) for finder in self.finders))), None)
-        if not result:
-            result = self._which(search)
-        return result
-
-    def python(self, system=False) -> str:
-        """Path to the project python"""
-        from pipenv.utils.shell import project_python
-
-        return project_python(self, system=system)
-
-    def _which(self, command, location=None, allow_global=False):
-        if not allow_global and location is None:
-            if self.virtualenv_exists:
-                location = self.virtualenv_location
-            else:
-                location = os.environ.get("VIRTUAL_ENV", None)
-
-        location_path = Path(location) if location else None
-
-        if not (location_path and location_path.exists()) and not allow_global:
-            raise RuntimeError("location not created nor specified")
-
-        version_str = f"python{'.'.join([str(v) for v in sys.version_info[:2]])}"
-        is_python = command in ("python", Path(sys.executable).name, version_str)
-
-        if not allow_global:
-            scripts_location = virtualenv_scripts_dir(location_path)
-
-            if os.name == "nt":
-                p = find_windows_executable(str(scripts_location), command)
-                # Convert to Path object if it's a string
-                p = Path(p) if isinstance(p, str) else p
-            else:
-                p = scripts_location / command
-        elif is_python:
-            p = Path(sys.executable)
-        else:
-            p = None
-
-        if p is None or not p.exists():
-            if is_python:
-                p = Path(sys.executable) if sys.executable else Path(system_which("python"))
-            else:
-                p = Path(system_which(command)) if system_which(command) else None
-
-        return p
+    # ``finders``, ``finder``, ``which``, ``python`` and ``_which`` were
+    # extracted into :class:`pipenv.utils.venv_locator.VenvLocator` in
+    # T_D.4. Access them via ``project.venv_locator``.

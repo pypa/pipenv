@@ -36,7 +36,7 @@ LOCK_DEV_NOTE = """\
 
 
 def do_py(project, system=False, bare=False):
-    if not project.virtualenv_exists:
+    if not project.venv_locator.exists:
         err.print(
             "[red]No virtualenv has been created for this project[/red] "
             f"[yellow bold]{project.project_directory}[/yellow bold] "
@@ -45,7 +45,7 @@ def do_py(project, system=False, bare=False):
         sys.exit(1)
 
     try:
-        (print if bare else console.print)(project._which("python", allow_global=system))
+        (print if bare else console.print)(project.venv_locator._which("python", allow_global=system))
     except AttributeError:
         console.print("No project found!", style="red")
         sys.exit(1)
@@ -102,8 +102,8 @@ def cmd_remove(args, state):
             style="red",
         )
         sys.exit(1)
-    if state.project.virtualenv_exists:
-        loc = state.project.virtualenv_location
+    if state.project.venv_locator.exists:
+        loc = state.project.venv_locator.location
         console.print(f"[bold]Removing virtualenv[/bold] ([green]{loc}[/green])...")
         with console.status("Running..."):
             cleanup_virtualenv(state.project, bare=True)
@@ -251,7 +251,7 @@ def cmd_activate(args, state):
         pypi_mirror=state.pypi_mirror,
     )
 
-    if not state.project.virtualenv_exists:
+    if not state.project.venv_locator.exists:
         err.print(
             "No virtualenv has been created for this project yet!\n"
             "Run [green bold]pipenv install[/green bold] to create one.",
@@ -268,7 +268,7 @@ def cmd_activate(args, state):
         )
         sys.exit(1)
 
-    venv_path = state.project.virtualenv_location
+    venv_path = state.project.venv_locator.location
     activate_cmd = _get_activate_script(shell_cmd, venv_path)
     print(activate_cmd.strip())
 
@@ -413,7 +413,7 @@ def cmd_open(args, state):
     )
     c = subprocess_run(
         [
-            state.project._which("python"),
+            state.project.venv_locator._which("python"),
             "-c",
             f"import {args.module}; print({args.module}.__file__)",
         ]
@@ -770,14 +770,14 @@ def cli():
             return 0
 
         if args.venv:
-            if not state.project.virtualenv_exists:
+            if not state.project.venv_locator.exists:
                 err.print(
                     "[red]No virtualenv has been created for this project[/red]"
                     f"[bold]{state.project.project_directory}[/bold]"
                     " [red]yet![/red]"
                 )
                 sys.exit(1)
-            print(state.project.virtualenv_location)
+            print(state.project.venv_locator.location)
             return 0
 
         if args.rm:

@@ -112,7 +112,7 @@ def do_lock(project, ctx: RoutineContext):
             # Mutates the lockfile
             venv_resolve_deps(
                 packages,
-                which=project._which,
+                which=project.venv_locator._which,
                 project=project,
                 pipfile_category=pipfile_category,
                 clear=clear,

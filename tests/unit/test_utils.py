@@ -282,7 +282,7 @@ class TestUtils:
     )
     @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
-        from pipenv.utils.requirementslib import is_vcs
+        from pipenv.utils.dependencies import is_vcs
 
         assert is_vcs(entry) is expected
 
@@ -890,12 +890,12 @@ class TestEnsureProjectPythonVersionMismatch:
         project = mock.MagicMock()
         project.s.PIPENV_USE_SYSTEM = False
         project.s.PIPENV_YES = False
-        project.virtualenv_exists = True
+        project.venv_locator.exists = True
         project.pipfile_exists = True
         # required_python_version=None skips the version warning block
         project.required_python_version = None
-        # python() must return a str for os.environ assignment
-        project.python.return_value = "/usr/bin/python3"
+        # venv_locator.python() must return a str for os.environ assignment
+        project.venv_locator.python.return_value = "/usr/bin/python3"
         return project
 
     @pytest.mark.utils
@@ -903,7 +903,7 @@ class TestEnsureProjectPythonVersionMismatch:
         """When --python 3.12 is given but the venv uses 3.10, ensure_virtualenv
         should be called so the venv is recreated."""
         project = self._make_project(monkeypatch)
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
 
         monkeypatch.setattr(
             "pipenv.utils.project.python_version",
@@ -936,7 +936,7 @@ class TestEnsureProjectPythonVersionMismatch:
         """When --python 3.10 is given and the venv already uses 3.10, ensure_virtualenv
         should NOT be called (no recreation needed)."""
         project = self._make_project(monkeypatch)
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
 
         monkeypatch.setattr(
             "pipenv.utils.project.python_version",
@@ -1058,11 +1058,12 @@ class TestPipfileVenvInProject:
         project.pipfile_exists = True
         project.project_directory = str(tmp_path)
 
-        # Bind real methods to the mock
-        from pipenv.project import Project
+        # Bind a real VenvLocator (T_D.4) over the mock project so the
+        # is_venv_in_project / _pipfile_venv_in_project methods exercise
+        # the real precedence logic.
+        from pipenv.utils.venv_locator import VenvLocator
 
-        project._pipfile_venv_in_project = Project._pipfile_venv_in_project.__get__(project)
-        project.is_venv_in_project = Project.is_venv_in_project.__get__(project)
+        project.venv_locator = VenvLocator(project)
 
         return project
 
@@ -1071,37 +1072,37 @@ class TestPipfileVenvInProject:
         """When [pipenv] venv_in_project = true in Pipfile, is_venv_in_project returns True."""
         pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
-        assert project._pipfile_venv_in_project() is True
-        assert project.is_venv_in_project() is True
+        assert project.venv_locator._pipfile_venv_in_project() is True
+        assert project.venv_locator.is_venv_in_project() is True
 
     @pytest.mark.utils
     def test_pipfile_venv_in_project_false(self, tmp_path, monkeypatch):
         """When [pipenv] venv_in_project = false in Pipfile, is_venv_in_project returns False."""
         pipfile = '[pipenv]\nvenv_in_project = false\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
-        assert project._pipfile_venv_in_project() is False
-        assert project.is_venv_in_project() is False
+        assert project.venv_locator._pipfile_venv_in_project() is False
+        assert project.venv_locator.is_venv_in_project() is False
 
     @pytest.mark.utils
     def test_pipfile_venv_in_project_not_set(self, tmp_path, monkeypatch):
         """When [pipenv] section has no venv_in_project, _pipfile_venv_in_project returns None."""
         pipfile = '[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
-        assert project._pipfile_venv_in_project() is None
+        assert project.venv_locator._pipfile_venv_in_project() is None
 
     @pytest.mark.utils
     def test_env_var_true_overrides_pipfile_false(self, tmp_path, monkeypatch):
         """Environment variable PIPENV_VENV_IN_PROJECT=1 overrides Pipfile venv_in_project=false."""
         pipfile = '[pipenv]\nvenv_in_project = false\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=True)
-        assert project.is_venv_in_project() is True
+        assert project.venv_locator.is_venv_in_project() is True
 
     @pytest.mark.utils
     def test_env_var_false_overrides_pipfile_true(self, tmp_path, monkeypatch):
         """Environment variable PIPENV_VENV_IN_PROJECT=0 overrides Pipfile venv_in_project=true."""
         pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=False)
-        assert project.is_venv_in_project() is False
+        assert project.venv_locator.is_venv_in_project() is False
 
 
 
@@ -1628,9 +1629,9 @@ class TestCreatePipfileVersionConsistency:
         """Return a (mock_project, fake_python_version_fn) pair.
 
         mock_project has:
-        * ``_which("python")`` → venv interpreter path
-        * ``which("python")`` → PATH/pyenv-shim interpreter path
-        * ``virtualenv_exists`` set to True by default (tests can override)
+        * ``venv_locator._which("python")`` → venv interpreter path
+        * ``venv_locator.which("python")`` → PATH/pyenv-shim interpreter path
+        * ``venv_locator.exists`` set to True by default (tests can override)
 
         fake_python_version_fn maps each path to its version string.
         """
@@ -1644,9 +1645,9 @@ class TestCreatePipfileVersionConsistency:
 
         project = MagicMock()
         project.s = settings
-        project._which.return_value = venv_python_path
-        project.which.return_value = global_python_path
-        project.virtualenv_exists = True
+        project.venv_locator._which.return_value = venv_python_path
+        project.venv_locator.which.return_value = global_python_path
+        project.venv_locator.exists = True
         project.default_source = {
             "url": "https://pypi.org/simple",
             "verify_ssl": True,
@@ -1703,7 +1704,7 @@ class TestCreatePipfileVersionConsistency:
     def test_no_venv_falls_back_to_which(self, tmp_path):
         """When no venv exists, which('python') is used as the pre-fix fallback."""
         project, fake_pv = self._make_project(tmp_path, "3.14.3", "3.13.12")
-        project.virtualenv_exists = False  # No venv yet.
+        project.venv_locator.exists = False  # No venv yet.
 
         written_data = self._call_create_pipfile(project, python=None, fake_pv=fake_pv)
 
@@ -1853,7 +1854,7 @@ class TestCreateBuiltinVenvCmd:
         project.s.PIPENV_VIRTUALENV_CREATOR = ""
         project.s.PIPENV_VIRTUALENV_COPIES = False
         venv_dest = str(tmp_path / "myproject-venv")
-        project.get_location_for_virtualenv.return_value = venv_dest
+        project.venv_locator.get_location.return_value = venv_dest
         return project, venv_dest
 
     @pytest.mark.utils
@@ -1921,9 +1922,9 @@ class TestDoCreateVirtualenvFallback:
         project = mock.MagicMock()
         project.name = "myproject"
         project.pipfile_location = str(tmp_path / "Pipfile")
-        project.virtualenv_location = str(tmp_path / "venv")
+        project.venv_locator.location = str(tmp_path / "venv")
         project.project_directory = str(tmp_path)
-        project.get_location_for_virtualenv.return_value = str(tmp_path / "venv")
+        project.venv_locator.get_location.return_value = str(tmp_path / "venv")
         project.pipfile_sources.return_value = []
         project.parsed_pipfile = {}
         project.s.PIPENV_SPINNER = "dots"
@@ -2261,6 +2262,34 @@ def test_expand_url_credentials_unset_var_left_unchanged():
 
 
 @pytest.mark.utils
+def test_is_virtual_environment_returns_false_for_directory_without_bindir(tmp_path):
+    """``is_virtual_environment`` must tolerate a directory that exists
+    but lacks both ``bin`` and ``Scripts`` subdirectories.
+
+    On Unix, ``Path.glob`` on a non-existent directory returns an empty
+    iterator. On Windows, it raises ``FileNotFoundError`` — pipenv's
+    venv-name resolver iterates ``WORKON_HOME`` and calls this function
+    on every child, so a partially torn-down sibling venv (left over
+    from a parallel test run) crashed `pipenv install` on Windows /
+    Python 3.10 (PR #6665 CI run 25744107117). The fix guards each
+    bindir's existence before globbing; this test pins it.
+    """
+    # Directory exists but contains no bin/ or Scripts/ subdirectory.
+    assert shell.is_virtual_environment(tmp_path) is False
+
+
+@pytest.mark.utils
+def test_is_virtual_environment_returns_true_for_real_venv_layout(tmp_path):
+    """Sanity: when ``bin`` exists with a ``python`` executable, return True."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    python = bindir / "python"
+    python.write_text("#!/usr/bin/env python\n")
+    python.chmod(0o755)
+    assert shell.is_virtual_environment(tmp_path) is True
+
+
+@pytest.mark.utils
 def test_safe_expandvars_with_explicit_env_does_not_leak_ambient_vars(monkeypatch):
     monkeypatch.setenv("PIPENV_PROJECT_DIR", "/outer/project")
     path_value = "/usr/bin:/bin"
@@ -2289,8 +2318,8 @@ class TestTargetMarkerEnvironment:
 
         venv_version = "3.12.3"
         project = mock.MagicMock()
-        project.virtualenv_exists = True
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
         monkeypatch.setattr(
             install, "_python_version_for_path", lambda _path: venv_version
         )
@@ -2314,8 +2343,8 @@ class TestTargetMarkerEnvironment:
             f"{install.sys.version_info.micro}"
         )
         project = mock.MagicMock()
-        project.virtualenv_exists = True
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
         monkeypatch.setattr(
             install, "_python_version_for_path", lambda _path: running
         )
@@ -2327,8 +2356,8 @@ class TestTargetMarkerEnvironment:
         from pipenv.routines import install
 
         project = mock.MagicMock()
-        project.virtualenv_exists = True
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
         assert install._target_marker_environment(project, allow_global=True) is None
 
     @pytest.mark.utils
@@ -2336,7 +2365,7 @@ class TestTargetMarkerEnvironment:
         from pipenv.routines import install
 
         project = mock.MagicMock()
-        project.virtualenv_exists = False
+        project.venv_locator.exists = False
         assert install._target_marker_environment(project) is None
 
     @pytest.mark.utils
@@ -2344,8 +2373,8 @@ class TestTargetMarkerEnvironment:
         from pipenv.routines import install
 
         project = mock.MagicMock()
-        project.virtualenv_exists = True
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
         monkeypatch.setattr(install, "_python_version_for_path", lambda _path: None)
         assert install._target_marker_environment(project) is None
 
