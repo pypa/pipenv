@@ -316,11 +316,40 @@ def fetch_metadata(
         algos are ignored.  When the dict is empty or absent on the
         PEP 658 path, the hash check is skipped (some indexes
         advertise the URL but not the hash).
+
+    Sdist branch (Initiative G Phase 3b, T_S2)
+    -----------------------------------------
+    When ``candidate.is_wheel`` is ``False`` we delegate entirely to
+    :func:`pipenv.resolver.pure_python_sdist.extract_metadata_from_sdist`,
+    which honours / populates the same :class:`MetadataCache`.  The
+    branch sits **after** the local cache short-circuit so a populated
+    cache entry skips both the sdist build and the import of the
+    heavier ``pyproject_hooks`` + ``tarfile`` machinery.  The
+    consequence is a one-extra ``cache.get`` on a cold sdist (T_S1
+    will call ``cache.get`` again internally), but that's a cheap
+    file-stat / read + parse vs. an entire archive download + build —
+    negligible.  The local import in the sdist branch keeps the
+    wheel-only resolves (the 99 % common case) free of the
+    ``pyproject_hooks`` + ``tarfile`` + ``zipfile`` import cost.
     """
     if cache is not None:
         cached = cache.get(candidate.url)
         if cached is not None:
             return cached
+
+    # T_S2: sdist candidates take a fundamentally different path
+    # (download + PEP 517 build + parse).  Delegate to T_S1's
+    # extractor, forwarding the same cache instance so the on-disk
+    # ``sha256(candidate.url)`` key is shared with the wheel side.
+    if not getattr(candidate, "is_wheel", True):
+        # Local import: pyproject_hooks + tarfile machinery is heavy
+        # and not needed for wheel-only resolves.  Cold-import cost
+        # only paid the first time a sdist candidate appears in a
+        # resolve.
+        from pipenv.resolver.pure_python_sdist import (
+            extract_metadata_from_sdist,
+        )
+        return extract_metadata_from_sdist(candidate, session, cache=cache)
 
     if metadata_url is not None:
         metadata = _fetch_pep658(session, metadata_url, metadata_hash)
