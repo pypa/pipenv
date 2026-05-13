@@ -1,3 +1,4 @@
+build==1.2.2
 packaging==26.0
 pexpect==4.9.0
 pipdeptree==2.34.0
