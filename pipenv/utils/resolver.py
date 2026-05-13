@@ -1477,12 +1477,9 @@ def _selected_backend_for_request(project, resolver_backend=None):
     pipfile_backend = None
     settings = getattr(project, "settings", None)
     if settings is not None:
-        try:
-            pipfile_backend = getattr(settings, "resolver", None)
-            if pipfile_backend is None and hasattr(settings, "get"):
-                pipfile_backend = settings.get("resolver")
-        except Exception:  # noqa: BLE001 - unreadable settings fall through
-            pipfile_backend = None
+        pipfile_backend = getattr(settings, "resolver", None)
+        if pipfile_backend is None and hasattr(settings, "get"):
+            pipfile_backend = settings.get("resolver")
 
     backend = str(pipfile_backend or "").strip()
     return backend or "pip"
