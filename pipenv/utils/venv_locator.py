@@ -13,9 +13,9 @@ in this bucket.
 Behaviour is preserved verbatim from the previous in-``Project``
 implementation; this is a relocation, not a rewrite. ``VenvLocator``
 holds a back-reference to the owning ``Project`` so it can read
-``project.s.*`` (the ``Settings`` proper), ``project.parsed_pipfile``,
-``project.project_directory``, ``project.name``, and
-``project.pipfile_location`` without redefining their lazy-init
+``project.s.*`` (the ``Settings`` proper), ``project.pipfile.parsed``,
+``project.pipfile.project_directory``, ``project.pipfile.name``, and
+``project.pipfile.location`` without redefining their lazy-init
 semantics.
 
 API rename (per the T_D.2 Sources pattern): the ``virtualenv_`` prefix
@@ -72,8 +72,8 @@ class VenvLocator:
         Returns True/False if explicitly set, None if not set.
         """
         project = self._project
-        if project.pipfile_exists:
-            value = project.parsed_pipfile.get("pipenv", {}).get("venv_in_project")
+        if project.pipfile.exists:
+            value = project.pipfile.parsed.get("pipenv", {}).get("venv_in_project")
             if value is not None:
                 return bool(value)
         return None
@@ -91,8 +91,8 @@ class VenvLocator:
             return pipfile_setting
         # Fall back to auto-detection of .venv directory.
         return bool(
-            project.project_directory
-            and Path(project.project_directory, ".venv").is_dir()
+            project.pipfile.project_directory
+            and Path(project.pipfile.project_directory, ".venv").is_dir()
         )
 
     # ---- venv existence ---------------------------------------------------
@@ -129,12 +129,12 @@ class VenvLocator:
         """
         project = self._project
         # If there's no project yet, set location based on config.
-        if not project.project_directory:
+        if not project.pipfile.project_directory:
             if self.is_venv_in_project():
                 return Path(".venv").absolute()
             return get_workon_home().joinpath(self.name)
 
-        dot_venv = Path(project.project_directory) / ".venv"
+        dot_venv = Path(project.pipfile.project_directory) / ".venv"
 
         # If there's no .venv in project root or it is a folder, set location based on config.
         if not dot_venv.exists() or dot_venv.is_dir():
@@ -164,7 +164,7 @@ class VenvLocator:
         # If content looks like a path, use it as a relative path.
         # Otherwise, use directory named after content in WORKON_HOME.
         if looks_like_dir(name):
-            path = Path(project.project_directory) / name
+            path = Path(project.pipfile.project_directory) / name
             return path.absolute()
         return get_workon_home().joinpath(name)
 
@@ -199,7 +199,7 @@ class VenvLocator:
             encoded_hash = base64.urlsafe_b64encode(hash).decode()
             return name, encoded_hash[:8]
 
-        clean_name, encoded_hash = get_name(name, project.pipfile_location)
+        clean_name, encoded_hash = get_name(name, project.pipfile.location)
         venv_name = f"{clean_name}-{encoded_hash}"
 
         # This should work most of the time for
@@ -223,7 +223,7 @@ class VenvLocator:
                 continue
             if len(hash_) != 8 or env_name.lower() != name.lower():
                 continue
-            return get_name(env_name, project.pipfile_location.replace(name, env_name))
+            return get_name(env_name, project.pipfile.location.replace(name, env_name))
 
         # Use the default if no matching env exists.
         return clean_name, encoded_hash
@@ -238,7 +238,7 @@ class VenvLocator:
         custom_name = project.s.PIPENV_CUSTOM_VENV_NAME
         if custom_name:
             return custom_name
-        sanitized, encoded_hash = self._get_virtualenv_hash(project.name)
+        sanitized, encoded_hash = self._get_virtualenv_hash(project.pipfile.name)
         suffix = ""
         if project.s.PIPENV_PYTHON:
             if Path(project.s.PIPENV_PYTHON).is_absolute():
@@ -267,7 +267,7 @@ class VenvLocator:
             return Path(virtualenv_env)
 
         if not self._location:  # Use cached version, if available.
-            if not project.project_directory:
+            if not project.pipfile.project_directory:
                 raise RuntimeError("Project location not created nor specified")
             location = self.get_location()
             self._location = Path(location)
@@ -283,7 +283,7 @@ class VenvLocator:
         if self.location:
             loc = Path(self.location) / "src"
         else:
-            loc = Path(project.project_directory) / "src"
+            loc = Path(project.pipfile.project_directory) / "src"
         loc.mkdir(parents=True, exist_ok=True)
         return loc
 
@@ -381,8 +381,7 @@ class VenvLocator:
         """
         from pipenv.utils.shell import project_python
 
-        # ``project_python`` calls back into ``project._which`` — preserve
-        # the existing API by forwarding the project reference.
+        # Preserve the existing API by forwarding the project reference.
         return project_python(self._project, system=system)
 
     def _which(self, command, location=None, allow_global=False):

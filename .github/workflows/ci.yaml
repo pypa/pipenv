@@ -202,6 +202,45 @@ jobs:
         run: |
           pipenv run pytest -ra -n auto -v --fulltrace tests
 
+  resolver-module-coverage:
+    # Initiative G phase 1 (T17): enforce per-module coverage floors
+    # for the new pure-Python simple-API client surface.  Without this
+    # gate the 90-100% coverage claims in T11-T16 would silently
+    # regress over time.  The default ``addopts = -ra --no-cov`` in
+    # pyproject.toml keeps the regular test workflow coverage-free;
+    # this step overrides it to enable ``--cov``.
+    name: Resolver-module coverage gate
+    needs: [lint]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -e ".[tests]" --upgrade
+          python -m pip install coverage pytest-cov
+      - name: Run resolver-module suite with coverage gate
+        run: |
+          python -m pytest \
+            tests/unit/test_candidate.py \
+            tests/unit/test_resolver_auth.py \
+            tests/unit/test_manifest_cache.py \
+            tests/unit/test_pep691_parser.py \
+            tests/unit/test_pep691_client.py \
+            tests/unit/test_parallel_fetcher.py \
+            --cov=pipenv.resolver.candidate \
+            --cov=pipenv.resolver.auth \
+            --cov=pipenv.resolver.manifest_cache \
+            --cov=pipenv.resolver.pep691 \
+            --cov=pipenv.resolver.pep691_types \
+            --cov=pipenv.resolver.fetcher \
+            --cov-fail-under=90 \
+            --override-ini="addopts=-ra"
+
   benchmark:
     name: Package Manager Benchmark
     needs: [lint]

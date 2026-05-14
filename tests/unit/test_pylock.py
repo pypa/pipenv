@@ -619,9 +619,9 @@ version = '2.28.1'
     os.chdir(tmp_path)
     try:
         project = Project(chdir=False)
-        assert project.pylock_exists is True
-        assert project.lockfile_exists is False
-        assert project.any_lockfile_exists is True
+        assert project.lockfile.pylock_exists is True
+        assert project.lockfile.exists is False
+        assert project.lockfile.any_exists is True
     finally:
         os.chdir(old_cwd)
 
@@ -662,8 +662,8 @@ name = "pypi"
     os.chdir(tmp_path)
     try:
         project = Project(chdir=False)
-        assert project.lockfile_exists is True
-        assert project.any_lockfile_exists is True
+        assert project.lockfile.exists is True
+        assert project.lockfile.any_exists is True
     finally:
         os.chdir(old_cwd)
 
@@ -689,9 +689,9 @@ name = "pypi"
     os.chdir(tmp_path)
     try:
         project = Project(chdir=False)
-        assert project.lockfile_exists is False
-        assert project.pylock_exists is False
-        assert project.any_lockfile_exists is False
+        assert project.lockfile.exists is False
+        assert project.lockfile.pylock_exists is False
+        assert project.lockfile.any_exists is False
     finally:
         os.chdir(old_cwd)
 
@@ -733,7 +733,7 @@ marker = "'dev' in dependency_groups or 'test' in dependency_groups"
     os.chdir(tmp_path)
     try:
         project = Project(chdir=False)
-        content = project.lockfile_content
+        content = project.lockfile.content
         # Should have the standard Pipfile.lock structure
         assert "_meta" in content
         assert "default" in content
@@ -772,7 +772,7 @@ name = "pypi"
         # Now remove Pipfile to simulate pylock-only scenario
         os.unlink(tmp_path / "Pipfile")
         # load_lockfile should not crash even without Pipfile or Pipfile.lock
-        result = project.load_lockfile()
+        result = project.lockfile.load()
         assert "_meta" in result
         assert "default" in result
         assert result["_meta"]["pipfile-spec"] == 6
@@ -812,9 +812,9 @@ version = '1.16.0'
     os.chdir(tmp_path)
     try:
         project = Project(chdir=False)
-        assert project.lockfile_exists is False
-        assert project.pylock_exists is True
-        lf = project.lockfile()
+        assert project.lockfile.exists is False
+        assert project.lockfile.pylock_exists is True
+        lf = project.lockfile.as_dict()
         assert "default" in lf
         assert "six" in lf["default"]
     finally:

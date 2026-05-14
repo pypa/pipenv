@@ -49,6 +49,7 @@ import json
 import os
 import sys
 import traceback
+from pathlib import Path
 from typing import Any
 
 
@@ -61,12 +62,14 @@ def _ensure_modules() -> None:
     import fires.
     """
     if "typing_extensions" not in sys.modules:
-        typing_ext_path = os.path.join(
-            os.path.dirname(__file__),
-            "patched",
-            "pip",
-            "_vendor",
-            "typing_extensions.py",
+        # __file__ is pipenv/resolver/main.py; parents[1] is the pipenv/
+        # package root (one level above the resolver/ sub-package).
+        typing_ext_path = str(
+            Path(__file__).resolve().parents[1]
+            / "patched"
+            / "pip"
+            / "_vendor"
+            / "typing_extensions.py"
         )
         if os.path.exists(typing_ext_path):
             spec = importlib.util.spec_from_file_location(
@@ -208,10 +211,20 @@ def resolve_packages(request):
     ]
 
     # Resolved-default-deps for non-default categories (gh-4665).
+    # Downstream consumers (``Resolver.default_constraint_file`` →
+    # ``get_constraints_from_resolved_deps`` in
+    # ``pipenv/utils/dependencies.py``) iterate this via ``.items()`` and
+    # canonicalize the key as the package name, so we must hand them a
+    # ``{name: lockfile_dict}`` mapping — NOT a flat list of dicts.  A
+    # list slips past type checks (both call sites accept ``Any``) but
+    # raises ``AttributeError: 'list' object has no attribute 'items'``
+    # on the first non-default category, silently failing the second
+    # resolve in any ``pipenv install --dev`` / multi-category lock.
     if request.resolved_default_deps is not None:
-        resolved_default_deps = [
-            lr.to_lockfile_dict() for lr in request.resolved_default_deps.entries
-        ]
+        resolved_default_deps = {
+            lr.name: lr.to_lockfile_dict()
+            for lr in request.resolved_default_deps.entries
+        }
     else:
         resolved_default_deps = None
 
@@ -237,14 +250,31 @@ def resolve_packages(request):
     # ``clean_results`` may return either ``LockedRequirement`` instances
     # (post-B2 typed flow) or raw dicts (transitional skipped-entry
     # path).  Adapt both shapes uniformly.
+    #
+    # Sparse dicts — ``{"name": ...}`` with no version / vcs / file /
+    # path — appear when a package is filtered out by
+    # ``check_if_package_req_skipped`` (markers that don't evaluate on
+    # the host) or has ``skip_resolver=True``.  ``clean_results``
+    # already tolerates the invariant violation by falling back to a
+    # name-only dict (see ``pipenv/utils/resolver.py`` clean_results
+    # ValueError branch).  ``LockedRequirement.__post_init__`` rejects
+    # the same shape, so we cannot lift it onto the typed wire — drop
+    # those entries here.  The user-visible "Could not find a matching
+    # version" warning is already printed by
+    # ``Resolver.check_if_package_req_skipped`` before clean_results
+    # runs, so dropping them does not regress the
+    # ``test_resolve_skip_unmatched_requirements`` contract.
     from pipenv.resolver.schema import LockedRequirement
 
     locked: list[LockedRequirement] = []
     for r in results or []:
         if isinstance(r, LockedRequirement):
             locked.append(r)
-        else:
+            continue
+        try:
             locked.append(_result_dict_to_locked_requirement(r))
+        except ValueError:
+            continue
     return locked, resolver
 
 

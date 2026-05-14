@@ -39,21 +39,13 @@ import pytest
 from pipenv.exceptions import ResolutionFailure
 from pipenv.resolver.schema import (
     SCHEMA_VERSION,
-    Diagnostics,
-    InternalError,
     LockedRequirement,
     PackageSpecs,
-    RequestMetadata,
-    ResolutionError,
-    ResolvedDeps,
     ResolverOptions,
     ResolverRequest,
-    ResolverResponse,
-    ResolverSuccess,
     Source,
 )
 from pipenv.utils import resolver as resolver_mod
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -64,14 +56,14 @@ def _stub_project(tmp_path: Path):
     """Minimal project double that exposes the attributes the parent-side
     dispatch helper touches."""
     project = mock.MagicMock()
-    project.project_directory = str(tmp_path)
+    project.pipfile.project_directory = str(tmp_path)
     project.s.is_verbose.return_value = False
     project.s.PIPENV_RESOLVER_TIMEOUT_S = 60
     project.s.PIPENV_SPINNER = "dots"
     project.s.PIPENV_RESOLVER_PARENT_PYTHON = False
     project.s.PIPENV_KEYRING_PROVIDER = None
-    project.pipfile_exists = True
-    project.parsed_pipfile = {"requires": {}}
+    project.pipfile.exists = True
+    project.pipfile.parsed = {"requires": {}}
     project.sources.pipfile_sources.return_value = [
         {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
     ]
@@ -208,6 +200,52 @@ class TestBuildResolverRequest:
         assert request.resolved_default_deps is not None
         names = {e.name for e in request.resolved_default_deps.entries}
         assert "requests" in names
+
+    def test_request_stamps_default_backend(self, tmp_path, monkeypatch):
+        """The parent stamps the default backend onto the request so the
+        subprocess does not need to rediscover Pipfile state.
+        """
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        request = resolver_mod._build_resolver_request(
+            deps={"requests": "requests==2.31.0"},
+            sources=[
+                {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
+            ],
+            category="default",
+            pre=False,
+            clear=False,
+            allow_global=False,
+            verbose=False,
+            python_marker_override=None,
+            extra_pip_args=[],
+            resolved_default_deps=None,
+            project=_stub_project(tmp_path),
+        )
+        assert request.options.backend == "pip"
+
+    def test_request_stamps_pipfile_selected_backend(self, tmp_path, monkeypatch):
+        """The parent serializes the Pipfile-selected backend onto the wire
+        request so the child does not construct another Project().
+        """
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        project = _stub_project(tmp_path)
+        project.settings = {"resolver": "uv"}
+        request = resolver_mod._build_resolver_request(
+            deps={"requests": "requests==2.31.0"},
+            sources=[
+                {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
+            ],
+            category="default",
+            pre=False,
+            clear=False,
+            allow_global=False,
+            verbose=False,
+            python_marker_override=None,
+            extra_pip_args=[],
+            resolved_default_deps=None,
+            project=project,
+        )
+        assert request.options.backend == "uv"
 
 
 # ---------------------------------------------------------------------------

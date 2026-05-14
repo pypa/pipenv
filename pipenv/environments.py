@@ -392,6 +392,28 @@ class Setting:
         approach, you may disable this.
         """
 
+        # T18 (Initiative G phase 2): pre-fetch toggle for the
+        # simple-API parallel manifest prefetch path.  The value here
+        # mirrors the ``[pipenv] prefetch_index_manifests`` Pipfile key
+        # and is consulted as an override by
+        # :meth:`pipenv.utils.settings.Settings.get` — env wins over
+        # Pipfile, matching pipenv's existing precedence convention.
+        # ``None`` means "no env override; defer to the Pipfile / the
+        # caller-supplied default".
+        self.PIPENV_PREFETCH_INDEX_MANIFESTS = get_from_env(
+            "PREFETCH_INDEX_MANIFESTS", check_for_negation=False
+        )
+        """When True, parallel-pre-fetch the simple-API index pages for
+        top-level packages before invoking pip's resolver.  Most
+        beneficial on cold caches or slow networks (typical CI runs);
+        may be net-neutral or slightly slower on warm-cache dev
+        machines.  Default: False until benchmark data justifies
+        enabling globally.
+
+        Equivalent to ``[pipenv] prefetch_index_manifests = true`` in
+        the Pipfile; this env var, when set, takes precedence.
+        """
+
         self.PIPENV_CUSTOM_VENV_NAME = get_from_env(
             "CUSTOM_VENV_NAME", check_for_negation=False
         )
@@ -428,6 +450,22 @@ class Setting:
 
         # Internal, for testing the resolver without using subprocess
         self.PIPENV_RESOLVER_PARENT_PYTHON = get_from_env("RESOLVER_PARENT_PYTHON")
+
+        # T_F.5: pluggable resolver backend selection.
+        #
+        # ``PIPENV_RESOLVER`` selects which resolver backend pipenv
+        # dispatches to.  The precedence chain is:
+        #
+        #     CLI ``--resolver NAME`` > ``PIPENV_RESOLVER`` env var >
+        #     ``[pipenv] resolver`` in Pipfile > default (``"pip"``).
+        #
+        # T_F.5 in this PR is scaffolding only (see the maintainer
+        # sign-off in ``docs/dev/initiative-f-backends-design.md``,
+        # 2026-05-12).  The only backend shipped is ``"pip"``; selecting
+        # an unknown backend yields a structured ``InternalError``
+        # response with a clear message.  Future releases will register
+        # additional backends.
+        self.PIPENV_RESOLVER = get_from_env("RESOLVER", check_for_negation=False)
 
         _resolver_timeout_raw = get_from_env(
             "RESOLVER_TIMEOUT_S", check_for_negation=False, default=1800

@@ -158,29 +158,59 @@ def _capture_resolver_log() -> Iterator[list[str]]:
 
     Logger level handling: pipenv's ``pipenv`` logger and pip's
     ``pip._internal.resolution`` logger both default to ``WARNING`` (or
-    inherit it from the root logger) outside verbose mode, which would
-    drop INFO/DEBUG resolver-trace records before our handler ever
-    sees them.  We temporarily lower each captured logger's level to
-    ``DEBUG`` for the duration of capture, and restore the original
-    level on exit.  This is a per-logger level change, not a root-level
-    one — other consumers of the same logger keep their own handlers
-    and continue to filter at whatever level they were configured for.
+    inherit a non-DEBUG level from root in pytest / pipenv-launched
+    contexts), which would drop INFO resolver-trace records before our
+    handler ever sees them.  We lower each captured logger's level to
+    ``INFO`` for the duration of capture — **NOT DEBUG**.  Pre-fix this
+    function used ``DEBUG`` and cascaded the lowered level to every
+    ``pipenv.*`` child (including ``pipenv.patched.pip._internal.*``),
+    which made pip's verbose config-loader DEBUG records pass their
+    effective-level filter.  Those records then bubbled to pip's
+    already-installed root handler (with its ``VERBOSE:logger:message``
+    formatter) and flooded stderr — on a multi-category ``pipenv lock``
+    (default then dev) the second resolver subprocess drowned in that
+    noise and exited non-zero, breaking phase-3 CI consistently
+    (see ``tests/unit/test_resolver_diagnostics.py``'s regression
+    suite below).  ``INFO`` is the floor pipenv's actual resolver-side
+    log emissions use; DEBUG records (pip-internal chatter) stay
+    filtered.
+
+    **Propagation discipline** — additionally we set
+    ``lg.propagate = False`` while the handler is attached and restore
+    the original ``propagate`` flag on exit.  Defence in depth: even if
+    an INFO record reaches our handler, ``propagate=False`` prevents
+    it from continuing up to root, so pip's already-installed root
+    handler can't print a "VERBOSE:" version of the same line as a side
+    effect of being captured.
+
+    Pipenv's primary user-facing log channel is the pip-vendored Rich
+    consoles in ``pipenv.utils.__init__`` (``console``, ``err``), not
+    Python ``logging`` — so this capture is best-effort.  The field
+    stays reserved-but-mostly-empty in non-verbose runs, consistent
+    with T_F.7 Q9.
     """
     sink: list[str] = []
     handler = _BoundedListHandler(sink, _RESOLVER_LOG_CAP)
-    # ``(logger, original_level)`` tuples so we can restore each logger
-    # individually.  Levels are integers; ``logger.level`` of ``0``
-    # means NOTSET (inherits from parent).
-    touched: list[tuple[logging.Logger, int]] = []
+    # ``(logger, original_level, original_propagate)`` tuples so we can
+    # restore each logger individually.  Levels are integers;
+    # ``logger.level`` of ``0`` means NOTSET (inherits from parent).
+    touched: list[tuple[logging.Logger, int, bool]] = []
     try:
         for name in _RESOLVER_LOG_LOGGER_NAMES:
             lg = logging.getLogger(name)
-            touched.append((lg, lg.level))
+            touched.append((lg, lg.level, lg.propagate))
             lg.addHandler(handler)
-            lg.setLevel(logging.DEBUG)
+            # INFO, not DEBUG — see docstring for the phase-3 regression
+            # that DEBUG caused.  INFO captures resolver-trace records
+            # pipenv actually emits; DEBUG opens the floodgates on
+            # ``pipenv.patched.pip._internal.*`` config-loader chatter.
+            lg.setLevel(logging.INFO)
+            # Defence in depth: prevent records that DO pass the INFO
+            # filter from bubbling to pip's root handler as a side effect.
+            lg.propagate = False
         yield sink
     finally:
-        for lg, original_level in touched:
+        for lg, original_level, original_propagate in touched:
             try:
                 lg.removeHandler(handler)
             except ValueError:
@@ -189,6 +219,7 @@ def _capture_resolver_log() -> Iterator[list[str]]:
                 # protecting against.
                 pass
             lg.setLevel(original_level)
+            lg.propagate = original_propagate
         if handler.dropped:
             sink.append(f"... ({handler.dropped} records elided)")
 
@@ -426,9 +457,15 @@ def _dispatch_resolve_packages(request: ResolverRequest):
     return _fn(request)
 
 
-def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
-    """Run the resolver against a typed :class:`ResolverRequest` and
+def _pip_resolve(request: ResolverRequest) -> ResolverResponse:
+    """Run the (pip) resolver against a typed :class:`ResolverRequest` and
     return a typed :class:`ResolverResponse`.
+
+    This is the core resolve flow that lived inline in
+    :func:`resolve_for_pipenv` prior to T_F.5.  T_F.5 turned
+    ``resolve_for_pipenv`` into a thin backend dispatcher; this function
+    is the body of the default (pip) backend, called via
+    :class:`pipenv.resolver.backends.pip.PipBackend`.
 
     This function NEVER raises.  Every outcome — success, dependency
     conflict, or genuine crash — is captured in the returned response's
@@ -547,9 +584,167 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
         )
 
 
+# ---------------------------------------------------------------------------
+# T_F.5: pluggable resolver-backend dispatch.
+# ---------------------------------------------------------------------------
+#
+# ``resolve_for_pipenv`` was originally the canonical resolve function
+# (T_F.4); T_F.5 turns it into a thin dispatcher that routes through the
+# ``pipenv.resolver.backends`` registry.  The default behaviour is
+# unchanged: with no selection at any level, the pip backend is chosen
+# and ``PipBackend.resolve`` runs the same flow that previously lived
+# here (now in :func:`_pip_resolve`).
+#
+# Backend selection precedence (sign-off 2026-05-12 answers 1, 2):
+#
+#     1. ``ResolverOptions.backend`` on the request (the CLI flag
+#        ``--resolver NAME`` stamps it here);
+#     2. ``PIPENV_RESOLVER`` env var;
+#     3. ``[pipenv] resolver`` Pipfile setting (read via
+#        :class:`pipenv.utils.settings.Settings`);
+#     4. ``"pip"`` (the default).
+#
+# An unknown backend name yields a structured ``InternalError``
+# response — NOT a crash (sign-off answer 4 "fail loud", but loudly
+# *via the typed response*, so adapters can render a clean error).
+
+
+def _resolver_name_from_env() -> str | None:
+    """Return the value of ``PIPENV_RESOLVER`` if set, else ``None``.
+
+    Separated as a helper so tests can monkey-patch the env-var read
+    without manipulating ``os.environ`` (which is process-wide and
+    leaks across tests).
+    """
+    value = os.environ.get("PIPENV_RESOLVER")
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _resolver_name_from_pipfile() -> str | None:
+    """Return the ``[pipenv] resolver`` value from the current project
+    Pipfile, or ``None`` if absent / unreadable.
+
+    Best-effort fallback: the parent-side request builder normally stamps
+    the selected backend onto ``request.options.backend`` before the wire
+    request is written, so the subprocess usually never needs this read.
+    Keep the Pipfile lookup here for direct callers / tests that still
+    pass an empty backend field.  If the project isn't accessible (e.g.
+    running unit tests with no Pipfile on disk), return ``None``
+    silently and let the caller fall through to the default.
+    """
+    try:
+        from pipenv.project import Project
+    except Exception:  # noqa: BLE001 — defensive against import issues
+        return None
+    try:
+        project = Project(chdir=False)
+        resolver = project.settings.get("resolver")
+    except Exception:  # noqa: BLE001 — any read failure → default
+        return None
+    if not resolver:
+        return None
+    return str(resolver).strip() or None
+
+
+def _selected_backend_name(request: ResolverRequest) -> str:
+    """Apply the precedence chain CLI > env > Pipfile > default and
+    return the backend name to dispatch to.
+
+    ``request.options.backend`` is the fast path: the parent-side request
+    builder stamps the effective backend there before spawning the child,
+    so the subprocess usually returns immediately without re-reading env
+    vars or the Pipfile.  The env/Pipfile/default fallbacks remain for
+    direct callers / tests that still pass an empty backend field.  All
+    four levels of the chain are individually monkey-patchable by tests.
+    """
+    # 1. CLI / explicit request override: ``ResolverOptions.backend`` is
+    # the wire-level home for ``--resolver NAME``.  Empty / unset / the
+    # "pip" default all fall through to the lower precedence levels so
+    # that ``pipenv install`` without ``--resolver`` honours the Pipfile
+    # or env-var selection.  The CLI plumbing only stamps this field
+    # when the user explicitly passed ``--resolver``.
+    cli_choice = getattr(request.options, "backend", None)
+    if cli_choice:
+        return str(cli_choice)
+
+    # 2. Env var.
+    env_choice = _resolver_name_from_env()
+    if env_choice:
+        return env_choice
+
+    # 3. Pipfile.
+    pipfile_choice = _resolver_name_from_pipfile()
+    if pipfile_choice:
+        return pipfile_choice
+
+    # 4. Default.
+    return "pip"
+
+
+def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
+    """Dispatch ``request`` to the configured resolver backend.
+
+    Default behaviour (no ``--resolver`` flag, no ``PIPENV_RESOLVER``
+    env var, no ``[pipenv] resolver`` Pipfile key) is unchanged from
+    pre-T_F.5 pipenv: the pip backend is selected and the resolve flow
+    that previously lived inline here (now :func:`_pip_resolve`) runs.
+
+    Unknown or unavailable backends produce a typed ``InternalError``
+    response with a clear message — the function still never raises.
+    """
+    backend_name = _selected_backend_name(request)
+
+    # Look up the backend.  Resolve KeyError into a typed InternalError
+    # so the dispatcher contract ("never raises") is preserved.
+    try:
+        # Lazy import to avoid a cycle: ``backends.pip`` imports from
+        # this module to reach :func:`_pip_resolve`.
+        from pipenv.resolver.backends import get_backend
+
+        backend = get_backend(backend_name)
+    except KeyError as exc:
+        return ResolverResponse(
+            schema_version=SCHEMA_VERSION,
+            result=InternalError(
+                kind="internal_error",
+                message=(
+                    f"Resolver backend {backend_name!r} is not registered. "
+                    f"{exc!s}.  Remove the [pipenv] resolver setting from "
+                    f"your Pipfile, unset PIPENV_RESOLVER, or pass "
+                    f"--resolver pip."
+                ),
+                traceback=None,
+            ),
+        )
+
+    if not backend.is_available():
+        return ResolverResponse(
+            schema_version=SCHEMA_VERSION,
+            result=InternalError(
+                kind="internal_error",
+                message=(
+                    f"Resolver backend {backend_name!r} is not available "
+                    f"on this machine.  Install it and re-run, or remove "
+                    f"the [pipenv] resolver setting from your Pipfile / "
+                    f"unset PIPENV_RESOLVER / pass --resolver pip."
+                ),
+                traceback=None,
+            ),
+        )
+
+    return backend.resolve(request)
+
+
 __all__ = [
     "resolve_for_pipenv",
     "resolve_packages",
     "_apply_request_env",
     "_patched_marker_environment",
+    "_pip_resolve",
+    "_selected_backend_name",
+    "_resolver_name_from_env",
+    "_resolver_name_from_pipfile",
 ]

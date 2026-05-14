@@ -17,9 +17,13 @@ from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
 
 import pipenv
-from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+
+# ``InstallCommand`` lazily imported inside ``get_finder`` (the only
+# call site).  Eager import drags ~79 ms of pip-internal command
+# machinery into every ``pipenv`` invocation that touches
+# ``pipenv.environment``.
 from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
@@ -73,7 +77,7 @@ class Environment:
             sources = project.sources.all
         self.sources = sources
         if project and not pipfile:
-            pipfile = project.parsed_pipfile
+            pipfile = project.pipfile.parsed
         self.pipfile = pipfile
         self.extra_dists = []
         if self.is_venv and prefix is not None and not Path(prefix).exists():
@@ -551,6 +555,8 @@ class Environment:
 
     @contextlib.contextmanager
     def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
+        from pipenv.patched.pip._internal.commands.install import InstallCommand
+
         from .utils.resolver import get_package_finder
 
         pip_command = InstallCommand(

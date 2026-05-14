@@ -131,8 +131,8 @@ def test_settings_update_writes_new_keys(project_bare):
     Pipfile's ``[pipenv]`` section."""
     project_bare.settings.update({"allow_prereleases": True})
     # Force a fresh read of the Pipfile to confirm the write persisted.
-    project_bare._parsed_pipfile_cache = None
-    project_bare._parsed_pipfile_mtime_ns = None
+    project_bare.pipfile._parsed_cache = None
+    project_bare.pipfile._parsed_mtime_ns = None
     assert project_bare.settings.get("allow_prereleases") is True
 
 
@@ -143,8 +143,8 @@ def test_settings_update_does_not_overwrite_existing(project_with_settings):
     ``update_settings`` semantics: only adds missing keys)."""
     project_with_settings.settings.update({"allow_prereleases": False})
     # Force a fresh read.
-    project_with_settings._parsed_pipfile_cache = None
-    project_with_settings._parsed_pipfile_mtime_ns = None
+    project_with_settings.pipfile._parsed_cache = None
+    project_with_settings.pipfile._parsed_mtime_ns = None
     # The pre-existing True value is preserved.
     assert project_with_settings.settings.get("allow_prereleases") is True
 
@@ -159,3 +159,75 @@ def test_settings_update_noop_when_all_keys_present(project_with_settings, tmp_p
     project_with_settings.settings.update({"sort_pipfile": False})
     mtime_after = pipfile.stat().st_mtime_ns
     assert mtime_before == mtime_after
+
+
+# ---------------------------------------------------------------------------
+# T18 (Initiative G phase 2): [pipenv] prefetch_index_manifests
+# ---------------------------------------------------------------------------
+
+PIPFILE_WITH_PREFETCH = """\
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[pipenv]
+prefetch_index_manifests = true
+
+[packages]
+
+[dev-packages]
+"""
+
+
+@pytest.fixture
+def project_with_prefetch(tmp_path, monkeypatch):
+    """Project whose Pipfile enables ``prefetch_index_manifests``."""
+    pipfile = tmp_path / "Pipfile"
+    pipfile.write_text(PIPFILE_WITH_PREFETCH)
+    monkeypatch.chdir(tmp_path)
+    return Project(chdir=False)
+
+
+@pytest.mark.utils
+def test_prefetch_index_manifests_defaults_false(project_bare, monkeypatch):
+    """Acceptance #1: ``project.settings.get("prefetch_index_manifests",
+    False)`` returns ``False`` by default — no Pipfile entry, no env-var
+    override.
+    """
+    monkeypatch.delenv("PIPENV_PREFETCH_INDEX_MANIFESTS", raising=False)
+    assert (
+        project_bare.settings.get("prefetch_index_manifests", False) is False
+    )
+
+
+@pytest.mark.utils
+def test_prefetch_index_manifests_reads_pipfile(project_with_prefetch, monkeypatch):
+    """Acceptance #2: setting ``[pipenv] prefetch_index_manifests = true``
+    in a Pipfile makes ``project.settings.get`` return ``True``."""
+    monkeypatch.delenv("PIPENV_PREFETCH_INDEX_MANIFESTS", raising=False)
+    assert (
+        project_with_prefetch.settings.get("prefetch_index_manifests") is True
+    )
+
+
+@pytest.mark.utils
+def test_prefetch_index_manifests_env_var_override(project_bare, monkeypatch):
+    """Acceptance #3: ``PIPENV_PREFETCH_INDEX_MANIFESTS=1`` overrides the
+    default and makes the read return ``True`` even when the Pipfile
+    omits the key."""
+    monkeypatch.setenv("PIPENV_PREFETCH_INDEX_MANIFESTS", "1")
+    assert (
+        project_bare.settings.get("prefetch_index_manifests", False) is True
+    )
+
+
+@pytest.mark.utils
+def test_prefetch_index_manifests_env_var_falsy(project_with_prefetch, monkeypatch):
+    """``PIPENV_PREFETCH_INDEX_MANIFESTS=0`` explicitly disables the
+    feature even when the Pipfile enables it (env wins over Pipfile,
+    matching the standard pipenv env-var-override convention)."""
+    monkeypatch.setenv("PIPENV_PREFETCH_INDEX_MANIFESTS", "0")
+    assert (
+        project_with_prefetch.settings.get("prefetch_index_manifests") is False
+    )

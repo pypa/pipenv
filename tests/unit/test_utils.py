@@ -891,9 +891,9 @@ class TestEnsureProjectPythonVersionMismatch:
         project.s.PIPENV_USE_SYSTEM = False
         project.s.PIPENV_YES = False
         project.venv_locator.exists = True
-        project.pipfile_exists = True
+        project.pipfile.exists = True
         # required_python_version=None skips the version warning block
-        project.required_python_version = None
+        project.pipfile.required_python_version = None
         # venv_locator.python() must return a str for os.environ assignment
         project.venv_locator.python.return_value = "/usr/bin/python3"
         return project
@@ -1054,9 +1054,9 @@ class TestPipfileVenvInProject:
         parsed = tomlkit.parse(pipfile_content)
         project = mock.MagicMock()
         project.s = Setting()
-        project.parsed_pipfile = parsed
-        project.pipfile_exists = True
-        project.project_directory = str(tmp_path)
+        project.pipfile.parsed = parsed
+        project.pipfile.exists = True
+        project.pipfile.project_directory = str(tmp_path)
 
         # Bind a real VenvLocator (T_D.4) over the mock project so the
         # is_venv_in_project / _pipfile_venv_in_project methods exercise
@@ -1115,8 +1115,8 @@ class TestPipfilePythonOverride:
     def _make_project(self, monkeypatch, requires):
         """Create a mock project with the given [requires] section."""
         proj = mock.MagicMock()
-        proj.pipfile_exists = True
-        proj.parsed_pipfile = {"requires": requires} if requires else {}
+        proj.pipfile.exists = True
+        proj.pipfile.parsed = {"requires": requires} if requires else {}
         return proj
 
     @pytest.mark.utils
@@ -1189,7 +1189,7 @@ class TestPipfilePythonOverride:
         from pipenv.utils.resolver import _get_pipfile_python_override
 
         proj = mock.MagicMock()
-        proj.pipfile_exists = False
+        proj.pipfile.exists = False
         override = _get_pipfile_python_override(proj)
         assert override is None
 
@@ -1510,10 +1510,10 @@ class TestLockedRequirementFromInstallRequirement:
         )
 
         assert lr.file == url
-        # The direct-URL branch clears index, then the index_lookup re-adds it.
+        # The direct-URL branch clears index, then sources_lookup re-attaches it.
         # ``file`` takes precedence at install time; we pin the legacy
         # observable shape here so future refactors notice the change.
-        assert lr.file == url
+        assert lr.index == "my-private-index"
 
     # ------------------------------------------------------------------
     # Fixture-parametrised parity gate against the A1 golden snapshots
@@ -1692,7 +1692,7 @@ class TestPrepareLockfileConsumesLockedRequirement:
         from pipenv.utils.locking import prepare_lockfile
 
         project = mock.MagicMock()
-        project.project_directory = None  # disables file-url-to-relative rewrite
+        project.pipfile.project_directory = None  # disables file-url-to-relative rewrite
         project.sources.all = []
         pipfile = {"requests": "*"}
         lockfile_section = {}
@@ -1710,7 +1710,7 @@ class TestPrepareLockfileConsumesLockedRequirement:
         from pipenv.utils.locking import prepare_lockfile
 
         project = mock.MagicMock()
-        project.project_directory = None
+        project.pipfile.project_directory = None
         project.sources.all = []
         pipfile = {}
         lockfile_section = {}
@@ -1736,7 +1736,7 @@ class TestPrepareLockfileConsumesLockedRequirement:
         from pipenv.utils.locking import prepare_lockfile
 
         project = mock.MagicMock()
-        project.project_directory = None
+        project.pipfile.project_directory = None
         project.sources.all = []
         pipfile = {"mypkg": {"git": "https://example.com/mypkg.git", "ref": "main"}}
         lockfile_section = {}
@@ -1864,7 +1864,7 @@ class TestCreatePipfileVersionConsistency:
             "verify_ssl": True,
             "name": "pypi",
         }
-        project.write_toml = MagicMock()
+        project.pipfile.write_toml = MagicMock()
 
         def _fake_python_version(path):
             if path == venv_python_path:
@@ -1890,10 +1890,17 @@ class TestCreatePipfileVersionConsistency:
         def capture_write_toml(data):
             written_data.update(data)
 
-        project.write_toml.side_effect = capture_write_toml
+        project.pipfile.write_toml.side_effect = capture_write_toml
 
+        # ``InstallCommand`` is lazy-imported inside ``Project.create_pipfile``
+        # (see the comment near the import for the perf rationale), so we
+        # patch the canonical source rather than the now-absent module
+        # attribute on ``pipenv.project``.
         with patch("pipenv.project.python_version", side_effect=fake_pv), \
-             patch("pipenv.project.InstallCommand", return_value=fake_cmd):
+             patch(
+                 "pipenv.patched.pip._internal.commands.install.InstallCommand",
+                 return_value=fake_cmd,
+             ):
             Project.create_pipfile(project, python=python)
 
         return written_data
@@ -1981,7 +1988,7 @@ class TestAddPipfileEntryPreservesVersionSpecifiers:
         parsed["dev-packages"]["some-random-package"] = "*"
 
         project = MagicMock()
-        project.get_package_categories.return_value = ["packages", "dev-packages"]
+        project.pipfile.get_package_categories.return_value = ["packages", "dev-packages"]
 
         result = convert_toml_outline_tables(parsed, project)
 
@@ -2028,7 +2035,7 @@ class TestAddPipfileEntryPreservesVersionSpecifiers:
         project = Project(chdir=False)
 
         # Add an unrelated dev package
-        project.add_pipfile_entry_to_pipfile(
+        project.pipfile.add_entry(
             "some-random-package",
             "some-random-package",
             "*",
@@ -2061,7 +2068,7 @@ class TestCreateBuiltinVenvCmd:
     def _make_project(self, tmp_path):
         """Return a minimal project-like object sufficient for cmd-building tests."""
         project = mock.MagicMock()
-        project.name = "myproject"
+        project.pipfile.name = "myproject"
         project.s.PIPENV_VIRTUALENV_CREATOR = ""
         project.s.PIPENV_VIRTUALENV_COPIES = False
         venv_dest = str(tmp_path / "myproject-venv")
@@ -2131,13 +2138,13 @@ class TestDoCreateVirtualenvFallback:
 
     def _make_project(self, tmp_path):
         project = mock.MagicMock()
-        project.name = "myproject"
-        project.pipfile_location = str(tmp_path / "Pipfile")
+        project.pipfile.name = "myproject"
+        project.pipfile.location = str(tmp_path / "Pipfile")
         project.venv_locator.location = str(tmp_path / "venv")
-        project.project_directory = str(tmp_path)
+        project.pipfile.project_directory = str(tmp_path)
         project.venv_locator.get_location.return_value = str(tmp_path / "venv")
         project.pipfile_sources.return_value = []
-        project.parsed_pipfile = {}
+        project.pipfile.parsed = {}
         project.s.PIPENV_SPINNER = "dots"
         project.s.PIPENV_VIRTUALENV_CREATOR = ""
         project.s.PIPENV_VIRTUALENV_COPIES = False
@@ -2255,11 +2262,11 @@ class TestResolverCreateCrossGroupIndexLookup:
         if extra_categories:
             section_map.update(extra_categories)
 
-        project.get_pipfile_section.side_effect = lambda sec: section_map.get(sec, {})
+        project.pipfile.get_section.side_effect = lambda sec: section_map.get(sec, {})
 
         all_categories = list(section_map.keys())
 
-        project.get_package_categories.return_value = all_categories
+        project.pipfile.get_package_categories.return_value = all_categories
 
         # ``project.sources`` is the Sources subsystem (T_D.2); test code
         # configures its accessors via the MagicMock attribute tree.
@@ -2470,6 +2477,34 @@ def test_expand_url_credentials_unset_var_left_unchanged():
     )
     # The raw placeholder must survive intact (no %24, %7B, %7D encoding).
     assert "${NONEXISTENT_VAR_12345}@" in result
+
+
+@pytest.mark.utils
+def test_is_virtual_environment_returns_false_for_directory_without_bindir(tmp_path):
+    """``is_virtual_environment`` must tolerate a directory that exists
+    but lacks both ``bin`` and ``Scripts`` subdirectories.
+
+    On Unix, ``Path.glob`` on a non-existent directory returns an empty
+    iterator. On Windows, it raises ``FileNotFoundError`` — pipenv's
+    venv-name resolver iterates ``WORKON_HOME`` and calls this function
+    on every child, so a partially torn-down sibling venv (left over
+    from a parallel test run) crashed `pipenv install` on Windows /
+    Python 3.10 (PR #6665 CI run 25744107117). The fix guards each
+    bindir's existence before globbing; this test pins it.
+    """
+    # Directory exists but contains no bin/ or Scripts/ subdirectory.
+    assert shell.is_virtual_environment(tmp_path) is False
+
+
+@pytest.mark.utils
+def test_is_virtual_environment_returns_true_for_real_venv_layout(tmp_path):
+    """Sanity: when ``bin`` exists with a ``python`` executable, return True."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    python = bindir / "python"
+    python.write_text("#!/usr/bin/env python\n")
+    python.chmod(0o755)
+    assert shell.is_virtual_environment(tmp_path) is True
 
 
 @pytest.mark.utils

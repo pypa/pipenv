@@ -81,12 +81,21 @@ class ResolverOptions:
     (F.1 §3.1).  Verbosity translates on the child side to the
     ``PIPENV_VERBOSITY`` / ``PIP_RESOLVER_DEBUG`` pip env-vars after
     receipt — those env-vars are pip's own, not part of *this* protocol.
+
+    ``backend`` (T_F.5) carries the backend selected by the parent
+    across the wire.  An explicit ``--resolver NAME`` flag seeds that
+    choice, but the parent also stamps env / Pipfile / default fallbacks
+    so the subprocess can dispatch without rediscovering project state.
+    Empty string is still accepted from older callers/tests as the
+    "compute it locally" sentinel.  Additive default — SCHEMA_VERSION
+    stays at 1 per the design's §8 "additive default" rule.
     """
 
     pre: bool = False
     clear: bool = False
     system: bool = False
     verbose: bool = False
+    backend: str = ""
 
 
 @dataclass(frozen=True)
@@ -102,14 +111,11 @@ class ResolvedDeps:
 
 @dataclass(frozen=True)
 class RequestMetadata:
-    """Caller-side context.  Strictly non-functional — no field affects
-    resolution.
+    """Caller-side context for the resolver request.
 
-    ``deadline_seconds`` is reserved-but-unenforced in T_F.3 (per the
-    "out of scope" section of the design doc).  A follow-up small PR
-    will wire it to ``Popen.wait(timeout=...)`` with its own news
-    fragment, because the behaviour change (hangs start dying) is
-    user-visible.
+    ``deadline_seconds`` carries the caller-provided timeout budget for
+    the subprocess request and is stamped onto requests as metadata for
+    timeout enforcement in the resolver flow.
     """
 
     pipenv_version: str = ""
@@ -642,11 +648,18 @@ class ResolverRequest:
 
     def to_json_dict(self) -> dict:
         """Return a deterministic JSON-ready dict (no None values)."""
+        options_dict = _dataclass_to_dict(self.options)
+        # T_F.5: ``backend`` is an additive field defaulting to the empty
+        # string (the "unset / use default" sentinel).  Suppress it on
+        # the wire when empty so older fixtures and wire-shape goldens
+        # stay byte-identical when the user hasn't selected a backend.
+        if options_dict.get("backend", "") == "":
+            options_dict.pop("backend", None)
         out: dict = {
             "schema_version": self.schema_version,
             "category": self.category,
             "packages": {"specs": dict(sorted(self.packages.specs.items()))},
-            "options": _dataclass_to_dict(self.options),
+            "options": options_dict,
             "sources": [_dataclass_to_dict(s) for s in self.sources],
         }
         if self.python_marker_override is not None:

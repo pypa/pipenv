@@ -4,15 +4,27 @@ from html.parser import HTMLParser
 from typing import Optional, Tuple
 from urllib.parse import unquote, urlparse, urlunsplit
 
-from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
-from pipenv.patched.pip._internal.network.download import PipSession
-from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
+
+# Lazy-imported on first use to keep ``pipenv`` CLI startup off the
+# pip-internal network/download chain.  Without these, importing
+# ``pipenv.utils.internet`` (which is pulled in transitively by
+# ``pipenv.environments`` → ``pipenv.cli.command``) costs ~78 ms on
+# every invocation, even commands that never touch a remote URL.
+def _urllib3_util():
+    from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
+
+    return urllib3_util
 
 
 def get_requests_session(
-    max_retries=1, verify_ssl=True, cache_dir=USER_CACHE_DIR, source=None
+    max_retries=1, verify_ssl=True, cache_dir=None, source=None
 ):
     """Load requests lazily."""
+    from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
+    from pipenv.patched.pip._internal.network.download import PipSession
+
+    if cache_dir is None:
+        cache_dir = USER_CACHE_DIR
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     index_urls = [source] if source else None
     requests_session = PipSession(
@@ -80,14 +92,14 @@ def get_host_and_port(url):
     :param url: the URL string to parse
     :return: a string with the host:port pair if the URL includes port number explicitly; otherwise, returns host only
     """
-    url = urllib3_util.parse_url(url)
+    url = _urllib3_util().parse_url(url)
     return f"{url.host}:{url.port}" if url.port else url.host
 
 
 def get_url_name(url):
     if not isinstance(url, str):
         return
-    return urllib3_util.parse_url(url).host
+    return _urllib3_util().parse_url(url).host
 
 
 def is_url_equal(url: str, other_url: str) -> bool:
@@ -111,6 +123,7 @@ def is_url_equal(url: str, other_url: str) -> bool:
         raise TypeError(f"Expected string for url, received {url!r}")
     if not isinstance(other_url, str):
         raise TypeError(f"Expected string for url, received {other_url!r}")
+    urllib3_util = _urllib3_util()
     parsed_url = urllib3_util.parse_url(url)
     parsed_other_url = urllib3_util.parse_url(other_url)
     unparsed = parsed_url._replace(auth=None, query=None, fragment=None).url

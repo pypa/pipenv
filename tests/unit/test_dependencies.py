@@ -9,7 +9,6 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
 from pipenv.utils.dependencies import _file_url_to_relative_path, clean_resolved_dep
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
-
 # T_F.3 Wave B1: the three former ``test_entry_get_cleaned_dict_*`` cases
 # pinned the legacy ``Entry`` dataclass at ``pipenv/resolver/main.py``.
 # ``Entry`` was deleted in B1 — file/path preservation and the
@@ -90,7 +89,7 @@ def test_clean_resolved_dep_converts_file_url_subdep():
     Regression test for https://github.com/pypa/pipenv/issues/6119.
     """
     project = MagicMock()
-    project.project_directory = "/home/user/my-project"
+    project.pipfile.project_directory = "/home/user/my-project"
 
     dep = {
         "name": "namespace-utils",
@@ -116,7 +115,7 @@ def test_clean_resolved_dep_preserves_relative_file_toplevel():
     the Pipfile data) must pass through unchanged.
     """
     project = MagicMock()
-    project.project_directory = "/home/user/my-project"
+    project.pipfile.project_directory = "/home/user/my-project"
 
     # Use is_top_level=False to avoid the unearth_hashes_for_dep code path
     # that requires an actual filesystem path.  The normalisation logic under
@@ -422,7 +421,7 @@ class TestNoBinaryCleanResolvedDep:
         """no_binary = True must survive clean_resolved_dep so the lockfile
         records it and batch_install can re-apply --no-binary."""
         project = MagicMock()
-        project.project_directory = None
+        project.pipfile.project_directory = None
 
         dep = {
             "name": "cartopy",
@@ -437,7 +436,7 @@ class TestNoBinaryCleanResolvedDep:
     def test_no_binary_false_is_not_written(self):
         """When no_binary is falsy it should not appear in the lockfile entry."""
         project = MagicMock()
-        project.project_directory = None
+        project.pipfile.project_directory = None
 
         dep = {
             "name": "requests",
@@ -451,7 +450,7 @@ class TestNoBinaryCleanResolvedDep:
     def test_no_binary_absent_is_not_written(self):
         """When no_binary is absent it should not appear in the lockfile entry."""
         project = MagicMock()
-        project.project_directory = None
+        project.pipfile.project_directory = None
 
         dep = {
             "name": "requests",

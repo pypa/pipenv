@@ -29,7 +29,7 @@ def project_stub():
     """
     proj = mock.MagicMock()
     proj.s.PIPENV_USE_SYSTEM = False
-    proj.pipfile_exists = True
+    proj.pipfile.exists = True
     return proj
 
 

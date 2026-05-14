@@ -39,6 +39,27 @@ repos:
     entry: NEWS fragment files must be named *.(feature|behavior|bugfix|vendor|doc|trivial|removal|process).rst
     exclude: ^news/(towncrier_template.rst|.*\.(feature|behavior|bugfix|vendor|doc|trivial|removal|process).rst)
     files: ^news/
+  - id: no-pip-internal-in-resolver
+    # Initiative G phase 1 (T17) — enforce the acceptance criterion
+    # that pipenv/resolver/ has no ``pip._internal`` imports.  The
+    # pattern anchors on actual import statements at start of
+    # (optionally indented) lines, so docstring / comment / literal
+    # mentions of the path do not false-positive (T1's gotcha).
+    # Tests under tests/ — including T10's deliberate parity import —
+    # are exempt via ``files: ^pipenv/resolver/``.
+    name: pipenv/resolver must not import pip._internal
+    entry: |
+      bash -c '
+      if grep -RnE "^[[:space:]]*(from|import)[[:space:]]+pipenv\.patched\.pip\._internal" pipenv/resolver/; then
+        echo "ERROR: pipenv/resolver/ must not import from pipenv.patched.pip._internal (Initiative G acceptance criterion)";
+        echo "If this is intentional for a parity test, the test belongs under tests/, NOT pipenv/resolver/";
+        exit 1;
+      fi
+      '
+    language: system
+    types: [python]
+    files: ^pipenv/resolver/
+    pass_filenames: false
 
 - repo: https://github.com/mgedmin/check-manifest
   rev: '0.49'

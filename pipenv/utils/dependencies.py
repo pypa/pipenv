@@ -10,36 +10,42 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 from urllib.parse import unquote, urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.exceptions import PipenvUsageError
-from pipenv.patched.pip._internal.commands.install import InstallCommand
-from pipenv.patched.pip._internal.models.link import Link
-from pipenv.patched.pip._internal.network.download import Downloader
-from pipenv.patched.pip._internal.network.session import PipSession
-from pipenv.patched.pip._internal.req import parse_requirements
-from pipenv.patched.pip._internal.req.constructors import (
-    install_req_from_editable,
-    install_req_from_parsed_requirement,
-    parse_req_from_line,
-)
+
+# Lazy: ``pipenv.patched.pip._internal.commands.install.InstallCommand``
+# pulls in ~79 ms of pip-internal command/network/cli machinery on
+# every ``pipenv`` startup.  Only used in :func:`get_pip_command`.
+# Other ``_internal.*`` symbols below (``Link``, ``Downloader``,
+# ``PipSession``, ``parse_requirements``, the request constructors,
+# ``InstallRequirement``, ``hide_url``, ``VcsSupport``) are all
+# function-scope-only and lazy-imported inside their callers so
+# ``import pipenv.utils.dependencies`` does not force the heavy
+# pip-internal chain.
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._internal.utils.misc import hide_url
-from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
 from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import parse
+
+if TYPE_CHECKING:
+    from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.utils import err
 from pipenv.utils.fileutils import (
     create_tracked_tempdir,
 )
 from pipenv.utils.requirements import redact_auth_from_url
-from pipenv.utils.requirementslib import unpack_url
 
+# ``pipenv.utils.unpack`` drags in
+# ``pipenv.patched.pip._internal.operations.prepare`` →
+# ``pipenv.patched.pip._internal.network.download`` (~26 ms cum) on
+# every import.  It's only needed when ``determine_package_name``
+# falls into its remote-link branch, so the import is deferred to
+# that branch.
 from .constants import (
     INSTALLABLE_EXTENSIONS,
     RELEVANT_PROJECT_FILES,
@@ -251,9 +257,10 @@ def extract_vcs_url(vcs_url):
     return clean_url
 
 
-def add_ssh_scheme_to_git_uri(uri):
-    # type: (S) -> S
-    """Cleans VCS uris from pip format."""
+def add_ssh_scheme_to_git_uri(uri: str | bytes | None) -> str | bytes | None:
+    """Clean VCS URIs from pip format, preserving ``None`` unchanged."""
+    if uri is None:
+        return None
     if isinstance(uri, str):
         # Add scheme for parsing purposes, this is also what pip does
         if uri.startswith("git+") and "://" not in uri:
@@ -266,8 +273,9 @@ def add_ssh_scheme_to_git_uri(uri):
     return uri
 
 
-def is_vcs(pipfile_entry):
-    # type: (PipfileType) -> bool
+def is_vcs(
+    pipfile_entry: Mapping[str, Any] | str | None,
+) -> bool:
     """Determine if dictionary entry from Pipfile is for a vcs dependency."""
     if isinstance(pipfile_entry, Mapping):
         return any(key for key in pipfile_entry if key in VCS_LIST)
@@ -350,7 +358,8 @@ def clean_resolved_dep(  # noqa: PLR0912
     # Pipfile entries are already overridden with their relative path by
     # get_locked_dep(); only sub-dependencies reach here with a raw
     # "file:///..." URL.  (GH-6119)
-    project_dir = getattr(project, "project_directory", None)
+    pipfile = getattr(project, "pipfile", None)
+    project_dir = getattr(pipfile, "project_directory", None) if pipfile else None
     if project_dir and isinstance(dep.get("file"), str):
         dep["file"] = _file_url_to_relative_path(dep["file"], project_dir)
 
@@ -908,6 +917,8 @@ def determine_vcs_specifier(package: InstallRequirement):
 
 
 def get_vcs_backend(vcs_type):
+    from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
     backend = VcsSupport().get_backend(vcs_type)
     return backend
 
@@ -920,11 +931,13 @@ def generate_temp_dir_path():
     return temp_dir
 
 
-def get_pip_command() -> InstallCommand:
+def get_pip_command() -> "InstallCommand":
     """Get pip's InstallCommand for configuration management and defaults."""
     # Use pip's parser for pip.conf management and defaults.
     # General options (find_links, index_url, extra_index_url, trusted_host,
     # and pre) are deferred to pip.
+    from pipenv.patched.pip._internal.commands.install import InstallCommand
+
     pip_command = InstallCommand(
         name="InstallCommand", summary="pipenv pip Install command."
     )
@@ -934,6 +947,8 @@ def get_pip_command() -> InstallCommand:
 def determine_vcs_revision_hash(
     package: InstallRequirement, vcs_type: str, revision: str
 ):
+    from pipenv.patched.pip._internal.utils.misc import hide_url
+
     try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
         checkout_directory = generate_temp_dir_path()
         repo_backend = get_vcs_backend(vcs_type)
@@ -958,6 +973,9 @@ def determine_package_name(package: InstallRequirement):
         req_name = str(package).split("@ ")[0]
         req_name = req_name.split("[")[0]
     elif package.link and package.link.scheme in REMOTE_SCHEMES:
+        from pipenv.patched.pip._internal.network.download import Downloader
+        from pipenv.utils.unpack import unpack_url
+
         try:  # Windows python 3.7 will sometimes raise PermissionError cleaning up
             with TemporaryDirectory() as td:
                 cmd = get_pip_command()
@@ -1048,6 +1066,7 @@ def find_package_name_from_filename(filename, file):
 
 def create_link(link):
     # type: (AnyStr) -> Link
+    from pipenv.patched.pip._internal.models.link import Link
 
     if not isinstance(link, str):
         raise TypeError("must provide a string to instantiate a new link")
@@ -1167,6 +1186,11 @@ def expansive_install_req_from_line(
     :param expand_env: Whether to expand environment variables in the line. (definitely used)
     :return: A tuple of the InstallRequirement and the name of the package (if determined).
     """
+    from pipenv.patched.pip._internal.req.constructors import (
+        install_req_from_editable,
+        parse_req_from_line,
+    )
+
     name = None
     # Only strip outer quotes if the entire line is quoted, not internal quotes
     pip_line = pip_line.lstrip(" ")
@@ -1667,11 +1691,17 @@ def import_requirements(project, r=None, dev=False, categories=None):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
+    from pipenv.patched.pip._internal.network.session import PipSession
+    from pipenv.patched.pip._internal.req import parse_requirements
+    from pipenv.patched.pip._internal.req.constructors import (
+        install_req_from_parsed_requirement,
+    )
+
     if r and not Path(r).is_file():
         raise OSError(f"Requirements file not found: {r}")
     # Default path, if none is provided.
     if r is None:
-        r = project.requirements_location
+        r = project.pipfile.requirements_location
     with open(r) as f:
         contents = f.read()
     if categories is None:
@@ -1712,7 +1742,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
 
     # Batch add all packages to Pipfile
     if packages_to_add:
-        project.add_packages_to_pipfile_batch(
+        project.pipfile.add_packages_batch(
             packages_to_add, dev=dev, categories=categories
         )
 
@@ -1723,7 +1753,7 @@ def import_requirements(project, r=None, dev=False, categories=None):
         add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
 
     # Recase pipfile once at the end
-    project.recase_pipfile()
+    project.pipfile.recase()
 
 
 def add_index_to_pipfile_with_trust_check(project, index, trusted_hosts=None):

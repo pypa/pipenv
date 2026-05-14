@@ -28,7 +28,7 @@ def do_sync(project, ctx: RoutineContext):
 
     # The lock file needs to exist because sync won't write to it.
     # Accept either Pipfile.lock or pylock.toml.
-    if not project.any_lockfile_exists:
+    if not project.lockfile.any_exists:
         raise exceptions.LockfileNotFound("Pipfile.lock")
 
     # Ensure that virtualenv is available if not system.

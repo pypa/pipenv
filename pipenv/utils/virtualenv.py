@@ -51,7 +51,7 @@ def warn_in_virtualenv(project):
 def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=None):
     """Creates a virtualenv."""
     err.print("[bold]Creating a virtualenv for this project[/bold]")
-    err.print(f"Pipfile: [bold][yellow]{project.pipfile_location}[/yellow][/bold]")
+    err.print(f"Pipfile: [bold][yellow]{project.pipfile.location}[/yellow][/bold]")
 
     # Default to using sys.executable, if Python wasn't provided.
     using_string = "Using"
@@ -151,7 +151,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
     # Associate project directory with the environment.
     virtualenv_path = Path(project.venv_locator.location)
     project_file_path = virtualenv_path / ".project"
-    project_file_path.write_text(project.project_directory)
+    project_file_path.write_text(project.pipfile.project_directory)
 
     from pipenv.environment import Environment
 
@@ -163,7 +163,7 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         prefix=str(virtualenv_path),
         is_venv=True,
         sources=sources,
-        pipfile=project.parsed_pipfile,
+        pipfile=project.pipfile.parsed,
         project=project,
     )
     # Say where the virtualenv is.
@@ -178,7 +178,7 @@ def _create_virtualenv_cmd(project, python, site_packages=False):
     ]
     if project.s.PIPENV_VIRTUALENV_CREATOR:
         cmd.append(f"--creator={project.s.PIPENV_VIRTUALENV_CREATOR}")
-    cmd.append(f"--prompt={project.name}")
+    cmd.append(f"--prompt={project.pipfile.name}")
     cmd.append(f"--python={python}")
     cmd.append(project.venv_locator.get_location())
     if project.s.PIPENV_VIRTUALENV_COPIES:
@@ -204,7 +204,7 @@ def _create_builtin_venv_cmd(project, python, site_packages=False):
         python,
         "-m",
         "venv",
-        f"--prompt={project.name}",
+        f"--prompt={project.pipfile.name}",
     ]
     if site_packages:
         cmd.append("--system-site-packages")
@@ -305,7 +305,7 @@ def ensure_python(project, python=None):
     project.s.USING_DEFAULT_PYTHON = not python
     # Find out which python is desired.
     if not python:
-        python = project.required_python_version
+        python = project.pipfile.required_python_version
         if python:
             range_pattern = r"^[<>]=?|!="
             if re.search(range_pattern, python):
@@ -615,13 +615,13 @@ def find_a_system_python(line, pyenv_only=False):
 def do_where(project, virtualenv=False, bare=True):
     """Executes the where functionality."""
     if not virtualenv:
-        if not project.pipfile_exists:
+        if not project.pipfile.exists:
             err.print(
                 "No Pipfile present at project home. Consider running "
                 "[green]`pipenv install`[/green] first to automatically generate a Pipfile for you."
             )
             sys.exit(1)
-        location = project.pipfile_location
+        location = project.pipfile.location
         # Shorten the virtual display of the path to the virtualenv.
         if not bare:
             location = shorten_path(location)
@@ -629,7 +629,7 @@ def do_where(project, virtualenv=False, bare=True):
                 f"Pipfile found at [green]{location}[/green].\nConsidering this to be the project home."
             )
         else:
-            console.print(project.project_directory)
+            console.print(project.pipfile.project_directory)
     else:
         location = project.venv_locator.location
         if not bare:

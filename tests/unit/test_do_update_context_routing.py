@@ -24,7 +24,8 @@ def project_stub():
     """Minimal project stub: only attributes ``do_update`` interrogates."""
     proj = mock.MagicMock()
     proj.s.PIPENV_USE_SYSTEM = False
-    proj.any_lockfile_exists = True
+    # T_D.5: was project.any_lockfile_exists -> project.lockfile.any_exists.
+    proj.lockfile.any_exists = True
     return proj
 
 
@@ -313,7 +314,8 @@ class TestDoUpdateFlagRouting:
     ):
         from pipenv.routines.update import do_update
 
-        project_stub.any_lockfile_exists = False
+        # T_D.5: was project.any_lockfile_exists -> project.lockfile.any_exists.
+        project_stub.lockfile.any_exists = False
         ctx = RoutineContext.from_cli()
         do_update(project_stub, ctx)
 

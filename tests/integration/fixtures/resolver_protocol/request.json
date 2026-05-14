@@ -1,10 +1,12 @@
 {
   "category": "packages",
   "metadata": {
+    "deadline_seconds": "<redacted>",
     "parent_pid": 0,
     "pipenv_version": "<redacted>"
   },
   "options": {
+    "backend": "pip",
     "clear": false,
     "pre": false,
     "system": false,
