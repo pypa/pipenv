@@ -487,3 +487,78 @@ def test_ensure_proper_casing_returns_false_when_no_change_needed(
         # when proper_case can't resolve a name).
         changed = project_with_packages.pipfile.ensure_proper_casing()
         assert changed is False
+
+
+@pytest.mark.utils
+def test_recase_is_noop_by_default(project_with_packages):
+    # Default mode (``[pipenv] package_name_case`` unset) must not touch
+    # the network — protects ``pipenv install -r`` from per-package PyPI
+    # HTTP probes.
+    with mock.patch("pipenv.utils.pipfile.proper_case") as probe:
+        project_with_packages.pipfile.recase()
+        probe.assert_not_called()
+
+
+def _override_settings(project, mapping: dict) -> None:
+    """Replace the cached ``project.settings`` mapping for one test.
+
+    ``Project.settings`` is a ``@cached_property``; assigning the same
+    name on the instance ``__dict__`` shadows the descriptor for the
+    rest of the project's lifetime, which is exactly the scope we want
+    for a single fixture-bound test.
+    """
+    project.__dict__["settings"] = mapping
+
+
+@pytest.mark.utils
+def test_recase_canonical_mode_lowercases_offline(project_with_packages):
+    pf = project_with_packages.pipfile
+    pf.parsed.setdefault("packages", {})["Pillow"] = "*"
+    _override_settings(
+        project_with_packages, {"package_name_case": "canonical"}
+    )
+    with mock.patch("pipenv.utils.pipfile.proper_case") as probe:
+        pf.recase()
+        probe.assert_not_called()
+    assert "Pillow" not in pf.parsed["packages"]
+    assert "pillow" in pf.parsed["packages"]
+
+
+@pytest.mark.utils
+def test_recase_pypi_mode_invokes_probe(project_with_packages):
+    pf = project_with_packages.pipfile
+    _override_settings(
+        project_with_packages, {"package_name_case": "pypi"}
+    )
+    with mock.patch(
+        "pipenv.utils.pipfile.proper_case", side_effect=OSError
+    ) as probe:
+        pf.recase()
+        assert probe.called
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        (None, "off"),
+        ("", "off"),
+        ("off", "off"),
+        ("OFF", "off"),
+        ("none", "off"),
+        ("no", "off"),
+        ("false", "off"),
+        ("0", "off"),
+        ("canonical", "canonical"),
+        ("CANONICAL", "canonical"),
+        ("pypi", "pypi"),
+        ("PyPI", "pypi"),
+        ("garbage", "off"),
+        (False, "off"),
+        (True, "canonical"),
+    ],
+)
+def test_normalize_package_name_case(raw, expected):
+    from pipenv.utils.pipfile import _normalize_package_name_case
+
+    assert _normalize_package_name_case(raw) == expected

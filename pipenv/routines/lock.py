@@ -280,11 +280,40 @@ def do_lock(project, ctx: RoutineContext):
     pre = policy.pre
     quiet = exec_opts.quiet
     write = exec_opts.write
-    resolver = exec_opts.resolver
     extra_pip_args = (
         list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else None
     )
     categories = list(sel.categories) if sel.categories else None
+
+    # T_PLUMBING (Initiative G phase 3): backend selection.
+    #
+    # Precedence (matching :func:`pipenv.resolver.core._selected_backend_name`
+    # but evaluated parent-side so the choice can ride on the typed
+    # ``ResolverRequest.options.backend`` field):
+    #
+    #     1. CLI flag (``--backend NAME`` or back-compat ``--resolver NAME``)
+    #        → ``ctx.execution_options.resolver``
+    #     2. ``[pipenv] resolver_backend`` Pipfile setting (T_PLUMBING)
+    #     3. ``[pipenv] resolver`` Pipfile setting (T_F.5 back-compat)
+    #     4. ``None`` (== empty wire sentinel) — the dispatcher's
+    #        env/Pipfile/default chain in the child / in-process branch
+    #        still applies.
+    #
+    # We do NOT default to ``"pip"`` here: the empty wire sentinel keeps
+    # the default-path resolve byte-identical to today (no
+    # ``ResolverOptions.backend`` field set on the request, so
+    # ``ResolverRequest.to_json_dict`` strips it).
+    resolver_backend = exec_opts.resolver
+    if not resolver_backend:
+        try:
+            resolver_backend = project.settings.get("resolver_backend") or None
+        except Exception:  # noqa: BLE001 — Pipfile-read failure defers to default
+            resolver_backend = None
+    if not resolver_backend:
+        try:
+            resolver_backend = project.settings.get("resolver") or None
+        except Exception:  # noqa: BLE001
+            resolver_backend = None
 
     # T17: ``--clear`` must invalidate our parsed-manifest cache in
     # addition to pip's HTTP/resolution caches.  Runs at the top of
@@ -417,7 +446,13 @@ def do_lock(project, ctx: RoutineContext):
                 old_lock_data=old_lock_data,
                 extra_pip_args=extra_pip_args,
                 resolved_default_deps=category_default_deps,
-                resolver_backend=resolver,
+                # T_PLUMBING (Initiative G phase 3): pass the resolved
+                # backend name down to the resolver-subprocess argv /
+                # in-process driver.  ``None`` is the "not specified"
+                # sentinel; the wire-shape stays empty-string so the
+                # default ``--backend pip``-or-unset path is
+                # byte-identical to today.
+                resolver_backend=resolver_backend,
             )
         except RuntimeError:
             sys.exit(1)

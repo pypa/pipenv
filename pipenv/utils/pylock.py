@@ -671,7 +671,20 @@ class PylockFile:
 
         # Add sources if present
         if "sources" in self.data:
-            lockfile["_meta"]["sources"] = self.data["sources"]
+            # Expand ${VAR} tokens in source URLs at read time so that
+            # callers downstream (resolver, finder, netrc-writer) see the
+            # real credentials.  Mirrors the legacy ``Pipfile.lock`` reader
+            # (``Lockfile.load``); without this, users with ``[pipenv]
+            # use_pylock = true`` lose env-var expansion in private-index
+            # URLs (gh-6670).
+            from pipenv.utils.shell import expand_url_credentials
+
+            sources = []
+            for source in self.data["sources"]:
+                if isinstance(source, dict) and "url" in source:
+                    source = {**source, "url": expand_url_credentials(source["url"])}
+                sources.append(source)
+            lockfile["_meta"]["sources"] = sources
         # If no sources in pylock.toml, add a default source
         else:
             lockfile["_meta"]["sources"] = [

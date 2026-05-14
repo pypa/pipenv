@@ -202,6 +202,63 @@ jobs:
         run: |
           pipenv run pytest -ra -n auto -v --fulltrace tests
 
+  tests-pure-python-backend:
+    # Initiative G phase 3b (T_CI1): run the full pipenv test suite
+    # under ``PIPENV_RESOLVER=pure-python`` to dogfood the new
+    # pure-Python resolver backend.  Non-blocking
+    # (``continue-on-error: true``) — the acceptance gate is "matrix
+    # runs and produces a result", not "matrix passes", until the
+    # backend reaches feature parity with pip.  Ubuntu + 3.12 only at
+    # this phase to keep CI minutes reasonable; widen the matrix once
+    # the backend is consistently green.
+    name: Tests (pure-python backend) / Ubuntu / 3.12
+    needs: [tests-smoke]
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install latest pip, setuptools, wheel
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+      - name: Install dependencies
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: "3.12"
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PYTHONIOENCODING: "utf-8"
+          GIT_ASK_YESNO: "false"
+        run: |
+          git submodule sync
+          git submodule update --init --recursive
+          python -m pip install -e . --upgrade
+          pipenv install --deploy --dev --python=3.12
+          pipenv run python -m pip install -e ".[tests,dev]" --upgrade
+      - name: Run pypiserver with pipenv
+        run: |
+          pipenv run pypi-server --version
+          pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome /dev/null ./tests/pypi/ ./tests/fixtures &
+      - name: Run tests with pure-python backend
+        env:
+          PIPENV_DEFAULT_PYTHON_VERSION: "3.12"
+          PYTHONWARNINGS: ignore:DEPRECATION
+          PIPENV_NOSPIN: "1"
+          CI: "1"
+          GIT_ASK_YESNO: "false"
+          PYPI_VENDOR_DIR: "./tests/pypi/"
+          PYTHONIOENCODING: "utf-8"
+          GIT_SSH_COMMAND: ssh -o StrictHostKeyChecking=accept-new -o CheckHostIP=no
+          # T_CI1 (Initiative G phase 3b): select the pure-Python
+          # backend via the documented env-var path.  Honoured by
+          # ``pipenv.resolver.core._selected_backend_name`` after the
+          # parent-side CLI / Pipfile chain falls through.
+          PIPENV_RESOLVER: pure-python
+        run: |
+          pipenv run pytest -ra -n auto -v --fulltrace tests
+
   resolver-module-coverage:
     # Initiative G phase 1 (T17): enforce per-module coverage floors
     # for the new pure-Python simple-API client surface.  Without this

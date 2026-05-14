@@ -921,14 +921,35 @@ class PEP691Client:
         target_url: str,
         if_none_match: str | None,
     ) -> SimplePageResponse | FetchError:
-        """Branch on HTTP status; parse body for 200; map errors."""
-        status = response.status
+        """Branch on HTTP status; parse body for 200; map errors.
+
+        Accepts both urllib3-style responses (``.status`` / ``.data``)
+        and ``requests``-style responses (``.status_code`` / ``.content``).
+        Production uses a :class:`PipSession` (``requests``-based); the
+        Phase 1+2 unit tests use a urllib3-style mock — picking by
+        attribute *presence* (not value) keeps urllib3-style mocks with
+        an explicit ``data=None`` distinguishable from a requests-style
+        response.
+        """
+        if hasattr(response, "status"):
+            status = response.status
+        elif hasattr(response, "status_code"):
+            status = response.status_code
+        else:
+            status = None
         headers = response.headers
 
         if status == 200:
             content_type = _get_header(headers, "Content-Type") or ""
             ct_lower = content_type.lower()
-            body = response.data if response.data is not None else b""
+            if hasattr(response, "data"):
+                body = response.data
+            elif hasattr(response, "content"):
+                body = response.content
+            else:
+                body = None
+            if body is None:
+                body = b""
 
             if ct_lower.startswith(_JSON_CT_PREFIX):
                 try:
