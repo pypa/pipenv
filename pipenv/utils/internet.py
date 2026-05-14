@@ -247,7 +247,13 @@ def write_credentials_netrc(sources, directory) -> Optional[str]:
     existing = _read_existing_netrc_content().strip()
     body = "\n".join(machine_blocks)
     if existing:
-        body = f"{body}\n{existing}\n"
+        # ``netrc.authenticators()`` returns the LAST matching entry for a
+        # host, so our Pipfile-derived blocks must come AFTER the user's
+        # existing netrc; otherwise a stale system entry for the same host
+        # silently overrides the credentials the user just supplied via
+        # Pipfile env-vars (regression seen after GHSA-8xgg-v3jj-95m2 moved
+        # auth off argv onto netrc — gh-6670).
+        body = f"{existing}\n\n{body}"
 
     netrc_path = os.path.join(str(directory), "pipenv-netrc")
     # Write with restrictive permissions: netrc parsers (and pip's vendored

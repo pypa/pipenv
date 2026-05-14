@@ -129,6 +129,73 @@ def test_write_credentials_netrc_decodes_url_encoded_password(tmp_path):
     assert "password p@ss!" in contents
 
 
+@pytest.mark.utils
+def test_write_credentials_netrc_pipfile_wins_over_existing_system_netrc(
+    tmp_path, monkeypatch
+):
+    """Pipfile-derived creds must beat a duplicate entry from the user's
+    pre-existing system netrc.
+
+    Regression test for gh-6670: after GHSA-8xgg-v3jj-95m2 moved auth from
+    URL-embedded argv onto a merged netrc, a stale ``machine`` block in
+    ``~/.netrc`` (or ``$NETRC``) for the same host silently overrode the
+    Pipfile's credentials because ``netrc.authenticators()`` returns the
+    LAST matching entry. Our blocks must come AFTER the appended existing
+    content so they win that tie-break.
+    """
+    import netrc
+
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text(
+        "machine private.example.com\n  login STALE\n  password STALE\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NETRC", str(system_netrc))
+
+    sources = [{"url": "https://fresh:freshpass@private.example.com/simple"}]
+    netrc_path = write_credentials_netrc(sources, tmp_path)
+    assert netrc_path is not None
+
+    login, _account, password = netrc.netrc(netrc_path).authenticators(
+        "private.example.com"
+    )
+    assert (login, password) == ("fresh", "freshpass"), (
+        "Pipfile-supplied creds must override the user's existing netrc"
+    )
+
+
+@pytest.mark.utils
+def test_write_credentials_netrc_from_env_var_expanded_url(tmp_path, monkeypatch):
+    """The expand_url_credentials → write_credentials_netrc round-trip must
+    produce a netrc with the expanded (real) credentials, not the literal
+    ``${VAR}`` placeholders.
+
+    Regression test for gh-6670: ensures that env-var-bearing source URLs
+    flow through ``pipfile_sources()`` (which calls
+    ``expand_url_credentials``) and yield a netrc with the actual user/pass,
+    matching the hardcoded-credentials behavior the GHSA fix preserved.
+    """
+    import netrc
+
+    from pipenv.utils.shell import expand_url_credentials
+
+    monkeypatch.setenv("NEXUS_USERNAME", "real-user")
+    monkeypatch.setenv("NEXUS_PASSWORD", "real-pass!@#")
+
+    raw_url = (
+        "https://${NEXUS_USERNAME}:${NEXUS_PASSWORD}"
+        "@nexus.example.com/repository/pypi/simple"
+    )
+    expanded = expand_url_credentials(raw_url)
+    netrc_path = write_credentials_netrc([{"url": expanded}], tmp_path)
+    assert netrc_path is not None
+
+    login, _account, password = netrc.netrc(netrc_path).authenticators(
+        "nexus.example.com"
+    )
+    assert (login, password) == ("real-user", "real-pass!@#")
+
+
 # --- pip_install_deps integration -------------------------------------------
 
 
