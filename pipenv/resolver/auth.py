@@ -118,7 +118,11 @@ def lookup_netrc_auth(
         login, _account, password = auth
         # ``netrc.authenticators`` may return ``None`` for either field
         # when the entry omits it; treat that as "no usable credentials".
-        if not login or password is None:
+        # Python 3.10's parser also preserves surrounding quotes in tokens,
+        # so ``login ""`` yields the literal ``""`` rather than the empty
+        # string returned by 3.11+; strip outer quotes before the falsy
+        # check so the behavior is consistent across Python versions.
+        if not login or not login.strip('"') or password is None:
             continue
         return login, password
     return None
