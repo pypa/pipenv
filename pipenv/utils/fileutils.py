@@ -11,11 +11,12 @@ from tempfile import TemporaryDirectory
 from typing import Any, Optional
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
-from urllib.parse import quote, urlparse
+from urllib.parse import quote
 
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.utils import err
+from pipenv.utils.internet import is_valid_url
 
 
 def is_file_url(url: Any) -> bool:
@@ -28,12 +29,6 @@ def is_file_url(url: Any) -> bool:
         except AttributeError:
             raise ValueError(f"Cannot parse url from unknown type: {url!r}")
     return urllib_parse.urlparse(url.lower()).scheme == "file"
-
-
-def is_valid_url(url: str) -> bool:
-    """Checks if a given string is an url."""
-    pieces = urlparse(url)
-    return all([pieces.scheme, pieces.netloc])
 
 
 def url_to_path(url: str) -> Path:
@@ -156,7 +151,6 @@ def open_file(link, session: Optional[PipSession] = None, stream: bool = False):
         except AttributeError:
             raise ValueError(f"Cannot parse url from unknown type: {link!r}")
 
-    # Check if the link is a local path that exists
     if not is_valid_url(link):
         path_obj = Path(link)
         if path_obj.exists():

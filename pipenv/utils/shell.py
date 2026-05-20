@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path, PurePath
 
 from pipenv.utils import err
-from pipenv.utils.fileutils import normalize_drive
+from pipenv.utils.fileutils import normalize_drive  # noqa: F401 (re-export for back-compat; external callers import it from here)
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
@@ -99,18 +99,6 @@ def load_path(python):
         return json.loads(c.stdout.strip())
     else:
         return []
-
-
-def path_to_url(path):
-    """
-    Convert a file system path to a URI.
-
-    First normalizes drive letter case on Windows, then converts to absolute path,
-    and finally to a URI.
-    """
-    path_obj = Path(path).resolve()
-    normalized_path = normalize_drive(str(path_obj))
-    return Path(normalized_path).as_uri()
 
 
 def get_windows_path(*args):

@@ -708,6 +708,83 @@ class TestDependencyAsPipInstallLineEditable:
 
 
 
+class TestPep423Name:
+    """Tests for pep423_name (lowercase + underscore-to-hyphen normalisation).
+
+    These tests pin the post-W4 behaviour:
+    * Plain names get lowercased and have ``_`` rewritten to ``-``.
+    * Inputs that contain a VCS scheme token (``git``, ``svn``, ``hg``, ``bzr``)
+      or URL scheme token (``http://``, ``https://`` ...) are returned with
+      only the lowercase rewrite applied; the ``_``->``-`` rewrite is
+      *skipped* so URL/VCS specifiers are not mangled.
+
+    The W4 bug fix corrects ``any(token not in name ...)`` (which was True
+    for any name missing at least one scheme token, i.e. every real name,
+    making the ``else`` branch dead) to
+    ``not any(token in name ...)`` -- skip the rewrite only when a scheme
+    token *is* present in the input.
+    """
+
+    def _call(self, name):
+        from pipenv.utils.dependencies import pep423_name
+
+        return pep423_name(name)
+
+    def test_plain_lowercase_unchanged(self):
+        assert self._call("requests") == "requests"
+
+    def test_mixed_case_lowercased(self):
+        assert self._call("MyPkg") == "mypkg"
+
+    def test_underscore_to_hyphen_lowercase(self):
+        assert self._call("my_pkg") == "my-pkg"
+
+    def test_mixed_case_with_underscore(self):
+        # Regression: the dead-`else` branch in the buggy version happened
+        # to return this correctly because it took the early-return path.
+        # After the fix this still must work.
+        assert self._call("My_Pkg") == "my-pkg"
+
+    def test_multiple_underscores(self):
+        assert self._call("some_long_name") == "some-long-name"
+
+    def test_dot_preserved(self):
+        # pep423_name only rewrites underscores, not dots.
+        assert self._call("zope.interface") == "zope.interface"
+
+    def test_already_hyphenated(self):
+        assert self._call("python-dateutil") == "python-dateutil"
+
+    def test_vcs_token_in_name_skips_underscore_rewrite(self):
+        # An input containing a VCS token (e.g. "git") should be returned
+        # with the lowercase applied but underscores preserved -- this is
+        # the corrected behaviour the dead-`else` was *meant* to express.
+        # The function returns the input minus case-only changes.
+        result = self._call("git+ssh://github.com/foo/some_repo")
+        assert "_" in result
+        assert result == "git+ssh://github.com/foo/some_repo"
+
+    def test_https_url_skips_underscore_rewrite(self):
+        result = self._call("https://example.com/pkg_with_underscore.tar.gz")
+        assert "_" in result
+        assert result == "https://example.com/pkg_with_underscore.tar.gz"
+
+    def test_http_url_skips_underscore_rewrite(self):
+        result = self._call("http://example.com/some_pkg")
+        assert result == "http://example.com/some_pkg"
+
+    def test_file_url_skips_underscore_rewrite(self):
+        result = self._call("file:///tmp/local_pkg")
+        assert result == "file:///tmp/local_pkg"
+
+    def test_vcs_token_uppercase_input_still_lowercased(self):
+        # The lowercase pass runs before the scheme-token check, so an
+        # uppercase URL still gets lowercased and the token check then
+        # matches the lowercase form.
+        result = self._call("HTTPS://Example.com/pkg_name")
+        assert result == "https://example.com/pkg_name"
+
+
 class TestGetConstraintsFromResolvedDeps:
     """Tests for get_constraints_from_resolved_deps (gh-4665, gh-4473)."""
 
@@ -767,3 +844,75 @@ class TestGetConstraintsFromResolvedDeps:
         }
         constraints = get_constraints_from_resolved_deps(resolved)
         assert "my-package==1.0" in constraints
+
+
+class TestIsEditable:
+    """Tests for is_editable (the canonical helper in pipenv.utils.dependencies).
+
+    These tests pin the post-W5 consolidation: a single is_editable now
+    serves every caller (project.py, utils/pipfile.py, utils/locking.py).
+    Real callers iterate Pipfile/lockfile package values, which TOML
+    parses as either Mapping (table) or str (version specifier).  A
+    string ``"-e ./pkg"`` form is also accepted so behaviour matches the
+    pre-consolidation requirementslib.is_editable that locking.py and
+    utils/pipfile.py used.
+    """
+
+    def _call(self, value):
+        from pipenv.utils.dependencies import is_editable
+
+        return is_editable(value)
+
+    def test_dict_with_editable_true(self):
+        assert self._call({"editable": True, "path": "."}) is True
+
+    def test_dict_with_editable_false(self):
+        assert self._call({"editable": False, "path": "."}) is False
+
+    def test_dict_without_editable_key(self):
+        assert self._call({"version": "*"}) is False
+
+    def test_empty_dict(self):
+        assert self._call({}) is False
+
+    def test_dict_with_editable_truthy_non_bool(self):
+        # The mapping branch uses ``is True`` so a truthy-but-not-True
+        # value (e.g. a non-empty string) is NOT treated as editable.
+        # This matches the pre-W5 requirementslib semantics which every
+        # active caller already imported.
+        assert self._call({"editable": "yes"}) is False
+
+    def test_string_with_dash_e_prefix(self):
+        assert self._call("-e ./local-pkg") is True
+
+    def test_string_with_dash_e_git(self):
+        assert self._call("-e git+https://github.com/foo/bar.git#egg=bar") is True
+
+    def test_string_plain_version_specifier(self):
+        # The common Pipfile shape: ``mypkg = "*"`` or ``mypkg = ">=1.0"``.
+        assert self._call("*") is False
+        assert self._call(">=1.0") is False
+
+    def test_string_url_without_dash_e(self):
+        assert self._call("https://example.com/pkg.tar.gz") is False
+
+    def test_none_returns_false(self):
+        assert self._call(None) is False
+
+    def test_other_type_returns_false(self):
+        assert self._call(42) is False
+        assert self._call(["editable"]) is False
+
+    def test_tomlkit_inline_table_editable(self):
+        # The realistic Pipfile path: parsed_pipfile values are tomlkit
+        # InlineTable instances, not plain dicts.  They implement
+        # collections.abc.Mapping so the canonical helper must recognise
+        # them.  Use the vendored tomlkit (pipenv ships its own) rather
+        # than importing a top-level `tomlkit` that isn't in test deps.
+        from pipenv.vendor import tomlkit
+
+        doc = tomlkit.parse(
+            '[packages]\nfoo = {editable = true, path = "."}\nbar = "*"\n'
+        )
+        assert self._call(doc["packages"]["foo"]) is True
+        assert self._call(doc["packages"]["bar"]) is False

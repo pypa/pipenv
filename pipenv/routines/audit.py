@@ -234,7 +234,7 @@ def do_audit(  # noqa: PLR0913
             )
             sys.exit(1)
 
-        from pipenv.utils.requirements import requirements_from_lockfile
+        from pipenv.utils.dependencies import requirements_from_lockfile
 
         lockfile = project.load_lockfile(expand_env_vars=False)
         deps = {}

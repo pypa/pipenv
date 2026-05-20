@@ -4,7 +4,7 @@ from collections import defaultdict
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils import requirements
+from pipenv.utils import dependencies
 
 
 @pytest.fixture
@@ -36,7 +36,7 @@ def test_git_branch_contains_slashes(pipenv_instance_pypi, pypi_lockfile):
         project = Project()
         lockfile = project.load_lockfile(expand_env_vars=False)
         deps = lockfile["default"]
-        pip_installable_lines = requirements.requirements_from_lockfile(
+        pip_installable_lines = dependencies.requirements_from_lockfile(
             deps, include_hashes=False, include_markers=True
         )
         assert pip_installable_lines == [
@@ -58,7 +58,7 @@ def test_git_branch_contains_subdirectory_fragment(pipenv_instance_pypi, pypi_lo
         project = Project()
         lockfile = project.load_lockfile(expand_env_vars=False)
         deps = lockfile["default"]
-        pip_installable_lines = requirements.requirements_from_lockfile(
+        pip_installable_lines = dependencies.requirements_from_lockfile(
             deps, include_hashes=False, include_markers=True
         )
         assert pip_installable_lines == [

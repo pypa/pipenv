@@ -1,5 +1,4 @@
 import os
-from typing import TYPE_CHECKING, Optional
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
@@ -9,11 +8,6 @@ from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv, find_a_system_python
 from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
-
-if TYPE_CHECKING:
-    STRING_TYPE = str
-
-import importlib.metadata as importlib_metadata
 
 
 def _python_version_matches_required(actual_ver_str, required_ver_str):
@@ -181,21 +175,3 @@ def ensure_project(
             pipfile_categories=pipfile_categories,
         )
     os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
-
-
-def get_setuptools_version() -> Optional["STRING_TYPE"]:
-    try:
-        setuptools_dist = importlib_metadata.distribution("setuptools")
-        return str(setuptools_dist.version)
-    except ImportError:
-        return None
-
-
-def get_default_pyproject_backend():
-    # type: () -> STRING_TYPE
-    st_version = get_setuptools_version()
-    if st_version is not None:
-        parsed_st_version = parse_version(st_version)
-        if parsed_st_version >= parse_version("40.8.0"):
-            return "setuptools.build_meta:__legacy__"
-    return "setuptools.build_meta"

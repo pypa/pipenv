@@ -16,6 +16,7 @@ from pipenv.utils.dependencies import (
     clean_resolved_dep,
     determine_vcs_revision_hash,
     expansive_install_req_from_line,
+    is_editable,
     normalize_vcs_url,
     pep423_name,
     translate_markers,
@@ -26,8 +27,7 @@ from pipenv.utils.exceptions import (
     PipfileNotFound,
 )
 from pipenv.utils.pipfile import DEFAULT_NEWLINES, ProjectFile
-from pipenv.utils.requirements import normalize_name
-from pipenv.utils.requirementslib import is_editable, is_vcs, merge_items
+from pipenv.utils.requirementslib import is_vcs, merge_items
 from pipenv.vendor.plette import lockfiles
 
 
@@ -52,7 +52,7 @@ def format_requirement_for_lockfile(
     hashes: Optional[Set[str]] = None,
 ) -> Tuple[str, Dict[str, Any]]:
     """Format a requirement for the lockfile with improved VCS handling."""
-    name = normalize_name(req.name)
+    name = pep423_name(req.name)
     entry: Dict[str, Any] = {"name": name}
     pipfile_entry = pipfile_entries.get(name, pipfile_entries.get(req.name, {}))
     # Handle VCS requirements
@@ -563,7 +563,7 @@ class Lockfile:
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
     ) -> Iterator[InstallRequirement]:
-        from pipenv.utils.requirements import requirement_from_lockfile
+        from pipenv.utils.dependencies import requirement_from_lockfile
 
         if categories:
             deps = {}

@@ -60,6 +60,7 @@ def _open_editor(filename):
 
 
 def cmd_install(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.install import do_install
 
     if state.installstate.all_categories:
@@ -67,24 +68,28 @@ def cmd_install(args, state):
     else:
         apply_default_categories(args, state)
 
-    do_install(
-        state.project,
-        dev=state.installstate.dev,
+    ctx = RoutineContext.from_cli(
+        # target_env
+        system=state.system,
         python=state.python,
         pypi_mirror=state.pypi_mirror,
-        system=state.system,
-        ignore_pipfile=state.installstate.ignore_pipfile,
-        requirementstxt=state.installstate.requirementstxt,
+        site_packages=state.site_packages,
+        # install_policy
         pre=state.installstate.pre,
         deploy=state.installstate.deploy,
-        index=state.index,
+        skip_lock=state.installstate.skip_lock,
+        ignore_pipfile=state.installstate.ignore_pipfile,
+        # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        site_packages=state.site_packages,
+        categories=state.installstate.categories,
+        dev=state.installstate.dev,
+        index=state.index,
+        requirementstxt=state.installstate.requirementstxt,
+        # execution_options
         extra_pip_args=state.installstate.extra_pip_args,
-        pipfile_categories=state.installstate.categories,
-        skip_lock=state.installstate.skip_lock,
     )
+    do_install(state.project, ctx)
 
 
 def cmd_remove(args, state):
@@ -144,6 +149,7 @@ def cmd_upgrade(args, state):
 
 
 def cmd_uninstall(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.uninstall import do_uninstall
 
     # --dev means "operate on dev-packages"; translate it to a category so that
@@ -153,26 +159,28 @@ def cmd_uninstall(args, state):
 
     apply_default_categories(args, state)
 
-    pre = state.installstate.pre
-
-    retcode = do_uninstall(
-        state.project,
+    ctx = RoutineContext.from_cli(
+        # target_env
+        system=state.system,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        # install_policy
+        pre=state.installstate.pre,
+        lock=False,
+        # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        python=state.python,
-        system=state.system,
-        lock=False,
+        categories=state.installstate.categories,
         all_dev=args.all_dev,
         all=args.all,
-        pre=pre,
-        pypi_mirror=state.pypi_mirror,
-        categories=state.installstate.categories,
     )
+    retcode = do_uninstall(state.project, ctx)
     if retcode:
         sys.exit(retcode)
 
 
 def cmd_lock(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.lock import do_lock
     from pipenv.utils.project import ensure_project
 
@@ -186,16 +194,19 @@ def cmd_lock(args, state):
         site_packages=state.site_packages,
     )
 
-    pre = state.installstate.pre
-    do_lock(
-        state.project,
-        clear=state.clear,
-        pre=pre,
+    ctx = RoutineContext.from_cli(
+        # target_env
         pypi_mirror=state.pypi_mirror,
-        write=True,
-        quiet=state.quiet,
+        # install_policy
+        pre=state.installstate.pre,
+        clear=state.clear,
+        # package_selection
         categories=state.installstate.categories,
+        # execution_options
+        quiet=state.quiet,
+        write=True,
     )
+    do_lock(state.project, ctx)
 
 
 def cmd_shell(args, state):
@@ -337,6 +348,7 @@ def cmd_audit(args, state):
 
 
 def cmd_update(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.update import do_update
 
     if state.installstate.all_categories:
@@ -344,26 +356,37 @@ def cmd_update(args, state):
     else:
         apply_default_categories(args, state)
 
-    do_update(
-        state.project,
-        python=state.python,
-        site_packages=state.site_packages,
-        clear=state.clear,
-        pre=state.installstate.pre,
-        pypi_mirror=state.pypi_mirror,
+    # ``--outdated`` and ``--dry-run`` collapse downstream into a single
+    # boolean (``outdated || bool(dry_run)``). ``RoutineContext`` does
+    # not carry an ``outdated`` field of its own, so we OR the two here
+    # and surface the combined intent via ``install_policy.dry_run``.
+    dry_run_intent = bool(getattr(args, "outdated", False)) or bool(
+        getattr(args, "dry_run", False)
+    )
+
+    ctx = RoutineContext.from_cli(
+        # target_env
         system=state.system,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        site_packages=state.site_packages,
+        # install_policy
+        pre=state.installstate.pre,
+        clear=state.clear,
+        lock_only=state.installstate.lock_only,
+        dry_run=dry_run_intent,
+        # package_selection
         packages=state.installstate.packages,
         editable_packages=state.installstate.editables,
-        dev=state.installstate.dev,
-        bare=args.bare,
-        extra_pip_args=state.installstate.extra_pip_args,
         categories=state.installstate.categories,
-        index_url=state.index,
+        dev=state.installstate.dev,
+        index=state.index,
+        # execution_options
+        extra_pip_args=state.installstate.extra_pip_args,
+        bare=args.bare,
         quiet=state.quiet,
-        dry_run=args.dry_run,
-        outdated=args.outdated,
-        lock_only=state.installstate.lock_only,
     )
+    do_update(state.project, ctx)
 
 
 def cmd_graph(args, state):
@@ -409,6 +432,7 @@ def cmd_open(args, state):
 
 
 def cmd_sync(args, state):
+    from pipenv.routines.context import RoutineContext
     from pipenv.routines.sync import do_sync
 
     if state.installstate.all_categories:
@@ -416,18 +440,22 @@ def cmd_sync(args, state):
     else:
         apply_default_categories(args, state)
 
-    retcode = do_sync(
-        state.project,
-        dev=state.installstate.dev,
-        python=state.python,
-        bare=args.bare,
-        clear=state.clear,
-        pypi_mirror=state.pypi_mirror,
+    ctx = RoutineContext.from_cli(
+        # target_env
         system=state.system,
-        extra_pip_args=state.installstate.extra_pip_args,
-        categories=state.installstate.categories,
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
         site_packages=state.site_packages,
+        # install_policy
+        clear=state.clear,
+        # package_selection
+        categories=state.installstate.categories,
+        dev=state.installstate.dev,
+        # execution_options
+        extra_pip_args=state.installstate.extra_pip_args,
+        bare=args.bare,
     )
+    retcode = do_sync(state.project, ctx)
     if retcode:
         sys.exit(1)
 

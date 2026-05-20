@@ -3,15 +3,19 @@ import queue
 import sys
 import warnings
 from collections import defaultdict
+from dataclasses import replace
 from tempfile import NamedTemporaryFile
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err, fileutils
 from pipenv.utils.dependencies import (
+    add_index_to_pipfile_with_trust_check,
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
+    import_requirements,
     install_req_from_pipfile,
     normalize_editable_path_for_pip,
 )
@@ -26,7 +30,6 @@ from pipenv.utils.pip import (
 )
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
-from pipenv.utils.requirements import add_index_to_pipfile, import_requirements
 from pipenv.utils.shell import temp_environ
 
 
@@ -128,18 +131,30 @@ def _should_use_no_binary(pkg_name, extra_pip_args):
 
 def handle_new_packages(
     project,
-    packages,
-    editable_packages,
-    dev,
-    pre,
-    system,
-    pypi_mirror,
-    extra_pip_args,
-    pipfile_categories,
-    perform_upgrades=True,
-    index=None,
+    ctx: RoutineContext,
+    *,
+    perform_upgrades: bool = True,
 ):
+    """Add user-requested packages to the Pipfile and optionally upgrade.
+
+    Per T_C.6: consumes :class:`RoutineContext` for the bundled inputs
+    (packages, editables, dev/pre/system/index/extra_pip_args/etc.).
+    ``perform_upgrades`` stays as a per-call kwarg because it is a
+    call-site intent flag (``do_install`` flips it off when
+    ``skip_lock`` is set), not a property of the user's CLI invocation.
+    """
     from pipenv.routines.update import do_update
+
+    sel = ctx.package_selection
+    target = ctx.target_env
+    policy = ctx.install_policy
+    exec_opts = ctx.execution_options
+
+    packages = list(sel.packages) if sel.packages else []
+    editable_packages = list(sel.editable_packages) if sel.editable_packages else []
+    pipfile_categories = list(sel.categories) if sel.categories else []
+    extra_pip_args = list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else []
+    index = sel.index
 
     new_packages = []
     if packages or editable_packages:
@@ -151,7 +166,7 @@ def handle_new_packages(
         for pkg_line in pkg_list:
             console.print(f"Installing {pkg_line}...", style="bold green")
             with temp_environ():
-                if not system:
+                if not target.system:
                     os.environ["PIP_USER"] = "0"
                     if "PYTHONHOME" in os.environ:
                         del os.environ["PYTHONHOME"]
@@ -161,10 +176,10 @@ def handle_new_packages(
                         pkg_line, expand_env=True
                     )
                     if index:
-                        source = project.get_index_by_name(index)
-                        default_index = project.get_default_index()["name"]
+                        source = project.sources.get_index_by_name(index)
+                        default_index = project.sources.get_default_index()["name"]
                         if not source:
-                            index_name = add_index_to_pipfile(project, index)
+                            index_name = add_index_to_pipfile_with_trust_check(project, index)
                             if index_name != default_index:
                                 pkg_requirement.index = index_name
                         elif source["name"] != default_index:
@@ -188,7 +203,7 @@ def handle_new_packages(
                             added, cat, normalized_name = project.add_package_to_pipfile(
                                 pkg_requirement,
                                 pkg_line,
-                                dev,
+                                sel.dev,
                                 category,
                                 no_binary=no_binary,
                             )
@@ -196,7 +211,7 @@ def handle_new_packages(
                                 new_packages.append((normalized_name, cat))
                     else:
                         added, cat, normalized_name = project.add_package_to_pipfile(
-                            pkg_requirement, pkg_line, dev, no_binary=no_binary
+                            pkg_requirement, pkg_line, sel.dev, no_binary=no_binary
                         )
                         if added:
                             new_packages.append((normalized_name, cat))
@@ -215,23 +230,28 @@ def handle_new_packages(
                 )
 
         # Update project settings with pre-release preference.
-        if pre:
-            project.update_settings({"allow_prereleases": pre})
+        if policy.pre:
+            project.settings.update({"allow_prereleases": policy.pre})
 
     # Use the update routine for new packages
     if perform_upgrades and (packages or editable_packages):
         try:
-            do_update(
-                project,
-                dev=dev,
-                pre=pre,
-                packages=packages,
-                editable_packages=editable_packages,
-                pypi_mirror=pypi_mirror,
-                index_url=index,
-                extra_pip_args=extra_pip_args,
-                categories=pipfile_categories,
+            # Post T_C.8 ``do_update`` consumes ``RoutineContext``. Build
+            # a context that mirrors the pre-migration kwargs verbatim
+            # (dev / pre / packages / editables / pypi_mirror / index /
+            # extra_pip_args / categories) so the post-install upgrade
+            # pass behaves identically.
+            update_ctx = RoutineContext.from_cli(
+                pypi_mirror=target.pypi_mirror,
+                pre=policy.pre,
+                packages=tuple(packages),
+                editable_packages=tuple(editable_packages),
+                categories=tuple(pipfile_categories),
+                dev=sel.dev,
+                index=index,
+                extra_pip_args=tuple(extra_pip_args),
             )
+            do_update(project, update_ctx)
             return new_packages, True
         except Exception:
             for pkg_name, category in new_packages:
@@ -241,64 +261,63 @@ def handle_new_packages(
     return new_packages, False
 
 
-def handle_lockfile(
-    project,
-    packages,
-    ignore_pipfile,
-    skip_lock,
-    system,
-    allow_global,
-    deploy,
-    pre,
-    pypi_mirror,
-    categories,
-):
-    """Handle the lockfile, updating if necessary.  Returns True if package updates were applied."""
+def handle_lockfile(project, ctx: RoutineContext):
+    """Handle the lockfile, updating if necessary.
+
+    Per T_C.6: consumes :class:`RoutineContext` for the bundled inputs
+    (packages, install-policy flags, target-env flags). Per T_C.7,
+    ``handle_outdated_lockfile`` and ``handle_missing_lockfile`` are
+    now on ``RoutineContext`` too; only the call-state strings
+    (``old_hash`` / ``new_hash``) remain as direct args.
+    """
+    sel = ctx.package_selection
+    target = ctx.target_env
+    policy = ctx.install_policy
+
+    packages = list(sel.packages) if sel.packages else []
+
     if (
-        (project.lockfile_exists and not ignore_pipfile)
-        and not skip_lock
+        (project.lockfile_exists and not policy.ignore_pipfile)
+        and not policy.skip_lock
         and not packages
     ):
         old_hash = project.get_lockfile_hash()
         new_hash = project.calculate_pipfile_hash()
         if new_hash != old_hash:
-            if deploy:
+            if policy.deploy:
                 console.print(
                     f"Your Pipfile.lock ({old_hash}) is out of date. Expected: ({new_hash}).",
                     style="red",
                 )
                 raise exceptions.DeployException
-            elif not system:
+            elif not target.system:
                 handle_outdated_lockfile(
                     project,
-                    packages,
+                    ctx,
                     old_hash=old_hash,
                     new_hash=new_hash,
-                    system=system,
-                    allow_global=allow_global,
-                    skip_lock=skip_lock,
-                    pre=pre,
-                    pypi_mirror=pypi_mirror,
-                    categories=categories,
                 )
-    elif not project.lockfile_exists and not skip_lock:
-        handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror)
+    elif not project.lockfile_exists and not policy.skip_lock:
+        handle_missing_lockfile(project, ctx)
 
 
 def handle_outdated_lockfile(
     project,
-    packages,
+    ctx: RoutineContext,
+    *,
     old_hash,
     new_hash,
-    system,
-    allow_global,
-    skip_lock,
-    pre,
-    pypi_mirror,
-    categories,
 ):
-    """Handle an outdated lockfile returning True if package updates were applied."""
-    if (system or allow_global) and not (project.s.PIPENV_VIRTUALENV):
+    """Handle an outdated lockfile.
+
+    Per T_C.7: consumes :class:`RoutineContext` for target-env / policy
+    flags. ``old_hash`` and ``new_hash`` stay as call-state strings
+    (see design doc section 3, "other" group).
+    """
+    target = ctx.target_env
+    policy = ctx.install_policy
+
+    if (target.system or target.allow_global) and not (project.s.PIPENV_VIRTUALENV):
         err.print(
             f"Pipfile.lock ({old_hash}) out of date, but installation uses --system so"
             f" re-building lockfile must happen in isolation."
@@ -316,19 +335,29 @@ def handle_outdated_lockfile(
             msg.format(old_hash, new_hash),
             style="bold yellow",
         )
-        if not skip_lock:
-            do_lock(
-                project,
-                system=system,
-                pre=pre,
-                write=True,
-                pypi_mirror=pypi_mirror,
-                categories=None,
+        if not policy.skip_lock:
+            # do_lock honours ctx.execution_options.write (defaults True).
+            # Drop the categories selection so the lock spans every
+            # configured Pipfile section, matching the pre-T_C.9 call
+            # that passed ``categories=None`` explicitly.
+            lock_ctx = replace(
+                ctx,
+                package_selection=replace(
+                    ctx.package_selection, categories=()
+                ),
             )
+            do_lock(project, lock_ctx)
 
 
-def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror):
-    if (system or allow_global) and not project.s.PIPENV_VIRTUALENV:
+def handle_missing_lockfile(project, ctx: RoutineContext):
+    """Handle a missing lockfile by creating one.
+
+    Per T_C.7: consumes :class:`RoutineContext` for the bundled
+    target-env / install-policy flags.
+    """
+    target = ctx.target_env
+
+    if (target.system or target.allow_global) and not project.s.PIPENV_VIRTUALENV:
         raise exceptions.PipenvOptionsError(
             "--system",
             "--system is intended to be used for Pipfile installation, "
@@ -341,117 +370,100 @@ def handle_missing_lockfile(project, system, allow_global, pre, pypi_mirror):
                 "Pipfile.lock not found, creating...",
                 style="bold",
             )
-        do_lock(
-            project,
-            system=system,
-            pre=pre,
-            write=True,
-            pypi_mirror=pypi_mirror,
+        # do_lock honours ctx.execution_options.write (defaults True).
+        # The pre-T_C.9 call here omitted ``categories`` so the lock
+        # spans every configured Pipfile section; ensure ctx mirrors
+        # that by clearing any category selection from the parent ctx.
+        lock_ctx = replace(
+            ctx,
+            package_selection=replace(
+                ctx.package_selection, categories=()
+            ),
         )
+        do_lock(project, lock_ctx)
 
 
-def do_install(
-    project,
-    packages=False,
-    editable_packages=False,
-    index=False,
-    dev=False,
-    python=False,
-    pypi_mirror=None,
-    system=False,
-    ignore_pipfile=False,
-    requirementstxt=False,
-    pre=False,
-    deploy=False,
-    site_packages=None,
-    extra_pip_args=None,
-    pipfile_categories=None,
-    skip_lock=False,
-):
+def do_install(project, ctx: RoutineContext) -> None:
+    """Install user-requested packages and/or apply the Pipfile.
+
+    Consumes a :class:`~pipenv.routines.context.RoutineContext` per the
+    design doc (``docs/dev/initiative-c-design.md`` sections 2 and 6).
+    Post T_C.7, every helper in this module is also on ``RoutineContext``.
+    """
     requirements_directory = fileutils.create_tracked_tempdir(
         suffix="-requirements", prefix="pipenv-"
     )
     warnings.filterwarnings("ignore", category=ResourceWarning)
-    packages = packages if packages else []
-    editable_packages = (
-        [normalize_editable_path_for_pip(p) for p in editable_packages]
-        if editable_packages
-        else []
+
+    # Normalize editable paths up front and fold them back into the
+    # context so downstream readers see the canonicalised values.
+    pkg_sel = ctx.package_selection
+    editable_normalized = tuple(
+        normalize_editable_path_for_pip(p) for p in pkg_sel.editable_packages if p
     )
-    package_args = [p for p in packages if p] + [p for p in editable_packages if p]
-    new_packages = []
-    if dev and not pipfile_categories:
-        pipfile_categories = ["dev-packages"]
-    elif not pipfile_categories:
-        pipfile_categories = ["packages"]
+    ctx = replace(
+        ctx,
+        package_selection=replace(pkg_sel, editable_packages=editable_normalized),
+    )
+
+    # Pin default categories if the user didn't pass any. Matches the
+    # pre-migration ``do_install`` behaviour exactly.
+    if not ctx.package_selection.categories:
+        default_cats = (
+            ("dev-packages",) if ctx.package_selection.dev else ("packages",)
+        )
+        ctx = replace(
+            ctx,
+            package_selection=replace(
+                ctx.package_selection, categories=default_cats
+            ),
+        )
+
+    # Local working copies of the flags / selections used below.
+    target = ctx.target_env
+    policy = ctx.install_policy
+    sel = ctx.package_selection
+
+    pipfile_categories = list(sel.categories)
+    new_packages: list[tuple[str, str]] = []
 
     ensure_project(
         project,
-        python=python,
-        system=system,
+        python=target.python,
+        system=target.system,
         warn=True,
-        deploy=deploy,
+        deploy=policy.deploy,
         skip_requirements=False,
-        pypi_mirror=pypi_mirror,
-        site_packages=site_packages,
+        pypi_mirror=target.pypi_mirror,
+        site_packages=target.site_packages,
         pipfile_categories=pipfile_categories,
-        lockfile_only=ignore_pipfile,
+        lockfile_only=policy.ignore_pipfile,
     )
 
-    do_install_validations(
-        project,
-        package_args,
-        requirements_directory,
-        dev=dev,
-        system=system,
-        ignore_pipfile=ignore_pipfile,
-        requirementstxt=requirementstxt,
-        pre=pre,
-        deploy=deploy,
-        categories=pipfile_categories,
-        skip_lock=skip_lock,
-    )
+    do_install_validations(project, ctx, requirements_directory)
 
-    do_init(
-        project,
-        package_args,
-        system=system,
-        allow_global=system,
-        ignore_pipfile=ignore_pipfile,
-        deploy=deploy,
-        pypi_mirror=pypi_mirror,
-        skip_lock=skip_lock,
-        categories=pipfile_categories,
-    )
+    do_init(project, ctx)
 
-    if not deploy:
+    if not policy.deploy:
         new_packages, _ = handle_new_packages(
             project,
-            packages,
-            editable_packages,
-            dev=dev,
-            pre=pre,
-            system=system,
-            pypi_mirror=pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            pipfile_categories=pipfile_categories,
-            perform_upgrades=not skip_lock,
-            index=index,
+            ctx,
+            perform_upgrades=not policy.skip_lock,
         )
 
     try:
-        if dev:  # Install both develop and default package categories from Pipfile.
-            pipfile_categories = ["packages", "dev-packages"]
-        do_install_dependencies(
-            project,
-            dev=dev,
-            allow_global=system,
-            requirements_dir=requirements_directory,
-            pypi_mirror=pypi_mirror,
-            extra_pip_args=extra_pip_args,
-            categories=pipfile_categories,
-            skip_lock=skip_lock,
+        # When --dev was requested, install both default and dev categories
+        # from the Pipfile (the historical do_install behaviour).
+        install_categories = (
+            ("packages", "dev-packages") if sel.dev else tuple(pipfile_categories)
         )
+        deps_ctx = replace(
+            ctx,
+            package_selection=replace(
+                ctx.package_selection, categories=install_categories
+            ),
+        )
+        do_install_dependencies(project, deps_ctx, requirements_directory)
     except Exception as e:
         # If we fail to install, remove the package from the Pipfile.
         for pkg_name, category in new_packages:
@@ -463,28 +475,37 @@ def do_install(
 
 def do_install_validations(
     project,
-    package_args,
+    ctx: RoutineContext,
     requirements_directory,
-    dev=False,
-    system=False,
-    ignore_pipfile=False,
-    requirementstxt=False,
-    pre=False,
-    deploy=False,
-    categories=None,
-    skip_lock=False,
 ):
+    """Validate Pipfile / lockfile presence and process a requirements file.
+
+    Per T_C.7: consumes :class:`RoutineContext` for the bundled user-facing
+    inputs (packages, dev/pre/deploy/skip_lock/system flags, categories,
+    requirementstxt). ``requirements_directory`` stays as a per-call arg
+    because it is a runtime-created temp dir, not a user input.
+    """
+    sel = ctx.package_selection
+    target = ctx.target_env
+    policy = ctx.install_policy
+
+    package_args = list(sel.package_args)
+    categories = list(sel.categories) if sel.categories else []
+    requirementstxt = sel.requirementstxt
+
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or dev):
-        if not (ignore_pipfile or deploy):
+    if not project.pipfile_exists and not (package_args or sel.dev):
+        if not (policy.ignore_pipfile or policy.deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
         elif (
-            (skip_lock and deploy) or ignore_pipfile
+            (policy.skip_lock and policy.deploy) or policy.ignore_pipfile
         ) and not project.any_lockfile_exists:
             raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
-    # Load the --pre settings from the Pipfile.
-    if not pre:
-        pre = project.settings.get("allow_prereleases")
+    # NOTE: The pre-context implementation loaded ``allow_prereleases``
+    # from ``project.settings`` into a local ``pre`` variable here, but the
+    # value was never consumed further inside this validator. Downstream
+    # helpers re-read ``project.settings`` themselves, so the dead read is
+    # omitted in the context-based signature.
     remote = requirementstxt and is_valid_url(requirementstxt)
     if "default" in categories:
         raise exceptions.PipenvUsageError(
@@ -495,6 +516,7 @@ def do_install_validations(
             message="Cannot install to category `develop`-- did you mean `dev-packages`?"
         )
     # Automatically use an activated virtualenv.
+    system = target.system
     if project.s.PIPENV_USE_SYSTEM:
         system = True
     if system:
@@ -536,7 +558,7 @@ def do_install_validations(
             import_requirements(
                 project,
                 r=project.path_to(requirementstxt),
-                dev=dev,
+                dev=sel.dev,
                 categories=categories,
             )
         except (UnicodeDecodeError, PipError) as e:
@@ -622,53 +644,60 @@ def install_build_system_packages(
 
 def do_install_dependencies(
     project,
-    dev=False,
-    bare=False,
-    allow_global=False,
-    ignore_hashes=False,
-    requirements_dir=None,
-    pypi_mirror=None,
-    extra_pip_args=None,
-    categories=None,
-    skip_lock=False,
+    ctx: RoutineContext,
+    requirements_dir,
 ):
     """
     Executes the installation functionality.
 
+    Per T_C.7: consumes :class:`RoutineContext` for the bundled user-facing
+    inputs (dev / categories / bare / allow_global / pypi_mirror /
+    extra_pip_args / skip_lock / ignore_hashes). ``requirements_dir`` is
+    a runtime-created temp dir, so it stays as a per-call arg.
     """
+    sel = ctx.package_selection
+    target = ctx.target_env
+    policy = ctx.install_policy
+    exec_opts = ctx.execution_options
+
     # Install any build-system packages first so they are available when
     # building packages that use non-standard setup.py tooling.
     install_build_system_packages(
         project,
-        allow_global=allow_global,
-        pypi_mirror=pypi_mirror,
+        allow_global=target.allow_global,
+        pypi_mirror=target.pypi_mirror,
         requirements_dir=requirements_dir,
     )
     procs = queue.Queue(maxsize=1)
+    categories = list(sel.categories) if sel.categories else []
     if not categories:
-        if dev:
+        if sel.dev:
             categories = ["packages", "dev-packages"]
         else:
             categories = ["packages"]
 
+    # ``skip_lock`` implicitly forces ``ignore_hashes`` ON (you cannot hash
+    # packages you never resolved). Compute the effective flag locally so
+    # the frozen ``ctx`` is not mutated mid-loop.
+    effective_ignore_hashes = exec_opts.ignore_hashes or policy.skip_lock
+
     for pipfile_category in categories:
         lockfile = None
         pipfile = None
-        if skip_lock:
-            ignore_hashes = True
-            if not bare and not project.s.is_quiet():
+        if policy.skip_lock:
+            if not exec_opts.bare and not project.s.is_quiet():
                 console.print("Installing dependencies from Pipfile...", style="bold")
             pipfile = project.get_pipfile_section(pipfile_category)
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
-            if not bare and not project.s.is_quiet():
+            if not exec_opts.bare and not project.s.is_quiet():
                 lockfile_category = get_lockfile_section_using_pipfile_category(
                     pipfile_category
                 )
                 lockfile_type = (
                     "pylock.toml"
                     if project.pylock_exists
-                    and (project.use_pylock or not project.lockfile_exists)
+                    and (project.settings.use_pylock or not project.lockfile_exists)
                     else "Pipfile.lock"
                 )
                 lockfile_hash = lockfile["_meta"].get("hash", {}).get("sha256", "") or ""
@@ -678,7 +707,7 @@ def do_install_dependencies(
                     f"[{lockfile_category}]{hash_suffix}...",
                     style="bold",
                 )
-        if skip_lock:
+        if policy.skip_lock:
             deps_list = []
             for req_name, pipfile_entry in pipfile.items():
                 install_req, markers, req_line = install_req_from_pipfile(
@@ -696,7 +725,7 @@ def do_install_dependencies(
             )
             deps_list = list(
                 lockfile.get_requirements(
-                    dev=dev, only=False, categories=[lockfile_category]
+                    dev=sel.dev, only=False, categories=[lockfile_category]
                 )
             )
         editable_or_vcs_deps = [
@@ -708,15 +737,20 @@ def do_install_dependencies(
             if not (dep.link and dep.editable)
         ]
 
-        install_kwargs = {
-            "no_deps": not skip_lock,
-            "ignore_hashes": ignore_hashes,
-            "allow_global": allow_global,
-            "pypi_mirror": pypi_mirror,
-            "sequential_deps": editable_or_vcs_deps,
-            "extra_pip_args": extra_pip_args,
-        }
-        if skip_lock:
+        # Fold the call-site overrides (sequential_deps, effective
+        # ignore_hashes, no_deps derived from policy.skip_lock) back into
+        # a per-iteration ctx for batch_install.
+        iter_ctx = replace(
+            ctx,
+            install_policy=replace(policy, skip_lock=policy.skip_lock),
+            execution_options=replace(
+                exec_opts,
+                ignore_hashes=effective_ignore_hashes,
+                no_deps=not policy.skip_lock,
+            ),
+        )
+
+        if policy.skip_lock:
             lockfile_section = pipfile
         else:
             lockfile_category = get_lockfile_section_using_pipfile_category(
@@ -725,11 +759,12 @@ def do_install_dependencies(
             lockfile_section = lockfile[lockfile_category]
         batch_install(
             project,
+            iter_ctx,
             normal_deps,
             lockfile_section,
             procs,
             requirements_dir,
-            **install_kwargs,
+            sequential_deps=editable_or_vcs_deps,
         )
 
         if not procs.empty():
@@ -738,17 +773,29 @@ def do_install_dependencies(
 
 def batch_install_iteration(
     project,
+    ctx: RoutineContext,
     deps_to_install,
     sources,
     procs,
     requirements_dir,
-    no_deps=True,
-    ignore_hashes=False,
-    allow_global=False,
-    extra_pip_args=None,
 ):
+    """Run a single pip-install iteration for a batch of deps.
+
+    Per T_C.7: consumes :class:`RoutineContext` for the install flags
+    (``allow_global`` / ``no_deps`` / ``ignore_hashes`` / ``extra_pip_args``).
+    The data-flow args (``deps_to_install``, ``sources``, ``procs``,
+    ``requirements_dir``) are call-state, not user-facing inputs, so they
+    stay as positional params (design doc section 3, "other" group).
+
+    TODO(swarm): Design doc section 3 names a future ``BatchInstall``
+    object to bundle these call-state args. Out of scope for T_C.7
+    (T_C.4 sign-off deferred richer per-routine operation types).
+    """
+    target = ctx.target_env
+    exec_opts = ctx.execution_options
+
     with temp_environ():
-        if not allow_global:
+        if not target.allow_global:
             os.environ["PIP_USER"] = "0"
             if "PYTHONHOME" in os.environ:
                 del os.environ["PYTHONHOME"]
@@ -758,12 +805,14 @@ def batch_install_iteration(
             project,
             deps=deps_to_install,
             sources=sources,
-            allow_global=allow_global,
-            ignore_hashes=ignore_hashes,
-            no_deps=no_deps,
+            allow_global=target.allow_global,
+            ignore_hashes=exec_opts.ignore_hashes,
+            no_deps=exec_opts.no_deps,
             requirements_dir=requirements_dir,
             use_pep517=True,
-            extra_pip_args=extra_pip_args,
+            extra_pip_args=list(exec_opts.extra_pip_args)
+            if exec_opts.extra_pip_args
+            else None,
         )
 
         for c in cmds:
@@ -773,17 +822,25 @@ def batch_install_iteration(
 
 def batch_install(
     project,
+    ctx: RoutineContext,
     deps_list,
     lockfile_section,
     procs,
     requirements_dir,
-    no_deps=True,
-    ignore_hashes=False,
-    allow_global=False,
-    pypi_mirror=None,
+    *,
     sequential_deps=None,
-    extra_pip_args=None,
 ):
+    """Install a batch of deps, sharding by index where appropriate.
+
+    Per T_C.7: consumes :class:`RoutineContext` for the install flags
+    (``allow_global`` / ``no_deps`` / ``ignore_hashes`` / ``extra_pip_args`` /
+    ``pypi_mirror``). The data-flow args (``deps_list``, ``lockfile_section``,
+    ``procs``, ``requirements_dir``) and the per-batch ``sequential_deps``
+    intent stay as direct params (design doc section 3, "other" group).
+    """
+    target = ctx.target_env
+    exec_opts = ctx.execution_options
+
     if sequential_deps is None:
         sequential_deps = []
 
@@ -795,15 +852,18 @@ def batch_install(
         for pkg_name, entry in lockfile_section.items()
         if isinstance(entry, dict) and entry.get("no_binary")
     ]
+    extra_pip_args = (
+        list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else []
+    )
     if no_binary_packages:
-        extra_pip_args = list(extra_pip_args or [])
+        extra_pip_args = list(extra_pip_args)
         extra_pip_args += ["--no-binary", ",".join(no_binary_packages)]
 
     deps_to_install = deps_list[:]
     deps_to_install.extend(sequential_deps)
     # Evaluate markers against the target venv's Python version rather than
     # the interpreter pipenv itself runs under.  See #6647.
-    marker_env = _target_marker_environment(project, allow_global=allow_global)
+    marker_env = _target_marker_environment(project, allow_global=target.allow_global)
     filtered_deps = []
     for dep, pip_line in deps_to_install:
         # Skip packages whose environment markers don't match the target
@@ -836,26 +896,30 @@ def batch_install(
         index=None,
         extra_indexes=None,
         trusted_hosts=get_trusted_hosts(),
-        pypi_mirror=pypi_mirror,
+        pypi_mirror=target.pypi_mirror,
     )
+    # Build a per-call ctx that carries the (possibly-augmented)
+    # ``extra_pip_args`` down to ``batch_install_iteration``.
+    iter_ctx = replace(
+        ctx,
+        execution_options=replace(exec_opts, extra_pip_args=tuple(extra_pip_args)),
+    )
+
     if search_all_sources:
         dependencies = [pip_line for _, pip_line in deps_to_install]
         batch_install_iteration(
             project,
+            iter_ctx,
             dependencies,
             sources,
             procs,
             requirements_dir,
-            no_deps=no_deps,
-            ignore_hashes=ignore_hashes,
-            allow_global=allow_global,
-            extra_pip_args=extra_pip_args,
         )
     else:
         # Sort the dependencies out by index -- include editable/vcs in the default group
         deps_by_index = defaultdict(list)
         for dependency, pip_line in deps_to_install:
-            index = project.sources_default["name"]
+            index = project.sources.default["name"]
             if dependency.name and dependency.name in lockfile_section:
                 entry = lockfile_section[dependency.name]
                 if isinstance(entry, dict) and "index" in entry:
@@ -867,14 +931,11 @@ def batch_install(
                 install_source = next(filter(lambda s: s["name"] == index_name, sources))
                 batch_install_iteration(
                     project,
+                    iter_ctx,
                     dependencies,
                     [install_source],
                     procs,
                     requirements_dir,
-                    no_deps=no_deps,
-                    ignore_hashes=ignore_hashes,
-                    allow_global=allow_global,
-                    extra_pip_args=extra_pip_args,
                 )
             except StopIteration:  # noqa: PERF203
                 console.print(
@@ -906,40 +967,24 @@ def _cleanup_procs(project, procs):
             raise exceptions.InstallError(deps, extra=err_lines)
 
 
-def do_init(
-    project,
-    packages=None,
-    allow_global=False,
-    ignore_pipfile=False,
-    system=False,
-    deploy=False,
-    pre=False,
-    pypi_mirror=None,
-    skip_lock=False,
-    categories=None,
-):
+def do_init(project, ctx: RoutineContext):
     """Initialize the project, ensuring that the Pipfile and Pipfile.lock are in place.
-    Returns True if packages were updated + installed.
-    """
-    if not deploy and not ignore_pipfile:
-        ensure_pipfile(project, system=system)
 
-    handle_lockfile(
-        project,
-        packages,
-        ignore_pipfile=ignore_pipfile,
-        skip_lock=skip_lock,
-        system=system,
-        allow_global=allow_global,
-        deploy=deploy,
-        pre=pre,
-        pypi_mirror=pypi_mirror,
-        categories=categories,
-    )
+    Per T_C.7: consumes :class:`RoutineContext`. This collapses the
+    inline ``RoutineContext.from_cli(...)`` bridge that T_C.6 left at
+    ``do_init``'s call to ``handle_lockfile``.
+    """
+    target = ctx.target_env
+    policy = ctx.install_policy
+
+    if not policy.deploy and not policy.ignore_pipfile:
+        ensure_pipfile(project, system=target.system)
+
+    handle_lockfile(project, ctx)
 
     if (
-        not allow_global
-        and not deploy
+        not target.allow_global
+        and not policy.deploy
         and "PIPENV_ACTIVE" not in os.environ
         and not project.s.is_quiet()
     ):

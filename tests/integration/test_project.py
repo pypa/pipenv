@@ -28,7 +28,7 @@ pytz = "*"
             )
         os.environ["TEST_HOST"] = "localhost:5000"
         project = Project()
-        assert project.sources[0]["url"] == "https://localhost:5000/simple"
+        assert project.sources.all[0]["url"] == "https://localhost:5000/simple"
         assert "localhost:5000" not in str(Pipfile.load(open(p.pipfile_path)))
         print(str(Pipfile.load(open(p.pipfile_path))))
 
@@ -66,15 +66,25 @@ six = {{version = "*", index = "pypi"}}
         sources = [["pypi", "https://pypi.org/simple"], ["testindex", p.index_url]]
         for src in sources:
             name, url = src
-            source = [s for s in project.pipfile_sources() if s.get("name") == name]
+            source = [
+                s for s in project.sources.pipfile_sources() if s.get("name") == name
+            ]
             assert source
             source = source[0]
             assert source["name"] == name
             assert source["url"] == url
-            assert sorted(source.items()) == sorted(project.get_source(name=name).items())
-            assert sorted(source.items()) == sorted(project.get_source(url=url).items())
-            assert sorted(source.items()) == sorted(project.find_source(name).items())
-            assert sorted(source.items()) == sorted(project.find_source(url).items())
+            assert sorted(source.items()) == sorted(
+                project.sources.get_source(name=name).items()
+            )
+            assert sorted(source.items()) == sorted(
+                project.sources.get_source(url=url).items()
+            )
+            assert sorted(source.items()) == sorted(
+                project.sources.find_source(name).items()
+            )
+            assert sorted(source.items()) == sorted(
+                project.sources.find_source(url).items()
+            )
 
 
 @pytest.mark.install

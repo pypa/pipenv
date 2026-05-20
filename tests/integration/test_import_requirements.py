@@ -7,7 +7,7 @@ import pytest
 
 from pipenv.patched.pip._internal.operations.prepare import File
 from pipenv.project import Project
-from pipenv.utils.requirements import import_requirements
+from pipenv.utils.dependencies import import_requirements
 
 
 @pytest.mark.cli

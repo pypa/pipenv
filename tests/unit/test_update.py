@@ -1,6 +1,7 @@
 """Unit tests for pipenv.routines.update helpers."""
 from unittest.mock import MagicMock, patch
 
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.update import _clean_unused_dependencies, _process_package_args
 
 
@@ -358,7 +359,8 @@ def test_process_package_args_does_not_cross_contaminate_categories():
         mock_irl.return_value = (mock_install_req, "mypy==1.5.1")
 
         _process_package_args(
-            project=project,
+            project,
+            RoutineContext.from_cli(lock_only=False),
             package_args=["mypy==1.5.1"],
             pipfile_category="packages",  # default – no --dev
             index_name=None,
@@ -367,7 +369,6 @@ def test_process_package_args_does_not_cross_contaminate_categories():
             category="default",
             has_package_args=True,
             requested_packages=requested_packages,
-            lock_only=False,
         )
 
     # The lockfile resolution dict should be populated…
@@ -398,7 +399,8 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
         mock_irl.return_value = (mock_install_req, "requests==2.31.0")
 
         _process_package_args(
-            project=project,
+            project,
+            RoutineContext.from_cli(lock_only=False),
             package_args=["requests==2.31.0"],
             pipfile_category="packages",
             index_name=None,
@@ -407,7 +409,6 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
             category="default",
             has_package_args=True,
             requested_packages=requested_packages,
-            lock_only=False,
         )
 
     assert "requests" in requested_packages["packages"]

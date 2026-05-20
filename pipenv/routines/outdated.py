@@ -11,6 +11,7 @@ from pipenv.patched.pip._vendor.packaging.utils import (
     parse_wheel_filename,
 )
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import (
@@ -65,9 +66,13 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         packages.update(as_pipfile(dep))
 
     updated_packages = {}
-    lockfile = do_lock(
-        project, clear=clear, pre=pre, write=False, pypi_mirror=pypi_mirror
+    lock_ctx = RoutineContext.from_cli(
+        clear=clear,
+        pre=pre,
+        write=False,
+        pypi_mirror=pypi_mirror,
     )
+    lockfile = do_lock(project, lock_ctx)
     for category in project.get_package_categories(for_lockfile=True):
         for package, lockfile_entry in lockfile.get(category, {}).items():
             resolved_version = _get_lockfile_entry_version(lockfile_entry)

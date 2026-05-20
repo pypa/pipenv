@@ -2,24 +2,37 @@ import contextlib
 import sys
 import traceback
 
+from pipenv.routines.context import RoutineContext
 from pipenv.utils import err
 from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
 )
 
 
-def do_lock(
-    project,
-    system=False,
-    clear=False,
-    pre=False,
-    write=True,
-    quiet=False,
-    pypi_mirror=None,
-    categories=None,
-    extra_pip_args=None,
-):
-    """Executes the freeze functionality."""
+def do_lock(project, ctx: RoutineContext):
+    """Executes the freeze functionality.
+
+    Per T_C.9: consumes :class:`~pipenv.routines.context.RoutineContext`
+    for every user-facing input (``system`` / ``clear`` / ``pre`` /
+    ``write`` / ``quiet`` / ``pypi_mirror`` / ``categories`` /
+    ``extra_pip_args``).
+    """
+    target = ctx.target_env
+    policy = ctx.install_policy
+    sel = ctx.package_selection
+    exec_opts = ctx.execution_options
+
+    system = target.system
+    pypi_mirror = target.pypi_mirror
+    clear = policy.clear
+    pre = policy.pre
+    quiet = exec_opts.quiet
+    write = exec_opts.write
+    extra_pip_args = (
+        list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else None
+    )
+    categories = list(sel.categories) if sel.categories else None
+
     if not pre:
         pre = project.settings.get("allow_prereleases")
 
@@ -78,6 +91,12 @@ def do_lock(
                 )
 
         # Prune old lockfile category as new one will be created.
+        # Initialize to None so that downstream venv_resolve_deps gets a
+        # well-defined sentinel when the category isn't in the lockfile
+        # yet (first lock, or a newly-added category) — without this,
+        # the unconditional reference at the venv_resolve_deps call
+        # site below raises UnboundLocalError when the pop hits KeyError.
+        old_lock_data = None
         with contextlib.suppress(KeyError):
             old_lock_data = lockfile.pop(category)
 

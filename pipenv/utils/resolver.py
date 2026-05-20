@@ -1,7 +1,6 @@
 import contextlib
 import dataclasses
 import hashlib
-import importlib.metadata as importlib_metadata
 import json
 import os
 import subprocess
@@ -12,7 +11,7 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Tuple, Union
 
 from pipenv import environments, resolver
 from pipenv.exceptions import ResolutionFailure
@@ -34,7 +33,6 @@ from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import determine_vcs_revision_hash, normalize_vcs_url
 from pipenv.utils.fileutils import create_tracked_tempdir
-from pipenv.utils.requirements import normalize_name
 
 from .dependencies import (
     HackedPythonVersion,
@@ -43,6 +41,7 @@ from .dependencies import (
     get_constraints_from_deps,
     get_lockfile_section_using_pipfile_category,
     is_pinned_requirement,
+    pep423_name,
     prepare_constraint_file,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
@@ -387,7 +386,7 @@ class Resolver:
             # stale) lockfile _meta.sources.  This ensures settings like
             # ``verify_ssl = false`` are respected even when an old lockfile
             # still carries ``verify_ssl = true``.  See gh-5665.
-            sources = project.pipfile_sources()
+            sources = project.sources.pipfile_sources()
         packages = project.get_pipfile_section(pipfile_category)
         constraints = set()
         for package_name, dep in deps.items():  # Build up the index and markers lookups
@@ -412,7 +411,7 @@ class Resolver:
                 elif index:
                     index_lookup[canonical_package_name] = index
                 else:
-                    index_lookup[canonical_package_name] = project.get_default_index()[
+                    index_lookup[canonical_package_name] = project.sources.get_default_index()[
                         "name"
                     ]
             if install_req.markers:
@@ -906,11 +905,11 @@ class Resolver:
         source = sources[0] if sources else None
         if source:
             if is_pypi_url(source["url"]):
-                hashes = self.project.get_hashes_from_pypi(ireq, source)
+                hashes = self.project.sources.get_hashes_from_pypi(ireq, source)
                 if hashes:
                     return hashes
             else:
-                hashes = self.project.get_hashes_from_remote_index_urls(ireq, source)
+                hashes = self.project.sources.get_hashes_from_remote_index_urls(ireq, source)
                 if hashes:
                     return hashes
 
@@ -921,12 +920,12 @@ class Resolver:
         if best_candidate_result.applicable_candidates:
             return sorted(
                 {
-                    self.project.get_hash_from_link(self.hash_cache, candidate.link)
+                    self.project.sources.get_hash_from_link(self.hash_cache, candidate.link)
                     for candidate in best_candidate_result.applicable_candidates
                 }
             )
         if link:
-            return {self.project.get_hash_from_link(self.hash_cache, link)}
+            return {self.project.sources.get_hash_from_link(self.hash_cache, link)}
 
         if self.project.s.is_verbose():
             err.print(
@@ -1001,7 +1000,7 @@ class Resolver:
 
         # Handle resolved packages
         for ireq in self.resolved_tree:
-            if normalize_name(ireq.name) in self.skipped:
+            if pep423_name(ireq.name) in self.skipped:
                 continue
 
             collected_hashes = self.hashes.get(ireq, set())
@@ -1169,14 +1168,12 @@ def _is_download_status_line(line: str) -> bool:
     """
     stripped = line.strip()
     # Match "Downloading <name>.whl (X MB)" style messages.
-    if stripped.startswith("Downloading ") and (
+    return stripped.startswith("Downloading ") and (
         " MB)" in stripped
         or " kB)" in stripped
         or " KB)" in stripped
         or " GB)" in stripped
-    ):
-        return True
-    return False
+    )
 
 
 def resolve(cmd, st, project):
@@ -1217,11 +1214,43 @@ def resolve(cmd, st, project):
     stdout_thread.start()
     stderr_thread.start()
 
-    # Wait for both threads to complete
+    # Configurable cap on how long we wait for the resolver subprocess. Unbounded
+    # waits previously turned hung mirrors / stuck pip downloads into "pipenv
+    # hangs forever" reports. Override with PIPENV_RESOLVER_TIMEOUT_S.
+    resolver_timeout_s = project.s.PIPENV_RESOLVER_TIMEOUT_S
+
+    try:
+        c.wait(timeout=resolver_timeout_s)
+    except subprocess.TimeoutExpired:
+        # Kill the subprocess and drain reader threads so we don't leak threads
+        # or pipe buffers.
+        try:
+            c.kill()
+        except Exception:
+            pass
+        try:
+            c.wait(timeout=5)
+        except Exception:
+            pass
+        stdout_thread.join(timeout=5)
+        stderr_thread.join(timeout=5)
+
+        st.console.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!"))
+        msg = (
+            f"Resolver subprocess timed out after {resolver_timeout_s} seconds. "
+            f"Set PIPENV_RESOLVER_TIMEOUT_S=<bigger> to extend, or check that "
+            f"your index/mirror is reachable."
+        )
+        err.print(f"[red]{msg}[/red]")
+        raise ResolutionFailure(msg)
+
+    # Make sure reader threads have finished draining the now-closed pipes
+    # before we read the buffers below. They are daemons so a missed join
+    # wouldn't deadlock the interpreter, but joining keeps stdout/stderr
+    # collection deterministic.
     stdout_thread.join()
     stderr_thread.join()
 
-    c.wait()
     returncode = c.poll()
 
     out = "".join(stdout_chunks)
@@ -1263,7 +1292,7 @@ def _set_resolver_netrc(project, req_dir):
     and expose it via ``NETRC`` so the resolver subprocess can authenticate
     to private indexes without those credentials appearing in pip argv.
     """
-    netrc_path = write_credentials_netrc(project.pipfile_sources(), req_dir)
+    netrc_path = write_credentials_netrc(project.sources.pipfile_sources(), req_dir)
     if netrc_path:
         os.environ["NETRC"] = netrc_path
 
@@ -1376,11 +1405,6 @@ def venv_resolve_deps(
         # the resolver subprocess (and the in-process pip session it
         # creates) can still authenticate to private indexes.
         _set_resolver_netrc(project, req_dir)
-        pipenv_site_dir = get_pipenv_sitedir()
-        if pipenv_site_dir is not None:
-            os.environ["PIPENV_SITE_DIR"] = pipenv_site_dir
-        else:
-            os.environ.pop("PIPENV_SITE_DIR", None)
         if extra_pip_args:
             os.environ["PIPENV_EXTRA_PIP_ARGS"] = json.dumps(extra_pip_args)
         # Pass the Pipfile-required Python version to the resolver subprocess
@@ -1400,7 +1424,7 @@ def venv_resolve_deps(
             # spinner context manager for the UX improvement
             st.console.print("Building requirements...")
             deps = convert_deps_to_pip(
-                deps, project.pipfile_sources(), include_index=True
+                deps, project.sources.pipfile_sources(), include_index=True
             )
 
             # Useful for debugging and hitting breakpoints in the resolver
@@ -1598,10 +1622,3 @@ def resolve_deps(
                 except RuntimeError:
                     sys.exit(1)
     return results, internal_resolver
-
-
-def get_pipenv_sitedir() -> Optional[str]:
-    for dist in importlib_metadata.distributions():
-        if dist.metadata.get("Name", "").lower() == "pipenv":
-            return str(dist.locate_file(""))
-    return None
