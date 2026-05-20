@@ -8,7 +8,7 @@ from typing import Dict, Set, Tuple
 from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
-from pipenv.routines.lock import overwrite_with_default
+from pipenv.routines.lock import do_lock, overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
 from pipenv.utils import err
@@ -69,33 +69,49 @@ def do_update(
     )
 
     if not outdated:
-        # Pre-sync packages for pipdeptree resolution to avoid conflicts
-        if project.any_lockfile_exists:
-            do_sync(
+        if not packages and not editable:
+            # Documented behavior of `pipenv update` (no args) is `lock + sync`:
+            # re-resolve every package against the Pipfile, then sync. The
+            # partial-upgrade path in `upgrade()` only re-resolves Pipfile
+            # entries whose locked version no longer satisfies the spec, which
+            # silently skips picking up newer allowed releases (gh-6672).
+            do_lock(
                 project,
-                dev=dev,
-                categories=categories,
-                python=python,
-                bare=bare,
-                clear=clear,
-                pypi_mirror=pypi_mirror,
-                extra_pip_args=extra_pip_args,
                 system=system,
+                clear=clear,
+                pre=pre,
+                pypi_mirror=pypi_mirror,
+                categories=_prepare_categories(categories, dev, packages=[]),
+                extra_pip_args=extra_pip_args,
             )
-        upgrade(
-            project,
-            pre=pre,
-            system=system,
-            packages=packages,
-            editable_packages=editable,
-            pypi_mirror=pypi_mirror,
-            categories=categories,
-            index_url=index_url,
-            dev=dev,
-            lock_only=lock_only,
-            extra_pip_args=extra_pip_args,
-        )
-        # Finally sync packages after upgrade
+        else:
+            # Pre-sync packages for pipdeptree resolution to avoid conflicts
+            if project.any_lockfile_exists:
+                do_sync(
+                    project,
+                    dev=dev,
+                    categories=categories,
+                    python=python,
+                    bare=bare,
+                    clear=clear,
+                    pypi_mirror=pypi_mirror,
+                    extra_pip_args=extra_pip_args,
+                    system=system,
+                )
+            upgrade(
+                project,
+                pre=pre,
+                system=system,
+                packages=packages,
+                editable_packages=editable,
+                pypi_mirror=pypi_mirror,
+                categories=categories,
+                index_url=index_url,
+                dev=dev,
+                lock_only=lock_only,
+                extra_pip_args=extra_pip_args,
+            )
+        # Finally sync packages after lock/upgrade
         do_sync(
             project,
             dev=dev,
