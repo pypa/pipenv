@@ -1,7 +1,11 @@
 """Unit tests for pipenv.routines.update helpers."""
 from unittest.mock import MagicMock, patch
 
-from pipenv.routines.update import _clean_unused_dependencies, _process_package_args
+from pipenv.routines.update import (
+    _clean_unused_dependencies,
+    _process_package_args,
+    do_update,
+)
 
 
 def _make_project(verbose=False):
@@ -415,3 +419,98 @@ def test_process_package_args_writes_to_pipfile_when_package_in_correct_category
         "requests", "requests", "==2.31.0", category="packages"
     )
 
+
+# ---------------------------------------------------------------------------
+# do_update routing – `pipenv update` (no args) must do lock + sync (issue #6672)
+# ---------------------------------------------------------------------------
+
+
+def _do_update_project_mock():
+    """Project mock for exercising do_update routing decisions."""
+    project = MagicMock()
+    project.s.PIPENV_USE_SYSTEM = False
+    project.any_lockfile_exists = True
+    return project
+
+
+def test_do_update_no_args_goes_through_do_lock():
+    """Regression for gh-6672.
+
+    `pipenv update` with no package arguments must re-resolve every package
+    against the Pipfile (documented behavior: ``lock + sync``). The partial
+    ``upgrade()`` path only re-resolves Pipfile entries whose locked version
+    no longer satisfies the spec, which silently skips picking up newer
+    allowed releases (e.g. relaxing ``urllib3 = "<2.7.0"`` to
+    ``urllib3 = "*"`` would not bump the locked 2.6.3).
+    """
+    project = _do_update_project_mock()
+    with patch("pipenv.routines.update.do_lock") as mock_lock, patch(
+        "pipenv.routines.update.upgrade"
+    ) as mock_upgrade, patch("pipenv.routines.update.do_sync") as mock_sync, patch(
+        "pipenv.routines.update.ensure_project"
+    ):
+        do_update(project, packages=[], editable_packages=[])
+
+    mock_lock.assert_called_once()
+    mock_upgrade.assert_not_called()
+    # Lock runs once, then a single sync to install what was locked.
+    assert mock_sync.call_count == 1
+
+
+def test_do_update_with_packages_uses_upgrade_path():
+    """`pipenv update <pkg>` keeps the targeted ``upgrade()`` flow."""
+    project = _do_update_project_mock()
+    with patch("pipenv.routines.update.do_lock") as mock_lock, patch(
+        "pipenv.routines.update.upgrade"
+    ) as mock_upgrade, patch("pipenv.routines.update.do_sync") as mock_sync, patch(
+        "pipenv.routines.update.ensure_project"
+    ):
+        do_update(project, packages=["requests"], editable_packages=[])
+
+    mock_lock.assert_not_called()
+    mock_upgrade.assert_called_once()
+    # Pre-sync (lockfile already exists) + post-sync.
+    assert mock_sync.call_count == 2
+
+
+def test_do_update_no_args_with_dev_locks_default_and_develop():
+    """`pipenv update --dev` (no args) must lock both default and develop."""
+    project = _do_update_project_mock()
+    with patch("pipenv.routines.update.do_lock") as mock_lock, patch(
+        "pipenv.routines.update.upgrade"
+    ), patch("pipenv.routines.update.do_sync"), patch(
+        "pipenv.routines.update.ensure_project"
+    ):
+        do_update(project, packages=[], editable_packages=[], dev=True)
+
+    _, kwargs = mock_lock.call_args
+    assert kwargs["categories"] == ["default", "develop"]
+
+
+def test_do_update_no_args_default_locks_default_only():
+    """`pipenv update` (no args, no --dev) locks the default category only."""
+    project = _do_update_project_mock()
+    with patch("pipenv.routines.update.do_lock") as mock_lock, patch(
+        "pipenv.routines.update.upgrade"
+    ), patch("pipenv.routines.update.do_sync"), patch(
+        "pipenv.routines.update.ensure_project"
+    ):
+        do_update(project, packages=[], editable_packages=[])
+
+    _, kwargs = mock_lock.call_args
+    assert kwargs["categories"] == ["default"]
+
+
+def test_do_update_outdated_skips_both_lock_and_upgrade():
+    """`pipenv update --outdated` routes to do_outdated, not lock/upgrade."""
+    project = _do_update_project_mock()
+    with patch("pipenv.routines.update.do_lock") as mock_lock, patch(
+        "pipenv.routines.update.upgrade"
+    ) as mock_upgrade, patch("pipenv.routines.update.do_outdated") as mock_outdated, patch(
+        "pipenv.routines.update.do_sync"
+    ), patch("pipenv.routines.update.ensure_project"):
+        do_update(project, packages=[], editable_packages=[], outdated=True)
+
+    mock_lock.assert_not_called()
+    mock_upgrade.assert_not_called()
+    mock_outdated.assert_called_once()
