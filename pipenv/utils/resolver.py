@@ -1262,8 +1262,23 @@ def _set_resolver_netrc(project, req_dir):
     """Write a temporary netrc with credentials extracted from Pipfile sources
     and expose it via ``NETRC`` so the resolver subprocess can authenticate
     to private indexes without those credentials appearing in pip argv.
+
+    When ``PIPENV_PYPI_MIRROR`` is set, the resolver subprocess prepends a
+    mirror source built from that env var (see ``resolver.py``), and the
+    mirror URL is where the user's credentials live.  We must apply the same
+    substitution here so those credentials reach the netrc; otherwise pip —
+    which now reads auth from netrc rather than argv (GHSA-8xgg-v3jj-95m2) —
+    cannot authenticate to the mirror and resolution 401s (gh-6677).
     """
-    netrc_path = write_credentials_netrc(project.pipfile_sources(), req_dir)
+    from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
+
+    sources = project.pipfile_sources()
+    if "PIPENV_PYPI_MIRROR" in os.environ:
+        sources = replace_pypi_sources(
+            sources,
+            create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"], "pypi_mirror"),
+        )
+    netrc_path = write_credentials_netrc(sources, req_dir)
     if netrc_path:
         os.environ["NETRC"] = netrc_path
 

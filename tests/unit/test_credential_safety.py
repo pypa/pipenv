@@ -196,6 +196,42 @@ def test_write_credentials_netrc_from_env_var_expanded_url(tmp_path, monkeypatch
     assert (login, password) == ("real-user", "real-pass!@#")
 
 
+@pytest.mark.utils
+def test_set_resolver_netrc_includes_pypi_mirror_credentials(tmp_path, monkeypatch):
+    """``_set_resolver_netrc`` must write the credentials embedded in
+    ``PIPENV_PYPI_MIRROR`` to the resolver netrc.
+
+    Regression test for gh-6677: the resolver subprocess prepends a mirror
+    source built from ``PIPENV_PYPI_MIRROR`` (which carries the user's
+    credentials), but the parent wrote the netrc from the un-mirrored
+    ``pipfile_sources()``.  After GHSA-8xgg-v3jj-95m2 moved auth from pip
+    argv onto netrc, the mirror's credentials were dropped and private-index
+    resolution failed with 401 / ``ResolutionFailure``.
+    """
+    import netrc
+
+    from pipenv.utils.resolver import _set_resolver_netrc
+
+    monkeypatch.setenv("PIPENV_PYPI_MIRROR", "https://user:secret@pypi.mirror")
+
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text("", encoding="utf-8")
+    monkeypatch.setenv("NETRC", str(system_netrc))
+
+    class _Project:
+        # Mirrors the issue's Pipfile: a custom-host source named "pypi"
+        # with no embedded credentials.
+        def pipfile_sources(self):
+            return [{"url": "https://pypi.mirror", "verify_ssl": True, "name": "pypi"}]
+
+    _set_resolver_netrc(_Project(), str(tmp_path))
+
+    netrc_path = os.environ.get("NETRC")
+    assert netrc_path is not None
+    login, _account, password = netrc.netrc(netrc_path).authenticators("pypi.mirror")
+    assert (login, password) == ("user", "secret")
+
+
 # --- pip_install_deps integration -------------------------------------------
 
 

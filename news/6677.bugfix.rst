@@ -1,0 +1,8 @@
+Restored authentication to a private index configured via
+``PIPENV_PYPI_MIRROR`` with embedded credentials (e.g.
+``https://user:pass@mirror.example.com``). The GHSA-8xgg-v3jj-95m2 fix moved
+credentials off pip's argv onto a temporary netrc, but the resolver's netrc
+was written from the un-mirrored Pipfile sources, so the mirror's credentials
+were dropped and resolution failed with ``401`` / ``ResolutionFailure``. The
+resolver netrc now applies the same ``PIPENV_PYPI_MIRROR`` substitution the
+resolver subprocess uses, so the mirror credentials reach pip again.
