@@ -213,9 +213,10 @@ def test_set_resolver_netrc_includes_pypi_mirror_credentials(tmp_path, monkeypat
     from pipenv.utils.resolver import _set_resolver_netrc
 
     monkeypatch.setenv("PIPENV_PYPI_MIRROR", "https://user:secret@pypi.mirror")
-    # Register NETRC with monkeypatch so the direct ``os.environ`` write done
-    # inside ``_set_resolver_netrc`` is reverted on teardown.
-    monkeypatch.setenv("NETRC", "")
+
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text("", encoding="utf-8")
+    monkeypatch.setenv("NETRC", str(system_netrc))
 
     class _Project:
         # Mirrors the issue's Pipfile: a custom-host source named "pypi"
