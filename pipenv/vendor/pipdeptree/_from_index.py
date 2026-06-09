@@ -311,14 +311,13 @@ def _adapt(result: Any) -> list[Distribution]:
 
 
 def _read_pyproject_dependencies(path: Path) -> list[str]:
-    # Reading TOML only happens on the mixed-sources path, which already requires nab installed; nab-python
-    # depends on tomli, so it is available on 3.10 where stdlib tomllib does not yet exist.
+    # Pipenv already ships tomli through patched pip on Python versions before stdlib tomllib exists.
     import sys  # noqa: PLC0415
 
     if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
         import tomllib  # noqa: PLC0415
     else:  # pragma: <3.11 cover
-        import tomli as tomllib  # noqa: PLC0415
+        from pipenv.patched.pip._vendor import tomli as tomllib  # noqa: PLC0415
 
     data = tomllib.loads(path.read_text(encoding="utf-8"))
     dependencies = data.get("project", {}).get("dependencies", [])

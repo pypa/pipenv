@@ -24,7 +24,7 @@ from pipenv.vendor.pipdeptree._synthetic_dist import SyntheticDistribution
 if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
     import tomllib
 else:  # pragma: <3.11 cover
-    import tomli as tomllib
+    from pipenv.patched.pip._vendor import tomli as tomllib
 
 if TYPE_CHECKING:
     from importlib.metadata import Distribution
