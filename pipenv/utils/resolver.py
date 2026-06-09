@@ -1273,10 +1273,10 @@ def _set_resolver_netrc(project, req_dir):
     from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
 
     sources = project.pipfile_sources()
-    mirror_url = os.environ.get("PIPENV_PYPI_MIRROR")
-    if mirror_url:
+    if "PIPENV_PYPI_MIRROR" in os.environ:
         sources = replace_pypi_sources(
-            sources, create_mirror_source(mirror_url, "pypi_mirror")
+            sources,
+            create_mirror_source(os.environ["PIPENV_PYPI_MIRROR"], "pypi_mirror"),
         )
     netrc_path = write_credentials_netrc(sources, req_dir)
     if netrc_path:
