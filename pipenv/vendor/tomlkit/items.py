@@ -14,12 +14,12 @@ from collections.abc import Sequence
 from datetime import date
 from datetime import datetime
 from datetime import time
+from datetime import timedelta
 from datetime import tzinfo
 from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import TypeVar
-from typing import cast
 from typing import overload
 
 from pipenv.vendor.tomlkit._compat import PY38
@@ -28,7 +28,6 @@ from pipenv.vendor.tomlkit._types import _CustomDict
 from pipenv.vendor.tomlkit._types import _CustomFloat
 from pipenv.vendor.tomlkit._types import _CustomInt
 from pipenv.vendor.tomlkit._types import _CustomList
-from pipenv.vendor.tomlkit._types import wrap_method
 from pipenv.vendor.tomlkit._utils import CONTROL_CHARS
 from pipenv.vendor.tomlkit._utils import escape_string
 from pipenv.vendor.tomlkit.exceptions import ConvertError
@@ -39,11 +38,10 @@ if TYPE_CHECKING:
     from typing import Protocol
 
     from pipenv.vendor.tomlkit import container
+    from pipenv.vendor.tomlkit.container import OutOfOrderTableProxy
 
     class Encoder(Protocol):
-        def __call__(
-            self, __value: Any, _parent: Item | None = None, _sort_keys: bool = False
-        ) -> Item: ...
+        def __call__(self, __value: Any, /) -> Item: ...
 
 
 ItemT = TypeVar("ItemT", bound="Item")
@@ -52,7 +50,7 @@ AT = TypeVar("AT", bound="AbstractTable")
 
 
 @overload
-def item(value: bool, _parent: Item | None = ..., _sort_keys: bool = ...) -> Bool: ...
+def item(value: bool, _parent: Item | None = ..., _sort_keys: bool = ...) -> Bool: ...  # type: ignore[overload-overlap]
 
 
 @overload
@@ -68,7 +66,7 @@ def item(value: str, _parent: Item | None = ..., _sort_keys: bool = ...) -> Stri
 
 
 @overload
-def item(
+def item(  # type: ignore[overload-overlap]
     value: datetime, _parent: Item | None = ..., _sort_keys: bool = ...
 ) -> DateTime: ...
 
@@ -83,26 +81,34 @@ def item(value: time, _parent: Item | None = ..., _sort_keys: bool = ...) -> Tim
 
 @overload
 def item(
-    value: Sequence[dict], _parent: Item | None = ..., _sort_keys: bool = ...
+    value: Sequence[dict[str, Any]], _parent: Item | None = ..., _sort_keys: bool = ...
 ) -> AoT: ...
 
 
 @overload
 def item(
-    value: Sequence, _parent: Item | None = ..., _sort_keys: bool = ...
+    value: Sequence[Any], _parent: Item | None = ..., _sort_keys: bool = ...
 ) -> Array: ...
 
 
 @overload
-def item(value: dict, _parent: Array = ..., _sort_keys: bool = ...) -> InlineTable: ...
+def item(
+    value: dict[str, Any], _parent: Array = ..., _sort_keys: bool = ...
+) -> InlineTable: ...
 
 
 @overload
-def item(value: dict, _parent: Item | None = ..., _sort_keys: bool = ...) -> Table: ...
+def item(
+    value: dict[str, Any], _parent: Item | None = ..., _sort_keys: bool = ...
+) -> Table: ...
 
 
 @overload
 def item(value: ItemT, _parent: Item | None = ..., _sort_keys: bool = ...) -> ItemT: ...
+
+
+@overload
+def item(value: object, _parent: Item | None = ..., _sort_keys: bool = ...) -> Item: ...
 
 
 def item(value: Any, _parent: Item | None = None, _sort_keys: bool = False) -> Item:
@@ -143,6 +149,7 @@ def item(value: Any, _parent: Item | None = None, _sort_keys: bool = False) -> I
 
         return val
     elif isinstance(value, (list, tuple)):
+        a: AoT | Array
         if (
             value
             and all(isinstance(v, dict) for v in value)
@@ -209,7 +216,7 @@ def item(value: Any, _parent: Item | None = None, _sort_keys: bool = False) -> I
                     p.kind == p.VAR_KEYWORD for p in sig.parameters.values()
                 ):
                     # New style encoder that can accept additional parameters
-                    rv = encoder(value, _parent=_parent, _sort_keys=_sort_keys)
+                    rv = encoder(value, _parent=_parent, _sort_keys=_sort_keys)  # type: ignore[call-arg]
                 else:
                     # Old style encoder that only accepts value
                     rv = encoder(value)
@@ -236,7 +243,7 @@ class StringType(Enum):
     MLL = "'''"
 
     @classmethod
-    def select(cls, literal=False, multiline=False) -> StringType:
+    def select(cls, literal: bool = False, multiline: bool = False) -> StringType:
         return {
             (False, False): cls.SLB,
             (False, True): cls.MLB,
@@ -297,13 +304,13 @@ class BoolType(Enum):
     TRUE = "true"
     FALSE = "false"
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return {BoolType.TRUE: True, BoolType.FALSE: False}[self]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[str]:
         return iter(self.value)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.value)
 
 
@@ -434,7 +441,7 @@ class SingleKey(Key):
         if isinstance(other, Key):
             return isinstance(other, SingleKey) and self.key == other.key
 
-        return self.key == other
+        return bool(self.key == other)
 
 
 class DottedKey(Key):
@@ -522,14 +529,23 @@ class Item:
     def is_aot(self) -> bool:
         return isinstance(self, AoT)
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[object, ...]:
         return (self._trivia,)
 
-    def __reduce__(self):
+    def __reduce__(self) -> tuple[type, tuple[object, ...]]:
         return self.__reduce_ex__(2)
 
-    def __reduce_ex__(self, protocol):
+    def __reduce_ex__(self, protocol: int) -> tuple[type, tuple[object, ...]]:  # type: ignore[override]
         return self.__class__, self._getstate(protocol)
+
+    def __getitem__(self, key: Key | str | int) -> Any:
+        raise TypeError(f"{type(self).__name__} does not support item access")
+
+    def __setitem__(self, key: Key | str | int, value: Any) -> None:
+        raise TypeError(f"{type(self).__name__} does not support item assignment")
+
+    def __delitem__(self, key: Key | str | int) -> None:
+        raise TypeError(f"{type(self).__name__} does not support item deletion")
 
 
 class Whitespace(Item):
@@ -568,7 +584,7 @@ class Whitespace(Item):
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self._s!r}>"
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[str, bool]:
         return self._s, self._fixed
 
 
@@ -627,60 +643,190 @@ class Integer(Item, _CustomInt):
     def as_string(self) -> str:
         return self._raw
 
-    def _new(self, result):
+    def _new(self, result: int) -> Integer:
         raw = str(result)
         if self._sign and result >= 0:
             raw = f"+{raw}"
 
         return Integer(result, self._trivia, raw)
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[int, Trivia, str]:
         return int(self), self._trivia, self._raw
 
-    # int methods
-    __abs__ = wrap_method(int.__abs__)
-    __add__ = wrap_method(int.__add__)
-    __and__ = wrap_method(int.__and__)
-    __ceil__ = wrap_method(int.__ceil__)
+    # int methods — explicit typed wrappers
+    def __abs__(self) -> Integer:
+        return self._new(int.__abs__(self))
+
+    def __add__(self, other: object) -> Integer:
+        result = int.__add__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __and__(self, other: object) -> Integer:
+        result = int.__and__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __ceil__(self) -> Integer:
+        return self._new(int.__ceil__(self))
+
     __eq__ = int.__eq__
-    __floor__ = wrap_method(int.__floor__)
-    __floordiv__ = wrap_method(int.__floordiv__)
-    __invert__ = wrap_method(int.__invert__)
+
+    def __floor__(self) -> Integer:
+        return self._new(int.__floor__(self))
+
+    def __floordiv__(self, other: object) -> Integer:
+        result = int.__floordiv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __invert__(self) -> Integer:
+        return self._new(int.__invert__(self))
+
     __le__ = int.__le__
-    __lshift__ = wrap_method(int.__lshift__)
+
+    def __lshift__(self, other: object) -> Integer:
+        result = int.__lshift__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
     __lt__ = int.__lt__
-    __mod__ = wrap_method(int.__mod__)
-    __mul__ = wrap_method(int.__mul__)
-    __neg__ = wrap_method(int.__neg__)
-    __or__ = wrap_method(int.__or__)
-    __pos__ = wrap_method(int.__pos__)
-    __pow__ = wrap_method(int.__pow__)
-    __radd__ = wrap_method(int.__radd__)
-    __rand__ = wrap_method(int.__rand__)
-    __rfloordiv__ = wrap_method(int.__rfloordiv__)
-    __rlshift__ = wrap_method(int.__rlshift__)
-    __rmod__ = wrap_method(int.__rmod__)
-    __rmul__ = wrap_method(int.__rmul__)
-    __ror__ = wrap_method(int.__ror__)
-    __round__ = wrap_method(int.__round__)
-    __rpow__ = wrap_method(int.__rpow__)
-    __rrshift__ = wrap_method(int.__rrshift__)
-    __rshift__ = wrap_method(int.__rshift__)
-    __rxor__ = wrap_method(int.__rxor__)
-    __trunc__ = wrap_method(int.__trunc__)
-    __xor__ = wrap_method(int.__xor__)
 
-    def __rtruediv__(self, other):
-        result = int.__rtruediv__(self, other)
+    def __mod__(self, other: object) -> Integer:
+        result = int.__mod__(self, other)  # type: ignore[operator]
         if result is NotImplemented:
-            return result
-        return Float._new(self, result)
+            return result  # type: ignore[return-value]
+        return self._new(result)
 
-    def __truediv__(self, other):
-        result = int.__truediv__(self, other)
+    def __mul__(self, other: object) -> Integer:
+        result = int.__mul__(self, other)  # type: ignore[operator]
         if result is NotImplemented:
-            return result
-        return Float._new(self, result)
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __neg__(self) -> Integer:
+        return self._new(int.__neg__(self))
+
+    def __or__(self, other: object) -> Integer:
+        result = int.__or__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __pos__(self) -> Integer:
+        return self._new(int.__pos__(self))
+
+    def __pow__(self, other: int, mod: int | None = None) -> Integer:  # type: ignore[override]
+        result = (
+            int.__pow__(self, other) if mod is None else int.__pow__(self, other, mod)
+        )
+        return self._new(result)
+
+    def __radd__(self, other: object) -> Integer:
+        result = int.__radd__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rand__(self, other: object) -> Integer:
+        result = int.__rand__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rfloordiv__(self, other: object) -> Integer:
+        result = int.__rfloordiv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rlshift__(self, other: object) -> Integer:
+        result = int.__rlshift__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rmod__(self, other: object) -> Integer:
+        result = int.__rmod__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rmul__(self, other: object) -> Integer:
+        result = int.__rmul__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __ror__(self, other: object) -> Integer:
+        result = int.__ror__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __round__(self, ndigits: int = 0) -> Integer:  # type: ignore[override]
+        return self._new(int.__round__(self, ndigits))
+
+    def __rpow__(self, other: int, mod: int | None = None) -> Integer:  # type: ignore[misc]
+        result = (
+            int.__rpow__(self, other) if mod is None else int.__rpow__(self, other, mod)
+        )
+        return self._new(result)
+
+    def __rrshift__(self, other: object) -> Integer:
+        result = int.__rrshift__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rshift__(self, other: object) -> Integer:
+        result = int.__rshift__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rxor__(self, other: object) -> Integer:
+        result = int.__rxor__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __sub__(self, other: object) -> Integer:
+        result = int.__sub__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rsub__(self, other: object) -> Integer:
+        result = int.__rsub__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __trunc__(self) -> Integer:
+        return self._new(int.__trunc__(self))
+
+    def __xor__(self, other: object) -> Integer:
+        result = int.__xor__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rtruediv__(self, other: object) -> Float:
+        result = int.__rtruediv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return Float._new(self, result)  # type: ignore[arg-type]
+
+    def __truediv__(self, other: object) -> Float:
+        result = int.__truediv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return Float._new(self, result)  # type: ignore[arg-type]
 
 
 class Float(Item, _CustomFloat):
@@ -720,7 +866,7 @@ class Float(Item, _CustomFloat):
     def as_string(self) -> str:
         return self._raw
 
-    def _new(self, result):
+    def _new(self, result: float) -> Float:
         raw = str(result)
 
         if self._sign and result >= 0:
@@ -728,31 +874,112 @@ class Float(Item, _CustomFloat):
 
         return Float(result, self._trivia, raw)
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[float, Trivia, str]:
         return float(self), self._trivia, self._raw
 
-    # float methods
-    __abs__ = wrap_method(float.__abs__)
-    __add__ = wrap_method(float.__add__)
+    # float methods — explicit typed wrappers
+    def __abs__(self) -> Float:
+        return self._new(float.__abs__(self))
+
+    def __add__(self, other: object) -> Float:
+        result = float.__add__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
     __eq__ = float.__eq__
-    __floordiv__ = wrap_method(float.__floordiv__)
+
+    def __floordiv__(self, other: object) -> Float:
+        result = float.__floordiv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
     __le__ = float.__le__
     __lt__ = float.__lt__
-    __mod__ = wrap_method(float.__mod__)
-    __mul__ = wrap_method(float.__mul__)
-    __neg__ = wrap_method(float.__neg__)
-    __pos__ = wrap_method(float.__pos__)
-    __pow__ = wrap_method(float.__pow__)
-    __radd__ = wrap_method(float.__radd__)
-    __rfloordiv__ = wrap_method(float.__rfloordiv__)
-    __rmod__ = wrap_method(float.__rmod__)
-    __rmul__ = wrap_method(float.__rmul__)
-    __round__ = wrap_method(float.__round__)
-    __rpow__ = wrap_method(float.__rpow__)
-    __rtruediv__ = wrap_method(float.__rtruediv__)
-    __truediv__ = wrap_method(float.__truediv__)
-    __trunc__ = float.__trunc__
 
+    def __mod__(self, other: object) -> Float:
+        result = float.__mod__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __mul__(self, other: object) -> Float:
+        result = float.__mul__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __neg__(self) -> Float:
+        return self._new(float.__neg__(self))
+
+    def __pos__(self) -> Float:
+        return self._new(float.__pos__(self))
+
+    def __pow__(self, other: object, mod: None = None) -> Float:
+        result = float.__pow__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[no-any-return]
+        return self._new(result)
+
+    def __radd__(self, other: object) -> Float:
+        result = float.__radd__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rfloordiv__(self, other: object) -> Float:
+        result = float.__rfloordiv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rmod__(self, other: object) -> Float:
+        result = float.__rmod__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rmul__(self, other: object) -> Float:
+        result = float.__rmul__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __round__(self, ndigits: int = 0) -> Float:  # type: ignore[override]
+        return self._new(float.__round__(self, ndigits))
+
+    def __rpow__(self, other: object, mod: None = None) -> Float:
+        result = float.__rpow__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[no-any-return]
+        return self._new(result)
+
+    def __rtruediv__(self, other: object) -> Float:
+        result = float.__rtruediv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __truediv__(self, other: object) -> Float:
+        result = float.__truediv__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __sub__(self, other: object) -> Float:
+        result = float.__sub__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    def __rsub__(self, other: object) -> Float:
+        result = float.__rsub__(self, other)  # type: ignore[operator]
+        if result is NotImplemented:
+            return result  # type: ignore[return-value]
+        return self._new(result)
+
+    __trunc__ = float.__trunc__
     __ceil__ = float.__ceil__
     __floor__ = float.__floor__
 
@@ -762,7 +989,7 @@ class Bool(Item):
     A boolean literal.
     """
 
-    def __init__(self, t: int, trivia: Trivia) -> None:
+    def __init__(self, t: int | BoolType, trivia: Trivia) -> None:
         super().__init__(trivia)
 
         self._value = bool(t)
@@ -782,24 +1009,24 @@ class Bool(Item):
     def as_string(self) -> str:
         return str(self._value).lower()
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[bool, Trivia]:
         return self._value, self._trivia
 
-    def __bool__(self):
+    def __bool__(self) -> bool:
         return self._value
 
     __nonzero__ = __bool__
 
-    def __eq__(self, other):
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, bool):
             return NotImplemented
 
         return other == self._value
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash(self._value)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return repr(self._value)
 
 
@@ -818,9 +1045,10 @@ class DateTime(Item, datetime):
         second: int,
         microsecond: int,
         tzinfo: tzinfo | None,
-        *_: Any,
-        **kwargs: Any,
-    ) -> datetime:
+        trivia: Trivia | None = None,
+        raw: str | None = None,
+        **kwargs: object,
+    ) -> DateTime:
         return datetime.__new__(
             cls,
             year,
@@ -831,7 +1059,6 @@ class DateTime(Item, datetime):
             second,
             microsecond,
             tzinfo=tzinfo,
-            **kwargs,
         )
 
     def __init__(
@@ -846,7 +1073,7 @@ class DateTime(Item, datetime):
         tzinfo: tzinfo | None,
         trivia: Trivia | None = None,
         raw: str | None = None,
-        **kwargs: Any,
+        **kwargs: object,
     ) -> None:
         super().__init__(trivia or Trivia())
 
@@ -878,7 +1105,7 @@ class DateTime(Item, datetime):
     def as_string(self) -> str:
         return self._raw
 
-    def __add__(self, other):
+    def __add__(self, other: timedelta) -> DateTime:
         if PY38:
             result = datetime(
                 self.year,
@@ -895,7 +1122,13 @@ class DateTime(Item, datetime):
 
         return self._new(result)
 
-    def __sub__(self, other):
+    @overload  # type: ignore[override]
+    def __sub__(self, other: timedelta) -> DateTime: ...
+
+    @overload
+    def __sub__(self, other: datetime) -> timedelta: ...
+
+    def __sub__(self, other: timedelta | datetime) -> DateTime | timedelta:
         if PY38:
             result = datetime(
                 self.year,
@@ -908,23 +1141,23 @@ class DateTime(Item, datetime):
                 self.tzinfo,
             ).__sub__(other)
         else:
-            result = super().__sub__(other)
+            result = super().__sub__(other)  # type: ignore[operator]
 
         if isinstance(result, datetime):
             result = self._new(result)
 
         return result
 
-    def replace(self, *args: Any, **kwargs: Any) -> datetime:
-        return self._new(super().replace(*args, **kwargs))
+    def replace(self, *args: object, **kwargs: object) -> DateTime:
+        return self._new(super().replace(*args, **kwargs))  # type: ignore[arg-type]
 
-    def astimezone(self, tz: tzinfo) -> datetime:
+    def astimezone(self, tz: tzinfo) -> DateTime:  # type: ignore[override]
         result = super().astimezone(tz)
         if PY38:
             return result
         return self._new(result)
 
-    def _new(self, result) -> DateTime:
+    def _new(self, result: datetime) -> DateTime:
         raw = result.isoformat()
 
         return DateTime(
@@ -940,7 +1173,9 @@ class DateTime(Item, datetime):
             raw,
         )
 
-    def _getstate(self, protocol=3):
+    def _getstate(
+        self, protocol: int = 3
+    ) -> tuple[int, int, int, int, int, int, int, tzinfo | None, Trivia, str]:
         return (
             self.year,
             self.month,
@@ -960,7 +1195,14 @@ class Date(Item, date):
     A date literal.
     """
 
-    def __new__(cls, year: int, month: int, day: int, *_: Any) -> date:
+    def __new__(
+        cls,
+        year: int,
+        month: int,
+        day: int,
+        trivia: Trivia | None = None,
+        raw: str = "",
+    ) -> Date:
         return date.__new__(cls, year, month, day)
 
     def __init__(
@@ -990,7 +1232,7 @@ class Date(Item, date):
     def as_string(self) -> str:
         return self._raw
 
-    def __add__(self, other):
+    def __add__(self, other: timedelta) -> Date:
         if PY38:
             result = date(self.year, self.month, self.day).__add__(other)
         else:
@@ -998,26 +1240,32 @@ class Date(Item, date):
 
         return self._new(result)
 
-    def __sub__(self, other):
+    @overload  # type: ignore[override]
+    def __sub__(self, other: timedelta) -> Date: ...
+
+    @overload
+    def __sub__(self, other: date) -> timedelta: ...
+
+    def __sub__(self, other: timedelta | date) -> Date | timedelta:
         if PY38:
             result = date(self.year, self.month, self.day).__sub__(other)
         else:
-            result = super().__sub__(other)
+            result = super().__sub__(other)  # type: ignore[operator]
 
         if isinstance(result, date):
             result = self._new(result)
 
         return result
 
-    def replace(self, *args: Any, **kwargs: Any) -> date:
-        return self._new(super().replace(*args, **kwargs))
+    def replace(self, *args: object, **kwargs: object) -> Date:
+        return self._new(super().replace(*args, **kwargs))  # type: ignore[arg-type]
 
-    def _new(self, result):
+    def _new(self, result: date) -> Date:
         raw = result.isoformat()
 
         return Date(result.year, result.month, result.day, self._trivia, raw)
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[int, int, int, Trivia, str]:
         return (self.year, self.month, self.day, self._trivia, self._raw)
 
 
@@ -1033,8 +1281,9 @@ class Time(Item, time):
         second: int,
         microsecond: int,
         tzinfo: tzinfo | None,
-        *_: Any,
-    ) -> time:
+        trivia: Trivia | None = None,
+        raw: str = "",
+    ) -> Time:
         return time.__new__(cls, hour, minute, second, microsecond, tzinfo)
 
     def __init__(
@@ -1066,10 +1315,10 @@ class Time(Item, time):
     def as_string(self) -> str:
         return self._raw
 
-    def replace(self, *args: Any, **kwargs: Any) -> time:
-        return self._new(super().replace(*args, **kwargs))
+    def replace(self, *args: object, **kwargs: object) -> Time:
+        return self._new(super().replace(*args, **kwargs))  # type: ignore[arg-type]
 
-    def _new(self, result):
+    def _new(self, result: time) -> Time:
         raw = result.isoformat()
 
         return Time(
@@ -1082,7 +1331,9 @@ class Time(Item, time):
             raw,
         )
 
-    def _getstate(self, protocol: int = 3) -> tuple:
+    def _getstate(
+        self, protocol: int = 3
+    ) -> tuple[int, int, int, int, tzinfo | None, Trivia, str]:
         return (
             self.hour,
             self.minute,
@@ -1110,8 +1361,10 @@ class _ArrayItemGroup:
         self.comment = comment
 
     def __iter__(self) -> Iterator[Item]:
-        return filter(
-            lambda x: x is not None, (self.indent, self.value, self.comma, self.comment)
+        return (
+            x
+            for x in (self.indent, self.value, self.comma, self.comment)
+            if x is not None
         )
 
     def __repr__(self) -> str:
@@ -1128,7 +1381,7 @@ class _ArrayItemGroup:
         return True
 
 
-class Array(Item, _CustomList):
+class Array(Item, _CustomList):  # type: ignore[type-arg]
     """
     An array literal
     """
@@ -1190,7 +1443,7 @@ class Array(Item, _CustomList):
         return 8
 
     @property
-    def value(self) -> list:
+    def value(self) -> list[Item]:
         return self
 
     def _iter_items(self) -> Iterator[Item]:
@@ -1330,16 +1583,12 @@ class Array(Item, _CustomList):
         return list.__len__(self)
 
     def item(self, index: int) -> Item:
-        rv = list.__getitem__(self, index)
-        return cast(Item, rv)
+        return list.__getitem__(self, index)  # type: ignore[no-any-return]
 
-    def __getitem__(self, key: int | slice) -> Any:
-        rv = list.__getitem__(self, key)
-        if isinstance(rv, Bool):
-            return rv.value
-        return rv
+    def __getitem__(self, key: int | slice) -> Any:  # type: ignore[override]
+        return list.__getitem__(self, key)
 
-    def __setitem__(self, key: int | slice, value: Any) -> Any:
+    def __setitem__(self, key: int | slice, value: Any) -> None:  # type: ignore[override]
         it = item(value, _parent=self)
         list.__setitem__(self, key, it)
         if isinstance(key, slice):
@@ -1348,7 +1597,7 @@ class Array(Item, _CustomList):
             key += len(self)
         self._value[self._index_map[key]].value = it
 
-    def insert(self, pos: int, value: Any) -> None:
+    def insert(self, pos: int, value: Any) -> None:  # type: ignore[override]
         it = item(value, _parent=self)
         length = len(self)
         if not isinstance(it, (Comment, Whitespace)):
@@ -1370,13 +1619,11 @@ class Array(Item, _CustomList):
             if idx >= 1 and self._value[idx - 1].is_whitespace():
                 # The last item is a pure whitespace(\n ), insert before it
                 idx -= 1
-                if (
-                    self._value[idx].indent is not None
-                    and "\n" in self._value[idx].indent.s
-                ):
+                _indent = self._value[idx].indent
+                if _indent is not None and "\n" in _indent.s:
                     default_indent = "\n    "
-        indent: Item | None = None
-        comma: Item | None = Whitespace(",") if pos < length else None
+        indent: Whitespace | None = None
+        comma: Whitespace | None = Whitespace(",") if pos < length else None
         if idx < len(self._value) and not self._value[idx].is_whitespace():
             # Prefer to copy the indentation from the item after
             indent = self._value[idx].indent
@@ -1398,7 +1645,7 @@ class Array(Item, _CustomList):
         self._value.insert(idx, new_item)
         self._reindex()
 
-    def __delitem__(self, key: int | slice):
+    def __delitem__(self, key: int | slice) -> None:  # type: ignore[override]
         length = len(self)
         list.__delitem__(self, key)
 
@@ -1420,8 +1667,8 @@ class Array(Item, _CustomList):
                 if (
                     idx == 0
                     and len(self._value) > 0
-                    and self._value[idx].indent
-                    and "\n" not in self._value[idx].indent.s
+                    and (ind := self._value[idx].indent)
+                    and "\n" not in ind.s
                 ):
                     # Remove the indentation of the first item if not newline
                     self._value[idx].indent = None
@@ -1471,11 +1718,11 @@ class Array(Item, _CustomList):
 
         self._reindex()
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[list[Item], Trivia, bool]:
         return list(self._iter_items()), self._trivia, self._multiline
 
 
-class AbstractTable(Item, _CustomDict):
+class AbstractTable(Item, _CustomDict):  # type: ignore[type-arg]
     """Common behaviour of both :class:`Table` and :class:`InlineTable`"""
 
     def __init__(self, value: container.Container, trivia: Trivia):
@@ -1508,7 +1755,7 @@ class AbstractTable(Item, _CustomDict):
     @overload
     def append(self: AT, key: Key | str, value: Any) -> AT: ...
 
-    def append(self, key, value):
+    def append(self: AT, key: Key | str | None, value: Any) -> AT:
         raise NotImplementedError
 
     @overload
@@ -1517,13 +1764,18 @@ class AbstractTable(Item, _CustomDict):
     @overload
     def add(self: AT, key: Key | str, value: Any = ...) -> AT: ...
 
-    def add(self, key, value=None):
+    def add(
+        self: AT, key: Key | str | Comment | Whitespace, value: Any | None = None
+    ) -> AT:
         if value is None:
             if not isinstance(key, (Comment, Whitespace)):
                 msg = "Non comment/whitespace items must have an associated key"
                 raise ValueError(msg)
 
-            key, value = None, key
+            return self.append(None, key)
+
+        if isinstance(key, (Comment, Whitespace)):
+            raise ValueError("Comment/Whitespace keys must not have a value")
 
         return self.append(key, value)
 
@@ -1538,14 +1790,14 @@ class AbstractTable(Item, _CustomDict):
 
         return self
 
-    def item(self, key: Key | str) -> Item:
+    def item(self, key: Key | str) -> Item | OutOfOrderTableProxy:
         return self._value.item(key)
 
-    def setdefault(self, key: Key | str, default: Any) -> Any:
+    def setdefault(self, key: Key | str, default: Any) -> Any:  # type: ignore[override]
         super().setdefault(key, default)
         return self[key]
 
-    def __str__(self):
+    def __str__(self) -> str:
         return str(self.value)
 
     def copy(self: AT) -> AT:
@@ -1560,13 +1812,13 @@ class AbstractTable(Item, _CustomDict):
     def __len__(self) -> int:
         return len(self._value)
 
-    def __delitem__(self, key: Key | str) -> None:
+    def __delitem__(self, key: Key | str) -> None:  # type: ignore[override]
         self.remove(key)
 
-    def __getitem__(self, key: Key | str) -> Item:
-        return cast(Item, self._value[key])
+    def __getitem__(self, key: Key | str) -> Any:  # type: ignore[override]
+        return self._value[key]
 
-    def __setitem__(self, key: Key | str, value: Any) -> None:
+    def __setitem__(self, key: Key | str, value: Any) -> None:  # type: ignore[override]
         if not isinstance(value, Item):
             value = item(value, _parent=self)
 
@@ -1722,7 +1974,7 @@ class Table(AbstractTable):
 
         return self
 
-    def invalidate_display_name(self):
+    def invalidate_display_name(self) -> None:
         """Call ``invalidate_display_name`` on the contained tables"""
         self.display_name = None
 
@@ -1730,7 +1982,9 @@ class Table(AbstractTable):
             if hasattr(child, "invalidate_display_name"):
                 child.invalidate_display_name()
 
-    def _getstate(self, protocol: int = 3) -> tuple:
+    def _getstate(
+        self, protocol: int = 3
+    ) -> tuple[container.Container, Trivia, bool, bool | None, str | None, str | None]:
         return (
             self._value,
             self._trivia,
@@ -1782,6 +2036,11 @@ class InlineTable(AbstractTable):
 
     def as_string(self) -> str:
         buf = "{"
+        emitted_key = False
+        has_explicit_commas = any(
+            k is None and isinstance(v, Whitespace) and "," in v.s
+            for k, v in self._value.body
+        )
         last_item_idx = next(
             (
                 i
@@ -1792,10 +2051,26 @@ class InlineTable(AbstractTable):
         )
         for i, (k, v) in enumerate(self._value.body):
             if k is None:
+                if isinstance(v, Whitespace) and "," in v.s:
+                    if not emitted_key:
+                        buf += v.as_string().replace(",", "", 1)
+                        continue
+
+                    has_following_null = any(
+                        isinstance(next_v, Null)
+                        for _, next_v in self._value.body[i + 1 :]
+                    )
+                    has_following_key = any(
+                        next_k is not None for next_k, _ in self._value.body[i + 1 :]
+                    )
+                    if has_following_null and not has_following_key:
+                        buf += v.as_string().replace(",", "", 1)
+                        continue
+
                 if i == len(self._value.body) - 1:
                     if self._new:
                         buf = buf.rstrip(", ")
-                    else:
+                    elif not has_explicit_commas or "," in v.as_string():
                         buf = buf.rstrip(",")
 
                 buf += v.as_string()
@@ -1811,8 +2086,13 @@ class InlineTable(AbstractTable):
                 f"{v.trivia.comment}"
                 f"{v_trivia_trail}"
             )
+            emitted_key = True
 
-            if last_item_idx is not None and i < last_item_idx:
+            if (
+                not has_explicit_commas
+                and last_item_idx is not None
+                and i < last_item_idx
+            ):
                 buf += ","
                 if self._new:
                     buf += " "
@@ -1821,7 +2101,7 @@ class InlineTable(AbstractTable):
 
         return buf
 
-    def __setitem__(self, key: Key | str, value: Any) -> None:
+    def __setitem__(self, key: Key | str, value: Any) -> None:  # type: ignore[override]
         if hasattr(value, "trivia") and value.trivia.comment:
             value.trivia.comment = ""
         super().__setitem__(key, value)
@@ -1829,16 +2109,18 @@ class InlineTable(AbstractTable):
     def __copy__(self) -> InlineTable:
         return type(self)(self._value.copy(), self._trivia.copy(), self._new)
 
-    def _getstate(self, protocol: int = 3) -> tuple:
+    def _getstate(self, protocol: int = 3) -> tuple[container.Container, Trivia]:
         return (self._value, self._trivia)
 
 
-class String(str, Item):
+class String(str, Item):  # type: ignore[misc]
     """
     A string literal.
     """
 
-    def __new__(cls, t, value, original, trivia):
+    def __new__(
+        cls, t: StringType, value: str, original: str, trivia: Trivia
+    ) -> String:
         return super().__new__(cls, value)
 
     def __init__(self, t: StringType, _: str, original: str, trivia: Trivia) -> None:
@@ -1865,9 +2147,7 @@ class String(str, Item):
     def type(self) -> StringType:
         return self._t
 
-    def __add__(self: ItemT, other: str) -> ItemT:
-        if not isinstance(other, str):
-            return NotImplemented
+    def __add__(self, other: str) -> String:
         result = super().__add__(other)
         original = self._original + getattr(other, "_original", other)
 
@@ -1876,11 +2156,13 @@ class String(str, Item):
     def _new(self, result: str, original: str) -> String:
         return String(self._t, result, original, self._trivia)
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[StringType, str, str, Trivia]:
         return self._t, str(self), self._original, self._trivia
 
     @classmethod
-    def from_raw(cls, value: str, type_=StringType.SLB, escape=True) -> String:
+    def from_raw(
+        cls, value: str, type_: StringType = StringType.SLB, escape: bool = True
+    ) -> String:
         value = decode(value)
 
         invalid = type_.invalid_sequences
@@ -1893,7 +2175,7 @@ class String(str, Item):
         return cls(type_, decode(value), string_value, Trivia())
 
 
-class AoT(Item, _CustomList):
+class AoT(Item, _CustomList):  # type: ignore[type-arg]
     """
     An array of table literal
     """
@@ -1928,29 +2210,29 @@ class AoT(Item, _CustomList):
         return 12
 
     @property
-    def value(self) -> list[dict[Any, Any]]:
+    def value(self) -> list[dict[str, Any]]:
         return [v.value for v in self._body]
 
     def __len__(self) -> int:
         return len(self._body)
 
-    @overload
+    @overload  # type: ignore[override]
     def __getitem__(self, key: slice) -> list[Table]: ...
 
     @overload
     def __getitem__(self, key: int) -> Table: ...
 
-    def __getitem__(self, key):
+    def __getitem__(self, key: int | slice) -> Table | list[Table]:
         return self._body[key]
 
-    def __setitem__(self, key: slice | int, value: Any) -> None:
+    def __setitem__(self, key: slice | int, value: Any) -> None:  # type: ignore[override]
         self._body[key] = item(value, _parent=self)
 
-    def __delitem__(self, key: slice | int) -> None:
+    def __delitem__(self, key: slice | int) -> None:  # type: ignore[override]
         del self._body[key]
         list.__delitem__(self, key)
 
-    def insert(self, index: int, value: dict) -> None:
+    def insert(self, index: int, value: dict[str, Any]) -> None:  # type: ignore[override]
         value = item(value, _parent=self)
         if not isinstance(value, Table):
             raise ValueError(f"Unsupported insert value type: {type(value)}")
@@ -1980,7 +2262,7 @@ class AoT(Item, _CustomList):
         self._body.insert(index, value)
         list.insert(self, index, value)
 
-    def invalidate_display_name(self):
+    def invalidate_display_name(self) -> None:
         """Call ``invalidate_display_name`` on the contained tables"""
         for child in self:
             if hasattr(child, "invalidate_display_name"):
@@ -1996,7 +2278,7 @@ class AoT(Item, _CustomList):
     def __repr__(self) -> str:
         return f"<AoT {self.value}>"
 
-    def _getstate(self, protocol=3):
+    def _getstate(self, protocol: int = 3) -> tuple[list[Table], str | None, bool]:
         return self._body, self.name, self._parsed
 
 
@@ -2022,5 +2304,5 @@ class Null(Item):
     def as_string(self) -> str:
         return ""
 
-    def _getstate(self, protocol=3) -> tuple:
+    def _getstate(self, protocol: int = 3) -> tuple[()]:
         return ()

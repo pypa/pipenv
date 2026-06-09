@@ -24,11 +24,11 @@ class ParseError(ValueError, TOMLKitError):
         super().__init__(f"{message} at line {self._line} col {self._col}")
 
     @property
-    def line(self):
+    def line(self) -> int:
         return self._line
 
     @property
-    def col(self):
+    def col(self) -> int:
         return self._col
 
 
@@ -182,7 +182,7 @@ class NonExistentKey(KeyError, TOMLKitError):
     A non-existent key was used.
     """
 
-    def __init__(self, key):
+    def __init__(self, key: object) -> None:
         message = f'Key "{key}" does not exist.'
 
         super().__init__(message)
@@ -193,7 +193,7 @@ class KeyAlreadyPresent(TOMLKitError):
     An already present key was used.
     """
 
-    def __init__(self, key):
+    def __init__(self, key: object) -> None:
         key = getattr(key, "key", key)
         message = f'Key "{key}" already exists.'
 

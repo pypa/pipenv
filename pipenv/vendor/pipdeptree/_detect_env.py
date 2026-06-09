@@ -17,6 +17,15 @@ def detect_active_interpreter() -> str:
 
     If it fails to find any, it will fail with a message.
     """
+    if path := find_active_interpreter():
+        return path
+
+    print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
+    raise SystemExit(1)
+
+
+def find_active_interpreter() -> str | None:
+    """Attempt to detect a venv, virtualenv, poetry, or conda environment, returning ``None`` if none is found."""
     detection_funcs: list[Callable[[], Path | None]] = [
         detect_venv_or_virtualenv_interpreter,
         detect_conda_env_interpreter,
@@ -30,8 +39,7 @@ def detect_active_interpreter() -> str:
             continue
         return str(path)
 
-    print("Unable to detect virtual environment.", file=sys.stderr)  # noqa: T201
-    raise SystemExit(1)
+    return None
 
 
 def detect_venv_or_virtualenv_interpreter() -> Path | None:
@@ -76,7 +84,7 @@ def detect_poetry_env_interpreter() -> Path | None:
     # See https://python-poetry.org/docs/managing-environments/#displaying-the-environment-information.
     try:
         result = subprocess.run(
-            ("poetry", "env", "info", "--executable"),
+            ("poetry", "env", "info", "--executable"),  # noqa: S607
             check=True,
             text=True,
             stdout=subprocess.PIPE,
@@ -98,4 +106,7 @@ def determine_interpreter_file_name() -> str | None:
     return name
 
 
-__all__ = ["detect_active_interpreter"]
+__all__ = [
+    "detect_active_interpreter",
+    "find_active_interpreter",
+]

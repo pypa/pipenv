@@ -1,10 +1,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import cached_property
 from importlib import import_module
-from importlib.metadata import Distribution, PackageNotFoundError, metadata, version
+from importlib.metadata import Distribution, PackageMetadata, PackageNotFoundError, metadata, version
 from inspect import ismodule
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from pipenv.vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.vendor.packaging.utils import canonicalize_name
@@ -13,7 +14,8 @@ from pipenv.vendor.pipdeptree._parser import distribution_to_specifier
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
-    from importlib.metadata import Distribution
+
+RenderMode = Literal["default", "resolved"]
 
 
 class InvalidRequirementError(ValueError):
@@ -27,44 +29,70 @@ class InvalidRequirementError(ValueError):
 class Package(ABC):
     """Abstract class for wrappers around objects that pip returns."""
 
-    UNKNOWN_LICENSE_STR = "(Unknown license)"
+    NA = "N/A"
+    UNKNOWN_LICENSE_STR = f"({NA})"
 
     def __init__(self, project_name: str) -> None:
         self.project_name = project_name
         self.key = canonicalize_name(project_name)
 
-    def licenses(self) -> str:
+    def _get_dist_metadata(self) -> PackageMetadata | None:
         try:
-            dist_metadata = metadata(self.key)
+            return metadata(self.key)
         except PackageNotFoundError:
+            return None
+
+    def licenses(self) -> str:
+        if (dist_metadata := self._get_dist_metadata()) is None:
             return self.UNKNOWN_LICENSE_STR
 
-        if license_str := dist_metadata[("License-Expression")]:
+        if license_str := dist_metadata["License-Expression"]:
             return f"({license_str})"
 
         license_strs: list[str] = []
-        classifiers = dist_metadata.get_all("Classifier", [])
-        for classifier in classifiers:
+        for classifier in dist_metadata.get_all("Classifier", []):
             line = str(classifier)
             if line.startswith("License"):
-                license_str = line.rsplit(":: ", 1)[-1]
-                license_strs.append(license_str)
+                license_strs.append(line.rsplit(":: ", 1)[-1])
 
-        if not license_strs:
-            return self.UNKNOWN_LICENSE_STR
+        return f"({', '.join(license_strs)})" if license_strs else self.UNKNOWN_LICENSE_STR
 
-        return f"({', '.join(license_strs)})"
+    def get_metadata(self, field: str) -> str | list[str]:
+        if field == "license":
+            raw = self.licenses().strip("()")
+            return raw if "license" in raw.lower() else f"{raw} License"
+        if (dist_metadata := self._get_dist_metadata()) is None:
+            return self.NA
+        values = dist_metadata.get_all(field)
+        if not values:
+            return self.NA
+        if len(values) == 1:
+            return str(values[0])
+        return [str(v) for v in values]
+
+    def get_metadata_values(self, fields: list[str]) -> list[str]:
+        result: list[str] = []
+        for f in fields:
+            value = self.get_metadata(f)
+            if isinstance(value, list):
+                result.extend(value)
+            else:
+                result.append(value)
+        return [r"\n".join(" ".join(line.split()) for line in v.splitlines()) for v in result]
+
+    def get_metadata_dict(self, fields: list[str]) -> dict[str, str | list[str]]:
+        return {field: self.get_metadata(field) for field in fields}
 
     @abstractmethod
     def render_as_root(self, *, frozen: bool) -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def render_as_branch(self, *, frozen: bool) -> str:
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:
         raise NotImplementedError
 
     @abstractmethod
-    def as_dict(self) -> dict[str, str]:
+    def as_dict(self, *, mode: RenderMode = "default") -> dict[str, str]:
         raise NotImplementedError
 
     def render(
@@ -72,9 +100,11 @@ class Package(ABC):
         parent: DistPackage | ReqPackage | None = None,
         *,
         frozen: bool = False,
+        mode: RenderMode = "default",
     ) -> str:
-        render = self.render_as_branch if parent else self.render_as_root
-        return render(frozen=frozen)
+        if parent:
+            return self.render_as_branch(frozen=frozen, mode=mode)
+        return self.render_as_root(frozen=frozen)
 
     @staticmethod
     def as_frozen_repr(distribution: Distribution) -> str:
@@ -102,44 +132,66 @@ class DistPackage(Package):
         self._obj = obj
         self.req = req
 
+    def _get_dist_metadata(self) -> PackageMetadata:
+        return self._obj.metadata
+
+    @cached_property
+    def _parsed_requires(self) -> list[Requirement | str]:
+        # Shared between requires() and _extras_index so PEP 508 parsing happens at most once per
+        # raw entry. str entries preserve the raw text of invalid requirements so requires() can
+        # still surface them via InvalidRequirementError, matching the original semantics.
+        return [_try_parse_requirement(raw_req) for raw_req in self._obj.requires or []]
+
     def requires(self) -> Iterator[Requirement]:
         """
         Return an iterator of the distribution's required dependencies.
 
         :raises InvalidRequirementError: If the metadata contains invalid requirement strings.
         """
-        for r in self._obj.requires or []:
-            try:
-                req = Requirement(r)
-            except InvalidRequirement:
-                raise InvalidRequirementError(r) from None
-            if not req.marker or req.marker.evaluate():
-                # Make sure that we're either dealing with a dependency that has no environment markers or does but
-                # are evaluated True against the existing environment (if it's False, it means they cannot be
-                # installed). "extra" markers are always evaluated False here which is what we want when retrieving
-                # only required dependencies.
-                yield req
+        for entry in self._parsed_requires:
+            if isinstance(entry, str):
+                raise InvalidRequirementError(entry) from None
+            if not entry.marker or entry.marker.evaluate():
+                # "extra" markers always evaluate False here, which is what excludes extras-gated
+                # reqs from this mandatory-only iterator.
+                yield entry
 
-    @property
+    @cached_property
     def provides_extras(self) -> frozenset[str]:
         return frozenset(self._obj.metadata.get_all("Provides-Extra") or ())
 
-    def requires_for_extras(self, extras: frozenset[str]) -> Iterator[tuple[Requirement, str]]:
-        """Yield (requirement, extra_name) for requirements gated behind the given extras."""
-        for raw_req in self._obj.requires or []:
-            try:
-                req = Requirement(raw_req)
-            except InvalidRequirement:
+    @cached_property
+    def _extras_index(self) -> list[tuple[Requirement, list[str], str]]:
+        # Cached because requires_for_extras is called many times per package across the
+        # satisfaction and resolution passes; without this, PEP 508 parsing and marker evaluation
+        # dominate --extras runtime. dep_key is precomputed alongside since canonicalize_name
+        # otherwise shows up as the next-largest contributor in the hot path.
+        extras = sorted(self.provides_extras)
+        if not extras:
+            return []
+        result: list[tuple[Requirement, list[str], str]] = []
+        for entry in self._parsed_requires:
+            if isinstance(entry, str):
                 continue
-            if not req.marker or req.marker.evaluate():
+            if not entry.marker or entry.marker.evaluate():
                 continue
-            for extra in extras:
-                if req.marker.evaluate({"extra": extra}):
-                    yield req, extra
+            if matching := [e for e in extras if entry.marker.evaluate({"extra": e})]:
+                result.append((entry, matching, canonicalize_name(entry.name)))
+        return result
+
+    def requires_for_extras(self, extras: frozenset[str]) -> Iterator[tuple[Requirement, str, str]]:
+        """Yield (requirement, extra_name, dep_key) for requirements gated behind the given extras."""
+        for req, matching, dep_key in self._extras_index:
+            for extra in matching:
+                if extra in extras:
+                    yield req, extra, dep_key
                     break
 
-    @property
+    @cached_property
     def version(self) -> str:
+        # Cached because each access reparses the METADATA file on the underlying Distribution and
+        # the renderer reads it once per occurrence in the tree (tens of thousands of times for
+        # large environments under --extras).
         return self._obj.version
 
     def unwrap(self) -> Distribution:
@@ -149,7 +201,9 @@ class DistPackage(Package):
     def render_as_root(self, *, frozen: bool) -> str:
         return self.as_frozen_repr(self._obj) if frozen else f"{self.project_name}=={self.version}"
 
-    def render_as_branch(self, *, frozen: bool) -> str:
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:  # noqa: ARG002
+        # resolved mode only relabels ReqPackage branches; a DistPackage branch appears in reverse mode
+        # where the "[requires: parent]" label describes the parent edge, so it is left unchanged.
         assert self.req is not None
         if not frozen:
             parent_ver_spec = self.req.version_spec
@@ -188,8 +242,9 @@ class DistPackage(Package):
             return f"[{self.req.extra}] {version}"
         return version
 
-    def as_dict(self) -> dict[str, str]:
-        return {"key": self.key, "package_name": self.project_name, "installed_version": self.version}
+    def as_dict(self, *, mode: RenderMode = "default") -> dict[str, str]:
+        version_key = "candidate_version" if mode == "resolved" else "installed_version"
+        return {"key": self.key, "package_name": self.project_name, version_key: self.version}
 
 
 class ReqPackage(Package):
@@ -216,16 +271,20 @@ class ReqPackage(Package):
             return self.as_frozen_repr(self.dist.unwrap())
         return self.project_name
 
-    def render_as_branch(self, *, frozen: bool) -> str:
+    def render_as_branch(self, *, frozen: bool, mode: RenderMode = "default") -> str:
         if not frozen:
-            req_ver = self.version_spec or "Any"
             extra_str = f", extra: {self.extra}" if self.extra else ""
+            if mode == "resolved":
+                # nab resolves one version per package and discards the per-edge range, so there is no
+                # "required" to show; surface only the selected candidate.
+                return f"{self.project_name} [candidate: {self.installed_version}{extra_str}]"
+            req_ver = self.version_spec or "Any"
             return f"{self.project_name} [required: {req_ver}, installed: {self.installed_version}{extra_str}]"
         return self.render_as_root(frozen=frozen)
 
     @property
     def version_spec(self) -> str | None:
-        specs = sorted(map(str, self._obj.specifier), reverse=True)  # type: ignore[invalid-argument-type]  # `reverse` makes '>' prior to '<'
+        specs = sorted(map(str, self._obj.specifier), reverse=True)  # `reverse` makes '>' prior to '<'
         return ",".join(specs) if specs else None
 
     @property
@@ -242,9 +301,6 @@ class ReqPackage(Package):
                 return version(self.key)
             except PackageNotFoundError:
                 pass
-            # Avoid AssertionError with setuptools, see https://github.com/tox-dev/pipdeptree/issues/162
-            if self.key == "setuptools":
-                return self.UNKNOWN_VERSION
             try:
                 m = import_module(self.key)
             except ImportError:
@@ -268,19 +324,36 @@ class ReqPackage(Package):
     def is_missing(self) -> bool:
         return self.installed_version == self.UNKNOWN_VERSION
 
-    def as_dict(self) -> dict[str, str]:
-        result = {
-            "key": self.key,
-            "package_name": self.project_name,
-            "installed_version": self.installed_version,
-            "required_version": self.version_spec if self.version_spec is not None else "Any",
-        }
+    def as_dict(self, *, mode: RenderMode = "default") -> dict[str, str]:
+        if mode == "resolved":
+            # nab discards the per-edge range, so drop required_version and report the single resolved
+            # version under candidate_version.
+            result = {
+                "key": self.key,
+                "package_name": self.project_name,
+                "candidate_version": self.installed_version,
+            }
+        else:
+            result = {
+                "key": self.key,
+                "package_name": self.project_name,
+                "installed_version": self.installed_version,
+                "required_version": self.version_spec if self.version_spec is not None else "Any",
+            }
         if self.extra:
             result["extra"] = self.extra
         return result
 
 
+def _try_parse_requirement(raw_req: str) -> Requirement | str:
+    try:
+        return Requirement(raw_req)
+    except InvalidRequirement:
+        return raw_req
+
+
 __all__ = [
     "DistPackage",
+    "RenderMode",
     "ReqPackage",
 ]
