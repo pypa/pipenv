@@ -567,7 +567,7 @@ def requirements_from_scripts() -> Option:
         default=[],
         dest="requirements_from_scripts",
         metavar="file",
-        help="Install dependencies of the given script file"
+        help="Install dependencies of the given script file "
         "as defined by PEP 723 inline metadata. ",
     )
 
