@@ -2,7 +2,7 @@ import string
 
 
 class TOMLChar(str):
-    def __init__(self, c):
+    def __init__(self, c: str) -> None:
         super().__init__()
 
         if len(self) > 1:

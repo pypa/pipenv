@@ -7,6 +7,14 @@ from typing import TypeVar
 
 WT = TypeVar("WT", bound="WrapperType")
 
+__all__ = [
+    "_CustomDict",
+    "_CustomFloat",
+    "_CustomInt",
+    "_CustomList",
+    "wrap_method",
+]
+
 if TYPE_CHECKING:  # pragma: no cover
     # Define _CustomList and _CustomDict as a workaround for:
     # https://github.com/python/mypy/issues/11427
@@ -73,7 +81,7 @@ else:
 def wrap_method(
     original_method: Callable[Concatenate[WT, P], Any],
 ) -> Callable[Concatenate[WT, P], Any]:
-    def wrapper(self: WT, *args: P.args, **kwargs: P.kwargs) -> Any:
+    def wrapper(self: WT, /, *args: P.args, **kwargs: P.kwargs) -> Any:
         result = original_method(self, *args, **kwargs)
         if result is NotImplemented:
             return result

@@ -230,10 +230,9 @@ def exists_and_is_accessible(path: Path) -> bool:
     Check if a path exists and is accessible.
 
     Catches all ``OSError`` subclasses (including ``PermissionError``) and
-    returns ``False`` so that network mounts, FUSE filesystems (e.g.
-    ``/keybase``), and other special paths that raise unexpected error codes
-    are silently skipped instead of propagating an unhandled exception or —
-    worse — blocking the process with a kernel-level FUSE hang (#4898).
+    returns ``False`` so that network mounts, FUSE filesystems, and other
+    special paths that raise unexpected error codes are silently skipped
+    instead of propagating an unhandled exception.
 
     Args:
         path: The path to check.
@@ -244,8 +243,6 @@ def exists_and_is_accessible(path: Path) -> bool:
     try:
         return path.exists()
     except OSError:
-        # Covers PermissionError, EACCES, ENOTCONN, and any FUSE/network
-        # errno that would otherwise propagate or cause a hang.
         return False
 
 

@@ -79,12 +79,12 @@ def has_leading_dir(paths: Iterable[str]) -> bool:
 def is_within_directory(directory: str, target: str) -> bool:
     """
     Return true if the absolute path of target is within the directory
+    (including when target is equal to the directory).
     """
     abs_directory = os.path.abspath(directory)
     abs_target = os.path.abspath(target)
 
-    prefix = os.path.commonpath([abs_directory, abs_target])
-    return prefix == abs_directory
+    return abs_target == abs_directory or abs_target.startswith(abs_directory + os.sep)
 
 
 def _tar_link_target_is_within(

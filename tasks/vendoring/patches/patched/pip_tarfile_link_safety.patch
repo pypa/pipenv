@@ -3,7 +3,7 @@ index 6d60b33e..3dfbc9a8 100644
 --- a/pipenv/patched/pip/_internal/utils/unpacking.py
 +++ b/pipenv/patched/pip/_internal/utils/unpacking.py
 @@ -87,6 +87,43 @@ def is_within_directory(directory: str, target: str) -> bool:
-     return prefix == abs_directory
+     return abs_target == abs_directory or abs_target.startswith(abs_directory + os.sep)
  
  
 +def _tar_link_target_is_within(

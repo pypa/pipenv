@@ -351,6 +351,11 @@ class PipSession(requests.Session):
         # Attach our User Agent to the request
         self.headers["User-Agent"] = user_agent()
 
+        # Pin Accept-Encoding so it doesn't vary with zstd availability (Python
+        # 3.14+ or backports.zstd); a varying value misses the cache for "Vary:
+        # Accept-Encoding" responses shared across interpreters (pypa/pip#13979).
+        self.headers["Accept-Encoding"] = "gzip, deflate"
+
         # Attach our Authentication handler to the session
         self.auth: MultiDomainBasicAuth = MultiDomainBasicAuth(index_urls=index_urls)
 

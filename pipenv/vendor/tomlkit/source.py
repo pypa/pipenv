@@ -28,7 +28,12 @@ class _State:
 
         return self
 
-    def __exit__(self, exception_type, exception_val, trace):
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception_val: BaseException | None,
+        trace: Any,
+    ) -> None:
         # Exiting this context manager - restore the prior state
         if self.restore or exception_type:
             self._source._chars = self._chars
@@ -45,19 +50,28 @@ class _StateHandler:
 
     def __init__(self, source: Source) -> None:
         self._source = source
-        self._states = []
+        self._states: list[_State] = []
 
-    def __call__(self, *args, **kwargs):
-        return _State(self._source, *args, **kwargs)
+    def __call__(
+        self,
+        save_marker: bool | None = False,
+        restore: bool | None = False,
+    ) -> _State:
+        return _State(self._source, save_marker, restore)
 
     def __enter__(self) -> _State:
         state = self()
         self._states.append(state)
         return state.__enter__()
 
-    def __exit__(self, exception_type, exception_val, trace):
+    def __exit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception_val: BaseException | None,
+        trace: Any,
+    ) -> None:
         state = self._states.pop()
-        return state.__exit__(exception_type, exception_val, trace)
+        state.__exit__(exception_type, exception_val, trace)
 
 
 class Source(str):
@@ -77,7 +91,7 @@ class Source(str):
 
         self.inc()
 
-    def reset(self):
+    def reset(self) -> None:
         # initialize both idx and current
         self.inc()
 
@@ -130,7 +144,7 @@ class Source(str):
         """
         return all(self.inc(exception=exception) for _ in range(n))
 
-    def consume(self, chars, min=0, max=-1):
+    def consume(self, chars: str, min: int = 0, max: int = -1) -> None:
         """
         Consume chars until min/max is satisfied is valid.
         """
