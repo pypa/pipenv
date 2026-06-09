@@ -136,7 +136,15 @@ def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
     pipdeptree_path = Path(pipdeptree.__file__).parent
     python_path = project.python()
-    cmd_args = [python_path, str(pipdeptree_path), "-l", "--reverse", "--json-tree"]
+    cmd_args = [
+        python_path,
+        str(pipdeptree_path),
+        "--python",
+        python_path,
+        "-l",
+        "--reverse",
+        "--json-tree",
+    ]
 
     c = run_command(cmd_args, is_verbose=project.s.is_verbose())
     if c.returncode != 0:
