@@ -83,8 +83,11 @@ def is_within_directory(directory: str, target: str) -> bool:
     """
     abs_directory = os.path.abspath(directory)
     abs_target = os.path.abspath(target)
-
-    return abs_target == abs_directory or abs_target.startswith(abs_directory + os.sep)
+    try:
+        return os.path.commonpath([abs_directory, abs_target]) == abs_directory
+    except ValueError:
+        # Different drives on Windows — definitely outside.
+        return False
 
 
 def _tar_link_target_is_within(
