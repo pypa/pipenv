@@ -24,7 +24,9 @@ def _python_version_matches_required(actual_ver_str, required_ver_str):
 
     * A PEP 440 version specifier string like ``">=3.8"`` or ``">=3.9,<4"``
       (the ``python_version`` field contains an operator).
-    * A plain ``"X.Y"`` (major.minor) or ``"X.Y.Z"`` (full version) string.
+    * A plain ``"X"`` (major), ``"X.Y"`` (major.minor) or ``"X.Y.Z"`` (full
+      version) string. Only the components actually given are compared, so
+      ``"3"`` is satisfied by any 3.x interpreter.
 
     ``actual_ver_str`` is the full version string reported by the Python
     interpreter (e.g. ``"3.13.1"``).
@@ -44,12 +46,17 @@ def _python_version_matches_required(actual_ver_str, required_ver_str):
     try:
         actual = parse_version(actual_ver_str)
         required = parse_version(required_ver_str)
-        if len(required_ver_str.split(".")) >= 3:
+        given_components = len(required_ver_str.split("."))
+        if given_components >= 3:
             # python_full_version specified — must match exactly.
             return actual == required
-        else:
+        elif given_components == 2:
             # python_version (major.minor only) — compare only those components.
             return actual.major == required.major and actual.minor == required.minor
+        else:
+            # Major only, e.g. "3". parse_version fills in a 0 minor, so
+            # comparing the minor here would reject every 3.x but 3.0.
+            return actual.major == required.major
     except Exception:
         # Fallback for any unparseable version strings.
         return actual_ver_str == required_ver_str
