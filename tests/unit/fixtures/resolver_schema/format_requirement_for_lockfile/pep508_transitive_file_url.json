@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "file": "file:///home/user/my-project/vendor/local-child-pkg",
+    "name": "local-child-pkg"
+  },
+  "name": "local-child-pkg"
+}

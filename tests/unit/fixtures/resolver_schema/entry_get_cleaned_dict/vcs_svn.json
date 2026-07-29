@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "name": "svn-pkg",
+    "ref": "trunk",
+    "svn": "svn://example.com/svn-pkg"
+  },
+  "name": "svn-pkg"
+}

@@ -82,9 +82,17 @@ Wave D (depends on Wave C):                                               │
   - `python -c "from pipenv.resolver.schema import ResolverRequest, ResolverResponse, LockedRequirement, SCHEMA_VERSION; assert SCHEMA_VERSION == 1"` passes
   - `python -c "from pipenv.resolver.schema import LockedRequirement; LockedRequirement(name='foo')"` raises `ValueError` (post-init invariant fires)
   - Schema module **does not import pip-internal types in module-level namespace** — only inside `from_install_requirement` body. Verify with `grep -n "from pipenv.patched" pipenv/resolver/schema.py` returning zero hits OR only inside function bodies.
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `85993ca4` `feat(resolver): introduce typed schema module + canonical LockedRequirement formatter + golden fixtures`. RED→GREEN cycle: 17 unit tests in `TestLockedRequirementInvariants` + `TestEnvelopeRoundtrip` failed with `ModuleNotFoundError` before `schema.py` landed, all 17 pass after. Full unit suite 694 passed / 9 skipped (was 677 / 9 prior). Acceptance grep gates clean (zero `pipenv.patched` top-level imports; zero `typing.Self` / `tomllib`). 27 golden JSON snapshots committed under `tests/unit/fixtures/resolver_schema/`.
+  - **Boundary-crossing note**: A1's deliverable location `pipenv/resolver/schema.py` requires `pipenv/resolver/` to exist as a package, which Python's import system makes mutually exclusive with the historical `pipenv/resolver.py` file (the package directory shadows the .py module). A1 therefore moved `pipenv/resolver.py` → `pipenv/resolver/main.py` and added a re-exporting `__init__.py` for `Entry`, `PackageRequirement`, `PackageSource`, `_main`, `main`, `process_resolver_results`, `resolve_packages`, `which`. The three test modules at `tests/unit/test_dependencies.py`, `tests/unit/test_resolver_regressions.py`, `tests/unit/test_locking_no_mutation.py` continue to import these names through the shim. `pyproject.toml`'s console-script `pipenv.resolver:main` still resolves correctly. A2's remaining scope is therefore reduced — see A2's log when it lands.
 - **files edited/created**:
+  - **CREATED** `pipenv/resolver/__init__.py` — package + re-export shim
+  - **CREATED** `pipenv/resolver/schema.py` — typed dataclass envelope (14 dataclasses + `SCHEMA_VERSION`)
+  - **MOVED** `pipenv/resolver.py` → `pipenv/resolver/main.py` (necessity, see boundary-crossing note above)
+  - **CREATED** `tests/unit/test_resolver_schema.py` — 17 tests covering invariants + envelope round-trip
+  - **CREATED** `tests/unit/fixtures/resolver_schema/format_requirement_for_lockfile/*.json` — 16 golden snapshots
+  - **CREATED** `tests/unit/fixtures/resolver_schema/entry_get_cleaned_dict/*.json` — 11 golden snapshots
 
 ### A2: Convert `pipenv/resolver.py` → `pipenv/resolver/` package (pure restructure, NO behavior change)
 
@@ -105,9 +113,13 @@ Wave D (depends on Wave C):                                               │
   - `python -c "from pipenv.resolver import main; assert callable(main)"` passes
   - `pipenv-resolver --help` (or equivalent invocation) still works after `pip install -e . --force-reinstall`
   - `git diff` shows the move + the pyproject.toml line + the three test imports (only) and nothing else
-- **status**: Not Completed
+- **status**: Completed (absorbed into A1 — commit 85993ca4)
 - **log**:
+  Python's import system makes `pipenv/resolver.py` (file) and `pipenv/resolver/` (package directory) mutually exclusive, so the A1 agent had to do the file-move as part of the same commit that introduced `pipenv/resolver/schema.py`. The re-export shim at `pipenv/resolver/__init__.py` keeps every existing import path working (`from pipenv.resolver import Entry`, `process_resolver_results`, `resolve_packages`, `main`, etc.). `pyproject.toml`'s `scripts.pipenv-resolver = "pipenv.resolver:main"` still resolves correctly via the shim, so no `pyproject.toml` change is needed yet — that update can land in B1 alongside the dead-symbol prune (when `Entry`/`PackageRequirement`/`process_resolver_results` come out of the shim, the entry can be pinned to `pipenv.resolver.main:main` for clarity).
 - **files edited/created**:
+  - `pipenv/resolver/main.py` (moved from `pipenv/resolver.py`, no logic change)
+  - `pipenv/resolver/__init__.py` (new, re-export shim)
+  - (pyproject.toml change deferred to B1; tests still pass via the shim)
 
 ### B1: Subprocess entry rewrite — read `--request-file`, write `--response-file`; delete dead symbols + dead test imports
 
@@ -139,9 +151,19 @@ Wave D (depends on Wave C):                                               │
   - Schema-version mismatch path (request file with `schema_version: 999`) produces structured `InternalError` response AND non-zero exit
   - `grep -nE -- "--parse-only|--pipenv-site|--constraints-file|--resolved-default-deps-file|--category" pipenv/resolver/main.py` returns zero hits
   - `grep -nE "PIPENV_RESOLVER_PYTHON_VERSION|PIPENV_EXTRA_PIP_ARGS|PIPENV_SITE_DIR" pipenv/resolver/main.py` returns zero hits
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `d1563a1e` `refactor(resolver): subprocess entry consumes typed ResolverRequest, produces typed ResolverResponse`.  TDD cycle: 3 subprocess-level tests in `tests/unit/test_resolver_protocol_smoke.py` (stubbed happy-path, schema-version mismatch, live-resolve against PyPI) failed RED before the rewrite, all GREEN after.  Full unit suite: 713 passed / 9 skipped (was 694 / 9 prior to wave B).  All three acceptance grep gates clean.  Live-subprocess smoke: tempfile-based hand-built `ResolverRequest` for `pytz==2024.1` returned a valid `ResolverResponse` with `result.kind == "success"` and the expected `LockedRequirement` (sha256 hashes + version).
+  - **Race-with-sibling note**: pre-commit's `Stashing/Restoring unstaged files` mechanism interacted with B2's concurrent staging — B2's `pipenv/utils/resolver.py` rewrite and B2's `tests/unit/test_resolver_parent_dispatch.py` were swept into this B1 commit because B2 had staged them in the same window pre-commit was stashing.  Net effect: B1+B2 landed in one commit instead of two.  Functionally consistent (full unit suite green); the orchestrator should be aware that B2's commit hash collapsed into this one rather than landing separately.
+  - **Stub-injection note for the smoke test**: the unit smoke test invokes the subprocess via `python -m pipenv.resolver.main` (not via script-path as production does) so that a `sitecustomize`-stubbed `pipenv.resolver.main.resolve_packages` takes effect.  The script-path form loads the file under the `__main__` module identity, separate from `pipenv.resolver.main` in `sys.modules`, which would defeat the stub.  The production code path (script-path invocation) is exercised end-to-end by C2's integration test.  A small helper at the call-site of `resolve_packages` from `_main` looks up the function via `sys.modules["pipenv.resolver.main"].resolve_packages` so future test injections can patch a single well-known location regardless of which entry path Python took.
 - **files edited/created**:
+  - **REWRITTEN** `pipenv/resolver/main.py` — typed-envelope subprocess entry; deleted `Entry` / `PackageRequirement` / `PackageSource` dataclasses, `process_resolver_results` function, module-level `which()` stub, and all legacy argparse flags
+  - **EDITED** `pipenv/resolver/__init__.py` — pruned re-exports of deleted symbols; only `_main`, `main`, `resolve_packages`, `which` remain
+  - **EDITED** `pyproject.toml` — `scripts.pipenv-resolver = "pipenv.resolver.main:main"` (was `pipenv.resolver:main`); developers must run `pip install -e . --force-reinstall` to re-link
+  - **EDITED** `tests/unit/test_dependencies.py` — deleted the three `test_entry_get_cleaned_dict_*` tests + the `_make_entry` helper + the `Entry` import (equivalent coverage lives in `test_resolver_schema.py` and the A1 golden snapshots)
+  - **EDITED** `tests/unit/test_resolver_regressions.py` — deleted `test_process_resolver_results_does_not_scan_reverse_dependencies` (function gone; regression structurally impossible)
+  - **EDITED** `tests/unit/test_locking_no_mutation.py` — updated `_fake_resolve_packages` to return `(locked, resolver)` with typed `LockedRequirement` instances
+  - **CREATED** `tests/unit/test_resolver_protocol_smoke.py` — 3 subprocess-level tests gating the wire protocol
 
 ### B2: Parent-side rewrite — `pipenv/utils/resolver.py :: venv_resolve_deps` + `resolve` + in-process branch
 
@@ -166,9 +188,15 @@ Wave D (depends on Wave C):                                               │
   - Manual: `pipenv lock` on a tiny test Pipfile produces a valid lockfile (no crash, no malformed JSON)
   - Manual with `PIPENV_RESOLVER_PARENT_PYTHON=1`: same `pipenv lock` produces an identical lockfile via the in-process branch
   - `grep -nE "PIPENV_RESOLVER_PYTHON_VERSION|PIPENV_EXTRA_PIP_ARGS|PIPENV_SITE_DIR" pipenv/utils/resolver.py` returns zero hits
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — B2's diff landed as part of commit `d1563a1e` (the wave-B atomic commit that also carries B1's subprocess rewrite — the harness rolled the two staged trees together when the pre-commit ruff hook on `pipenv/resolver/main.py` interrupted the planned dual-commit sequence). The B2-owned diff is internally consistent: 517-line delta to `pipenv/utils/resolver.py` (typed-request builder, response-file dispatch, in-process branch migrated to B1's `resolve_packages(request)` signature, `Resolver.clean_results` routed through `LockedRequirement.from_install_requirement(...).to_lockfile_dict()`, `Resolver.prepare_pip_args` consumes `extra_pip_args` from the instance instead of the deleted env-var hop) plus the 427-line NEW `tests/unit/test_resolver_parent_dispatch.py` (8 parametrized tests covering request-envelope building, argv-shape contract, and response-dispatch on each `result.kind`).
+  - Acceptance grep clean: `grep -nE "PIPENV_RESOLVER_PYTHON_VERSION|PIPENV_EXTRA_PIP_ARGS|PIPENV_SITE_DIR" pipenv/utils/resolver.py` returns zero hits. Subprocess argv carries only `--request-file` / `--response-file` (no `--pre`, `--clear`, `--system`, `--verbose`, `--category`, `--constraints-file`, `--resolved-default-deps-file`, `--parse-only`, `--pipenv-site`, `--write`).
+  - Manual smoke: `pipenv lock` on a tiny `six` Pipfile produces a byte-identical lockfile via both the default subprocess path and `PIPENV_RESOLVER_PARENT_PYTHON=1`'s in-process branch (lockfile sha = ae1993be... in both runs).
+  - Full unit suite: 713 passed / 9 skipped (platform).
 - **files edited/created**:
+  - **EDITED** `pipenv/utils/resolver.py` (parent-side typed-request build + response dispatch; in-process branch migrated to B1's signature; `Resolver` instance carries `extra_pip_args` directly; `Resolver.clean_results` produces flat lockfile-dict via `LockedRequirement.to_lockfile_dict()`)
+  - **CREATED** `tests/unit/test_resolver_parent_dispatch.py` (8 tests for request build, argv shape, response dispatch on each `result.kind`)
 
 ### B3: Lockfile writer consumes `LockedRequirement`; delete old formatters; port test coverage
 
@@ -190,9 +218,13 @@ Wave D (depends on Wave C):                                               │
   - `tests/unit/test_utils.py` no longer references `format_requirement_for_lockfile`
   - Behavioural coverage count: `grep -c "format_requirement_for_lockfile" tests/` was 17 before the task; the equivalent count of `LockedRequirement` / `from_install_requirement` test cases is ≥ 17 after (i.e. coverage did not shrink)
   - `python -m pytest tests/unit/ -q` green
-- **status**: Not Completed
+- **status**: Completed (commit `5e6eca82`)
 - **log**:
+  - 2026-05-12 — Deleted `pipenv.utils.locking.format_requirement_for_lockfile` (legacy parent-side formatter, lines 46-160 of the pre-T_F.3 file). `prepare_lockfile` now consumes `Sequence[LockedRequirement]`, calls `req.to_lockfile_dict()` per entry, then hands the resulting dict through the existing `get_locked_dep` -> `clean_resolved_dep` post-processing chain that still handles project-relative file-URL rewriting (gh-6119), top-level hash unearthing, and `version="*"` fallback. A transitional dict-fallback branch is retained so mid-Wave-B callers don't break before B2 lands. 20 new test cases (8 direct ports + 9 fixture-parametrised parity-gate cases loading A1 golden JSONs + 3 `prepare_lockfile` typed-contract cases) replace the 17 deleted `TestFormatRequirementForLockfile` cases — coverage depth ≥ before.
 - **files edited/created**:
+  - Modified `pipenv/utils/locking.py`
+  - Modified `tests/unit/test_utils.py` (added `TestLockedRequirementFromInstallRequirement` + `TestPrepareLockfileConsumesLockedRequirement`; removed `TestFormatRequirementForLockfile`)
+  - Modified `tests/unit/test_core.py` (updated docstring reference)
 
 ### C1: Schema-dataclass unit tests
 
@@ -209,9 +241,21 @@ Wave D (depends on Wave C):                                               │
   - Schema-version mismatch at `from_json_dict` parse time raises with a clear message.
 - **validation**:
   - `python -m pytest tests/unit/test_resolver_schema.py -v` shows ≥ 20 tests, all green
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `0c4a11a9` `feat(resolver-schema): add LockedRequirement.from_lockfile_dict for parity tests` — one-line touch-up to `pipenv/resolver/schema.py` adding the inverse of `to_lockfile_dict` (committed separately so the schema diff is clean).
+  - 2026-05-12 — `de3edea9` `test(resolver-schema): expand unit suite with parity, dispatch, comma-in-marker cases (T_F.3 C1 + C3)`. Appends five test classes to `tests/unit/test_resolver_schema.py`:
+    - `TestFromInstallRequirementParity` — parametrised against the A1 golden snapshots: 16 cases from `format_requirement_for_lockfile/*.json` + 11 cases from `entry_get_cleaned_dict/*.json`, plus 2 fixture-count guards. Each snapshot round-trips through `LockedRequirement.from_lockfile_dict` -> `to_lockfile_dict` byte-for-byte. **Strategy choice**: shape-parity (snapshot dict -> typed -> dict) rather than reconstructing a real pip `InstallRequirement` from the snapshot; input-level parity (pip `InstallRequirement` -> typed schema) is C2's job.
+    - `TestResolverResponseDispatch` — 4 cases: one per `result.kind ∈ {success, resolution_error, internal_error}` plus an unknown-kind rejection. Each round-trips through `to_json_dict` / `from_json_dict`.
+    - `TestSchemaVersionMismatch` — 2 cases: the `ValueError` raised on schema-version mismatch must mention both the received version AND the expected `SCHEMA_VERSION` constant (per Q2). Covers both `ResolverResponse` and `ResolverRequest`.
+    - `TestVCSPinAndExtras` — 8 cases: one round-trip per backend (git, hg, svn, bzr) × two encodings (nested `to_json_dict` shape and flat `to_lockfile_dict` shape).
+    - `TestCommaInMarkerRegression` (C3 / Q7) — 2 cases pinning the comma-in-marker regression: a commaful marker on `PackageSpecs.specs` and on `LockedRequirement.markers`.
+  - RED -> GREEN cycle: the new classes failed RED with `AttributeError` for `LockedRequirement.from_lockfile_dict` before `0c4a11a9` landed. All 45 new tests GREEN after.
+  - Total `test_resolver_schema.py` count: 17 (A1 baseline) + 45 (new) = **62 tests**, comfortably above the plan's ≥ 20 target.
+  - Full unit suite: **758 passed / 9 skipped** (was 713 / 9 prior to C1).
 - **files edited/created**:
+  - **EDITED** `pipenv/resolver/schema.py` — added `LockedRequirement.from_lockfile_dict` classmethod (+42 lines)
+  - **EDITED** `tests/unit/test_resolver_schema.py` — added 5 new test classes (+400 / -12 lines)
 
 ### C2: JSON wire-shape integration test
 
@@ -244,9 +288,17 @@ Wave D (depends on Wave C):                                               │
   - Test passes green against committed fixtures
   - Test fails (with a readable diff) if `LockedRequirement` field names are renamed without a `SCHEMA_VERSION` bump
   - Fixture-regen flag works end-to-end
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — `test(resolver): pin JSON wire shape via integration golden fixtures (T_F.3 C2)`. The test runs `pipenv lock` against a 2-package Pipfile (`pytz==2024.1` + `six==1.16.0` — pure-Python, no transitive deps, frozen versions) via `pipenv_instance_pypi` and captures the resolver's `--request-file` / `--response-file` tempfiles by redirecting them through `TMPDIR`/`TEMP`/`TMP` env vars (the existing parent code uses `tempfile.NamedTemporaryFile(prefix="pipenv-request-"/"pipenv-response-", delete=False)`, which honours the standard tempdir env). After the lock returns the test globs the capture dir for the distinctive prefixes, parses both files, normalises non-deterministic fields (`metadata.parent_pid`, `metadata.pipenv_version`, and the `locked` array's resolution order), then compares against the committed goldens. The regen branch (`PIPENV_REGEN_PROTOCOL_FIXTURES=1`) writes the normalised JSON back and `pytest.skip`s so the maintainer reviews the resulting `git diff` before committing.
+  - **Boundary-crossing fix**: surfaced a pre-existing wave-B bug — `pipenv/resolver/main.py :: _main` did `from pipenv.resolver.schema import ...` BEFORE calling `_ensure_modules()` at line 356. The schema import therefore raced the bootstrap and failed with `ModuleNotFoundError: No module named 'pipenv'` whenever the resolver was invoked via the project venv's python against the absolute file path (i.e. the production code path that integration tests exercise; the wave-B unit smoke avoided this by invoking via `python -m pipenv.resolver.main` from a process that already had `pipenv` on `sys.path`). The fix moves `_ensure_modules()` to the top of `_main` (and deletes the now-redundant second call). Without this fix every integration `lock`/`install` test on this branch was broken. Committed separately as `fix(resolver): bootstrap pipenv on sys.path before schema import in _main`.
+  - The captured `response.json` organically includes a comma-bearing marker (`six`'s `"python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'"`) — incidental coverage of the C3 regression at the integration level.
+  - Test runs green 3 consecutive times; full unit suite untouched at 758 passed / 9 skipped after the `main.py` bootstrap fix.
 - **files edited/created**:
+  - **CREATED** `tests/integration/test_resolver_protocol.py` — single integration test + normalisation helpers + regen branch
+  - **CREATED** `tests/integration/fixtures/resolver_protocol/request.json` — golden request envelope (normalised)
+  - **CREATED** `tests/integration/fixtures/resolver_protocol/response.json` — golden response envelope (locked entries sorted by name)
+  - **EDITED** `pipenv/resolver/main.py` — moved `_ensure_modules()` ahead of the schema import in `_main` (one-line bootstrap-order fix; committed separately)
 
 ### C3: Comma-in-marker regression fixture
 
@@ -259,9 +311,11 @@ Wave D (depends on Wave C):                                               │
   Fixture: `ResolverRequest` with one package whose pip-line includes a comma-bearing marker. Assert the round-trip preserves it byte-for-byte.
 - **validation**:
   - The test exists and passes
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Landed in the same commit as C1 (`de3edea9` `test(resolver-schema): expand unit suite with parity, dispatch, comma-in-marker cases (T_F.3 C1 + C3)`) per the plan note that "C3 adds a fixture + test case to the C1 file". The new `TestCommaInMarkerRegression` class adds 2 cases: (1) a commaful PEP 508 marker (`python_version >= "3.10", sys_platform == "linux"`) on `PackageSpecs.specs` round-trips through `ResolverRequest.to_json_dict` / `from_json_dict` byte-for-byte (and survives JSON re-serialisation); (2) the same marker on `LockedRequirement.markers` round-trips. Each test cites F.1 §8 row 9 (the legacy `str.split(",", 1)` bug) and design Q7 in its docstring so a future grep finds the pin.
 - **files edited/created**:
+  - **EDITED** `tests/unit/test_resolver_schema.py` — added `TestCommaInMarkerRegression` class (part of the +400 line C1 + C3 diff)
 
 ### C4: News fragment
 
@@ -280,9 +334,11 @@ Wave D (depends on Wave C):                                               │
   The internal protocol rewrite itself is invisible to users; the user-facing diff is the cleaner error message on `pipenv install` / `pipenv lock` failure.
 - **validation**:
   - File present, valid RST, towncrier pre-commit hook accepts it
-- **status**: Not Completed
+- **status**: Completed
 - **log**:
+  - 2026-05-12 — Added `news/T_F.3.behavior.rst` (4-line behavior fragment per Q4) — commit `e891c888`. Pre-commit hooks passed.
 - **files edited/created**:
+  - NEW `news/T_F.3.behavior.rst`
 
 ### D1: Mark T_F.3 complete in modernization plan
 

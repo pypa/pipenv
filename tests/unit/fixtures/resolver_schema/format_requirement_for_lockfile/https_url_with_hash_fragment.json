@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "file": "https://private-repo.com/packages/my_dep-13.6.0-py3-none-any.whl#sha256=abcdef1234567890",
+    "name": "my-dep"
+  },
+  "name": "my-dep"
+}

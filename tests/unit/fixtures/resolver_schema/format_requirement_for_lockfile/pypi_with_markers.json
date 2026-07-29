@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "markers": "sys_platform == 'win32'",
+    "name": "pywin32",
+    "version": "==300"
+  },
+  "name": "pywin32"
+}

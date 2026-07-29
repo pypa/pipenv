@@ -353,26 +353,15 @@ def test_prepare_index_lookup_is_cached():
     assert "bar" not in first
 
 
-@pytest.mark.utils
-def test_process_resolver_results_does_not_scan_reverse_dependencies():
-    from pipenv.resolver import process_resolver_results
-
-    project = mock.MagicMock()
-    project.parsed_pipfile = {"packages": {}}
-    project.environment.reverse_dependencies.side_effect = AssertionError(
-        "reverse dependencies should not be loaded while processing lock results"
-    )
-
-    resolver = mock.MagicMock()
-    resolver.index_lookup = {}
-    resolver.parsed_constraints = []
-
-    results = [{"name": "requests", "version": "==2.32.0"}]
-
-    processed = process_resolver_results(results, resolver, project, "packages")
-
-    assert processed == [{"name": "requests", "version": "==2.32.0"}]
-    project.environment.reverse_dependencies.assert_not_called()
+# T_F.3 Wave B1: ``test_process_resolver_results_does_not_scan_reverse_dependencies``
+# previously pinned ``pipenv.resolver.process_resolver_results``, which
+# constructed legacy ``Entry`` dataclasses and could (incorrectly) probe
+# ``project.environment.reverse_dependencies``.  Both ``Entry`` and
+# ``process_resolver_results`` were deleted in Wave B1; the typed
+# resolve pipeline never reaches ``project.environment`` at all, so the
+# regression the test guarded is structurally impossible in the new
+# world.  Replacement coverage at the schema level lives in
+# ``tests/unit/test_resolver_schema.py``.
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,7 @@
+{
+  "entry": {
+    "name": "requests",
+    "version": "==2.28.1"
+  },
+  "name": "requests"
+}
