@@ -27,6 +27,34 @@ class Node:
     def serialize(self) -> str:
         raise NotImplementedError
 
+    def __getstate__(self) -> str:
+        # Return just the value string for compactness and stability.
+        return self.value
+
+    def _restore_value(self, value: object) -> None:
+        if not isinstance(value, str):
+            raise TypeError(
+                f"Cannot restore {self.__class__.__name__} value from {value!r}"
+            )
+        self.value = value
+
+    def __setstate__(self, state: object) -> None:
+        if isinstance(state, str):
+            # New format (26.2+): just the value string.
+            self._restore_value(state)
+            return
+        if isinstance(state, tuple) and len(state) == 2:
+            # Old format (packaging <= 26.0, __slots__): (None, {slot: value}).
+            _, slot_dict = state
+            if isinstance(slot_dict, dict) and "value" in slot_dict:
+                self._restore_value(slot_dict["value"])
+                return
+        if isinstance(state, dict) and "value" in state:
+            # Old format (packaging <= 25.0, no __slots__): plain __dict__.
+            self._restore_value(state["value"])
+            return
+        raise TypeError(f"Cannot restore {self.__class__.__name__} from {state!r}")
+
 
 class Variable(Node):
     __slots__ = ()

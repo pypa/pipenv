@@ -36,6 +36,7 @@ class EmscriptenHttpResponseWrapper(BaseHTTPResponse):
     ):
         self._pool = None  # set by pool class
         self._body = None
+        self._uncached_read_occurred = False
         self._response = internal_response
         self._url = url
         self._connection = connection
@@ -160,10 +161,13 @@ class EmscriptenHttpResponseWrapper(BaseHTTPResponse):
                 # don't cache partial content
                 cache_content = False
                 data = self._response.body.read(amt)
+                self._uncached_read_occurred = True
             else:  # read all we can (and cache it)
                 data = self._response.body.read()
-                if cache_content:
+                if cache_content and not self._uncached_read_occurred:
                     self._body = data
+                else:
+                    self._uncached_read_occurred = True
             if self.length_remaining is not None:
                 self.length_remaining = max(self.length_remaining - len(data), 0)
             if len(data) == 0 or (

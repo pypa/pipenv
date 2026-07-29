@@ -10,7 +10,7 @@ from pipenv.exceptions import JSONParseError, PipenvCmdError
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.routines.context import RoutineContext
-from pipenv.routines.lock import overwrite_with_default
+from pipenv.routines.lock import do_lock, overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
 from pipenv.utils import err
@@ -90,23 +90,38 @@ def do_update(project, ctx: RoutineContext):
             ctx,
             target_env=replace(target, system=system, allow_global=system),
         )
-        # Pre-sync packages for pipdeptree resolution to avoid conflicts
-        if project.any_lockfile_exists:
-            do_sync(project, sync_ctx)
-        upgrade(
-            project,
-            pre=policy.pre,
-            system=system,
-            packages=packages,
-            editable_packages=editable,
-            pypi_mirror=target.pypi_mirror,
-            categories=categories,
-            index_url=sel.index,
-            dev=sel.dev,
-            lock_only=policy.lock_only,
-            extra_pip_args=extra_pip_args,
-        )
-        # Finally sync packages after upgrade
+        if not packages and not editable:
+            # Documented behavior of `pipenv update` (no args) is `lock + sync`:
+            # re-resolve every package against the Pipfile, then sync. The
+            # partial-upgrade path in `upgrade()` only re-resolves Pipfile
+            # entries whose locked version no longer satisfies the spec, which
+            # silently skips picking up newer allowed releases (gh-6672).
+            lock_ctx = replace(
+                sync_ctx,
+                package_selection=replace(
+                    sel,
+                    categories=_prepare_categories(categories, sel.dev, packages=[]),
+                ),
+            )
+            do_lock(project, lock_ctx)
+        else:
+            # Pre-sync packages for pipdeptree resolution to avoid conflicts
+            if project.any_lockfile_exists:
+                do_sync(project, sync_ctx)
+            upgrade(
+                project,
+                pre=policy.pre,
+                system=system,
+                packages=packages,
+                editable_packages=editable,
+                pypi_mirror=target.pypi_mirror,
+                categories=categories,
+                index_url=sel.index,
+                dev=sel.dev,
+                lock_only=policy.lock_only,
+                extra_pip_args=extra_pip_args,
+            )
+        # Finally sync packages after lock/upgrade
         do_sync(project, sync_ctx)
     else:
         do_outdated(
@@ -121,7 +136,15 @@ def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
     pipdeptree_path = Path(pipdeptree.__file__).parent
     python_path = project.venv_locator.python()
-    cmd_args = [python_path, str(pipdeptree_path), "-l", "--reverse", "--json-tree"]
+    cmd_args = [
+        python_path,
+        str(pipdeptree_path),
+        "--python",
+        python_path,
+        "-l",
+        "--reverse",
+        "--json-tree",
+    ]
 
     c = run_command(cmd_args, is_verbose=project.s.is_verbose())
     if c.returncode != 0:

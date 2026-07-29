@@ -77,18 +77,14 @@ def _get_git_remote_url(repo_root: str) -> str | None:
             timeout=5,
             env=_git_env(),
         ).stdout.strip()
-        if not remotes_output:
-            return None
-        remotes = remotes_output.splitlines()
-        found_remote = remotes[0]
-        for remote in remotes:
-            if remote.startswith("remote.origin.url "):
-                found_remote = remote
-                break
-        parts = found_remote.split(" ", 1)
-        return parts[1].strip() if len(parts) >= 2 and parts[1].strip() else None
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
         return None
+    if not remotes_output:
+        return None
+    remotes = remotes_output.splitlines()
+    found_remote = next((r for r in remotes if r.startswith("remote.origin.url ")), remotes[0])
+    parts = found_remote.split(" ", 1)
+    return parts[1].strip() if len(parts) >= 2 and parts[1].strip() else None
 
 
 def _get_git_commit_id(repo_root: str) -> str | None:

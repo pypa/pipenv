@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Final
 from pipenv.vendor.pipdeptree._models import DistPackage, ReqPackage, ReversedPackageDAG
 
 if TYPE_CHECKING:
+    from pipenv.vendor.pipdeptree._cli import RenderContext
     from pipenv.vendor.pipdeptree._models import PackageDAG
 
 _RESERVED_IDS: Final[frozenset[str]] = frozenset(
@@ -34,67 +35,27 @@ _RESERVED_IDS: Final[frozenset[str]] = frozenset(
 )
 
 
-def render_mermaid(tree: PackageDAG) -> None:  # noqa: C901
+def render_mermaid(
+    tree: PackageDAG,
+    *,
+    context: RenderContext | None = None,
+) -> None:
     """
     Produce a Mermaid flowchart from the dependency graph.
 
     :param tree: dependency graph
+    :param context: metadata and computed fields to include in node labels
 
     """
-    # List of reserved keywords in Mermaid that cannot be used as node names.
-    # See: https://github.com/mermaid-js/mermaid/issues/4182#issuecomment-1454787806
-
     node_ids_map: dict[str, str] = {}
-
-    def mermaid_id(key: str) -> str:
-        """Return a valid Mermaid node ID from a string."""
-        # If we have already seen this key, return the canonical ID.
-        canonical_id = node_ids_map.get(key)
-        if canonical_id is not None:
-            return canonical_id
-        # If the key is not a reserved keyword, return it as is, and update the map.
-        if key not in _RESERVED_IDS:
-            node_ids_map[key] = key
-            return key
-        # If the key is a reserved keyword, append a number to it.
-        for number in it.count():
-            new_id = f"{key}_{number}"
-            if new_id not in node_ids_map:
-                node_ids_map[key] = new_id
-                return new_id
-        raise NotImplementedError
-
-    # Use a sets to avoid duplicate entries.
     nodes: set[str] = set()
     edges: set[str] = set()
 
     if isinstance(tree, ReversedPackageDAG):
-        for package, reverse_dependencies in tree.items():
-            assert isinstance(package, ReqPackage)
-            package_label = "<br/>".join(
-                (package.project_name, "(missing)" if package.is_missing else package.installed_version),
-            )
-            package_key = mermaid_id(package.key)
-            nodes.add(f'{package_key}["{package_label}"]')
-            for reverse_dependency in reverse_dependencies:
-                assert isinstance(reverse_dependency, DistPackage)
-                reverse_dependency_key = mermaid_id(reverse_dependency.key)
-                edges.add(f'{package_key} -- "{reverse_dependency.edge_label}" --> {reverse_dependency_key}')
+        _build_reversed_mermaid(tree, nodes, edges, node_ids_map, context)
     else:
-        for package, dependencies in tree.items():
-            package_label = f"{package.project_name}<br/>{package.version}"
-            package_key = mermaid_id(package.key)
-            nodes.add(f'{package_key}["{package_label}"]')
-            for dependency in dependencies:
-                dependency_key = mermaid_id(dependency.key)
-                if dependency.is_missing:
-                    dependency_label = f"{dependency.project_name}<br/>(missing)"
-                    nodes.add(f'{dependency_key}["{dependency_label}"]:::missing')
-                    edges.add(f"{package_key} -.-> {dependency_key}")
-                else:
-                    edges.add(f'{package_key} -- "{dependency.edge_label}" --> {dependency_key}')
+        _build_forward_mermaid(tree, nodes, edges, node_ids_map, context)
 
-    # Produce the Mermaid Markdown.
     lines = [
         "flowchart TD",
         "classDef missing stroke-dasharray: 5",
@@ -102,6 +63,67 @@ def render_mermaid(tree: PackageDAG) -> None:  # noqa: C901
         *sorted(edges),
     ]
     print("".join(f"{'    ' if i else ''}{line}\n" for i, line in enumerate(lines)))  # noqa: T201
+
+
+def _build_reversed_mermaid(
+    tree: PackageDAG,
+    nodes: set[str],
+    edges: set[str],
+    node_ids_map: dict[str, str],
+    context: RenderContext | None,
+) -> None:
+    for package, reverse_dependencies in tree.items():
+        assert isinstance(package, ReqPackage)
+        label_parts = [
+            package.project_name,
+            "(missing)" if package.is_missing else package.installed_version,
+        ]
+        if context and (extra := context.build_node_extra_label(package.key, tree, "<br/>")):
+            label_parts.append(extra)
+        package_key = _mermaid_id(package.key, node_ids_map)
+        nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
+        for reverse_dependency in reverse_dependencies:
+            assert isinstance(reverse_dependency, DistPackage)
+            rev_key = _mermaid_id(reverse_dependency.key, node_ids_map)
+            edges.add(f'{package_key} -- "{reverse_dependency.edge_label}" --> {rev_key}')
+
+
+def _build_forward_mermaid(
+    tree: PackageDAG,
+    nodes: set[str],
+    edges: set[str],
+    node_ids_map: dict[str, str],
+    context: RenderContext | None,
+) -> None:
+    for package, dependencies in tree.items():
+        label_parts = [package.project_name, package.version]
+        if context and (extra := context.build_node_extra_label(package.key, tree, "<br/>")):
+            label_parts.append(extra)
+        package_key = _mermaid_id(package.key, node_ids_map)
+        nodes.add(f'{package_key}["{"<br/>".join(label_parts)}"]')
+        for dependency in dependencies:
+            dependency_key = _mermaid_id(dependency.key, node_ids_map)
+            if dependency.is_missing:
+                dependency_label = f"{dependency.project_name}<br/>(missing)"
+                nodes.add(f'{dependency_key}["{dependency_label}"]:::missing')
+                edges.add(f"{package_key} -.-> {dependency_key}")
+            else:
+                edges.add(f'{package_key} -- "{dependency.edge_label}" --> {dependency_key}')
+
+
+def _mermaid_id(key: str, node_ids_map: dict[str, str]) -> str:
+    """Return a valid Mermaid node ID from a string."""
+    if (canonical_id := node_ids_map.get(key)) is not None:
+        return canonical_id
+    if key not in _RESERVED_IDS:
+        node_ids_map[key] = key
+        return key
+    for number in it.count():
+        new_id = f"{key}_{number}"
+        if new_id not in node_ids_map:
+            node_ids_map[key] = new_id
+            return new_id
+    raise NotImplementedError
 
 
 __all__ = [

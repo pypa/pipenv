@@ -4,13 +4,21 @@ import json
 from itertools import chain
 from typing import TYPE_CHECKING, Any
 
+from pipenv.vendor.pipdeptree._computed import ComputedValues
 from pipenv.vendor.pipdeptree._models import ReqPackage
 
 if TYPE_CHECKING:
+    from pipenv.vendor.pipdeptree._cli import RenderContext
     from pipenv.vendor.pipdeptree._models import DistPackage, PackageDAG
+    from pipenv.vendor.pipdeptree._models.package import RenderMode
 
 
-def render_json_tree(tree: PackageDAG) -> None:
+def render_json_tree(
+    tree: PackageDAG,
+    *,
+    context: RenderContext | None = None,
+    mode: RenderMode = "default",
+) -> None:
     """
     Convert the tree into a nested json representation.
 
@@ -23,6 +31,8 @@ def render_json_tree(tree: PackageDAG) -> None:
       - dependencies: list of dependencies
 
     :param tree: dependency tree
+    :param context: metadata and computed fields to include
+    :param mode: "resolved" emits candidate_version instead of installed/required for resolved trees
     :returns: json representation of the tree
 
     """
@@ -38,11 +48,19 @@ def render_json_tree(tree: PackageDAG) -> None:
         if cur_chain is None:
             cur_chain = [node.project_name]
 
-        d: dict[str, str | list[Any] | None] = node.as_dict()  # type: ignore[assignment]
-        if parent:
-            d["required_version"] = node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
-        else:
-            d["required_version"] = d["installed_version"]
+        d: dict[str, str | list[Any] | None] = node.as_dict(mode=mode)  # ty: ignore[invalid-assignment]
+        if mode == "default":
+            if parent:
+                d["required_version"] = (
+                    node.version_spec if isinstance(node, ReqPackage) and node.version_spec else "Any"
+                )
+            else:
+                d["required_version"] = d["installed_version"]
+
+        if context and context.metadata:
+            d["metadata"] = node.get_metadata_dict(list(context.metadata))  # ty: ignore[invalid-assignment]
+        if context and context.computed:
+            d["computed"] = ComputedValues(node.key, tree, context.full_tree).as_dict(context.computed)  # ty: ignore[invalid-assignment]
 
         d["dependencies"] = [
             aux(c, parent=node, cur_chain=[*cur_chain, c.project_name])

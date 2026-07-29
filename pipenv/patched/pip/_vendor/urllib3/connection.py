@@ -531,8 +531,8 @@ class HTTPConnection(_HTTPConnection):
         """
         warnings.warn(
             "HTTPConnection.request_chunked() is deprecated and will be removed "
-            "in urllib3 v2.1.0. Instead use HTTPConnection.request(..., chunked=True).",
-            category=DeprecationWarning,
+            "in urllib3 v3.0. Instead use HTTPConnection.request(..., chunked=True).",
+            category=FutureWarning,
             stacklevel=2,
         )
         self.request(method, url, body=body, headers=headers, chunked=True)
@@ -697,9 +697,9 @@ class HTTPSConnection(HTTPConnection):
         """
         warnings.warn(
             "HTTPSConnection.set_cert() is deprecated and will be removed "
-            "in urllib3 v2.1.0. Instead provide the parameters to the "
+            "in urllib3 v3.0. Instead provide the parameters to the "
             "HTTPSConnection constructor.",
-            category=DeprecationWarning,
+            category=FutureWarning,
             stacklevel=2,
         )
 

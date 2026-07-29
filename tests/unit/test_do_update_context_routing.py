@@ -2,9 +2,13 @@
 
 Pins the T_C.8 migration: every flag the CLI passes via
 ``RoutineContext.from_cli`` must reach the right helper kwarg with the
-right value. Helpers (``do_sync``, ``upgrade``, ``do_outdated``) are
-mocked so the tests stay in-process and do not touch the network /
-filesystem.
+right value. Helpers (``do_sync``, ``upgrade``, ``do_lock``,
+``do_outdated``) are mocked so the tests stay in-process and do not
+touch the network / filesystem.
+
+Since gh-6672, ``do_update`` with no package arguments routes through
+``do_lock`` (full re-lock) rather than ``upgrade``; tests that pin
+``upgrade`` kwarg routing therefore pass a package to take that path.
 
 See ``docs/dev/initiative-c-design.md`` sections 2 and 6, and the
 T_C.8 task description in ``docs/dev/modernization-plan.md``.
@@ -35,7 +39,7 @@ def patch_update_pipeline(monkeypatch):
     Returns the dict of patched mocks for assertions.
     """
     patches: dict[str, mock.MagicMock] = {}
-    for name in ("ensure_project", "do_sync", "upgrade", "do_outdated"):
+    for name in ("ensure_project", "do_sync", "upgrade", "do_lock", "do_outdated"):
         m = mock.MagicMock()
         monkeypatch.setattr(f"pipenv.routines.update.{name}", m)
         patches[name] = m
@@ -114,7 +118,7 @@ class TestResolveAndUpdateLockfileSignature:
 class TestDoUpdateFlagRouting:
     """Each field of ``ctx`` routes to the expected helper kwarg."""
 
-    def test_defaults_route_to_ensure_project_and_upgrade(
+    def test_defaults_route_to_ensure_project_and_lock(
         self, project_stub, patch_update_pipeline
     ):
         from pipenv.routines.update import do_update
@@ -131,14 +135,36 @@ class TestDoUpdateFlagRouting:
         # warn=(not quiet), default quiet=False -> warn=True
         assert ep["warn"] is True
 
-        # outdated defaults to False -> upgrade runs, do_outdated skipped.
+        # No packages -> full re-lock (gh-6672): do_lock runs, upgrade
+        # and do_outdated are skipped.
+        assert patch_update_pipeline["do_lock"].called
+        assert not patch_update_pipeline["upgrade"].called
+        assert not patch_update_pipeline["do_outdated"].called
+
+        lock_ctx = patch_update_pipeline["do_lock"].call_args.args[1]
+        assert lock_ctx.install_policy.pre is False
+        assert lock_ctx.install_policy.clear is False
+        assert lock_ctx.target_env.system is False
+        assert lock_ctx.target_env.pypi_mirror is None
+        # categories normalised via _prepare_categories (no --dev).
+        assert list(lock_ctx.package_selection.categories) == ["default"]
+
+    def test_upgrade_defaults_route_to_upgrade_kwargs(
+        self, project_stub, patch_update_pipeline
+    ):
+        from pipenv.routines.update import do_update
+
+        ctx = RoutineContext.from_cli(packages=("requests",))
+        do_update(project_stub, ctx)
+
         assert patch_update_pipeline["upgrade"].called
+        assert not patch_update_pipeline["do_lock"].called
         assert not patch_update_pipeline["do_outdated"].called
 
         upgrade_kwargs = patch_update_pipeline["upgrade"].call_args.kwargs
         assert upgrade_kwargs["pre"] is False
         assert upgrade_kwargs["system"] is False
-        assert upgrade_kwargs["packages"] == []
+        assert upgrade_kwargs["packages"] == ["requests"]
         assert upgrade_kwargs["editable_packages"] == []
         assert upgrade_kwargs["pypi_mirror"] is None
         assert upgrade_kwargs["categories"] is None
@@ -154,6 +180,7 @@ class TestDoUpdateFlagRouting:
         from pipenv.routines.update import do_update
 
         ctx = RoutineContext.from_cli(
+            packages=("requests",),
             system=True,
             python="3.12",
             pypi_mirror="https://mirror.example.org/simple",
@@ -187,6 +214,7 @@ class TestDoUpdateFlagRouting:
         from pipenv.routines.update import do_update
 
         ctx = RoutineContext.from_cli(
+            packages=("requests",),
             pre=True,
             clear=True,
             lock_only=True,
@@ -226,6 +254,7 @@ class TestDoUpdateFlagRouting:
         from pipenv.routines.update import do_update
 
         ctx = RoutineContext.from_cli(
+            packages=("requests",),
             categories=("packages", "docs"),
             dev=True,
         )
@@ -249,6 +278,7 @@ class TestDoUpdateFlagRouting:
         from pipenv.routines.update import do_update
 
         ctx = RoutineContext.from_cli(
+            packages=("requests",),
             extra_pip_args=("--no-build-isolation",),
         )
         do_update(project_stub, ctx)
@@ -314,7 +344,7 @@ class TestDoUpdateFlagRouting:
         from pipenv.routines.update import do_update
 
         project_stub.any_lockfile_exists = False
-        ctx = RoutineContext.from_cli()
+        ctx = RoutineContext.from_cli(packages=("requests",))
         do_update(project_stub, ctx)
 
         # No pre-sync call; only the post-upgrade sync should fire.
@@ -327,7 +357,7 @@ class TestDoUpdateFlagRouting:
         from pipenv.routines.update import do_update
 
         project_stub.s.PIPENV_USE_SYSTEM = True
-        ctx = RoutineContext.from_cli(system=False)
+        ctx = RoutineContext.from_cli(packages=("requests",), system=False)
         do_update(project_stub, ctx)
 
         ep = patch_update_pipeline["ensure_project"].call_args.kwargs

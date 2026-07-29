@@ -166,6 +166,36 @@ def test_convert_to_pipenv_lockfile(pylock_file):
     assert lockfile["develop"]["pytest"]["markers"] == "'dev' in dependency_groups or 'test' in dependency_groups"
 
 
+def test_convert_to_pipenv_lockfile_expands_env_vars_in_source_urls(
+    tmp_path, monkeypatch
+):
+    """Regression test for gh-6670: pylock-converted sources must expand
+    ``${VAR}`` tokens in URLs just like ``Pipfile.lock`` reads do, otherwise
+    users with ``[pipenv] use_pylock = true`` see env-var auth silently
+    fall through to literal placeholders.
+    """
+    pylock_path = tmp_path / "pylock.toml"
+    pylock_path.write_text(
+        'lock-version = "1.0"\n'
+        'created-by = "pipenv"\n'
+        "\n"
+        "[[sources]]\n"
+        'name = "nexus"\n'
+        'url = "https://${NEXUS_USERNAME}:${NEXUS_PASSWORD}@nexus.example.com/repository/pypi/simple"\n'
+        "verify_ssl = true\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NEXUS_USERNAME", "alice")
+    monkeypatch.setenv("NEXUS_PASSWORD", "s3cret")
+
+    pylock = PylockFile.from_path(pylock_path)
+    lockfile = pylock.convert_to_pipenv_lockfile()
+    sources = lockfile["_meta"]["sources"]
+    assert sources[0]["url"] == (
+        "https://alice:s3cret@nexus.example.com/repository/pypi/simple"
+    )
+
+
 def test_from_lockfile(tmp_path):
     """Test creating a PylockFile from a Pipfile.lock file."""
     # Create a simple Pipfile.lock

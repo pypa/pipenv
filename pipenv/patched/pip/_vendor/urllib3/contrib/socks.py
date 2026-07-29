@@ -141,7 +141,7 @@ class SOCKSConnection(HTTPConnection):
                     raise NewConnectionError(
                         self, f"Failed to establish a new connection: {error}"
                     )
-            else:
+            else:  # Defensive: see https://github.com/urllib3/urllib3/pull/3728#pullrequestreview-3816302703
                 raise NewConnectionError(
                     self, f"Failed to establish a new connection: {e}"
                 ) from e

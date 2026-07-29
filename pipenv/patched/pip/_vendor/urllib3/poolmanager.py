@@ -328,8 +328,8 @@ class PoolManager(RequestMethods):
         if "strict" in request_context:
             warnings.warn(
                 "The 'strict' parameter is no longer needed on Python 3+. "
-                "This will raise an error in urllib3 v2.1.0.",
-                DeprecationWarning,
+                "This will raise an error in urllib3 v3.0.",
+                FutureWarning,
             )
             request_context.pop("strict")
 
@@ -436,10 +436,10 @@ class PoolManager(RequestMethods):
         if u.scheme is None:
             warnings.warn(
                 "URLs without a scheme (ie 'https://') are deprecated and will raise an error "
-                "in a future version of urllib3. To avoid this DeprecationWarning ensure all URLs "
+                "in urllib3 v3.0. To avoid this FutureWarning ensure all URLs "
                 "start with 'https://' or 'http://'. Read more in this issue: "
                 "https://github.com/urllib3/urllib3/issues/2920",
-                category=DeprecationWarning,
+                category=FutureWarning,
                 stacklevel=2,
             )
 
@@ -544,15 +544,17 @@ class ProxyManager(PoolManager):
 
         proxy = urllib3.ProxyManager("https://localhost:3128/")
 
-        resp1 = proxy.request("GET", "https://google.com/")
-        resp2 = proxy.request("GET", "https://httpbin.org/")
+        resp1 = proxy.request("GET", "http://google.com/")
+        resp2 = proxy.request("GET", "http://httpbin.org/")
 
+        # One pool was shared by both plain HTTP requests.
         print(len(proxy.pools))
         # 1
 
         resp3 = proxy.request("GET", "https://httpbin.org/")
         resp4 = proxy.request("GET", "https://twitter.com/")
 
+        # A separate pool was added for each HTTPS target.
         print(len(proxy.pools))
         # 3
 

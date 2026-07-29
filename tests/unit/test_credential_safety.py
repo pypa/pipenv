@@ -129,6 +129,116 @@ def test_write_credentials_netrc_decodes_url_encoded_password(tmp_path):
     assert "password p@ss!" in contents
 
 
+@pytest.mark.utils
+def test_write_credentials_netrc_pipfile_wins_over_existing_system_netrc(
+    tmp_path, monkeypatch
+):
+    """Pipfile-derived creds must beat a duplicate entry from the user's
+    pre-existing system netrc.
+
+    Regression test for gh-6670: after GHSA-8xgg-v3jj-95m2 moved auth from
+    URL-embedded argv onto a merged netrc, a stale ``machine`` block in
+    ``~/.netrc`` (or ``$NETRC``) for the same host silently overrode the
+    Pipfile's credentials because ``netrc.authenticators()`` returns the
+    LAST matching entry. Our blocks must come AFTER the appended existing
+    content so they win that tie-break.
+    """
+    import netrc
+
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text(
+        "machine private.example.com\n  login STALE\n  password STALE\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("NETRC", str(system_netrc))
+
+    sources = [{"url": "https://fresh:freshpass@private.example.com/simple"}]
+    netrc_path = write_credentials_netrc(sources, tmp_path)
+    assert netrc_path is not None
+
+    login, _account, password = netrc.netrc(netrc_path).authenticators(
+        "private.example.com"
+    )
+    assert (login, password) == ("fresh", "freshpass"), (
+        "Pipfile-supplied creds must override the user's existing netrc"
+    )
+
+
+@pytest.mark.utils
+def test_write_credentials_netrc_from_env_var_expanded_url(tmp_path, monkeypatch):
+    """The expand_url_credentials → write_credentials_netrc round-trip must
+    produce a netrc with the expanded (real) credentials, not the literal
+    ``${VAR}`` placeholders.
+
+    Regression test for gh-6670: ensures that env-var-bearing source URLs
+    flow through ``pipfile_sources()`` (which calls
+    ``expand_url_credentials``) and yield a netrc with the actual user/pass,
+    matching the hardcoded-credentials behavior the GHSA fix preserved.
+    """
+    import netrc
+
+    from pipenv.utils.shell import expand_url_credentials
+
+    monkeypatch.setenv("NEXUS_USERNAME", "real-user")
+    monkeypatch.setenv("NEXUS_PASSWORD", "real-pass!@#")
+    # Isolate from any real ~/.netrc on the developer's machine.
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text("", encoding="utf-8")
+    monkeypatch.setenv("NETRC", str(system_netrc))
+
+    raw_url = (
+        "https://${NEXUS_USERNAME}:${NEXUS_PASSWORD}"
+        "@nexus.example.com/repository/pypi/simple"
+    )
+    expanded = expand_url_credentials(raw_url)
+    netrc_path = write_credentials_netrc([{"url": expanded}], tmp_path)
+    assert netrc_path is not None
+
+    login, _account, password = netrc.netrc(netrc_path).authenticators(
+        "nexus.example.com"
+    )
+    assert (login, password) == ("real-user", "real-pass!@#")
+
+
+@pytest.mark.utils
+def test_set_resolver_netrc_includes_pypi_mirror_credentials(tmp_path, monkeypatch):
+    """``_set_resolver_netrc`` must write the credentials embedded in
+    ``PIPENV_PYPI_MIRROR`` to the resolver netrc.
+
+    Regression test for gh-6677: the resolver subprocess prepends a mirror
+    source built from ``PIPENV_PYPI_MIRROR`` (which carries the user's
+    credentials), but the parent wrote the netrc from the un-mirrored
+    ``pipfile_sources()``.  After GHSA-8xgg-v3jj-95m2 moved auth from pip
+    argv onto netrc, the mirror's credentials were dropped and private-index
+    resolution failed with 401 / ``ResolutionFailure``.
+    """
+    import netrc
+
+    from pipenv.utils.resolver import _set_resolver_netrc
+
+    monkeypatch.setenv("PIPENV_PYPI_MIRROR", "https://user:secret@pypi.mirror")
+
+    system_netrc = tmp_path / "system.netrc"
+    system_netrc.write_text("", encoding="utf-8")
+    monkeypatch.setenv("NETRC", str(system_netrc))
+
+    class _Sources:
+        # Mirrors the issue's Pipfile: a custom-host source named "pypi"
+        # with no embedded credentials.
+        def pipfile_sources(self):
+            return [{"url": "https://pypi.mirror", "verify_ssl": True, "name": "pypi"}]
+
+    class _Project:
+        sources = _Sources()
+
+    _set_resolver_netrc(_Project(), str(tmp_path))
+
+    netrc_path = os.environ.get("NETRC")
+    assert netrc_path is not None
+    login, _account, password = netrc.netrc(netrc_path).authenticators("pypi.mirror")
+    assert (login, password) == ("user", "secret")
+
+
 # --- pip_install_deps integration -------------------------------------------
 
 

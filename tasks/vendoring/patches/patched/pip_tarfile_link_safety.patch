@@ -2,10 +2,18 @@ diff --git a/pipenv/patched/pip/_internal/utils/unpacking.py b/pipenv/patched/pi
 index 6d60b33e..3dfbc9a8 100644
 --- a/pipenv/patched/pip/_internal/utils/unpacking.py
 +++ b/pipenv/patched/pip/_internal/utils/unpacking.py
-@@ -87,6 +87,43 @@ def is_within_directory(directory: str, target: str) -> bool:
-     return prefix == abs_directory
- 
- 
+@@ -84,9 +84,50 @@ def is_within_directory(directory: str, target: str) -> bool:
+     abs_directory = os.path.abspath(directory)
+     abs_target = os.path.abspath(target)
+
+-    return abs_target == abs_directory or abs_target.startswith(abs_directory + os.sep)
++    try:
++        return os.path.commonpath([abs_directory, abs_target]) == abs_directory
++    except ValueError:
++        # Different drives on Windows — definitely outside.
++        return False
+
+
 +def _tar_link_target_is_within(
 +    member: tarfile.TarInfo, destination: str
 +) -> bool:
@@ -46,7 +54,7 @@ index 6d60b33e..3dfbc9a8 100644
  def _get_default_mode_plus_executable() -> int:
      return 0o777 & ~current_umask() | 0o111
  
-@@ -209,16 +246,24 @@ def untar_file(filename: str, location: str) -> None:
+@@ -209,16 +250,24 @@ def untar_file(filename: str, location: str) -> None:
                      try:
                          member = data_filter(member, location)
                      except tarfile.LinkOutsideDestinationError:

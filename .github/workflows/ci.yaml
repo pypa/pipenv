@@ -47,7 +47,8 @@ jobs:
       PYTHONIOENCODING: "utf-8"
       GIT_ASK_YESNO: "false"
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+
       - uses: actions/setup-python@v6
         with:
           python-version: 3.x
@@ -59,7 +60,7 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: 3.x
@@ -75,7 +76,7 @@ jobs:
       matrix:
         os: [MacOS, Ubuntu, Windows]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Disable Windows Defender for Python paths
         if: contains(matrix.os, 'Windows')
         shell: powershell
@@ -143,7 +144,7 @@ jobs:
         os: [MacOS, Ubuntu, Windows]
 
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - name: Disable Windows Defender for Python paths
         if: contains(matrix.os, 'Windows')
         shell: powershell
@@ -208,7 +209,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
@@ -227,7 +228,7 @@ jobs:
           if [ -f stats.csv ]; then
             csv2md stats.csv >> $GITHUB_STEP_SUMMARY
           fi
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: pipenv-benchmark-stats
           path: |
@@ -240,7 +241,7 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
         with:
           python-version: 3.x

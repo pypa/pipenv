@@ -1,3 +1,45 @@
+2026.6.2 (2026-06-02)
+=====================
+pipenv 2026.6.2 (2026-06-02)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Added support for ``cool-down-period`` in the ``[pipenv]`` section of the Pipfile.
+  Setting ``cool-down-period = "30d"`` instructs the resolver to only consider
+  package versions uploaded at least the specified number of days ago, via pip's
+  ``--uploaded-prior-to`` flag.
+
+Bug Fixes
+---------
+
+- Restored authentication to private indexes when ``[[source]]`` URLs use
+  environment-variable placeholders. The GHSA-8xgg-v3jj-95m2 fix moved
+  credentials off pip's argv onto a merged netrc, but
+  ``write_credentials_netrc`` wrote our Pipfile-derived ``machine`` blocks
+  BEFORE the appended user netrc — and ``netrc.authenticators()`` returns
+  the LAST matching entry, so a stale system entry for the same host
+  silently overrode the freshly-expanded creds. Our blocks now come AFTER
+  the user's existing content. Additionally, the ``pylock.toml`` reader
+  now runs ``expand_url_credentials`` over its sources so users with
+  ``[pipenv] use_pylock = true`` see the same env-var expansion that
+  ``Pipfile.lock`` reads have always had.  `#6670 <https://github.com/pypa/pipenv/issues/6670>`_
+- Restored documented ``pipenv update`` (no args) semantics of ``lock + sync``.
+  Since 2026.0.0, ``pipenv update`` only re-resolved Pipfile entries whose
+  locked version no longer satisfied the Pipfile specifier, so relaxing a
+  pin (e.g. ``urllib3 = "<2.7.0"`` → ``urllib3 = "*"``) would not pick up
+  newer allowed releases — the lockfile silently stayed at the existing
+  pin. ``pipenv update`` now routes through ``do_lock`` when no packages
+  are given, re-resolving every Pipfile entry. The targeted
+  ``pipenv update <pkg>`` path is unchanged.  `#6672 <https://github.com/pypa/pipenv/issues/6672>`_
+
+Vendored Libraries
+------------------
+
+- Bump vendored ``plette`` to ``2.2.1``.
+
 2026.6.1 (2026-04-28)
 =====================
 pipenv 2026.6.1 (2026-04-28)

@@ -6,9 +6,9 @@ support for Python 2.7 all relevant Python versions support SNI so
 
 This needs the following packages installed:
 
-* `pyOpenSSL`_ (tested with 16.0.0)
-* `cryptography`_ (minimum 1.3.4, from pyopenssl)
-* `idna`_ (minimum 2.0)
+* `pyOpenSSL`_ (tested with 19.0.0)
+* `cryptography`_ (minimum 2.3, from pyopenssl)
+* `idna`_ (minimum 2.1, from cryptography)
 
 However, pyOpenSSL depends on cryptography, so while we use all three directly here we
 end up having relatively few packages required.
@@ -29,7 +29,7 @@ like this:
 
     try:
         import pipenv.patched.pip._vendor.urllib3.contrib.pyopenssl as pyopenssl
-        pyopenssl.inject_into_urllib3()
+        urllib3.contrib.pyopenssl.inject_into_urllib3()
     except ImportError:
         pass
 
@@ -56,7 +56,6 @@ import ssl
 import typing
 from io import BytesIO
 from socket import socket as socket_cls
-from socket import timeout
 
 from .. import util
 
@@ -311,7 +310,7 @@ class WrappedSocket:
                 raise
         except OpenSSL.SSL.WantReadError as e:
             if not util.wait_for_read(self.socket, self.socket.gettimeout()):
-                raise timeout("The read operation timed out") from e
+                raise TimeoutError("The read operation timed out") from e
             else:
                 return self.recv(*args, **kwargs)
 
@@ -336,7 +335,7 @@ class WrappedSocket:
                 raise
         except OpenSSL.SSL.WantReadError as e:
             if not util.wait_for_read(self.socket, self.socket.gettimeout()):
-                raise timeout("The read operation timed out") from e
+                raise TimeoutError("The read operation timed out") from e
             else:
                 return self.recv_into(*args, **kwargs)
 
@@ -353,7 +352,7 @@ class WrappedSocket:
                 return self.connection.send(data)  # type: ignore[no-any-return]
             except OpenSSL.SSL.WantWriteError as e:
                 if not util.wait_for_write(self.socket, self.socket.gettimeout()):
-                    raise timeout() from e
+                    raise TimeoutError() from e
                 continue
             except OpenSSL.SSL.SysCallError as e:
                 raise OSError(e.args[0], str(e)) from e
@@ -520,7 +519,7 @@ class PyOpenSSLContext:
                 cnx.do_handshake()
             except OpenSSL.SSL.WantReadError as e:
                 if not util.wait_for_read(sock, sock.gettimeout()):
-                    raise timeout("select timed out") from e
+                    raise TimeoutError("select timed out") from e
                 continue
             except OpenSSL.SSL.Error as e:
                 raise ssl.SSLError(f"bad handshake: {e!r}") from e

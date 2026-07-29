@@ -1,0 +1,7 @@
+Bump patched ``pip`` to ``26.1.2`` and refresh vendored libraries:
+``pipdeptree`` to ``3.1.0``, ``packaging`` to ``26.2``,
+``pythonfinder`` to ``3.0.4``, and ``tomlkit`` to ``0.15.0``.
+Also harden ``is_within_directory()`` in patched pip to use
+``os.path.commonpath()`` instead of ``startswith``, fixing a
+containment check edge case for root directories and Windows
+drive mismatches.

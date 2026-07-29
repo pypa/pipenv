@@ -5,7 +5,7 @@ name = "pypi"
 
 [dev-packages]
 urllib3 = ">=2.7.0"
-requests = ">=2.32.4"
+requests = ">=2.34.2"
 sphinx = "*"
 sphinx-click = "==4.*"
 sphinxcontrib-spelling = "==7.*"
@@ -16,7 +16,7 @@ atomicwrites = {version = "*", sys_platform = "== 'win32'"}
 pytest-cov = "==4.*"
 typing-extensions = "==4.*"
 waitress = {version = "3.*", sys_platform = "== 'win32'"}
-gunicorn = {version = "23.0.*", sys_platform = "== 'linux'"}
+gunicorn = {version = "26.0.*", sys_platform = "== 'linux'"}
 parse = "*"
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"

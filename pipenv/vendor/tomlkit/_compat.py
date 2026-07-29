@@ -3,13 +3,11 @@ from __future__ import annotations
 import contextlib
 import sys
 
-from typing import Any
-
 
 PY38 = sys.version_info >= (3, 8)
 
 
-def decode(string: Any, encodings: list[str] | None = None):
+def decode(string: str | bytes, encodings: list[str] | None = None) -> str:
     if not isinstance(string, bytes):
         return string
 

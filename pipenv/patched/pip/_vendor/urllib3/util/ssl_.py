@@ -27,52 +27,14 @@ HASHFUNC_MAP = {
 }
 
 
-def _is_bpo_43522_fixed(
-    implementation_name: str,
-    version_info: _TYPE_VERSION_INFO,
-    pypy_version_info: _TYPE_VERSION_INFO | None,
-) -> bool:
-    """Return True for CPython 3.9.3+ or 3.10+ and PyPy 7.3.8+ where
-    setting SSLContext.hostname_checks_common_name to False works.
-
-    Outside of CPython and PyPy we don't know which implementations work
-    or not so we conservatively use our hostname matching as we know that works
-    on all implementations.
-
-    https://github.com/urllib3/urllib3/issues/2192#issuecomment-821832963
-    https://foss.heptapod.net/pypy/pypy/-/issues/3539
-    """
-    if implementation_name == "pypy":
-        # https://foss.heptapod.net/pypy/pypy/-/issues/3129
-        return pypy_version_info >= (7, 3, 8)  # type: ignore[operator]
-    elif implementation_name == "cpython":
-        major_minor = version_info[:2]
-        micro = version_info[2]
-        return (major_minor == (3, 9) and micro >= 3) or major_minor >= (3, 10)
-    else:  # Defensive:
-        return False
-
-
 def _is_has_never_check_common_name_reliable(
     openssl_version: str,
-    openssl_version_number: int,
-    implementation_name: str,
-    version_info: _TYPE_VERSION_INFO,
-    pypy_version_info: _TYPE_VERSION_INFO | None,
 ) -> bool:
     # As of May 2023, all released versions of LibreSSL fail to reject certificates with
     # only common names, see https://github.com/urllib3/urllib3/pull/3024
     is_openssl = openssl_version.startswith("OpenSSL ")
-    # Before fixing OpenSSL issue #14579, the SSL_new() API was not copying hostflags
-    # like X509_CHECK_FLAG_NEVER_CHECK_SUBJECT, which tripped up CPython.
-    # https://github.com/openssl/openssl/issues/14579
-    # This was released in OpenSSL 1.1.1l+ (>=0x101010cf)
-    is_openssl_issue_14579_fixed = openssl_version_number >= 0x101010CF
 
-    return is_openssl and (
-        is_openssl_issue_14579_fixed
-        or _is_bpo_43522_fixed(implementation_name, version_info, pypy_version_info)
-    )
+    return is_openssl
 
 
 if typing.TYPE_CHECKING:
@@ -98,9 +60,9 @@ try:  # Do we have ssl at all?
         OP_NO_COMPRESSION,
         OP_NO_TICKET,
         OPENSSL_VERSION,
-        OPENSSL_VERSION_NUMBER,
         PROTOCOL_TLS,
         PROTOCOL_TLS_CLIENT,
+        VERIFY_X509_PARTIAL_CHAIN,
         VERIFY_X509_STRICT,
         OP_NO_SSLv2,
         OP_NO_SSLv3,
@@ -110,18 +72,11 @@ try:  # Do we have ssl at all?
 
     PROTOCOL_SSLv23 = PROTOCOL_TLS
 
-    # Needed for Python 3.9 which does not define this
-    VERIFY_X509_PARTIAL_CHAIN = getattr(ssl, "VERIFY_X509_PARTIAL_CHAIN", 0x80000)
-
-    # Setting SSLContext.hostname_checks_common_name = False didn't work before CPython
-    # 3.9.3, and 3.10 (but OK on PyPy) or OpenSSL 1.1.1l+
+    # Setting SSLContext.hostname_checks_common_name = False didn't work with
+    # LibreSSL, check details in the used function.
     if HAS_NEVER_CHECK_COMMON_NAME and not _is_has_never_check_common_name_reliable(
         OPENSSL_VERSION,
-        OPENSSL_VERSION_NUMBER,
-        sys.implementation.name,
-        sys.version_info,
-        sys.pypy_version_info if sys.implementation.name == "pypy" else None,  # type: ignore[attr-defined]
-    ):  # Defensive: for Python < 3.9.3
+    ):  # Defensive:
         HAS_NEVER_CHECK_COMMON_NAME = False
 
     # Need to be careful here in case old TLS versions get
@@ -142,7 +97,7 @@ except ImportError:
     OP_NO_SSLv3 = 0x2000000  # type: ignore[assignment, misc]
     PROTOCOL_SSLv23 = PROTOCOL_TLS = 2  # type: ignore[assignment, misc]
     PROTOCOL_TLS_CLIENT = 16  # type: ignore[assignment, misc]
-    VERIFY_X509_PARTIAL_CHAIN = 0x80000
+    VERIFY_X509_PARTIAL_CHAIN = 0x80000  # type: ignore[assignment,misc]
     VERIFY_X509_STRICT = 0x20  # type: ignore[assignment, misc]
 
 
@@ -289,17 +244,15 @@ def create_urllib3_context(
             # keep the maximum version to be it's default value: 'TLSVersion.MAXIMUM_SUPPORTED'
             warnings.warn(
                 "'ssl_version' option is deprecated and will be "
-                "removed in urllib3 v2.6.0. Instead use 'ssl_minimum_version'",
-                category=DeprecationWarning,
+                "removed in urllib3 v3.0. Instead use 'ssl_minimum_version'",
+                category=FutureWarning,
                 stacklevel=2,
             )
 
-    # PROTOCOL_TLS is deprecated in Python 3.10 so we always use PROTOCOL_TLS_CLIENT
     context = SSLContext(PROTOCOL_TLS_CLIENT)
-
     if ssl_minimum_version is not None:
         context.minimum_version = ssl_minimum_version
-    else:  # Python <3.10 defaults to 'MINIMUM_SUPPORTED' so explicitly set TLSv1.2 here
+    else:  # pyOpenSSL defaults to 'MINIMUM_SUPPORTED' so explicitly set TLSv1.2 here
         context.minimum_version = TLSVersion.TLSv1_2
 
     if ssl_maximum_version is not None:
@@ -359,10 +312,7 @@ def create_urllib3_context(
         context.check_hostname = False
         context.verify_mode = cert_reqs
 
-    try:
-        context.hostname_checks_common_name = False
-    except AttributeError:  # Defensive: for CPython < 3.9.3; for PyPy < 7.3.8
-        pass
+    context.hostname_checks_common_name = False
 
     if "SSLKEYLOGFILE" in os.environ:
         sslkeylogfile = os.path.expandvars(os.environ.get("SSLKEYLOGFILE"))

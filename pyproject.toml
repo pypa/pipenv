@@ -32,7 +32,7 @@ dependencies = [
   "certifi",
   "packaging>=22",
   "setuptools>=67",
-  "virtualenv>=20.24.2",
+  "virtualenv>=20.26.6",
 ]
 optional-dependencies.completion = [
   "argcomplete>=3.1",

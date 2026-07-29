@@ -42,6 +42,7 @@ class Finder:
             system: Whether to include the system Python.
             global_search: Whether to search in the system PATH.
             ignore_unsupported: Whether to ignore unsupported Python versions.
+            pyenv_only: Whether to restrict searches to pyenv-managed Pythons.
         """
         self.path = path
         self.system = system
@@ -56,7 +57,6 @@ class Finder:
         )
 
         if pyenv_only:
-            # Only use pyenv finder when PIPENV_PYENV_ONLY is set
             self.system_finder = None
             self.asdf_finder = None
             self.py_launcher_finder = None

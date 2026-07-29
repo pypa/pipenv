@@ -381,7 +381,7 @@ pipenv shell
 
 If you would like to convert a project that currently uses a requirements.txt file to use Pipenv, install Pipenv and run:
 
-pipenv install requirements.txt
+pipenv install -r requirements.txt
 
 This will create a Pipfile and install the specified requirements.
 

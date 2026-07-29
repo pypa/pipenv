@@ -1,19 +1,49 @@
---- a/pipenv/vendor/pipdeptree/__main__.py	2024-10-12 19:43:30.971617798 +0200
-+++ b/pipenv/vendor/pipdeptree/__main__.py	2024-10-12 20:20:58.508248189 +0200
-@@ -2,8 +2,15 @@
+--- a/pipenv/vendor/pipdeptree/__main__.py
++++ b/pipenv/vendor/pipdeptree/__main__.py
+@@ -4,10 +4,16 @@
 
  from __future__ import annotations
 
-+import os
  import sys
+ from pathlib import Path
  from typing import TYPE_CHECKING
 
-+pardir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
++vendored_root = Path(__file__).resolve().parents[1]
 +# for finding pipdeptree itself
-+sys.path.append(pardir)
++sys.path.append(str(vendored_root))
 +# for finding stuff in vendor and patched
-+sys.path.append(os.path.dirname(os.path.dirname(pardir)))
++sys.path.append(str(vendored_root.parents[1]))
 +
- from pipenv.vendor.pipdeptree._cli import Options, get_options
- from pipenv.vendor.pipdeptree._detect_env import detect_active_interpreter
+ from pipenv.vendor.pipdeptree._cli import Options, get_options, parse_packages
+ from pipenv.vendor.pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter
  from pipenv.vendor.pipdeptree._discovery import InterpreterQueryError, get_installed_distributions
+--- a/pipenv/vendor/pipdeptree/_from_lock.py
++++ b/pipenv/vendor/pipdeptree/_from_lock.py
+@@ -24,7 +24,7 @@ from pipenv.vendor.pipdeptree._synthetic_dist import SyntheticDistribution
+ if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
+     import tomllib
+ else:  # pragma: <3.11 cover
+-    import tomli as tomllib
++    from pipenv.patched.pip._vendor import tomli as tomllib
+
+ if TYPE_CHECKING:
+     from importlib.metadata import Distribution
+--- a/pipenv/vendor/pipdeptree/_from_index.py
++++ b/pipenv/vendor/pipdeptree/_from_index.py
+@@ -311,14 +311,13 @@ def _adapt(result: Any) -> list[Distribution]:
+
+
+ def _read_pyproject_dependencies(path: Path) -> list[str]:
+-    # Reading TOML only happens on the mixed-sources path, which already requires nab installed; nab-python
+-    # depends on tomli, so it is available on 3.10 where stdlib tomllib does not yet exist.
++    # Pipenv already ships tomli through patched pip on Python versions before stdlib tomllib exists.
+     import sys  # noqa: PLC0415
+
+     if sys.version_info >= (3, 11):  # pragma: >=3.11 cover
+         import tomllib  # noqa: PLC0415
+     else:  # pragma: <3.11 cover
+-        import tomli as tomllib  # noqa: PLC0415
++        from pipenv.patched.pip._vendor import tomli as tomllib  # noqa: PLC0415
+
+     data = tomllib.loads(path.read_text(encoding="utf-8"))
+     dependencies = data.get("project", {}).get("dependencies", [])
