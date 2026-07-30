@@ -1023,6 +1023,17 @@ class TestPythonVersionMatchesRequired:
             ("3.11.0", "3.11.1", False),
             ("3.13.11", "3.11.0", False),
             ("3.11.10", "3.11.1", False),  # "3.11.1" is substring of "3.11.10"
+            # --- Major-only cases (https://github.com/pypa/pipenv/issues/6687) ---
+            # "3" is documented as a valid python_version, but parse_version
+            # fills in a 0 minor, so comparing the minor rejected every 3.x
+            # except 3.0.
+            ("3.13.14", "3", True),
+            ("3.9.1", "3", True),
+            ("3.0.0", "3", True),
+            ("3.11", "3", True),
+            ("2.7.18", "3", False),
+            ("4.0.0", "3", False),
+            ("2.7.18", "2", True),
             # --- Edge / guard cases ---
             ("", "3.11", False),
             ("3.11.0", "", False),
