@@ -30,6 +30,8 @@ def _python_version_matches_required(actual_ver_str, required_ver_str):
 
     ``actual_ver_str`` is the full version string reported by the Python
     interpreter (e.g. ``"3.13.1"``).
+
+    ``required_ver_str`` may also come from the ``--python`` CLI argument.
     """
     if not actual_ver_str or not required_ver_str:
         return False
