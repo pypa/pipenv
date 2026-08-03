@@ -1,8 +1,16 @@
+import datetime
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
+from pipenv.patched.pip._internal.index.package_finder import (
+    LinkEvaluator,
+    LinkType,
+    PackageFinder,
+)
+from pipenv.patched.pip._internal.models.link import Link
+from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
 from pipenv.patched.pip._vendor.resolvelib.structs import RequirementInformation
 from pipenv.utils.resolver import Resolver, _get_cool_down_timedelta
@@ -438,6 +446,45 @@ def test_prepare_index_lookup_is_cached():
 # ---------------------------------------------------------------------------
 # cool-down-period / --uploaded-prior-to tests
 # ---------------------------------------------------------------------------
+
+
+def _cool_down_link_evaluator():
+    return LinkEvaluator(
+        project_name="demo",
+        canonical_name="demo",
+        formats=frozenset({"binary", "source"}),
+        target_python=TargetPython(),
+        allow_yanked=True,
+        uploaded_prior_to=datetime.datetime(2026, 1, 1, tzinfo=datetime.timezone.utc),
+    )
+
+
+@pytest.mark.utils
+def test_cool_down_accepts_index_links_without_upload_time():
+    evaluator = _cool_down_link_evaluator()
+    link = Link(
+        "https://example.org/demo-1.0-py3-none-any.whl",
+        comes_from="https://example.org/simple/demo/",
+    )
+
+    candidate = PackageFinder.get_install_candidate(None, evaluator, link)
+
+    assert candidate is not None
+    assert str(candidate.version) == "1.0"
+
+
+@pytest.mark.utils
+def test_cool_down_still_rejects_recent_index_links():
+    evaluator = _cool_down_link_evaluator()
+    link = Link(
+        "https://example.org/demo-2.0-py3-none-any.whl",
+        comes_from="https://example.org/simple/demo/",
+        upload_time=datetime.datetime(2026, 2, 1, tzinfo=datetime.timezone.utc),
+    )
+
+    result, _ = evaluator.evaluate_link(link)
+
+    assert result == LinkType.upload_too_late
 
 def _make_project(cool_down_period):
     """Return a mock project whose [pipenv] section contains cool-down-period."""
