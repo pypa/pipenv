@@ -1,0 +1,56 @@
+diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patched/pip/_internal/index/package_finder.py
+index 81ca5a12..03351854 100644
+--- a/pipenv/patched/pip/_internal/index/package_finder.py
++++ b/pipenv/patched/pip/_internal/index/package_finder.py
+@@ -25,7 +25,6 @@ from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
+ from pipenv.patched.pip._internal.exceptions import (
+     BestVersionAlreadyInstalled,
+     DistributionNotFound,
+-    InstallationError,
+     InvalidWheelFilename,
+     UnsupportedWheel,
+ )
+@@ -116,7 +115,6 @@ class LinkType(enum.Enum):
+     platform_mismatch = enum.auto()
+     requires_python_mismatch = enum.auto()
+     upload_too_late = enum.auto()
+-    upload_time_missing = enum.auto()
+ 
+ 
+ class LinkEvaluator:
+@@ -245,18 +243,12 @@ class LinkEvaluator:
+         # Check upload-time filter after verifying the link is a package file.
+         # Skip this check for local files, as --uploaded-prior-to only applies
+         # to packages from indexes.
+-        if self._uploaded_prior_to is not None and not link.is_file:
+-            if link.upload_time is None:
+-                if link.comes_from:
+-                    index_info = f"Index {link.comes_from}"
+-                else:
+-                    index_info = "Index"
+-
+-                return (
+-                    LinkType.upload_time_missing,
+-                    f"{index_info} does not provide upload-time metadata.",
+-                )
+-            elif link.upload_time >= self._uploaded_prior_to:
++        if (
++            self._uploaded_prior_to is not None
++            and not link.is_file
++            and link.upload_time is not None
++        ):
++            if link.upload_time >= self._uploaded_prior_to:
+                 return (
+                     LinkType.upload_too_late,
+                     f"Upload time {link.upload_time} not "
+@@ -862,10 +854,6 @@ class PackageFinder:
+         InstallationCandidate and return it. Otherwise, return None.
+         """
+         result, detail = link_evaluator.evaluate_link(link)
+-        if result == LinkType.upload_time_missing:
+-            # Fail immediately if the index doesn't provide upload-time
+-            # when --uploaded-prior-to is specified
+-            raise InstallationError(detail)
+         if result != LinkType.candidate:
+             self._log_skipped_link(link, result, detail)
+             return None
