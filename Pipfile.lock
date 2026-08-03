@@ -70,6 +70,15 @@
             ],
             "version": "==2026.1.post1"
         },
+        "setuptools": {
+            "hashes": [
+                "sha256:025bccbbf0fa05b6192bc64ae1e7b16e001fd6d6d4d5de03c97b1c1ade523bef",
+                "sha256:29b23c360f22f414dc7336bb39178cc7bcbf6021ed2733cde173f09dba19abb3"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.10'",
+            "version": "==83.0.0"
+        },
         "tomli": {
             "hashes": [
                 "sha256:01f520d4f53ef97964a240a035ec2a869fe1a37dde002b57ebc4417a27ccd853",
@@ -1052,12 +1061,12 @@
         },
         "pip": {
             "hashes": [
-                "sha256:382ff9f685ee3bc25864f820aa50505825f10f5458ffff07e30a6d96e5715cab",
-                "sha256:f49cd134c61cf2fd75e0ce2676db03e4054504a5a4986d00f8299ae632dc4605"
+                "sha256:2d8542afcc84cdd8e846c2b36b2861fad1da376dd98f8e7113e9108a3c331690",
+                "sha256:931c303696af6fa3417112103b1cad26890e5a07eccb5b99783700e33f2b8aad"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",
-            "version": "==26.1.2"
+            "version": "==26.2"
         },
         "platformdirs": {
             "hashes": [
@@ -1378,11 +1387,12 @@
         },
         "soupsieve": {
             "hashes": [
-                "sha256:3267f1eeea4251fb42728b6dfb746edc9acaffc4a45b27e19450b676586e8349",
-                "sha256:ed64f2ba4eebeab06cc4962affce381647455978ffc1e36bb79a545b91f45a95"
+                "sha256:e121fd02e975c695e4e9e8774a5ee35d74714b59307868dcc5319ad2d9e3328e",
+                "sha256:e7e6b0769c8f51ed59acab6e994b00621096cfb1c640a7509295987388fbaf65"
             ],
-            "markers": "('dev' in dependency_groups) and (python_version >= '3.9')",
-            "version": "==2.8.3"
+            "index": "pypi",
+            "markers": "python_version >= '3.9'",
+            "version": "==2.8.4"
         },
         "sphinx": {
             "hashes": [

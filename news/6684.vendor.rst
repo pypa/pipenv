@@ -1,0 +1,6 @@
+Bump vendored ``urllib3`` in patched pip to ``2.7.0`` (fixes GHSA-qccp-gfcp-xxvc,
+sensitive headers forwarded across origins in proxied low-level redirects).
+Raise minimum ``virtualenv`` requirement from ``>=20.24.2`` to ``>=20.26.6``
+(fixes GHSA-rqc4-2hc7-8c8v, command injection through activation scripts).
+The three other urllib3 CVEs reported in this issue (GHSA-2xpw-w6gg-jr37,
+GHSA-38jv-5279-wg99, GHSA-gm62-xv2j-4w53) were already resolved in 2.6.3.
