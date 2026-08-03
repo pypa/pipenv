@@ -469,6 +469,19 @@ class TestPathTraversalProtection:
         with pytest.raises(SdistBuildError):
             extract_metadata_from_sdist(candidate, session)
 
+    @pytest.mark.parametrize(
+        "member_name",
+        [r"C:\temp\payload", "C:/temp/payload", "C:relative-payload"],
+    )
+    def test_windows_drive_qualified_member_is_rejected(self, member_name):
+        from pipenv.resolver.pure_python_sdist import (
+            SdistBuildError,
+            _validate_member_name,
+        )
+
+        with pytest.raises(SdistBuildError, match="absolute"):
+            _validate_member_name(member_name, "malicious-1.0.tar.gz")
+
     def test_zip_member_with_dotdot_is_rejected(self):
         from pipenv.resolver.pure_python_sdist import (
             SdistBuildError,
