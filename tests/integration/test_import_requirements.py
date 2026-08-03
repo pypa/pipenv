@@ -14,7 +14,7 @@ from pipenv.utils.dependencies import import_requirements
 @pytest.mark.deploy
 @pytest.mark.system
 @mock.patch(
-    "pipenv.utils.dependencies.unpack_url",
+    "pipenv.utils.unpack.unpack_url",
     mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)),
 )
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
@@ -39,7 +39,7 @@ def test_auth_with_pw_redacted(
 @pytest.mark.deploy
 @pytest.mark.system
 @mock.patch(
-    "pipenv.utils.dependencies.unpack_url",
+    "pipenv.utils.unpack.unpack_url",
     mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)),
 )
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
@@ -65,7 +65,7 @@ def test_auth_with_username_redacted(
 @pytest.mark.deploy
 @pytest.mark.system
 @mock.patch(
-    "pipenv.utils.dependencies.unpack_url",
+    "pipenv.utils.unpack.unpack_url",
     mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)),
 )
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")
@@ -91,7 +91,7 @@ def test_auth_with_pw_are_variables_passed_to_pipfile(
 @pytest.mark.deploy
 @pytest.mark.system
 @mock.patch(
-    "pipenv.utils.dependencies.unpack_url",
+    "pipenv.utils.unpack.unpack_url",
     mock.MagicMock(return_value=File("/some/path/to/project", content_type=None)),
 )
 @mock.patch("pipenv.utils.dependencies.find_package_name_from_directory")

@@ -6,6 +6,7 @@
     "pipenv_version": "<redacted>"
   },
   "options": {
+    "backend": "pip",
     "clear": false,
     "pre": false,
     "system": false,

@@ -213,6 +213,7 @@ allow_prereleases = true       # Allow pre-release versions
 cool-down-period = "30d"       # Only resolve packages uploaded at least N days ago
 disable_pip_input = true       # Prevent pipenv from asking for input
 install_search_all_sources = true  # Search all sources when installing from lock
+prefetch_index_manifests = true  # Pre-warm pip's HTTP cache from the parent (opt-in, see below)
 sort_pipfile = true            # Sort packages alphabetically
 ```
 
@@ -235,6 +236,50 @@ setting is accepted but has no filtering effect.
 [pipenv]
 cool-down-period = "30d"   # ignore any release uploaded in the last 30 days
 ```
+
+#### `prefetch_index_manifests`
+
+When set to `true`, pipenv pre-fetches the simple-API index page for every
+top-level Pipfile package **in parallel** from the parent process before it
+invokes pip's resolver subprocess.  These fetches go through pip's own
+`PipSession`, so the responses populate pip's on-disk HTTP cache; the resolver
+subprocess that runs immediately afterwards reads from that warm cache instead
+of issuing the same requests serially.
+
+Default: `false` (opt-in).
+
+```toml
+[pipenv]
+prefetch_index_manifests = true
+```
+
+You can enable it without editing the Pipfile by exporting
+`PIPENV_PREFETCH_INDEX_MANIFESTS=1`.
+
+**When to enable.**  Cold-cache workflows benefit most — typically CI jobs
+that do not persist pip's HTTP cache between runs, or developer machines on
+slow or high-latency networks where serial per-package fetches dominate
+`pipenv lock` wall time.  Pre-warming the cache in parallel from the parent
+process amortises that latency.
+
+**When NOT to enable.**  On a developer machine with a warm pip cache the
+parallel pre-fetch is net-neutral-to-slightly-slower: pip's resolver would
+have served those manifests directly from cache anyway, and the extra parent-
+side requests cost wall-time without saving any.  The phase-5 perf
+investigation verified this empirically (see commit history on the
+`maintenance/code-cleanup-phase5-perf-2026-06` branch); that is why the
+setting ships off-by-default.
+
+**`--clear` interaction.**  `pipenv lock --clear` and `pipenv install --clear`
+short-circuit the pre-fetch entirely — when the user has explicitly asked for
+fresh resolution there is no cache to warm, and pre-fetching would just race
+against the clear.
+
+**Security.**  The pre-fetcher reuses pip's `PipSession`, so it inherits pip's
+authentication handling: `netrc`, basic auth embedded in index URLs, and
+`PIP_CLIENT_CERT` all continue to work exactly as they do for pip itself.  No
+index URL is logged at any verbosity level — credentials embedded in index
+URLs cannot leak into CI logs through this code path.
 
 ### Custom Package Categories
 

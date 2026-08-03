@@ -392,6 +392,28 @@ class Setting:
         approach, you may disable this.
         """
 
+        # T18 (Initiative G phase 2): pre-fetch toggle for the
+        # simple-API parallel manifest prefetch path.  The value here
+        # mirrors the ``[pipenv] prefetch_index_manifests`` Pipfile key
+        # and is consulted as an override by
+        # :meth:`pipenv.utils.settings.Settings.get` — env wins over
+        # Pipfile, matching pipenv's existing precedence convention.
+        # ``None`` means "no env override; defer to the Pipfile / the
+        # caller-supplied default".
+        self.PIPENV_PREFETCH_INDEX_MANIFESTS = get_from_env(
+            "PREFETCH_INDEX_MANIFESTS", check_for_negation=False
+        )
+        """When True, parallel-pre-fetch the simple-API index pages for
+        top-level packages before invoking pip's resolver.  Most
+        beneficial on cold caches or slow networks (typical CI runs);
+        may be net-neutral or slightly slower on warm-cache dev
+        machines.  Default: False until benchmark data justifies
+        enabling globally.
+
+        Equivalent to ``[pipenv] prefetch_index_manifests = true`` in
+        the Pipfile; this env var, when set, takes precedence.
+        """
+
         self.PIPENV_CUSTOM_VENV_NAME = get_from_env(
             "CUSTOM_VENV_NAME", check_for_negation=False
         )
