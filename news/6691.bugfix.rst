@@ -1,0 +1,2 @@
+Allow ``cool-down-period`` locking to use package links from indexes that do
+not expose upload-time metadata, while retaining the filter for indexes that do.
