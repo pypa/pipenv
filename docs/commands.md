@@ -342,7 +342,7 @@ $ pipenv check --output json
 | `--auto-install` | Automatically install safety if not already installed |
 | `--scan` | Enable the newer version of the check command with improved functionality. |
 
-**Note**: The legacy check implementation is deprecated and will be removed in the release following v2026.9.1. Use `pipenv audit` for vulnerability scanning, or use `pipenv check --scan` to run Safety's newer scan command during the transition.
+**Note**: The legacy check implementation is deprecated and will be removed in v2027.0.0. Use `pipenv audit` for vulnerability scanning, or use `pipenv check --scan` to run Safety's newer scan command during the transition.
 
 ## run
 

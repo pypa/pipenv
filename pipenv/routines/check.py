@@ -312,7 +312,7 @@ def do_check(  # noqa: PLR0913
         err.print(
             "[yellow bold]DEPRECATION WARNING:[/yellow bold] "
             "The legacy 'check' implementation using Safety is deprecated and "
-            "will be removed in the release following v2026.9.1.\n"
+            "will be removed in v2027.0.0.\n"
             "Please migrate to [green]pipenv audit[/green] which uses pip-audit for vulnerability scanning.\n"
             "pip-audit uses the Python Packaging Advisory Database and requires no API key.\n"
             "Alternatively, use [green]--scan[/green] to use Safety's scan command (requires API key from https://pyup.io)"

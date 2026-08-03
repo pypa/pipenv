@@ -696,7 +696,7 @@ def build_parser():
         default=False,
         help=(
             "Use Safety's scan command instead of the deprecated legacy check "
-            "implementation, which will be removed after v2026.9.1."
+            "implementation, which will be removed in v2027.0.0."
         ),
     )
     _add_common_options(p)

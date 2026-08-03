@@ -271,7 +271,7 @@ Checks for security vulnerabilities and PEP 508 marker compliance.
 ```bash
 pipenv check [OPTIONS]
 ```
-**Note**: The legacy check implementation is deprecated and will be removed in the release following v2026.9.1. Use `pipenv audit` for vulnerability scanning, or use the `--scan` option to run Safety's newer scan command during the transition.
+**Note**: The legacy check implementation is deprecated and will be removed in v2027.0.0. Use `pipenv audit` for vulnerability scanning, or use the `--scan` option to run Safety's newer scan command during the transition.
 
 #### Options
 
