@@ -126,6 +126,29 @@ NON_CATEGORY_SECTIONS = {
 }
 
 
+_VALID_PACKAGE_NAME_CASE_MODES = ("off", "canonical", "pypi")
+
+
+def _normalize_package_name_case(value) -> str:
+    """Coerce a ``[pipenv] package_name_case`` setting to one of
+    ``off`` / ``canonical`` / ``pypi``.  ``None``, missing, ``False``, and
+    the string ``"false"`` all map to ``off``; any unrecognised value also
+    falls back to ``off`` (silent — there is no project layer here to
+    surface a warning, and the safe default is "do nothing").
+    """
+    if value is None or value is False:
+        return "off"
+    if isinstance(value, bool):
+        # ``True`` is permissive — treat as "do something offline".
+        return "canonical"
+    text = str(value).strip().lower()
+    if text in _VALID_PACKAGE_NAME_CASE_MODES:
+        return text
+    if text in ("", "false", "none", "no", "0"):
+        return "off"
+    return "off"
+
+
 def walk_up(bottom):
     """mimic os.walk, but walk 'up' instead of down the directory tree."""
     # Convert to Path object and resolve to absolute path
@@ -1177,9 +1200,59 @@ class Pipfile:
     # ---- casing -----------------------------------------------------------
 
     def recase(self) -> None:
-        """Walk packages/dev-packages and fix any incorrect casing."""
+        """Walk packages/dev-packages and fix package name casing.
+
+        Mode is read from the ``[pipenv] package_name_case`` Pipfile
+        setting.  Three values are recognised:
+
+        ``"off"`` (default, also when the key is absent or any falsy
+        string): leave names as the user wrote them.
+
+        ``"canonical"``: apply
+        :func:`packaging.utils.canonicalize_name` to every entry — PEP 503
+        normalization, fully offline.  Fast and deterministic.
+
+        ``"pypi"``: legacy behaviour — issue one synchronous
+        ``https://pypi.org/pypi/<name>/json`` probe per unknown name to
+        learn the project's display capitalization (see
+        :func:`pipenv.utils.internet.proper_case`).  Adds ~33 ms × N of
+        sequential network latency on a fresh ``install -r``; pre-2026
+        releases ran this unconditionally.
+
+        The setting lives in the Pipfile rather than an environment
+        variable because it is project-policy: every contributor on the
+        project gets the same name-casing behaviour, instead of differing
+        local defaults causing each ``pipenv install`` to bounce the
+        Pipfile back and forth between commits.
+        """
+        mode = _normalize_package_name_case(
+            self._project.settings.get("package_name_case")
+        )
+        if mode == "off":
+            return
+        if mode == "canonical":
+            if self._apply_canonical_casing():
+                self.write_toml(self.parsed)
+            return
+        # mode == "pypi"
         if self.ensure_proper_casing():
             self.write_toml(self.parsed)
+
+    def _apply_canonical_casing(self) -> bool:
+        """PEP 503 canonical normalization across ``packages`` and ``dev-packages``."""
+        from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
+        pfile = self.parsed
+        changed = False
+        for section_name in ("packages", "dev-packages"):
+            section = pfile.get(section_name, {})
+            for original in list(section.keys()):
+                canonical = canonicalize_name(original)
+                if canonical != original:
+                    section[canonical] = section[original]
+                    del section[original]
+                    changed = True
+        return changed
 
     def ensure_proper_casing(self) -> bool:
         """Apply proper-casing across ``packages`` and ``dev-packages``."""

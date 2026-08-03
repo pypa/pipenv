@@ -213,6 +213,7 @@ allow_prereleases = true       # Allow pre-release versions
 cool-down-period = "30d"       # Only resolve packages uploaded at least N days ago
 disable_pip_input = true       # Prevent pipenv from asking for input
 install_search_all_sources = true  # Search all sources when installing from lock
+package_name_case = "off"       # Preserve package-name spelling (default; see below)
 prefetch_index_manifests = true  # Pre-warm pip's HTTP cache from the parent (opt-in, see below)
 sort_pipfile = true            # Sort packages alphabetically
 ```
@@ -235,6 +236,26 @@ setting is accepted but has no filtering effect.
 ```toml
 [pipenv]
 cool-down-period = "30d"   # ignore any release uploaded in the last 30 days
+```
+
+#### `package_name_case`
+
+Controls whether Pipenv rewrites package names in `packages` and
+`dev-packages`. Accepted values are:
+
+- `"off"` (default): preserve names exactly as written and perform no casing
+  network requests.
+- `"canonical"`: normalize names locally according to PEP 503, such as
+  converting `Requests_OAuthlib` to `requests-oauthlib`.
+- `"pypi"`: query PyPI for each unknown package and use its published display
+  capitalization, restoring the behavior from before this setting was added.
+
+Because this setting is stored in the Pipfile, every contributor uses the same
+name-casing policy.
+
+```toml
+[pipenv]
+package_name_case = "canonical"
 ```
 
 #### `prefetch_index_manifests`

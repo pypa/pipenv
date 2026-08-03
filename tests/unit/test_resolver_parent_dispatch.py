@@ -247,6 +247,42 @@ class TestBuildResolverRequest:
         )
         assert request.options.backend == "uv"
 
+    def test_cache_key_uses_effective_backend_from_env(self, tmp_path, monkeypatch):
+        """When ``resolver_backend`` is omitted, the cache key still uses
+        the effective backend selected from ``PIPENV_RESOLVER``.
+        """
+        project = _stub_project(tmp_path)
+        monkeypatch.setenv("PIPENV_RESOLVER", "pure-python")
+
+        observed = {}
+
+        def _fake_generate_cache_key(*_args, **kwargs):
+            observed["resolver_backend"] = kwargs.get("resolver_backend")
+            return "cache-key"
+
+        monkeypatch.setattr(
+            resolver_mod, "_generate_resolution_cache_key", _fake_generate_cache_key
+        )
+        monkeypatch.setattr(resolver_mod, "_should_use_resolution_cache", lambda *_a, **_k: True)
+        monkeypatch.setattr(resolver_mod, "prepare_lockfile", lambda *_a, **_k: {})
+
+        resolver_mod._resolution_cache["cache-key"] = []
+        try:
+            resolver_mod.venv_resolve_deps(
+                deps={"requests": "*"},
+                which=lambda *_a, **_k: "python",
+                project=project,
+                pipfile_category="packages",
+                pipfile={},
+                lockfile={"default": {}},
+                old_lock_data={},
+                resolver_backend=None,
+            )
+        finally:
+            resolver_mod._resolution_cache.pop("cache-key", None)
+
+        assert observed["resolver_backend"] == "pure-python"
+
 
 # ---------------------------------------------------------------------------
 # Subprocess invocation argv shape
