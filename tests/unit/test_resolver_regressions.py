@@ -11,6 +11,7 @@ from pipenv.patched.pip._internal.index.package_finder import (
 )
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.target_python import TargetPython
+from pipenv.patched.pip._internal.req.constructors import parse_editable
 from pipenv.patched.pip._internal.resolution.resolvelib.provider import PipProvider
 from pipenv.patched.pip._vendor.resolvelib.structs import RequirementInformation
 from pipenv.utils.resolver import Resolver, _get_cool_down_timedelta
@@ -19,6 +20,17 @@ from pipenv.utils.resolver import Resolver, _get_cool_down_timedelta
 def _conflict_info(name, parent=None):
     parent_obj = None if parent is None else SimpleNamespace(name=parent)
     return RequirementInformation(SimpleNamespace(name=name), parent_obj)
+
+
+@pytest.mark.utils
+def test_parse_editable_vcs_preserves_extras():
+    name, url, extras = parse_editable(
+        "git+https://example.invalid/requests.git#egg=requests[socks]"
+    )
+
+    assert name == "requests"
+    assert url == "git+https://example.invalid/requests.git#egg=requests"
+    assert extras == {"socks"}
 
 
 @pytest.mark.utils

@@ -139,7 +139,7 @@ def _parse_pip_syntax_editable(editable_req: str) -> tuple[str | None, str, set[
         return (
             Link(url_no_extras).egg_fragment,
             url_no_extras,
-            get_requirement("placeholder" + extras.lower()).extras,
+            extras,
         )
     return Link(url_no_extras).egg_fragment, url_no_extras, set()
 
