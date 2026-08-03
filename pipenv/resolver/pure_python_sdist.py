@@ -61,6 +61,7 @@ from __future__ import annotations
 import concurrent.futures
 import hashlib
 import logging
+import ntpath
 import tarfile
 import tempfile
 import zipfile
@@ -378,7 +379,8 @@ def _validate_member_name(member_name: str, archive_name: str) -> None:
         )
     # Normalise separators so a Windows-style ``..\\foo`` is caught on Linux.
     norm = member_name.replace("\\", "/")
-    if norm.startswith("/"):
+    drive, _ = ntpath.splitdrive(norm)
+    if norm.startswith("/") or drive:
         raise SdistBuildError(
             f"sdist archive corrupt: {archive_name} contains an absolute "
             f"member path {member_name!r}"
