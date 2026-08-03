@@ -19,7 +19,7 @@ from pipenv.patched.pip._vendor.packaging.pylock import (
 )
 from pipenv.patched.pip._vendor.packaging.version import Version
 
-from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.exceptions import DiagnosticPipError, InstallationError
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.utils.compat import tomllib
 from pipenv.patched.pip._internal.utils.urls import path_to_url, url_to_path
@@ -156,7 +156,19 @@ def _package_dist_url(
         if not os.path.isabs(path):
             # relative path, join to pylock location
             if _is_url(pylock_path_or_url):
-                return urljoin(pylock_path_or_url, path)
+                dist_url = urljoin(pylock_path_or_url, path)
+                # os.path.isabs does not treat a scheme-carrying value like
+                # "file:..." as absolute, so it reaches here and urljoin honors
+                # its scheme, discarding the pylock base. Only keep the result
+                # if its scheme and host still match the lock's own.
+                base = urlsplit(pylock_path_or_url)
+                target = urlsplit(dist_url)
+                if (target.scheme, target.netloc) != (base.scheme, base.netloc):
+                    raise InstallationError(
+                        f"Path {path!r} in pylock file obtained from a URL "
+                        f"resolves outside its location: {pylock_path_or_url!r}"
+                    )
+                return dist_url
             else:
                 return path_to_url(
                     os.path.join(os.path.dirname(pylock_path_or_url), path)
@@ -263,6 +275,8 @@ def select_from_pylock_path_or_url(
 ]:
     try:
         pylock_content = _get_pylock_path_or_url_content(pylock_path_or_url, session)
+    except DiagnosticPipError:
+        raise
     except Exception as exc:
         raise InstallationError(
             f"Error reading pylock file {pylock_path_or_url!r}: {exc}"
@@ -276,6 +290,8 @@ def select_from_pylock_path_or_url(
         ) from exc
 
     try:
+        # TODO: for completeness, pylock.select should support preferring sdist
+        # over wheels to support --no-binary
         yield from lock.select()
     except Exception as exc:
         raise InstallationError(

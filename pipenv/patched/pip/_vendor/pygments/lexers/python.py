@@ -4,7 +4,7 @@
 
     Lexers for Python and related languages.
 
-    :copyright: Copyright 2006-2025 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-present by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -55,6 +55,8 @@ class PythonLexer(RegexLexer):
         'WORKSPACE',
         # Twisted Application infrastructure
         '*.tac',
+        # Execubot level format
+        '*.pye',
     ]
     mimetypes = ['text/x-python', 'application/x-python',
                  'text/x-python3', 'application/x-python3']
@@ -118,27 +120,27 @@ class PythonLexer(RegexLexer):
             include('expr'),
         ],
         'expr': [
-            # raw f-strings
-            ('(?i)(rf|fr)(""")',
+            # raw f-strings and t-strings
+            ('(?i)(r[ft]|[ft]r)(""")',
              bygroups(String.Affix, String.Double),
              combined('rfstringescape', 'tdqf')),
-            ("(?i)(rf|fr)(''')",
+            ("(?i)(r[ft]|[ft]r)(''')",
              bygroups(String.Affix, String.Single),
              combined('rfstringescape', 'tsqf')),
-            ('(?i)(rf|fr)(")',
+            ('(?i)(r[ft]|[ft]r)(")',
              bygroups(String.Affix, String.Double),
              combined('rfstringescape', 'dqf')),
-            ("(?i)(rf|fr)(')",
+            ("(?i)(r[ft]|[ft]r)(')",
              bygroups(String.Affix, String.Single),
              combined('rfstringescape', 'sqf')),
-            # non-raw f-strings
-            ('([fF])(""")', bygroups(String.Affix, String.Double),
+            # non-raw f-strings and t-strings
+            ('([fFtT])(""")', bygroups(String.Affix, String.Double),
              combined('fstringescape', 'tdqf')),
-            ("([fF])(''')", bygroups(String.Affix, String.Single),
+            ("([fFtT])(''')", bygroups(String.Affix, String.Single),
              combined('fstringescape', 'tsqf')),
-            ('([fF])(")', bygroups(String.Affix, String.Double),
+            ('([fFtT])(")', bygroups(String.Affix, String.Double),
              combined('fstringescape', 'dqf')),
-            ("([fF])(')", bygroups(String.Affix, String.Single),
+            ("([fFtT])(')", bygroups(String.Affix, String.Single),
              combined('fstringescape', 'sqf')),
             # raw bytes and strings
             ('(?i)(rb|br|r)(""")',
@@ -861,7 +863,7 @@ class CythonLexer(RegexLexer):
             (r'(cp?def)(\s+)', bygroups(Keyword, Whitespace), 'cdef'),
             # (should actually start a block with only cdefs)
             (r'(cdef)(:)', bygroups(Keyword, Punctuation)),
-            (r'(class|struct)(\s+)', bygroups(Keyword, Whitespace), 'classname'),
+            (r'(class|cppclass|struct)(\s+)', bygroups(Keyword, Whitespace), 'classname'),
             (r'(from)(\s+)', bygroups(Keyword, Whitespace), 'fromimport'),
             (r'(c?import)(\s+)', bygroups(Keyword, Whitespace), 'import'),
             include('builtins'),
@@ -879,37 +881,38 @@ class CythonLexer(RegexLexer):
         ],
         'keywords': [
             (words((
-                'assert', 'async', 'await', 'break', 'by', 'continue', 'ctypedef', 'del', 'elif',
-                'else', 'except', 'except?', 'exec', 'finally', 'for', 'fused', 'gil',
-                'global', 'if', 'include', 'lambda', 'nogil', 'pass', 'print',
-                'raise', 'return', 'try', 'while', 'yield', 'as', 'with'), suffix=r'\b'),
+                'assert', 'async', 'await', 'break', 'by', 'continue', 'ctypedef', 'del',
+                'elif', 'else', 'except', 'except?', 'exec', 'finally', 'for', 'fused', 'gil',
+                'global', 'if', 'include', 'lambda', 'namespace', 'new', 'noexcept','nogil',
+                'pass', 'print', 'raise', 'return', 'try', 'while', 'yield', 'as', 'with'),
+             suffix=r'\b'),
              Keyword),
+             (words(('True', 'False', 'None', 'NULL'), suffix=r'\b'), Keyword.Constant),
             (r'(DEF|IF|ELIF|ELSE)\b', Comment.Preproc),
         ],
         'builtins': [
             (words((
                 '__import__', 'abs', 'all', 'any', 'apply', 'basestring', 'bin', 'bint',
-                'bool', 'buffer', 'bytearray', 'bytes', 'callable', 'chr',
+                'bool', 'buffer', 'bytearray', 'bytes', 'callable', 'char', 'chr',
                 'classmethod', 'cmp', 'coerce', 'compile', 'complex', 'delattr',
-                'dict', 'dir', 'divmod', 'enumerate', 'eval', 'execfile', 'exit',
+                'dict', 'dir', 'divmod', 'double', 'enumerate', 'eval', 'execfile', 'exit',
                 'file', 'filter', 'float', 'frozenset', 'getattr', 'globals',
                 'hasattr', 'hash', 'hex', 'id', 'input', 'int', 'intern', 'isinstance',
                 'issubclass', 'iter', 'len', 'list', 'locals', 'long', 'map', 'max',
-                'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 'property', 'Py_ssize_t',
-                'range', 'raw_input', 'reduce', 'reload', 'repr', 'reversed',
-                'round', 'set', 'setattr', 'slice', 'sorted', 'staticmethod',
-                'str', 'sum', 'super', 'tuple', 'type', 'unichr', 'unicode', 'unsigned',
-                'vars', 'xrange', 'zip'), prefix=r'(?<!\.)', suffix=r'\b'),
+                'min', 'next', 'object', 'oct', 'open', 'ord', 'pow', 'property',
+                'Py_ssize_t', 'range', 'raw_input', 'reduce', 'reload', 'repr', 'reversed',
+                'round', 'set', 'setattr', 'size_t', 'slice', 'sorted', 'staticmethod',
+                'ssize_t', 'str', 'sum', 'super', 'tuple', 'type', 'unichr', 'unicode',
+                'unsigned', 'vars', 'xrange', 'zip'), prefix=r'(?<!\.)', suffix=r'\b'),
              Name.Builtin),
-            (r'(?<!\.)(self|None|Ellipsis|NotImplemented|False|True|NULL'
-             r')\b', Name.Builtin.Pseudo),
+            (r'(?<!\.)(self|cls|Ellipsis|NotImplemented)\b', Name.Builtin.Pseudo),
             (words((
                 'ArithmeticError', 'AssertionError', 'AttributeError',
                 'BaseException', 'DeprecationWarning', 'EOFError', 'EnvironmentError',
                 'Exception', 'FloatingPointError', 'FutureWarning', 'GeneratorExit',
                 'IOError', 'ImportError', 'ImportWarning', 'IndentationError',
                 'IndexError', 'KeyError', 'KeyboardInterrupt', 'LookupError',
-                'MemoryError', 'NameError', 'NotImplemented', 'NotImplementedError',
+                'MemoryError', 'NameError', 'NotImplementedError',
                 'OSError', 'OverflowError', 'OverflowWarning',
                 'PendingDeprecationWarning', 'ReferenceError', 'RuntimeError',
                 'RuntimeWarning', 'StandardError', 'StopIteration', 'SyntaxError',
@@ -938,12 +941,12 @@ class CythonLexer(RegexLexer):
             (r'[a-zA-Z_]\w*', Name.Function, '#pop')
         ],
         'cdef': [
-            (r'(public|readonly|extern|api|inline)\b', Keyword.Reserved),
-            (r'(struct|enum|union|class)\b', Keyword),
-            (r'([a-zA-Z_]\w*)(\s*)(?=[(:#=]|$)',
-             bygroups(Name.Function, Whitespace), '#pop'),
-            (r'([a-zA-Z_]\w*)(\s*)(,)',
-             bygroups(Name.Function, Whitespace, Punctuation)),
+            (r"(public|readonly|extern|api|inline|packed)\b", Keyword.Reserved),
+            (r"(struct|enum|union|class|cppclass)\b(\s+)([a-zA-Z_]\w*)",
+             bygroups(Keyword, Whitespace, Name.Class), "#pop",),
+            (r"([a-zA-Z_]\w*)(\s*)(?=\()", bygroups(Name.Function, Whitespace), "#pop"),
+            (r"([a-zA-Z_]\w*)(\s*)(?=[:,=#\n]|$)", bygroups(Name.Variable, Whitespace), "#pop"),
+            (r"([a-zA-Z_]\w*)(\s*)(,)", bygroups(Name.Variable, Whitespace, Punctuation)),
             (r'from\b', Keyword, '#pop'),
             (r'as\b', Keyword),
             (r':', Punctuation, '#pop'),

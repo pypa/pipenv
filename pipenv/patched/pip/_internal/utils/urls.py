@@ -1,7 +1,6 @@
 import os
 import string
-import urllib.parse
-import urllib.request
+import urllib.parse  # noqa: F401
 
 from .compat import WINDOWS
 
@@ -11,6 +10,8 @@ def path_to_url(path: str) -> str:
     Convert a path to a file: URL.  The path will be made absolute and have
     quoted path parts.
     """
+    import urllib.request
+
     path = os.path.normpath(os.path.abspath(path))
     url = urllib.parse.urljoin("file://", urllib.request.pathname2url(path))
     return url
@@ -20,6 +21,8 @@ def url_to_path(url: str) -> str:
     """
     Convert a file: URL to a path.
     """
+    import urllib.request
+
     assert url.startswith(
         "file:"
     ), f"You can only turn file: urls into filenames (not {url!r})"

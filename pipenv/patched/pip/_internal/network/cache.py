@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import os
 import shutil
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, BinaryIO, Callable
+from typing import Any, BinaryIO
 
 from pipenv.patched.pip._vendor.cachecontrol.cache import SeparateBodyBaseCache
 from pipenv.patched.pip._vendor.cachecontrol.caches import SeparateBodyFileCache

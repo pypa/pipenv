@@ -2,12 +2,13 @@
 distributions."""
 
 import importlib.resources
+import locale
 import logging
 import os
 import sys
 from typing import IO
 
-__all__ = ["get_path_uid", "stdlib_pkgs", "tomllib", "WINDOWS"]
+__all__ = ["get_locale_encoding", "get_path_uid", "tomllib", "WINDOWS"]
 
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,19 @@ def has_tls() -> bool:
     from pipenv.patched.pip._vendor.urllib3.util import IS_PYOPENSSL
 
     return IS_PYOPENSSL
+
+
+def get_locale_encoding() -> str:
+    """Return the locale encoding.
+
+    Uses ``locale.getencoding()`` when available (Python 3.11+) to avoid the
+    ``EncodingWarning`` that ``locale.getpreferredencoding(False)`` raises
+    under UTF-8 Mode.
+    """
+    # TODO: Remove the 3.10 fallback once pip drops Python 3.10 support.
+    if sys.version_info >= (3, 11):
+        return locale.getencoding()
+    return locale.getpreferredencoding(False)
 
 
 def get_path_uid(path: str) -> int:
@@ -71,14 +85,6 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     from pipenv.patched.pip._vendor import tomli as tomllib
-
-
-# packages in the stdlib that may have installation metadata, but should not be
-# considered 'installed'.  this theoretically could be determined based on
-# dist.location (py27:`sysconfig.get_paths()['stdlib']`,
-# py26:sysconfig.get_config_vars('LIBDEST')), but fear platform variation may
-# make this ineffective, so hard-coding
-stdlib_pkgs = {"python", "wsgiref", "argparse"}
 
 
 # windows detection, covers cpython and ironpython

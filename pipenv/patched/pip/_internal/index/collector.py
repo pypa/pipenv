@@ -12,21 +12,27 @@ import json
 import logging
 import os
 import urllib.parse
-from collections.abc import Iterable, MutableMapping, Sequence
+from collections.abc import Callable, Iterable, MutableMapping, Sequence
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from optparse import Values
 from typing import (
-    Callable,
     NamedTuple,
     Protocol,
 )
 
-from pipenv.patched.pip._vendor import requests
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.requests import Response
-from pipenv.patched.pip._vendor.requests.exceptions import RetryError, SSLError
+from pipenv.patched.pip._vendor.requests.exceptions import RetryError
 
-from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pip._internal.exceptions import (
+    ConnectionFailedError,
+    ConnectionTimeoutError,
+    NetworkConnectionError,
+    ProxyConnectionError,
+    SSLMissingError,
+    SSLVerificationError,
+)
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.search_scope import SearchScope
 from pipenv.patched.pip._internal.network.session import PipSession
@@ -80,7 +86,7 @@ def _ensure_api_header(response: Response) -> None:
     ):
         return
 
-    raise _NotAPIContent(content_type, response.request.method)
+    raise _NotAPIContent(content_type, response.request.method)  # type: ignore[arg-type]
 
 
 class _NotHTTP(Exception):
@@ -105,7 +111,11 @@ def _ensure_api_response(url: str, session: PipSession) -> None:
     _ensure_api_header(resp)
 
 
-def _get_simple_response(url: str, session: PipSession) -> Response:
+def _get_simple_response(
+    url: str,
+    session: PipSession,
+    force_revalidate: bool = False,
+) -> Response:
     """Access an Simple API response with GET, and return the response.
 
     This consists of three parts:
@@ -123,32 +133,24 @@ def _get_simple_response(url: str, session: PipSession) -> Response:
 
     logger.debug("Getting page %s", redact_auth_from_url(url))
 
-    resp = session.get(
-        url,
-        headers={
-            "Accept": ", ".join(
-                [
-                    "application/vnd.pypi.simple.v1+json",
-                    "application/vnd.pypi.simple.v1+html; q=0.1",
-                    "text/html; q=0.01",
-                ]
-            ),
-            # We don't want to blindly returned cached data for
-            # /simple/, because authors generally expecting that
-            # twine upload && pip install will function, but if
-            # they've done a pip install in the last ~10 minutes
-            # it won't. Thus by setting this to zero we will not
-            # blindly use any cached data, however the benefit of
-            # using max-age=0 instead of no-cache, is that we will
-            # still support conditional requests, so we will still
-            # minimize traffic sent in cases where the page hasn't
-            # changed at all, we will just always incur the round
-            # trip for the conditional GET now instead of only
-            # once per 10 minutes.
-            # For more information, please see pypa/pip#5670.
-            "Cache-Control": "max-age=0",
-        },
-    )
+    headers = {
+        "Accept": ", ".join(
+            [
+                "application/vnd.pypi.simple.v1+json",
+                "application/vnd.pypi.simple.v1+html; q=0.1",
+                "text/html; q=0.01",
+            ]
+        ),
+    }
+
+    if force_revalidate:
+        # Using max-age=0 rather than no-cache still supports conditional
+        # requests, minimizing traffic when the page hasn't changed.
+        # See pypa/pip#5670.
+        logger.debug("Refreshing package index response.")
+        headers["Cache-Control"] = "max-age=0"
+
+    resp = session.get(url, headers=headers)
     raise_for_status(resp)
 
     # The check for archives above only works if the url ends with
@@ -316,7 +318,12 @@ def _make_index_content(
     )
 
 
-def _get_index_content(link: Link, *, session: PipSession) -> IndexContent | None:
+def _get_index_content(
+    link: Link,
+    *,
+    session: PipSession,
+    force_revalidate: bool = False,
+) -> IndexContent | None:
     url = link.url.split("#", 1)[0]
 
     # Check for VCS schemes that do not support lookup as web pages.
@@ -343,7 +350,9 @@ def _get_index_content(link: Link, *, session: PipSession) -> IndexContent | Non
         logger.debug(" file: URL is directory, getting %s", url)
 
     try:
-        resp = _get_simple_response(url, session=session)
+        resp = _get_simple_response(
+            url, session=session, force_revalidate=force_revalidate
+        )
     except _NotHTTP:
         logger.warning(
             "Skipping page %s because it looks like an archive, and cannot "
@@ -359,18 +368,17 @@ def _get_index_content(link: Link, *, session: PipSession) -> IndexContent | Non
             exc.request_desc,
             exc.content_type,
         )
-    except NetworkConnectionError as exc:
+    except (RetryError, NetworkConnectionError) as exc:
         _handle_get_simple_fail(link, exc)
-    except RetryError as exc:
-        _handle_get_simple_fail(link, exc)
-    except SSLError as exc:
-        reason = "There was a problem confirming the ssl certificate: "
-        reason += str(exc)
+    except (SSLVerificationError, SSLMissingError) as exc:
+        reason = f"There was a problem confirming the ssl certificate: {exc.context}"
         _handle_get_simple_fail(link, reason, meth=logger.info)
-    except requests.ConnectionError as exc:
-        _handle_get_simple_fail(link, f"connection error: {exc}")
-    except requests.Timeout:
-        _handle_get_simple_fail(link, "timed out")
+    except ConnectionFailedError as exc:
+        _handle_get_simple_fail(link, f"connection error: {exc.context}")
+    except ProxyConnectionError as exc:
+        _handle_get_simple_fail(link, f"proxy connection error: {exc.context}")
+    except ConnectionTimeoutError as exc:
+        _handle_get_simple_fail(link, str(exc.context))
     else:
         return _make_index_content(resp, cache_link_parsing=link.cache_link_parsing)
     return None
@@ -440,11 +448,25 @@ class LinkCollector:
     def find_links(self) -> list[str]:
         return self.search_scope.find_links
 
-    def fetch_response(self, location: Link) -> IndexContent | None:
+    def fetch_response(
+        self, location: Link, package_name: str | None = None
+    ) -> IndexContent | None:
         """
         Fetch an HTML page containing package links.
         """
-        return _get_index_content(location, session=self.session)
+        # By default we may return cached /simple/ responses. Users can force
+        # revalidation to ensure newly uploaded distributions become visible
+        # immediately after publication. See pypa/pip#5670.
+        force_revalidate = self.session.refresh_package
+        should_force_revalidate = ":all:" in force_revalidate or (
+            package_name is not None
+            and canonicalize_name(package_name) in force_revalidate
+        )
+        return _get_index_content(
+            location,
+            session=self.session,
+            force_revalidate=should_force_revalidate,
+        )
 
     def collect_sources(
         self,

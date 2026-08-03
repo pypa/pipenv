@@ -761,6 +761,7 @@ class Resolver:
                         build_tracker=build_tracker,
                         session=self.session,
                         finder=finder,
+                        allow_editables=True,
                         use_user_site=False,
                     )
                     resolver = self.pip_command.make_resolver(

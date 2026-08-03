@@ -4,8 +4,8 @@ from optparse import Values
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.base_command import Command
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
+from pipenv.patched.pip._internal.metadata.base import stdlib_pkgs
 from pipenv.patched.pip._internal.operations.freeze import freeze
-from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
 
 
 def _should_suppress_build_backends() -> bool:

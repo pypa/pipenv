@@ -1,25 +1,32 @@
 import codecs
-import re
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
-from .core import IDNAError, alabel, decode, encode, ulabel
-
-_unicode_dots_re = re.compile("[\u002e\u3002\uff0e\uff61]")
+from .core import IDNAError, _unicode_dots_re, alabel, decode, encode, ulabel
 
 
 class Codec(codecs.Codec):
-    def encode(self, data: str, errors: str = "strict") -> Tuple[bytes, int]:
+    """Stateless IDNA 2008 codec.
+
+    Implements the :class:`codecs.Codec` protocol so that the whole-domain
+    encoder (:func:`idna.encode`) and decoder (:func:`idna.decode`) are
+    accessible through the standard codec machinery as ``"idna2008"``.
+
+    Only the ``"strict"`` error handler is supported; any other handler
+    raises :exc:`~idna.IDNAError`.
+    """
+
+    def encode(self, data: str, errors: str = "strict") -> tuple[bytes, int]:  # ty: ignore[invalid-method-override]
         if errors != "strict":
-            raise IDNAError('Unsupported error handling "{}"'.format(errors))
+            raise IDNAError(f'Unsupported error handling "{errors}"')
 
         if not data:
             return b"", 0
 
         return encode(data), len(data)
 
-    def decode(self, data: bytes, errors: str = "strict") -> Tuple[str, int]:
+    def decode(self, data: bytes, errors: str = "strict") -> tuple[str, int]:  # ty: ignore[invalid-method-override]
         if errors != "strict":
-            raise IDNAError('Unsupported error handling "{}"'.format(errors))
+            raise IDNAError(f'Unsupported error handling "{errors}"')
 
         if not data:
             return "", 0
@@ -28,9 +35,20 @@ class Codec(codecs.Codec):
 
 
 class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
-    def _buffer_encode(self, data: str, errors: str, final: bool) -> Tuple[bytes, int]:
+    """Incremental IDNA 2008 encoder.
+
+    Buffers a partial trailing label across calls until either the next
+    label separator is seen or ``final=True``, so that streamed input is
+    encoded one whole label at a time. Any of the four Unicode label
+    separators (``U+002E``, ``U+3002``, ``U+FF0E``, ``U+FF61``) ends a
+    label; the result always uses ``U+002E`` as the separator.
+
+    Only the ``"strict"`` error handler is supported.
+    """
+
+    def _buffer_encode(self, data: str, errors: str, final: bool) -> tuple[bytes, int]:  # ty: ignore[invalid-method-override]
         if errors != "strict":
-            raise IDNAError('Unsupported error handling "{}"'.format(errors))
+            raise IDNAError(f'Unsupported error handling "{errors}"')
 
         if not data:
             return b"", 0
@@ -62,9 +80,18 @@ class IncrementalEncoder(codecs.BufferedIncrementalEncoder):
 
 
 class IncrementalDecoder(codecs.BufferedIncrementalDecoder):
-    def _buffer_decode(self, data: Any, errors: str, final: bool) -> Tuple[str, int]:
+    """Incremental IDNA 2008 decoder.
+
+    Buffers a partial trailing label across calls until either the next
+    label separator is seen or ``final=True``, so that streamed input is
+    decoded one whole label at a time.
+
+    Only the ``"strict"`` error handler is supported.
+    """
+
+    def _buffer_decode(self, data: Any, errors: str, final: bool) -> tuple[str, int]:  # ty: ignore[invalid-method-override]
         if errors != "strict":
-            raise IDNAError('Unsupported error handling "{}"'.format(errors))
+            raise IDNAError(f'Unsupported error handling "{errors}"')
 
         if not data:
             return ("", 0)
@@ -106,6 +133,16 @@ class StreamReader(Codec, codecs.StreamReader):
 
 
 def search_function(name: str) -> Optional[codecs.CodecInfo]:
+    """Codec search function registered with :mod:`codecs`.
+
+    Returns a :class:`codecs.CodecInfo` for the ``"idna2008"`` codec name
+    so that ``str.encode("idna2008")`` and ``bytes.decode("idna2008")``
+    invoke the IDNA 2008 codec defined in this module.
+
+    :param name: The codec name being looked up.
+    :returns: A :class:`codecs.CodecInfo` instance if ``name`` is
+        ``"idna2008"``, otherwise ``None``.
+    """
     if name != "idna2008":
         return None
     return codecs.CodecInfo(

@@ -17,13 +17,7 @@ from socket import timeout as SocketTimeout
 if typing.TYPE_CHECKING:
     from ._base_connection import BaseHTTPConnection
 
-try:
-    try:
-        import brotlicffi as brotli  # type: ignore[import-not-found]
-    except ImportError:
-        import brotli  # type: ignore[import-not-found]
-except ImportError:
-    brotli = None
+brotli = None
 
 from . import util
 from ._base_connection import _TYPE_BODY

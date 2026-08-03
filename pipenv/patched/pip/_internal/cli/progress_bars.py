@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import functools
 import sys
-from collections.abc import Generator, Iterable, Iterator
-from typing import Any, Callable, Literal, TypeVar
+from collections.abc import Callable, Generator, Iterable, Iterator
+from typing import Any, Literal, TypeVar
 
 from pipenv.patched.pip._vendor.rich.progress import (
     BarColumn,

@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from typing import (
     Any,
     Literal,
-    Optional,
 )
 
 from pipenv.patched.pip._internal.cli.spinners import SpinnerInterface
@@ -39,7 +38,7 @@ __all__ = ["vcs"]
 
 logger = logging.getLogger(__name__)
 
-AuthInfo = tuple[Optional[str], Optional[str]]
+AuthInfo = tuple[str | None, str | None]
 
 
 def is_url(name: str) -> bool:

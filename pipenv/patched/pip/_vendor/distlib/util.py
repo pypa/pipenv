@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2012-2023 The Python Software Foundation.
+# Copyright (C) 2012-2026 The Python Software Foundation.
 # See LICENSE.txt and CONTRIBUTORS.txt.
 #
 import codecs
@@ -589,7 +589,11 @@ class FileOperator(object):
                 self.dirs_created.add(path)
 
     def byte_compile(self, path, optimize=False, force=False, prefix=None, hashed_invalidation=False):
-        dpath = cache_from_source(path, not optimize)
+        if not optimize:
+            optimization = ''
+        else:
+            optimization = '1'
+        dpath = cache_from_source(path, optimization=optimization)
         logger.info('Byte-compiling %s to %s', path, dpath)
         if not self.dry_run:
             if force or self.newer(path, dpath):
@@ -703,8 +707,8 @@ class ExportEntry(object):
         if not isinstance(other, ExportEntry):
             result = False
         else:
-            result = (self.name == other.name and self.prefix == other.prefix and self.suffix == other.suffix and
-                      self.flags == other.flags)
+            result = (self.name == other.name and self.prefix == other.prefix and self.suffix == other.suffix
+                      and self.flags == other.flags)
         return result
 
     __hash__ = object.__hash__
@@ -1223,12 +1227,30 @@ ARCHIVE_EXTENSIONS = ('.tar.gz', '.tar.bz2', '.tar', '.zip', '.tgz', '.tbz', '.w
 
 def unarchive(archive_filename, dest_dir, format=None, check=True):
 
-    def check_path(path):
+    def check_path(path, base=None):
         if not isinstance(path, text_type):
             path = path.decode('utf-8')
-        p = os.path.abspath(os.path.join(dest_dir, path))
+        if base is None:
+            base = dest_dir
+        p = os.path.abspath(os.path.join(base, path))
         if not p.startswith(dest_dir) or p[plen] != os.sep:
             raise ValueError('path outside destination: %r' % p)
+
+    def check_link(member):
+        # A symlink/hardlink member's name is validated like any other
+        # member, but its target (linkname) is not covered by extractall's
+        # name-based handling. An unchecked target lets a later member be
+        # written through the link to a location outside dest_dir. Validate
+        # the resolved target stays within dest_dir. Symlink targets are
+        # relative to the member's own directory; hardlink targets are
+        # relative to the archive root (i.e. dest_dir).
+        if not (member.issym() or member.islnk()):
+            return
+        if member.issym():
+            link_base = os.path.dirname(os.path.join(dest_dir, member.name))
+        else:
+            link_base = dest_dir
+        check_path(member.linkname, base=link_base)
 
     dest_dir = os.path.abspath(dest_dir)
     plen = len(dest_dir)
@@ -1257,9 +1279,9 @@ def unarchive(archive_filename, dest_dir, format=None, check=True):
         else:
             archive = tarfile.open(archive_filename, mode)
             if check:
-                names = archive.getnames()
-                for name in names:
-                    check_path(name)
+                for member in archive.getmembers():
+                    check_path(member.name)
+                    check_link(member)
         if format != 'zip' and sys.version_info[0] < 3:
             # See Python issue 17153. If the dest path contains Unicode,
             # tarfile extraction fails on Python 2.x if a member path name
@@ -1454,6 +1476,7 @@ if ssl:
     #
     # HTTPSConnection which verifies certificates/matches domains
     #
+
 
     class HTTPSConnection(httplib.HTTPSConnection):
         ca_certs = None  # set this to the path to the certs file (.pem)
@@ -1776,8 +1799,13 @@ class SubprocessMixin(object):
 
 def normalize_name(name):
     """Normalize a python package name a la PEP 503"""
-    # https://www.python.org/dev/peps/pep-0503/#normalized-names
-    return re.sub('[-_.]+', '-', name).lower()
+    # https://peps.python.org/pep-0503/#normalized-names
+    # Emulates re.sub(r"[-_.]+", "-", name).lower()
+    # Much faster than re, and even faster than str.translate
+    value = name.lower().replace("_", "-").replace(".", "-")
+    while "--" in value:
+        value = value.replace("--", "-")
+    return value
 
 
 # def _get_pypirc_command():
@@ -1982,3 +2010,12 @@ def get_platform():
     if cross_compilation_target not in _TARGET_TO_PLAT:
         return get_host_platform()
     return _TARGET_TO_PLAT[cross_compilation_target]
+
+
+def is_in_directory(path, target):
+    """
+    Check if a path is inside a target directory. This doesn't check case (might be an issue on Windows)
+    """
+    path = os.path.abspath(path)
+    target = os.path.abspath(target)
+    return path == target or path.startswith(target + os.sep)

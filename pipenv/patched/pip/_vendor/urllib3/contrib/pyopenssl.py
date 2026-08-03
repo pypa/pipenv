@@ -29,7 +29,7 @@ like this:
 
     try:
         import pipenv.patched.pip._vendor.urllib3.contrib.pyopenssl as pyopenssl
-        urllib3.contrib.pyopenssl.inject_into_urllib3()
+        pyopenssl.inject_into_urllib3()
     except ImportError:
         pass
 

@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from contextlib import suppress
 from email.parser import Parser
 from functools import reduce
 from typing import (
-    Callable,
     NamedTuple,
 )
 
@@ -168,7 +167,7 @@ def _create_whitelist(
             continue
 
         for req in package_set[package_name].dependencies:
-            if canonicalize_name(req.name) in packages_affected:
+            if canonicalize_name(req.name) in would_be_installed:
                 packages_affected.add(package_name)
                 break
 

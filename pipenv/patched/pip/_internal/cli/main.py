@@ -73,8 +73,9 @@ def main(args: list[str] | None = None) -> int:
         sys.stderr.write(os.linesep)
         sys.exit(1)
 
-    # Needed for locale.getpreferredencoding(False) to work
+    # Needed for locale encoding detection to work
     # in pipenv.patched.pip._internal.utils.encoding.auto_decode
+    # TODO: Re-evaluate whether this is still needed once pip drops Python 3.10.
     try:
         locale.setlocale(locale.LC_ALL, "")
     except locale.Error as e:

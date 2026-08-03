@@ -29,9 +29,10 @@
         yourfilter = yourfilter:YourFilter
 
 
-    :copyright: Copyright 2006-2025 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-present by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
+import functools
 from importlib.metadata import entry_points
 
 LEXER_ENTRY_POINT = 'pygments.lexers'
@@ -40,6 +41,7 @@ STYLE_ENTRY_POINT = 'pygments.styles'
 FILTER_ENTRY_POINT = 'pygments.filters'
 
 
+@functools.cache
 def iter_entry_points(group_name):
     groups = entry_points()
     if hasattr(groups, 'select'):

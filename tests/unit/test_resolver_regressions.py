@@ -23,7 +23,14 @@ def _conflict_info(name, parent=None):
 
 @pytest.mark.utils
 def test_pip_provider_promotes_repeated_conflict_identifiers():
-    provider = PipProvider(mock.sentinel.factory, {}, False, "to-satisfy-only", {})
+    provider = PipProvider(
+        factory=mock.sentinel.factory,
+        constraints={},
+        ignore_dependencies=False,
+        only_dependencies=False,
+        upgrade_strategy="to-satisfy-only",
+        user_requested={},
+    )
 
     for _ in range(5):
         selected = list(
@@ -52,7 +59,14 @@ def test_pip_provider_promotes_repeated_conflict_identifiers():
 
 @pytest.mark.utils
 def test_pip_provider_prefers_promoted_conflict_identifier():
-    provider = PipProvider(mock.sentinel.factory, {}, False, "to-satisfy-only", {})
+    provider = PipProvider(
+        factory=mock.sentinel.factory,
+        constraints={},
+        ignore_dependencies=False,
+        only_dependencies=False,
+        upgrade_strategy="to-satisfy-only",
+        user_requested={},
+    )
 
     for _ in range(5):
         list(

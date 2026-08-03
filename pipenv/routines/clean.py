@@ -1,6 +1,6 @@
 import sys
 
-from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.patched.pip._internal.utils.misc import get_runnable_pip
 from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err

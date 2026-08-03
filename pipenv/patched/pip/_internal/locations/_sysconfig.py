@@ -4,7 +4,7 @@ import logging
 import os
 import sys
 import sysconfig
-from typing import Callable
+from collections.abc import Callable
 
 from pipenv.patched.pip._internal.exceptions import InvalidSchemeCombination, UserInstallationInvalid
 from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
