@@ -59,6 +59,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     target = ctx.target_env
     policy = ctx.install_policy
     sel = ctx.package_selection
+    exec_opts = ctx.execution_options
 
     packages = list(sel.packages) if sel.packages else []
     editable_packages = (
@@ -68,6 +69,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     pypi_mirror = target.pypi_mirror
     pre = policy.pre
     lock = policy.lock
+    resolver = exec_opts.resolver
     all_dev = sel.all_dev
     all = sel.all
     categories = list(sel.categories) if sel.categories else None
@@ -79,7 +81,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     if not categories:
         categories = ["default"]
 
-    lockfile_content = project.lockfile_content
+    lockfile_content = project.lockfile.content
 
     if all_dev:
         console.print(
@@ -87,15 +89,15 @@ def do_uninstall(project: Project, ctx: RoutineContext):
             style="bold",
         )
         # Uninstall all dev-packages from environment
-        for package in project.get_pipfile_section("dev-packages"):
+        for package in project.pipfile.get_section("dev-packages"):
             _uninstall_from_environment(project, package, system=system)
         # Remove the package from the Pipfile
-        if project.reset_category_in_pipfile(category="dev-packages"):
+        if project.pipfile.reset_category(category="dev-packages"):
             console.print("Removed [dev-packages] from Pipfile.")
         # Finalize changes to lockfile
         lockfile_content["develop"] = {}
-        lockfile_content.update({"_meta": project.get_lockfile_meta()})
-        project.write_lockfile(lockfile_content)
+        lockfile_content.update({"_meta": project.lockfile.meta()})
+        project.lockfile.write(lockfile_content)
 
     if all:
         console.print(
@@ -121,18 +123,18 @@ def do_uninstall(project: Project, ctx: RoutineContext):
 
         for package in package_args[:]:
             install_req, _ = expansive_install_req_from_line(package, expand_env=True)
-            name, normalized_name, pipfile_entry = project.generate_package_pipfile_entry(
+            name, normalized_name, pipfile_entry = project.pipfile.generate_entry(
                 install_req, package, category=pipfile_category
             )
 
             # Remove the package from the Pipfile
-            if project.remove_package_from_pipfile(
+            if project.pipfile.remove_package(
                 normalized_name, category=pipfile_category
             ):
                 console.print(f"Removed {normalized_name} from Pipfile.")
 
             # Rebuild the dependencies for resolution from the updated Pipfile
-            updated_packages = project.get_pipfile_section(pipfile_category)
+            updated_packages = project.pipfile.get_section(pipfile_category)
 
             # Resolve dependencies with the package removed
             resolved_lock_data = venv_resolve_deps(
@@ -144,6 +146,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
                 pre=pre,
                 allow_global=system,
                 pypi_mirror=pypi_mirror,
+                resolver_backend=resolver,
             )
 
             # Determine which dependencies are no longer needed
@@ -164,8 +167,8 @@ def do_uninstall(project: Project, ctx: RoutineContext):
                 pass  # No lockfile data for this category
 
     # Finalize changes to lockfile
-    lockfile_content.update({"_meta": project.get_lockfile_meta()})
-    project.write_lockfile(lockfile_content)
+    lockfile_content.update({"_meta": project.lockfile.meta()})
+    project.lockfile.write(lockfile_content)
 
     # Perform uninstallation of packages and dependencies
     failure = False

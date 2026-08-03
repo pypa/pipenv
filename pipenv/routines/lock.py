@@ -28,6 +28,7 @@ def do_lock(project, ctx: RoutineContext):
     pre = policy.pre
     quiet = exec_opts.quiet
     write = exec_opts.write
+    resolver = exec_opts.resolver
     extra_pip_args = (
         list(exec_opts.extra_pip_args) if exec_opts.extra_pip_args else None
     )
@@ -48,7 +49,7 @@ def do_lock(project, ctx: RoutineContext):
 
     # Cleanup lockfile.
     if not categories:
-        lockfile_categories = project.get_package_categories(for_lockfile=True)
+        lockfile_categories = project.pipfile.get_package_categories(for_lockfile=True)
     else:
         lockfile_categories = categories.copy()
         if "dev-packages" in categories:
@@ -58,7 +59,7 @@ def do_lock(project, ctx: RoutineContext):
             lockfile_categories.remove("packages")
             lockfile_categories.insert(0, "default")
     # Create the lockfile.
-    lockfile = project.lockfile(categories=lockfile_categories)
+    lockfile = project.lockfile.as_dict(categories=lockfile_categories)
     for category in lockfile_categories:
         for k, v in lockfile.get(category, {}).copy().items():
             if not hasattr(v, "keys"):
@@ -79,10 +80,10 @@ def do_lock(project, ctx: RoutineContext):
     # Resolve package to generate constraints before resolving other categories
     for category in lockfile_categories:
         pipfile_category = get_pipfile_category_using_lockfile_section(category)
-        if project.pipfile_exists:
-            packages = project.parsed_pipfile.get(pipfile_category, {})
+        if project.pipfile.exists:
+            packages = project.pipfile.parsed.get(pipfile_category, {})
         else:
-            packages = project.get_pipfile_section(pipfile_category)
+            packages = project.pipfile.get_section(pipfile_category)
 
         if write:
             if not quiet:  # Alert the user of progress.
@@ -124,6 +125,7 @@ def do_lock(project, ctx: RoutineContext):
                 old_lock_data=old_lock_data,
                 extra_pip_args=extra_pip_args,
                 resolved_default_deps=category_default_deps,
+                resolver_backend=resolver,
             )
         except RuntimeError:
             sys.exit(1)
@@ -149,11 +151,11 @@ def do_lock(project, ctx: RoutineContext):
                     )
                 )
     if write:
-        lockfile.update({"_meta": project.get_lockfile_meta()})
-        project.write_lockfile(lockfile)
+        lockfile.update({"_meta": project.lockfile.meta()})
+        project.lockfile.write(lockfile)
         if not quiet:
             err.print(
-                f"Updated Pipfile.lock ({project.get_lockfile_hash()})!",
+                f"Updated Pipfile.lock ({project.lockfile.hash()})!",
                 style="bold",
             )
     else:

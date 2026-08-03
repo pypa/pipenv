@@ -200,7 +200,7 @@ def handle_new_packages(
                     )
                     if pipfile_categories:
                         for category in pipfile_categories:
-                            added, cat, normalized_name = project.add_package_to_pipfile(
+                            added, cat, normalized_name = project.pipfile.add_package(
                                 pkg_requirement,
                                 pkg_line,
                                 sel.dev,
@@ -210,7 +210,7 @@ def handle_new_packages(
                             if added:
                                 new_packages.append((normalized_name, cat))
                     else:
-                        added, cat, normalized_name = project.add_package_to_pipfile(
+                        added, cat, normalized_name = project.pipfile.add_package(
                             pkg_requirement, pkg_line, sel.dev, no_binary=no_binary
                         )
                         if added:
@@ -255,7 +255,7 @@ def handle_new_packages(
             return new_packages, True
         except Exception:
             for pkg_name, category in new_packages:
-                project.remove_package_from_pipfile(pkg_name, category)
+                project.pipfile.remove_package(pkg_name, category)
             raise
 
     return new_packages, False
@@ -277,12 +277,12 @@ def handle_lockfile(project, ctx: RoutineContext):
     packages = list(sel.packages) if sel.packages else []
 
     if (
-        (project.lockfile_exists and not policy.ignore_pipfile)
+        (project.lockfile.exists and not policy.ignore_pipfile)
         and not policy.skip_lock
         and not packages
     ):
-        old_hash = project.get_lockfile_hash()
-        new_hash = project.calculate_pipfile_hash()
+        old_hash = project.lockfile.hash()
+        new_hash = project.pipfile.calculate_hash()
         if new_hash != old_hash:
             if policy.deploy:
                 console.print(
@@ -297,7 +297,7 @@ def handle_lockfile(project, ctx: RoutineContext):
                     old_hash=old_hash,
                     new_hash=new_hash,
                 )
-    elif not project.lockfile_exists and not policy.skip_lock:
+    elif not project.lockfile.exists and not policy.skip_lock:
         handle_missing_lockfile(project, ctx)
 
 
@@ -467,7 +467,7 @@ def do_install(project, ctx: RoutineContext) -> None:
     except Exception as e:
         # If we fail to install, remove the package from the Pipfile.
         for pkg_name, category in new_packages:
-            project.remove_package_from_pipfile(pkg_name, category)
+            project.pipfile.remove_package(pkg_name, category)
         raise e
 
     sys.exit(0)
@@ -494,12 +494,12 @@ def do_install_validations(
     requirementstxt = sel.requirementstxt
 
     # Don't attempt to install develop and default packages if Pipfile is missing
-    if not project.pipfile_exists and not (package_args or sel.dev):
+    if not project.pipfile.exists and not (package_args or sel.dev):
         if not (policy.ignore_pipfile or policy.deploy):
             raise exceptions.PipfileNotFound(project.path_to("Pipfile"))
         elif (
             (policy.skip_lock and policy.deploy) or policy.ignore_pipfile
-        ) and not project.any_lockfile_exists:
+        ) and not project.lockfile.any_exists:
             raise exceptions.LockfileNotFound(project.path_to("Pipfile.lock"))
     # NOTE: The pre-context implementation loaded ``allow_prereleases``
     # from ``project.settings`` into a local ``pre`` variable here, but the
@@ -601,7 +601,7 @@ def install_build_system_packages(
     :param pypi_mirror: Optional PyPI mirror URL.
     :param requirements_dir: Optional temporary directory for requirements files.
     """
-    build_requires = project.pipfile_build_requires
+    build_requires = project.pipfile.build_requires
     if not build_requires:
         return
 
@@ -687,7 +687,7 @@ def do_install_dependencies(
         if policy.skip_lock:
             if not exec_opts.bare and not project.s.is_quiet():
                 console.print("Installing dependencies from Pipfile...", style="bold")
-            pipfile = project.get_pipfile_section(pipfile_category)
+            pipfile = project.pipfile.get_section(pipfile_category)
         else:
             lockfile = project.get_or_create_lockfile(categories=categories)
             if not exec_opts.bare and not project.s.is_quiet():
@@ -696,8 +696,8 @@ def do_install_dependencies(
                 )
                 lockfile_type = (
                     "pylock.toml"
-                    if project.pylock_exists
-                    and (project.settings.use_pylock or not project.lockfile_exists)
+                    if project.lockfile.pylock_exists
+                    and (project.settings.use_pylock or not project.lockfile.exists)
                     else "Pipfile.lock"
                 )
                 lockfile_hash = lockfile["_meta"].get("hash", {}).get("sha256", "") or ""

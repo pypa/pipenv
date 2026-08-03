@@ -306,7 +306,7 @@ class Lockfile:
 
     @classmethod
     def lockfile_from_pipfile(cls, pipfile_path):
-        from pipenv.utils.pipfile import Pipfile
+        from pipenv.utils.pipfile import PlettePipfile
 
         # Convert to Path object
         path = Path(pipfile_path)
@@ -317,7 +317,7 @@ class Lockfile:
                 path = path.resolve()
 
             # Load the Pipfile from the parent directory
-            pipfile = Pipfile.load(path.parent)
+            pipfile = PlettePipfile.load(path.parent)
             return lockfiles.Lockfile.with_meta_from(pipfile.pipfile)
 
         raise PipfileNotFound(pipfile_path)

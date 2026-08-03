@@ -34,7 +34,7 @@ def test_git_branch_contains_slashes(pipenv_instance_pypi, pypi_lockfile):
             json.dump(pypi_lockfile, f)
 
         project = Project()
-        lockfile = project.load_lockfile(expand_env_vars=False)
+        lockfile = project.lockfile.load(expand_env_vars=False)
         deps = lockfile["default"]
         pip_installable_lines = dependencies.requirements_from_lockfile(
             deps, include_hashes=False, include_markers=True
@@ -56,7 +56,7 @@ def test_git_branch_contains_subdirectory_fragment(pipenv_instance_pypi, pypi_lo
             json.dump(pypi_lockfile, f)
 
         project = Project()
-        lockfile = project.load_lockfile(expand_env_vars=False)
+        lockfile = project.lockfile.load(expand_env_vars=False)
         deps = lockfile["default"]
         pip_installable_lines = dependencies.requirements_from_lockfile(
             deps, include_hashes=False, include_markers=True

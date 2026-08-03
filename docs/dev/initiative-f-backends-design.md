@@ -942,6 +942,74 @@ execution.
 
 ---
 
+## Maintainer sign-off — 2026-05-12
+
+Matt Davis's answers to the 10 open questions in §6. T_F.5 execution
+proceeds under these decisions.
+
+1. **Pipfile opt-in field** → use the existing `[pipenv]` section
+   with a `resolver` key (e.g. `[pipenv] resolver = "uv"`). Also
+   support the equivalent field in `pyproject.toml` / `pylock.toml`
+   via pipenv's existing readers for those files. NOT a new
+   `[pipenv.resolver]` table.
+2. **CLI flag name** → `--resolver NAME` (preferable to
+   `--backend NAME` or `--use-uv`). Used only for non-default
+   selection.
+3. **Lockfile filename strategy** → **support BOTH**. pipenv already
+   handles `Pipfile.lock` and `pylock.toml`; the backend may target
+   either format. Per-backend choice; not exclusively distinct files.
+4. **Missing-backend behaviour** → **fail loud**. If the user opts
+   into a backend whose binary is not on `$PATH`, error with a clear
+   message naming the binary and the install hint. No silent fallback
+   to pip.
+5. **Pip-backend `_meta.resolver_backend` value** → accept the
+   recommendation (omit for pip; explicit `"uv"` only when a non-
+   default backend resolved).
+6. **Cross-backend re-lock policy** → accept the recommendation
+   (refuse the operation without an explicit
+   `--allow-backend-switch` flag).
+7. **New schema fields** → accept the recommendation (do NOT add
+   `LockedRequirement.resolver_backend` or `Diagnostics.resolver_name`;
+   keep the schema backend-neutral and use `_meta` for the lockfile
+   discriminator).
+8. **Vendor uv vs system uv** → defer. **T_F.5 in this PR lays the
+   groundwork only** — the pluggable-backend protocol, the
+   `[pipenv] resolver` / `--resolver` plumbing, the fail-loud
+   behaviour on a missing backend, the registry. The actual uv
+   backend implementation (and the vendor-vs-system decision that
+   gates it) is a separate follow-up effort, not T_F.5. Land the
+   framework here; ship a usable uv backend later.
+9. **Test matrix expansion** → **defer**. T_F.5 ships the framework
+   plus the existing pip backend's tests; dual-backend matrix
+   expansion happens with the uv backend follow-up.
+10. **News-fragment category** → `.feature.rst` (the framework is
+    user-visible: `[pipenv] resolver` and `--resolver` become real
+    knobs even if uv is the only follow-up consumer).
+
+### Re-scoped T_F.5 deliverable
+
+Given answers 8 and 9, T_F.5 in this PR is **scaffolding only**:
+
+- New `pipenv/resolver/backends/` package with a `Backend` protocol
+  / ABC.
+- `pipenv/resolver/backends/pip.py` — pip backend (refactored from
+  the current default-only path; behaviour unchanged).
+- `pipenv/resolver/backends/__init__.py` — registry + `get_backend(
+  name)` dispatch.
+- `[pipenv] resolver = "..."` Pipfile reading + equivalent
+  `pyproject.toml` / `pylock.toml` hooks via the existing readers.
+- `--resolver NAME` CLI flag wiring.
+- Fail-loud error when an unknown / unavailable backend is requested.
+- News fragment under `news/T_F.5.feature.rst`.
+- Unit tests for the registry, the dispatcher, the fail-loud path,
+  and the pip backend's adapter shape.
+
+The uv backend port from `origin/uv-backend` (§4 of this design) and
+the dual-backend test matrix (§7) are explicitly NOT in T_F.5; they
+become T_F.8 (or similar) in a future iteration.
+
+---
+
 *Source of truth for the typed schema: T_F.2 / T_F.3
 (`pipenv/resolver/schema.py`). Source of truth for the prior art:
 `origin/uv-backend` commit `22359624`. Updates to this design or to
