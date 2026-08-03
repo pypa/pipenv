@@ -64,7 +64,7 @@ class PipReporter(BaseReporter[Requirement, Candidate, str]):
             name = candidate.name
             constraint = self._constraints.get(name)
             if constraint and constraint.specifier:
-                constraint_text = f"{name}{constraint.specifier}"
+                constraint_text = f"{name}{constraint.format_for_error()}"
                 msg += f"\n    The user requested (constraint) {constraint_text}"
 
         logger.debug(msg)

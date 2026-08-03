@@ -3,7 +3,7 @@ import os
 
 import pytest
 
-from pipenv.utils.requirements import requirements_from_lockfile
+from pipenv.utils.dependencies import requirements_from_lockfile
 from pipenv.utils.shell import temp_environ
 
 

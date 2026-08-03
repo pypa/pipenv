@@ -172,7 +172,7 @@ def _subdirs_without_generic(
     predicate under it."""
 
     directories = []
-    excluded = set()
+    excluded: set[Path] = set()
 
     for root_str, _, filenames in os.walk(Path(path).resolve()):
         root = Path(root_str)
@@ -180,9 +180,7 @@ def _subdirs_without_generic(
             # This directory should be excluded, so exclude it and all of its
             # parent directories.
             # The last item in root.parents is ".", so we ignore it.
-            #
-            # Wrapping this in `list()` is only needed for Python 3.9.
-            excluded.update(list(root.parents)[:-1])
+            excluded.update(root.parents[:-1])
             excluded.add(root)
         directories.append(root)
 

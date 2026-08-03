@@ -1,8 +1,8 @@
 import re
 import sys
 
-from pipenv.utils.dependencies import get_lockfile_section_using_pipfile_category
-from pipenv.utils.requirements import (
+from pipenv.utils.dependencies import (
+    get_lockfile_section_using_pipfile_category,
     requirements_from_lockfile,
     requirements_from_pipfile,
 )

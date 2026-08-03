@@ -81,6 +81,8 @@ class InstallRequirement:
         extras: Collection[str] = (),
         user_supplied: bool = False,
         permit_editable_wheels: bool = False,
+        locked_link: Link | None = None,
+        locked_version: Version | None = None,
     ) -> None:
         assert req is None or isinstance(req, Requirement), req
         self.req = req
@@ -106,6 +108,14 @@ class InstallRequirement:
             # PEP 508 URL requirement
             link = Link(req.url)
         self.link = self.original_link = link
+
+        # locked_link is the link from the lock file that must be used.
+        # A locked link InstallRequirement behaves similarly as a regular requirement
+        # that would be searched in indexes, except its artifact URL is known
+        # in advance. Notably, and contrarily to direct URL requirements and direct URL
+        # constraints, they do not cause the recording of direct_url.json.
+        self.locked_link = locked_link
+        self.locked_version = locked_version
 
         # When this InstallRequirement is a wheel obtained from the cache of locally
         # built wheels, this is the source link corresponding to the cache entry, which

@@ -47,6 +47,12 @@ echo "$ PIPENV_PYTHON=${PIPENV_PYTHON} $INSTALL_CMD"
 
 PIPENV_PYTHON=${PIPENV_PYTHON} $INSTALL_CMD
 
+EDITABLE_INSTALL_CMD="${PYTHON} -m pipenv run python -m pip install -e .[tests,dev] --upgrade"
+
+echo "$ PIPENV_PYTHON=${PIPENV_PYTHON} $EDITABLE_INSTALL_CMD"
+
+PIPENV_PYTHON=${PIPENV_PYTHON} $EDITABLE_INSTALL_CMD
+
 echo "$ git submodule sync && git submodule update --init --recursive"
 
 git submodule sync && git submodule update --init --recursive

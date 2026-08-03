@@ -25,7 +25,6 @@ from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.patched.pip._internal.exceptions import (
     BestVersionAlreadyInstalled,
     DistributionNotFound,
-    InstallationError,
     InvalidWheelFilename,
     UnsupportedWheel,
 )
@@ -116,7 +115,6 @@ class LinkType(enum.Enum):
     platform_mismatch = enum.auto()
     requires_python_mismatch = enum.auto()
     upload_too_late = enum.auto()
-    upload_time_missing = enum.auto()
 
 
 class LinkEvaluator:
@@ -245,18 +243,12 @@ class LinkEvaluator:
         # Check upload-time filter after verifying the link is a package file.
         # Skip this check for local files, as --uploaded-prior-to only applies
         # to packages from indexes.
-        if self._uploaded_prior_to is not None and not link.is_file:
-            if link.upload_time is None:
-                if link.comes_from:
-                    index_info = f"Index {link.comes_from}"
-                else:
-                    index_info = "Index"
-
-                return (
-                    LinkType.upload_time_missing,
-                    f"{index_info} does not provide upload-time metadata.",
-                )
-            elif link.upload_time >= self._uploaded_prior_to:
+        if (
+            self._uploaded_prior_to is not None
+            and not link.is_file
+            and link.upload_time is not None
+        ):
+            if link.upload_time >= self._uploaded_prior_to:
                 return (
                     LinkType.upload_too_late,
                     f"Upload time {link.upload_time} not "
@@ -699,8 +691,10 @@ class PackageFinder:
 
         self.format_control = format_control
 
-        # These are boring links that have already been logged somehow.
-        self._logged_links: set[tuple[Link, LinkType, str]] = set()
+        # Collects the detail strings for links skipped due to Requires-Python
+        # incompatibility.  Used by requires_python_skipped_reasons() to build
+        # the error message when resolution fails.
+        self._requires_python_skipped: set[str] = set()
 
         # Cache of the result of finding candidates
         self._all_candidates: dict[str, list[InstallationCandidate]] = {}
@@ -812,12 +806,7 @@ class PackageFinder:
         return self._uploaded_prior_to
 
     def requires_python_skipped_reasons(self) -> list[str]:
-        reasons = {
-            detail
-            for _, result, detail in self._logged_links
-            if result == LinkType.requires_python_mismatch
-        }
-        return sorted(reasons)
+        return sorted(self._requires_python_skipped)
 
     def make_link_evaluator(self, project_name: str) -> LinkEvaluator:
         canonical_name = canonicalize_name(project_name)
@@ -851,12 +840,11 @@ class PackageFinder:
         return no_eggs + eggs
 
     def _log_skipped_link(self, link: Link, result: LinkType, detail: str) -> None:
-        entry = (link, result, detail)
-        if entry not in self._logged_links:
-            # Put the link at the end so the reason is more visible and because
-            # the link string is usually very long.
-            logger.debug("Skipping link: %s: %s", detail, link)
-            self._logged_links.add(entry)
+        # Put the link at the end so the reason is more visible and because
+        # the link string is usually very long.
+        logger.debug("Skipping link: %s: %s", detail, link)
+        if result == LinkType.requires_python_mismatch:
+            self._requires_python_skipped.add(detail)
 
     def get_install_candidate(
         self, link_evaluator: LinkEvaluator, link: Link
@@ -866,10 +854,6 @@ class PackageFinder:
         InstallationCandidate and return it. Otherwise, return None.
         """
         result, detail = link_evaluator.evaluate_link(link)
-        if result == LinkType.upload_time_missing:
-            # Fail immediately if the index doesn't provide upload-time
-            # when --uploaded-prior-to is specified
-            raise InstallationError(detail)
         if result != LinkType.candidate:
             self._log_skipped_link(link, result, detail)
             return None

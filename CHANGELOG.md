@@ -1,3 +1,254 @@
+2026.6.2 (2026-06-02)
+=====================
+pipenv 2026.6.2 (2026-06-02)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Added support for ``cool-down-period`` in the ``[pipenv]`` section of the Pipfile.
+  Setting ``cool-down-period = "30d"`` instructs the resolver to only consider
+  package versions uploaded at least the specified number of days ago, via pip's
+  ``--uploaded-prior-to`` flag.
+
+Bug Fixes
+---------
+
+- Restored authentication to private indexes when ``[[source]]`` URLs use
+  environment-variable placeholders. The GHSA-8xgg-v3jj-95m2 fix moved
+  credentials off pip's argv onto a merged netrc, but
+  ``write_credentials_netrc`` wrote our Pipfile-derived ``machine`` blocks
+  BEFORE the appended user netrc — and ``netrc.authenticators()`` returns
+  the LAST matching entry, so a stale system entry for the same host
+  silently overrode the freshly-expanded creds. Our blocks now come AFTER
+  the user's existing content. Additionally, the ``pylock.toml`` reader
+  now runs ``expand_url_credentials`` over its sources so users with
+  ``[pipenv] use_pylock = true`` see the same env-var expansion that
+  ``Pipfile.lock`` reads have always had.  `#6670 <https://github.com/pypa/pipenv/issues/6670>`_
+- Restored documented ``pipenv update`` (no args) semantics of ``lock + sync``.
+  Since 2026.0.0, ``pipenv update`` only re-resolved Pipfile entries whose
+  locked version no longer satisfied the Pipfile specifier, so relaxing a
+  pin (e.g. ``urllib3 = "<2.7.0"`` → ``urllib3 = "*"``) would not pick up
+  newer allowed releases — the lockfile silently stayed at the existing
+  pin. ``pipenv update`` now routes through ``do_lock`` when no packages
+  are given, re-resolving every Pipfile entry. The targeted
+  ``pipenv update <pkg>`` path is unchanged.  `#6672 <https://github.com/pypa/pipenv/issues/6672>`_
+
+Vendored Libraries
+------------------
+
+- Bump vendored ``plette`` to ``2.2.1``.
+
+2026.6.1 (2026-04-28)
+=====================
+pipenv 2026.6.1 (2026-04-28)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix ``pipenv install`` corrupting existing inline-table or outline-table
+  Pipfile entries (``six = {version = "*"}``, ``[packages.requests]``).  The
+  locker was popping ``version``/``ref`` keys directly off the cached
+  ``parsed_pipfile`` document, so subsequent writes emitted
+  ``six = {}`` and dropped the version specifier from sibling packages.  `#6657 <https://github.com/pypa/pipenv/issues/6657>`_
+
+2026.6.0 (2026-04-27)
+=====================
+pipenv 2026.6.0 (2026-04-27)
+============================
+
+
+Bug Fixes
+---------
+
+- Fix ``pipenv shell`` breaking terminal input echo on Linux.  The previous
+  implementation toggled ``setecho(True/False)`` on the spawned child around
+  its internal setup commands, which fought with the shell's own readline
+  termios management — producing permanently-disabled echo (GH-6572) or
+  double-echoed keystrokes (``1234`` → ``11223344``).  ``fork_compat`` no
+  longer touches pty termios; instead it drains the synchronisation sentinel
+  from the pexpect buffer twice (once for the echoed command, once for its
+  output) so nothing leaks into ``interact()``.  `#6633 <https://github.com/pypa/pipenv/issues/6633>`_
+- ``pipenv run <command> -h <arg>`` now passes ``-h`` through to the command
+  instead of showing pipenv's help.  All arguments following ``run_command`` are
+  captured verbatim via argparse ``REMAINDER``, so flags like ``-h`` that pipenv
+  itself also defines no longer collide with the wrapped command.  `#6641 <https://github.com/pypa/pipenv/issues/6641>`_
+- Fix ``ValueError: invalid literal for int() with base 10`` when the Pipfile's
+  ``[requires]`` section uses a PEP 440 specifier (e.g. ``python_version = ">=3.9"``).
+  Specifier values no longer produce a Python-version override; the running
+  interpreter's actual version is used for marker evaluation instead.  `#6645 <https://github.com/pypa/pipenv/issues/6645>`_
+- Install-time marker filtering now evaluates environment markers against the
+  target virtualenv's Python version rather than against the Python version
+  that pipenv itself is running under.  This prevents spurious ``Ignoring …:
+  markers … don't match your environment`` warnings (and the corresponding
+  missing installs) when ``pipenv sync --python X.Y`` is driven by a
+  different system Python.  `#6647 <https://github.com/pypa/pipenv/issues/6647>`_
+- ``pipenv run`` now expands ``$PIPENV_PROJECT_DIR`` and other Pipenv-managed
+  environment variables inside Pipfile script arguments before direct command
+  execution, so project-relative script paths resolve correctly.  `#6652 <https://github.com/pypa/pipenv/issues/6652>`_
+
+Improved Documentation
+----------------------
+
+- Pipfile documentation now includes git+ssh examples.  `#6651 <https://github.com/pypa/pipenv/issues/6651>`_
+
+2026.5.2 (2026-04-03)
+=====================
+pipenv 2026.5.2 (2026-04-03)
+============================
+
+
+No significant changes.
+
+
+2026.5.1 (2026-04-01)
+=====================
+pipenv 2026.5.1 (2026-04-01)
+============================
+
+
+No significant changes.
+
+
+2026.5.0 (2026-03-30)
+=====================
+pipenv 2026.5.0 (2026-03-30)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Add optional shell completion via ``argcomplete``. Install with
+  ``pip install "pipenv[completion]"`` and activate once with
+  ``eval "$(register-python-argcomplete pipenv)"``.
+
+  Mistyped subcommand names now produce "Did you mean …?" suggestions using
+  ``difflib``, replacing the ``click_didyoumean`` vendor library.  `#6619 <https://github.com/pypa/pipenv/issues/6619>`_
+
+Bug Fixes
+---------
+
+- Fix ``pylock.toml`` re-generation duplicating ``dependency_groups`` markers
+  for develop packages. Each run of ``pipenv pylock --generate`` (or any
+  command that rewrites the lock file) prepended the ``dependency_groups``
+  prefix even when it was already present, producing malformed markers like
+  ``('dev' in dependency_groups) and (('dev' in dependency_groups) and ...)``.
+  This caused ``pipenv install`` to crash with a ``KeyError: 'dependency_groups'``
+  when evaluating environment markers.  `#6621 <https://github.com/pypa/pipenv/issues/6621>`_
+
+Vendored Libraries
+------------------
+
+- Remove vendored ``colorama``. Rich's ``Console`` supersedes colorama's Windows
+  ANSI escape code handling, and this was the last remaining usage in Pipenv.  `#6621 <https://github.com/pypa/pipenv/issues/6621>`_
+
+Removals and Deprecations
+-------------------------
+
+- Remove the vendored ``click`` and ``click_didyoumean`` libraries. The CLI has
+  been rewritten to use Python's standard-library ``argparse``, eliminating
+  Pipenv's dependency on Click entirely.  `#6619 <https://github.com/pypa/pipenv/issues/6619>`_
+- Remove the vendored ``importlib-metadata`` and ``zipp`` libraries. Python 3.9
+  is end-of-life and Pipenv requires Python 3.10+, where ``importlib.metadata``
+  is available in the standard library.  `#6622 <https://github.com/pypa/pipenv/issues/6622>`_
+
+Relates to dev process changes
+------------------------------
+
+- Optimize CI pipeline: replace Black with ``ruff-format`` in pre-commit,
+  remove redundant standalone Ruff job, and add a ``tests-smoke`` gate that
+  runs Python 3.12 across all OSes before the full version matrix — cutting
+  wasted compute on version-agnostic failures.
+  Disable Windows Defender real-time scanning for Python toolcache,
+  workspace, virtualenvs, and pip cache on Windows runners
+  to reduce I/O overhead.
+
+2026.4.0 (2026-03-28)
+=====================
+pipenv 2026.4.0 (2026-03-28)
+============================
+
+
+No significant changes.
+
+
+2026.3.0 (2026-03-28)
+=====================
+pipenv 2026.3.0 (2026-03-28)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Support ``--system --python=/path/to/python`` to install packages to a specific
+  Python interpreter's site-packages. Previously ``--system`` always used the
+  default ``python3`` from PATH, ignoring the ``--python`` flag.  `#3593 <https://github.com/pypa/pipenv/issues/3593>`_
+- Add ``--exclude-index`` flag to ``pipenv requirements`` command to allow users
+  to exclude index URLs (``-i`` and ``--extra-index-url``) from the generated output.
+  This is useful when the index is configured separately in the target environment.  `#4398 <https://github.com/pypa/pipenv/issues/4398>`_
+- Add ``--system`` flag to ``pipenv update`` command, allowing system-level package
+  updates without creating a virtualenv. This is useful in Docker environments and
+  other contexts where packages are installed directly to the system Python.  `#5584 <https://github.com/pypa/pipenv/issues/5584>`_
+
+Bug Fixes
+---------
+
+- ``pipenv shell`` now waits for the shell to finish its startup before sending the virtualenv activate script.  Previously, interactive prompts during shell startup (e.g. oh-my-zsh's update dialogue) could consume the activate command, leaving the virtualenv unactivated.  `#3615 <https://github.com/pypa/pipenv/issues/3615>`_
+- ``pipenv --where`` now exits with a non-zero exit code (1) when no Pipfile is
+  found, making it suitable for use in scripts and CI pipelines.  `#4085 <https://github.com/pypa/pipenv/issues/4085>`_
+- Pass through ``PIP_IGNORE_INSTALLED`` and ``PIP_USER`` environment variables to
+  pip subprocess when using ``--system``. This fixes ``pipenv install --deploy --system``
+  not respecting these environment variables for Docker multi-stage builds.
+
+  Add ``PIPENV_BREAK_SYSTEM_PACKAGES`` environment variable to pass
+  ``--break-system-packages`` to pip when using ``--system`` on PEP 668
+  externally-managed environments (e.g. Ubuntu 23.04+, Debian 12+).  `#4453 <https://github.com/pypa/pipenv/issues/4453>`_
+- Fix ``--system`` flag causing confusing errors when a stale virtualenv exists from
+  a previously deleted project, or when a virtualenv already exists. When ``--system``
+  is used, pipenv now correctly skips virtualenv creation instead of aborting with
+  "You are attempting to re-create a virtualenv that Pipenv did not create".  `#5052 <https://github.com/pypa/pipenv/issues/5052>`_
+- Shorthand marker keys in Pipfile entries (e.g. ``sys_platform = "== 'linux'"``, ``platform_machine = "== 'arm64'"``) now behave identically to the equivalent ``markers`` syntax.  Previously, using the shorthand form caused pip to resolve and download sub-dependencies on all platforms, even though the top-level package was correctly marked as platform-specific in the lock file.  The shorthand keys are now translated to PEP 508 markers before building the pip requirement line, so the resolver skips resolution on non-matching platforms.  `#5884 <https://github.com/pypa/pipenv/issues/5884>`_
+- Fix Windows py-launcher Python discovery for full version strings such as
+  ``python_full_version = "3.11.9"`` in Pipfile and ``pipenv --python 3.11.9``
+  on the CLI.
+
+  Two bugs were addressed:
+
+  1. ``find_python_from_py_launcher`` incorrectly required three whitespace-separated
+     tokens on each ``py --list-paths`` output line, which caused every non-default
+     Python installation (lines without the ``*`` marker) to be silently skipped.
+     The parser now accepts both two-token (non-default) and three-token (default)
+     lines, using the last token as the executable path in both cases.
+
+  2. ``PyLauncherFinder`` stored only the ``major.minor`` version reported by
+     ``py --list-paths`` (e.g. ``3.11``), so searches that required a specific
+     patch level (``patch=9``) never matched.  The finder now queries each
+     discovered executable for its real version string (e.g. ``3.11.9``) so that
+     full-version lookups succeed.  `#5893 <https://github.com/pypa/pipenv/issues/5893>`_
+- Security hardening: suppress ``pip.conf`` index configuration (``index-url`` and ``extra-index-url``) during ``pip install`` subprocess invocation.  Previously, ``pip.conf`` could silently inject extra package indexes at install time, bypassing pipenv's explicit-index-per-package security model and causing hash-mismatch errors (e.g. piwheels on Raspberry Pi).  Now pipenv sets ``PIP_CONFIG_FILE=/dev/null`` and explicitly passes only Pipfile ``[[source]]`` entries via ``PIP_INDEX_URL`` and ``PIP_EXTRA_INDEX_URL`` environment variables.  Users who need custom indexes (e.g. piwheels) should declare them as ``[[source]]`` entries in their Pipfile.  `#6066 <https://github.com/pypa/pipenv/issues/6066>`_
+
+Improved Documentation
+----------------------
+
+- Added a dedicated "Installing on Windows" section to the installation docs with the recommended pipx method and PATH setup guidance.  `#4053 <https://github.com/pypa/pipenv/issues/4053>`_
+- Added a "Upgrading the Python Version" workflow section to docs/workflows.md with step-by-step instructions for moving a project to a new Python interpreter.  `#4577 <https://github.com/pypa/pipenv/issues/4577>`_
+- Documented that ``python_version`` in the ``[requires]`` section only accepts an exact version string and not range specifiers such as ``>= 3.6``.  `#4636 <https://github.com/pypa/pipenv/issues/4636>`_
+- Enhanced the "Moving or Renaming Projects" section in docs/virtualenv.md with a recovery workflow for users who already moved their project without running ``pipenv --rm`` first, and added a tip about ``PIPENV_VENV_IN_PROJECT``.  `#5129 <https://github.com/pypa/pipenv/issues/5129>`_
+- Added a "Multi-Platform Considerations" section to docs/locking.md explaining that ``Pipfile.lock`` is platform-specific and documenting workarounds for cross-platform teams.  `#5130 <https://github.com/pypa/pipenv/issues/5130>`_
+- Added a "News Fragments" section to docs/dev/contributing.md explaining towncrier fragment types, including why ``trivial`` fragments are intentionally omitted from the generated CHANGELOG.  `#5324 <https://github.com/pypa/pipenv/issues/5324>`_
+- Documented the behavior when a package pinned in ``[dev-packages]`` conflicts with the version resolved via ``[packages]`` dependencies, and clarified how to enforce a specific version in that scenario.  `#5528 <https://github.com/pypa/pipenv/issues/5528>`_
+- Added a "Platform Markers and Locking" note to docs/specifiers.md explaining why packages with ``sys_platform`` markers may still cause resolution failures on non-matching platforms and documenting workarounds.  `#6028 <https://github.com/pypa/pipenv/issues/6028>`_
+
+Relates to dev process changes
+------------------------------
+
+- Update project metadata: replace defunct ``distutils-sig@python.org`` email with ``matteius@gmail.com`` and remove redundant ``.isort.cfg`` (Ruff's isort handles import sorting).
+
 2026.2.2 (2026-03-24)
 =====================
 pipenv 2026.2.2 (2026-03-24)

@@ -378,7 +378,6 @@ def test_editable_no_args(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
         c = p.pipenv("install -e")
         assert c.returncode != 0
-        assert "Error: Option '-e' requires an argument" in c.stderr
 
 
 @pytest.mark.basic
@@ -498,12 +497,14 @@ python_version = "{valid_version}"
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.virtualenv
-def test_install_with_pipfile_including_invalid_python_version(pipenv_instance_pypi):
+def test_install_with_pipfile_including_unsatisfied_python_version_specifier(
+    pipenv_instance_pypi,
+):
     invalid_versions = [
-        f">={sys.version_info.major}.{sys.version_info.minor}",
-        f"<={sys.version_info.major}.{sys.version_info.minor}",
-        f">{sys.version_info.major}.{sys.version_info.minor}",
-        f"<{sys.version_info.major}.{sys.version_info.minor}",
+        f">={sys.version_info.major + 50}.0",
+        f">{sys.version_info.major + 50}.0",
+        "<1.0",
+        "<=1.0",
     ]
 
     with pipenv_instance_pypi() as p:

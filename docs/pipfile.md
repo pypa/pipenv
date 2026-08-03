@@ -77,6 +77,7 @@ sentry-sdk = {version = ">=1.0.0", extras = ["flask"]}
 
 # Git repositories
 flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "master"}
+my-package = {git = "ssh://git@github.com/bob/my-package.git", ref = "main"}
 
 # Local paths (relative filesystem path)
 my-package = { path = "./path/to/local/package" }
@@ -209,9 +210,30 @@ The `[pipenv]` section controls Pipenv's behavior:
 ```toml
 [pipenv]
 allow_prereleases = true       # Allow pre-release versions
+cool-down-period = "30d"       # Only resolve packages uploaded at least N days ago
 disable_pip_input = true       # Prevent pipenv from asking for input
 install_search_all_sources = true  # Search all sources when installing from lock
 sort_pipfile = true            # Sort packages alphabetically
+```
+
+#### `cool-down-period`
+
+Restricts the resolver to package versions that were uploaded to the index at least
+the specified number of days ago.  This gives newly-published releases time to be
+vetted by the community before they are automatically pulled into your project.
+
+The value must be a string in `<int>d` format (e.g. `"30d"` for 30 days).  Internally,
+pipenv computes a cutoff datetime in UTC (`now - N days`) and passes that cutoff to
+pip's uploaded-prior-to filtering.  Pip also supports duration-style values such as
+`P30D`, but pipenv's behavior here is based on a concrete cutoff timestamp.  This is
+only effective against indexes that expose upload-time metadata as described in the
+[Simple Repository API](https://packaging.python.org/en/latest/specifications/simple-repository-api/).
+When the index does not provide upload-time metadata (e.g. most private mirrors) the
+setting is accepted but has no filtering effect.
+
+```toml
+[pipenv]
+cool-down-period = "30d"   # ignore any release uploaded in the last 30 days
 ```
 
 ### Custom Package Categories
@@ -395,12 +417,15 @@ django = {version = "*", extras = ["bcrypt"]}
 
 ### Git Dependencies
 
-You can install packages directly from Git repositories:
+You can install packages directly from Git repositories.
+It supports both HTTPS and SSH URLs.
+SSH is generally preferred for private repositories, as they can require SSH authentication.
 
 ```toml
 [packages]
 flask-login = {git = "https://github.com/maxcountryman/flask-login.git", ref = "master"}
 custom-package = {git = "https://github.com/user/repo.git", editable = true}
+my-private-package = {git = "ssh://git@github.com/bob/my-package.git", ref = "main"}
 ```
 
 ### Local and Remote File Dependencies

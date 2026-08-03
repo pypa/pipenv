@@ -32,7 +32,10 @@ dependencies = [
   "certifi",
   "packaging>=22",
   "setuptools>=67",
-  "virtualenv>=20.24.2",
+  "virtualenv>=20.26.6",
+]
+optional-dependencies.completion = [
+  "argcomplete>=3.1",
 ]
 optional-dependencies.dev = [
   "beautifulsoup4",
@@ -57,7 +60,7 @@ urls.Documentation = "https://pipenv.pypa.io/en/latest/"
 urls.Homepage = "https://github.com/pypa/pipenv"
 urls.Source = "https://github.com/pypa/pipenv.git"
 scripts.pipenv = "pipenv:cli"
-scripts.pipenv-resolver = "pipenv.resolver:main"
+scripts.pipenv-resolver = "pipenv.resolver.main:main"
 
 [tool.setuptools.packages.find]
 where = [ "." ]

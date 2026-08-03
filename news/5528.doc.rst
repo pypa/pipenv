@@ -1,1 +1,0 @@
-Documented the behavior when a package pinned in ``[dev-packages]`` conflicts with the version resolved via ``[packages]`` dependencies, and clarified how to enforce a specific version in that scenario.

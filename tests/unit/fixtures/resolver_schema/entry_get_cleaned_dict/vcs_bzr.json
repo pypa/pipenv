@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "bzr": "bzr://example.com/bzr-pkg",
+    "name": "bzr-pkg",
+    "ref": "1.0"
+  },
+  "name": "bzr-pkg"
+}

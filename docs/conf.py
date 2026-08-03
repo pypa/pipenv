@@ -17,21 +17,12 @@
 #
 import os
 
-import pipenv.vendor.click
-
-# Hackery to get the CLI docs to generate
-from pipenv.vendor import click
-
 # Path hackery to get current version number.
 here = os.path.abspath(os.path.dirname(__file__))
 
 about = {}
 with open(os.path.join(here, "..", "pipenv", "__version__.py")) as f:
     exec(f.read(), about)
-
-click.Command = pipenv.vendor.click.Command
-click.Group = pipenv.vendor.click.Group
-click.BaseCommand = pipenv.vendor.click.BaseCommand
 # -- General configuration ------------------------------------------------
 
 # If your documentation needs a minimal Sphinx version, state it here.
@@ -47,7 +38,6 @@ extensions = [
     "sphinx.ext.coverage",
     "sphinx.ext.viewcode",
     "myst_parser",
-    "sphinx_click",
 ]
 
 # Add any paths that contain templates here, relative to this directory.

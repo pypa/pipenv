@@ -15,7 +15,7 @@ import typing
 import urllib.parse
 from abc import ABC, abstractmethod
 from functools import cache
-from os.path import commonprefix
+from os.path import commonpath
 from pathlib import Path
 from typing import Any, NamedTuple
 
@@ -325,12 +325,14 @@ class MultiDomainBasicAuth(AuthBase):
 
         candidates.sort(
             reverse=True,
-            key=lambda candidate: commonprefix(
-                [
-                    parsed_url.path,
-                    candidate.path,
-                ]
-            ).rfind("/"),
+            key=lambda candidate: len(
+                commonpath(
+                    [
+                        parsed_url.path,
+                        candidate.path,
+                    ]
+                )
+            ),
         )
 
         return urllib.parse.urlunsplit(candidates[0])

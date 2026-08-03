@@ -4,11 +4,14 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+from pipenv.cmdparse import Script
 from pipenv.project import NON_CATEGORY_SECTIONS
+from pipenv.routines.shell import do_run_posix
 from pipenv.shells import _get_activate_script, _get_deactivate_wrapper_script
 from pipenv.utils.environment import load_dot_env
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import warn_in_virtualenv
+from pipenv.vendor import shellingham
 
 
 @pytest.mark.core
@@ -24,14 +27,9 @@ def test_suppress_nested_venv_warning(capsys, project):
 
 @pytest.mark.core
 def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, project):
-    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+    with temp_environ(), monkeypatch.context(), TemporaryDirectory(
         prefix="pipenv-", suffix=""
     ) as tempdir:
-        if os.name == "nt":
-            from pipenv.vendor import click
-
-            is_console = False
-            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, "test.env")
         key, val = "SOME_KEY", "some_value"
         with open(dotenv_path, "w") as f:
@@ -44,14 +42,9 @@ def test_load_dot_env_from_environment_variable_location(monkeypatch, capsys, pr
 
 @pytest.mark.core
 def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
-    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+    with temp_environ(), monkeypatch.context(), TemporaryDirectory(
         prefix="pipenv-", suffix=""
     ) as tempdir:
-        if os.name == "nt":
-            from pipenv.vendor import click
-
-            is_console = False
-            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, "test.env")
         key, val = "SOME_KEY", "some_value"
         with open(dotenv_path, "w") as f:
@@ -68,14 +61,9 @@ def test_doesnt_load_dot_env_if_disabled(monkeypatch, capsys, project):
 
 @pytest.mark.core
 def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
-    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+    with temp_environ(), monkeypatch.context(), TemporaryDirectory(
         prefix="pipenv-", suffix=""
     ) as tempdir:
-        if os.name == "nt":
-            from pipenv.vendor import click
-
-            is_console = False
-            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, "does-not-exist.env")
         project.s.PIPENV_DOTENV_LOCATION = str(dotenv_path)
         load_dot_env(project)
@@ -86,14 +74,9 @@ def test_load_dot_env_warns_if_file_doesnt_exist(monkeypatch, capsys, project):
 @pytest.mark.core
 def test_load_dot_env_quiet_with_verbosity(monkeypatch, capsys, project):
     """Test that PIPENV_VERBOSITY=-1 suppresses the .env loading message."""
-    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+    with temp_environ(), monkeypatch.context(), TemporaryDirectory(
         prefix="pipenv-", suffix=""
     ) as tempdir:
-        if os.name == "nt":
-            from pipenv.vendor import click
-
-            is_console = False
-            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, "test.env")
         key, val = "SOME_KEY", "some_value"
         with open(dotenv_path, "w") as f:
@@ -113,14 +96,9 @@ def test_load_dot_env_quiet_with_verbosity(monkeypatch, capsys, project):
 @pytest.mark.core
 def test_load_dot_env_shows_message_without_quiet(monkeypatch, capsys, project):
     """Test that the .env loading message is shown when not in quiet mode."""
-    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+    with temp_environ(), monkeypatch.context(), TemporaryDirectory(
         prefix="pipenv-", suffix=""
     ) as tempdir:
-        if os.name == "nt":
-            from pipenv.vendor import click
-
-            is_console = False
-            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, "test.env")
         key, val = "ANOTHER_KEY", "another_value"
         with open(dotenv_path, "w") as f:
@@ -149,14 +127,9 @@ def test_load_dot_env_suppresses_message_when_pipenv_active(monkeypatch, capsys,
 
     Fixes #6328
     """
-    with temp_environ(), monkeypatch.context() as m, TemporaryDirectory(
+    with temp_environ(), monkeypatch.context(), TemporaryDirectory(
         prefix="pipenv-", suffix=""
     ) as tempdir:
-        if os.name == "nt":
-            from pipenv.vendor import click
-
-            is_console = False
-            m.setattr(click._winconsole, "_is_console", lambda x: is_console)
         dotenv_path = os.path.join(tempdir, "test.env")
         key, val = "NESTED_KEY", "nested_value"
         with open(dotenv_path, "w") as f:
@@ -173,6 +146,24 @@ def test_load_dot_env_suppresses_message_when_pipenv_active(monkeypatch, capsys,
         assert os.environ[key] == val
         # But the "Loading .env" message should be suppressed
         assert "Loading .env" not in err
+
+
+@pytest.mark.core
+def test_do_run_posix_expands_project_dir_from_child_env():
+    script = Script("python", ["-c", "print('ok')", "$PIPENV_PROJECT_DIR/marker.txt"])
+    env = {"PATH": "/usr/bin", "PIPENV_PROJECT_DIR": "/tmp/project-root"}
+
+    with temp_environ():
+        os.environ["PIPENV_PROJECT_DIR"] = "/outer/project"
+        with patch("pipenv.routines.shell.system_which", return_value="/usr/bin/python"):
+            with patch("os.execve") as execve:
+                do_run_posix(project=MagicMock(), script=script, command="python", env=env)
+
+    execve.assert_called_once_with(
+        "/usr/bin/python",
+        ["/usr/bin/python", "-c", "print('ok')", "/tmp/project-root/marker.txt"],
+        {"PATH": "/usr/bin", "PIPENV_PROJECT_DIR": "/tmp/project-root"},
+    )
 
 
 @pytest.mark.core
@@ -432,34 +423,32 @@ def test_get_activate_script_windows_full_path():
 
 @pytest.mark.core
 @pytest.mark.skipif(os.name == "nt", reason="PTY/pexpect not available on Windows")
-def test_fork_compat_sentinel_restores_echo():
-    """Regression test for GH-6572 and GH-3615.
+def test_fork_compat_sentinel_handshake():
+    """Regression test for GH-3615, GH-6572, GH-6633.
 
-    GH-6572: fork_compat must re-enable PTY echo.  In Docker / pty-over-pty
-    environments the shell's own readline initialisation can race with our
-    setecho(True) call, leaving echo permanently disabled.
+    fork_compat hands a newly-spawned interactive shell over to
+    ``pexpect.interact()`` after sending a few internal setup commands
+    (source activate, deactivate wrapper).  To avoid leaking any of those
+    setup commands (or sentinel text) into the user's terminal the
+    implementation MUST:
 
-    GH-3615: fork_compat must wait for the shell to finish its startup
-    (including any interactive prompts like oh-my-zsh's update dialogue)
-    before sending the activate script.
-
-    The fix sends a startup sentinel ``echo __PIPENV_STARTUP_READY__`` and
-    blocks on ``c.expect(sentinel)`` *before* activating, then sends a
-    second sentinel ``echo __PIPENV_SHELL_READY__`` *after* all setup
-    commands and blocks again before re-enabling echo.
-
-    This test verifies both sentinels are performed and that setecho is
-    called in the correct order (False → startup sentinel → activate →
-    ready sentinel → True) using a mock pexpect child.
+    * Wait for the shell to finish its startup before sending activate
+      (GH-3615) — oh-my-zsh's update dialogue otherwise consumes activate.
+    * NOT call ``c.setecho(True/False)`` at all (GH-6633) — toggling kernel
+      pty ECHO fights with the shell's own readline termios management and
+      produces either permanently-disabled echo (GH-6572) or double-echoed
+      keystrokes (GH-6633: ``1234`` → ``11223344``).
+    * Drain the final sentinel twice — once for the shell echoing the
+      ``echo …`` command back at us, once for the command's actual output —
+      so no ``__PIPENV_SHELL_READY__`` text is left in the pexpect buffer
+      for ``interact()`` to flush to stdout.
     """
     from pipenv.shells import Shell
 
     shell = Shell("/bin/bash")
 
-    # Build a mock pexpect child that simulates the sentinel handshake.
     mock_child = MagicMock()
-    mock_child.setecho.return_value = None
-    mock_child.expect.return_value = 0  # sentinel found
+    mock_child.expect.return_value = 0  # every expect() succeeds
     mock_child.interact.return_value = None
     mock_child.exitstatus = 0
 
@@ -490,54 +479,47 @@ def test_fork_compat_sentinel_restores_echo():
 
         shell.fork_compat("/path/to/venv", "/project", [])
 
-    # Verify setecho(False) was called before any sendline.
-    setecho_false_idx = next(
-        i for i, item in enumerate(call_order) if item == ("setecho", False)
-    )
-    first_sendline_idx = next(
-        i for i, item in enumerate(call_order) if item[0] == "sendline"
-    )
-    assert setecho_false_idx < first_sendline_idx, (
-        "setecho(False) must be called before any sendline"
+    # GH-6633: fork_compat must NOT touch setecho — the shell's own readline
+    # is responsible for termios, and toggling pty ECHO fights with it.
+    setecho_calls = [item for item in call_order if item[0] == "setecho"]
+    assert setecho_calls == [], (
+        f"fork_compat must not call setecho at all (GH-6633), got: {setecho_calls}"
     )
 
-    # Verify the startup sentinel was sent and expected *before* activate.
-    startup_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_STARTUP_READY__" in item[1]]
-    assert startup_send, "Startup sentinel must be sent via sendline"
-
-    startup_expect = [item for item in call_order if item[0] == "expect" and "__PIPENV_STARTUP_READY__" in str(item[1])]
-    assert startup_expect, "Startup sentinel must be waited for via expect"
-
+    # GH-3615: startup sentinel expect must precede the activate sendline.
     startup_expect_idx = next(
-        i for i, item in enumerate(call_order) if item[0] == "expect" and "__PIPENV_STARTUP_READY__" in str(item[1])
+        i for i, item in enumerate(call_order)
+        if item[0] == "expect" and "__PIPENV_STARTUP_READY__" in str(item[1])
     )
     activate_idx = next(
-        i for i, item in enumerate(call_order) if item == ("sendline", "source /venv/bin/activate")
+        i for i, item in enumerate(call_order)
+        if item == ("sendline", "source /venv/bin/activate")
     )
     assert startup_expect_idx < activate_idx, (
-        "Startup sentinel expect must complete before the activate script is sent (GH-3615)"
+        "Startup sentinel expect must complete before the activate script "
+        "is sent (GH-3615)"
     )
 
-    # Verify the ready sentinel was sent and expected *after* activate.
-    ready_send = [item for item in call_order if item[0] == "sendline" and "__PIPENV_SHELL_READY__" in item[1]]
-    assert ready_send, "Ready sentinel must be sent via sendline"
-
-    ready_expect = [item for item in call_order if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])]
-    assert ready_expect, "Ready sentinel must be waited for via expect"
-
-    ready_expect_idx = next(
-        i for i, item in enumerate(call_order) if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])
+    # Ready sentinel must be sent AFTER activate.
+    ready_send_idx = next(
+        i for i, item in enumerate(call_order)
+        if item[0] == "sendline" and "__PIPENV_SHELL_READY__" in item[1]
     )
-    assert activate_idx < ready_expect_idx, (
-        "Ready sentinel expect must happen after the activate script"
+    assert activate_idx < ready_send_idx, (
+        "Ready sentinel must be sent after activate"
     )
 
-    # Verify ready sentinel expect happens before setecho(True).
-    setecho_true_idx = next(
-        i for i, item in enumerate(call_order) if item == ("setecho", True)
-    )
-    assert ready_expect_idx < setecho_true_idx, (
-        "Ready sentinel expect must complete before setecho(True) to avoid the race condition"
+    # GH-6633 / GH-6636: the ready sentinel must be expected TWICE so the
+    # command-echo copy and the actual-output copy are both consumed from
+    # the pexpect buffer — otherwise ``__PIPENV_SHELL_READY__`` leaks to
+    # the user's terminal when interact() flushes the buffer.
+    ready_expects = [
+        item for item in call_order
+        if item[0] == "expect" and "__PIPENV_SHELL_READY__" in str(item[1])
+    ]
+    assert len(ready_expects) >= 2, (
+        "Ready sentinel must be expected twice so both the command-echo and "
+        f"output-echo copies are drained (GH-6633), got {len(ready_expects)}"
     )
 
 
@@ -548,7 +530,7 @@ def test_install_uses_metadata_name_for_headers():
     lowercased requirement name that comes from the lockfile.
 
     Example: CPyCppyy is stored as 'cpycppyy' in the lockfile (due to
-    normalize_name() in format_requirement_for_lockfile), so self.req.name
+    pep423_name() in LockedRequirement.from_install_requirement), so self.req.name
     is 'cpycppyy'.  But the wheel's METADATA has 'Name: CPyCppyy'.
     The headers must land in …/include/site/pythonX.Y/CPyCppyy/ not
     …/cpycppyy/ so that downstream consumers (cppyy) can find them.
@@ -767,3 +749,364 @@ def test_install_build_system_packages_calls_pip_install(project):
     call_kwargs = mock_pip_install.call_args
     assert call_kwargs[1]["deps"] == build_requires
     assert call_kwargs[1]["ignore_hashes"] is True
+
+
+
+# --- Tests for --extras CLI option ---
+
+
+@pytest.mark.core
+def test_parse_extras_single():
+    """Test that extras_option parses a single extra category."""
+    from pipenv.cli.options import parse_categories
+
+    result = parse_categories("systemd")
+    assert result == ["systemd"]
+
+
+@pytest.mark.core
+def test_parse_extras_multiple_comma():
+    """Test that extras_option parses comma-separated extras."""
+    from pipenv.cli.options import parse_categories
+
+    result = parse_categories("systemd,monitoring")
+    assert result == ["systemd", "monitoring"]
+
+
+@pytest.mark.core
+def test_parse_extras_multiple_space():
+    """Test that extras_option parses space-separated extras."""
+    from pipenv.cli.options import parse_categories
+
+    result = parse_categories("systemd monitoring")
+    assert result == ["systemd", "monitoring"]
+
+
+@pytest.mark.core
+def test_extras_option_adds_packages_category():
+    """Test that --extras ensures 'packages' is in the categories list."""
+    from pipenv.cli.options import InstallState
+
+    state = InstallState()
+    assert state.categories == []
+
+    # Simulate what extras_option callback does
+    extras = ["systemd"]
+    if "packages" not in state.categories:
+        state.categories.insert(0, "packages")
+    state.categories += extras
+
+    assert state.categories == ["packages", "systemd"]
+
+
+@pytest.mark.core
+def test_extras_option_does_not_duplicate_packages():
+    """Test that --extras doesn't duplicate 'packages' if already present."""
+    from pipenv.cli.options import InstallState
+
+    state = InstallState()
+    state.categories = ["packages"]
+
+    # Simulate what extras_option callback does
+    extras = ["systemd"]
+    if "packages" not in state.categories:
+        state.categories.insert(0, "packages")
+    state.categories += extras
+
+    assert state.categories == ["packages", "systemd"]
+
+
+@pytest.mark.core
+def test_extras_with_dev_categories():
+    """Test that --extras works alongside --dev categories."""
+    from pipenv.cli.options import InstallState
+
+    state = InstallState()
+    state.categories = ["dev-packages"]  # Simulates --dev being set first
+
+    # Simulate what extras_option callback does
+    extras = ["systemd"]
+    if "packages" not in state.categories:
+        state.categories.insert(0, "packages")
+    state.categories += extras
+
+    assert state.categories == ["packages", "dev-packages", "systemd"]
+
+
+# --- Tests for shell detection (GH-5478) ---
+
+
+@pytest.mark.core
+def test_detect_info_prefers_shell_env_on_windows():
+    """On Windows, detect_info should prefer $SHELL over shellingham to avoid
+    shellingham returning 'cmd' when pyenv shims are in the process tree.
+
+    See: https://github.com/pypa/pipenv/issues/5478
+    """
+    from pathlib import PurePosixPath
+
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = None
+    mock_project.s.PIPENV_SHELL = "/usr/bin/bash"
+
+    # Patch both os.name and Path to avoid WindowsPath instantiation on Linux.
+    with patch("pipenv.shells.os.name", "nt"), \
+         patch("pipenv.shells.Path", PurePosixPath):
+        name, path = detect_info(mock_project)
+        assert name == "bash"
+        assert path == "/usr/bin/bash"
+
+
+@pytest.mark.core
+def test_detect_info_explicit_takes_priority_over_shell_env():
+    """PIPENV_SHELL_EXPLICIT should always win, even on Windows."""
+    from pathlib import PurePosixPath
+
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = "/usr/bin/cmd"
+    mock_project.s.PIPENV_SHELL = "/usr/bin/bash"
+
+    # Patch both os.name and Path to avoid WindowsPath instantiation on Linux.
+    with patch("pipenv.shells.os.name", "nt"), \
+         patch("pipenv.shells.Path", PurePosixPath):
+        name, path = detect_info(mock_project)
+        assert name == "cmd"
+        assert path == "/usr/bin/cmd"
+
+
+@pytest.mark.core
+def test_detect_info_falls_through_to_shellingham_on_posix():
+    """On POSIX, shellingham should be used even if $SHELL is set."""
+    from pathlib import PurePosixPath
+
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = None
+    mock_project.s.PIPENV_SHELL = "/bin/bash"
+
+    with patch("pipenv.shells.os.name", "posix"), \
+         patch("pipenv.shells.Path", PurePosixPath), \
+         patch("pipenv.shells.shellingham.detect_shell", return_value=("zsh", "/bin/zsh")):
+        name, path = detect_info(mock_project)
+        assert name == "zsh"
+        assert path == "/bin/zsh"
+
+
+@pytest.mark.core
+def test_detect_info_falls_back_to_shell_env_when_shellingham_fails():
+    """When shellingham fails, detect_info should fall back to PIPENV_SHELL."""
+    from pathlib import PurePosixPath
+
+    from pipenv.shells import detect_info
+
+    mock_project = MagicMock()
+    mock_project.s.PIPENV_SHELL_EXPLICIT = None
+    mock_project.s.PIPENV_SHELL = "/bin/bash"
+
+    with patch("pipenv.shells.os.name", "posix"), \
+         patch("pipenv.shells.Path", PurePosixPath), \
+         patch("pipenv.shells.shellingham.detect_shell",
+               side_effect=shellingham.ShellDetectionFailure()):
+        name, path = detect_info(mock_project)
+        assert name == "bash"
+        assert path == "/bin/bash"
+
+
+
+# --- Regression tests for argparse migration (GH-6628, GH-6626) ---
+
+
+@pytest.mark.core
+def test_python_flag_before_subcommand_is_preserved():
+    """Regression test for GH-6628: ``pipenv --python 3.11 sync`` must not
+    lose the ``--python`` value when the subparser's default overwrites it.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, _ = parser.parse_known_args(["--python", "3.11", "sync"])
+
+    # Fill in SUPPRESS defaults the same way cli() does.
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.python == "3.11"
+
+
+@pytest.mark.core
+def test_python_flag_after_subcommand_is_preserved():
+    """Regression test for GH-6628: ``pipenv sync --python 3.11`` must work."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, _ = parser.parse_known_args(["sync", "--python", "3.11"])
+
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.python == "3.11"
+
+
+@pytest.mark.core
+def test_python_flag_defaults_to_none_when_absent():
+    """When ``--python`` is not provided at all, state.python must be None."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, _ = parser.parse_known_args(["sync"])
+
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.python is None
+
+
+@pytest.mark.core
+def test_run_passes_verbose_to_remaining():
+    """Regression test for GH-6626: ``pipenv run ./manage.py test --verbose``
+    must pass ``--verbose`` through to the user's process, not consume it as a
+    pipenv flag.  As of #6641 pass-through args are captured in ``run_args``
+    (argparse REMAINDER) rather than the top-level ``remaining`` list.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "./manage.py", "test", "--verbose"]
+    )
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert "--verbose" in passthrough
+
+
+@pytest.mark.core
+def test_run_passes_short_v_to_remaining():
+    """Regression test for GH-6626: ``-v`` after the run command must be
+    passed through to the user's process.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "./manage.py", "test", "-v"]
+    )
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert "-v" in passthrough
+
+
+@pytest.mark.core
+def test_run_passes_quiet_to_remaining():
+    """Regression test for GH-6626: ``--quiet`` / ``-q`` must pass through."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "pytest", "-q", "--tb=short"]
+    )
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert "-q" in passthrough
+    assert "--tb=short" in passthrough
+
+
+@pytest.mark.core
+def test_run_system_flag_still_works():
+    """``pipenv run --system python -c '...'`` must still recognise --system."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "--system", "python", "-c", "print('hi')"]
+    )
+
+    for attr in ("python", "pypi_mirror", "verbose", "quiet", "clear", "system"):
+        if not hasattr(args, attr):
+            setattr(args, attr, None)
+
+    assert args.system is True
+    assert args.run_command == "python"
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert passthrough == ["-c", "print('hi')"]
+
+
+@pytest.mark.core
+def test_run_passes_dash_h_through_to_command():
+    """Regression test for GH-6641: ``pipenv run psql -h localhost`` must
+    pass ``-h`` through to psql instead of consuming it as pipenv's help flag.
+    """
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args, remaining = parser.parse_known_args(
+        ["run", "psql", "-h", "localhost"]
+    )
+    assert args.run_command == "psql"
+    assert args.help is False
+    passthrough = list(getattr(args, "run_args", []) or []) + list(remaining)
+    assert passthrough == ["-h", "localhost"]
+
+
+@pytest.mark.core
+def test_run_help_before_command_still_shows_help():
+    """``pipenv run --help`` and ``pipenv run -h`` with no command must still
+    trigger help (not be swallowed by the REMAINDER positional)."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    for flag in ("--help", "-h"):
+        args, _ = parser.parse_known_args(["run", flag])
+        assert args.help is True, f"{flag} failed to set help"
+        assert args.run_command is None
+
+
+# --- Regression test for shell history pollution (GH-6627) ---
+
+
+@pytest.mark.core
+@pytest.mark.skipif(os.name == "nt", reason="PTY/pexpect not available on Windows")
+def test_fork_compat_sendline_commands_have_leading_space():
+    """Regression test for GH-6627: internal sendline commands in fork_compat
+    must be prefixed with a space so they are not recorded in shell history
+    (most shells honour HISTCONTROL=ignorespace by default).
+    """
+    from pipenv.shells import Shell
+
+    shell = Shell("/bin/bash")
+
+    mock_child = MagicMock()
+    mock_child.setecho.return_value = None
+    mock_child.expect.return_value = 0
+    mock_child.interact.return_value = None
+    mock_child.exitstatus = 0
+
+    sent_lines = []
+
+    def _sendline(line):
+        sent_lines.append(line)
+
+    mock_child.sendline.side_effect = _sendline
+
+    with patch("pipenv.vendor.pexpect.spawn", return_value=mock_child), \
+         patch("pipenv.shells._get_activate_script",
+               return_value=" source /venv/bin/activate"), \
+         patch("pipenv.shells._get_deactivate_wrapper_script",
+               return_value='eval "deactivate() { builtin deactivate; }"'), \
+         patch("pipenv.shells.get_terminal_size") as mock_size, \
+         patch("pipenv.shells.temp_environ"), \
+         patch("pipenv.shells.signal.signal"), \
+         patch("sys.exit"):
+        mock_size.return_value = MagicMock(lines=24, columns=80)
+
+        shell.fork_compat("/path/to/venv", "/project", [])
+
+    # Every internal sendline must start with a space.
+    for line in sent_lines:
+        assert line.startswith(" "), (
+            f"sendline {line!r} must start with a space to avoid history pollution"
+        )

@@ -5,8 +5,8 @@ from pathlib import Path
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.rich.markup import escape as rich_escape
 from pipenv.utils import console, err
+from pipenv.utils.dependencies import BAD_PACKAGES
 from pipenv.utils.processes import run_command
-from pipenv.utils.requirements import BAD_PACKAGES
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
@@ -16,7 +16,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     pipdeptree_path = Path(pipdeptree.__file__).parent
     try:
-        python_path = project.python()
+        python_path = project.venv_locator.python()
     except (AttributeError, RuntimeError):
         err.print(
             "[bold][red]Warning: Unable to display currently-installed dependency graph information here. "
@@ -33,7 +33,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
 
     # Build command arguments list
-    cmd_args = [python_path, str(pipdeptree_path), "-l"]
+    cmd_args = [python_path, str(pipdeptree_path), "--python", python_path, "-l"]
 
     # Add flags as needed - multiple flags now supported
     if json:
@@ -43,7 +43,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     if reverse:
         cmd_args.append("--reverse")
 
-    if not project.virtualenv_exists:
+    if not project.venv_locator.exists:
         err.echo(
             "[bold][red]Warning: No virtualenv has been created for this project yet! Consider "
             "running `pipenv install` first to automatically generate one for you or see "

@@ -7,7 +7,7 @@ from pipenv.exceptions import PipenvUsageError
 from pipenv.patched.pip._vendor.urllib3.util import parse_url
 from pipenv.utils.constants import MYPY_RUNNING
 
-from .internet import create_mirror_source, is_pypi_url
+from .internet import _strip_credentials_from_url, create_mirror_source, is_pypi_url
 
 if MYPY_RUNNING:
     from typing import List, Optional, Union  # noqa
@@ -16,6 +16,15 @@ if MYPY_RUNNING:
 
 
 def prepare_pip_source_args(sources, pip_args=None):
+    """Build pip CLI args for ``sources``.
+
+    Credentials embedded in source URLs are stripped before they are added
+    to the argument list — argv is exposed to other local users via
+    ``ps aux`` and ``/proc/<pid>/cmdline``, so passing secrets there leaks
+    them.  Pip recovers the credentials from a netrc file that pipenv
+    writes alongside the subprocess invocation (or from any user-configured
+    keyring/netrc).  See GHSA-8xgg-v3jj-95m2.
+    """
     if pip_args is None:
         pip_args = []
     if sources:
@@ -23,10 +32,11 @@ def prepare_pip_source_args(sources, pip_args=None):
         package_url = sources[0].get("url")
         if not package_url:
             raise PipenvUsageError("[[source]] section does not contain a URL.")
-        pip_args.extend(["-i", package_url])
+        sanitized_url, _ = _strip_credentials_from_url(package_url)
+        pip_args.extend(["-i", sanitized_url])
         # Trust the host if it's not verified.
         if not sources[0].get("verify_ssl", True):
-            url_parts = parse_url(package_url)
+            url_parts = parse_url(sanitized_url)
             url_port = f":{url_parts.port}" if url_parts.port else ""
             pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
         # Add additional sources as extra indexes.
@@ -35,10 +45,11 @@ def prepare_pip_source_args(sources, pip_args=None):
                 url = source.get("url")
                 if not url:  # not harmless, just don't continue
                     continue
-                pip_args.extend(["--extra-index-url", url])
+                sanitized_extra_url, _ = _strip_credentials_from_url(url)
+                pip_args.extend(["--extra-index-url", sanitized_extra_url])
                 # Trust the host if it's not verified.
                 if not source.get("verify_ssl", True):
-                    url_parts = parse_url(url)
+                    url_parts = parse_url(sanitized_extra_url)
                     url_port = f":{url_parts.port}" if url_parts.port else ""
                     pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
     return pip_args
@@ -49,20 +60,20 @@ def get_project_index(
     index: str | TSource | None = None,
     trusted_hosts: list[str] | None = None,
 ) -> TSource:
-    from pipenv.project import SourceNotFound
     from pipenv.utils.internet import is_valid_url
+    from pipenv.utils.sources import SourceNotFound
 
     if trusted_hosts is None:
         trusted_hosts = []
     if isinstance(index, Mapping):
-        return project.find_source(index.get("url"))
+        return project.sources.find_source(index.get("url"))
     try:
-        source = project.find_source(index)
+        source = project.sources.find_source(index)
     except SourceNotFound:
         # If the index is not found and it's not a valid URL, raise an error
         if not is_valid_url(index):
             available_sources = ", ".join(
-                f"'{s.get('name')}'" for s in project.sources if s.get("name")
+                f"'{s.get('name')}'" for s in project.sources.all if s.get("name")
             )
             raise PipenvUsageError(
                 f"Index '{index}' was not found in Pipfile sources and is not a valid URL.\n"
@@ -70,7 +81,7 @@ def get_project_index(
                 f"Hint: Use a valid URL or add the index to your Pipfile [[source]] section."
             )
         index_url = parse_url(index)
-        src_name = project.src_name_from_url(index)
+        src_name = project.sources.src_name_from_url(index)
         verify_ssl = index_url.host not in trusted_hosts
         source = {"url": index, "verify_ssl": verify_ssl, "name": src_name}
     return source
@@ -83,7 +94,7 @@ def get_source_list(
     trusted_hosts: list[str] | None = None,
     pypi_mirror: str | None = None,
 ) -> list[TSource]:
-    sources = project.sources[:]
+    sources = project.sources.all[:]
     if index:
         sources.append(get_project_index(project, index))
     if extra_indexes:
@@ -95,7 +106,7 @@ def get_source_list(
             if not sources or extra_src["url"] != sources[0]["url"]:
                 sources.append(extra_src)
 
-        for source in project.sources:
+        for source in project.sources.all:
             if not sources or source["url"] != sources[0]["url"]:
                 sources.append(source)
 

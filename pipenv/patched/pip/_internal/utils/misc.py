@@ -548,7 +548,7 @@ class HiddenText:
         if type(self) is type(other):
             # The string being used for redaction doesn't also have to match,
             # just the raw, original string.
-            return self.secret == cast(HiddenText, other).secret
+            return self.secret == other.secret
         return NotImplemented
 
     # Disable hashing, since we have a custom __eq__ and don't need hash-ability

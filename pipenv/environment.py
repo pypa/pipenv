@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import contextlib
+import importlib.metadata as importlib_metadata
 import importlib.util
 import json
 import os
 import site
 import sys
+import tempfile
 import typing
 from collections.abc import Iterable
 from functools import cached_property
@@ -27,17 +29,13 @@ from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
 from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
+from pipenv.utils.internet import write_credentials_netrc
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
 from pipenv.vendor.pipdeptree._models.dag import PackageDAG
 from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
 from pipenv.vendor.pythonfinder.utils import is_in_path
-
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
@@ -72,7 +70,7 @@ class Environment:
             sources = []
         self.project = project
         if project and not sources:
-            sources = project.sources
+            sources = project.sources.all
         self.sources = sources
         if project and not pipfile:
             pipfile = project.parsed_pipfile
@@ -565,11 +563,15 @@ class Environment:
         keyring_provider = self.project.s.PIPENV_KEYRING_PROVIDER
         if keyring_provider:
             pip_options.keyring_provider = keyring_provider
-        session = pip_command._build_session(pip_options)
-        finder = get_package_finder(
-            install_cmd=pip_command, options=pip_options, session=session
-        )
-        yield finder
+        with temp_environ(), tempfile.TemporaryDirectory(prefix="pipenv-finder-") as tmp_dir:
+            netrc_path = write_credentials_netrc(self.sources, tmp_dir)
+            if netrc_path:
+                os.environ["NETRC"] = netrc_path
+            session = pip_command._build_session(pip_options)
+            finder = get_package_finder(
+                install_cmd=pip_command, options=pip_options, session=session
+            )
+            yield finder
 
     def get_package_info(
         self, pre: bool = False

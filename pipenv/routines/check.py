@@ -5,11 +5,11 @@ import sys
 from pathlib import Path
 
 from pipenv import pep508checker
-from pipenv.utils import console, err
+from pipenv.utils import Confirm, console, err
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import project_python
-from pipenv.vendor import click, plette
+from pipenv.vendor import plette
 
 
 def build_safety_options(
@@ -171,7 +171,7 @@ def install_safety(project, system=False, auto_install=False, quiet=False):
 
     install = auto_install
     if not auto_install:
-        install = click.confirm(
+        install = Confirm.ask(
             "Would you like to install safety? This will not modify your Pipfile/lockfile.",
             default=True,
         )
@@ -311,7 +311,8 @@ def do_check(  # noqa: PLR0913
     elif not quiet and not project.s.is_quiet():
         err.print(
             "[yellow bold]DEPRECATION WARNING:[/yellow bold] "
-            "The 'check' command using Safety is deprecated and will be removed in a future release.\n"
+            "The legacy 'check' implementation using Safety is deprecated and "
+            "will be removed in v2027.0.0.\n"
             "Please migrate to [green]pipenv audit[/green] which uses pip-audit for vulnerability scanning.\n"
             "pip-audit uses the Python Packaging Advisory Database and requires no API key.\n"
             "Alternatively, use [green]--scan[/green] to use Safety's scan command (requires API key from https://pyup.io)"

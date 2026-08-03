@@ -1,7 +1,8 @@
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from pipenv.patched.pip._vendor.dependency_groups import DependencyGroupResolver
+from pipenv.patched.pip._vendor.packaging.dependency_groups import DependencyGroupResolver
+from pipenv.patched.pip._vendor.packaging.errors import ExceptionGroup
 
 from pipenv.patched.pip._internal.exceptions import InstallationError
 from pipenv.patched.pip._internal.utils.compat import tomllib
@@ -28,11 +29,13 @@ def _resolve_all_groups(
         resolver = resolvers[path]
         try:
             yield from (str(req) for req in resolver.resolve(groupname))
-        except (ValueError, TypeError, LookupError) as e:
+        except ExceptionGroup as eg:
+            # Convert ExceptionGroup to a single InstallationError with all messages
+            messages = [str(e) for e in eg.exceptions]
             raise InstallationError(
                 f"[dependency-groups] resolution failed for '{groupname}' "
-                f"from '{path}': {e}"
-            ) from e
+                f"from '{path}': {'; '.join(messages)}"
+            ) from eg
 
 
 def _build_resolvers(paths: Iterable[str]) -> dict[str, Any]:
@@ -54,7 +57,15 @@ def _build_resolvers(paths: Iterable[str]) -> dict[str, Any]:
                 "Cannot resolve '--group' option."
             )
 
-        resolvers[path] = DependencyGroupResolver(raw_dependency_groups)
+        try:
+            resolvers[path] = DependencyGroupResolver(raw_dependency_groups)
+        except ExceptionGroup as eg:
+            # Handle ExceptionGroup from resolver initialization
+            messages = [str(e) for e in eg.exceptions]
+            raise InstallationError(
+                f"[dependency-groups] data was invalid in {path}: {'; '.join(messages)}"
+            ) from eg
+
     return resolvers
 
 

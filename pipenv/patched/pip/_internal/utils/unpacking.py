@@ -79,12 +79,52 @@ def has_leading_dir(paths: Iterable[str]) -> bool:
 def is_within_directory(directory: str, target: str) -> bool:
     """
     Return true if the absolute path of target is within the directory
+    (including when target is equal to the directory).
     """
     abs_directory = os.path.abspath(directory)
     abs_target = os.path.abspath(target)
+    try:
+        return os.path.commonpath([abs_directory, abs_target]) == abs_directory
+    except ValueError:
+        # Different drives on Windows — definitely outside.
+        return False
 
-    prefix = os.path.commonpath([abs_directory, abs_target])
-    return prefix == abs_directory
+
+def _tar_link_target_is_within(
+    member: tarfile.TarInfo, destination: str
+) -> bool:
+    """Return True if the resolved target of a tar hardlink/symlink member
+    stays inside ``destination``.
+
+    This re-implements the containment check that ``tarfile.data_filter``
+    performs, so that we can independently validate link safety when
+    falling back to the more permissive ``tar_filter`` on CPython patch
+    versions affected by https://github.com/python/cpython/issues/107845.
+    Without this check the fallback would silently extract hardlinks that
+    point outside the destination directory (GHSA-p4qx-p8p6-4gjf).
+
+    Non-link members and members with absolute or empty link targets are
+    treated as outside the destination — this function only returns True
+    when the link target is unambiguously inside.
+    """
+    if not (member.islnk() or member.issym()):
+        return False
+    linkname = member.linkname
+    if not linkname or os.path.isabs(linkname):
+        return False
+    dest = os.path.realpath(destination)
+    if member.issym():
+        # Symlink targets are resolved relative to the directory of the link.
+        target = os.path.join(dest, os.path.dirname(member.name), linkname)
+    else:
+        # Hardlink targets are paths within the archive (relative to root).
+        target = os.path.join(dest, linkname)
+    target = os.path.realpath(target)
+    try:
+        return os.path.commonpath([dest, target]) == dest
+    except ValueError:
+        # Different drives on Windows — definitely outside.
+        return False
 
 
 def _get_default_mode_plus_executable() -> int:
@@ -209,16 +249,24 @@ def untar_file(filename: str, location: str) -> None:
                     try:
                         member = data_filter(member, location)
                     except tarfile.LinkOutsideDestinationError:
-                        if sys.version_info[:3] in {
-                            (3, 9, 17),
-                            (3, 10, 12),
-                            (3, 11, 4),
-                        }:
-                            # The tarfile filter in specific Python versions
-                            # raises LinkOutsideDestinationError on valid input
-                            # (https://github.com/python/cpython/issues/107845)
-                            # Ignore the error there, but do use the
-                            # more lax `tar_filter`
+                        # CPython 3.9.17 / 3.10.12 / 3.11.4 shipped a buggy
+                        # ``data_filter`` that raised ``LinkOutsideDestinationError``
+                        # for some link members whose targets actually stayed
+                        # inside the destination
+                        # (https://github.com/python/cpython/issues/107845).
+                        # The historical workaround was to fall back to the
+                        # more permissive ``tar_filter`` — but that filter
+                        # does *not* perform link-target containment checks,
+                        # so attacker-controlled hardlinks could be allowed
+                        # to point outside the destination directory
+                        # (GHSA-p4qx-p8p6-4gjf).  Re-validate containment
+                        # ourselves here and only fall back when the link
+                        # truly stays inside; otherwise fail closed.
+                        if (
+                            sys.version_info[:3]
+                            in {(3, 9, 17), (3, 10, 12), (3, 11, 4)}
+                            and _tar_link_target_is_within(member, location)
+                        ):
                             member = tarfile.tar_filter(member, location)
                         else:
                             raise
@@ -336,27 +384,46 @@ def unpack_file(
     location: str,
     content_type: str | None = None,
 ) -> None:
+    """Unpack ``filename`` into ``location``.
+
+    Archive format is chosen in order of decreasing reliability:
+    ``content_type``, then filename extension, then magic signature
+    (unambiguous matches only).
+    """
     filename = os.path.realpath(filename)
-    if (
-        content_type == "application/zip"
-        or filename.lower().endswith(ZIP_EXTENSIONS)
-        or zipfile.is_zipfile(filename)
-    ):
-        unzip_file(filename, location, flatten=not filename.endswith(".whl"))
-    elif (
-        content_type == "application/x-gzip"
-        or tarfile.is_tarfile(filename)
-        or filename.lower().endswith(TAR_EXTENSIONS + BZ2_EXTENSIONS + XZ_EXTENSIONS)
-    ):
+    zip_flatten = not filename.endswith(".whl")
+
+    def _unzip() -> None:
+        unzip_file(filename, location, flatten=zip_flatten)
+
+    def _untar() -> None:
         untar_file(filename, location)
-    else:
-        # FIXME: handle?
-        # FIXME: magic signatures?
-        logger.critical(
-            "Cannot unpack file %s (downloaded from %s, content-type: %s); "
-            "cannot detect archive format",
-            filename,
-            location,
-            content_type,
-        )
-        raise InstallationError(f"Cannot determine archive format of {location}")
+
+    if content_type == "application/zip":
+        return _unzip()
+    if content_type == "application/x-gzip":
+        return _untar()
+
+    if filename.lower().endswith(ZIP_EXTENSIONS):
+        return _unzip()
+    if filename.lower().endswith(TAR_EXTENSIONS + BZ2_EXTENSIONS + XZ_EXTENSIONS):
+        return _untar()
+
+    # avoid ambiguous case where both signature checks return True
+    is_zipfile = zipfile.is_zipfile(filename)
+    is_tarfile = tarfile.is_tarfile(filename)
+    if is_zipfile and not is_tarfile:
+        return _unzip()
+    if is_tarfile and not is_zipfile:
+        return _untar()
+    if is_zipfile and is_tarfile:
+        logger.error("Ambiguous file signature in %s.", filename)
+
+    logger.critical(
+        "Cannot unpack file %s (downloaded from %s, content-type: %s); "
+        "cannot detect archive format",
+        filename,
+        location,
+        content_type,
+    )
+    raise InstallationError(f"Cannot determine archive format of {location}")

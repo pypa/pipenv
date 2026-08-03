@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 import copy
+import math
 
 from collections.abc import Iterator
+from typing import TYPE_CHECKING
 from typing import Any
+
+
+if TYPE_CHECKING:
+    from typing import Self
 
 from pipenv.vendor.tomlkit._compat import decode
 from pipenv.vendor.tomlkit._types import _CustomDict
@@ -26,7 +32,7 @@ from pipenv.vendor.tomlkit.items import item as _item
 _NOT_SET = object()
 
 
-class Container(_CustomDict):
+class Container(_CustomDict):  # type: ignore[type-arg]
     """
     A container for items within a TOMLDocument.
 
@@ -34,10 +40,10 @@ class Container(_CustomDict):
     """
 
     def __init__(self, parsed: bool = False) -> None:
-        self._map: dict[SingleKey, int | tuple[int, ...]] = {}
+        self._map: dict[Key, int | tuple[int, ...]] = {}
         self._body: list[tuple[Key | None, Item]] = []
         self._parsed = parsed
-        self._table_keys = []
+        self._table_keys: list[Key] = []
 
     @property
     def body(self) -> list[tuple[Key | None, Item]]:
@@ -45,42 +51,39 @@ class Container(_CustomDict):
 
     def unwrap(self) -> dict[str, Any]:
         """Returns as pure python object (ppo)"""
-        unwrapped = {}
+        unwrapped: dict[str, Any] = {}
         for k, v in self.items():
             if k is None:
                 continue
 
-            if isinstance(k, Key):
-                k = k.key
+            key_str: str = k.key if isinstance(k, Key) else k
+            val: Any = v.unwrap() if hasattr(v, "unwrap") else v
 
-            if hasattr(v, "unwrap"):
-                v = v.unwrap()
-
-            if k in unwrapped:
-                merge_dicts(unwrapped[k], v)
+            if key_str in unwrapped:
+                merge_dicts(unwrapped[key_str], val)
             else:
-                unwrapped[k] = v
+                unwrapped[key_str] = val
 
         return unwrapped
 
     @property
     def value(self) -> dict[str, Any]:
         """The wrapped dict value"""
-        d = {}
+        d: dict[str, Any] = {}
         for k, v in self._body:
             if k is None:
                 continue
 
-            k = k.key
-            v = v.value
+            key_str = k.key
+            val: Any = v.value
 
-            if isinstance(v, Container):
-                v = v.value
+            if isinstance(val, Container):
+                val = val.value
 
-            if k in d:
-                merge_dicts(d[k], v)
+            if key_str in d:
+                merge_dicts(d[key_str], val)
             else:
-                d[k] = v
+                d[key_str] = val
 
         return d
 
@@ -94,7 +97,7 @@ class Container(_CustomDict):
                 for t in v.body:
                     t.value.parsing(parsing)
 
-    def add(self, key: Key | Item | str, item: Item | None = None) -> Container:
+    def add(self, key: Key | Item | str, item: Any = None) -> Container:
         """
         Adds an item to the current Container.
 
@@ -111,8 +114,9 @@ class Container(_CustomDict):
                     "Non comment/whitespace items must have an associated key"
                 )
 
-            key, item = None, key
+            return self.append(None, key)
 
+        assert not isinstance(key, Item)
         return self.append(key, item)
 
     def _handle_dotted_key(self, key: Key, value: Item) -> None:
@@ -142,23 +146,26 @@ class Container(_CustomDict):
             if isinstance(v, Whitespace) and not v.is_fixed():
                 continue
 
-            if isinstance(v, (Table, AoT)) and not k.is_dotted():
+            if isinstance(v, (Table, AoT)) and k is not None and not k.is_dotted():
                 break
             last_index = i
         return last_index + 1
 
-    def _validate_out_of_order_table(self, key: SingleKey | None = None) -> None:
+    def _validate_out_of_order_table(self, key: Key | None = None) -> None:
         if key is None:
             for k in self._map:
                 assert k is not None
                 self._validate_out_of_order_table(k)
             return
-        if key not in self._map or not isinstance(self._map[key], tuple):
+        if key not in self._map:
             return
-        OutOfOrderTableProxy.validate(self, self._map[key])
+        current_idx = self._map[key]
+        if not isinstance(current_idx, tuple):
+            return
+        OutOfOrderTableProxy.validate(self, current_idx)
 
     def append(
-        self, key: Key | str | None, item: Item, validate: bool = True
+        self, key: Key | str | None, item: Any, validate: bool = True
     ) -> Container:
         """Similar to :meth:`add` but both key and value must be given."""
         if not isinstance(key, Key) and key is not None:
@@ -172,6 +179,7 @@ class Container(_CustomDict):
             return self
 
         if isinstance(item, (AoT, Table)) and item.name is None:
+            assert isinstance(key, Key)
             item.name = key.key
 
         prev = self._previous_item()
@@ -182,6 +190,7 @@ class Container(_CustomDict):
             if (
                 self._body
                 and not (self._parsed or item.trivia.indent or prev_ws)
+                and key is not None
                 and not key.is_dotted()
             ):
                 item.trivia.indent = "\n"
@@ -215,7 +224,7 @@ class Container(_CustomDict):
                         current.append(item)
 
                     return self
-                elif current.is_aot():
+                elif isinstance(current, AoT):
                     if not item.is_aot_element():
                         # Tried to define a table after an AoT with the same name.
                         raise KeyAlreadyPresent(key)
@@ -228,7 +237,10 @@ class Container(_CustomDict):
                         # We need to merge both super tables
                         if (
                             key.is_dotted()
-                            or current_body_element[0].is_dotted()
+                            or (
+                                current_body_element[0] is not None
+                                and current_body_element[0].is_dotted()
+                            )
                             or self._table_keys[-1] != current_body_element[0]
                         ):
                             if key.is_dotted() and not self._parsed:
@@ -259,8 +271,17 @@ class Container(_CustomDict):
                         ] = (current_body_element[0], current)
 
                         return self
-                    elif current_body_element[0].is_dotted():
+                    elif (
+                        current_body_element[0] is not None
+                        and current_body_element[0].is_dotted()
+                    ):
                         raise TOMLKitError("Redefinition of an existing table")
+                    else:
+                        # Merging a concrete table into an existing implicit/super
+                        # table is only valid if it does not redefine existing
+                        # subtrees via dotted keys and does not change prior types.
+                        assert isinstance(current, Table)
+                        self._validate_table_candidate(current, item)
                 elif not item.is_super_table():
                     raise KeyAlreadyPresent(key)
             elif isinstance(item, AoT):
@@ -308,14 +329,34 @@ class Container(_CustomDict):
         self._raw_append(key, item)
         return self
 
+    def _validate_table_candidate(self, current: Table, candidate: Table) -> None:
+        for k, v in candidate.value.body:
+            if k is None:
+                continue
+
+            if k in current.value._map:
+                existing = current.value.item(k)
+                if isinstance(existing, (Table, AoT)) != isinstance(v, (Table, AoT)):
+                    raise KeyAlreadyPresent(k)
+                if k.is_dotted():
+                    raise TOMLKitError("Redefinition of an existing table")
+                continue
+
+            if not k.is_dotted():
+                continue
+
+            head = next(iter(k))
+            if head in current.value._map:
+                raise TOMLKitError("Redefinition of an existing table")
+
     def _raw_append(self, key: Key | None, item: Item) -> None:
-        if key in self._map:
+        if key is not None and key in self._map:
             current_idx = self._map[key]
             if not isinstance(current_idx, tuple):
                 current_idx = (current_idx,)
 
             current = self._body[current_idx[-1]][1]
-            if key is not None and not isinstance(current, Table):
+            if not isinstance(current, Table):
                 raise KeyAlreadyPresent(key)
 
             self._map[key] = (*current_idx, len(self._body))
@@ -323,7 +364,7 @@ class Container(_CustomDict):
             self._map[key] = len(self._body)
 
         self._body.append((key, item))
-        if item.is_table():
+        if item.is_table() and key is not None:
             self._table_keys.append(key)
 
         if key is not None:
@@ -331,19 +372,19 @@ class Container(_CustomDict):
 
     def _remove_at(self, idx: int) -> None:
         key = self._body[idx][0]
+        assert key is not None
         index = self._map.get(key)
         if index is None:
             raise NonExistentKey(key)
         self._body[idx] = (None, Null())
 
         if isinstance(index, tuple):
-            index = list(index)
-            index.remove(idx)
-            if len(index) == 1:
-                index = index.pop()
+            index_list = list(index)
+            index_list.remove(idx)
+            if len(index_list) == 1:
+                self._map[key] = index_list.pop()
             else:
-                index = tuple(index)
-            self._map[key] = index
+                self._map[key] = tuple(index_list)
         else:
             dict.__delitem__(self, key.key)
             self._map.pop(key)
@@ -460,7 +501,7 @@ class Container(_CustomDict):
 
         return self
 
-    def item(self, key: Key | str) -> Item:
+    def item(self, key: Key | str) -> Item | OutOfOrderTableProxy:
         """Get an item for the given key."""
         if not isinstance(key, Key):
             key = SingleKey(key)
@@ -481,6 +522,7 @@ class Container(_CustomDict):
         """Get the last item."""
         if self._body:
             return self._body[-1][1]
+        return None
 
     def as_string(self) -> str:
         """Render as TOML string."""
@@ -531,7 +573,11 @@ class Container(_CustomDict):
                 and not key.is_dotted()
             )
             or (
-                any(k.is_dotted() for k, v in table.value.body if isinstance(v, Table))
+                any(
+                    k is not None and k.is_dotted()
+                    for k, v in table.value.body
+                    if isinstance(v, Table)
+                )
                 and not key.is_dotted()
             )
         ):
@@ -563,6 +609,7 @@ class Container(_CustomDict):
                     and "\n" not in v.trivia.indent
                 ):
                     cur += "\n"
+                assert k is not None
                 if v.is_super_table():
                     if k.is_dotted() and not key.is_dotted():
                         # Dotted key inside table
@@ -578,6 +625,7 @@ class Container(_CustomDict):
                     and "\n" not in v.trivia.indent
                 ):
                     cur += "\n"
+                assert k is not None
                 cur += self._render_aot(k, v, prefix=_key)
             else:
                 cur += self._render_simple_item(
@@ -586,7 +634,7 @@ class Container(_CustomDict):
 
         return cur
 
-    def _render_aot(self, key, aot, prefix=None):
+    def _render_aot(self, key: Key, aot: AoT, prefix: str | None = None) -> str:
         _key = key.as_string()
         if prefix is not None:
             _key = prefix + "." + _key
@@ -615,6 +663,7 @@ class Container(_CustomDict):
 
         for k, v in table.value.body:
             if isinstance(v, Table):
+                assert k is not None
                 if v.is_super_table():
                     if k.is_dotted():
                         # Dotted key inside table
@@ -624,13 +673,16 @@ class Container(_CustomDict):
                 else:
                     cur += self._render_table(k, v, prefix=_key)
             elif isinstance(v, AoT):
+                assert k is not None
                 cur += self._render_aot(k, v, prefix=_key)
             else:
                 cur += self._render_simple_item(k, v)
 
         return cur
 
-    def _render_simple_item(self, key, item, prefix=None):
+    def _render_simple_item(
+        self, key: Key | None, item: Item, prefix: str | None = None
+    ) -> str:
         if key is None:
             return item.as_string()
 
@@ -655,7 +707,7 @@ class Container(_CustomDict):
         return iter(dict.keys(self))
 
     # Dictionary methods
-    def __getitem__(self, key: Key | str) -> Item | Container:
+    def __getitem__(self, key: Key | str) -> Any:
         item = self.item(key)
         if isinstance(item, Item) and item.is_boolean():
             return item.value
@@ -663,7 +715,7 @@ class Container(_CustomDict):
         return item
 
     def __setitem__(self, key: Key | str, value: Any) -> None:
-        if key is not None and key in self:
+        if key in self:
             old_key = next(filter(lambda k: k == key, self._map))
             self._replace(old_key, key, value)
         else:
@@ -672,8 +724,9 @@ class Container(_CustomDict):
     def __delitem__(self, key: Key | str) -> None:
         self.remove(key)
 
-    def setdefault(self, key: Key | str, default: Any) -> Any:
-        super().setdefault(key, default=default)
+    def setdefault(self, key: Key | str, default: Any = None) -> Any:
+        if key not in self:
+            self[key] = default
         return self[key]
 
     def _replace(self, key: Key | str, new_key: Key | str, value: Item) -> None:
@@ -687,7 +740,7 @@ class Container(_CustomDict):
         self._replace_at(idx, new_key, value)
 
     def _replace_at(
-        self, idx: int | tuple[int], new_key: Key | str, value: Item
+        self, idx: int | tuple[int, ...], new_key: Key | str, value: Item
     ) -> None:
         value = _item(value)
 
@@ -698,6 +751,7 @@ class Container(_CustomDict):
             idx = idx[0]
 
         k, v = self._body[idx]
+        assert k is not None
         if not isinstance(new_key, Key):
             if (
                 isinstance(value, (AoT, Table)) != isinstance(v, (AoT, Table))
@@ -710,7 +764,7 @@ class Container(_CustomDict):
         del self._map[k]
         self._map[new_key] = idx
         if new_key != k:
-            dict.__delitem__(self, k)
+            dict.__delitem__(self, k.key)
 
         if isinstance(value, (AoT, Table)) != isinstance(v, (AoT, Table)):
             # new tables should appear after all non-table values
@@ -733,14 +787,16 @@ class Container(_CustomDict):
             self._body[idx] = (new_key, value)
 
         if hasattr(value, "invalidate_display_name"):
-            value.invalidate_display_name()  # type: ignore[attr-defined]
+            value.invalidate_display_name()
 
         if isinstance(value, Table):
             # Insert a cosmetic new line for tables if:
             # - it does not have it yet OR is not followed by one
             # - it is not the last item, or
             # - The table being replaced has a newline
-            last, _ = self._previous_item_with_index()
+            result = self._previous_item_with_index()
+            assert result is not None
+            last, _ = result
             idx = last if idx < 0 else idx
             has_ws = ends_with_whitespace(value)
             replace_has_ws = (
@@ -752,6 +808,7 @@ class Container(_CustomDict):
             if (idx < last or replace_has_ws) and not (next_ws or has_ws):
                 value.append(None, Whitespace("\n"))
 
+            assert isinstance(new_key, Key)
             dict.__setitem__(self, new_key.key, value.value)
 
     def __str__(self) -> str:
@@ -760,26 +817,26 @@ class Container(_CustomDict):
     def __repr__(self) -> str:
         return repr(self.value)
 
-    def __eq__(self, other: dict) -> bool:
+    def __eq__(self, other: object) -> bool:
         if not isinstance(other, dict):
             return NotImplemented
 
-        return self.value == other
+        return bool(_equal_with_nan(self.value, other))
 
-    def _getstate(self, protocol):
+    def _getstate(self, protocol: int) -> tuple[bool]:
         return (self._parsed,)
 
-    def __reduce__(self):
+    def __reduce__(self) -> tuple[type, tuple[bool], tuple[Any, ...]]:
         return self.__reduce_ex__(2)
 
-    def __reduce_ex__(self, protocol):
+    def __reduce_ex__(self, protocol: int) -> tuple[type, tuple[bool], tuple[Any, ...]]:  # type: ignore[override]
         return (
             self.__class__,
             self._getstate(protocol),
             (self._map, self._body, self._parsed, self._table_keys),
         )
 
-    def __setstate__(self, state):
+    def __setstate__(self, state: tuple[Any, ...]) -> None:
         self._map = state[0]
         self._body = state[1]
         self._parsed = state[2]
@@ -789,10 +846,10 @@ class Container(_CustomDict):
             if key is not None:
                 dict.__setitem__(self, key.key, item.value)
 
-    def copy(self) -> Container:
+    def copy(self) -> Self:
         return copy.copy(self)
 
-    def __copy__(self) -> Container:
+    def __copy__(self) -> Self:
         c = self.__class__(self._parsed)
         for k, v in dict.items(self):
             dict.__setitem__(c, k, v)
@@ -803,7 +860,7 @@ class Container(_CustomDict):
         return c
 
     def _previous_item_with_index(
-        self, idx: int | None = None, ignore=(Null,)
+        self, idx: int | None = None, ignore: tuple[type, ...] = (Null,)
     ) -> tuple[int, Item] | None:
         """Find the immediate previous item before index ``idx``"""
         if idx is None or idx > len(self._body):
@@ -814,7 +871,9 @@ class Container(_CustomDict):
                 return i, v
         return None
 
-    def _previous_item(self, idx: int | None = None, ignore=(Null,)) -> Item | None:
+    def _previous_item(
+        self, idx: int | None = None, ignore: tuple[type, ...] = (Null,)
+    ) -> Item | None:
         """Find the immediate previous item before index ``idx``.
         If ``idx`` is not given, the last item is returned.
         """
@@ -822,7 +881,7 @@ class Container(_CustomDict):
         return prev[-1] if prev else None
 
 
-class OutOfOrderTableProxy(_CustomDict):
+class OutOfOrderTableProxy(_CustomDict):  # type: ignore[type-arg]
     @staticmethod
     def validate(container: Container, indices: tuple[int, ...]) -> None:
         """Validate out of order tables in the given container"""
@@ -833,7 +892,7 @@ class OutOfOrderTableProxy(_CustomDict):
 
             if isinstance(item, Table):
                 for k, v in item.value.body:
-                    temp_container.append(k, v, validate=False)
+                    temp_container.append(k, v, validate=True)
 
         temp_container._validate_out_of_order_table()
 
@@ -844,26 +903,26 @@ class OutOfOrderTableProxy(_CustomDict):
         self._tables_map: dict[Key, list[int]] = {}
 
         for i in indices:
-            _, item = self._container._body[i]
+            _, _item = self._container._body[i]
 
-            if isinstance(item, Table):
-                self._tables.append(item)
+            if isinstance(_item, Table):
+                self._tables.append(_item)
                 table_idx = len(self._tables) - 1
-                for k, v in item.value.body:
+                for k, v in _item.value.body:
                     self._internal_container._raw_append(k, v)
-                    indices = self._tables_map.setdefault(k, [])
-                    if table_idx not in indices:
-                        indices.append(table_idx)
+                    key_indices = self._tables_map.setdefault(k, [])  # type: ignore[arg-type]
+                    if table_idx not in key_indices:
+                        key_indices.append(table_idx)
                     if k is not None:
                         dict.__setitem__(self, k.key, v)
 
         self._internal_container._validate_out_of_order_table()
 
-    def unwrap(self) -> str:
+    def unwrap(self) -> dict[str, Any]:
         return self._internal_container.unwrap()
 
     @property
-    def value(self):
+    def value(self) -> dict[str, Any]:
         return self._internal_container.value
 
     def __getitem__(self, key: Key | str) -> Any:
@@ -873,25 +932,27 @@ class OutOfOrderTableProxy(_CustomDict):
         return self._internal_container[key]
 
     def __setitem__(self, key: Key | str, value: Any) -> None:
-        from .items import item
+        from .items import item as _item_fn
 
         def _is_table_or_aot(it: Any) -> bool:
-            return isinstance(item(it), (Table, AoT))
+            return isinstance(_item_fn(it), (Table, AoT))
 
-        if key in self._tables_map:
+        _key: Key = key if isinstance(key, Key) else SingleKey(key)
+
+        if _key in self._tables_map:
             # Overwrite the first table and remove others
-            indices = self._tables_map[key]
-            while len(indices) > 1:
-                table = self._tables[indices.pop()]
+            map_indices = self._tables_map[_key]
+            while len(map_indices) > 1:
+                table = self._tables[map_indices.pop()]
                 self._remove_table(table)
-            old_value = self._tables[indices[0]][key]
+            old_value = self._tables[map_indices[0]][key]
             if _is_table_or_aot(old_value) and not _is_table_or_aot(value):
                 # Remove the entry from the map and set value again.
-                del self._tables[indices[0]][key]
-                del self._tables_map[key]
+                del self._tables[map_indices[0]][key]
+                del self._tables_map[_key]
                 self[key] = value
                 return
-            self._tables[indices[0]][key] = value
+            self._tables[map_indices[0]][key] = value
         elif self._tables:
             if not _is_table_or_aot(value):  # if the value is a plain value
                 for table in self._tables:
@@ -913,22 +974,23 @@ class OutOfOrderTableProxy(_CustomDict):
     def _remove_table(self, table: Table) -> None:
         """Remove table from the parent container"""
         self._tables.remove(table)
-        for idx, item in enumerate(self._container._body):
-            if item[1] is table:
+        for idx, body_item in enumerate(self._container._body):
+            if body_item[1] is table:
                 self._container._remove_at(idx)
                 break
 
     def __delitem__(self, key: Key | str) -> None:
-        if key not in self._tables_map:
+        _key: Key = key if isinstance(key, Key) else SingleKey(key)
+        if _key not in self._tables_map:
             raise NonExistentKey(key)
 
-        for i in reversed(self._tables_map[key]):
+        for i in reversed(self._tables_map[_key]):
             table = self._tables[i]
             del table[key]
             if not table and len(self._tables) > 1:
                 self._remove_table(table)
 
-        del self._tables_map[key]
+        del self._tables_map[_key]
         del self._internal_container[key]
         if key is not None:
             dict.__delitem__(self, key)
@@ -939,8 +1001,9 @@ class OutOfOrderTableProxy(_CustomDict):
     def __len__(self) -> int:
         return dict.__len__(self)
 
-    def setdefault(self, key: Key | str, default: Any) -> Any:
-        super().setdefault(key, default=default)
+    def setdefault(self, key: Key | str, default: Any = None) -> Any:
+        if key not in self:
+            self[key] = default
         return self[key]
 
 
@@ -951,3 +1014,21 @@ def ends_with_whitespace(it: Any) -> bool:
     return (
         isinstance(it, Table) and isinstance(it.value._previous_item(), Whitespace)
     ) or (isinstance(it, AoT) and len(it) > 0 and isinstance(it[-1], Whitespace))
+
+
+def _equal_with_nan(left: Any, right: Any) -> bool:
+    if isinstance(left, dict) and isinstance(right, dict):
+        if left.keys() != right.keys():
+            return False
+        return all(_equal_with_nan(left[k], right[k]) for k in left)
+
+    if isinstance(left, list) and isinstance(right, list):
+        if len(left) != len(right):
+            return False
+        return all(_equal_with_nan(l, r) for l, r in zip(left, right))  # noqa: B905, E741
+
+    if isinstance(left, float) and isinstance(right, float):
+        if math.isnan(left) and math.isnan(right):
+            return True
+
+    return bool(left == right)

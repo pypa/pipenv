@@ -11,8 +11,7 @@ from functools import lru_cache
 from pathlib import Path, PurePath
 
 from pipenv.utils import err
-from pipenv.utils.fileutils import normalize_drive
-from pipenv.vendor import click
+from pipenv.utils.fileutils import normalize_drive  # noqa: F401 (re-export for back-compat; external callers import it from here)
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
@@ -100,18 +99,6 @@ def load_path(python):
         return json.loads(c.stdout.strip())
     else:
         return []
-
-
-def path_to_url(path):
-    """
-    Convert a file system path to a URI.
-
-    First normalizes drive letter case on Windows, then converts to absolute path,
-    and finally to a URI.
-    """
-    path_obj = Path(path).resolve()
-    normalized_path = normalize_drive(str(path_obj))
-    return Path(normalized_path).as_uri()
 
 
 def get_windows_path(*args):
@@ -218,13 +205,46 @@ def escape_cmd(cmd):
     return cmd
 
 
-def safe_expandvars(value):
+# $VAR or ${VAR} — matches os.path.expandvars (posixpath) semantics.
+_VAR_PROG = re.compile(r"\$(\w+|\{[^}]*\})")
+# %VAR% — Windows-only form, also recognised by os.path.expandvars on nt.
+_VAR_PROG_PERCENT = re.compile(r"%([^%]*)%")
+
+
+def _expand_with_mapping(text, mapping):
+    """Expand ``$VAR`` / ``${VAR}`` (and ``%VAR%`` on Windows) against an
+    explicit mapping, leaving unknown names unchanged. Pure-Python — does not
+    touch ``os.environ`` and is therefore thread-safe."""
+
+    def _sub(match):
+        name = match.group(1)
+        if name.startswith("{") and name.endswith("}"):
+            name = name[1:-1]
+        if name in mapping:
+            return str(mapping[name])
+        return match.group(0)
+
+    result = _VAR_PROG.sub(_sub, text)
+    if os.name == "nt":
+        result = _VAR_PROG_PERCENT.sub(_sub, result)
+    return result
+
+
+def safe_expandvars(value, env=None):
     """
     Expand environment variables in a string value, do nothing for non-strings.
 
-    Note: pathlib.Path doesn't have an expandvars method, so we still use os.path.expandvars
-    for the actual expansion.
+    When ``env`` is provided, expansion uses *only* that mapping — variables
+    inherited from the ambient process environment are not visible. This avoids
+    leaking vars from an outer pipenv invocation into a nested run.
     """
+    if env is not None:
+        mapping = {k: v for k, v in env.items() if v is not None}
+        if isinstance(value, str):
+            return _expand_with_mapping(value, mapping)
+        if isinstance(value, Path):
+            return Path(_expand_with_mapping(str(value), mapping))
+        return value
     if isinstance(value, str):
         return os.path.expandvars(value)
     # Handle Path objects
@@ -265,6 +285,17 @@ def expand_url_credentials(url):
     # Matches both '${VAR}' (single-quoted legacy) and ${VAR} / $VAR.
     _env_var_re = re.compile(r"'?\$\{([^}]+)\}'?|\$([A-Za-z_][A-Za-z0-9_]*)")
 
+    def _expand_only(s):
+        """Expand env-var references without URL-encoding."""
+        def _sub(m):
+            var_name = m.group(1) or m.group(2)
+            value = os.environ.get(var_name)
+            if value is None:
+                return m.group(0)  # var not set — leave token unchanged
+            return value
+
+        return _env_var_re.sub(_sub, s)
+
     def _expand_and_encode(s):
         def _sub(m):
             var_name = m.group(1) or m.group(2)
@@ -279,14 +310,25 @@ def expand_url_credentials(url):
     # doesn't confuse the split.
     userinfo, _, hostinfo = parsed.netloc.rpartition("@")
 
-    # Split userinfo on the FIRST ':' to isolate username and password.
-    if ":" in userinfo:
-        raw_user, _, raw_pass = userinfo.partition(":")
+    # Expand env vars in userinfo FIRST (without encoding) so that we can
+    # correctly detect the user:password separator.  A single env var like
+    # ``${TOKEN}`` may expand to ``__token__:glpat-xxx`` and the ``:``
+    # must be treated as the delimiter, not URL-encoded.  (#6625)
+    expanded_userinfo = _expand_only(userinfo)
+
+    # If _expand_only() did not change anything we likely still have only
+    # unexpanded placeholders like ``${VAR}``.  Do not percent-encode them
+    # so that the URL structure is preserved and they can be expanded later.
+    if expanded_userinfo == userinfo:
+        encoded_userinfo = expanded_userinfo
+    # Split expanded userinfo on the FIRST ':' to isolate username and password.
+    elif ":" in expanded_userinfo:
+        raw_user, _, raw_pass = expanded_userinfo.partition(":")
         encoded_userinfo = (
-            f"{_expand_and_encode(raw_user)}:{_expand_and_encode(raw_pass)}"
+            f"{quote(raw_user, safe='')}:{quote(raw_pass, safe='')}"
         )
     else:
-        encoded_userinfo = _expand_and_encode(userinfo)
+        encoded_userinfo = quote(expanded_userinfo, safe="")
 
     # Expand the host without encoding (it may contain ${VAR} for the
     # registry hostname but must not be percent-encoded).
@@ -365,7 +407,15 @@ def is_virtual_environment(path):
     if not path.is_dir():
         return False
     for bindir_name in ("bin", "Scripts"):
-        for python in path.joinpath(bindir_name).glob("python*"):
+        bindir = path.joinpath(bindir_name)
+        # Windows' Path.glob raises FileNotFoundError when the directory
+        # does not exist (Unix returns an empty iterator). Guard explicitly
+        # so a directory under WORKON_HOME that lacks a bindir — e.g. a
+        # partially torn-down sibling venv during a parallel test run —
+        # is treated as "not a virtualenv" instead of crashing the caller.
+        if not bindir.is_dir():
+            continue
+        for python in bindir.glob("python*"):
             try:
                 exeness = python.is_file() and os.access(str(python), os.X_OK)
             except OSError:
@@ -535,13 +585,6 @@ def handle_remove_readonly(func, path, exc):
     raise exc_exception
 
 
-def style_no_color(text, fg=None, bg=None, **kwargs) -> str:
-    """Wrap click style to ignore colors."""
-    if hasattr(click, "original_style"):
-        return click.original_style(text, **kwargs)
-    return click.style(text, **kwargs)
-
-
 def env_to_bool(val):
     """
     Convert **val** to boolean, returning True if truthy or False if falsey
@@ -578,7 +621,7 @@ def is_env_truthy(name):
 
 def project_python(project, system=False):
     if not system:
-        python = project._which("python")
+        python = project.venv_locator._which("python")
     # When --system --python was used, PIPENV_PYTHON holds the resolved path
     # to the target interpreter so we install to its site-packages (#3593).
     elif project and project.s and project.s.PIPENV_PYTHON:

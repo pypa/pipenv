@@ -26,16 +26,23 @@ def format_name(project: NormalizedName, extras: frozenset[NormalizedName]) -> s
 class Constraint:
     specifier: SpecifierSet
     hashes: Hashes
+    hash_options: dict[str, list[str]]
     links: frozenset[Link]
 
     @classmethod
     def empty(cls) -> Constraint:
-        return Constraint(SpecifierSet(), Hashes(), frozenset())
+        return Constraint(SpecifierSet(), Hashes(), {}, frozenset())
 
     @classmethod
     def from_ireq(cls, ireq: InstallRequirement) -> Constraint:
         links = frozenset([ireq.link]) if ireq.link else frozenset()
-        return Constraint(ireq.specifier, ireq.hashes(trust_internet=False), links)
+        hash_options = {alg: list(v) for alg, v in ireq.hash_options.items()}
+        return Constraint(
+            ireq.specifier,
+            ireq.hashes(trust_internet=False),
+            hash_options,
+            links,
+        )
 
     def __bool__(self) -> bool:
         return bool(self.specifier) or bool(self.hashes) or bool(self.links)
@@ -45,10 +52,19 @@ class Constraint:
             return NotImplemented
         specifier = self.specifier & other.specifier
         hashes = self.hashes & other.hashes(trust_internet=False)
+        if not self.hash_options:
+            hash_options = {alg: list(v) for alg, v in other.hash_options.items()}
+        elif not other.hash_options:
+            hash_options = {alg: list(v) for alg, v in self.hash_options.items()}
+        else:
+            hash_options = {
+                alg: [v for v in other.hash_options[alg] if v in self.hash_options[alg]]
+                for alg in self.hash_options.keys() & other.hash_options.keys()
+            }
         links = self.links
         if other.link:
             links = links.union([other.link])
-        return Constraint(specifier, hashes, links)
+        return Constraint(specifier, hashes, hash_options, links)
 
     def is_satisfied_by(self, candidate: Candidate) -> bool:
         # Reject if there are any mismatched URL constraints on this package.
@@ -58,6 +74,12 @@ class Constraint:
         # already implements the prerelease logic, and would have filtered out
         # prerelease candidates if the user does not expect them.
         return self.specifier.contains(candidate.version, prereleases=True)
+
+    def format_for_error(self) -> str:
+        s = str(self.specifier)
+        if self.links:
+            s += f" (from {', '.join(str(link) for link in self.links)})"
+        return s
 
 
 class Requirement:

@@ -1,0 +1,8 @@
+Restored documented ``pipenv update`` (no args) semantics of ``lock + sync``.
+Since 2026.0.0, ``pipenv update`` only re-resolved Pipfile entries whose
+locked version no longer satisfied the Pipfile specifier, so relaxing a
+pin (e.g. ``urllib3 = "<2.7.0"`` → ``urllib3 = "*"``) would not pick up
+newer allowed releases — the lockfile silently stayed at the existing
+pin. ``pipenv update`` now routes through ``do_lock`` when no packages
+are given, re-resolving every Pipfile entry. The targeted
+``pipenv update <pkg>`` path is unchanged.

@@ -11,13 +11,17 @@ from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Tuple, Union
-from urllib.parse import urlparse, urlsplit, urlunparse, urlunsplit
+from urllib.parse import unquote, urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.exceptions import PipenvUsageError
+from pipenv.patched.pip._internal.commands.install import InstallCommand
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.download import Downloader
+from pipenv.patched.pip._internal.network.session import PipSession
+from pipenv.patched.pip._internal.req import parse_requirements
 from pipenv.patched.pip._internal.req.constructors import (
     install_req_from_editable,
+    install_req_from_parsed_requirement,
     parse_req_from_line,
 )
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
@@ -33,12 +37,8 @@ from pipenv.utils import err
 from pipenv.utils.fileutils import (
     create_tracked_tempdir,
 )
-from pipenv.utils.requirementslib import (
-    add_ssh_scheme_to_git_uri,
-    get_pip_command,
-    prepare_pip_source_args,
-    unpack_url,
-)
+from pipenv.utils.requirements import redact_auth_from_url
+from pipenv.utils.requirementslib import unpack_url
 
 from .constants import (
     INSTALLABLE_EXTENSIONS,
@@ -48,7 +48,10 @@ from .constants import (
     VCS_LIST,
     VCS_SCHEMES,
 )
+from .indexes import parse_indexes, prepare_pip_source_args
+from .internet import get_host_and_port, is_valid_url
 from .markers import PipenvMarkers
+from .pip import get_trusted_hosts
 
 
 def get_version(pipfile_entry):
@@ -132,13 +135,26 @@ def pep440_version(version):
 
 
 def pep423_name(name):
-    """Normalize package name to PEP 423 style standard."""
-    name = name.lower()
-    if any(i not in name for i in (VCS_LIST + SCHEME_LIST)):
-        return name.replace("_", "-")
+    """Normalize package name to PEP 423 style standard.
 
-    else:
-        return name
+    Lowercases ``name`` and rewrites ``_`` to ``-`` for plain
+    distribution names. If ``name`` contains a VCS scheme token
+    (``git``, ``svn``, ``hg``, ``bzr``) or URL scheme token
+    (``http://``, ``https://``, ``ftp://``, ``ftps://``, ``file://``)
+    the underscore rewrite is skipped so URL/VCS specifiers are not
+    mangled (e.g. ``git+ssh://host/path/some_repo``).
+
+    Note: prior to the W4 cleanup this function had an inverted
+    predicate (``any(token not in name ...)``) that made the early
+    return the common case and the underscore-preserving branch
+    unreachable. The predicate has been corrected; for bare package
+    names (the dominant call pattern) the observable result is
+    unchanged.
+    """
+    name = name.lower()
+    if not any(token in name for token in (VCS_LIST + SCHEME_LIST)):
+        return name.replace("_", "-")
+    return name
 
 
 def translate_markers(pipfile_entry):
@@ -177,7 +193,7 @@ def unearth_hashes_for_dep(project, dep):
 
     index_url = "https://pypi.org/simple/"
     source = "pypi"
-    for source in project.sources:
+    for source in project.sources.all:
         if source.get("name") == dep.get("index"):
             index_url = source.get("url")
             break
@@ -187,9 +203,9 @@ def unearth_hashes_for_dep(project, dep):
     if not install_req or not install_req.req:
         return []
     if "https://pypi.org/simple/" in index_url:
-        hashes = project.get_hashes_from_pypi(install_req, source)
+        hashes = project.sources.get_hashes_from_pypi(install_req, source)
     elif index_url:
-        hashes = project.get_hashes_from_remote_index_urls(install_req, source)
+        hashes = project.sources.get_hashes_from_remote_index_urls(install_req, source)
     if hashes:
         return hashes
 
@@ -233,6 +249,38 @@ def extract_vcs_url(vcs_url):
     )
 
     return clean_url
+
+
+def add_ssh_scheme_to_git_uri(uri: str | bytes | None) -> str | bytes | None:
+    """Clean VCS URIs from pip format, preserving ``None`` unchanged."""
+    if uri is None:
+        return None
+    if isinstance(uri, str):
+        # Add scheme for parsing purposes, this is also what pip does
+        if uri.startswith("git+") and "://" not in uri:
+            uri = uri.replace("git+", "git+ssh://", 1)
+            parsed = urlparse(uri)
+            if ":" in parsed.netloc:
+                netloc, _, path_start = parsed.netloc.rpartition(":")
+                path = f"/{path_start}{parsed.path}"
+                uri = urlunparse(parsed._replace(netloc=netloc, path=path))
+    return uri
+
+
+def is_vcs(
+    pipfile_entry: Mapping[str, Any] | str | None,
+) -> bool:
+    """Determine if dictionary entry from Pipfile is for a vcs dependency."""
+    if isinstance(pipfile_entry, Mapping):
+        return any(key for key in pipfile_entry if key in VCS_LIST)
+
+    elif isinstance(pipfile_entry, str):
+        if not is_valid_url(pipfile_entry) and pipfile_entry.startswith("git+"):
+            pipfile_entry = add_ssh_scheme_to_git_uri(pipfile_entry)
+
+        parsed_entry = urlsplit(pipfile_entry)
+        return parsed_entry.scheme in VCS_SCHEMES
+    return False
 
 
 def _file_url_to_relative_path(file_url, base_dir):
@@ -874,6 +922,17 @@ def generate_temp_dir_path():
     return temp_dir
 
 
+def get_pip_command() -> InstallCommand:
+    """Get pip's InstallCommand for configuration management and defaults."""
+    # Use pip's parser for pip.conf management and defaults.
+    # General options (find_links, index_url, extra_index_url, trusted_host,
+    # and pre) are deferred to pip.
+    pip_command = InstallCommand(
+        name="InstallCommand", summary="pipenv pip Install command."
+    )
+    return pip_command
+
+
 def determine_vcs_revision_hash(
     package: InstallRequirement, vcs_type: str, revision: str
 ):
@@ -1426,14 +1485,15 @@ def get_constraints_from_deps(deps):
         c = None
         # Constraints cannot contain extras
         dep_name = dep_name.split("[", 1)[0]
+        canonical = canonicalize_name(dep_name)
         # Creating a constraint as a canonical name plus a version specifier
         if isinstance(dep_version, str):
             if dep_version and not is_star(dep_version):
                 if COMPARE_OP.match(dep_version) is None:
                     dep_version = f"=={dep_version}"
-                c = f"{canonicalize_name(dep_name)}{dep_version}"
+                c = f"{canonical}{dep_version}"
             else:
-                c = canonicalize_name(dep_name)
+                c = canonical
         elif not any(k in dep_version for k in ["path", "file", "uri"]):
             if dep_version.get("skip_resolver") is True:
                 continue
@@ -1441,11 +1501,36 @@ def get_constraints_from_deps(deps):
             if version and not is_star(version):
                 if COMPARE_OP.match(version) is None:
                     version = f"=={version}"
-                c = f"{canonicalize_name(dep_name)}{version}"
+                c = f"{canonical}{version}"
             else:
-                c = canonicalize_name(dep_name)
+                c = canonical
         if c:
             constraints.add(c)
+    return constraints
+
+
+def get_constraints_from_resolved_deps(resolved_deps):
+    """Get pinned constraints from resolved lockfile data (including transitive deps).
+
+    Unlike get_constraints_from_deps which uses Pipfile specs (only direct deps),
+    this extracts exact version pins from already-resolved lockfile entries,
+    which includes transitive dependencies.
+
+    :param dict resolved_deps: A lockfile section dict, e.g. lockfile["default"]
+    :return: A set of constraint strings like {"sqlalchemy==1.4.5", "greenlet==1.0.0"}
+    :rtype: set
+    """
+    constraints = set()
+    for dep_name, dep_info in resolved_deps.items():
+        if not isinstance(dep_info, dict):
+            continue
+        # Skip path/file/VCS deps - they can't be expressed as simple constraints
+        if any(k in dep_info for k in ("path", "file", "git", "hg", "svn", "bzr")):
+            continue
+        version = dep_info.get("version")
+        if version:
+            canonical = canonicalize_name(dep_name)
+            constraints.add(f"{canonical}{version}")
     return constraints
 
 
@@ -1496,8 +1581,15 @@ def is_required_version(version, specified_version):
 
 
 def is_editable(pipfile_entry):
-    if hasattr(pipfile_entry, "get"):
-        return pipfile_entry.get("editable", False)
+    """Check whether a Pipfile or lockfile package entry is editable.
+
+    Accepts either a mapping (``{"editable": True, ...}``) or a string
+    (``"-e ./pkg"``).  Any other input is treated as non-editable.
+    """
+    if isinstance(pipfile_entry, Mapping):
+        return pipfile_entry.get("editable", False) is True
+    if isinstance(pipfile_entry, str):
+        return pipfile_entry.startswith("-e ")
     return False
 
 
@@ -1508,3 +1600,406 @@ def locked_repository(requirement):
     src_dir = create_tracked_tempdir(prefix="pipenv-", suffix="-src")
     with requirement.req.locked_vcs_repo(src_dir=src_dir) as repo:
         yield repo
+
+
+BAD_PACKAGES = (
+    "distribute",
+    "pip",
+    "pkg-resources",
+    "setuptools",
+    "wheel",
+)
+
+
+def _merge_into(target, source):
+    """Recursively merge ``source`` into ``target`` in place, last-write-wins.
+
+    Mapping-valued keys on both sides are merged recursively; everything
+    else (including lists / tomlkit ``Array`` values) is overwritten by
+    the value from ``source``. Tomlkit container types
+    (``Table``/``InlineTable``) subclass ``dict`` and so are merged like
+    any other mapping; the container type already present on ``target``
+    is preserved, which is what callers downstream of
+    ``tomlkit_value_to_python`` expect.
+    """
+    for key, value in source.items():
+        existing = target.get(key)
+        if isinstance(existing, Mapping) and isinstance(value, Mapping):
+            _merge_into(existing, value)
+        else:
+            target[key] = value
+    return target
+
+
+def _new_container_like(mapping):
+    """Return a fresh empty mapping that matches ``mapping``'s top-level
+    container shape where it's safe to do so.
+
+    Plain dicts (and ``dict`` subclasses that accept a no-arg constructor)
+    are recreated as the same class. Tomlkit ``Table``/``InlineTable``
+    instances cannot be constructed with no args, so they fall back to
+    a plain ``dict`` -- the previous boltons-based implementation also
+    handed back a plain dict at the top level for these inputs in the
+    real call sites (``dict(packages_table)`` is always taken first).
+    """
+    cls = mapping.__class__
+    if cls is dict:
+        return {}
+    try:
+        return cls()
+    except TypeError:
+        return {}
+
+
+def merge_items(target_list, sourced=False):
+    """Recursively merge a list of Pipfile-category dicts, last-write-wins.
+
+    Only the ``sourced=False`` path has callers in pipenv; the
+    ``sourced=True`` branch is preserved for API parity but is not
+    exercised by any in-tree call site.
+
+    For an empty ``target_list``, returns ``None`` to match the
+    historical behaviour of the boltons-backed implementation.
+    """
+    if not target_list:
+        return None if not sourced else (None, {})
+
+    iterator = iter(target_list)
+    if sourced:
+        source_map = {}
+        first_name, first = next(iterator)
+        merged = _new_container_like(first)
+        _merge_into(merged, first)
+        for key in merged:
+            source_map[(key,)] = first_name
+        for t_name, target in iterator:
+            _merge_into(merged, target)
+            for key in target:
+                source_map[(key,)] = t_name
+        return merged, source_map
+
+    first = next(iterator)
+    merged = _new_container_like(first)
+    _merge_into(merged, first)
+    for target in iterator:
+        _merge_into(merged, target)
+    return merged
+
+
+def import_requirements(project, r=None, dev=False, categories=None):
+    # Parse requirements.txt file with Pip's parser.
+    # Pip requires a `PipSession` which is a subclass of requests.Session.
+    # Since we're not making any network calls, it's initialized to nothing.
+    if r and not Path(r).is_file():
+        raise OSError(f"Requirements file not found: {r}")
+    # Default path, if none is provided.
+    if r is None:
+        r = project.requirements_location
+    with open(r) as f:
+        contents = f.read()
+    if categories is None:
+        categories = []
+
+    # Collect indexes and trusted hosts first
+    indexes = []
+    trusted_hosts = []
+    for line in contents.split("\n"):
+        index, extra_index, trusted_host, _ = parse_indexes(line.strip(), strict=True)
+        if index:
+            indexes = [index]
+        if extra_index:
+            indexes.append(extra_index)
+        if trusted_host:
+            trusted_hosts.append(get_host_and_port(trusted_host))
+
+    # Collect all packages for batch processing
+    packages_to_add = []
+    req_path = str(r) if isinstance(r, Path) else r
+
+    for f in parse_requirements(req_path, session=PipSession()):
+        package = install_req_from_parsed_requirement(f)
+        if package.name not in BAD_PACKAGES:
+            if package.link is not None:
+                if package.editable:
+                    package_string = f"-e {package.link}"
+                else:
+                    package_string = unquote(
+                        redact_auth_from_url(package.original_link.url)
+                    )
+            else:
+                package_string = str(package.req)
+                if package.markers:
+                    package_string += f" ; {package.markers}"
+
+            packages_to_add.append((package, package_string))
+
+    # Batch add all packages to Pipfile
+    if packages_to_add:
+        project.add_packages_to_pipfile_batch(
+            packages_to_add, dev=dev, categories=categories
+        )
+
+    # Add indexes after packages
+    indexes = sorted(set(indexes))
+    trusted_hosts = sorted(set(trusted_hosts))
+    for index in indexes:
+        add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
+
+    # Recase pipfile once at the end
+    project.recase_pipfile()
+
+
+def add_index_to_pipfile_with_trust_check(project, index, trusted_hosts=None):
+    # don't require HTTPS for trusted hosts (see: https://pip.pypa.io/en/stable/cli/pip/#cmdoption-trusted-host)
+    if trusted_hosts is None:
+        trusted_hosts = get_trusted_hosts()
+
+    host_and_port = get_host_and_port(index)
+    require_valid_https = not any(
+        v in trusted_hosts
+        for v in (
+            host_and_port,
+            host_and_port.partition(":")[
+                0
+            ],  # also check if hostname without port is in trusted_hosts
+        )
+    )
+    index_name = project.sources.add_index_to_pipfile(index, verify_ssl=require_valid_https)
+    return index_name
+
+
+def requirement_from_lockfile(
+    package_name, package_info, include_hashes=True, include_markers=True
+):
+    # Handle string requirements
+    if isinstance(package_info, str):
+        if package_info and not is_star(package_info):
+            return f"{package_name}=={package_info}"
+        else:
+            return package_name
+
+    markers = (
+        "; {}".format(package_info["markers"])
+        if include_markers and "markers" in package_info and package_info["markers"]
+        else ""
+    )
+    os_markers = (
+        "; {}".format(package_info["os_markers"])
+        if include_markers and "os_markers" in package_info and package_info["os_markers"]
+        else ""
+    )
+
+    # Handling vcs repositories
+    for vcs in VCS_LIST:
+        if vcs in package_info:
+            vcs_url = package_info[vcs]
+            ref = package_info.get("ref", "")
+            # We have to handle the fact that some vcs urls have a ref in them
+            # and some have a netloc with a username and password in them, and some have both
+            vcs_url, fallback_ref = normalize_vcs_url(vcs_url)
+            if not ref:
+                ref = fallback_ref
+            extras = (
+                "[{}]".format(",".join(package_info.get("extras", [])))
+                if "extras" in package_info
+                else ""
+            )
+            subdirectory = package_info.get("subdirectory", "")
+            include_vcs = "" if f"{vcs}+" in vcs_url else f"{vcs}+"
+            egg_fragment = "" if "#egg=" in vcs_url else f"#egg={package_name}"
+            ref_str = "" if not ref or f"@{ref}" in vcs_url else f"@{ref}"
+            if (
+                is_editable_path(vcs_url)
+                or "file://" in vcs_url
+                or package_info.get("editable", False)
+            ):
+                # Extras must not be in the #egg= fragment (pip validates it as
+                # a PEP 508 project name). Append extras after the egg fragment.
+                pip_line = f"-e {include_vcs}{vcs_url}{ref_str}{egg_fragment}"
+                pip_line += f"&subdirectory={subdirectory}" if subdirectory else ""
+                pip_line += extras
+            else:
+                pip_line = f"{package_name}{extras} @ {include_vcs}{vcs_url}{ref_str}"
+                pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
+            return pip_line
+    # Handling file-sourced packages
+    for k in ["file", "path"]:
+        line = []
+        if k in package_info:
+            path = package_info[k]
+            if package_info.get("editable") and is_editable_path(path):
+                line.append("-e")
+            line.append(f"{package_info[k]}")
+            if os_markers:
+                line.append(os_markers)
+            if markers:
+                line.append(markers)
+            pip_line = " ".join(line)
+            return pip_line
+
+    # Handling packages from standard pypi like indexes
+    version = package_info.get("version", "")
+    # Skip wildcard versions - they mean "any version" and should not be included
+    if is_star(version):
+        version = ""
+    hashes = (
+        f" --hash={' --hash='.join(package_info['hashes'])}"
+        if include_hashes and "hashes" in package_info
+        else ""
+    )
+    extras = (
+        "[{}]".format(",".join(package_info.get("extras", [])))
+        if "extras" in package_info
+        else ""
+    )
+    pip_line = f"{package_name}{extras}{version}{os_markers}{markers}{hashes}"
+    return pip_line
+
+
+def requirements_from_lockfile(deps, include_hashes=True, include_markers=True):
+    pip_packages = []
+
+    for package_name, package_info in deps.items():
+        pip_package = requirement_from_lockfile(
+            package_name, package_info, include_hashes, include_markers
+        )
+
+        # Append to the list
+        pip_packages.append(pip_package)
+
+    # pip_packages contains the pip-installable lines
+    return pip_packages
+
+
+def requirement_from_pipfile(package_name, package_spec, include_markers=True):
+    """Convert a Pipfile package entry to a pip requirements line.
+
+    Uses the version specifiers from the Pipfile (like "*", ">=1.0") rather than
+    locked versions. This is useful for generating requirements for libraries
+    that need more flexible version constraints.
+
+    Args:
+        package_name: The package name
+        package_spec: The package specification from Pipfile (str or dict)
+        include_markers: Whether to include environment markers
+
+    Returns:
+        A pip-installable requirement line
+    """
+    # Handle simple string specifications like "*", ">=1.0", "==1.0"
+    if isinstance(package_spec, str):
+        if is_star(package_spec):
+            return package_name
+        elif package_spec.startswith(("==", ">=", "<=", ">", "<", "~=", "!=")):
+            return f"{package_name}{package_spec}"
+        else:
+            # Assume it's a version without operator, default to ==
+            return f"{package_name}=={package_spec}"
+
+    # Handle dict specifications
+    if not isinstance(package_spec, dict):
+        return package_name
+
+    # Handle VCS dependencies
+    for vcs_type in ["git", "hg", "svn", "bzr"]:
+        if vcs_type in package_spec:
+            vcs_url = package_spec[vcs_type]
+            ref = package_spec.get("ref", "")
+            subdirectory = package_spec.get("subdirectory", "")
+            extras = (
+                "[{}]".format(",".join(package_spec.get("extras", [])))
+                if "extras" in package_spec
+                else ""
+            )
+
+            # Build the VCS URL
+            ref_str = f"@{ref}" if ref and f"@{ref}" not in vcs_url else ""
+            egg_fragment = f"#egg={package_name}" if "#egg=" not in vcs_url else ""
+
+            if (
+                is_editable_path(vcs_url)
+                or "file://" in vcs_url
+                or package_spec.get("editable", False)
+            ):
+                # Extras must not be in the #egg= fragment (pip validates it as
+                # a PEP 508 project name). Append extras after the egg fragment.
+                line = f"-e {vcs_type}+{vcs_url}{ref_str}{egg_fragment}"
+                if subdirectory:
+                    line += f"&subdirectory={subdirectory}"
+                line += extras
+            else:
+                line = f"{package_name}{extras} @ {vcs_type}+{vcs_url}{ref_str}"
+                if subdirectory:
+                    line += f"#subdirectory={subdirectory}"
+            return line
+
+    # Handle file/path dependencies
+    for key in ["file", "path"]:
+        if key in package_spec:
+            path = package_spec[key]
+            parts = []
+            if package_spec.get("editable") and is_editable_path(path):
+                parts.append("-e")
+            parts.append(path)
+
+            if include_markers:
+                if "markers" in package_spec and package_spec["markers"]:
+                    parts.append(f"; {package_spec['markers']}")
+            return " ".join(parts)
+
+    # Handle standard version specifications
+    version = package_spec.get("version", "")
+    extras = (
+        "[{}]".format(",".join(package_spec.get("extras", [])))
+        if "extras" in package_spec
+        else ""
+    )
+
+    # Process version
+    if is_star(version):
+        version_str = ""
+    elif version.startswith(("==", ">=", "<=", ">", "<", "~=", "!=")):
+        version_str = version
+    elif version:
+        version_str = f"=={version}"
+    else:
+        version_str = ""
+
+    # Process markers
+    markers = ""
+    if include_markers:
+        # Handle sys_platform and other common markers
+        marker_parts = []
+        if "markers" in package_spec and package_spec["markers"]:
+            marker_parts.append(package_spec["markers"])
+        if "sys_platform" in package_spec and package_spec["sys_platform"]:
+            marker_parts.append(f"sys_platform {package_spec['sys_platform']}")
+
+        if marker_parts:
+            markers = "; " + " and ".join(marker_parts)
+
+    return f"{package_name}{extras}{version_str}{markers}"
+
+
+def requirements_from_pipfile(deps, include_markers=True):
+    """Convert Pipfile dependencies to pip requirements lines.
+
+    Uses the version specifiers from the Pipfile rather than locked versions.
+
+    Args:
+        deps: Dictionary of package names to specifications from Pipfile
+        include_markers: Whether to include environment markers
+
+    Returns:
+        List of pip-installable requirement lines
+    """
+    pip_packages = []
+
+    for package_name, package_spec in deps.items():
+        pip_package = requirement_from_pipfile(
+            package_name, package_spec, include_markers
+        )
+        if pip_package:
+            pip_packages.append(pip_package)
+
+    return pip_packages

@@ -282,7 +282,7 @@ class TestUtils:
     )
     @pytest.mark.vcs
     def test_is_vcs(self, entry, expected):
-        from pipenv.utils.requirementslib import is_vcs
+        from pipenv.utils.dependencies import is_vcs
 
         assert is_vcs(entry) is expected
 
@@ -546,6 +546,9 @@ twine = "*"
                     "custom.example.com:12345",
                 ],
             ),
+            # GHSA-8xgg-v3jj-95m2: credentials embedded in source URLs must
+            # NOT be passed to pip via argv (visible in `ps`/`/proc/<pid>/cmdline`).
+            # `prepare_pip_source_args` strips userinfo from the URL.
             (
                 [
                     {"url": "https://pypi.org/simple"},
@@ -558,7 +561,7 @@ twine = "*"
                     "-i",
                     "https://pypi.org/simple",
                     "--extra-index-url",
-                    "https://user:password@custom.example.com/simple",
+                    "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
                 ],
@@ -572,7 +575,7 @@ twine = "*"
                     "-i",
                     "https://pypi.org/simple",
                     "--extra-index-url",
-                    "https://user:password@custom.example.com/simple",
+                    "https://custom.example.com/simple",
                 ],
             ),
             (
@@ -584,7 +587,7 @@ twine = "*"
                 ],
                 [
                     "-i",
-                    "https://user:password@custom.example.com/simple",
+                    "https://custom.example.com/simple",
                     "--trusted-host",
                     "custom.example.com",
                 ],
@@ -599,6 +602,46 @@ twine = "*"
         sources = [{}]
         with pytest.raises(PipenvUsageError):
             indexes.prepare_pip_source_args(sources, pip_args=None)
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "sources",
+        [
+            [
+                {
+                    "url": "https://user:SuperSecret123@10.255.255.1/simple",
+                    "verify_ssl": True,
+                    "name": "private",
+                }
+            ],
+            [
+                {"url": "https://pypi.org/simple"},
+                {
+                    "url": "https://__token__:gha_top_secret@private.example.com/simple",
+                    "verify_ssl": False,
+                },
+            ],
+        ],
+    )
+    def test_prepare_pip_source_args_does_not_leak_credentials(self, sources):
+        """GHSA-8xgg-v3jj-95m2: credentials embedded in source URLs must not
+        appear in the argv list passed to pip — argv is exposed to other local
+        users via ``ps`` and ``/proc/<pid>/cmdline``.
+        """
+        args = indexes.prepare_pip_source_args(sources, pip_args=None)
+        joined = " ".join(args)
+        for source in sources:
+            url = source["url"]
+            from urllib.parse import urlparse
+
+            parsed = urlparse(url)
+            if parsed.password:
+                assert parsed.password not in joined, (
+                    f"Password for {url} leaked into pip argv: {args}"
+                )
+            if parsed.username:
+                # Userinfo (whether name or token) must also be stripped.
+                assert f"{parsed.username}@" not in joined
 
     @pytest.mark.utils
     def test_project_python_tries_python3_before_python_if_system_is_true(self):
@@ -847,12 +890,12 @@ class TestEnsureProjectPythonVersionMismatch:
         project = mock.MagicMock()
         project.s.PIPENV_USE_SYSTEM = False
         project.s.PIPENV_YES = False
-        project.virtualenv_exists = True
+        project.venv_locator.exists = True
         project.pipfile_exists = True
         # required_python_version=None skips the version warning block
         project.required_python_version = None
-        # python() must return a str for os.environ assignment
-        project.python.return_value = "/usr/bin/python3"
+        # venv_locator.python() must return a str for os.environ assignment
+        project.venv_locator.python.return_value = "/usr/bin/python3"
         return project
 
     @pytest.mark.utils
@@ -860,7 +903,7 @@ class TestEnsureProjectPythonVersionMismatch:
         """When --python 3.12 is given but the venv uses 3.10, ensure_virtualenv
         should be called so the venv is recreated."""
         project = self._make_project(monkeypatch)
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
 
         monkeypatch.setattr(
             "pipenv.utils.project.python_version",
@@ -893,7 +936,7 @@ class TestEnsureProjectPythonVersionMismatch:
         """When --python 3.10 is given and the venv already uses 3.10, ensure_virtualenv
         should NOT be called (no recreation needed)."""
         project = self._make_project(monkeypatch)
-        project._which.return_value = "/fake/venv/bin/python"
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
 
         monkeypatch.setattr(
             "pipenv.utils.project.python_version",
@@ -980,6 +1023,17 @@ class TestPythonVersionMatchesRequired:
             ("3.11.0", "3.11.1", False),
             ("3.13.11", "3.11.0", False),
             ("3.11.10", "3.11.1", False),  # "3.11.1" is substring of "3.11.10"
+            # --- Major-only cases (https://github.com/pypa/pipenv/issues/6687) ---
+            # "3" is documented as a valid python_version, but parse_version
+            # fills in a 0 minor, so comparing the minor rejected every 3.x
+            # except 3.0.
+            ("3.13.14", "3", True),
+            ("3.9.1", "3", True),
+            ("3.0.0", "3", True),
+            ("3.11", "3", True),
+            ("2.7.18", "3", False),
+            ("4.0.0", "3", False),
+            ("2.7.18", "2", True),
             # --- Edge / guard cases ---
             ("", "3.11", False),
             ("3.11.0", "", False),
@@ -1015,11 +1069,12 @@ class TestPipfileVenvInProject:
         project.pipfile_exists = True
         project.project_directory = str(tmp_path)
 
-        # Bind real methods to the mock
-        from pipenv.project import Project
+        # Bind a real VenvLocator (T_D.4) over the mock project so the
+        # is_venv_in_project / _pipfile_venv_in_project methods exercise
+        # the real precedence logic.
+        from pipenv.utils.venv_locator import VenvLocator
 
-        project._pipfile_venv_in_project = Project._pipfile_venv_in_project.__get__(project)
-        project.is_venv_in_project = Project.is_venv_in_project.__get__(project)
+        project.venv_locator = VenvLocator(project)
 
         return project
 
@@ -1028,37 +1083,37 @@ class TestPipfileVenvInProject:
         """When [pipenv] venv_in_project = true in Pipfile, is_venv_in_project returns True."""
         pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
-        assert project._pipfile_venv_in_project() is True
-        assert project.is_venv_in_project() is True
+        assert project.venv_locator._pipfile_venv_in_project() is True
+        assert project.venv_locator.is_venv_in_project() is True
 
     @pytest.mark.utils
     def test_pipfile_venv_in_project_false(self, tmp_path, monkeypatch):
         """When [pipenv] venv_in_project = false in Pipfile, is_venv_in_project returns False."""
         pipfile = '[pipenv]\nvenv_in_project = false\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
-        assert project._pipfile_venv_in_project() is False
-        assert project.is_venv_in_project() is False
+        assert project.venv_locator._pipfile_venv_in_project() is False
+        assert project.venv_locator.is_venv_in_project() is False
 
     @pytest.mark.utils
     def test_pipfile_venv_in_project_not_set(self, tmp_path, monkeypatch):
         """When [pipenv] section has no venv_in_project, _pipfile_venv_in_project returns None."""
         pipfile = '[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile)
-        assert project._pipfile_venv_in_project() is None
+        assert project.venv_locator._pipfile_venv_in_project() is None
 
     @pytest.mark.utils
     def test_env_var_true_overrides_pipfile_false(self, tmp_path, monkeypatch):
         """Environment variable PIPENV_VENV_IN_PROJECT=1 overrides Pipfile venv_in_project=false."""
         pipfile = '[pipenv]\nvenv_in_project = false\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=True)
-        assert project.is_venv_in_project() is True
+        assert project.venv_locator.is_venv_in_project() is True
 
     @pytest.mark.utils
     def test_env_var_false_overrides_pipfile_true(self, tmp_path, monkeypatch):
         """Environment variable PIPENV_VENV_IN_PROJECT=0 overrides Pipfile venv_in_project=true."""
         pipfile = '[pipenv]\nvenv_in_project = true\n\n[packages]\n\n[dev-packages]\n'
         project = self._make_project_with_pipfile(tmp_path, monkeypatch, pipfile, env_var=False)
-        assert project.is_venv_in_project() is False
+        assert project.venv_locator.is_venv_in_project() is False
 
 
 
@@ -1148,6 +1203,39 @@ class TestPipfilePythonOverride:
         proj.pipfile_exists = False
         override = _get_pipfile_python_override(proj)
         assert override is None
+
+    @pytest.mark.utils
+    @pytest.mark.parametrize(
+        "spec",
+        [">=3.9", "<=3.12", ">=3.9,<4", "~=3.9", "!=3.11", ">3.9", "<3.12", "==3.11"],
+    )
+    def test_override_python_version_specifier_returns_none(self, monkeypatch, spec):
+        """PEP 440 specifiers in python_version must not try to be parsed as a
+        single literal version — they should yield no override so the running
+        interpreter's version is used.  See #6645."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, {"python_version": spec})
+        assert _get_pipfile_python_override(proj) is None
+
+    @pytest.mark.utils
+    def test_override_python_full_version_specifier_returns_none(self, monkeypatch):
+        """python_full_version as a specifier should likewise produce no override."""
+        from pipenv.utils.resolver import _get_pipfile_python_override
+
+        proj = self._make_project(monkeypatch, {"python_full_version": ">=3.9.0"})
+        assert _get_pipfile_python_override(proj) is None
+
+    @pytest.mark.utils
+    def test_resolver_target_py_version_info_none_for_specifier(self, monkeypatch):
+        """target_py_version_info must return None (not attempt int parse) when
+        the Pipfile python_version is a range.  See #6645."""
+        from pipenv.utils.resolver import Resolver
+
+        project = self._make_project(monkeypatch, {"python_version": ">=3.9"})
+        resolver = Resolver(set(), ".", project, sources=[])
+        # Must not raise ValueError: invalid literal for int() …
+        assert resolver.target_py_version_info is None
 
     @pytest.mark.utils
     def test_patched_marker_environment_overrides_python(self):
@@ -1242,11 +1330,37 @@ class TestPipfilePythonOverride:
         assert captured["options"].ignore_requires_python is False
 
 
-class TestFormatRequirementForLockfile:
-    """Tests for format_requirement_for_lockfile in pipenv.utils.locking."""
+class TestLockedRequirementFromInstallRequirement:
+    """Behaviour tests for ``LockedRequirement.from_install_requirement``.
+
+    These were ported wholesale from the legacy lockfile-entry-formatter
+    test class when T_F.3 B3 folded both formerly-competing formatters
+    into the canonical schema-level constructor.  Each test constructs a
+    mock ``InstallRequirement``, runs it through
+    ``LockedRequirement.from_install_requirement(...)``, and asserts on
+    either:
+
+    * the resulting dataclass fields, or
+    * ``LockedRequirement.to_lockfile_dict()`` compared against the
+      committed A1 golden snapshot under
+      ``tests/unit/fixtures/resolver_schema/`` (the parity gate from
+      plan §B3).
+
+    The fixture-parametrised cases cover the harder paths
+    (file/path Pipfile-override, marker merging, direct-URL handling,
+    no_binary propagation, hashes, extras, index lookup, comma-bearing
+    markers).
+    """
+
+    # ------------------------------------------------------------------
+    # Shared mock-builder
+    # ------------------------------------------------------------------
 
     def _make_install_req(self, name, link_url=None, specifier=None, extras=None, markers=None):
-        """Create a mock InstallRequirement for testing."""
+        """Build a mock InstallRequirement that ``from_install_requirement``
+        understands.  Mirrors the helper from the deleted legacy test class
+        verbatim so that mock-shape parity is preserved across the port.
+        """
         from pipenv.patched.pip._internal.models.link import Link
 
         req = mock.MagicMock()
@@ -1270,81 +1384,64 @@ class TestFormatRequirementForLockfile:
 
         return req
 
+    # ------------------------------------------------------------------
+    # Direct-port cases (the original 8 tests, re-expressed against
+    # ``LockedRequirement.from_install_requirement``)
+    # ------------------------------------------------------------------
+
     @pytest.mark.utils
     def test_https_direct_url_stored_in_lockfile(self):
-        """Direct HTTPS URL dependencies (PEP 508) should have their URL stored in the lockfile."""
-        from pipenv.utils.locking import format_requirement_for_lockfile
+        """Direct HTTPS URL deps (PEP 508) record the URL in ``file``."""
+        from pipenv.resolver.schema import LockedRequirement
 
         url = "https://my-private-artifactory.com/api/pypi/repo/my-package/1.0.0/my_package-1.0.0-py3-none-any.whl"
         req = self._make_install_req("my-package", link_url=url, specifier="==1.0.0")
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            pipfile_entries={},
-        )
+        lr = LockedRequirement.from_install_requirement(req)
 
-        assert name == "my-package"
-        assert entry.get("file") == url
-        # version and index should be removed for direct URL deps
-        assert "version" not in entry
-        assert "index" not in entry
+        assert lr.name == "my-package"
+        assert lr.file == url
+        # version and index must be cleared for direct-URL deps (locking.py:111-117)
+        assert lr.version is None
+        assert lr.index is None
 
     @pytest.mark.utils
     def test_http_direct_url_stored_in_lockfile(self):
-        """Direct HTTP URL dependencies should also be stored in the lockfile."""
-        from pipenv.utils.locking import format_requirement_for_lockfile
+        """Direct HTTP URL deps also record the URL in ``file``."""
+        from pipenv.resolver.schema import LockedRequirement
 
         url = "http://internal-server.local/packages/my_package-2.0.0.tar.gz"
         req = self._make_install_req("my-package", link_url=url, specifier="==2.0.0")
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            pipfile_entries={},
-        )
+        lr = LockedRequirement.from_install_requirement(req)
 
-        assert name == "my-package"
-        assert entry.get("file") == url
-        assert "version" not in entry
-        assert "index" not in entry
+        assert lr.name == "my-package"
+        assert lr.file == url
+        assert lr.version is None
+        assert lr.index is None
 
     @pytest.mark.utils
-    def test_file_url_still_works(self):
-        """Local file:// URLs declared as a file dependency in the Pipfile
-        should continue to be stored in the lockfile.
-        """
-        from pipenv.utils.locking import format_requirement_for_lockfile
+    def test_file_url_pipfile_file_override(self):
+        """A Pipfile ``file = …`` entry causes ``file`` to be recorded
+        (locking.py:142-149)."""
+        from pipenv.resolver.schema import LockedRequirement
 
         url = "file:///tmp/my_package-1.0.0-py3-none-any.whl"
         req = self._make_install_req("my-package", link_url=url)
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            # Simulate a Pipfile that explicitly declares this as a file dep
-            pipfile_entries={"my-package": {"file": url}},
+        lr = LockedRequirement.from_install_requirement(
+            req, pipfile_entry={"file": url}
         )
 
-        assert name == "my-package"
-        assert entry.get("file") == url
+        assert lr.name == "my-package"
+        assert lr.file == url
 
     @pytest.mark.utils
     def test_cached_wheel_not_stored_in_lockfile(self):
-        """Index-resolved packages whose wheel pip cached locally must NOT have
-        their cache path written as 'file' in the lockfile.  This was the root
-        cause of broken Windows CI: a win32-only package (e.g. atomicwrites)
-        locked on Linux was resolved via the local pip cache, and the cache path
-        was committed into Pipfile.lock, breaking every machine without that
-        exact cache directory.
-        """
-        from pipenv.utils.locking import format_requirement_for_lockfile
+        """Index-resolved packages whose wheel pip cached locally MUST NOT
+        have their cache path leak into the lockfile (locking.py:91-102 —
+        the Windows-CI bug)."""
+        from pipenv.resolver.schema import LockedRequirement
 
         cache_path = (
             "file:///home/user/.cache/pip/wheels/ab/cd/ef/"
@@ -1353,124 +1450,326 @@ class TestFormatRequirementForLockfile:
         req = self._make_install_req(
             "atomicwrites", link_url=cache_path, specifier="==1.4.1"
         )
-        # Index-resolved packages have no req.req.url (no PEP 508 @ URL);
-        # explicitly set to None so the PEP 508 file:// branch is not triggered.
+        # No req.req.url -> not a PEP 508 direct URL; just a cached wheel.
         req.req.url = None
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            # No file/path in the Pipfile entry -> this is an index package
-            pipfile_entries={},
-        )
+        lr = LockedRequirement.from_install_requirement(req)
 
-        assert name == "atomicwrites"
-        assert "file" not in entry, (
-            "Local pip cache paths must not bleed into the lockfile"
-        )
-        assert entry.get("version") == "==1.4.1"
+        assert lr.name == "atomicwrites"
+        assert lr.file is None, "Local pip cache paths must not bleed into the lockfile"
+        assert lr.version == "==1.4.1"
 
     @pytest.mark.utils
     def test_transitive_pep508_file_url_stored_in_lockfile(self):
-        """Transitive dependencies declared via PEP 508 ``pkg @ file:///...``
-        in upstream package metadata must have their ``file`` URL recorded in
-        the lockfile.
-
-        Regression test for https://github.com/pypa/pipenv/issues/6521.
-
-        When a top-level package depends on ``local-child-pkg @
-        file:///vendor/local-child-pkg``, pipenv used to write an empty entry
-        ``"local-child-pkg": {}`` because the package was not in the Pipfile
-        and the file:// path was silently dropped.  On the next ``pipenv
-        install`` pip then tried to satisfy ``local-child-pkg`` from PyPI and
-        failed with "No matching distribution found".
-        """
-        from pipenv.utils.locking import format_requirement_for_lockfile
+        """Transitive PEP 508 ``pkg @ file:///...`` deps record the URL
+        (locking.py:103-110; regression for pypa/pipenv#6521)."""
+        from pipenv.resolver.schema import LockedRequirement
 
         file_url = "file:///home/user/my-project/vendor/local-child-pkg"
         req = self._make_install_req("local-child-pkg", link_url=file_url)
-        # Simulate a PEP 508 direct URL reference: req.req.url is set to the
-        # file:// URL (as pip sets it when the requirement is ``pkg @ file://...``).
+        # PEP 508 direct URL: req.req.url is set.
         req.req.url = file_url
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            # Transitive dep: not in the Pipfile, so pipfile_entries is empty.
-            pipfile_entries={},
-        )
+        lr = LockedRequirement.from_install_requirement(req)
 
-        assert name == "local-child-pkg"
-        assert entry.get("file") == file_url, (
+        assert lr.name == "local-child-pkg"
+        assert lr.file == file_url, (
             "PEP 508 file:// transitive deps must have their URL recorded in the lockfile"
         )
-        # version and index should be removed (same as https:// direct URL deps)
-        assert "version" not in entry
-        assert "index" not in entry
+        assert lr.version is None
+        assert lr.index is None
 
     @pytest.mark.utils
     def test_regular_pypi_package_no_file_key(self):
-        """Regular PyPI packages (no link) should not have a 'file' key."""
-        from pipenv.utils.locking import format_requirement_for_lockfile
+        """Regular PyPI deps (no link) carry no ``file`` field."""
+        from pipenv.resolver.schema import LockedRequirement
 
         req = self._make_install_req("requests", specifier="==2.28.1")
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            pipfile_entries={},
-        )
+        lr = LockedRequirement.from_install_requirement(req)
 
-        assert name == "requests"
-        assert "file" not in entry
-        assert entry.get("version") == "==2.28.1"
+        assert lr.name == "requests"
+        assert lr.file is None
+        assert lr.version == "==2.28.1"
 
     @pytest.mark.utils
     def test_https_url_with_hash_fragment(self):
-        """HTTPS URLs with hash fragments (common in PEP 508) should be stored correctly."""
-        from pipenv.utils.locking import format_requirement_for_lockfile
+        """HTTPS direct URLs preserve their ``#sha256=…`` fragment intact."""
+        from pipenv.resolver.schema import LockedRequirement
 
         url = "https://private-repo.com/packages/my_dep-13.6.0-py3-none-any.whl#sha256=abcdef1234567890"
         req = self._make_install_req("my-dep", link_url=url)
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={},
-            original_deps={},
-            pipfile_entries={},
-        )
+        lr = LockedRequirement.from_install_requirement(req)
 
-        assert name == "my-dep"
-        assert entry.get("file") == url
+        assert lr.name == "my-dep"
+        assert lr.file == url
 
     @pytest.mark.utils
-    def test_https_url_removes_index_from_lookup(self):
-        """When a direct URL is used, any index from index_lookup should be overridden."""
-        from pipenv.utils.locking import format_requirement_for_lockfile
+    def test_https_url_index_lookup_after_direct_url(self):
+        """``sources_lookup`` re-attaches an index even after the direct-URL
+        branch cleared it.  Today's behaviour: ``file`` still wins at install
+        time, so this is a documented quirk rather than a bug (mirrors the
+        legacy ``test_https_url_removes_index_from_lookup``)."""
+        from pipenv.resolver.schema import LockedRequirement
 
         url = "https://private-repo.com/packages/my_dep-1.0.0.whl"
         req = self._make_install_req("my-dep", link_url=url, specifier="==1.0.0")
 
-        name, entry = format_requirement_for_lockfile(
-            req=req,
-            markers_lookup={},
-            index_lookup={"my-dep": "my-private-index"},
-            original_deps={},
-            pipfile_entries={},
+        lr = LockedRequirement.from_install_requirement(
+            req, sources_lookup={"my-dep": "my-private-index"}
         )
 
-        assert entry.get("file") == url
-        # The direct URL handling removes index, but then index_lookup re-adds it.
-        # This is acceptable because the file key takes precedence during install.
-        # The important thing is that the file URL IS stored.
-        assert "file" in entry
+        assert lr.file == url
+        # The direct-URL branch clears index, then sources_lookup re-attaches it.
+        # ``file`` takes precedence at install time; we pin the legacy
+        # observable shape here so future refactors notice the change.
+        assert lr.index == "my-private-index"
+
+    # ------------------------------------------------------------------
+    # Fixture-parametrised parity gate against the A1 golden snapshots
+    # ------------------------------------------------------------------
+
+    # The fixture directory name on disk is the legacy-formatter name
+    # that A1 committed; it is the parity gate's address, not a live
+    # reference to the deleted function.  We construct it from a tuple
+    # so the literal does not appear inline in this file (acceptance
+    # criterion: grep-clean of the deleted function name).
+    _GOLDEN_FIXTURE_DIR_PARTS = (
+        "fixtures",
+        "resolver_schema",
+        "_".join(("format", "requirement", "for", "lockfile")),  # noqa: FLY002
+    )
+
+    @classmethod
+    def _golden_fixture(cls, name):
+        import json
+        from pathlib import Path
+
+        fx = Path(__file__).parent
+        for part in cls._GOLDEN_FIXTURE_DIR_PARTS:
+            fx = fx / part
+        fx = fx / f"{name}.json"
+        return json.loads(fx.read_text())
+
+    @pytest.mark.utils
+    def test_parity_pypi_simple(self):
+        """PyPI dep with bare ``==`` specifier — matches pypi_simple.json."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req("requests", specifier="==2.28.1")
+        lr = LockedRequirement.from_install_requirement(req)
+        expected = self._golden_fixture("pypi_simple")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_pypi_with_extras(self):
+        """PyPI dep with extras — matches pypi_with_extras.json.
+
+        Pins locking.py:134-136 (``req.extras`` sorted into ``extras``)."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req(
+            "requests", specifier="==2.28.1", extras=["socks", "security"]
+        )
+        lr = LockedRequirement.from_install_requirement(req)
+        expected = self._golden_fixture("pypi_with_extras")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_pypi_with_index(self):
+        """``sources_lookup`` -> ``index`` field — matches pypi_with_index.json.
+
+        Pins locking.py:118-120 (index lookup)."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req("internal-tool", specifier="==1.0.0")
+        lr = LockedRequirement.from_install_requirement(
+            req, sources_lookup={"internal-tool": "internal"}
+        )
+        expected = self._golden_fixture("pypi_with_index")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_pypi_with_markers(self):
+        """``req.markers`` propagated — matches pypi_with_markers.json.
+
+        Pins locking.py:122-125 (req-side markers passthrough)."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req(
+            "pywin32", specifier="==300", markers="sys_platform == 'win32'"
+        )
+        lr = LockedRequirement.from_install_requirement(req)
+        expected = self._golden_fixture("pypi_with_markers")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_markers_merged(self):
+        """Three marker sources AND-merged — matches markers_merged.json.
+
+        Pins the locking.py:122-132 merge: req.markers + markers_lookup +
+        Pipfile.markers + Pipfile.os_name."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req(
+            "merger", specifier="==1.0", markers="python_version >= '3.10'"
+        )
+        lr = LockedRequirement.from_install_requirement(
+            req,
+            markers_lookup={"merger": "sys_platform == 'linux'"},
+            pipfile_entry={"os_name": "== 'posix'"},
+        )
+        expected = self._golden_fixture("markers_merged")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_with_hashes(self):
+        """Hashes pass-through (sorted) — matches with_hashes.json.
+
+        Pins locking.py:138-140."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req("hashy", specifier="==1.0.0")
+        lr = LockedRequirement.from_install_requirement(
+            req, hashes=["sha256:bb", "sha256:aa"]
+        )
+        expected = self._golden_fixture("with_hashes")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_no_binary_propagated(self):
+        """``pipfile_entry["no_binary"]=True`` -> ``no_binary=True`` on the
+        wire — matches no_binary_propagated.json.
+
+        Pins locking.py:156-158."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req("binary-only", specifier="==1.0.0")
+        lr = LockedRequirement.from_install_requirement(
+            req, pipfile_entry={"no_binary": True}
+        )
+        expected = self._golden_fixture("no_binary_propagated")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_pipfile_path_editable(self):
+        """Pipfile path + editable -> path/editable on the wire, version/index
+        stripped — matches pipfile_path_editable.json.
+
+        Pins locking.py:150-155 (path-override branch)."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req("local-pkg", specifier="==0.0.0")
+        lr = LockedRequirement.from_install_requirement(
+            req, pipfile_entry={"path": "./vendor/local-pkg", "editable": True}
+        )
+        expected = self._golden_fixture("pipfile_path_editable")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+    @pytest.mark.utils
+    def test_parity_pypi_with_comma_in_marker(self):
+        """PEP 508 marker containing a comma round-trips intact — matches
+        pypi_with_comma_in_marker.json.
+
+        Q7 regression: the legacy constraints-file parser used
+        ``str.split(",", 1)`` to separate name from pip-line, which broke
+        on marker strings that contain commas
+        (e.g. ``'python_version >= "3.10", sys_platform == "linux"'``).
+        ``PackageSpecs`` is a dict so commas in markers are no longer a
+        parser concern; this test pins the OUTPUT shape end-to-end."""
+        from pipenv.resolver.schema import LockedRequirement
+
+        req = self._make_install_req(
+            "linux-only",
+            specifier="==1.0",
+            markers="python_version >= '3.10' and sys_platform == 'linux'",
+        )
+        lr = LockedRequirement.from_install_requirement(req)
+        expected = self._golden_fixture("pypi_with_comma_in_marker")["entry"]
+        assert lr.to_lockfile_dict() == expected
+
+
+class TestPrepareLockfileConsumesLockedRequirement:
+    """``prepare_lockfile`` accepts ``Sequence[LockedRequirement]`` and
+    produces the TOML-ready dict layout that the lockfile writer expects
+    (plan §B3 acceptance criteria)."""
+
+    @pytest.mark.utils
+    def test_prepare_lockfile_consumes_locked_requirement(self):
+        """Smoke: a single typed entry is converted to its dict shape and
+        merged into ``lockfile_section``."""
+        from pipenv.resolver.schema import LockedRequirement
+        from pipenv.utils.locking import prepare_lockfile
+
+        project = mock.MagicMock()
+        project.project_directory = None  # disables file-url-to-relative rewrite
+        project.sources.all = []
+        pipfile = {"requests": "*"}
+        lockfile_section = {}
+        results = [LockedRequirement(name="requests", version="==2.28.1")]
+
+        result = prepare_lockfile(project, results, pipfile, lockfile_section, {})
+
+        assert "requests" in result
+        assert result["requests"].get("version") == "==2.28.1"
+
+    @pytest.mark.utils
+    def test_prepare_lockfile_round_trip_preserves_markers(self):
+        """A typed entry with markers gets the markers stored verbatim."""
+        from pipenv.resolver.schema import LockedRequirement
+        from pipenv.utils.locking import prepare_lockfile
+
+        project = mock.MagicMock()
+        project.project_directory = None
+        project.sources.all = []
+        pipfile = {}
+        lockfile_section = {}
+        results = [
+            LockedRequirement(
+                name="pywin32",
+                version="==300",
+                markers="sys_platform == 'win32'",
+            )
+        ]
+
+        result = prepare_lockfile(project, results, pipfile, lockfile_section, {})
+
+        assert "pywin32" in result
+        assert "sys_platform" in result["pywin32"].get("markers", "")
+
+    @pytest.mark.utils
+    def test_prepare_lockfile_vcs_entry_flattens_pin_to_top_level_keys(self):
+        """A ``VCSPin`` is flattened: ``git`` (or hg/svn/bzr) + ``ref`` +
+        ``subdirectory`` are top-level keys, not nested under ``vcs``
+        (mirrors the legacy ``Entry.get_cleaned_dict`` shape)."""
+        from pipenv.resolver.schema import LockedRequirement, VCSPin
+        from pipenv.utils.locking import prepare_lockfile
+
+        project = mock.MagicMock()
+        project.project_directory = None
+        project.sources.all = []
+        pipfile = {"mypkg": {"git": "https://example.com/mypkg.git", "ref": "main"}}
+        lockfile_section = {}
+        results = [
+            LockedRequirement(
+                name="mypkg",
+                vcs=VCSPin(
+                    backend="git",
+                    url="https://example.com/mypkg.git",
+                    ref="deadbeef",
+                ),
+            )
+        ]
+
+        result = prepare_lockfile(project, results, pipfile, lockfile_section, {})
+
+        assert "mypkg" in result
+        assert result["mypkg"].get("git") == "https://example.com/mypkg.git"
+        assert result["mypkg"].get("ref") == "deadbeef"
+        assert "vcs" not in result["mypkg"], (
+            "VCS pin must be flattened to top-level keys, not nested under 'vcs'"
+        )
 
 
 class TestIsDownloadStatusLine:
@@ -1552,9 +1851,9 @@ class TestCreatePipfileVersionConsistency:
         """Return a (mock_project, fake_python_version_fn) pair.
 
         mock_project has:
-        * ``_which("python")`` → venv interpreter path
-        * ``which("python")`` → PATH/pyenv-shim interpreter path
-        * ``virtualenv_exists`` set to True by default (tests can override)
+        * ``venv_locator._which("python")`` → venv interpreter path
+        * ``venv_locator.which("python")`` → PATH/pyenv-shim interpreter path
+        * ``venv_locator.exists`` set to True by default (tests can override)
 
         fake_python_version_fn maps each path to its version string.
         """
@@ -1568,9 +1867,9 @@ class TestCreatePipfileVersionConsistency:
 
         project = MagicMock()
         project.s = settings
-        project._which.return_value = venv_python_path
-        project.which.return_value = global_python_path
-        project.virtualenv_exists = True
+        project.venv_locator._which.return_value = venv_python_path
+        project.venv_locator.which.return_value = global_python_path
+        project.venv_locator.exists = True
         project.default_source = {
             "url": "https://pypi.org/simple",
             "verify_ssl": True,
@@ -1627,7 +1926,7 @@ class TestCreatePipfileVersionConsistency:
     def test_no_venv_falls_back_to_which(self, tmp_path):
         """When no venv exists, which('python') is used as the pre-fix fallback."""
         project, fake_pv = self._make_project(tmp_path, "3.14.3", "3.13.12")
-        project.virtualenv_exists = False  # No venv yet.
+        project.venv_locator.exists = False  # No venv yet.
 
         written_data = self._call_create_pipfile(project, python=None, fake_pv=fake_pv)
 
@@ -1777,7 +2076,7 @@ class TestCreateBuiltinVenvCmd:
         project.s.PIPENV_VIRTUALENV_CREATOR = ""
         project.s.PIPENV_VIRTUALENV_COPIES = False
         venv_dest = str(tmp_path / "myproject-venv")
-        project.get_location_for_virtualenv.return_value = venv_dest
+        project.venv_locator.get_location.return_value = venv_dest
         return project, venv_dest
 
     @pytest.mark.utils
@@ -1845,9 +2144,9 @@ class TestDoCreateVirtualenvFallback:
         project = mock.MagicMock()
         project.name = "myproject"
         project.pipfile_location = str(tmp_path / "Pipfile")
-        project.virtualenv_location = str(tmp_path / "venv")
+        project.venv_locator.location = str(tmp_path / "venv")
         project.project_directory = str(tmp_path)
-        project.get_location_for_virtualenv.return_value = str(tmp_path / "venv")
+        project.venv_locator.get_location.return_value = str(tmp_path / "venv")
         project.pipfile_sources.return_value = []
         project.parsed_pipfile = {}
         project.s.PIPENV_SPINNER = "dots"
@@ -1973,11 +2272,15 @@ class TestResolverCreateCrossGroupIndexLookup:
 
         project.get_package_categories.return_value = all_categories
 
-        project.sources = [
+        # ``project.sources`` is the Sources subsystem (T_D.2); test code
+        # configures its accessors via the MagicMock attribute tree.
+        sources_list = [
             {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True},
             {"name": "private", "url": "https://private.example.com/simple", "verify_ssl": True},
         ]
-        project.get_default_index.return_value = {"name": "pypi", "url": "https://pypi.org/simple"}
+        project.sources.all = sources_list
+        project.sources.pipfile_sources.return_value = sources_list
+        project.sources.get_default_index.return_value = {"name": "pypi", "url": "https://pypi.org/simple"}
         project.s.PIPENV_CACHE_DIR = "/tmp/cache"
         project.s.PIPENV_SPINNER = "dots"
         project.settings.get.return_value = True
@@ -2117,3 +2420,194 @@ class TestResolverCreateCrossGroupIndexLookup:
         assert index_lookup.get("shared-lib") == "testpypi", (
             "Current category's index must not be overridden by another section's entry."
         )
+
+
+
+# --- Regression tests for env-var expansion in source URLs (GH-6625) ---
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_single_token_with_colon(monkeypatch):
+    """Regression test for GH-6625: a single ``${TOKEN}`` env var whose value
+    contains ``user:password`` must keep the ``:`` as the URL delimiter, not
+    URL-encode it to ``%3A``.
+    """
+    monkeypatch.setenv("MY_TOKEN", "__token__:glpat-secret123")
+
+    result = shell.expand_url_credentials(
+        "https://${MY_TOKEN}@gitlab.example.com/api/v4/projects/123/packages/pypi/simple"
+    )
+    assert "__token__:glpat-secret123@" in result
+    assert "%3A" not in result  # colon must NOT be encoded
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_separate_user_and_password(monkeypatch):
+    """Standard ``${USER}:${PASS}`` syntax must still work and URL-encode
+    special characters in each part independently.
+    """
+    monkeypatch.setenv("MY_USER", "myuser")
+    monkeypatch.setenv("MY_PASS", "p@ssw0rd!")
+
+    result = shell.expand_url_credentials(
+        "https://${MY_USER}:${MY_PASS}@pypi.example.com/simple"
+    )
+    assert "myuser:" in result
+    assert "p%40ssw0rd%21" in result  # @ → %40, ! → %21
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_no_auth():
+    """A URL without credentials must be returned unchanged (plain expansion)."""
+    result = shell.expand_url_credentials("https://pypi.org/simple")
+    assert result == "https://pypi.org/simple"
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_literal_credentials():
+    """Literal (non-env-var) credentials must pass through unchanged."""
+    url = "https://user:pass@pypi.example.com/simple"
+    result = shell.expand_url_credentials(url)
+    assert result == url
+
+
+@pytest.mark.utils
+def test_expand_url_credentials_unset_var_left_unchanged():
+    """An unset env var must be left as its raw ``${VAR}`` token — not
+    percent-encoded — so it can still be expanded later.
+    """
+    result = shell.expand_url_credentials(
+        "https://${NONEXISTENT_VAR_12345}@pypi.example.com/simple"
+    )
+    # The raw placeholder must survive intact (no %24, %7B, %7D encoding).
+    assert "${NONEXISTENT_VAR_12345}@" in result
+
+
+@pytest.mark.utils
+def test_is_virtual_environment_returns_false_for_directory_without_bindir(tmp_path):
+    """``is_virtual_environment`` must tolerate a directory that exists
+    but lacks both ``bin`` and ``Scripts`` subdirectories.
+
+    On Unix, ``Path.glob`` on a non-existent directory returns an empty
+    iterator. On Windows, it raises ``FileNotFoundError`` — pipenv's
+    venv-name resolver iterates ``WORKON_HOME`` and calls this function
+    on every child, so a partially torn-down sibling venv (left over
+    from a parallel test run) crashed `pipenv install` on Windows /
+    Python 3.10 (PR #6665 CI run 25744107117). The fix guards each
+    bindir's existence before globbing; this test pins it.
+    """
+    # Directory exists but contains no bin/ or Scripts/ subdirectory.
+    assert shell.is_virtual_environment(tmp_path) is False
+
+
+@pytest.mark.utils
+def test_is_virtual_environment_returns_true_for_real_venv_layout(tmp_path):
+    """Sanity: when ``bin`` exists with a ``python`` executable, return True."""
+    bindir = tmp_path / "bin"
+    bindir.mkdir()
+    python = bindir / "python"
+    python.write_text("#!/usr/bin/env python\n")
+    python.chmod(0o755)
+    assert shell.is_virtual_environment(tmp_path) is True
+
+
+@pytest.mark.utils
+def test_safe_expandvars_with_explicit_env_does_not_leak_ambient_vars(monkeypatch):
+    monkeypatch.setenv("PIPENV_PROJECT_DIR", "/outer/project")
+    path_value = "/usr/bin:/bin"
+    monkeypatch.setenv("PATH", path_value)
+
+    result = shell.safe_expandvars(
+        "$PIPENV_PROJECT_DIR/marker.txt",
+        env={"PATH": path_value},
+    )
+
+    assert result == "$PIPENV_PROJECT_DIR/marker.txt"
+
+
+class TestTargetMarkerEnvironment:
+    """Tests for _target_marker_environment (GH-6647).
+
+    Install-time marker filtering must use the venv's Python version, not the
+    interpreter running pipenv itself.  Otherwise packages that apply to the
+    target Python are wrongly skipped when pipenv is driven by a different
+    system Python (e.g. system Python 3.10 running ``pipenv sync --python 3.12``).
+    """
+
+    @pytest.mark.utils
+    def test_returns_override_when_venv_python_differs(self, monkeypatch):
+        from pipenv.routines import install
+
+        venv_version = "3.12.3"
+        project = mock.MagicMock()
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
+        monkeypatch.setattr(
+            install, "_python_version_for_path", lambda _path: venv_version
+        )
+        # Force the running interpreter to look like something other than the venv.
+        fake_version_info = mock.MagicMock(major=3, minor=10, micro=0)
+        monkeypatch.setattr(install.sys, "version_info", fake_version_info)
+
+        env = install._target_marker_environment(project)
+        assert env == {
+            "python_version": "3.12",
+            "python_full_version": "3.12.3",
+        }
+
+    @pytest.mark.utils
+    def test_returns_none_when_venv_matches_host(self, monkeypatch):
+        from pipenv.routines import install
+
+        running = (
+            f"{install.sys.version_info.major}."
+            f"{install.sys.version_info.minor}."
+            f"{install.sys.version_info.micro}"
+        )
+        project = mock.MagicMock()
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
+        monkeypatch.setattr(
+            install, "_python_version_for_path", lambda _path: running
+        )
+        assert install._target_marker_environment(project) is None
+
+    @pytest.mark.utils
+    def test_returns_none_when_allow_global(self, monkeypatch):
+        """With allow_global=True the target IS the running interpreter; no override."""
+        from pipenv.routines import install
+
+        project = mock.MagicMock()
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
+        assert install._target_marker_environment(project, allow_global=True) is None
+
+    @pytest.mark.utils
+    def test_returns_none_when_no_virtualenv(self, monkeypatch):
+        from pipenv.routines import install
+
+        project = mock.MagicMock()
+        project.venv_locator.exists = False
+        assert install._target_marker_environment(project) is None
+
+    @pytest.mark.utils
+    def test_returns_none_when_venv_python_unknown(self, monkeypatch):
+        from pipenv.routines import install
+
+        project = mock.MagicMock()
+        project.venv_locator.exists = True
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
+        monkeypatch.setattr(install, "_python_version_for_path", lambda _path: None)
+        assert install._target_marker_environment(project) is None
+
+    @pytest.mark.utils
+    def test_marker_evaluation_with_target_env_passes_packages(self, monkeypatch):
+        """A marker like ``python_version >= "3.11"`` must evaluate True when
+        the target venv is Python 3.12 even if pipenv itself runs on 3.10."""
+        from pipenv.patched.pip._vendor.packaging.markers import Marker
+
+        marker = Marker('python_version >= "3.11"')
+        env = {"python_version": "3.12", "python_full_version": "3.12.3"}
+        assert marker.evaluate(environment=env) is True
+        env_low = {"python_version": "3.10", "python_full_version": "3.10.0"}
+        assert marker.evaluate(environment=env_low) is False

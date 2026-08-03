@@ -14,7 +14,7 @@ class PEP723Exception(ValueError):
 
 
 def pep723_metadata(scriptfile: str) -> dict[str, Any]:
-    with open(scriptfile) as f:
+    with open(scriptfile, encoding="utf8") as f:
         script = f.read()
 
     name = "script"

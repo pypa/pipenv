@@ -1,2 +1,0 @@
-``pipenv --where`` now exits with a non-zero exit code (1) when no Pipfile is
-found, making it suitable for use in scripts and CI pipelines.

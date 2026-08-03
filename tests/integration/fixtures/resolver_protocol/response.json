@@ -1,0 +1,28 @@
+{
+  "diagnostics": "<redacted>",
+  "result": {
+    "kind": "success",
+    "locked": [
+      {
+        "hashes": [
+          "sha256:2a29735ea9c18baf14b448846bde5a48030ed267578472d8955cd0e7443a9812",
+          "sha256:328171f4e3623139da4983451950b28e95ac706e13f3f2630a879749e7a8b319"
+        ],
+        "index": "pypi",
+        "name": "pytz",
+        "version": "==2024.1"
+      },
+      {
+        "hashes": [
+          "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
+          "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
+        ],
+        "index": "pypi",
+        "markers": "python_version >= '2.7' and python_version not in '3.0, 3.1, 3.2'",
+        "name": "six",
+        "version": "==1.16.0"
+      }
+    ]
+  },
+  "schema_version": 1
+}

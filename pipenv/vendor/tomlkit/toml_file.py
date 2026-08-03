@@ -24,7 +24,7 @@ class TOMLFile:
 
     def __init__(self, path: _StrPath) -> None:
         self._path = path
-        self._linesep = os.linesep
+        self._linesep: str = os.linesep
 
     def read(self) -> TOMLDocument:
         """Read the file content as a :class:`tomlkit.toml_document.TOMLDocument`."""

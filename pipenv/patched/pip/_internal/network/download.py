@@ -19,7 +19,6 @@ from pipenv.patched.pip._vendor.urllib3.exceptions import ReadTimeoutError
 
 from pipenv.patched.pip._internal.cli.progress_bars import BarType, get_download_progress_renderer
 from pipenv.patched.pip._internal.exceptions import IncompleteDownloadError, NetworkConnectionError
-from pipenv.patched.pip._internal.models.index import PyPI
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.network.cache import SafeFileCache, is_from_cache
 from pipenv.patched.pip._internal.network.session import CacheControlAdapter, PipSession
@@ -51,10 +50,10 @@ def _log_download(
     total_length: int | None,
     range_start: int | None = 0,
 ) -> Iterable[bytes]:
-    if link.netloc == PyPI.file_storage_domain:
-        url = link.show_url
-    else:
+    if logger.getEffectiveLevel() > logging.INFO:
         url = link.url_without_fragment
+    else:
+        url = link.show_url
 
     logged_url = redact_auth_from_url(url)
 

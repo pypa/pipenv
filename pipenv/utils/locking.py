@@ -1,21 +1,23 @@
 import copy
 import itertools
 import os
+import re
 import stat
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from json import JSONDecodeError
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Iterator, List, Optional, Set, Tuple
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.utils.constants import VCS_LIST
+from pipenv.resolver.schema import LockedRequirement
 from pipenv.utils.dependencies import (
     clean_resolved_dep,
-    determine_vcs_revision_hash,
     expansive_install_req_from_line,
-    normalize_vcs_url,
+    is_editable,
+    is_vcs,
+    merge_items,
     pep423_name,
     translate_markers,
 )
@@ -25,8 +27,6 @@ from pipenv.utils.exceptions import (
     PipfileNotFound,
 )
 from pipenv.utils.pipfile import DEFAULT_NEWLINES, ProjectFile
-from pipenv.utils.requirements import normalize_name
-from pipenv.utils.requirementslib import is_editable, is_vcs, merge_items
 from pipenv.vendor.plette import lockfiles
 
 
@@ -42,123 +42,6 @@ def merge_markers(entry, markers):
             entry["markers"] = f"({entry['markers']}) and ({marker})"
 
 
-def format_requirement_for_lockfile(
-    req: InstallRequirement,
-    markers_lookup: Dict[str, str],
-    index_lookup: Dict[str, str],
-    original_deps: Dict[str, Any],
-    pipfile_entries: Dict[str, Any],
-    hashes: Optional[Set[str]] = None,
-) -> Tuple[str, Dict[str, Any]]:
-    """Format a requirement for the lockfile with improved VCS handling."""
-    name = normalize_name(req.name)
-    entry: Dict[str, Any] = {"name": name}
-    pipfile_entry = pipfile_entries.get(name, pipfile_entries.get(req.name, {}))
-    # Handle VCS requirements
-    is_vcs_dep = next(iter([vcs for vcs in VCS_LIST if vcs in pipfile_entry]), None)
-    if req.link and req.link.is_vcs:
-        is_vcs_dep = True
-    if is_vcs_dep:
-        if req.link and req.link.is_vcs:
-            link = req.link
-        else:
-            link = req.cached_wheel_source_link
-        vcs = link.scheme.split("+", 1)[0]
-
-        # Get VCS URL from original deps or normalize the link URL
-        vcs_url, _ = normalize_vcs_url(link.url)
-        entry[vcs] = vcs_url
-
-        # Handle subdirectory information
-        if pipfile_entry.get("subdirectory"):
-            entry["subdirectory"] = pipfile_entry["subdirectory"]
-        elif link.subdirectory_fragment:
-            entry["subdirectory"] = link.subdirectory_fragment
-
-        # Handle reference information - try multiple sources
-        ref = determine_vcs_revision_hash(req, vcs, pipfile_entry.get("ref"))
-        if ref:
-            entry["ref"] = ref
-    # Handle non-VCS requirements
-    else:
-        if req.req and req.req.specifier:
-            entry["version"] = str(req.req.specifier)
-        elif req.specifier:
-            entry["version"] = str(req.specifier)
-        if req.link:
-            if req.link.is_file:
-                # Only record the file path when the *Pipfile itself* explicitly
-                # declares this as a file/path dependency.  When the resolver
-                # locates an index-published package via the local pip wheel cache
-                # (common for platform-specific packages resolved cross-platform,
-                # e.g. a win32-only package locked on Linux), req.link is a
-                # file:// URL pointing at the cache – storing that path would
-                # break installs on any machine without that exact cache layout.
-                if isinstance(pipfile_entry, dict) and (
-                    pipfile_entry.get("file") or pipfile_entry.get("path")
-                ):
-                    entry["file"] = req.link.url
-                elif req.req and req.req.url and req.req.url.startswith("file:"):
-                    # PEP 508 direct URL file:// dependency (e.g. a transitive dep
-                    # declared as ``pkg @ file:///path/to/pkg`` in upstream metadata).
-                    # req.req.url being set distinguishes this from a cached wheel
-                    # (which also resolves to a file:// link but never sets req.req.url).
-                    entry["file"] = req.link.url
-                    entry.pop("version", None)
-                    entry.pop("index", None)
-            elif req.link.scheme in ("http", "https") and req.req and req.req.url:
-                # Handle direct URL dependencies (PEP 508 style: package @ https://...)
-                # Only when the requirement itself has a URL (req.req.url is set),
-                # NOT when the URL is simply a download link from a package index.
-                entry["file"] = req.link.url
-                entry.pop("version", None)
-                entry.pop("index", None)
-    # Add index information
-    if name in index_lookup:
-        entry["index"] = index_lookup[name]
-
-    # Handle markers
-    markers = req.markers
-    if markers:
-        entry["markers"] = str(markers)
-    if name in markers_lookup:
-        merge_markers(entry, markers_lookup[name])
-    if isinstance(pipfile_entry, dict):
-        if "markers" in pipfile_entry:
-            merge_markers(entry, pipfile_entry["markers"])
-        if "os_name" in pipfile_entry:
-            merge_markers(entry, f"os_name {pipfile_entry['os_name']}")
-
-    # Handle extras
-    if req.extras:
-        entry["extras"] = sorted(req.extras)
-
-    # Handle hashes
-    if hashes:
-        entry["hashes"] = sorted(set(hashes))
-
-    # Handle file/path entries from Pipfile
-    if isinstance(pipfile_entry, dict):
-        if pipfile_entry.get("file"):
-            entry["file"] = pipfile_entry["file"]
-            if pipfile_entry.get("editable"):
-                entry["editable"] = pipfile_entry["editable"]
-            entry.pop("version", None)
-            entry.pop("index", None)
-        elif pipfile_entry.get("path"):
-            entry["path"] = pipfile_entry["path"]
-            if pipfile_entry.get("editable"):
-                entry["editable"] = pipfile_entry["editable"]
-            entry.pop("version", None)
-            entry.pop("index", None)
-        # Propagate no_binary so batch_install can re-apply --no-binary on sync/install
-        if pipfile_entry.get("no_binary"):
-            entry["no_binary"] = True
-
-    entry = translate_markers(entry)
-    return name, entry
-
-
 def get_locked_dep(project, dep, pipfile_section, current_entry=None):
     # initialize default values
     is_top_level = False
@@ -170,10 +53,14 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
             if pep423_name(pipfile_key) == dep_name or pipfile_key == dep_name:
                 is_top_level = True
                 if isinstance(pipfile_entry, dict):
-                    if pipfile_entry.get("version"):
-                        pipfile_entry.pop("version")
-                    if pipfile_entry.get("ref"):
-                        pipfile_entry.pop("ref")
+                    # Copy before mutating: pipfile_section is the cached
+                    # parsed_pipfile, so popping in place strips the original
+                    # Pipfile entry and corrupts the next write_toml.
+                    pipfile_entry = {
+                        k: v
+                        for k, v in pipfile_entry.items()
+                        if k not in ("version", "ref")
+                    }
                     dep.update(pipfile_entry)
                 break
 
@@ -187,15 +74,45 @@ def get_locked_dep(project, dep, pipfile_section, current_entry=None):
     return lockfile_entry
 
 
-def prepare_lockfile(project, results, pipfile, lockfile_section, old_lock_data=None):
+def prepare_lockfile(
+    project,
+    results: Sequence[Union[LockedRequirement, Dict[str, Any]]],
+    pipfile,
+    lockfile_section,
+    old_lock_data=None,
+):
+    """Convert the resolver's typed output into the TOML-ready lockfile shape.
+
+    Since T_F.3 B3, ``results`` is expected to be a ``Sequence`` of
+    :class:`pipenv.resolver.schema.LockedRequirement` instances — the
+    typed envelope that the resolver subprocess (or in-process branch)
+    now hands back.  Each entry is converted via
+    :meth:`LockedRequirement.to_lockfile_dict`, then handed through the
+    existing project-side post-processing
+    (:func:`pipenv.utils.locking.get_locked_dep`) which applies things the
+    typed schema deliberately does NOT carry: project-relative file-URL
+    rewriting (gh-6119), top-level hash unearthing, and ``version="*"``
+    fallback to the previous lockfile entry.
+
+    Legacy ``dict``-shaped entries are still accepted as a transitional
+    convenience so callers that have not yet been migrated continue to
+    work; this fallback will be removed once T_F.3 Wave B is fully
+    landed.  No new code should rely on it.
+    """
+    if old_lock_data is None:
+        old_lock_data = {}
     for dep in results:
         if not dep:
             continue
-        dep_name = dep["name"]
+        if isinstance(dep, LockedRequirement):
+            dep_dict = dep.to_lockfile_dict()
+        else:
+            dep_dict = dep
+        dep_name = dep_dict["name"]
         current_entry = None
         if dep_name in old_lock_data:
             current_entry = old_lock_data[dep_name]
-        lockfile_entry = get_locked_dep(project, dep, pipfile, current_entry)
+        lockfile_entry = get_locked_dep(project, dep_dict, pipfile, current_entry)
 
         # If the current dependency doesn't exist in the lockfile, add it
         if dep_name not in lockfile_section:
@@ -530,10 +447,35 @@ class Lockfile:
     def default(self) -> Dict:
         return self.lockfile.default
 
+    @staticmethod
+    def _pip_marker(marker_str: str) -> Optional[str]:
+        """Strip pylock.toml-specific ``dependency_groups`` conditions from a
+        marker string so that the result is valid PEP 508 for pip.
+
+        Pipenv already filters packages by dependency group before calling pip,
+        so pip never needs to evaluate these conditions itself.
+
+        Patterns produced by PylockFile.from_lockfile:
+          * ``'dev' in dependency_groups``
+            → no marker (return None)
+          * ``('dev' in dependency_groups) and (python_version >= '3.10')``
+            → ``python_version >= '3.10'``
+        """
+        if "dependency_groups" not in marker_str:
+            return marker_str
+        m = re.match(
+            r"^\([^)]*\bdependency_groups\b[^)]*\)\s+and\s+\((.+)\)$",
+            marker_str,
+            re.DOTALL,
+        )
+        if m:
+            return m.group(1)
+        return None
+
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
     ) -> Iterator[InstallRequirement]:
-        from pipenv.utils.requirements import requirement_from_lockfile
+        from pipenv.utils.dependencies import requirement_from_lockfile
 
         if categories:
             deps = {}
@@ -554,24 +496,36 @@ class Lockfile:
             pip_line = requirement_from_lockfile(
                 package_name, package_info, include_hashes=False, include_markers=False
             )
-            pip_line_specified = requirement_from_lockfile(
-                package_name, package_info, include_hashes=True, include_markers=True
+            # Strip pylock.toml-specific dependency_groups conditions before
+            # passing to pip — pip only understands standard PEP 508 markers.
+            raw_marker = (
+                package_info.get("markers") if isinstance(package_info, dict) else None
             )
+            pip_marker = self._pip_marker(raw_marker) if raw_marker else raw_marker
+            if pip_marker != raw_marker:
+                pip_info = dict(package_info)
+                if pip_marker:
+                    pip_info["markers"] = pip_marker
+                else:
+                    pip_info.pop("markers", None)
+                pip_line_specified = requirement_from_lockfile(
+                    package_name, pip_info, include_hashes=True, include_markers=True
+                )
+            else:
+                pip_line_specified = requirement_from_lockfile(
+                    package_name, package_info, include_hashes=True, include_markers=True
+                )
             install_req, _ = expansive_install_req_from_line(pip_line)
             # Set markers from the lockfile entry onto install_req so that
             # environment marker evaluation (e.g. python_version < '3.11') can
             # be performed when deciding whether to install the package.
-            if (
-                not install_req.markers
-                and isinstance(package_info, dict)
-                and package_info.get("markers")
-            ):
+            if not install_req.markers and pip_marker:
                 from pipenv.patched.pip._vendor.packaging.markers import (
                     Marker as PipMarker,
                 )
 
                 try:
-                    install_req.markers = PipMarker(package_info["markers"])
+                    install_req.markers = PipMarker(pip_marker)
                 except Exception:
                     pass
             yield install_req, pip_line_specified

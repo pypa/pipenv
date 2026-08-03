@@ -8,8 +8,8 @@ from pipenv.patched.pip._internal.exceptions import HashMismatch, HashMissing, I
 from pipenv.patched.pip._internal.utils.misc import read_chunks
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping
     from hashlib import _Hash
-
 
 # The recommended hash algo of the moment. Change this whenever the state of
 # the art changes; it won't hurt backward compatibility.
@@ -104,7 +104,7 @@ class Hashes:
         with open(path, "rb") as file:
             return self.check_against_file(file)
 
-    def has_one_of(self, hashes: dict[str, str]) -> bool:
+    def has_one_of(self, hashes: Mapping[str, str]) -> bool:
         """Return whether any of the given hashes are allowed."""
         for hash_name, hex_digest in hashes.items():
             if self.is_hash_allowed(hash_name, hex_digest):

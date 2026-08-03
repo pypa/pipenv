@@ -75,7 +75,7 @@ DEFAULT_RULES: dict[str, re.Pattern[str]] = {
         re.VERBOSE,
     ),
     "SPECIFIER": re.compile(
-        Specifier._operator_regex_str + Specifier._version_regex_str,
+        Specifier._specifier_regex_str,
         re.VERBOSE | re.IGNORECASE,
     ),
     "AT": re.compile(r"\@"),

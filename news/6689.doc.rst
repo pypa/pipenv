@@ -1,0 +1,1 @@
+Corrected the requirements.txt import example in the README, which was missing the ``-r`` flag.

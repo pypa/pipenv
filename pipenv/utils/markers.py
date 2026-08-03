@@ -70,9 +70,7 @@ class PipenvMarkers:
 
 def is_instance(item, cls):
     # type: (Any, Type) -> bool
-    if isinstance(item, cls) or item.__class__.__name__ == cls.__name__:
-        return True
-    return False
+    return isinstance(item, cls) or item.__class__.__name__ == cls.__name__
 
 
 def _tuplize_version(version):

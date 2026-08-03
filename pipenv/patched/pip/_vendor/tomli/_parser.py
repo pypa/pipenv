@@ -34,6 +34,13 @@ if TYPE_CHECKING:
 # lower number than where mypyc binaries crash.
 MAX_INLINE_NESTING: Final = sys.getrecursionlimit()
 
+# Pathologically excessive number of parts in a key runs into quadratic
+# behavior (e.g. in Flags.is_).
+# Even if keys aren't currently parsed using recursion, they name a
+# recursive structure, so it makes sense to limit it using getrecursionlimit()
+# and RecursionError.
+MAX_KEY_PARTS: Final = sys.getrecursionlimit()
+
 ASCII_CTRL: Final = frozenset(chr(i) for i in range(32)) | frozenset(chr(127))
 
 # Neither of these sets include quotation mark or backslash. They are
@@ -145,7 +152,7 @@ def load(__fp: IO[bytes], *, parse_float: ParseFloat = float) -> dict[str, Any]:
     return loads(s, parse_float=parse_float)
 
 
-def loads(__s: str, *, parse_float: ParseFloat = float) -> dict[str, Any]:  # noqa: C901
+def loads(__s: str, *, parse_float: ParseFloat = float) -> dict[str, Any]:
     """Parse TOML from a string."""
 
     # The spec allows converting "\r\n" to "\n", even in string
@@ -474,6 +481,10 @@ def parse_key(src: str, pos: Pos) -> tuple[Pos, Key]:
         pos = skip_chars(src, pos, TOML_WS)
         pos, key_part = parse_key_part(src, pos)
         key += (key_part,)
+        if len(key) > MAX_KEY_PARTS:
+            raise RecursionError(
+                f"TOML key has more than the allowed {MAX_KEY_PARTS} parts"
+            )
         pos = skip_chars(src, pos, TOML_WS)
 
 
@@ -676,7 +687,7 @@ def parse_basic_str(src: str, pos: Pos, *, multiline: bool) -> tuple[Pos, str]:
         pos += 1
 
 
-def parse_value(  # noqa: C901
+def parse_value(
     src: str, pos: Pos, parse_float: ParseFloat, nest_lvl: int
 ) -> tuple[Pos, Any]:
     if nest_lvl > MAX_INLINE_NESTING:

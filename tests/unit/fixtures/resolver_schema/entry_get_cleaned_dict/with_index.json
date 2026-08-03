@@ -1,0 +1,8 @@
+{
+  "entry": {
+    "index": "internal-pypi",
+    "name": "internal",
+    "version": "==1.0.0"
+  },
+  "name": "internal"
+}

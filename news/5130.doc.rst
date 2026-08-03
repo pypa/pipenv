@@ -1,1 +1,0 @@
-Added a "Multi-Platform Considerations" section to docs/locking.md explaining that ``Pipfile.lock`` is platform-specific and documenting workarounds for cross-platform teams.

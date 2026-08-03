@@ -118,12 +118,10 @@ Tool configuration is done via ``pyproject.toml``.
 To update the vendored library versions, we have a session defined in ``nox``.
 The command to upgrade everything is::
 
-    nox -s vendoring -- --upgrade-all --skip urllib3 --skip setuptools
+    nox -s vendoring -- --upgrade-all --skip setuptools
 
-At the time of writing (April 2025) we do not upgrade ``urllib3`` because the
-next version is a major upgrade and will be handled as an independent PR. We also
-do not upgrade ``setuptools``, because we only rely on ``pkg_resources``, and
-tracking every ``setuptools`` change is unnecessary for our needs.
+We do not upgrade ``setuptools``, because we only rely on ``pkg_resources``,
+and tracking every ``setuptools`` change is unnecessary for our needs.
 
 
 Managing Local Patches

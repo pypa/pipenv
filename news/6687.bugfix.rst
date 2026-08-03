@@ -1,0 +1,8 @@
+Restored support for a major-only ``python_version`` such as ``python_version
+= "3"`` in the Pipfile ``[requires]`` section, which the documentation lists as
+valid. The version check added in 6535 compared the major and minor components
+whenever fewer than three were given, but ``"3"`` parses to ``3.0``, so every
+3.x interpreter but 3.0 was reported as a mismatch. That produced a spurious
+warning on install and a fatal ``DeployException`` under ``--deploy``. Only the
+components actually given are compared now, so ``"3"`` matches any 3.x while
+``"3.13"`` and ``"3.13.1"`` keep their existing meaning.

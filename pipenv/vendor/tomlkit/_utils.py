@@ -9,34 +9,37 @@ from datetime import datetime
 from datetime import time
 from datetime import timedelta
 from datetime import timezone
+from typing import Any
 
 from pipenv.vendor.tomlkit._compat import decode
 
 
 RFC_3339_LOOSE = re.compile(
     "^"
-    r"(([0-9]+)-(\d{2})-(\d{2}))?"  # Date
+    r"(?P<date>(?P<year>\d{4})-(?P<month>\d{2})-(?P<day>\d{2}))?"  # Date
     "("
-    "([Tt ])?"  # Separator
-    r"(\d{2}):(\d{2}):(\d{2})(\.([0-9]+))?"  # Time
-    r"(([Zz])|([\+|\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
+    "(?P<sep>[Tt ])?"  # Separator
+    r"(?P<time>(?P<hour>\d{2}):(?P<minute>\d{2})(:(?P<second>\d{2})(\.(?P<fraction>[0-9]+))?)?)"  # Time
+    r"(?P<tz>([Zz])|([\+\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
     ")?"
     "$"
 )
 
 RFC_3339_DATETIME = re.compile(
     "^"
-    "([0-9]+)-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])"  # Date
+    r"(?P<year>\d{4})-(?P<month>0[1-9]|1[012])-(?P<day>0[1-9]|[12][0-9]|3[01])"  # Date
     "[Tt ]"  # Separator
-    r"([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9]|60)(\.([0-9]+))?"  # Time
-    r"(([Zz])|([\+|\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
+    r"(?P<hour>[01][0-9]|2[0-3]):(?P<minute>[0-5][0-9])"  # Time
+    r"(:(?P<second>[0-5][0-9]|60)(\.(?P<fraction>[0-9]+))?)?"
+    r"(?P<tz>([Zz])|([\+\-]([01][0-9]|2[0-3]):([0-5][0-9])))?"  # Timezone
     "$"
 )
 
 RFC_3339_DATE = re.compile("^([0-9]+)-(0[1-9]|1[012])-(0[1-9]|[12][0-9]|3[01])$")
 
 RFC_3339_TIME = re.compile(
-    r"^([01][0-9]|2[0-3]):([0-5][0-9]):([0-5][0-9]|60)(\.([0-9]+))?$"
+    r"^(?P<hour>[01][0-9]|2[0-3]):(?P<minute>[0-5][0-9])"
+    r"(:(?P<second>[0-5][0-9]|60)(\.(?P<fraction>[0-9]+))?)?$"
 )
 
 _utc = timezone(timedelta(), "UTC")
@@ -45,30 +48,30 @@ _utc = timezone(timedelta(), "UTC")
 def parse_rfc3339(string: str) -> datetime | date | time:
     m = RFC_3339_DATETIME.match(string)
     if m:
-        year = int(m.group(1))
-        month = int(m.group(2))
-        day = int(m.group(3))
-        hour = int(m.group(4))
-        minute = int(m.group(5))
-        second = int(m.group(6))
+        year = int(m.group("year"))
+        month = int(m.group("month"))
+        day = int(m.group("day"))
+        hour = int(m.group("hour"))
+        minute = int(m.group("minute"))
+        second = int(m.group("second") or 0)
         microsecond = 0
 
-        if m.group(7):
-            microsecond = int((f"{m.group(8):<06s}")[:6])
+        if m.group("fraction"):
+            microsecond = int((f"{m.group('fraction'):<06s}")[:6])
 
-        if m.group(9):
+        if m.group("tz"):
             # Timezone
-            tz = m.group(9)
+            tz = m.group("tz")
             if tz.upper() == "Z":
                 tzinfo = _utc
             else:
-                sign = m.group(11)[0]
-                hour_offset, minute_offset = int(m.group(12)), int(m.group(13))
+                sign = tz[0]
+                hour_offset, minute_offset = map(int, tz[1:].split(":"))
                 offset = timedelta(seconds=hour_offset * 3600 + minute_offset * 60)
                 if sign == "-":
                     offset = -offset
 
-                tzinfo = timezone(offset, f"{sign}{m.group(12)}:{m.group(13)}")
+                tzinfo = timezone(offset, tz)
 
             return datetime(
                 year, month, day, hour, minute, second, microsecond, tzinfo=tzinfo
@@ -86,17 +89,17 @@ def parse_rfc3339(string: str) -> datetime | date | time:
 
     m = RFC_3339_TIME.match(string)
     if m:
-        hour = int(m.group(1))
-        minute = int(m.group(2))
-        second = int(m.group(3))
+        hour = int(m.group("hour"))
+        minute = int(m.group("minute"))
+        second = int(m.group("second") or 0)
         microsecond = 0
 
-        if m.group(4):
-            microsecond = int((f"{m.group(5):<06s}")[:6])
+        if m.group("fraction"):
+            microsecond = int((f"{m.group('fraction'):<06s}")[:6])
 
         return time(hour, minute, second, microsecond)
 
-    raise ValueError("Invalid RFC 339 string")
+    raise ValueError("Invalid RFC 3339 string")
 
 
 # https://toml.io/en/v1.0.0#string
@@ -107,6 +110,7 @@ _escaped = {
     "n": "\n",
     "f": "\f",
     "r": "\r",
+    "e": "\x1b",
     '"': '"',
     "\\": "\\",
 }
@@ -127,7 +131,7 @@ def escape_string(s: str, escape_sequences: Collection[str] = _basic_escapes) ->
     res = []
     start = 0
 
-    def flush(inc=1):
+    def flush(inc: int = 1) -> int:
         if start != i:
             res.append(s[start:i])
 
@@ -150,9 +154,9 @@ def escape_string(s: str, escape_sequences: Collection[str] = _basic_escapes) ->
     return "".join(res)
 
 
-def merge_dicts(d1: dict, d2: dict) -> dict:
+def merge_dicts(d1: dict[str, Any], d2: dict[str, Any]) -> None:
     for k, v in d2.items():
         if k in d1 and isinstance(d1[k], dict) and isinstance(v, Mapping):
-            merge_dicts(d1[k], v)
+            merge_dicts(d1[k], dict(v))
         else:
             d1[k] = d2[k]

@@ -1,6 +1,4 @@
 import os
-import sys
-from typing import TYPE_CHECKING, Optional
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
@@ -11,14 +9,6 @@ from pipenv.utils.shell import shorten_path
 from pipenv.utils.virtualenv import ensure_virtualenv, find_a_system_python
 from pipenv.vendor.packaging.specifiers import InvalidSpecifier, SpecifierSet
 
-if TYPE_CHECKING:
-    STRING_TYPE = str
-
-if sys.version_info < (3, 10):
-    from pipenv.vendor import importlib_metadata
-else:
-    import importlib.metadata as importlib_metadata
-
 
 def _python_version_matches_required(actual_ver_str, required_ver_str):
     """Return True if *actual_ver_str* satisfies *required_ver_str*.
@@ -28,10 +18,14 @@ def _python_version_matches_required(actual_ver_str, required_ver_str):
 
     * A PEP 440 version specifier string like ``">=3.8"`` or ``">=3.9,<4"``
       (the ``python_version`` field contains an operator).
-    * A plain ``"X.Y"`` (major.minor) or ``"X.Y.Z"`` (full version) string.
+    * A plain ``"X"`` (major), ``"X.Y"`` (major.minor) or ``"X.Y.Z"`` (full
+      version) string. Only the components actually given are compared, so
+      ``"3"`` is satisfied by any 3.x interpreter.
 
     ``actual_ver_str`` is the full version string reported by the Python
     interpreter (e.g. ``"3.13.1"``).
+
+    ``required_ver_str`` may also come from the ``--python`` CLI argument.
     """
     if not actual_ver_str or not required_ver_str:
         return False
@@ -48,12 +42,17 @@ def _python_version_matches_required(actual_ver_str, required_ver_str):
     try:
         actual = parse_version(actual_ver_str)
         required = parse_version(required_ver_str)
-        if len(required_ver_str.split(".")) >= 3:
+        given_components = len(required_ver_str.split("."))
+        if given_components >= 3:
             # python_full_version specified — must match exactly.
             return actual == required
-        else:
+        elif given_components == 2:
             # python_version (major.minor only) — compare only those components.
             return actual.major == required.major and actual.minor == required.minor
+        else:
+            # Major only, e.g. "3". parse_version fills in a 0 minor, so
+            # comparing the minor here would reject every 3.x but 3.0.
+            return actual.major == required.major
     except Exception:
         # Fallback for any unparseable version strings.
         return actual_ver_str == required_ver_str
@@ -71,11 +70,12 @@ def ensure_project(
     pypi_mirror=None,
     clear=False,
     pipfile_categories=None,
+    lockfile_only=False,
 ):
     """Ensures both Pipfile and virtualenv exist for the project."""
 
     # Automatically use an activated virtualenv.
-    if project.s.PIPENV_USE_SYSTEM or project.virtualenv_exists:
+    if project.s.PIPENV_USE_SYSTEM or project.venv_locator.exists:
         system_or_exists = True
     else:
         system_or_exists = system  # default to False
@@ -103,12 +103,12 @@ def ensure_project(
     # Python version, allow ensure_virtualenv to handle recreation.
     if (
         python
-        and project.virtualenv_exists
+        and project.venv_locator.exists
         and not system
         and not project.s.PIPENV_USE_SYSTEM
     ):
         try:
-            venv_python_path = project._which("python") or project._which("py")
+            venv_python_path = project.venv_locator._which("python") or project.venv_locator._which("py")
             if venv_python_path:
                 venv_python_ver = python_version(str(venv_python_path))
                 if os.path.isabs(python):
@@ -152,7 +152,7 @@ def ensure_project(
 
                 path_to_python = system_which("python3") or system_which("python")
         else:
-            path_to_python = project._which("python") or project._which("py")
+            path_to_python = project.venv_locator._which("python") or project.venv_locator._which("py")
 
         if path_to_python and not _python_version_matches_required(
             python_version(path_to_python) or "", project.required_python_version
@@ -173,30 +173,14 @@ def ensure_project(
             else:
                 raise exceptions.DeployException
 
-    # Ensure the Pipfile exists.
-    ensure_pipfile(
-        project,
-        validate=validate,
-        skip_requirements=skip_requirements,
-        system=system,
-        pipfile_categories=pipfile_categories,
-    )
-    os.environ["PIP_PYTHON_PATH"] = project.python(system=system)
-
-
-def get_setuptools_version() -> Optional["STRING_TYPE"]:
-    try:
-        setuptools_dist = importlib_metadata.distribution("setuptools")
-        return str(setuptools_dist.version)
-    except ImportError:
-        return None
-
-
-def get_default_pyproject_backend():
-    # type: () -> STRING_TYPE
-    st_version = get_setuptools_version()
-    if st_version is not None:
-        parsed_st_version = parse_version(st_version)
-        if parsed_st_version >= parse_version("40.8.0"):
-            return "setuptools.build_meta:__legacy__"
-    return "setuptools.build_meta"
+    # Ensure the Pipfile exists (skip when installing from lockfile only,
+    # e.g. ``pipenv sync`` — we don't need or want to create a blank Pipfile).
+    if not lockfile_only:
+        ensure_pipfile(
+            project,
+            validate=validate,
+            skip_requirements=skip_requirements,
+            system=system,
+            pipfile_categories=pipfile_categories,
+        )
+    os.environ["PIP_PYTHON_PATH"] = project.venv_locator.python(system=system)

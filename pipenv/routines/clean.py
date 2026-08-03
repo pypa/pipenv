@@ -1,11 +1,12 @@
 import sys
 
 from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock
 from pipenv.utils import console, err
+from pipenv.utils.dependencies import BAD_PACKAGES
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
-from pipenv.utils.requirements import BAD_PACKAGES
 from pipenv.utils.shell import project_python
 
 
@@ -75,4 +76,5 @@ def ensure_lockfile(project, pypi_mirror=None):
                 style="bold yellow",
             )
     else:
-        do_lock(project, pypi_mirror=pypi_mirror)
+        lock_ctx = RoutineContext.from_cli(pypi_mirror=pypi_mirror)
+        do_lock(project, lock_ctx)

@@ -1,10 +1,10 @@
 import json
 import os
+import sys
 
 import pytest
 
-from pipenv.cli import cli
-from pipenv.vendor.click.testing import CliRunner
+from pipenv.cli.command import cli
 
 
 @pytest.mark.upgrade
@@ -60,9 +60,6 @@ atomicwrites = "*"
 
 @pytest.mark.cli
 def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
-    from pipenv.cli import cli
-    from pipenv.vendor.click.testing import CliRunner
-
     with pipenv_instance_pypi() as p:
         # Step 1: Install initial dependency version
         c = p.pipenv("install google-api-core==2.18.0")
@@ -85,9 +82,8 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
             pipfile.write(updated_pipfile_content)
 
         # Step 3: Update protobuf to an incompatible version
-        cli_runner = CliRunner()
-        c = cli_runner.invoke(cli, "update protobuf==5.27.5")
-        assert c.exit_code == 0, f"Failed to update protobuf: {c.stderr}"
+        c = p.pipenv("update protobuf==5.27.5")
+        assert c.returncode == 0, f"Failed to update protobuf: {c.stderr}"
 
         # Step 4: Check the lockfile for incompatible dependencies
         with open(lockfile_path) as lockfile:
@@ -103,8 +99,8 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
         assert protobuf_version == "==5.27.5", "protobuf was not updated correctly"
 
         # Step 5: Run pipenv lock to check for dependency resolution errors
-        c = cli_runner.invoke(cli, "lock")
-        assert c.exit_code == 0, f"Failed to run pipenv lock: {c.stderr}"
+        c = p.pipenv("lock")
+        assert c.returncode == 0, f"Failed to run pipenv lock: {c.stderr}"
 
 
 @pytest.mark.upgrade
@@ -240,10 +236,14 @@ sphinx = "*"
             """.strip()
             f.write(contents)
 
-        cli_runner = CliRunner()
-        result = cli_runner.invoke(cli, ["upgrade", "--all"])
+        monkeypatch.setattr(sys, "argv", ["pipenv", "upgrade", "--all"])
+        try:
+            cli()
+            exit_code = 0
+        except SystemExit as e:
+            exit_code = e.code if e.code is not None else 0
 
-    assert result.exit_code == 0, result.output
+    assert exit_code == 0, captured
     assert "packages" in captured["categories"]
     assert "dev-packages" in captured["categories"]
     assert "docs" in captured["categories"]

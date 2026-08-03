@@ -402,16 +402,6 @@ wheels = [
 ]
 
 
-[[packages]]
-name = "colorama"
-version = "0.4.6"
-marker = "('dev' in dependency_groups) and (sys_platform == 'win32')"
-index = "https://pypi.org/simple/"
-wheels = [
-    {name = "colorama-0.4.6-py3-none-any.whl", url = "https://pypi.org/simple/colorama/colorama-0.4.6-py3-none-any.whl", hashes = {sha256 = "08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"}},
-    {name = "colorama-0.4.6-py3-none-any.whl", url = "https://pypi.org/simple/colorama/colorama-0.4.6-py3-none-any.whl", hashes = {sha256 = "4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"}},
-]
-
 
 [[packages]]
 name = "coverage"
@@ -1117,12 +1107,6 @@ wheels = [
 
 
 [[packages]]
-name = "pipenv"
-marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
-index = "https://pypi.org/simple/"
-
-
-[[packages]]
 name = "platformdirs"
 version = "4.9.4"
 marker = "('dev' in dependency_groups) and (python_version >= '3.10')"
@@ -1787,4 +1771,4 @@ wheels = [
 
 [tool.pipenv]
 generated_from = "Pipfile.lock"
-generation_date = "2026-03-18T21:43:20.572544+00:00"
+generation_date = "2026-03-30T07:47:16.675639+00:00"

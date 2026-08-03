@@ -1,0 +1,9 @@
+{
+  "entry": {
+    "git": "https://github.com/foo/bar.git",
+    "name": "foo",
+    "ref": "abc123",
+    "subdirectory": "subdir"
+  },
+  "name": "foo"
+}
