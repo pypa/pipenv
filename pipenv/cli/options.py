@@ -694,7 +694,10 @@ def build_parser():
         dest="scan",
         action="store_true",
         default=False,
-        help="Use the new scan command instead of the deprecated check command.",
+        help=(
+            "Use Safety's scan command instead of the deprecated legacy check "
+            "implementation, which will be removed after v2026.9.1."
+        ),
     )
     _add_common_options(p)
     _add_system_option(p)

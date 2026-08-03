@@ -1,0 +1,3 @@
+Announce that the deprecated legacy ``pipenv check`` implementation will be
+removed in the release following v2026.9.1. Use ``pipenv audit`` or
+``pipenv check --scan`` during the transition.

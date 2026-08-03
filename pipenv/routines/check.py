@@ -311,7 +311,8 @@ def do_check(  # noqa: PLR0913
     elif not quiet and not project.s.is_quiet():
         err.print(
             "[yellow bold]DEPRECATION WARNING:[/yellow bold] "
-            "The 'check' command using Safety is deprecated and will be removed in a future release.\n"
+            "The legacy 'check' implementation using Safety is deprecated and "
+            "will be removed in the release following v2026.9.1.\n"
             "Please migrate to [green]pipenv audit[/green] which uses pip-audit for vulnerability scanning.\n"
             "pip-audit uses the Python Packaging Advisory Database and requires no API key.\n"
             "Alternatively, use [green]--scan[/green] to use Safety's scan command (requires API key from https://pyup.io)"
