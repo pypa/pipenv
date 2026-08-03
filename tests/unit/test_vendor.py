@@ -3,11 +3,43 @@
 import pipenv  # noqa
 
 import datetime
+import json
+import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 import pytz
 from pipenv.vendor import tomlkit
+
+
+def test_importing_pipdeptree_does_not_extend_sys_path():
+    """Importing pipdeptree must not expose Pipenv's environment to child pip."""
+    main_path = Path(pipenv.__file__).parent / "vendor" / "pipdeptree" / "__main__.py"
+    vendor_root = main_path.parents[1]
+    pipenv_install_root = vendor_root.parents[1]
+    paths = [str(vendor_root), str(pipenv_install_root)]
+    code = f"""
+import json
+import runpy
+import sys
+
+paths = {json.dumps(paths)}
+before = {{path: sys.path.count(path) for path in paths}}
+runpy.run_path({str(main_path)!r}, run_name="pipdeptree_import_test")
+after = {{path: sys.path.count(path) for path in paths}}
+print(json.dumps({{"before": before, "after": after}}))
+"""
+
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    path_counts = json.loads(result.stdout)
+
+    assert path_counts["after"] == path_counts["before"]
 
 
 @pytest.mark.parametrize(
