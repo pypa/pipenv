@@ -648,7 +648,7 @@ def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
         assert c.returncode == 0
         assert "packaging" in p.lockfile["default"]
 
-        c = p.pipenv("run python -c 'import packaging'")
+        c = p.pipenv('run python -c "import packaging"')
         assert c.returncode == 0
 
 
