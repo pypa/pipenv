@@ -35,9 +35,9 @@ Initiative G phase 2 — T20.
 import os
 import textwrap
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import pytest
-
 
 PIPFILE_BODY = """\
 [[source]]
@@ -584,13 +584,15 @@ def test_prefetch_routes_per_source_verify_ssl(
             for t in r["targets"]
         }
         # The verify=True fetcher only saw the pypi.org URL.
-        assert verify_true_urls and all(
-            "pypi.org" in u for u in verify_true_urls
-        ), f"verify=True fetcher saw non-pypi URLs: {verify_true_urls}"
+        assert verify_true_urls and {
+            urlsplit(url).hostname for url in verify_true_urls
+        } == {"pypi.org"}, (
+            f"verify=True fetcher saw non-pypi URLs: {verify_true_urls}"
+        )
         # The verify=False fetcher only saw the private-index URL.
-        assert verify_false_urls and all(
-            "private.example.test" in u for u in verify_false_urls
-        ), (
+        assert verify_false_urls and {
+            urlsplit(url).hostname for url in verify_false_urls
+        } == {"private.example.test"}, (
             f"verify=False fetcher saw non-private URLs: {verify_false_urls}"
         )
 
