@@ -6,11 +6,12 @@ import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-vendored_root = Path(__file__).resolve().parents[1]
-# for finding pipdeptree itself
-sys.path.append(str(vendored_root))
-# for finding stuff in vendor and patched
-sys.path.append(str(vendored_root.parents[1]))
+if __name__ == "__main__":
+    vendored_root = Path(__file__).resolve().parents[1]
+    # for finding pipdeptree itself
+    sys.path.append(str(vendored_root))
+    # for finding stuff in vendor and patched
+    sys.path.append(str(vendored_root.parents[1]))
 
 from pipenv.vendor.pipdeptree._cli import Options, get_options, parse_packages
 from pipenv.vendor.pipdeptree._detect_env import detect_active_interpreter, find_active_interpreter

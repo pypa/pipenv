@@ -642,13 +642,13 @@ def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
 @pytest.mark.install
 @pytest.mark.needs_internet
 def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
-    """Ensure that running `pipenv install` doesn't exclude packaging when its required."""
+    """Install a transitive dependency even when it is available to Pipenv itself."""
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("install dataclasses-json")
+        c = p.pipenv("install pytest")
         assert c.returncode == 0
-        c = p.pipenv(
-            """run python -c "from dataclasses_json import DataClassJsonMixin" """
-        )
+        assert "packaging" in p.lockfile["default"]
+
+        c = p.pipenv('run python -c "import packaging"')
         assert c.returncode == 0
 
 
