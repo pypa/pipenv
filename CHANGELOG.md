@@ -1,3 +1,141 @@
+2026.7.1 (2026-08-03)
+=====================
+pipenv 2026.7.1 (2026-08-03)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Added support for ``cool-down-period`` in the ``[pipenv]`` section of the Pipfile.
+  Setting ``cool-down-period = "30d"`` instructs the resolver to only consider
+  package versions uploaded at least the specified number of days ago, via pip's
+  ``--uploaded-prior-to`` flag.
+
+Behavior Changes
+----------------
+
+- Added a configurable timeout for the resolver subprocess invoked by
+  ``pipenv install``, ``pipenv lock``, and ``pipenv sync``. A hung mirror or
+  stuck pip download previously caused the resolver to block forever from
+  the user's perspective; the wait is now bounded by
+  ``PIPENV_RESOLVER_TIMEOUT_S`` (default ``1800`` seconds = 30 minutes,
+  chosen generously so normal resolutions are unaffected). On timeout the
+  subprocess is killed and a clear error is surfaced that names the
+  environment variable so users with legitimately large resolutions can
+  extend it.
+- Resolver subprocess now produces structured error messages on
+  dependency conflicts, surfacing the conflicting packages and the
+  specific requirements that cause the conflict instead of a wall of
+  unstructured pip output.  `#T_F.3 <https://github.com/pypa/pipenv/issues/T_F.3>`_
+- Pipenv now enforces a wall-clock timeout on the resolver across both
+  the subprocess and in-process branches. The deadline is resolved with
+  the precedence ``[pipenv] resolver_timeout_seconds`` (Pipfile) >
+  ``PIPENV_RESOLVER_TIMEOUT_S`` (env var) > default (1800 seconds), and
+  is stamped onto ``RequestMetadata.deadline_seconds`` so the resolver
+  subprocess sees the same value the parent uses for
+  ``subprocess.wait(timeout=...)``. A hung resolver is now killed and a
+  structured error surfaced naming the override, instead of hanging
+  indefinitely. The in-process debug branch
+  (``PIPENV_RESOLVER_PARENT_PYTHON=1``) enforces the same deadline via
+  ``SIGALRM`` on Unix; Windows continues to rely on the subprocess
+  path for enforcement.  `#T_F.6 <https://github.com/pypa/pipenv/issues/T_F.6>`_
+
+Bug Fixes
+---------
+
+- Fixed a latent bug in ``pipenv.utils.dependencies.pep423_name`` whose
+  scheme-token guard had an inverted predicate, making the branch that
+  preserves URL/VCS specifiers (e.g. ``git+ssh://host/path/some_repo``)
+  from underscore-mangling unreachable. The predicate is now correct;
+  bare package names continue to be lowercased and have ``_`` rewritten
+  to ``-`` as before. The sibling helper ``normalize_name`` in
+  ``pipenv.utils.requirements`` has been removed and its four callers
+  migrated to ``pep423_name``.
+- Restored authentication to private indexes when ``[[source]]`` URLs use
+  environment-variable placeholders. The GHSA-8xgg-v3jj-95m2 fix moved
+  credentials off pip's argv onto a merged netrc, but
+  ``write_credentials_netrc`` wrote our Pipfile-derived ``machine`` blocks
+  BEFORE the appended user netrc — and ``netrc.authenticators()`` returns
+  the LAST matching entry, so a stale system entry for the same host
+  silently overrode the freshly-expanded creds. Our blocks now come AFTER
+  the user's existing content. Additionally, the ``pylock.toml`` reader
+  now runs ``expand_url_credentials`` over its sources so users with
+  ``[pipenv] use_pylock = true`` see the same env-var expansion that
+  ``Pipfile.lock`` reads have always had.  `#6670 <https://github.com/pypa/pipenv/issues/6670>`_
+- Restored documented ``pipenv update`` (no args) semantics of ``lock + sync``.
+  Since 2026.0.0, ``pipenv update`` only re-resolved Pipfile entries whose
+  locked version no longer satisfied the Pipfile specifier, so relaxing a
+  pin (e.g. ``urllib3 = "<2.7.0"`` → ``urllib3 = "*"``) would not pick up
+  newer allowed releases — the lockfile silently stayed at the existing
+  pin. ``pipenv update`` now routes through ``do_lock`` when no packages
+  are given, re-resolving every Pipfile entry. The targeted
+  ``pipenv update <pkg>`` path is unchanged.  `#6672 <https://github.com/pypa/pipenv/issues/6672>`_
+- Restored authentication to a private index configured via
+  ``PIPENV_PYPI_MIRROR`` with embedded credentials (e.g.
+  ``https://user:pass@mirror.example.com``). The GHSA-8xgg-v3jj-95m2 fix moved
+  credentials off pip's argv onto a temporary netrc, but the resolver's netrc
+  was written from the un-mirrored Pipfile sources, so the mirror's credentials
+  were dropped and resolution failed with ``401`` / ``ResolutionFailure``. The
+  resolver netrc now applies the same ``PIPENV_PYPI_MIRROR`` substitution the
+  resolver subprocess uses, so the mirror credentials reach pip again.  `#6677 <https://github.com/pypa/pipenv/issues/6677>`_
+- Restored support for a major-only ``python_version`` such as ``python_version
+  = "3"`` in the Pipfile ``[requires]`` section, which the documentation lists as
+  valid. The version check added in 6535 compared the major and minor components
+  whenever fewer than three were given, but ``"3"`` parses to ``3.0``, so every
+  3.x interpreter but 3.0 was reported as a mismatch. That produced a spurious
+  warning on install and a fatal ``DeployException`` under ``--deploy``. Only the
+  components actually given are compared now, so ``"3"`` matches any 3.x while
+  ``"3.13"`` and ``"3.13.1"`` keep their existing meaning.  `#6687 <https://github.com/pypa/pipenv/issues/6687>`_
+- Allow ``cool-down-period`` locking to use package links from indexes that do
+  not expose upload-time metadata, while retaining the filter for indexes that do.  `#6691 <https://github.com/pypa/pipenv/issues/6691>`_
+- Prevent Pipenv's own environment from leaking into bundled pip subprocesses, which
+  could cause locked transitive dependencies to be skipped when they were installed
+  alongside Pipenv but missing from the project environment.  `#6698 <https://github.com/pypa/pipenv/issues/6698>`_
+
+Vendored Libraries
+------------------
+
+- Bump vendored ``plette`` to ``2.2.1``.
+- Bump patched ``pip`` to ``26.1.2`` and refresh vendored libraries:
+  ``pipdeptree`` to ``3.1.0``, ``packaging`` to ``26.2``,
+  ``pythonfinder`` to ``3.0.4``, and ``tomlkit`` to ``0.15.0``.
+  Also harden ``is_within_directory()`` in patched pip to use
+  ``os.path.commonpath()`` instead of ``startswith``, fixing a
+  containment check edge case for root directories and Windows
+  drive mismatches.  `#6680 <https://github.com/pypa/pipenv/issues/6680>`_
+- Bump vendored ``urllib3`` in patched pip to ``2.7.0`` (fixes GHSA-qccp-gfcp-xxvc,
+  sensitive headers forwarded across origins in proxied low-level redirects).
+  Raise minimum ``virtualenv`` requirement from ``>=20.24.2`` to ``>=20.26.6``
+  (fixes GHSA-rqc4-2hc7-8c8v, command injection through activation scripts).
+  The three other urllib3 CVEs reported in this issue (GHSA-2xpw-w6gg-jr37,
+  GHSA-38jv-5279-wg99, GHSA-gm62-xv2j-4w53) were already resolved in 2.6.3.  `#6684 <https://github.com/pypa/pipenv/issues/6684>`_
+
+Improved Documentation
+----------------------
+
+- Corrected the requirements.txt import example in the README, which was missing the ``-r`` flag.  `#6689 <https://github.com/pypa/pipenv/issues/6689>`_
+
+Removals and Deprecations
+-------------------------
+
+- Removed ``pipenv.utils.fileutils.is_valid_url``. Import
+  ``is_valid_url`` from ``pipenv.utils.internet`` instead. pipenv's
+  stable API is the CLI; internal-only Python imports do not get
+  a deprecation window. Also removed the
+  ``pipenv.project.SourceNotFound`` re-export for the same reason —
+  import it from ``pipenv.utils.sources``.
+- Announce that the deprecated legacy ``pipenv check`` implementation will be
+  removed in v2027.0.0. Use ``pipenv audit`` or
+  ``pipenv check --scan`` during the transition.  `#6681 <https://github.com/pypa/pipenv/issues/6681>`_
+
+Relates to dev process changes
+------------------------------
+
+- Make the release task resumable after a completed version bump, consume Towncrier
+  fragments non-interactively, and avoid trailing whitespace in generated release
+  notes.
+
 2026.7.0 (2026-08-03)
 =====================
 pipenv 2026.7.0 (2026-08-03)

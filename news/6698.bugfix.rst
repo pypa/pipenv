@@ -1,3 +1,0 @@
-Prevent Pipenv's own environment from leaking into bundled pip subprocesses, which
-could cause locked transitive dependencies to be skipped when they were installed
-alongside Pipenv but missing from the project environment.
