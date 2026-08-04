@@ -63,6 +63,7 @@ def _render_log(ctx=None, version=None):
 release_help = {
     "dry_run": "No-op, simulate what would happen if run for real.",
     "pre": "Build a pre-release version, must be paired with a tag.",
+    "resume": "Resume a release after the version has already been bumped.",
 }
 
 
@@ -71,13 +72,18 @@ def release(
     ctx,
     dry_run=False,
     pre=False,
+    resume=False,
 ):
     drop_dist_dirs(ctx)
-    version = bump_version(
-        ctx,
-        dry_run=dry_run,
-        pre=pre,
-    )
+    if resume:
+        version = find_version(ctx)
+        log(f"Resuming release for {version}")
+    else:
+        version = bump_version(
+            ctx,
+            dry_run=dry_run,
+            pre=pre,
+        )
     tag_content = _render_log(ctx, version)
     if dry_run:
         # Use the correct version when generating the draft
@@ -94,7 +100,7 @@ def release(
             ctx.run(f"git add {get_version_file(ctx).as_posix()}")
         else:
             # Use the correct version when generating the changelog
-            ctx.run(f"towncrier build --version {version}")
+            ctx.run(f"towncrier build --version {version} --yes")
             ctx.run(f"git add CHANGELOG.md news/ {get_version_file(ctx).as_posix()}")
             log("removing changelog draft if present")
             draft_changelog = pathlib.Path("CHANGELOG.draft.md")
@@ -204,7 +210,7 @@ def generate_changelog(ctx, commit=False, draft=False):
         log("Writing draft to file...")
         ctx.run(f"towncrier build --draft --version {version} > CHANGELOG.draft.md")
     else:
-        ctx.run(f"towncrier build --version {version}")
+        ctx.run(f"towncrier build --version {version} --yes")
     if commit:
         log("Committing...")
         ctx.run("git add CHANGELOG.md")
