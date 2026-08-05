@@ -1,0 +1,1 @@
+Allow dependency locking to fall back to a prerelease of a final lower bound, such as resolving ``odin~=2.11`` to ``2.11rc3`` before the ``2.11`` final release is available.

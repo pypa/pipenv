@@ -44,7 +44,10 @@ from pipenv.patched.pip._internal.utils.filetypes import WHEEL_EXTENSION
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.logging import indent_log
 from pipenv.patched.pip._internal.utils.misc import build_netloc
-from pipenv.patched.pip._internal.utils.packaging import check_requires_python
+from pipenv.patched.pip._internal.utils.packaging import (
+    check_requires_python,
+    is_prerelease_of_satisfying_lower_bound,
+)
 from pipenv.patched.pip._internal.utils.unpacking import SUPPORTED_EXTENSIONS
 
 if TYPE_CHECKING:
@@ -537,6 +540,16 @@ class CandidateEvaluator:
                     (v for _, v in candidates_and_versions),
                     prereleases=None,
                 )
+            )
+
+        if candidates_and_versions and (
+            allow_prereleases is True
+            or (use_prerelease_fallback and not versions)
+        ):
+            versions.update(
+                v
+                for _, v in candidates_and_versions
+                if is_prerelease_of_satisfying_lower_bound(specifier, v)
             )
 
         applicable_candidates = [c for c, v in candidates_and_versions if v in versions]
