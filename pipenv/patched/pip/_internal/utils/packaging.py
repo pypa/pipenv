@@ -9,6 +9,47 @@ from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 logger = logging.getLogger(__name__)
 
 
+def is_prerelease_of_satisfying_lower_bound(
+    specifier: specifiers.BaseSpecifier,
+    candidate_version: str | version.Version,
+) -> bool:
+    """Return whether a prerelease can stand in for its final lower bound.
+
+    A prerelease such as ``2.11rc3`` sorts before the ``2.11`` lower bound in
+    ``~=2.11``. During prerelease fallback, treat it as matching when its
+    corresponding final version satisfies the complete specifier and the only
+    clauses it misses are inclusive lower bounds. Exact pins and exclusions
+    continue to apply to the prerelease itself.
+    """
+    if not isinstance(candidate_version, version.Version):
+        try:
+            candidate_version = version.Version(candidate_version)
+        except version.InvalidVersion:
+            return False
+    if not candidate_version.is_prerelease:
+        return False
+
+    final_version = version.Version(candidate_version.base_version)
+    if not specifier.contains(final_version, prereleases=True):
+        return False
+
+    if isinstance(specifier, specifiers.SpecifierSet):
+        clauses = tuple(specifier)
+    elif isinstance(specifier, specifiers.Specifier):
+        clauses = (specifier,)
+    else:
+        return False
+
+    return bool(clauses) and all(
+        clause.contains(candidate_version, prereleases=True)
+        or (
+            clause.operator in {">=", "~="}
+            and clause.contains(final_version, prereleases=True)
+        )
+        for clause in clauses
+    )
+
+
 @functools.lru_cache(maxsize=32)
 def check_requires_python(
     requires_python: str | None, version_info: tuple[int, ...]

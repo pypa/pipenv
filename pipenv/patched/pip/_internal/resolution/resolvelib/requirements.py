@@ -7,6 +7,9 @@ from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonical
 
 from pipenv.patched.pip._internal.req.constructors import install_req_drop_extras
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
+from pipenv.patched.pip._internal.utils.packaging import (
+    is_prerelease_of_satisfying_lower_bound,
+)
 
 from .base import Candidate, CandidateLookup, Requirement, format_name
 
@@ -118,7 +121,9 @@ class SpecifierRequirement(Requirement):
         # prerelease candidates if the user does not expect them.
         assert self._ireq.req, "Specifier-backed ireq is always PEP 508"
         spec = self._ireq.req.specifier
-        return spec.contains(candidate.version, prereleases=True)
+        return spec.contains(
+            candidate.version, prereleases=True
+        ) or is_prerelease_of_satisfying_lower_bound(spec, candidate.version)
 
 
 class SpecifierWithoutExtrasRequirement(SpecifierRequirement):

@@ -47,7 +47,10 @@ from pipenv.patched.pip._internal.req.req_install import (
 from pipenv.patched.pip._internal.resolution.base import InstallRequirementProvider
 from pipenv.patched.pip._internal.utils.compatibility_tags import get_supported
 from pipenv.patched.pip._internal.utils.hashes import Hashes
-from pipenv.patched.pip._internal.utils.packaging import get_requirement
+from pipenv.patched.pip._internal.utils.packaging import (
+    get_requirement,
+    is_prerelease_of_satisfying_lower_bound,
+)
 from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
 from .base import Candidate, Constraint, Requirement
@@ -319,7 +322,12 @@ class Factory:
             try:
                 # Don't use the installed distribution if its version
                 # does not fit the current dependency graph.
-                if not specifier.contains(installed_dist.version, prereleases=True):
+                if not (
+                    specifier.contains(installed_dist.version, prereleases=True)
+                    or is_prerelease_of_satisfying_lower_bound(
+                        specifier, installed_dist.version
+                    )
+                ):
                     return None
             except InvalidVersion as e:
                 raise InvalidInstalledPackage(dist=installed_dist, invalid_exc=e)

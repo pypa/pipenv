@@ -11,6 +11,9 @@ from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._internal.models.link import Link, links_equivalent
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import Hashes
+from pipenv.patched.pip._internal.utils.packaging import (
+    is_prerelease_of_satisfying_lower_bound,
+)
 
 CandidateLookup = tuple[Optional["Candidate"], Optional[InstallRequirement]]
 
@@ -73,7 +76,11 @@ class Constraint:
         # We can safely always allow prereleases here since PackageFinder
         # already implements the prerelease logic, and would have filtered out
         # prerelease candidates if the user does not expect them.
-        return self.specifier.contains(candidate.version, prereleases=True)
+        return self.specifier.contains(
+            candidate.version, prereleases=True
+        ) or is_prerelease_of_satisfying_lower_bound(
+            self.specifier, candidate.version
+        )
 
     def format_for_error(self) -> str:
         s = str(self.specifier)
