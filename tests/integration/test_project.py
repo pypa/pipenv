@@ -29,8 +29,10 @@ pytz = "*"
         os.environ["TEST_HOST"] = "localhost:5000"
         project = Project()
         assert project.sources.all[0]["url"] == "https://localhost:5000/simple"
-        assert "localhost:5000" not in str(Pipfile.load(open(p.pipfile_path)))
-        print(str(Pipfile.load(open(p.pipfile_path))))
+        with open(p.pipfile_path) as pipfile:
+            loaded = Pipfile.load(pipfile)
+        assert "localhost:5000" not in str(loaded)
+        print(str(loaded))
 
 
 @pytest.mark.project
