@@ -62,6 +62,7 @@ class WheelCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.src())
         self.cmd_opts.add_option(cmdoptions.ignore_requires_python())
         self.cmd_opts.add_option(cmdoptions.no_deps())
+        self.cmd_opts.add_option(cmdoptions.only_deps())
         self.cmd_opts.add_option(cmdoptions.progress_bar())
 
         self.cmd_opts.add_option(
@@ -75,6 +76,7 @@ class WheelCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.config_settings())
 
         self.cmd_opts.add_option(cmdoptions.require_hashes())
+        self.cmd_opts.add_option(cmdoptions.no_require_hashes())
 
         index_opts = cmdoptions.make_option_group(
             cmdoptions.index_group,
@@ -94,6 +96,7 @@ class WheelCommand(RequirementCommand):
     def run(self, options: Values, args: list[str]) -> int:
         cmdoptions.check_build_constraints(options)
         cmdoptions.check_release_control_exclusive(options)
+        cmdoptions.check_only_deps_option_does_not_conflict(options)
 
         session = self.get_default_session(options)
 
@@ -123,6 +126,7 @@ class WheelCommand(RequirementCommand):
             download_dir=options.wheel_dir,
             use_user_site=False,
             verbosity=self.verbosity,
+            allow_editables=False,
         )
 
         resolver = self.make_resolver(
@@ -151,6 +155,7 @@ class WheelCommand(RequirementCommand):
             reqs_to_build,
             wheel_cache=wheel_cache,
             verify=(not options.no_verify),
+            allow_editables=False,
         )
         for req in build_successes:
             assert req.link and req.link.is_wheel
@@ -160,8 +165,9 @@ class WheelCommand(RequirementCommand):
                 shutil.copy(req.local_file_path, options.wheel_dir)
             except OSError as e:
                 logger.warning(
-                    "Building wheel for %s failed: %s",
+                    "Failed to copy built wheel %s to %s: %s",
                     req.name,
+                    options.wheel_dir,
                     e,
                 )
                 build_failures.append(req)

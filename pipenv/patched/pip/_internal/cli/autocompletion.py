@@ -11,7 +11,6 @@ from typing import Any
 
 from pipenv.patched.pip._internal.cli.main_parser import create_main_parser
 from pipenv.patched.pip._internal.commands import commands_dict, create_command
-from pipenv.patched.pip._internal.metadata import get_default_environment
 
 
 def autocomplete() -> None:
@@ -51,6 +50,10 @@ def autocomplete() -> None:
             "uninstall",
         ]
         if should_list_installed:
+            # NOTE: this import is deferred until absolutely necessary as it's slow,
+            # and it's important that autocompletion is fast.
+            from pipenv.patched.pip._internal.metadata import get_default_environment
+
             env = get_default_environment()
             lc = current.lower()
             installed = [

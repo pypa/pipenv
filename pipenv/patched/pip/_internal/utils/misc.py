@@ -5,13 +5,14 @@ import getpass
 import hashlib
 import logging
 import os
+import pathlib
 import posixpath
 import shutil
 import stat
 import sys
 import sysconfig
 import urllib.parse
-from collections.abc import Generator, Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
 from io import StringIO
@@ -21,8 +22,6 @@ from types import FunctionType, TracebackType
 from typing import (
     Any,
     BinaryIO,
-    Callable,
-    Optional,
     TextIO,
     TypeVar,
     cast,
@@ -31,6 +30,7 @@ from typing import (
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
 from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendHookCaller
 
+from pipenv.patched.pip import __file__ as pip_location
 from pipenv.patched.pip import __version__
 from pipenv.patched.pip._internal.exceptions import CommandError, ExternallyManagedEnvironment
 from pipenv.patched.pip._internal.locations import get_major_minor_version
@@ -52,6 +52,7 @@ __all__ = [
     "ensure_dir",
     "remove_auth_from_url",
     "check_externally_managed",
+    "looks_like_ci",
     "ConfiguredBuildBackendHookCaller",
 ]
 
@@ -60,11 +61,28 @@ logger = logging.getLogger(__name__)
 T = TypeVar("T")
 ExcInfo = tuple[type[BaseException], BaseException, TracebackType]
 VersionInfo = tuple[int, int, int]
-NetlocTuple = tuple[str, tuple[Optional[str], Optional[str]]]
+NetlocTuple = tuple[str, tuple[str | None, str | None]]
 OnExc = Callable[[FunctionType, Path, BaseException], Any]
 OnErr = Callable[[FunctionType, Path, ExcInfo], Any]
 
 FILE_CHUNK_SIZE = 1024 * 1024
+# These are environment variables present when running under various
+# CI systems.  For each variable, some CI systems that use the variable
+# are indicated.  The collection was chosen so that for each of a number
+# of popular systems, at least one of the environment variables is used.
+# This list is used to provide some indication of and lower bound for
+# CI traffic to PyPI.  Thus, it is okay if the list is not comprehensive.
+# For more background, see: https://github.com/pypa/pip/issues/5499
+CI_ENVIRONMENT_VARIABLES = (
+    # Azure Pipelines
+    "BUILD_BUILDID",
+    # Jenkins
+    "BUILD_ID",
+    # AppVeyor, CircleCI, Codeship, Gitlab CI, Shippable, Travis CI
+    "CI",
+    # Explicit environment variable.
+    "PIP_IS_CI",
+)
 
 
 def get_pip_version() -> str:
@@ -72,6 +90,22 @@ def get_pip_version() -> str:
     pip_pkg_dir = os.path.abspath(pip_pkg_dir)
 
     return f"pip {__version__} from {pip_pkg_dir} (python {get_major_minor_version()})"
+
+
+def get_runnable_pip() -> str:
+    """Get a file to pass to a Python executable, to run the currently-running pip.
+
+    This is used to run a pip subprocess, for installing requirements into the build
+    environment.
+    """
+    source = pathlib.Path(pip_location).resolve().parent
+
+    if not source.is_dir():
+        # This would happen if someone is using pip from inside a zip file. In that
+        # case, we can use that directly.
+        return str(source)
+
+    return os.fsdecode(source / "__pip-runner__.py")
 
 
 def normalize_version_info(py_version_info: tuple[int, ...]) -> tuple[int, int, int]:
@@ -769,3 +803,13 @@ def warn_if_run_as_root() -> None:
         "Use the --root-user-action option if you know what you are doing and "
         "want to suppress this warning."
     )
+
+
+def looks_like_ci() -> bool:
+    """
+    Return whether it looks like pip is running under CI.
+    """
+    # We don't use the method of checking for a tty (e.g. using isatty())
+    # because some CI systems mimic a tty (e.g. Travis CI).  Thus that
+    # method doesn't provide definitive information in either direction.
+    return any(name in os.environ for name in CI_ENVIRONMENT_VARIABLES)

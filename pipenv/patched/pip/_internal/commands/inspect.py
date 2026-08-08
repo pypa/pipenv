@@ -10,7 +10,7 @@ from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.base_command import Command
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_environment
-from pipenv.patched.pip._internal.utils.compat import stdlib_pkgs
+from pipenv.patched.pip._internal.metadata.base import stdlib_pkgs
 from pipenv.patched.pip._internal.utils.urls import path_to_url
 
 logger = logging.getLogger(__name__)

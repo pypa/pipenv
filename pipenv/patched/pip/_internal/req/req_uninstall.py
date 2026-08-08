@@ -4,9 +4,9 @@ import functools
 import os
 import sys
 import sysconfig
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from importlib.util import cache_from_source
-from typing import Any, Callable
+from typing import Any
 
 from pipenv.patched.pip._internal.exceptions import LegacyDistutilsInstall, UninstallMissingRecord
 from pipenv.patched.pip._internal.locations import get_bin_prefix, get_bin_user
@@ -96,14 +96,19 @@ def compact(paths: Iterable[str]) -> set[str]:
 
     sep = os.path.sep
     short_paths: set[str] = set()
+    prefixes: set[str] = set()
+
     for path in sorted(paths, key=len):
-        should_skip = any(
-            path.startswith(shortpath.rstrip("*"))
-            and path[len(shortpath.rstrip("*").rstrip(sep))] == sep
-            for shortpath in short_paths
-        )
-        if not should_skip:
+        current = path[:-1] if path.endswith(sep + "*") else path
+        parent = current.rstrip(sep)
+        while parent:
+            if parent in prefixes:
+                break
+            next_parent = os.path.dirname(parent).rstrip(sep)
+            parent = "" if next_parent == parent else next_parent
+        else:
             short_paths.add(path)
+            prefixes.add(current.rstrip(sep))
     return short_paths
 
 

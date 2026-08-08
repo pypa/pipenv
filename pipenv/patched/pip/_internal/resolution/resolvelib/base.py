@@ -12,7 +12,7 @@ from pipenv.patched.pip._internal.models.link import Link, links_equivalent
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 
-CandidateLookup = tuple[Optional["Candidate"], Optional[InstallRequirement]]
+CandidateLookup = tuple[Optional["Candidate"], InstallRequirement | None]
 
 
 def format_name(project: NormalizedName, extras: frozenset[NormalizedName]) -> str:

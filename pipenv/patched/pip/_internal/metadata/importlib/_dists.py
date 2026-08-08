@@ -177,7 +177,7 @@ class Distribution(BaseDistribution):
 
     @property
     def raw_version(self) -> str:
-        return self._dist.version
+        return self.metadata["Version"]
 
     def is_file(self, path: InfoPath) -> bool:
         return self._dist.read_text(str(path)) is not None

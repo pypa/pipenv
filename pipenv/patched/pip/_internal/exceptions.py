@@ -11,6 +11,7 @@ import configparser
 import contextlib
 import locale
 import logging
+import os
 import pathlib
 import re
 import sys
@@ -28,6 +29,7 @@ from pipenv.patched.pip._vendor.rich.text import Text
 if TYPE_CHECKING:
     from hashlib import _Hash
 
+    from pipenv.patched.pip._vendor import urllib3
     from pipenv.patched.pip._vendor.requests.models import PreparedRequest, Request, Response
 
     from pipenv.patched.pip._internal.metadata import BaseDistribution
@@ -337,6 +339,119 @@ class NetworkConnectionError(PipError):
         return str(self.error_msg)
 
 
+class ConnectionFailedError(DiagnosticPipError):
+    reference = "connection-failed"
+
+    def __init__(self, url: str, host: str, error: Exception) -> None:
+        from http.client import RemoteDisconnected
+
+        from pipenv.patched.pip._vendor.urllib3.exceptions import (
+            NameResolutionError,
+            NewConnectionError,
+            ProtocolError,
+        )
+
+        details = str(error)
+        if isinstance(error, NameResolutionError):
+            parts = details.split("Failed to resolve ", maxsplit=1)
+            if len(parts) == 2:
+                details = "Failed to resolve IP address for " + parts[1]
+        elif isinstance(error, NewConnectionError):
+            parts = details.split("Failed to establish a new connection: ", maxsplit=1)
+            if len(parts) == 2:
+                _, details = parts
+        elif isinstance(error, ProtocolError):
+            try:
+                reason = error.args[1]
+            except IndexError:
+                pass
+            else:
+                if isinstance(reason, (RemoteDisconnected, ConnectionResetError)):
+                    details = (
+                        "the connection was closed without a reply from the server."
+                    )
+
+        super().__init__(
+            message=(
+                f"Failed to connect to [magenta]{escape(host)}[/] while fetching "
+                f"{escape(url)}"
+            ),
+            context=Text(details),
+            hint_stmt=(
+                "Are you connected to the Internet? If so, check whether your system "
+                f"can connect to [magenta]{escape(host)}[/] before trying again. "
+                "There may be a firewall or proxy that's preventing the connection."
+            ),
+        )
+
+
+class ConnectionTimeoutError(DiagnosticPipError):
+    reference = "connection-timeout"
+
+    def __init__(
+        self,
+        url: str,
+        host: str,
+        *,
+        kind: Literal["connect", "read"],
+        timeout: float,
+    ) -> None:
+        context = Text.assemble(
+            (host, "magenta"), f" didn't respond within {timeout} seconds"
+        )
+        if kind == "connect":
+            context.append(" (while establishing a connection)")
+        super().__init__(
+            message=f"Unable to fetch {escape(url)}",
+            context=context,
+            hint_stmt=(
+                "This is probably a temporary issue with the remote server or the "
+                "network connection. If this error persists, check the network "
+                "configuration. There may be a firewall or proxy that's preventing "
+                "the connection."
+            ),
+        )
+
+
+class SSLMissingError(DiagnosticPipError):
+    reference = "ssl-missing"
+
+    def __init__(self, url: str) -> None:
+        super().__init__(
+            message=f"Failed to establish a secure connection for {escape(url)}",
+            context="The 'ssl' module is unavailable but required for HTTPS URLs",
+            hint_stmt=None,
+        )
+
+
+class SSLVerificationError(DiagnosticPipError):
+    reference = "ssl-verification-failed"
+
+    def __init__(self, url: str, host: str, error: urllib3.exceptions.SSLError) -> None:
+        message = (
+            "Failed to establish a secure connection to "
+            f"[magenta]{escape(host)}[/] while fetching {escape(url)}"
+        )
+        hint = "You may need to use --cert or check your proxy/firewall configuration"
+        super().__init__(message=message, context=Text(str(error)), hint_stmt=hint)
+
+
+class ProxyConnectionError(DiagnosticPipError):
+    reference = "proxy-connection-failed"
+
+    def __init__(
+        self, url: str, proxy: str, error: urllib3.exceptions.ProxyError
+    ) -> None:
+        super().__init__(
+            message=(
+                "Failed to connect to proxy "
+                f"[magenta]{escape(proxy)}[/] while fetching {escape(url)}"
+            ),
+            context=Text(str(error)),
+            hint_stmt="This is likely a proxy configuration issue.",
+        )
+
+
 class InvalidWheelFilename(InstallationError):
     """Invalid wheel filename."""
 
@@ -376,6 +491,23 @@ class MetadataInconsistent(InstallationError):
         return (
             f"Requested {self.ireq} has inconsistent {self.field}: "
             f"expected {self.f_val!r}, but metadata has {self.m_val!r}"
+        )
+
+
+class SidecarMetadataInconsistent(MetadataInconsistent):
+    """The wheel's METADATA disagrees with its PEP 658 ``.metadata`` file.
+
+    Raised after the wheel has been downloaded and hash-verified, when a
+    resolver-affecting field in the wheel's embedded ``METADATA`` does not
+    match the value taken from the remote ``.metadata`` sidecar that drove
+    resolution. ``f_val`` is the sidecar value, ``m_val`` is the wheel value.
+    """
+
+    def __str__(self) -> str:
+        return (
+            f"Requested {self.ireq} has inconsistent {self.field} between "
+            f"its PEP 658 .metadata file and the wheel's METADATA: "
+            f"sidecar has {self.f_val!r}, wheel has {self.m_val!r}"
         )
 
 
@@ -968,4 +1100,46 @@ class BuildDependencyInstallError(DiagnosticPipError):
             message += Text(f" for {req}")
         super().__init__(
             message=message, context=context, hint_stmt=None, note_stmt=note
+        )
+
+
+class VenvImportError(DiagnosticPipError):
+    """Raised when 'venv' can't be imported."""
+
+    reference = "venv-import-error"
+
+    def __init__(self) -> None:
+        if sys.platform != "linux":
+            hint_stmt = None
+        else:
+            hint_stmt = (
+                "If this is an OS-provided Python, it's likely that your OS "
+                "package maintainers have split Python's standard library across "
+                "multiple OS packages."
+            )
+        super().__init__(
+            message="Cannot import the 'venv' module of the Python standard library",
+            context=(
+                "This is a symptom of a broken/modified Python, which cannot be used "
+                "with pip."
+            ),
+            note_stmt="This is an issue with the Python installation itself, not pip.",
+            hint_stmt=hint_stmt,
+        )
+
+
+class VenvCreationError(DiagnosticPipError):
+    """Raised when a virtual environment can't be created."""
+
+    reference = "venv-creation-error"
+
+    def __init__(self, context: str) -> None:
+        if os.name == "nt":
+            hint = "This may be caused by running antivirus software."
+        else:
+            hint = None
+        super().__init__(
+            message="Cannot create a virtual environment",
+            context=Text(context),
+            hint_stmt=hint,
         )

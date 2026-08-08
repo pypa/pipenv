@@ -5,11 +5,11 @@ import os
 import os.path
 import random
 import sys
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, BinaryIO, Callable, cast
+from typing import Any, BinaryIO, cast
 
 from pipenv.patched.pip._internal.utils.compat import get_path_uid
 from pipenv.patched.pip._internal.utils.misc import format_size

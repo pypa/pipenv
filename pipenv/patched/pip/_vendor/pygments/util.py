@@ -4,7 +4,7 @@
 
     Utility functions.
 
-    :copyright: Copyright 2006-2025 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-present by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -286,7 +286,7 @@ def guess_decode(text):
         try:
             import locale
             prefencoding = locale.getpreferredencoding()
-            text = text.decode()
+            text = text.decode(prefencoding)
             return text, prefencoding
         except (UnicodeDecodeError, LookupError):
             text = text.decode('latin1')

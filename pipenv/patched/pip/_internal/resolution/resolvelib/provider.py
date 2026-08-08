@@ -84,6 +84,7 @@ class PipProvider(_ProviderBase):
     :params constraints: A mapping of constraints specified by the user. Keys
         are canonicalized project names.
     :params ignore_dependencies: Whether the user specified ``--no-deps``.
+    :params only_dependencies: Whether the user specified ``--only-deps``.
     :params upgrade_strategy: The user-specified upgrade strategy.
     :params user_requested: A set of canonicalized package names that the user
         supplied for pip to install/upgrade.
@@ -94,12 +95,14 @@ class PipProvider(_ProviderBase):
         factory: Factory,
         constraints: dict[str, Constraint],
         ignore_dependencies: bool,
+        only_dependencies: bool,
         upgrade_strategy: str,
         user_requested: dict[str, int],
     ) -> None:
         self._factory = factory
         self._constraints = constraints
         self._ignore_dependencies = ignore_dependencies
+        self._only_dependencies = only_dependencies
         self._upgrade_strategy = upgrade_strategy
         self._user_requested = user_requested
         self._conflict_counts: defaultdict[str, int] = defaultdict(int)

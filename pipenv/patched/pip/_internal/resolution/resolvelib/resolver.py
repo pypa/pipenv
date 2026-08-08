@@ -49,6 +49,7 @@ class Resolver(BaseResolver):
         make_install_req: InstallRequirementProvider,
         use_user_site: bool,
         ignore_dependencies: bool,
+        only_dependencies: bool,
         ignore_installed: bool,
         ignore_requires_python: bool,
         force_reinstall: bool,
@@ -57,6 +58,7 @@ class Resolver(BaseResolver):
     ):
         super().__init__()
         assert upgrade_strategy in self._allowed_strategies
+        assert not (ignore_dependencies and only_dependencies)
 
         self.factory = Factory(
             finder=finder,
@@ -70,6 +72,7 @@ class Resolver(BaseResolver):
             py_version_info=py_version_info,
         )
         self.ignore_dependencies = ignore_dependencies
+        self.only_dependencies = only_dependencies
         self.upgrade_strategy = upgrade_strategy
         self._result: Result | None = None
 
@@ -81,6 +84,7 @@ class Resolver(BaseResolver):
             factory=self.factory,
             constraints=collected.constraints,
             ignore_dependencies=self.ignore_dependencies,
+            only_dependencies=self.only_dependencies,
             upgrade_strategy=self.upgrade_strategy,
             user_requested=collected.user_requested,
         )
@@ -180,6 +184,11 @@ class Resolver(BaseResolver):
                 logger.warning(msg)
 
             req_set.add_named_requirement(ireq)
+
+        if self.only_dependencies:
+            for requested in collected.user_requested:
+                project_name = requested.partition("[")[0]
+                req_set.requirements.pop(project_name, None)
 
         return req_set
 

@@ -4,7 +4,7 @@
 
     Base lexer classes.
 
-    :copyright: Copyright 2006-2025 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-present by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -446,8 +446,9 @@ def using(_other, **kwargs):
             # function has to create a new lexer instance
             if kwargs:
                 # XXX: cache that somehow
-                kwargs.update(lexer.options)
-                lx = lexer.__class__(**kwargs)
+                d = dict(lexer.options)
+                d.update(kwargs)
+                lx = lexer.__class__(**d)
             else:
                 lx = lexer
             s = match.start()
@@ -458,8 +459,9 @@ def using(_other, **kwargs):
     else:
         def callback(lexer, match, ctx=None):
             # XXX: cache that somehow
-            kwargs.update(lexer.options)
-            lx = _other(**kwargs)
+            d = dict(lexer.options)
+            d.update(kwargs)
+            lx = _other(**d)
 
             s = match.start()
             for i, t, v in lx.get_tokens_unprocessed(match.group(), **gt_kwargs):

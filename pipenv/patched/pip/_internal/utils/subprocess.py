@@ -4,8 +4,8 @@ import logging
 import os
 import shlex
 import subprocess
-from collections.abc import Iterable, Mapping
-from typing import Any, Callable, Literal, Union
+from collections.abc import Callable, Iterable, Mapping
+from typing import Any, Literal
 
 from pipenv.patched.pip._vendor.rich.markup import escape
 
@@ -14,7 +14,7 @@ from pipenv.patched.pip._internal.exceptions import InstallationSubprocessError
 from pipenv.patched.pip._internal.utils.logging import VERBOSE, subprocess_logger
 from pipenv.patched.pip._internal.utils.misc import HiddenText
 
-CommandArgs = list[Union[str, HiddenText]]
+CommandArgs = list[str | HiddenText]
 
 
 def make_command(*args: str | HiddenText | CommandArgs) -> CommandArgs:
@@ -134,6 +134,7 @@ def call_subprocess(
             stderr=subprocess.STDOUT if not stdout_only else subprocess.PIPE,
             cwd=cwd,
             env=env,
+            encoding="locale",
             errors="backslashreplace",
         )
     except Exception as exc:

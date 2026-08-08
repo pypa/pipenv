@@ -5,6 +5,7 @@ A module that implements tooling to enable easy warnings about deprecations.
 from __future__ import annotations
 
 import logging
+import os
 import warnings
 from typing import Any, TextIO
 
@@ -48,7 +49,11 @@ def _showwarning(
 
 def install_warning_logger() -> None:
     # Enable our Deprecation Warnings
-    warnings.simplefilter("default", PipDeprecationWarning, append=True)
+    # If we're running pip test suite, promote the PipDeprecationWarning into errors.
+    if os.environ.get("_PIP_TEST_ENV", None):
+        warnings.simplefilter("error", PipDeprecationWarning)
+    else:
+        warnings.simplefilter("default", PipDeprecationWarning, append=True)
 
     global _original_showwarning
 

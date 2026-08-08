@@ -11,8 +11,8 @@ something.
 from __future__ import annotations
 
 import logging
-from collections.abc import Iterator, Sequence
-from typing import Any, Callable, Optional
+from collections.abc import Callable, Iterator, Sequence
+from typing import Any
 
 from pipenv.patched.pip._vendor.packaging.version import _BaseVersion
 
@@ -22,7 +22,7 @@ from .base import Candidate
 
 logger = logging.getLogger(__name__)
 
-IndexCandidateInfo = tuple[_BaseVersion, Callable[[], Optional[Candidate]]]
+IndexCandidateInfo = tuple[_BaseVersion, Callable[[], Candidate | None]]
 
 
 def _iter_built(infos: Iterator[IndexCandidateInfo]) -> Iterator[Candidate]:

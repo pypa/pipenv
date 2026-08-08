@@ -7,7 +7,6 @@ import pathlib
 import sys
 import zipfile
 from collections.abc import Iterator, Sequence
-from typing import Optional
 
 from pipenv.patched.pip._vendor.packaging.utils import (
     InvalidWheelFilename,
@@ -23,6 +22,10 @@ from ._compat import BadMetadata, BasePath, get_dist_canonical_name, get_info_lo
 from ._dists import Distribution
 
 logger = logging.getLogger(__name__)
+
+# Used to avoid emitting duplicate invalid distribution metadata warnings for
+# the same dist-info directory.
+_warned_bad_metadata: set[BasePath | None] = set()
 
 
 def _looks_like_wheel(location: str) -> bool:
@@ -50,7 +53,7 @@ class _DistributionFinder:
     installations as well. It's useful feature, after all.
     """
 
-    FoundResult = tuple[importlib.metadata.Distribution, Optional[BasePath]]
+    FoundResult = tuple[importlib.metadata.Distribution, BasePath | None]
 
     def __init__(self) -> None:
         self._found_names: set[NormalizedName] = set()
@@ -69,7 +72,9 @@ class _DistributionFinder:
             try:
                 name = get_dist_canonical_name(dist)
             except BadMetadata as e:
-                logger.warning("Skipping %s due to %s", info_location, e.reason)
+                if info_location not in _warned_bad_metadata:
+                    logger.warning("Skipping %s due to %s", info_location, e.reason)
+                    _warned_bad_metadata.add(info_location)
                 continue
             if name in self._found_names:
                 continue

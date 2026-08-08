@@ -53,7 +53,7 @@ class ShowCommand(Command):
             return ERROR
         query = args
 
-        results = search_packages_info(query)
+        results = search_packages_info(query, include_files=options.files)
         if not print_results(
             results, list_files=options.files, verbose=options.verbose
         ):
@@ -82,7 +82,10 @@ class _PackageInfo(NamedTuple):
     files: list[str] | None
 
 
-def search_packages_info(query: list[str]) -> Generator[_PackageInfo, None, None]:
+def search_packages_info(
+    query: list[str],
+    include_files: bool,
+) -> Generator[_PackageInfo, None, None]:
     """
     Gather details from installed distributions. Print distribution name,
     version, location, and installed files. Installed files requires a
@@ -133,11 +136,11 @@ def search_packages_info(query: list[str]) -> Generator[_PackageInfo, None, None
         except FileNotFoundError:
             entry_points = []
 
-        files_iter = dist.iter_declared_entries()
-        if files_iter is None:
-            files: list[str] | None = None
-        else:
-            files = sorted(files_iter)
+        files: list[str] | None = None
+        if include_files:
+            files_iter = dist.iter_declared_entries()
+            if files_iter is not None:
+                files = sorted(files_iter)
 
         metadata = dist.metadata
 
@@ -189,7 +192,10 @@ def print_results(
         if i > 0:
             write_output("---")
 
-        metadata_version_tuple = tuple(map(int, dist.metadata_version.split(".")))
+        metadata_version = dist.metadata_version
+        metadata_version_tuple = (
+            tuple(map(int, metadata_version.split("."))) if metadata_version else ()
+        )
 
         write_output("Name: %s", dist.name)
         write_output("Version: %s", dist.version)

@@ -5,12 +5,11 @@ import os.path
 import pathlib
 import re
 import urllib.parse
-import urllib.request
 from dataclasses import replace
 from typing import Any
 
 from pipenv.patched.pip._internal.exceptions import BadCommand, InstallationError
-from pipenv.patched.pip._internal.utils.misc import HiddenText, display_path, hide_url
+from pipenv.patched.pip._internal.utils.misc import HiddenText, display_path, hide_url, strtobool
 from pipenv.patched.pip._internal.utils.subprocess import make_command
 from pipenv.patched.pip._internal.vcs.versioncontrol import (
     AuthInfo,
@@ -281,7 +280,9 @@ class Git(VersionControl):
             flags = ()
         else:
             flags = ("--verbose", "--progress")
-        if self.get_git_version() >= (2, 17):
+        if self.get_git_version() >= (2, 17) and not strtobool(
+            os.environ.get("PIP_NO_PARTIAL_CLONE_FOR_BROKEN_GIT_SERVER", "no")
+        ):
             # Git added support for partial clone in 2.17
             # https://git-scm.com/docs/partial-clone
             # Speeds up cloning by functioning without a complete copy of repository
@@ -438,7 +439,7 @@ class Git(VersionControl):
         if os.path.exists(url):
             # A local bare remote (git clone --mirror).
             # Needs a file:// prefix.
-            return pathlib.PurePath(url).as_uri()
+            return pathlib.Path(url).as_uri()
         scp_match = SCP_REGEX.match(url)
         if scp_match:
             # Add an ssh:// prefix and replace the ':' with a '/'.
@@ -453,7 +454,7 @@ class Git(VersionControl):
         """
         try:
             cls.run_command(
-                ["rev-parse", "-q", "--verify", "sha^" + rev],
+                ["rev-parse", "-q", "--verify", rev + "^{commit}"],
                 cwd=location,
                 log_failed_cmd=False,
             )
@@ -500,6 +501,8 @@ class Git(VersionControl):
         work with a ssh:// scheme (e.g. GitHub). But we need a scheme for
         parsing. Hence we remove it again afterwards and return it as a stub.
         """
+        import urllib.request
+
         # Works around an apparent Git bug
         # (see https://article.gmane.org/gmane.comp.version-control.git/146500)
         scheme, netloc, path, query, fragment = urlsplit(url)

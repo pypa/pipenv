@@ -5,7 +5,7 @@
     Module containing filter lookup functions and default
     filters.
 
-    :copyright: Copyright 2006-2025 by the Pygments team, see AUTHORS.
+    :copyright: Copyright 2006-present by the Pygments team, see AUTHORS.
     :license: BSD, see LICENSE for details.
 """
 
@@ -95,8 +95,10 @@ class CodeTagFilter(Filter):
 
 
 class SymbolFilter(Filter):
-    """Convert mathematical symbols such as \\<longrightarrow> in Isabelle
-    or \\longrightarrow in LaTeX into Unicode characters.
+    """Convert mathematical symbols into Unicode characters.
+
+    Examples are ``\\<longrightarrow>`` in Isabelle or
+    ``\\longrightarrow`` in LaTeX.
 
     This is mostly useful for HTML or console output when you want to
     approximate the source rendering you'd see in an IDE.
@@ -685,8 +687,9 @@ class SymbolFilter(Filter):
 
 
 class KeywordCaseFilter(Filter):
-    """Convert keywords to lowercase or uppercase or capitalize them, which
-    means first letter uppercase, rest lowercase.
+    """Convert keywords to lowercase or uppercase or capitalize them.
+
+    This means first letter uppercase, rest lowercase.
 
     This can be useful e.g. if you highlight Pascal code and want to adapt the
     code to your styleguide.
@@ -866,7 +869,7 @@ class VisibleWhitespaceFilter(Filter):
 
 
 class GobbleFilter(Filter):
-    """Gobbles source code lines (eats initial characters).
+    """Gobble source code lines (eats initial characters).
 
     This filter drops the first ``n`` characters off every line of code.  This
     may be useful when the source code fed to the lexer is indented by a fixed
@@ -905,8 +908,7 @@ class GobbleFilter(Filter):
 
 
 class TokenMergeFilter(Filter):
-    """Merges consecutive tokens with the same token type in the output
-    stream of a lexer.
+    """Merge consecutive tokens with the same token type in the output stream.
 
     .. versionadded:: 1.2
     """

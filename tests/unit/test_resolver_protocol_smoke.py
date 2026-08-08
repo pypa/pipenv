@@ -119,8 +119,13 @@ def _invoke_subprocess(
         stub_dir = tmp_path / "_stub_path"
         stub_dir.mkdir()
         (stub_dir / "sitecustomize.py").write_text(textwrap.dedent("""
-            import pipenv.resolver.main as _resolver_main
+            import importlib
+
             from pipenv.resolver.schema import LockedRequirement
+
+
+            _resolver_package = importlib.import_module("pipenv.resolver")
+            _resolver_main = importlib.import_module("pipenv.resolver.main")
 
 
             def _stub_resolve_packages(request):
@@ -133,6 +138,7 @@ def _invoke_subprocess(
 
 
             _resolver_main.resolve_packages = _stub_resolve_packages
+            _resolver_package.resolve_packages = _stub_resolve_packages
         """))
         pythonpath_entries.insert(0, str(stub_dir))
 

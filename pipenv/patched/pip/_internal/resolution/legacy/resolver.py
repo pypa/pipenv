@@ -17,7 +17,6 @@ import sys
 from collections import defaultdict
 from collections.abc import Iterable
 from itertools import chain
-from typing import Optional
 
 from pipenv.patched.pip._vendor.packaging import specifiers
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
@@ -52,7 +51,7 @@ from pipenv.patched.pip._internal.utils.packaging import check_requires_python
 
 logger = logging.getLogger(__name__)
 
-DiscoveredDependencies = defaultdict[Optional[str], list[InstallRequirement]]
+DiscoveredDependencies = defaultdict[str | None, list[InstallRequirement]]
 
 
 def _check_dist_requires_python(
@@ -124,6 +123,7 @@ class Resolver(BaseResolver):
         make_install_req: InstallRequirementProvider,
         use_user_site: bool,
         ignore_dependencies: bool,
+        only_dependencies: bool,  # unused, for compatibility with new resolver
         ignore_installed: bool,
         ignore_requires_python: bool,
         force_reinstall: bool,
