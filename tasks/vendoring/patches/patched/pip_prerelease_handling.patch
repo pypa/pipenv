@@ -8,9 +8,21 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
 -from pip._vendor.packaging.version import InvalidVersion, _BaseVersion
 +from pip._vendor.packaging.version import InvalidVersion, Version, _BaseVersion
  from pip._vendor.packaging.version import parse as parse_version
- 
+
  from pip._internal.exceptions import (
-@@ -483,14 +483,22 @@
+@@ -45,7 +45,10 @@
+ from pip._internal.utils.hashes import Hashes
+ from pip._internal.utils.logging import indent_log
+ from pip._internal.utils.misc import build_netloc
+-from pip._internal.utils.packaging import check_requires_python
++from pip._internal.utils.packaging import (
++    check_requires_python,
++    is_prerelease_of_satisfying_lower_bound,
++)
+ from pip._internal.utils.unpacking import SUPPORTED_EXTENSIONS
+
+ if TYPE_CHECKING:
+@@ -483,14 +486,22 @@
          """
          Return the applicable candidates from a list of candidates.
          """
@@ -34,7 +46,7 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
          # When using the pkg_resources backend we turn the version object into
          # a str here because otherwise when we're debundled but setuptools isn't,
          # Python will see packaging.version.Version and
-@@ -498,17 +506,30 @@
+@@ -498,17 +509,40 @@
          # types. This way we'll use a str as a common data interchange
          # format. If we stop using the pkg_resources provided specifier
          # and start using our own, we can drop the cast to str().
@@ -46,7 +58,6 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
 -                if select_backend().NAME == "pkg_resources"
 -                else c.version
 -            ),
--        )
 +        if select_backend().NAME == "pkg_resources":
 +            candidates_and_versions: list[
 +                tuple[InstallationCandidate, str | Version]
@@ -58,7 +69,7 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
 +                (v for _, v in candidates_and_versions),
 +                prereleases=allow_prereleases,
 +            )
-+        )
+         )
 +
 +        if not versions and candidates_and_versions and use_prerelease_fallback:
 +            versions = set(
@@ -68,6 +79,16 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
 +                )
 +            )
 +
++        if candidates_and_versions and (
++            allow_prereleases is True
++            or (use_prerelease_fallback and not versions)
++        ):
++            versions.update(
++                v
++                for _, v in candidates_and_versions
++                if is_prerelease_of_satisfying_lower_bound(specifier, v)
++            )
++
 +        applicable_candidates = [c for c, v in candidates_and_versions if v in versions]
          filtered_applicable_candidates = filter_unallowed_hashes(
 -            candidates=list(applicable_candidates),
@@ -75,3 +96,133 @@ diff --git a/pipenv/patched/pip/_internal/index/package_finder.py b/pipenv/patch
              hashes=self._hashes,
              project_name=self._project_name,
          )
+diff --git a/pipenv/patched/pip/_internal/utils/packaging.py b/pipenv/patched/pip/_internal/utils/packaging.py
+--- a/pipenv/patched/pip/_internal/utils/packaging.py
++++ b/pipenv/patched/pip/_internal/utils/packaging.py
+@@ -9,6 +9,47 @@
+ logger = logging.getLogger(__name__)
+
+
++def is_prerelease_of_satisfying_lower_bound(
++    specifier: specifiers.BaseSpecifier,
++    candidate_version: str | version.Version,
++) -> bool:
++    """Return whether a prerelease can stand in for its final lower bound.
++
++    A prerelease such as ``2.11rc3`` sorts before the ``2.11`` lower bound in
++    ``~=2.11``. During prerelease fallback, treat it as matching when its
++    corresponding final version satisfies the complete specifier and the only
++    clauses it misses are inclusive lower bounds. Exact pins and exclusions
++    continue to apply to the prerelease itself.
++    """
++    if not isinstance(candidate_version, version.Version):
++        try:
++            candidate_version = version.Version(candidate_version)
++        except version.InvalidVersion:
++            return False
++    if not candidate_version.is_prerelease:
++        return False
++
++    final_version = version.Version(candidate_version.base_version)
++    if not specifier.contains(final_version, prereleases=True):
++        return False
++
++    if isinstance(specifier, specifiers.SpecifierSet):
++        clauses = tuple(specifier)
++    elif isinstance(specifier, specifiers.Specifier):
++        clauses = (specifier,)
++    else:
++        return False
++
++    return bool(clauses) and all(
++        clause.contains(candidate_version, prereleases=True)
++        or (
++            clause.operator in {">=", "~="}
++            and clause.contains(final_version, prereleases=True)
++        )
++        for clause in clauses
++    )
++
++
+ @functools.lru_cache(maxsize=32)
+ def check_requires_python(
+     requires_python: str | None, version_info: tuple[int, ...]
+diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/base.py b/pipenv/patched/pip/_internal/resolution/resolvelib/base.py
+--- a/pipenv/patched/pip/_internal/resolution/resolvelib/base.py
++++ b/pipenv/patched/pip/_internal/resolution/resolvelib/base.py
+@@ -11,6 +11,9 @@
+ from pip._internal.models.link import Link, links_equivalent
+ from pip._internal.req.req_install import InstallRequirement
+ from pip._internal.utils.hashes import Hashes
++from pip._internal.utils.packaging import (
++    is_prerelease_of_satisfying_lower_bound,
++)
+
+ CandidateLookup = tuple[Optional["Candidate"], Optional[InstallRequirement]]
+
+@@ -73,7 +76,11 @@
+         # We can safely always allow prereleases here since PackageFinder
+         # already implements the prerelease logic, and would have filtered out
+         # prerelease candidates if the user does not expect them.
+-        return self.specifier.contains(candidate.version, prereleases=True)
++        return self.specifier.contains(
++            candidate.version, prereleases=True
++        ) or is_prerelease_of_satisfying_lower_bound(
++            self.specifier, candidate.version
++        )
+
+     def format_for_error(self) -> str:
+         s = str(self.specifier)
+diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py b/pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py
+--- a/pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py
++++ b/pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py
+@@ -7,6 +7,9 @@
+
+ from pip._internal.req.constructors import install_req_drop_extras
+ from pip._internal.req.req_install import InstallRequirement
++from pip._internal.utils.packaging import (
++    is_prerelease_of_satisfying_lower_bound,
++)
+
+ from .base import Candidate, CandidateLookup, Requirement, format_name
+
+@@ -118,7 +121,9 @@
+         # prerelease candidates if the user does not expect them.
+         assert self._ireq.req, "Specifier-backed ireq is always PEP 508"
+         spec = self._ireq.req.specifier
+-        return spec.contains(candidate.version, prereleases=True)
++        return spec.contains(
++            candidate.version, prereleases=True
++        ) or is_prerelease_of_satisfying_lower_bound(spec, candidate.version)
+
+
+ class SpecifierWithoutExtrasRequirement(SpecifierRequirement):
+diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py b/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
+--- a/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
++++ b/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
+@@ -47,7 +47,10 @@
+ from pip._internal.resolution.base import InstallRequirementProvider
+ from pip._internal.utils.compatibility_tags import get_supported
+ from pip._internal.utils.hashes import Hashes
+-from pip._internal.utils.packaging import get_requirement
++from pip._internal.utils.packaging import (
++    get_requirement,
++    is_prerelease_of_satisfying_lower_bound,
++)
+ from pip._internal.utils.virtualenv import running_under_virtualenv
+
+ from .base import Candidate, Constraint, Requirement
+@@ -319,7 +322,12 @@
+             try:
+                 # Don't use the installed distribution if its version
+                 # does not fit the current dependency graph.
+-                if not specifier.contains(installed_dist.version, prereleases=True):
++                if not (
++                    specifier.contains(installed_dist.version, prereleases=True)
++                    or is_prerelease_of_satisfying_lower_bound(
++                        specifier, installed_dist.version
++                    )
++                ):
+                     return None
+             except InvalidVersion as e:
+                 raise InvalidInstalledPackage(dist=installed_dist, invalid_exc=e)
