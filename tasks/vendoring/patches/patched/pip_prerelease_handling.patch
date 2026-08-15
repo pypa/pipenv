@@ -158,7 +158,7 @@ diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/base.py b/pipenv
 +    is_prerelease_of_satisfying_lower_bound,
 +)
 
- CandidateLookup = tuple[Optional["Candidate"], Optional[InstallRequirement]]
+ CandidateLookup = tuple[Optional["Candidate"], InstallRequirement | None]
 
 @@ -73,7 +76,11 @@
          # We can safely always allow prereleases here since PackageFinder
