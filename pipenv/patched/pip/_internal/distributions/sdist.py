@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Iterable
+from contextlib import nullcontext
 from typing import TYPE_CHECKING
 
 from pipenv.patched.pip._internal.build_env import (
@@ -52,7 +53,7 @@ class SourceDistribution(AbstractDistribution):
         if build_isolation != "off":
             # Setup an isolated environment and install the build backend static
             # requirements in it.
-            self._prepare_build_backend()
+            self._prepare_build_backend(build_isolation)
             # Check that the build backend supports PEP 660. This cannot be done
             # earlier because we need to setup the build backend to verify it
             # supports build_editable, nor can it be done later, because we want
@@ -60,7 +61,7 @@ class SourceDistribution(AbstractDistribution):
             self.req.editable_sanity_check()
             # Install the dynamic build requirements.
             self._install_build_reqs(
-                build_env_installer, allow_editables=allow_editables
+                build_env_installer, build_isolation, allow_editables=allow_editables
             )
         else:
             # When not using build isolation, we still need to check that
@@ -91,13 +92,14 @@ class SourceDistribution(AbstractDistribution):
 
         self.req.configure_backend(self.req.build_env.python_executable)
 
-    def _prepare_build_backend(self) -> None:
+    def _prepare_build_backend(self, build_isolation: BuildIsolationMode) -> None:
         # Install the pyproject.toml declared build-time requirements.
         pyproject_requires = self.req.pyproject_requires
         assert pyproject_requires is not None
         assert not isinstance(self.req.build_env, NoOpBuildEnvironment)
 
-        with self.req.build_env:
+        context = self.req.build_env if build_isolation == "venv" else nullcontext()
+        with context:
             self.req.build_env.install_requirements(
                 pyproject_requires,
                 "overlay",
@@ -141,6 +143,7 @@ class SourceDistribution(AbstractDistribution):
     def _install_build_reqs(
         self,
         build_env_installer: BuildEnvironmentInstaller,
+        build_isolation: BuildIsolationMode,
         allow_editables: bool,
     ) -> None:
         # Install any extra build dependencies that the backend requests.
@@ -157,7 +160,8 @@ class SourceDistribution(AbstractDistribution):
         conflicting, missing = self.req.build_env.check_requirements(build_reqs)
         if conflicting:
             self._raise_conflicts("the backend dependencies", conflicting)
-        with self.req.build_env:
+        context = self.req.build_env if build_isolation == "venv" else nullcontext()
+        with context:
             self.req.build_env.install_requirements(
                 missing, "normal", kind="backend dependencies", for_req=self.req
             )
