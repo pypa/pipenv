@@ -6,12 +6,11 @@ import logging
 import os.path
 import tempfile
 import traceback
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from contextlib import ExitStack, contextmanager
 from pathlib import Path
 from typing import (
     Any,
-    Callable,
     TypeVar,
 )
 

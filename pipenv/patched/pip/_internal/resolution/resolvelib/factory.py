@@ -4,10 +4,9 @@ import contextlib
 import copy
 import functools
 import logging
-from collections.abc import Iterable, Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from typing import (
     TYPE_CHECKING,
-    Callable,
     NamedTuple,
     Protocol,
     TypeVar,
@@ -19,6 +18,7 @@ from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
+from pipenv.patched.pip._vendor.rich.markup import escape
 
 from pipenv.patched.pip._internal.cache import CacheEntry, WheelCache
 from pipenv.patched.pip._internal.exceptions import (
@@ -32,7 +32,6 @@ from pipenv.patched.pip._internal.exceptions import (
 )
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_default_environment
-from pipenv.patched.pip._internal.models.candidate import InstallationCandidate
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.operations.prepare import RequirementPreparer
@@ -217,8 +216,8 @@ class Factory:
                 except (MetadataInconsistent, MetadataInvalid) as e:
                     logger.info(
                         "Discarding [blue underline]%s[/]: [yellow]%s[reset]",
-                        link,
-                        e,
+                        escape(str(link)),
+                        escape(str(e)),
                         extra={"markup": True},
                     )
                     self._build_failures[link] = e
@@ -238,38 +237,13 @@ class Factory:
                 except MetadataInconsistent as e:
                     logger.info(
                         "Discarding [blue underline]%s[/]: [yellow]%s[reset]",
-                        link,
-                        e,
+                        escape(str(link)),
+                        escape(str(e)),
                         extra={"markup": True},
                     )
                     self._build_failures[link] = e
                     return None
             return self._link_candidate_cache[link]
-
-    def _get_locked_installation_candidate(
-        self, ireqs: Sequence[InstallRequirement], name: str, specifier: SpecifierSet
-    ) -> InstallationCandidate | None:
-        locked_ireqs = [ireq for ireq in ireqs if ireq.locked_link]
-        if not locked_ireqs:
-            return None
-        if len(locked_ireqs) > 1:
-            raise InstallationError(
-                f"Multiple locks provided for package {name!r} in "
-                f"{', '.join(str(lir.comes_from) for lir in locked_ireqs)}"
-            )
-        locked_ireq = locked_ireqs[0]
-        assert locked_ireq.locked_link
-        assert locked_ireq.locked_version
-        if not specifier.contains(locked_ireq.locked_version):
-            raise InstallationError(
-                f"Locked version {locked_ireq.locked_version!s} "
-                f"for package {name!r} from {locked_ireq.comes_from!r} "
-                f"is not compatible with other requirements "
-                f"for the same package ({specifier!s})"
-            )
-        return InstallationCandidate(
-            name, str(locked_ireq.locked_version), locked_ireq.locked_link
-        )
 
     def _iter_found_candidates(
         self,
@@ -343,20 +317,12 @@ class Factory:
             return candidate
 
         def iter_index_candidate_infos() -> Iterator[IndexCandidateInfo]:
-            if locked_ican := self._get_locked_installation_candidate(
-                ireqs, name, specifier
-            ):
-                # Locked InstallRequirements must behave as if they would have
-                # been found on an index, except the link is already known, so we don't
-                # ask the finder for the best candidate in that case.
-                icans = [locked_ican]
-            else:
-                result = self._finder.find_best_candidate(
-                    project_name=name,
-                    specifier=specifier,
-                    hashes=hashes,
-                )
-                icans = result.applicable_candidates
+            result = self._finder.find_best_candidate(
+                project_name=name,
+                specifier=specifier,
+                hashes=hashes,
+            )
+            icans = result.applicable_candidates
 
             # PEP 592: Yanked releases are ignored unless the specifier
             # explicitly pins a version (via '==' or '===') that can be
@@ -765,6 +731,7 @@ class Factory:
 
         # Check if only final releases are allowed for this package
         version_type = "version"
+        allows_pre = None
         if self._finder.release_control is not None:
             allows_pre = self._finder.release_control.allows_prereleases(
                 canonicalize_name(req.project_name)
@@ -772,12 +739,32 @@ class Factory:
             if allows_pre is False:
                 version_type = "final version"
 
-        logger.critical(
-            "Could not find a %s that satisfies the requirement %s (from versions: %s)",
-            version_type,
-            req_disp,
-            ", ".join(versions) or "none",
-        )
+        if len(cands) == 1 and cands[0].locked:
+            # The package finder ensures that requirements from pylock files
+            # have exactly one candidate. So we can provide a specific error
+            # message in this case.
+            if cands[0].version.is_prerelease and allows_pre is False:
+                logger.critical(
+                    "A pre-release version %s is specified in a provided lock file "
+                    "for %s but only final versions are allowed",
+                    cands[0].version,
+                    cands[0].name,
+                )
+            else:
+                logger.critical(
+                    "The requirement %s is not compatible with "
+                    "version %s specified in a provided lock file",
+                    req_disp,
+                    ", ".join(versions),
+                )
+        else:
+            logger.critical(
+                "Could not find a %s that satisfies the requirement %s "
+                "(from versions: %s)",
+                version_type,
+                req_disp,
+                ", ".join(versions) or "none",
+            )
         if str(req) == "requirements.txt":
             logger.info(
                 "HINT: You are attempting to install a package literally "

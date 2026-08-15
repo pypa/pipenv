@@ -38,6 +38,8 @@ is at <https://requests.readthedocs.io>.
 :license: Apache 2.0, see LICENSE for more details.
 """
 
+from __future__ import annotations
+
 import warnings
 
 from pipenv.patched.pip._vendor import urllib3
@@ -48,16 +50,20 @@ charset_normalizer_version = None
 chardet_version = None
 
 
-def check_compatibility(urllib3_version, chardet_version, charset_normalizer_version):
-    urllib3_version = urllib3_version.split(".")
-    assert urllib3_version != ["dev"]  # Verify urllib3 isn't installed from git.
+def check_compatibility(
+    urllib3_version: str,
+    chardet_version: str | None,
+    charset_normalizer_version: str | None,
+) -> None:
+    urllib3_version_list = urllib3_version.split(".")[:3]
+    assert urllib3_version_list != ["dev"]  # Verify urllib3 isn't installed from git.
 
     # Sometimes, urllib3 only reports its version as 16.1.
-    if len(urllib3_version) == 2:
-        urllib3_version.append("0")
+    if len(urllib3_version_list) == 2:
+        urllib3_version_list.append("0")
 
     # Check urllib3 for compatibility.
-    major, minor, patch = urllib3_version  # noqa: F811
+    major, minor, patch = urllib3_version_list  # noqa: F811
     major, minor, patch = int(major), int(minor), int(patch)
     # urllib3 >= 1.21.1
     assert major >= 1
@@ -80,28 +86,28 @@ def check_compatibility(urllib3_version, chardet_version, charset_normalizer_ver
         pass
 
 
-def _check_cryptography(cryptography_version):
+def _check_cryptography(cryptography_version: str) -> None:
     # cryptography < 1.3.4
     try:
-        cryptography_version = list(map(int, cryptography_version.split(".")))
+        cryptography_version_list = list(map(int, cryptography_version.split(".")))
     except ValueError:
         return
 
-    if cryptography_version < [1, 3, 4]:
-        warning = (
-            f"Old version of cryptography ({cryptography_version}) may cause slowdown."
-        )
+    if cryptography_version_list < [1, 3, 4]:
+        warning = f"Old version of cryptography ({cryptography_version_list}) may cause slowdown."
         warnings.warn(warning, RequestsDependencyWarning)
 
 
 # Check imported dependencies for compatibility.
 try:
     check_compatibility(
-        urllib3.__version__, chardet_version, charset_normalizer_version
+        urllib3.__version__,  # type: ignore[reportPrivateImportUsage]
+        chardet_version,  # type: ignore[reportUnknownArgumentType]
+        charset_normalizer_version,
     )
 except (AssertionError, ValueError):
     warnings.warn(
-        f"urllib3 ({urllib3.__version__}) or chardet "
+        f"urllib3 ({urllib3.__version__}) or chardet "  # type: ignore[reportPrivateImportUsage]
         f"({chardet_version})/charset_normalizer ({charset_normalizer_version}) "
         "doesn't match a supported version!",
         RequestsDependencyWarning,
@@ -127,9 +133,11 @@ try:
         pyopenssl.inject_into_urllib3()
 
         # Check cryptography version
-        from cryptography import __version__ as cryptography_version
+        from cryptography import (  # type: ignore[reportMissingImports]
+            __version__ as cryptography_version,  # type: ignore[reportUnknownVariableType]
+        )
 
-        _check_cryptography(cryptography_version)
+        _check_cryptography(cryptography_version)  # type: ignore[reportUnknownArgumentType]
 except ImportError:
     pass
 
@@ -171,6 +179,34 @@ from .exceptions import (
 from .models import PreparedRequest, Request, Response
 from .sessions import Session, session
 from .status_codes import codes
+
+__all__ = (
+    "ConnectionError",
+    "ConnectTimeout",
+    "HTTPError",
+    "JSONDecodeError",
+    "PreparedRequest",
+    "ReadTimeout",
+    "Request",
+    "RequestException",
+    "Response",
+    "Session",
+    "Timeout",
+    "TooManyRedirects",
+    "URLRequired",
+    "codes",
+    "delete",
+    "get",
+    "head",
+    "options",
+    "packages",
+    "patch",
+    "post",
+    "put",
+    "request",
+    "session",
+    "utils",
+)
 
 logging.getLogger(__name__).addHandler(NullHandler())
 

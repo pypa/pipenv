@@ -5,9 +5,9 @@ index 4931c85bc..2ee87b4bb 100644
 @@ -3,7 +3,7 @@ from __future__ import annotations
  import functools
  import sys
- from collections.abc import Generator, Iterable, Iterator
--from typing import TYPE_CHECKING, Callable, Literal, TypeVar
-+from typing import Any, Callable, Literal, TypeVar
+ from collections.abc import Callable, Generator, Iterable, Iterator
+-from typing import TYPE_CHECKING, Literal, TypeVar
++from typing import Any, Literal, TypeVar
  
  from pip._vendor.rich.progress import (
      BarColumn,

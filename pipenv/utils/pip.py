@@ -3,7 +3,7 @@ import tempfile
 from pathlib import Path
 from typing import List, Optional
 
-from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.patched.pip._internal.utils.misc import get_runnable_pip
 from pipenv.utils import err
 from pipenv.utils.fileutils import create_tracked_tempdir, normalize_path
 from pipenv.utils.indexes import prepare_pip_source_args

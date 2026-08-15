@@ -8,12 +8,11 @@ import sys
 
 from pipenv.patched.pip._vendor.rich.markup import escape
 
-from pipenv.patched.pip._internal.build_env import get_runnable_pip
 from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
 from pipenv.patched.pip._internal.commands import commands_dict, get_similar_commands
 from pipenv.patched.pip._internal.exceptions import CommandError
-from pipenv.patched.pip._internal.utils.misc import get_pip_version, get_prog
+from pipenv.patched.pip._internal.utils.misc import get_pip_version, get_prog, get_runnable_pip
 
 __all__ = ["create_main_parser", "parse_command"]
 

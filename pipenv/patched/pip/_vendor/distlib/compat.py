@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# Copyright (C) 2013-2017 Vinay Sajip.
+# Copyright (C) 2013-2026 Vinay Sajip.
 # Licensed to the Python Software Foundation under a contributor agreement.
 # See LICENSE.txt and CONTRIBUTORS.txt.
 #
@@ -24,8 +24,8 @@ if sys.version_info[0] < 3:  # pragma: no cover
     import __builtin__ as builtins
     import ConfigParser as configparser
     from urlparse import urlparse, urlunparse, urljoin, urlsplit, urlunsplit
-    from urllib import (urlretrieve, quote as _quote, unquote, url2pathname,
-                        pathname2url, ContentTooShortError, splittype)
+    from urllib import (urlretrieve, quote as _quote, unquote, url2pathname, pathname2url, ContentTooShortError,
+                        splittype)
 
     def quote(s):
         if isinstance(s, unicode):
@@ -33,8 +33,7 @@ if sys.version_info[0] < 3:  # pragma: no cover
         return _quote(s)
 
     import urllib2
-    from urllib2 import (Request, urlopen, URLError, HTTPError,
-                         HTTPBasicAuthHandler, HTTPPasswordMgr, HTTPHandler,
+    from urllib2 import (Request, urlopen, URLError, HTTPError, HTTPBasicAuthHandler, HTTPPasswordMgr, HTTPHandler,
                          HTTPRedirectHandler, build_opener)
     if ssl:
         from urllib2 import HTTPSHandler
@@ -67,12 +66,9 @@ else:  # pragma: no cover
     from io import TextIOWrapper as file_type
     import builtins
     import configparser
-    from urllib.parse import (urlparse, urlunparse, urljoin, quote, unquote,
-                              urlsplit, urlunsplit, splittype)
-    from urllib.request import (urlopen, urlretrieve, Request, url2pathname,
-                                pathname2url, HTTPBasicAuthHandler,
-                                HTTPPasswordMgr, HTTPHandler,
-                                HTTPRedirectHandler, build_opener)
+    from urllib.parse import (urlparse, urlunparse, urljoin, quote, unquote, urlsplit, urlunsplit, splittype)
+    from urllib.request import (urlopen, urlretrieve, Request, url2pathname, pathname2url, HTTPBasicAuthHandler,
+                                HTTPPasswordMgr, HTTPHandler, HTTPRedirectHandler, build_opener)
     if ssl:
         from urllib.request import HTTPSHandler
     from urllib.error import HTTPError, URLError, ContentTooShortError
@@ -111,8 +107,7 @@ except ImportError:  # pragma: no cover
             # than one wildcard per fragment.  A survey of established
             # policy among SSL implementations showed it to be a
             # reasonable choice.
-            raise CertificateError(
-                "too many wildcards in certificate DNS name: " + repr(dn))
+            raise CertificateError('Too many wildcards in certificate DNS name: %r' % dn)
 
         # speed up common case w/o wildcards
         if not wildcards:
@@ -174,12 +169,10 @@ except ImportError:  # pragma: no cover
                         dnsnames.append(value)
         if len(dnsnames) > 1:
             raise CertificateError("hostname %r "
-                                   "doesn't match either of %s" %
-                                   (hostname, ', '.join(map(repr, dnsnames))))
+                                   "doesn't match either of %s" % (hostname, ', '.join(map(repr, dnsnames))))
         elif len(dnsnames) == 1:
             raise CertificateError("hostname %r "
-                                   "doesn't match %r" %
-                                   (hostname, dnsnames[0]))
+                                   "doesn't match %r" % (hostname, dnsnames[0]))
         else:
             raise CertificateError("no appropriate commonName or "
                                    "subjectAltName fields were found")
@@ -348,8 +341,7 @@ except AttributeError:  # pragma: no cover
         elif isinstance(filename, text_type):
             return filename.encode(_fsencoding, _fserrors)
         else:
-            raise TypeError("expect bytes or str, not %s" %
-                            type(filename).__name__)
+            raise TypeError("expect bytes or str, not %s" % type(filename).__name__)
 
     def fsdecode(filename):
         if isinstance(filename, text_type):
@@ -357,8 +349,7 @@ except AttributeError:  # pragma: no cover
         elif isinstance(filename, bytes):
             return filename.decode(_fsencoding, _fserrors)
         else:
-            raise TypeError("expect bytes or str, not %s" %
-                            type(filename).__name__)
+            raise TypeError("expect bytes or str, not %s" % type(filename).__name__)
 
 
 try:
@@ -433,18 +424,16 @@ except ImportError:  # pragma: no cover
                 if filename is None:
                     msg = "unknown encoding: " + encoding
                 else:
-                    msg = "unknown encoding for {!r}: {}".format(
-                        filename, encoding)
+                    msg = "unknown encoding for {!r}: {}".format(filename, encoding)
                 raise SyntaxError(msg)
 
             if bom_found:
                 if codec.name != 'utf-8':
                     # This behaviour mimics the Python interpreter
                     if filename is None:
-                        msg = 'encoding problem: utf-8'
+                        msg = 'Encoding problem: utf-8'
                     else:
-                        msg = 'encoding problem for {!r}: utf-8'.format(
-                            filename)
+                        msg = 'Encoding problem for %r: utf-8' % filename
                     raise SyntaxError(msg)
                 encoding += '-sig'
             return encoding
@@ -515,8 +504,7 @@ except ImportError:  # pragma: no cover
                 wrapper.__module__ = getattr(user_function, '__module__')
                 wrapper.__doc__ = getattr(user_function, '__doc__')
                 wrapper.__name__ = getattr(user_function, '__name__')
-                wrapper.__annotations__ = getattr(user_function,
-                                                  '__annotations__', {})
+                wrapper.__annotations__ = getattr(user_function, '__annotations__', {})
                 return wrapper
 
             return decorating_function
@@ -547,19 +535,16 @@ except ImportError:  # pragma: no cover
         def __getitem__(self, key):
             for mapping in self.maps:
                 try:
-                    return mapping[
-                        key]  # can't use 'key in mapping' with defaultdict
+                    return mapping[key]  # can't use 'key in mapping' with defaultdict
                 except KeyError:
                     pass
-            return self.__missing__(
-                key)  # support subclasses that define __missing__
+            return self.__missing__(key)  # support subclasses that define __missing__
 
         def get(self, key, default=None):
             return self[key] if key in self else default
 
         def __len__(self):
-            return len(set().union(
-                *self.maps))  # reuses stored hash values if possible
+            return len(set().union(*self.maps))  # reuses stored hash values if possible
 
         def __iter__(self):
             return iter(set().union(*self.maps))
@@ -572,8 +557,7 @@ except ImportError:  # pragma: no cover
 
         @_recursive_repr()
         def __repr__(self):
-            return '{0.__class__.__name__}({1})'.format(
-                self, ', '.join(map(repr, self.maps)))
+            return '{0.__class__.__name__}({1})'.format(self, ', '.join(map(repr, self.maps)))
 
         @classmethod
         def fromkeys(cls, iterable, *args):
@@ -602,8 +586,7 @@ except ImportError:  # pragma: no cover
             try:
                 del self.maps[0][key]
             except KeyError:
-                raise KeyError(
-                    'Key not found in the first mapping: {!r}'.format(key))
+                raise KeyError('Key not found in the first mapping: {!r}'.format(key))
 
         def popitem(self):
             'Remove and return an item pair from maps[0]. Raise KeyError is maps[0] is empty.'
@@ -617,8 +600,7 @@ except ImportError:  # pragma: no cover
             try:
                 return self.maps[0].pop(key, *args)
             except KeyError:
-                raise KeyError(
-                    'Key not found in the first mapping: {!r}'.format(key))
+                raise KeyError('Key not found in the first mapping: {!r}'.format(key))
 
         def clear(self):
             'Clear maps[0], leaving maps[1:] intact.'
@@ -629,7 +611,7 @@ try:
     from importlib.util import cache_from_source  # Python >= 3.4
 except ImportError:  # pragma: no cover
 
-    def cache_from_source(path, debug_override=None):
+    def cache_from_source(path, debug_override=None, optimization=None):
         assert path.endswith('.py')
         if debug_override is None:
             debug_override = __debug__
@@ -676,8 +658,7 @@ except ImportError:  # pragma: no cover
 
             '''
             if len(args) > 1:
-                raise TypeError('expected at most 1 arguments, got %d' %
-                                len(args))
+                raise TypeError('expected at most 1 arguments, got %d' % len(args))
             try:
                 self.__root
             except AttributeError:
@@ -885,8 +866,7 @@ except ImportError:  # pragma: no cover
 
             '''
             if isinstance(other, OrderedDict):
-                return len(self) == len(
-                    other) and self.items() == other.items()
+                return len(self) == len(other) and self.items() == other.items()
             return dict.__eq__(self, other)
 
         def __ne__(self, other):
@@ -936,8 +916,7 @@ except ImportError:  # pragma: no cover
             # If the converted value is different, save for next time
             if value is not result:
                 self[key] = result
-                if type(result) in (ConvertingDict, ConvertingList,
-                                    ConvertingTuple):
+                if type(result) in (ConvertingDict, ConvertingList, ConvertingTuple):
                     result.parent = self
                     result.key = key
             return result
@@ -948,8 +927,7 @@ except ImportError:  # pragma: no cover
             # If the converted value is different, save for next time
             if value is not result:
                 self[key] = result
-                if type(result) in (ConvertingDict, ConvertingList,
-                                    ConvertingTuple):
+                if type(result) in (ConvertingDict, ConvertingList, ConvertingTuple):
                     result.parent = self
                     result.key = key
             return result
@@ -958,8 +936,7 @@ except ImportError:  # pragma: no cover
         value = dict.pop(self, key, default)
         result = self.configurator.convert(value)
         if value is not result:
-            if type(result) in (ConvertingDict, ConvertingList,
-                                ConvertingTuple):
+            if type(result) in (ConvertingDict, ConvertingList, ConvertingTuple):
                 result.parent = self
                 result.key = key
         return result
@@ -973,8 +950,7 @@ except ImportError:  # pragma: no cover
             # If the converted value is different, save for next time
             if value is not result:
                 self[key] = result
-                if type(result) in (ConvertingDict, ConvertingList,
-                                    ConvertingTuple):
+                if type(result) in (ConvertingDict, ConvertingList, ConvertingTuple):
                     result.parent = self
                     result.key = key
             return result
@@ -983,8 +959,7 @@ except ImportError:  # pragma: no cover
             value = list.pop(self, idx)
             result = self.configurator.convert(value)
             if value is not result:
-                if type(result) in (ConvertingDict, ConvertingList,
-                                    ConvertingTuple):
+                if type(result) in (ConvertingDict, ConvertingList, ConvertingTuple):
                     result.parent = self
             return result
 
@@ -995,8 +970,7 @@ except ImportError:  # pragma: no cover
             value = tuple.__getitem__(self, key)
             result = self.configurator.convert(value)
             if value is not result:
-                if type(result) in (ConvertingDict, ConvertingList,
-                                    ConvertingTuple):
+                if type(result) in (ConvertingDict, ConvertingList, ConvertingTuple):
                     result.parent = self
                     result.key = key
             return result
@@ -1073,9 +1047,7 @@ except ImportError:  # pragma: no cover
                                 d = d[idx]
                             else:
                                 try:
-                                    n = int(
-                                        idx
-                                    )  # try as number first (most likely)
+                                    n = int(idx)  # try as number first (most likely)
                                     d = d[n]
                                 except TypeError:
                                     d = d[idx]
@@ -1093,12 +1065,10 @@ except ImportError:  # pragma: no cover
             replaced by their converting alternatives. Strings are checked to
             see if they have a conversion format and are converted if they do.
             """
-            if not isinstance(value, ConvertingDict) and isinstance(
-                    value, dict):
+            if not isinstance(value, ConvertingDict) and isinstance(value, dict):
                 value = ConvertingDict(value)
                 value.configurator = self
-            elif not isinstance(value, ConvertingList) and isinstance(
-                    value, list):
+            elif not isinstance(value, ConvertingList) and isinstance(value, list):
                 value = ConvertingList(value)
                 value.configurator = self
             elif not isinstance(value, ConvertingTuple) and isinstance(value, tuple):

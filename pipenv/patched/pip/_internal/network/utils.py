@@ -1,8 +1,23 @@
 from collections.abc import Generator
+from typing import Literal, NoReturn, TypeAlias, cast
+from urllib.parse import urlsplit
 
+from pipenv.patched.pip._vendor import requests, urllib3
 from pipenv.patched.pip._vendor.requests.models import Response
+from pipenv.patched.pip._vendor.urllib3.exceptions import TimeoutStateError
 
-from pipenv.patched.pip._internal.exceptions import NetworkConnectionError
+from pipenv.patched.pip._internal.exceptions import (
+    ConnectionFailedError,
+    ConnectionTimeoutError,
+    NetworkConnectionError,
+    ProxyConnectionError,
+    SSLVerificationError,
+)
+from pipenv.patched.pip._internal.utils.misc import redact_auth_from_url
+
+TimeoutValue: TypeAlias = (
+    float | tuple[float | None, float | None] | urllib3.util.Timeout | None
+)
 
 # The following comments and HTTP headers were originally added by
 # Donald Stufft in git commit 22c562429a61bb77172039e480873fb239dd8c03.
@@ -96,3 +111,96 @@ def response_chunks(
             if not chunk:
                 break
             yield chunk
+
+
+def _parse_timeout(timeout: TimeoutValue, kind: Literal["connect", "read"]) -> float:
+    connect_timeout: float | None
+    read_timeout: float | None
+    if isinstance(timeout, tuple):
+        connect_timeout, read_timeout = timeout
+    elif isinstance(timeout, urllib3.util.Timeout):
+        connect_timeout = cast(float | None, timeout.connect_timeout)
+        try:
+            read_timeout = timeout.read_timeout
+        except TimeoutStateError:
+            read_timeout = None
+    else:
+        connect_timeout = read_timeout = timeout
+
+    if kind == "connect":
+        assert connect_timeout is not None
+        return connect_timeout
+    else:
+        assert read_timeout is not None
+        return read_timeout
+
+
+def _raise_timeout_error(
+    reason: urllib3.exceptions.TimeoutError,
+    url: str,
+    host: str,
+    timeout: TimeoutValue,
+) -> NoReturn:
+    if isinstance(reason, urllib3.exceptions.ConnectTimeoutError):
+        raise ConnectionTimeoutError(
+            url, host, kind="connect", timeout=_parse_timeout(timeout, "connect")
+        )
+    else:
+        raise ConnectionTimeoutError(
+            url, host, kind="read", timeout=_parse_timeout(timeout, "read")
+        )
+
+
+def raise_connection_error(
+    error: requests.ConnectionError | requests.Timeout,
+    *,
+    url: str,
+    timeout: TimeoutValue,
+) -> NoReturn:
+    """Raise a specific error for a given connection error, if possible.
+
+    Note: requests.ConnectionError is the parent class of
+          requests.ProxyError, requests.SSLError, and requests.ConnectTimeout
+          so these errors are also handled here.
+    """
+    url = redact_auth_from_url(url)
+    raw_hostname = urlsplit(url).hostname or urlsplit(url).netloc
+    reason = error.args[0] if error.args else error
+
+    # NewConnectionError is a subclass of TimeoutError for some reason...
+    if isinstance(reason, urllib3.exceptions.TimeoutError) and not isinstance(
+        reason, urllib3.exceptions.NewConnectionError
+    ):
+        # A bare timeout error can occur during non-streamed responses. Don't
+        # ask me how.
+        _raise_timeout_error(reason, url, raw_hostname, timeout)
+    if isinstance(reason, urllib3.exceptions.SSLError):
+        # A bare SSL error can occur during non-streamed responses, after the
+        # initial connection and TLS handshake have completed.
+        raise SSLVerificationError(url, raw_hostname, reason)
+
+    # At this point, all errors should be wrapped in MaxRetryError.
+    if not isinstance(reason, urllib3.exceptions.MaxRetryError):
+        raise ConnectionFailedError(url, raw_hostname, reason)
+
+    max_retry_error = reason
+    assert isinstance(max_retry_error.pool, urllib3.connectionpool.HTTPConnectionPool)
+    host = max_retry_error.pool.host
+    proxy = max_retry_error.pool.proxy
+    # Narrow the reason further to the specific error from the last retry.
+    reason = max_retry_error.reason
+
+    if isinstance(reason, urllib3.exceptions.SSLError):
+        raise SSLVerificationError(url, host, reason)
+    if isinstance(reason, urllib3.exceptions.TimeoutError) and not isinstance(
+        reason, urllib3.exceptions.NewConnectionError
+    ):
+        _raise_timeout_error(reason, url, host, timeout)
+    if isinstance(reason, urllib3.exceptions.ProxyError):
+        assert proxy is not None
+        raise ProxyConnectionError(url, redact_auth_from_url(str(proxy)), reason)
+
+    # Unknown error, give up and raise a generic error.
+    raise ConnectionFailedError(
+        url, host, reason if isinstance(reason, Exception) else max_retry_error
+    )

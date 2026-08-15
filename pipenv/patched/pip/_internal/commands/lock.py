@@ -62,6 +62,7 @@ class LockCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.constraints())
         self.cmd_opts.add_option(cmdoptions.build_constraints())
         self.cmd_opts.add_option(cmdoptions.no_deps())
+        self.cmd_opts.add_option(cmdoptions.only_deps())
 
         self.cmd_opts.add_option(cmdoptions.editable())
 
@@ -75,6 +76,7 @@ class LockCommand(RequirementCommand):
         self.cmd_opts.add_option(cmdoptions.config_settings())
 
         self.cmd_opts.add_option(cmdoptions.require_hashes())
+        self.cmd_opts.add_option(cmdoptions.no_require_hashes())
         self.cmd_opts.add_option(cmdoptions.progress_bar())
 
         index_opts = cmdoptions.make_option_group(
@@ -103,6 +105,7 @@ class LockCommand(RequirementCommand):
 
         cmdoptions.check_build_constraints(options)
         cmdoptions.check_release_control_exclusive(options)
+        cmdoptions.check_only_deps_option_does_not_conflict(options)
 
         session = self.get_default_session(options)
 
@@ -123,12 +126,6 @@ class LockCommand(RequirementCommand):
 
         wheel_cache = WheelCache(options.cache_dir)
 
-        # Only when installing is it permitted to use PEP 660.
-        # In other circumstances (pip wheel, pip download) we generate
-        # regular (i.e. non editable) metadata and wheels.
-        for req in reqs:
-            req.permit_editable_wheels = True
-
         preparer = self.make_requirement_preparer(
             temp_build_dir=directory,
             options=options,
@@ -137,6 +134,7 @@ class LockCommand(RequirementCommand):
             finder=finder,
             use_user_site=False,
             verbosity=self.verbosity,
+            allow_editables=True,
         )
         resolver = self.make_resolver(
             preparer=preparer,

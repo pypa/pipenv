@@ -29,7 +29,7 @@ from pipenv.patched.pip._vendor.rich.style import Style
 from pipenv.patched.pip._internal.utils._log import VERBOSE, getLogger
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
 from pipenv.patched.pip._internal.utils.deprecation import DEPRECATION_MSG_PREFIX
-from pipenv.patched.pip._internal.utils.misc import StreamWrapper, ensure_dir
+from pipenv.patched.pip._internal.utils.misc import StreamWrapper, ensure_dir, looks_like_ci
 
 _log_state = threading.local()
 _stdout_console = None
@@ -320,8 +320,16 @@ def setup_logging(verbosity: int, no_color: bool, user_log_file: str | None) -> 
         ["user_log"] if include_user_log else []
     )
     global _stdout_console, stderr_console
-    _stdout_console = PipConsole(file=sys.stdout, no_color=no_color, soft_wrap=True)
-    _stderr_console = PipConsole(file=sys.stderr, no_color=no_color, soft_wrap=True)
+    console_options: dict[str, Any] = {"no_color": no_color, "soft_wrap": True}
+    if looks_like_ci():
+        # Don't animate progress bars and status spinners when running
+        # in CI. A lot of CI workflows use FORCE_COLOR and similar envvars
+        # so their CI output remains colorized, but this causes rich to
+        # assume a fully interactive terminal, resulting in any animated
+        # output to span many lines which is distracting (and unhelpful).
+        console_options["force_interactive"] = False
+    _stdout_console = PipConsole(file=sys.stdout, **console_options)
+    _stderr_console = PipConsole(file=sys.stderr, **console_options)
 
     logging.config.dictConfig(
         {

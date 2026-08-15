@@ -15,7 +15,7 @@ from pipenv.patched.pip._internal.utils.packaging import (
     is_prerelease_of_satisfying_lower_bound,
 )
 
-CandidateLookup = tuple[Optional["Candidate"], Optional[InstallRequirement]]
+CandidateLookup = tuple[Optional["Candidate"], InstallRequirement | None]
 
 
 def format_name(project: NormalizedName, extras: frozenset[NormalizedName]) -> str:

@@ -344,7 +344,7 @@ class ConfigOptionParser(CustomOptionParser):
         self.print_usage(sys.stderr)
         self.exit(UNKNOWN_ERROR, f"{msg}\n")
 
-    def print_help(self, file: Any = None) -> None:
+    def _create_console_for_help(self, file: Any = None) -> PipConsole:
         # This is unfortunate but necessary since arguments may have not been
         # parsed yet at this point, so detect --no-color manually.
         no_color = (
@@ -352,7 +352,15 @@ class ConfigOptionParser(CustomOptionParser):
             or bool(strtobool(os.environ.get("PIP_NO_COLOR", "no") or "no"))
             or "NO_COLOR" in os.environ
         )
-        console = PipConsole(
+        return PipConsole(
             theme=Theme(PrettyHelpFormatter.styles), no_color=no_color, file=file
         )
+
+    def print_usage(self, file: Any = None) -> None:
+        if self.usage:
+            console = self._create_console_for_help(file)
+            console.print(self.get_usage(), highlight=False)
+
+    def print_help(self, file: Any = None) -> None:
+        console = self._create_console_for_help(file)
         console.print(self.format_help().rstrip(), highlight=False)

@@ -15,17 +15,16 @@ import sys
 import textwrap
 import warnings
 from base64 import urlsafe_b64encode
-from collections.abc import Generator, Iterable, Iterator, Sequence
+from collections.abc import Callable, Generator, Iterable, Iterator, Sequence
 from email.message import Message
 from itertools import chain, filterfalse, starmap
+from pathlib import Path
 from typing import (
     IO,
     Any,
     BinaryIO,
-    Callable,
     NewType,
     Protocol,
-    Union,
     cast,
 )
 from zipfile import ZipFile, ZipInfo
@@ -66,7 +65,7 @@ class File(Protocol):
 logger = logging.getLogger(__name__)
 
 RecordPath = NewType("RecordPath", str)
-InstalledCSVRow = tuple[RecordPath, str, Union[int, str]]
+InstalledCSVRow = tuple[RecordPath, str, int | str]
 
 
 def rehash(path: str, blocksize: int = 1 << 20) -> tuple[str, str]:
@@ -127,26 +126,24 @@ def message_about_scripts_not_on_PATH(scripts: Sequence[str]) -> str | None:
         return None
 
     # Group scripts by the path they were installed in
-    grouped_by_dir: dict[str, set[str]] = collections.defaultdict(set)
+    grouped_by_dir: dict[Path, set[str]] = collections.defaultdict(set)
     for destfile in scripts:
-        parent_dir = os.path.dirname(destfile)
-        script_name = os.path.basename(destfile)
+        dest_path = Path(destfile)
+        parent_dir = dest_path.parent.resolve()
+        script_name = dest_path.name
         grouped_by_dir[parent_dir].add(script_name)
 
     # We don't want to warn for directories that are on PATH.
     not_warn_dirs = [
-        os.path.normcase(os.path.normpath(i)).rstrip(os.sep)
-        for i in os.environ.get("PATH", "").split(os.pathsep)
+        Path(i).resolve() for i in os.environ.get("PATH", "").split(os.pathsep)
     ]
     # If an executable sits with sys.executable, we don't warn for it.
     #     This covers the case of venv invocations without activating the venv.
-    not_warn_dirs.append(
-        os.path.normcase(os.path.normpath(os.path.dirname(sys.executable)))
-    )
-    warn_for: dict[str, set[str]] = {
+    not_warn_dirs.append(Path(sys.executable).parent.resolve())
+    warn_for: dict[Path, set[str]] = {
         parent_dir: scripts
         for parent_dir, scripts in grouped_by_dir.items()
-        if os.path.normcase(os.path.normpath(parent_dir)) not in not_warn_dirs
+        if parent_dir not in not_warn_dirs
     }
     if not warn_for:
         return None
@@ -420,15 +417,13 @@ def _raise_for_invalid_entrypoint(specification: str, scripts_dir: str) -> None:
 class PipScriptMaker(ScriptMaker):
     # Override distlib's default script template with one that
     # doesn't import `re` module, allowing scripts to load faster.
-    script_template = textwrap.dedent(
-        """\
+    script_template = textwrap.dedent("""\
         import sys
         from %(module)s import %(import_name)s
         if __name__ == '__main__':
             sys.argv[0] = sys.argv[0].removesuffix('.exe')
             sys.exit(%(func)s())
-"""
-    )
+""")
 
     def make(
         self, specification: str, options: dict[str, Any] | None = None
@@ -446,6 +441,7 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
     warn_script_location: bool = True,
     direct_url: DirectUrl | None = None,
     requested: bool = False,
+    script_executable: str | None = None,
 ) -> None:
     """Install a wheel.
 
@@ -457,6 +453,7 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
     :param pycompile: Whether to byte-compile installed Python files
     :param warn_script_location: Whether to check that scripts are installed
         into a directory on PATH
+    :param script_executable: Python executable to use for console scripts
     :raises UnsupportedWheel:
         * when the directory holds an unpacked wheel with incompatible
           Wheel-Version
@@ -645,6 +642,12 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
 
     maker = PipScriptMaker(None, scheme.scripts)
 
+    # Embed the target environment's interpreter in console-script launchers
+    # rather than the one running pip, so an in-process install into another
+    # environment (e.g. a venv build environment) produces working launchers.
+    if script_executable is not None:
+        maker.executable = script_executable  # type: ignore  # it's untyped in distlib
+
     # Ensure old scripts are overwritten.
     # See https://github.com/pypa/pip/issues/1800
     maker.clobber = True
@@ -744,6 +747,7 @@ def install_wheel(
     warn_script_location: bool = True,
     direct_url: DirectUrl | None = None,
     requested: bool = False,
+    script_executable: str | None = None,
 ) -> None:
     with ZipFile(wheel_path, allowZip64=True) as z:
         with req_error_context(req_description):
@@ -756,4 +760,5 @@ def install_wheel(
                 warn_script_location=warn_script_location,
                 direct_url=direct_url,
                 requested=requested,
+                script_executable=script_executable,
             )

@@ -9,9 +9,8 @@ import optparse
 import os
 import sys
 import traceback
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from optparse import Values
-from typing import Callable
 
 from pipenv.patched.pip._vendor.rich import reconfigure
 from pipenv.patched.pip._vendor.rich import traceback as rich_traceback
@@ -20,6 +19,7 @@ from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.cli.command_context import CommandContextMixIn
 from pipenv.patched.pip._internal.cli.parser import ConfigOptionParser, UpdatingDefaultsHelpFormatter
 from pipenv.patched.pip._internal.cli.status_codes import (
+    BROKEN_STDOUT,
     ERROR,
     PREVIOUS_BUILD_DIR_ERROR,
     UNKNOWN_ERROR,
@@ -147,7 +147,15 @@ class Command(CommandContextMixIn):
             except OSError:
                 pass
 
-            return ERROR
+            # redirect stdout to os.devnull so that the exit cleanup doesn't
+            # produce "BrokenPipeError" when exiting.
+            devnull = os.open(os.devnull, os.O_WRONLY)
+            try:
+                os.dup2(devnull, 1)
+            finally:
+                os.close(devnull)
+
+            return BROKEN_STDOUT
         except KeyboardInterrupt:
             logger.critical("Operation cancelled by user")
             logger.debug("Exception information:", exc_info=True)
@@ -243,17 +251,6 @@ class Command(CommandContextMixIn):
                     options.cache_dir,
                 )
                 options.cache_dir = None
-
-        if (
-            "inprocess-build-deps" in options.features_enabled
-            and os.environ.get("PIP_CONSTRAINT", "")
-            and "build-constraint" not in options.features_enabled
-        ):
-            logger.warning(
-                "In-process build dependencies are enabled, "
-                "PIP_CONSTRAINT will have no effect for build dependencies"
-            )
-            options.features_enabled.append("build-constraint")
 
         return self._run_wrapper(level_number, options, args)
 

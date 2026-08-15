@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import locale
 import logging
 import os
 import sys
@@ -18,7 +17,7 @@ from pipenv.patched.pip._internal.cli.cmdoptions import make_target_python
 from pipenv.patched.pip._internal.cli.status_codes import SUCCESS
 from pipenv.patched.pip._internal.configuration import Configuration
 from pipenv.patched.pip._internal.metadata import get_environment
-from pipenv.patched.pip._internal.utils.compat import open_text_resource
+from pipenv.patched.pip._internal.utils.compat import get_locale_encoding, open_text_resource
 from pipenv.patched.pip._internal.utils.logging import indent_log
 from pipenv.patched.pip._internal.utils.misc import get_pip_version
 
@@ -134,7 +133,7 @@ def show_tags(options: Values) -> None:
 
 
 def ca_bundle_info(config: Configuration) -> str:
-    levels = {key.split(".", 1)[0] for key, _ in config.items()}
+    levels = {key.split(".", 1)[0] for _, options in config.items() for key in options}
     if not levels:
         return "Not specified"
 
@@ -177,8 +176,8 @@ class DebugCommand(Command):
         show_value("sys.getdefaultencoding", sys.getdefaultencoding())
         show_value("sys.getfilesystemencoding", sys.getfilesystemencoding())
         show_value(
-            "locale.getpreferredencoding",
-            locale.getpreferredencoding(),
+            "locale.getencoding",
+            get_locale_encoding(),
         )
         show_value("sys.platform", sys.platform)
         show_sys_implementation()

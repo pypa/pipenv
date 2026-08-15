@@ -3,7 +3,7 @@ import sys
 from dataclasses import replace
 
 from pipenv import exceptions
-from pipenv.patched.pip._internal.build_env import get_runnable_pip
+from pipenv.patched.pip._internal.utils.misc import get_runnable_pip
 from pipenv.project import Project
 from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock

@@ -2,9 +2,7 @@ diff --git b/pipenv/patched/pip/_internal/req/req_install.py a/pipenv/patched/pi
 index b52ce441..9465e32c 100644
 --- b/pipenv/patched/pip/_internal/req/req_install.py
 +++ a/pipenv/patched/pip/_internal/req/req_install.py
-@@ -766,8 +766,28 @@ class InstallRequirement:
-         pycompile: bool = True,
-     ) -> None:
+@@ -780,6 +780,26 @@ class InstallRequirement:
          assert self.req is not None
 +
 +        # Prefer the distribution name recorded in the wheel's own METADATA
@@ -32,7 +30,7 @@ index b52ce441..9465e32c 100644
              user=use_user_site,
              home=home,
              root=root,
-@@ -779,7 +799,7 @@ class InstallRequirement:
+@@ -791,7 +811,7 @@ class InstallRequirement:
          assert self.local_file_path
  
          install_wheel(

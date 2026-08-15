@@ -574,7 +574,7 @@ def test_install_uses_metadata_name_for_headers():
         "pipenv.patched.pip._internal.req.req_install.get_scheme",
         side_effect=fake_get_scheme,
     ), patch(
-        "pipenv.patched.pip._internal.req.req_install.install_wheel",
+        "pipenv.patched.pip._internal.operations.install.wheel.install_wheel",
         side_effect=fake_install_wheel,
     ):
         ireq.install()

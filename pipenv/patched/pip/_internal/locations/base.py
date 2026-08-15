@@ -41,7 +41,7 @@ def change_root(new_root: str, pathname: str) -> str:
             return os.path.join(new_root, pathname[1:])
 
     elif os.name == "nt":
-        (drive, path) = os.path.splitdrive(pathname)
+        drive, path = os.path.splitdrive(pathname)
         if path[0] == "\\":
             path = path[1:]
         return os.path.join(new_root, path)

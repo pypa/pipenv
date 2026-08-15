@@ -5,7 +5,6 @@ Requirements file parsing
 from __future__ import annotations
 
 import codecs
-import locale
 import logging
 import optparse
 import os
@@ -13,13 +12,12 @@ import re
 import shlex
 import sys
 import urllib.parse
-from collections.abc import Generator, Iterable
+from collections.abc import Callable, Generator, Iterable
 from dataclasses import dataclass
 from optparse import Values
 from typing import (
     TYPE_CHECKING,
     Any,
-    Callable,
     NoReturn,
 )
 
@@ -27,6 +25,7 @@ from pipenv.patched.pip._internal.cli import cmdoptions
 from pipenv.patched.pip._internal.exceptions import InstallationError, RequirementsFileParseError
 from pipenv.patched.pip._internal.models.release_control import ReleaseControl
 from pipenv.patched.pip._internal.models.search_scope import SearchScope
+from pipenv.patched.pip._internal.utils.compat import get_locale_encoding
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._internal.index.package_finder import PackageFinder
@@ -59,6 +58,7 @@ SUPPORTED_OPTIONS: list[Callable[..., optparse.Option]] = [
     cmdoptions.only_binary,
     cmdoptions.prefer_binary,
     cmdoptions.require_hashes,
+    cmdoptions.no_require_hashes,
     cmdoptions.pre,
     cmdoptions.all_releases,
     cmdoptions.only_final,
@@ -225,6 +225,8 @@ def handle_option_line(
         # percolate options upward
         if opts.require_hashes:
             options.require_hashes = opts.require_hashes
+        if opts.no_require_hashes:
+            options.no_require_hashes = opts.no_require_hashes
         if opts.features_enabled:
             options.features_enabled.extend(
                 f for f in opts.features_enabled if f not in options.features_enabled
@@ -519,8 +521,6 @@ def join_lines(lines_enum: ReqFileLines) -> ReqFileLines:
         assert primary_line_number is not None
         yield primary_line_number, "".join(new_line)
 
-    # TODO: handle space after '\'.
-
 
 def ignore_comments(lines_enum: ReqFileLines) -> ReqFileLines:
     """
@@ -608,7 +608,7 @@ def _decode_req_file(data: bytes, url: str) -> str:
     try:
         return data.decode(DEFAULT_ENCODING)
     except UnicodeDecodeError:
-        locale_encoding = locale.getpreferredencoding(False) or sys.getdefaultencoding()
+        locale_encoding = get_locale_encoding() or sys.getdefaultencoding()
         logging.warning(
             "unable to decode data from %s with default encoding %s, "
             "falling back to encoding from locale: %s. "
