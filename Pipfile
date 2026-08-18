@@ -16,7 +16,7 @@ atomicwrites = {version = "*", sys_platform = "== 'win32'"}
 pytest-cov = "==4.*"
 typing-extensions = "==4.*"
 waitress = {version = "3.*", sys_platform = "== 'win32'"}
-gunicorn = {version = "26.0.*", sys_platform = "== 'linux'"}
+gunicorn = {version = "26.1.*", sys_platform = "== 'linux'"}
 parse = "*"
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
