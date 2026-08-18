@@ -390,7 +390,7 @@ If you encounter permission errors during installation:
 
 ### Python Version Compatibility
 
-Pipenv requires Python 3.7 or newer. If you're using an older version, you'll need to upgrade Python first.
+Pipenv requires Python 3.10 or newer. If you're using an older version, you'll need to upgrade Python first.
 
 ### pip Not Found
 
