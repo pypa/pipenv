@@ -97,7 +97,7 @@ def _prefetch_index_manifests_if_enabled(
     if clear:
         return
     try:
-        if not project.settings.get("prefetch_index_manifests", False):
+        if project.settings.get("prefetch_index_manifests", False) is not True:
             return
     except Exception:
         return

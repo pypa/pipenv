@@ -231,3 +231,12 @@ def test_prefetch_index_manifests_env_var_falsy(project_with_prefetch, monkeypat
     assert (
         project_with_prefetch.settings.get("prefetch_index_manifests") is False
     )
+
+
+@pytest.mark.utils
+def test_prefetch_index_manifests_invalid_env_value(project_bare, monkeypatch):
+    """Invalid boolean text is preserved for callers to reject safely."""
+    monkeypatch.setenv("PIPENV_PREFETCH_INDEX_MANIFESTS", "maybe")
+    assert (
+        project_bare.settings.get("prefetch_index_manifests", False) == "maybe"
+    )

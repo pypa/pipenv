@@ -87,7 +87,7 @@ class _FakeProject:
         packages: dict[str, Any],
         cache_dir: str,
         *,
-        prefetch: bool = True,
+        prefetch: Any = True,
     ) -> None:
         self.sources = _FakeSources(sources)
         self.pipfile = _FakePipfile(packages)
@@ -343,3 +343,25 @@ def test_setting_disabled_short_circuits(install_recording_imports, tmp_path):
     )
 
     assert _RecordingFetcher.instances == []
+
+
+@pytest.mark.utils
+def test_invalid_setting_short_circuits(install_recording_imports, tmp_path):
+    """An unparseable environment override must not enable prefetching."""
+    from pipenv.routines.lock import _prefetch_index_manifests_if_enabled
+
+    project = _FakeProject(
+        sources=[
+            {"url": "https://pypi.org/simple", "verify_ssl": True, "name": "pypi"},
+        ],
+        packages={"packages": {"six": "*"}},
+        cache_dir=str(tmp_path / "cache"),
+        prefetch="maybe",
+    )
+
+    _prefetch_index_manifests_if_enabled(
+        project, ["default"], clear=False
+    )
+
+    assert _RecordingFetcher.instances == []
+    assert _RecordingFetcher.populate_calls == []
