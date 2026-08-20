@@ -39,7 +39,6 @@ T7 contract notes folded into these tests (per the T7 implementer's hand-off):
 from __future__ import annotations
 
 import json
-import os
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -260,8 +259,6 @@ class TestTTLExpiry:
 
         # Now patch ``datetime.now`` inside the module to return a value
         # 1 hour in the future, well past the 60-second TTL.
-        import pipenv.resolver.manifest_cache as mc
-
         future = datetime.now(timezone.utc) + timedelta(hours=1)
 
         class _FakeDatetime(datetime):
@@ -269,7 +266,9 @@ class TestTTLExpiry:
             def now(cls, tz=None):  # type: ignore[override]
                 return future
 
-        monkeypatch.setattr(mc, "datetime", _FakeDatetime)
+        monkeypatch.setattr(
+            "pipenv.resolver.manifest_cache.datetime", _FakeDatetime
+        )
         assert cache.get("https://pypi.org/simple", "numpy") is None
 
 
@@ -322,12 +321,10 @@ class TestAtomicWrite:
         assert before is not None and before.candidates == (original,)
 
         # Patch os.replace inside the module to always raise OSError.
-        import pipenv.resolver.manifest_cache as mc
-
         def _boom(src, dst):  # noqa: ARG001
             raise OSError("simulated rename failure")
 
-        monkeypatch.setattr(mc.os, "replace", _boom)
+        monkeypatch.setattr("pipenv.resolver.manifest_cache.os.replace", _boom)
 
         new = _make_wheel_candidate(name="numpy", version="1.27.0")
         with pytest.raises(OSError, match="simulated rename failure"):
@@ -349,16 +346,18 @@ class TestAtomicWrite:
         cache = ParsedManifestCache(tmp_path)
         cand = _make_wheel_candidate()
 
-        import pipenv.resolver.manifest_cache as mc
-
         def _boom_replace(src, dst):  # noqa: ARG001
             raise OSError("replace failed")
 
         def _boom_unlink(path):  # noqa: ARG001
             raise OSError("unlink also failed")
 
-        monkeypatch.setattr(mc.os, "replace", _boom_replace)
-        monkeypatch.setattr(mc.os, "unlink", _boom_unlink)
+        monkeypatch.setattr(
+            "pipenv.resolver.manifest_cache.os.replace", _boom_replace
+        )
+        monkeypatch.setattr(
+            "pipenv.resolver.manifest_cache.os.unlink", _boom_unlink
+        )
 
         with pytest.raises(OSError, match="replace failed"):
             cache.put("https://pypi.org/simple", "numpy", [cand], etag=None)
@@ -954,8 +953,6 @@ class TestPeekEtag:
             ttl_seconds=60,
         )
 
-        import pipenv.resolver.manifest_cache as mc
-
         future = datetime.now(timezone.utc) + timedelta(hours=1)
 
         class _FakeDatetime(datetime):
@@ -963,7 +960,9 @@ class TestPeekEtag:
             def now(cls, tz=None):  # type: ignore[override]
                 return future
 
-        monkeypatch.setattr(mc, "datetime", _FakeDatetime)
+        monkeypatch.setattr(
+            "pipenv.resolver.manifest_cache.datetime", _FakeDatetime
+        )
 
         # get() now sees an expired entry and hides it.
         assert cache.get("https://pypi.org/simple", "numpy") is None
