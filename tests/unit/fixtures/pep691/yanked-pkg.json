@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "api-version": "1.0"
+  },
+  "name": "yanked-pkg",
+  "files": [
+    {
+      "filename": "yanked-pkg-1.0.0.tar.gz",
+      "url": "https://files.example.invalid/packages/yp/yanked-pkg-1.0.0.tar.gz",
+      "hashes": {
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "requires-python": ">=3.8",
+      "yanked": false,
+      "upload-time": "2024-01-15T12:00:00.000000Z"
+    },
+    {
+      "filename": "yanked-pkg-1.1.0-py3-none-any.whl",
+      "url": "https://files.example.invalid/packages/yp/yanked-pkg-1.1.0-py3-none-any.whl",
+      "hashes": {
+        "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+      },
+      "requires-python": ">=3.8",
+      "yanked": true,
+      "upload-time": "2024-03-01T08:30:00.000000Z"
+    },
+    {
+      "filename": "yanked-pkg-1.1.0.tar.gz",
+      "url": "https://files.example.invalid/packages/yp/yanked-pkg-1.1.0.tar.gz",
+      "hashes": {
+        "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      },
+      "requires-python": ">=3.8",
+      "yanked": true,
+      "upload-time": "2024-03-01T08:30:05.000000Z"
+    },
+    {
+      "filename": "yanked-pkg-1.2.0-py3-none-any.whl",
+      "url": "https://files.example.invalid/packages/yp/yanked-pkg-1.2.0-py3-none-any.whl",
+      "hashes": {
+        "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+      },
+      "requires-python": ">=3.9",
+      "yanked": "security-advisory-CVE-2024-99999",
+      "upload-time": "2024-04-22T17:45:00.000000Z"
+    }
+  ]
+}

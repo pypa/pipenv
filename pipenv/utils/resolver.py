@@ -17,7 +17,13 @@ from pipenv import environments
 from pipenv.exceptions import ResolutionFailure
 from pipenv.patched.pip._internal.cache import WheelCache
 from pipenv.patched.pip._internal.cli.cmdoptions import check_release_control_exclusive
-from pipenv.patched.pip._internal.commands.install import InstallCommand
+
+# ``InstallCommand`` is only constructed in :meth:`Resolver._get_pip_command`
+# (one call site) — defer the import so loading ``pipenv.utils.resolver``
+# doesn't drag in pip's command/network/CLI machinery (~79 ms cum) until
+# the resolver actually instantiates the command.  The resolver subprocess
+# pays this cost on every ``pipenv lock`` invocation; the in-process
+# debug path pays it once per session.
 from pipenv.patched.pip._internal.exceptions import InstallationError
 from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.operations.build.build_tracker import (
@@ -359,6 +365,8 @@ class Resolver:
 
     @staticmethod
     def _get_pip_command():
+        from pipenv.patched.pip._internal.commands.install import InstallCommand
+
         return InstallCommand(name="InstallCommand", summary="pip Install command.")
 
     @property
@@ -837,12 +845,47 @@ class Resolver:
             return markers
 
     def resolve_constraints(self):
+        """Fold per-package ``requires-python`` markers into the resolved tree.
+
+        For each resolved item, read ``link.requires_python`` directly and
+        convert it to a marker via :func:`pipenv.utils.markers.marker_from_specifier`.
+        The marker then flows onto the lockfile entry's ``markers`` field.
+
+        Behaviour change vs the pre-2026-05 implementation (commit
+        ``cf53eb17`` — `Resolver.resolve_constraints``):
+
+        - **Before**: this method called
+          ``self.finder().find_best_candidate(name, specifier)`` once per
+          resolved item and read ``candidate.link.requires_python``.  The
+          default ``self.finder()`` is the *strict* finder
+          (``_ignore_compatibility = False``).  For a resolved item whose
+          link came from a *lenient* path (e.g., the
+          ``pip_finder_ignore_compatability`` patched-pip flag, cross-
+          platform locking workflows, or any caller monkey-patching
+          ``finder._ignore_compatibility = True`` before resolve),
+          ``find_best_candidate`` on the strict finder returned ``None`` →
+          no marker added → that lockfile entry silently lacked its
+          advertised ``requires_python`` constraint.
+
+        - **After**: we read the marker directly from the resolved item's
+          ``link`` regardless of which finder produced it.  Cross-compat
+          packages whose links advertise ``requires-python`` now get
+          their markers in the lockfile.  This is arguably a correctness
+          fix (markers were missing for one specific category of
+          packages) but it IS a behaviour change for any consumer that
+          relied on those markers being absent — most likely scripts
+          running ``pipenv lock --ignore-compatibility``-equivalent
+          workflows via the patched-pip flag.
+
+        See ``tests/unit/test_resolver_regressions.py``
+        ``test_resolve_constraints_marker_for_ignore_compatibility_link``
+        for the test that pins the new behaviour.
+        """
         from .markers import marker_from_specifier
 
         # Build mapping of package origins and Python requirements
         comes_from = {}
         python_requirements = {}
-        finder = self.finder()
 
         results_list = list(self.resolved_tree)
         for result in results_list:
@@ -852,33 +895,33 @@ class Resolver:
             else:
                 comes_from[result.name] = "Pipfile"
 
-        # find_best_candidate fetches per-package index pages; the calls are
-        # independent, keyed on distinct project names, and dominated by
-        # network I/O, so dispatch them on a thread pool.  pip's
-        # PackageFinder caches results in a dict keyed by project name — safe
-        # for concurrent writes of different keys under CPython's GIL — and
-        # the underlying requests.Session is thread-safe.
-        def _requires_python_marker(result):
-            candidate = finder.find_best_candidate(
-                result.name, result.specifier
-            ).best_candidate
-            if not candidate or not candidate.link.requires_python:
-                return result.name, None
+        # Profiling (May 2026, in-process resolver, 100-pkg bench)
+        # caught this method spending ~8.9 s of a 31.4 s wall walking
+        # pip's ``PackageFinder.find_best_candidate`` once per resolved
+        # package — solely to pull ``requires_python`` off the winning
+        # candidate's link.  But the resolved tree already carries that
+        # link: pip's resolvelib stores the chosen candidate on every
+        # ``InstallRequirement`` it returns from ``resolve()``.  Re-asking
+        # pip via ``find_best_candidate`` repeated the per-package
+        # simple-API walk (cached HTTP, but still parses every link
+        # through ``Link.from_json`` + ``_ensure_quoted_url``).  Read
+        # the marker directly off ``result.link`` — same answer, no
+        # network, no ``ThreadPoolExecutor``.
+        for result in results_list:
+            link = getattr(result, "link", None)
+            requires_python = (
+                getattr(link, "requires_python", None) if link is not None else None
+            )
+            if not requires_python:
+                continue
             try:
-                return result.name, marker_from_specifier(candidate.link.requires_python)
+                marker = marker_from_specifier(requires_python)
             except TypeError:
-                return result.name, None
-
-        if results_list:
-            max_workers = min(len(results_list), 8)
-            with ThreadPoolExecutor(max_workers=max_workers) as pool:
-                python_requirements = {
-                    name: marker
-                    for name, marker in pool.map(
-                        _requires_python_marker, results_list
-                    )
-                    if marker is not None
-                }
+                # Malformed ``requires-python`` value from the index —
+                # fall through silently to match the prior contract.
+                continue
+            if marker is not None:
+                python_requirements[result.name] = marker
 
         # Build the results tree with markers
         new_tree = set()
@@ -1431,6 +1474,33 @@ def _resolve_deadline_seconds(project) -> float:
 # --- T_F.6 END --------------------------------------------------------------
 
 
+def _selected_backend_for_request(project, resolver_backend=None):
+    """Return the resolver backend the parent should stamp onto the request.
+
+    The parent computes the full precedence chain (CLI/caller > env >
+    current project's Pipfile > default) before serializing the request so
+    the resolver subprocess does not need to rediscover a Pipfile from its
+    cwd just to make the same decision again.
+    """
+    backend = str(resolver_backend or "").strip()
+    if backend:
+        return backend
+
+    backend = str(os.environ.get("PIPENV_RESOLVER") or "").strip()
+    if backend:
+        return backend
+
+    pipfile_backend = None
+    settings = getattr(project, "settings", None)
+    if settings is not None:
+        pipfile_backend = getattr(settings, "resolver", None)
+        if pipfile_backend is None and hasattr(settings, "get"):
+            pipfile_backend = settings.get("resolver")
+
+    backend = str(pipfile_backend or "").strip()
+    return backend or "pip"
+
+
 def _build_resolver_request(
     *,
     deps,
@@ -1451,7 +1521,9 @@ def _build_resolver_request(
     Replaces the argv + env-var + constraints-tempfile +
     resolved-default-deps-tempfile cocktail (F.1 §3.1–3.2) with one
     typed envelope.  ``deps`` is the post-``convert_deps_to_pip`` mapping
-    of ``name -> pip-install-argument-string``.
+    of ``name -> pip-install-argument-string``.  The parent also stamps
+    the selected resolver backend onto the request so the subprocess can
+    dispatch without re-reading Pipfile state from disk.
     """
     typed_sources = tuple(
         ResolverSource(
@@ -1487,10 +1559,10 @@ def _build_resolver_request(
             clear=bool(clear),
             system=bool(allow_global),
             verbose=bool(verbose),
-            # T_F.5: pluggable-backend selection from the CLI / caller.
-            # Empty string is the "unset" sentinel; the dispatcher then
-            # falls through to env / Pipfile / default.
-            backend=str(resolver_backend or ""),
+            # T_F.5: stamp the effective backend chosen by the parent onto
+            # the wire request so the subprocess can dispatch without
+            # rediscovering env / Pipfile state.
+            backend=_selected_backend_for_request(project, resolver_backend),
         ),
         sources=typed_sources,
         python_marker_override=python_marker_override,
