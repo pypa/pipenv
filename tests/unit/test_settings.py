@@ -74,9 +74,11 @@ def test_settings_constructor_takes_project(project_bare):
 def test_project_settings_returns_settings_subsystem(project_bare):
     """``project.settings`` returns a ``Settings`` subsystem instance,
     cached for the project lifetime."""
-    assert isinstance(project_bare.settings, Settings)
+    first = project_bare.settings
+    second = project_bare.settings
+    assert isinstance(first, Settings)
     # Cached: two accesses return the same instance.
-    assert project_bare.settings is project_bare.settings
+    assert first is second
 
 
 @pytest.mark.utils

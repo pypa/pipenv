@@ -3,10 +3,6 @@ import subprocess
 
 from pipenv.exceptions import PipenvCmdError
 from pipenv.utils import console, err
-from pipenv.utils.constants import MYPY_RUNNING
-
-if MYPY_RUNNING:
-    from typing import Tuple  # noqa
 
 
 def run_command(cmd, *args, is_verbose=False, **kwargs):
@@ -17,7 +13,7 @@ def run_command(cmd, *args, is_verbose=False, **kwargs):
     :param cmd: The list of command and arguments.
     :type cmd: list
     :returns: A 2-tuple of the output and error from the command
-    :rtype: Tuple[str, str]
+    :rtype: tuple[str, str]
     :raises: exceptions.PipenvCmdError
     """
 

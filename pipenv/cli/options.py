@@ -441,7 +441,7 @@ def apply_env_vars(namespace):
             try:
                 setattr(namespace, dest, env_to_bool(raw))
             except ValueError:
-                pass
+                pass  # Ignore malformed boolean overrides and keep the default.
         else:
             setattr(namespace, dest, raw)
 
@@ -455,7 +455,6 @@ class _PipenvArgumentParser(argparse.ArgumentParser):
 
     def error(self, message: str) -> None:
         import difflib
-        import re
 
         m = re.search(r"invalid choice: '([^']+)'", message)
         if m:

@@ -214,7 +214,7 @@ def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> 
             # This is needed on Windows
             target_path.unlink(missing_ok=True)
         except OSError:
-            pass
+            pass  # The following rename reports any unrecoverable target conflict.
 
         # Rename the temporary file to the target
         # Note: Path.rename() is equivalent to os.rename()
@@ -527,7 +527,7 @@ class Lockfile:
                 try:
                     install_req.markers = PipMarker(pip_marker)
                 except Exception:
-                    pass
+                    pass  # Preserve the requirement when an optional marker is invalid.
             yield install_req, pip_line_specified
 
     def requirements_list(self, category: str) -> List[Dict]:

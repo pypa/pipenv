@@ -196,7 +196,7 @@ def do_purge(project, bare=False, downloads=False, allow_global=False):
         if not bare:
             console.print("Clearing out downloads directory...", style="bold")
         shutil.rmtree(project.venv_locator.download_location)
-        return
+        return None
 
     # Remove comments from the output, if any.
     installed = {

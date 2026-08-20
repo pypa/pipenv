@@ -11,7 +11,7 @@ from functools import lru_cache
 from pathlib import Path, PurePath
 
 from pipenv.utils import err
-from pipenv.utils.fileutils import normalize_drive  # noqa: F401 (re-export for back-compat; external callers import it from here)
+from pipenv.utils.fileutils import normalize_drive as normalize_drive  # noqa: PLC0414
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
@@ -127,7 +127,7 @@ def find_windows_executable(bin_path, exe_name):
     try:
         pathext = os.environ["PATHEXT"]
     except KeyError:
-        pass
+        pass  # PATHEXT is optional; continue with the unsuffixed path.
     else:
         for ext in pathext.split(os.pathsep):
             path_str = get_windows_path(str(bin_path), exe_name + ext.strip().lower())
@@ -267,7 +267,6 @@ def expand_url_credentials(url):
     surrounding quotes are stripped before expansion so that the legacy Pipfile
     idiom for protecting special characters continues to work.
     """
-    import re
     from urllib.parse import quote, urlsplit, urlunsplit
 
     if not url or ("${" not in url and "$" not in url):
@@ -293,16 +292,6 @@ def expand_url_credentials(url):
             if value is None:
                 return m.group(0)  # var not set — leave token unchanged
             return value
-
-        return _env_var_re.sub(_sub, s)
-
-    def _expand_and_encode(s):
-        def _sub(m):
-            var_name = m.group(1) or m.group(2)
-            value = os.environ.get(var_name)
-            if value is None:
-                return m.group(0)  # var not set — leave token unchanged
-            return quote(value, safe="")  # URL-encode special chars
 
         return _env_var_re.sub(_sub, s)
 
@@ -606,7 +595,7 @@ def env_to_bool(val):
         if val.lower() in TRUE_VALUES:
             return True
     except AttributeError:
-        pass
+        pass  # Non-string values are rejected by the ValueError below.
 
     raise ValueError(f"Value is not a valid boolean-like: {val}")
 

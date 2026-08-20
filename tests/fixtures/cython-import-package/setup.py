@@ -1,13 +1,13 @@
 import ast
+import importlib
 import os
 
 from setuptools import setup, find_packages
-from setuptools.command.test import test as TestCommand
 
 # ORDER MATTERS
 # Import this after setuptools or it will fail
-from Cython.Build import cythonize  # noqa: I100
-import Cython.Distutils
+importlib.import_module("Cython.Build")
+importlib.import_module("Cython.Distutils")
 
 
 ROOT = os.path.dirname(__file__)

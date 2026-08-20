@@ -235,6 +235,7 @@ def clean_mdchangelog(ctx, filename=None, content=None):
     )
     if changelog:
         changelog.write_text(content)
+        return None
     else:
         return content
 

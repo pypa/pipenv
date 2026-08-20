@@ -24,8 +24,6 @@ from __future__ import annotations
 
 from unittest import mock
 
-import pytest
-
 from pipenv.exceptions import ResolutionFailure
 from pipenv.resolver.schema import (
     SCHEMA_VERSION,

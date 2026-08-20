@@ -10,8 +10,6 @@ from pipenv.utils.constants import MYPY_RUNNING
 from .internet import _strip_credentials_from_url, create_mirror_source, is_pypi_url
 
 if MYPY_RUNNING:
-    from typing import List, Optional, Union  # noqa
-
     from pipenv.project import Project, TSource  # noqa
 
 

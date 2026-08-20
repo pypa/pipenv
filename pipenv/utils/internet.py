@@ -104,7 +104,7 @@ def get_host_and_port(url):
 
 def get_url_name(url):
     if not isinstance(url, str):
-        return
+        return None
     return _urllib3_util().parse_url(url).host
 
 
@@ -278,12 +278,12 @@ def write_credentials_netrc(sources, directory) -> Optional[str]:
             try:
                 os.chmod(netrc_path, 0o600)
             except OSError:
-                pass
+                pass  # Some platforms cannot tighten permissions after creation.
     except Exception:
         try:
             os.unlink(netrc_path)
         except OSError:
-            pass
+            pass  # Preserve the original write failure if cleanup also fails.
         raise
     return netrc_path
 

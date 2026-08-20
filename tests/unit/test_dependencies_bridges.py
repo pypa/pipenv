@@ -21,6 +21,7 @@ Coverage focus:
 - light behaviour pinning for the four T_E.3 helpers.
 """
 
+from importlib import import_module
 from unittest.mock import MagicMock
 
 
@@ -77,7 +78,7 @@ def test_old_add_index_to_pipfile_name_is_gone_from_source():
     """The module-level ``add_index_to_pipfile`` was renamed to
     ``add_index_to_pipfile_with_trust_check`` per T_E.1 §3 sign-off
     (disambiguates from ``Project.add_index_to_pipfile``)."""
-    import pipenv.utils.dependencies as deps
+    deps = import_module("pipenv.utils.dependencies")
 
     assert not hasattr(deps, "add_index_to_pipfile")
     assert hasattr(deps, "add_index_to_pipfile_with_trust_check")

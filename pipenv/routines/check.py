@@ -393,7 +393,7 @@ def do_check(  # noqa: PLR0913
                         capture_output=True,
                     )
                 except Exception:
-                    pass
+                    pass  # The explicit availability check below reports failure.
 
             if not is_safety_installed(project, system=system):
                 err.print(

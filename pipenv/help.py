@@ -25,7 +25,7 @@ def get_pipenv_diagnostics(project):
         print(f"User pip version: `{pip.__version__!r}`")
         print("")
     except ImportError:
-        pass
+        pass  # A user-level pip installation is optional diagnostic context.
 
     print("user Python installations found:")
     print("")

@@ -117,20 +117,20 @@ def _wait_for_files(path):  # pragma: no cover
                 continue
             except (PermissionError, FileNotFoundError):
                 # Handle cases where the directory no longer exists or isn't accessible
-                return
+                return None
 
         try:
             # Delete the file
             path_obj.unlink()
         except FileNotFoundError as e:
             if e.errno == errno.ENOENT:
-                return
+                return None
         except (OSError, PermissionError):  # noqa:B014
             time.sleep(timeout)
             timeout *= 2
             remaining.append(str(path_obj))
         else:
-            return
+            return None
 
     return remaining
 
@@ -197,7 +197,7 @@ def _get_powershell_path():
         if powershell_result.stdout:
             return powershell_result.stdout.strip()
     except (subprocess.SubprocessError, FileNotFoundError):
-        pass
+        pass  # PowerShell discovery is best-effort.
 
     return None
 
@@ -267,9 +267,10 @@ def _get_sid_from_registry():
                     matching_key = key_name
                     break
     except OSError:
-        pass
+        pass  # Registry enumeration is best-effort.
     if matching_key is not None:
         return matching_key
+    return None
 
 
 def _get_current_user():
