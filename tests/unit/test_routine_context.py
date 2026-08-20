@@ -290,10 +290,14 @@ class TestFromCliKeywordOnly:
     def test_from_cli_positional_raises(self):
         # The first positional after cls would land on `system`.
         with pytest.raises(TypeError):
+            # Deliberately violate the keyword-only API to test its contract.
+            # codeql[py/call/wrong-arguments]
             RoutineContext.from_cli(True)  # type: ignore[misc]
 
     def test_from_cli_two_positionals_raises(self):
         with pytest.raises(TypeError):
+            # Deliberately violate the keyword-only API to test its contract.
+            # codeql[py/call/wrong-arguments]
             RoutineContext.from_cli(True, False)  # type: ignore[misc]
 
 

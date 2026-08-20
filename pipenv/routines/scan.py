@@ -160,7 +160,8 @@ def run_pep508_check(project, system, python):
 
 def check_pep508_requirements(project, results, quiet):
     """Verify PEP 508 environment markers in Pipfile match the current environment."""
-    p = plette.Pipfile.load(open(project.pipfile_location))
+    with open(project.pipfile_location) as pipfile:
+        p = plette.Pipfile.load(pipfile)
     p = plette.Lockfile.with_meta_from(p)
     failed = False
 

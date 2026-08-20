@@ -56,8 +56,7 @@ class FileCorruptException(OSError):
 
 class LockfileCorruptException(FileCorruptException):
     def __init__(self, path, backup_path=None):
-        self.message = self.get_message(path, backup_path=backup_path)
-        super().__init__(self.message)
+        super().__init__(path, backup_path=backup_path)
 
     def get_message(self, path, backup_path=None):
         message = f"ERROR: Failed to load lockfile at {path}"
@@ -68,14 +67,10 @@ class LockfileCorruptException(FileCorruptException):
         message = f"{message}\nYour lockfile is corrupt, {msg}"
         return message
 
-    def show(self, path, backup_path=None):
-        print(self.message, file=sys.stderr, flush=True)
-
 
 class PipfileCorruptException(FileCorruptException):
     def __init__(self, path, backup_path=None):
-        self.message = self.get_message(path, backup_path=backup_path)
-        super().__init__(self.message)
+        super().__init__(path, backup_path=backup_path)
 
     def get_message(self, path, backup_path=None):
         message = f"ERROR: Failed to load Pipfile at {path}"
@@ -85,9 +80,6 @@ class PipfileCorruptException(FileCorruptException):
             msg = "it will be removed and replaced on the next lock."
         message = f"{message}\nYour Pipfile is corrupt, {msg}"
         return message
-
-    def show(self, path, backup_path=None):
-        print(self.message, file=sys.stderr, flush=True)
 
 
 class PipfileNotFound(FileNotFoundError):

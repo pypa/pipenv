@@ -414,11 +414,11 @@ class Lockfile:
             backup_path = f"{formatted_path}.bak"
 
             # Show error and create backup
-            LockfileCorruptException.show(formatted_path, backup_path=backup_path)
+            LockfileCorruptException(formatted_path, backup_path=backup_path).show()
             path_obj.rename(backup_path)
 
             # Try loading again after backing up corrupted file
-            cls.load(formatted_path, create=True)
+            return cls.load(formatted_path, create=True)
 
         # Create Path object from projectfile location
         lockfile_path = Path(projectfile.location)
