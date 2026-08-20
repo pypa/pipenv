@@ -712,11 +712,11 @@ class TestDefensiveBranches:
             extract_metadata_from_sdist,
         )
 
-        # Hand-craft a zip with an empty filename entry.  ZipFile lets
-        # us write that.
+        # Passing a ZipInfo object avoids the filename[-1] access used
+        # by older Python versions when writestr receives a bare string.
         buf = io.BytesIO()
         with zipfile.ZipFile(buf, "w") as zf:
-            zf.writestr("", b"empty name member")
+            zf.writestr(zipfile.ZipInfo(""), b"empty name member")
         session = _make_session(buf.getvalue())
         candidate = _make_candidate("emptyname-1.0.zip")
 
