@@ -1358,7 +1358,7 @@ def _validate_pipfile_entry(name: str, pipfile_dict: Dict[str, Any]) -> None:
             f"{', '.join(sorted(unknown))}. "
             "Valid options include: version, extras, editable, markers, "
             "ref, git, svn, hg, bzr, path, file, index, subdirectory, "
-            "hashes, no_binary, and PEP 508 marker keys."
+            "hashes, no_binary, skip_resolver, and PEP 508 marker keys."
         )
 
 
