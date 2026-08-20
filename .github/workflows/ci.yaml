@@ -206,16 +206,15 @@ jobs:
   tests-pure-python-backend:
     # Initiative G phase 3b (T_CI1): run the full pipenv test suite
     # under ``PIPENV_RESOLVER=pure-python`` to dogfood the new
-    # pure-Python resolver backend.  Non-blocking
-    # (``continue-on-error: true``) — the acceptance gate is "matrix
-    # runs and produces a result", not "matrix passes", until the
-    # backend reaches feature parity with pip.  Ubuntu + 3.12 only at
-    # this phase to keep CI minutes reasonable; widen the matrix once
-    # the backend is consistently green.
+    # pure-Python resolver backend.  The test step is non-blocking —
+    # the acceptance gate is "matrix runs and produces a result", not
+    # "matrix passes", until the backend reaches feature parity with
+    # pip.  Ubuntu + 3.12 only at this phase to keep CI minutes
+    # reasonable; widen the matrix once the backend is consistently
+    # green.
     name: Tests (pure-python backend) / Ubuntu / 3.12
     needs: [tests-smoke]
     runs-on: ubuntu-latest
-    continue-on-error: true
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
@@ -243,6 +242,8 @@ jobs:
           pipenv run pypi-server --version
           pipenv run pypi-server run -v --host=0.0.0.0 --port=8080 --hash-algo=sha256 --disable-fallback --welcome /dev/null ./tests/pypi/ ./tests/fixtures &
       - name: Run tests with pure-python backend
+        id: pure_python_tests
+        continue-on-error: true
         env:
           PIPENV_DEFAULT_PYTHON_VERSION: "3.12"
           PYTHONWARNINGS: ignore:DEPRECATION
@@ -259,6 +260,10 @@ jobs:
           PIPENV_RESOLVER: pure-python
         run: |
           pipenv run pytest -ra -n auto -v --fulltrace tests
+      - name: Report pure-python dogfood result
+        if: always()
+        run: |
+          echo "Pure-Python backend suite outcome: ${{ steps.pure_python_tests.outcome }}" >> "$GITHUB_STEP_SUMMARY"
 
   resolver-module-coverage:
     # Initiative G phase 1 (T17): enforce per-module coverage floors

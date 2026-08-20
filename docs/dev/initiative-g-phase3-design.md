@@ -484,7 +484,8 @@ new backend and produce a result on every PR.
 | Lockfile byte-identity on T15 100-package bench | `tests/integration` benchmark | Sub-criterion of CI dogfood | Pending bench refresh         |
 | Full test suite under `PIPENV_RESOLVER=pure-python` | `tests-pure-python-backend` CI job (T_CI1) | **No (non-blocking)** until consistently green | Wired (T_CI1, 2026-05-12)   |
 
-The `tests-pure-python-backend` job carries `continue-on-error: true`.
+The `tests-pure-python-backend` test step carries
+`continue-on-error: true` and records its outcome in the job summary.
 It is a **dogfood gate**, not a release gate, until the backend
 demonstrates a clean run for ≥ 2 consecutive weeks of PR traffic. At
 that point the flag is flipped (separate one-line PR) and the gate

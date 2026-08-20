@@ -793,9 +793,9 @@ waits on both.
     produces a byte-identical Pipfile.lock to
     `pipenv lock --backend pure-python`.
   - Added new job `tests-pure-python-backend` to
-    `.github/workflows/ci.yaml`: Ubuntu + Python 3.12,
-    `continue-on-error: true`, modelled on `tests-smoke`'s shape
-    but with `PIPENV_RESOLVER: pure-python` in the test env. Job
+    `.github/workflows/ci.yaml`: Ubuntu + Python 3.12, with a
+    `continue-on-error: true` test step modelled on `tests-smoke`'s
+    shape and `PIPENV_RESOLVER: pure-python` in the test env. Job
     depends on `tests-smoke` so failures don't pre-empt the regular
     matrix path. Timeout raised to 45 min for the full-suite run.
   - YAML lint clean.

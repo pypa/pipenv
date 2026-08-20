@@ -678,11 +678,12 @@ class TestRequirementIntroducingMarker:
         Pipfile constraints, never transitives.  Calling it with the
         kwarg raises :class:`TypeError` from Python's
         keyword-argument-handling, pinning the design decision."""
+        unsupported_kwargs = {
+            "introducing_marker": Marker("python_version < '3.10'")
+        }
         with pytest.raises(TypeError):
             Requirement.from_pipfile_entry(
                 "django",
                 "*",
-                introducing_marker=Marker(  # type: ignore[call-arg]
-                    "python_version < '3.10'"
-                ),
+                **unsupported_kwargs,
             )
