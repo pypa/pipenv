@@ -26,9 +26,8 @@ Scope: every public + private code path of ``ParallelFetcher``:
   assertions.
 * Edge cases — ``ttl_seconds=0`` synthesises an in-process
   ``CachedManifest`` (because the post-put re-`get` returns ``None``);
-  unknown ``status`` values map to transient; ``BaseException`` (here,
-  ``KeyboardInterrupt``) raised inside ``_fetch_one`` is caught and
-  becomes a transient.
+  unknown ``status`` values map to transient; ordinary worker exceptions
+  become transient errors while process-control exceptions propagate.
 
 T9 contract notes folded in:
 
@@ -44,8 +43,7 @@ T9 contract notes folded in:
   one of the two completion outcomes is present, not both).
 * Empty-string ``index_url`` is permitted by T9 — the cache layer hashes
   it like any other string and the client mock receives it unchanged.
-* ``BaseException`` (not just :class:`Exception`) is caught in
-  ``_fetch_one`` — verified with a ``KeyboardInterrupt`` instance.
+* ``KeyboardInterrupt`` is not swallowed by ``_fetch_one`` or ``populate``.
 """
 from __future__ import annotations
 
@@ -552,25 +550,20 @@ class TestMixedOutcomes:
         assert isinstance(bad.original, RuntimeError)
         assert "kaboom" in str(bad.original)
 
-    def test_base_exception_in_worker_is_transient(
+    def test_keyboard_interrupt_in_worker_propagates(
         self, tmp_path: Path
     ) -> None:
-        """``BaseException`` (not just ``Exception``) is caught."""
+        """Process-control exceptions must not become transient failures."""
         cache = ParsedManifestCache(tmp_path)
 
         def fake_fetch(index_url: str, package_name: str, *, if_none_match: str | None):
-            # KeyboardInterrupt is a BaseException (not Exception).
             raise KeyboardInterrupt("user cancelled")
 
         client = _make_client(side_effect=fake_fetch)
         f = ParallelFetcher(client, cache, max_workers=2)
 
-        result = f.populate([("https://idx.test/simple", "x")])
-
-        x = result["x"]
-        assert isinstance(x, FetchError)
-        assert x.kind == "transient"
-        assert isinstance(x.original, KeyboardInterrupt)
+        with pytest.raises(KeyboardInterrupt, match="user cancelled"):
+            f.populate([("https://idx.test/simple", "x")])
 
     def test_duplicate_package_name_across_indexes_one_wins(
         self, tmp_path: Path
@@ -1129,12 +1122,10 @@ class TestEdgeCases:
         assert client.fetch.call_count == 2
 
     def test_non_string_package_name_propagates_as_transient(
-        self, tmp_path: Path
+        self,
     ) -> None:
         """A non-string in the target tuple → blows up inside the worker
         → mapped to ``FetchError(kind="transient")`` per the T9 contract."""
-        cache = ParsedManifestCache(tmp_path)
-
         def fake_fetch(index_url, package_name, *, if_none_match):
             # `cache.get` will have already barfed with TypeError /
             # AttributeError on canonicalize_name(None) — but if we got
@@ -1142,7 +1133,6 @@ class TestEdgeCases:
             raise TypeError("package_name must be str")
 
         client = _make_client(side_effect=fake_fetch)
-        f = ParallelFetcher(client, cache)
 
         # Pre-classify: cache.get(idx, None) will raise inside the
         # canonicalize step.  We bypass step-1 by using a MagicMock cache.
@@ -1226,7 +1216,7 @@ class TestFutureExceptionPath:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """If ``future.result()`` ever raises (e.g., executor-internal
-        bug, cancelled future), the outer ``except BaseException`` in
+        bug, cancelled future), the outer ``except Exception`` in
         ``populate`` catches it and records a transient."""
         cache = ParsedManifestCache(tmp_path)
         client = _make_client(return_value=_make_response())

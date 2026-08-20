@@ -386,7 +386,7 @@ class TestConcurrentReaderVsWriter:
         cache.put("https://pypi.org/simple", "numpy", [seed], etag="seed")
 
         stop_event = threading.Event()
-        reader_errors: list[BaseException] = []
+        reader_errors: list[Exception] = []
         reads_succeeded = [0]
 
         # Build a few distinct payloads the writer will cycle through.
@@ -408,7 +408,7 @@ class TestConcurrentReaderVsWriter:
                             etag=f"v-{payload[0].version}",
                         )
                         time.sleep(0.001)
-            except BaseException as exc:  # pragma: no cover
+            except Exception as exc:  # pragma: no cover
                 reader_errors.append(exc)
 
         def reader():
@@ -425,7 +425,7 @@ class TestConcurrentReaderVsWriter:
                             isinstance(c, Candidate) for c in got.candidates
                         )
                         reads_succeeded[0] += 1
-            except BaseException as exc:
+            except Exception as exc:
                 reader_errors.append(exc)
 
         threads = [
@@ -457,7 +457,7 @@ class TestConcurrentWriterVsWriter:
         cand_b = _make_wheel_candidate(name="numpy", version="1.27.0")
 
         barrier = threading.Barrier(2)
-        errors: list[BaseException] = []
+        errors: list[Exception] = []
 
         def writer(cand: Candidate, etag: str):
             try:
@@ -465,7 +465,7 @@ class TestConcurrentWriterVsWriter:
                 cache.put(
                     "https://pypi.org/simple", "numpy", [cand], etag=etag,
                 )
-            except BaseException as exc:  # pragma: no cover
+            except Exception as exc:  # pragma: no cover
                 errors.append(exc)
 
         threads = [

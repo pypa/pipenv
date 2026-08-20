@@ -239,6 +239,8 @@ def _prefetch_index_manifests_if_enabled(
         try:
             fetcher.populate(group_targets)
         except Exception:
+            # Prefetch is an optional optimization; normal resolution can
+            # proceed when a source-specific cache population fails.
             pass
 
     start = time.perf_counter()

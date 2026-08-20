@@ -959,15 +959,17 @@ class TestAuthHelperEdgeCases:
         force the failure mode the defensive try/except guards against.
         """
 
-        import pipenv.resolver.pep691 as mod
-
         def raise_locationparse(url):  # noqa: ARG001
             raise urllib3_exceptions.LocationParseError("nope")
 
         # Patch urllib3.util.parse_url as the client sees it.
-        monkeypatch.setattr(mod.urllib3.util, "parse_url", raise_locationparse)
+        monkeypatch.setattr(
+            "pipenv.resolver.pep691.urllib3.util.parse_url", raise_locationparse
+        )
         # Make sure netrc lookup never produces auth in this scenario.
-        monkeypatch.setattr(mod, "lookup_netrc_auth", lambda host, path: None)
+        monkeypatch.setattr(
+            "pipenv.resolver.pep691.lookup_netrc_auth", lambda host, path: None
+        )
 
         response = _make_response(status=404)
         session = _make_session(response)
@@ -981,18 +983,19 @@ class TestAuthHelperEdgeCases:
     def test_parsed_url_with_empty_host_yields_no_auth(self, monkeypatch):
         """``parse_url().host is None/""`` short-circuits before netrc lookup."""
 
-        import pipenv.resolver.pep691 as mod
-
         class FakeParsed:
             host = None
 
         monkeypatch.setattr(
-            mod.urllib3.util, "parse_url", lambda url: FakeParsed()
+            "pipenv.resolver.pep691.urllib3.util.parse_url",
+            lambda url: FakeParsed(),
         )
         # ``lookup_netrc_auth`` MUST NOT be reached — if it is, this test
         # would have to also stub it; assert via call counter below.
         sentinel = MagicMock(return_value=("login", "password"))
-        monkeypatch.setattr(mod, "lookup_netrc_auth", sentinel)
+        monkeypatch.setattr(
+            "pipenv.resolver.pep691.lookup_netrc_auth", sentinel
+        )
 
         response = _make_response(status=404)
         session = _make_session(response)

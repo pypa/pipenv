@@ -642,16 +642,6 @@ def _parse_pep503_html(body: bytes, page_url: str) -> tuple[Candidate, ...]:
 _DEFAULT_CONNECT_TIMEOUT = 10.0
 _DEFAULT_READ_TIMEOUT = 30.0
 
-#: Accept header advertised on every simple-API request.  Order +
-#: quality values mirror pip's: prefer PEP 691 JSON, accept PEP 691 HTML
-#: at q=0.1 (some private indexes emit JSON only via content negotiation),
-#: accept generic ``text/html`` at q=0.01 (legacy PEP 503-only mirrors).
-_ACCEPT_HEADER = (
-    "application/vnd.pypi.simple.v1+json, "
-    "application/vnd.pypi.simple.v1+html; q=0.1, "
-    "text/html; q=0.01"
-)
-
 #: Content-Type prefix that selects the PEP 691 JSON parser.  Matched
 #: case-insensitively against the full ``Content-Type`` header value.
 _JSON_CT_PREFIX = "application/vnd.pypi.simple.v1+json"
@@ -711,9 +701,14 @@ class PEP691Client:
     of the two cold-cache wins design §3 lists explicitly.
     """
 
-    # Re-exported on the class so callers / tests can introspect without
-    # reaching into module-private constants.
-    _ACCEPT_HEADER = _ACCEPT_HEADER
+    #: Accept header advertised on every simple-API request. Order and
+    #: quality values mirror pip's: prefer PEP 691 JSON, then PEP 691
+    #: HTML, then legacy PEP 503 HTML.
+    _ACCEPT_HEADER = (
+        "application/vnd.pypi.simple.v1+json, "
+        "application/vnd.pypi.simple.v1+html; q=0.1, "
+        "text/html; q=0.01"
+    )
 
     def __init__(
         self,

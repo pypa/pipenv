@@ -230,7 +230,7 @@ class ParallelFetcher:
                 # FutureCancelled or executor-internal failure anyway.
                 try:
                     fetch_result = future.result()
-                except BaseException as exc:  # noqa: BLE001
+                except Exception as exc:
                     _LOGGER.debug(
                         "executor surfaced unexpected exception for %s "
                         "package=%r: %r",
@@ -242,7 +242,7 @@ class ParallelFetcher:
                         kind="transient",
                         url=idx_url,
                         message=str(exc),
-                        original=exc if isinstance(exc, BaseException) else None,
+                        original=exc,
                     )
                     continue
 
@@ -271,7 +271,7 @@ class ParallelFetcher:
             return self._client.fetch(
                 index_url, package_name, if_none_match=if_none_match
             )
-        except BaseException as exc:  # noqa: BLE001
+        except Exception as exc:
             _LOGGER.debug(
                 "client.fetch raised (should not happen) for %s package=%r: %r",
                 index_url,
@@ -282,7 +282,7 @@ class ParallelFetcher:
                 kind="transient",
                 url=index_url,
                 message=str(exc),
-                original=exc if isinstance(exc, BaseException) else None,
+                original=exc,
             )
 
     def _dispatch_fetch_result(

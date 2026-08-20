@@ -4,6 +4,7 @@ from html.parser import HTMLParser
 from typing import Optional, Tuple
 from urllib.parse import unquote, urlparse, urlunsplit
 
+
 # Lazy-imported on first use to keep ``pipenv`` CLI startup off the
 # pip-internal network/download chain.  Without these, importing
 # ``pipenv.utils.internet`` (which is pulled in transitively by
