@@ -1014,7 +1014,7 @@ class TestEnsureProjectPythonVersionMismatch:
     @pytest.mark.utils
     def test_version_warning_recommends_current_remove_command(self, monkeypatch):
         project = self._make_project(monkeypatch)
-        project.required_python_version = "3.12"
+        project.pipfile.required_python_version = "3.12"
         project.venv_locator._which.return_value = "/fake/venv/bin/python"
 
         monkeypatch.setattr(
