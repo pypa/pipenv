@@ -329,9 +329,14 @@ class TestUtils:
         ssl_context = object()
         session = mock.MagicMock()
         pip_session = mock.Mock(return_value=session)
-        monkeypatch.setattr(internet, "PipSession", pip_session)
         monkeypatch.setattr(
-            internet, "_create_truststore_ssl_context", lambda: ssl_context
+            "pipenv.patched.pip._internal.network.download.PipSession",
+            pip_session,
+        )
+        monkeypatch.setattr(
+            "pipenv.patched.pip._internal.cli.index_command."
+            "_create_truststore_ssl_context",
+            lambda: ssl_context,
         )
 
         result = internet.get_requests_session(
