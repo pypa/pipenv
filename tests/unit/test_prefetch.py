@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from pipenv.utils.prefetch import (
     _download_and_verify,
