@@ -1,0 +1,1 @@
+PyPI hash collection now handles requests and pip network exceptions and falls back to the resolver's other hash sources.

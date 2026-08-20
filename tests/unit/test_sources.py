@@ -10,8 +10,12 @@ behaviours.
 
 from __future__ import annotations
 
+from unittest import mock
+
 import pytest
 
+from pipenv.patched.pip._internal.exceptions import PipError
+from pipenv.patched.pip._vendor.requests.exceptions import RequestException
 from pipenv.project import Project
 from pipenv.utils.sources import SourceNotFound, Sources
 
@@ -75,6 +79,31 @@ def test_project_sources_returns_sources_subsystem(project_single):
     assert isinstance(project_single.sources, Sources)
     # Cached: two accesses return the same instance.
     assert project_single.sources is project_single.sources
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize(
+    "network_error",
+    [RequestException("requests failure"), PipError("pip network failure")],
+)
+def test_get_hashes_from_pypi_handles_network_errors(project_single, network_error):
+    """PyPI API failures fall through to the resolver's other hash sources."""
+    session = mock.Mock()
+    session.get.side_effect = network_error
+    requirement = mock.Mock()
+    requirement.name = "example"
+    requirement.specifier = None
+
+    with mock.patch.object(
+        project_single.sources,
+        "get_requests_session_for_source",
+        return_value=session,
+    ):
+        result = project_single.sources.get_hashes_from_pypi(
+            requirement, project_single.sources.default
+        )
+
+    assert result is None
 
 
 @pytest.mark.utils

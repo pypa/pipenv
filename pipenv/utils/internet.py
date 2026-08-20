@@ -4,6 +4,9 @@ from html.parser import HTMLParser
 from typing import Optional, Tuple
 from urllib.parse import unquote, urlparse, urlunsplit
 
+from pipenv.patched.pip._internal.cli.index_command import (
+    _create_truststore_ssl_context,
+)
 from pipenv.patched.pip._internal.locations import USER_CACHE_DIR
 from pipenv.patched.pip._internal.network.download import PipSession
 from pipenv.patched.pip._vendor.urllib3 import util as urllib3_util
@@ -16,7 +19,10 @@ def get_requests_session(
     pip_client_cert = os.environ.get("PIP_CLIENT_CERT")
     index_urls = [source] if source else None
     requests_session = PipSession(
-        cache=cache_dir, retries=max_retries, index_urls=index_urls
+        cache=cache_dir,
+        retries=max_retries,
+        index_urls=index_urls,
+        ssl_context=_create_truststore_ssl_context(),
     )
     if pip_client_cert:
         requests_session.cert = pip_client_cert

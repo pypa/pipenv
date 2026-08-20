@@ -165,7 +165,7 @@ def ensure_project(
             )
             if not (system or project.s.PIPENV_USE_SYSTEM):
                 err.print(
-                    "[green]$ pipenv --rm[/green] and rebuilding the virtual environment "
+                    "[green]$ pipenv remove[/green] and rebuilding the virtual environment "
                     "may resolve the issue."
                 )
             if not deploy:

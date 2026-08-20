@@ -325,6 +325,30 @@ class TestUtils:
         assert internet.is_valid_url(not_url) is False
 
     @pytest.mark.utils
+    def test_get_requests_session_uses_pip_truststore_context(self, monkeypatch):
+        ssl_context = object()
+        session = mock.MagicMock()
+        pip_session = mock.Mock(return_value=session)
+        monkeypatch.setattr(internet, "PipSession", pip_session)
+        monkeypatch.setattr(
+            internet, "_create_truststore_ssl_context", lambda: ssl_context
+        )
+
+        result = internet.get_requests_session(
+            max_retries=2,
+            cache_dir="cache-dir",
+            source="https://example.org/simple",
+        )
+
+        assert result is session
+        pip_session.assert_called_once_with(
+            cache="cache-dir",
+            retries=2,
+            index_urls=["https://example.org/simple"],
+            ssl_context=ssl_context,
+        )
+
+    @pytest.mark.utils
     def test_download_file(self, tmp_path):
         url = "https://example.com/test.md"
         output = tmp_path / "test_download.md"
@@ -986,6 +1010,30 @@ class TestEnsureProjectPythonVersionMismatch:
         assert len(ensure_virtualenv_calls) == 0, (
             "ensure_virtualenv should not be called when no --python is given and venv exists"
         )
+
+    @pytest.mark.utils
+    def test_version_warning_recommends_current_remove_command(self, monkeypatch):
+        project = self._make_project(monkeypatch)
+        project.required_python_version = "3.12"
+        project.venv_locator._which.return_value = "/fake/venv/bin/python"
+
+        monkeypatch.setattr(
+            "pipenv.utils.project.python_version",
+            lambda path: "3.11.9",
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.project.ensure_pipfile",
+            lambda *a, **kw: None,
+        )
+
+        from pipenv.utils.project import ensure_project
+
+        with mock.patch("pipenv.utils.project.err.print") as err_print:
+            ensure_project(project, python=None, system=False)
+
+        output = "\n".join(call.args[0] for call in err_print.call_args_list)
+        assert "$ pipenv remove" in output
+        assert "$ pipenv --rm" not in output
 
 
 class TestPythonVersionMatchesRequired:
