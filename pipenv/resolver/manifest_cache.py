@@ -297,6 +297,8 @@ class ParsedManifestCache:
             try:
                 os.unlink(tmp.name)
             except OSError:
+                # Preserve the original write failure; a leftover uniquely
+                # named temporary cache file is harmless.
                 pass
             raise
 
@@ -309,6 +311,7 @@ class ParsedManifestCache:
         try:
             target.unlink()
         except FileNotFoundError:
+            # The requested cache entry is already absent.
             pass
         except OSError:
             # Permission denied etc — best effort.
