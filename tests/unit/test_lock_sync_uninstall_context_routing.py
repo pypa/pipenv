@@ -20,7 +20,6 @@ import pytest
 
 from pipenv.routines.context import RoutineContext
 
-
 # ----------------------------------------------------------------------
 # Signature pin tests
 # ----------------------------------------------------------------------
@@ -97,13 +96,17 @@ def lock_project_stub():
         "allow_prereleases": None,
         "use_default_constraints": True,
     }.get(key, default)
-    proj.get_package_categories.return_value = ["default"]
-    proj.pipfile_exists = True
-    proj.parsed_pipfile = {"packages": {"requests": "*"}}
-    # lockfile() returns a dict-like that supports pop and update.
-    proj.lockfile.return_value = {"default": {}, "_meta": {}}
-    proj.get_lockfile_meta.return_value = {}
-    proj.get_lockfile_hash.return_value = "deadbeef"
+    proj.pipfile.get_package_categories.return_value = ["default"]
+    proj.pipfile.exists = True
+    proj.pipfile.parsed = {"packages": {"requests": "*"}}
+    # T_D.5: Lockfile subsystem. ``project.lockfile`` is now the
+    # subsystem instance; ``project.lockfile.as_dict(...)`` returns the
+    # data dict (was ``project.lockfile(...)``); ``project.lockfile.meta``
+    # and ``project.lockfile.hash`` replaced ``get_lockfile_meta`` /
+    # ``get_lockfile_hash``.
+    proj.lockfile.as_dict.return_value = {"default": {}, "_meta": {}}
+    proj.lockfile.meta.return_value = {}
+    proj.lockfile.hash.return_value = "deadbeef"
     return proj
 
 
@@ -186,16 +189,20 @@ class TestDoLockFlagRouting:
 
         # Pre-populate the lockfile dict with the develop section so the
         # category-pop branch has data to consume.
-        lock_project_stub.lockfile.return_value = {"develop": {}, "_meta": {}}
+        # T_D.5: project.lockfile() is now project.lockfile.as_dict().
+        lock_project_stub.lockfile.as_dict.return_value = {
+            "develop": {},
+            "_meta": {},
+        }
         ctx = RoutineContext.from_cli(categories=("dev-packages",))
         do_lock(lock_project_stub, ctx)
 
         # When categories supplied, get_package_categories is NOT used to
         # pick the lockfile categories.
-        assert not lock_project_stub.get_package_categories.called
-        # ``lockfile(categories=...)`` is invoked with the canonical
-        # lockfile-section name (``develop``).
-        lockfile_call = lock_project_stub.lockfile.call_args
+        assert not lock_project_stub.pipfile.get_package_categories.called
+        # ``lockfile.as_dict(categories=...)`` is invoked with the
+        # canonical lockfile-section name (``develop``).
+        lockfile_call = lock_project_stub.lockfile.as_dict.call_args
         assert lockfile_call.kwargs["categories"] == ["develop"]
 
     def test_write_false_returns_lockfile(
@@ -209,7 +216,8 @@ class TestDoLockFlagRouting:
         # write=False causes do_lock to return the assembled lockfile.
         assert result is not None
         # And it does NOT write the lockfile to disk.
-        assert not lock_project_stub.write_lockfile.called
+        # T_D.5: was project.write_lockfile -> project.lockfile.write.
+        assert not lock_project_stub.lockfile.write.called
 
     def test_write_true_writes_lockfile(
         self, lock_project_stub, patch_lock_pipeline
@@ -220,7 +228,8 @@ class TestDoLockFlagRouting:
         result = do_lock(lock_project_stub, ctx)
 
         assert result is None
-        assert lock_project_stub.write_lockfile.called
+        # T_D.5: was project.write_lockfile -> project.lockfile.write.
+        assert lock_project_stub.lockfile.write.called
 
 
 # ----------------------------------------------------------------------
@@ -231,7 +240,8 @@ class TestDoLockFlagRouting:
 @pytest.fixture
 def sync_project_stub():
     proj = mock.MagicMock()
-    proj.any_lockfile_exists = True
+    # T_D.5: was project.any_lockfile_exists -> project.lockfile.any_exists.
+    proj.lockfile.any_exists = True
     proj.s.PIPENV_USE_SYSTEM = False
     proj.s.is_quiet.return_value = False
     return proj
@@ -385,7 +395,8 @@ class TestDoSyncFlagRouting:
         from pipenv import exceptions
         from pipenv.routines.sync import do_sync
 
-        sync_project_stub.any_lockfile_exists = False
+        # T_D.5: was project.any_lockfile_exists -> project.lockfile.any_exists.
+        sync_project_stub.lockfile.any_exists = False
         ctx = RoutineContext.from_cli()
         with pytest.raises(exceptions.LockfileNotFound):
             do_sync(sync_project_stub, ctx)
@@ -430,10 +441,11 @@ class TestDoUninstallFlagRouting:
         from pipenv.routines.uninstall import do_uninstall
 
         project = mock.MagicMock()
-        project.get_pipfile_section.return_value = {"pytest": "*"}
-        project.reset_category_in_pipfile.return_value = True
-        # lockfile_content needs to be mutable across the routine.
-        project.lockfile_content = {"develop": {"pytest": {}}}
+        project.pipfile.get_section.return_value = {"pytest": "*"}
+        project.pipfile.reset_category.return_value = True
+        # lockfile.content needs to be mutable across the routine
+        # (T_D.5: Lockfile subsystem moved from project.lockfile_content).
+        project.lockfile.content = {"develop": {"pytest": {}}}
         uninstall_env = mock.MagicMock(return_value=True)
         monkeypatch.setattr(
             "pipenv.routines.uninstall._uninstall_from_environment",
@@ -458,7 +470,8 @@ class TestDoUninstallFlagRouting:
         from pipenv.routines.uninstall import do_uninstall
 
         project = mock.MagicMock()
-        project.lockfile_content = {"default": {}}
+        # T_D.5: Lockfile subsystem moved from project.lockfile_content.
+        project.lockfile.content = {"default": {}}
         do_lock_mock = mock.MagicMock()
         monkeypatch.setattr(
             "pipenv.routines.uninstall.do_lock", do_lock_mock
@@ -475,14 +488,14 @@ class TestDoUninstallFlagRouting:
             "pipenv.routines.uninstall.expansive_install_req_from_line",
             mock.MagicMock(return_value=(mock.MagicMock(), None)),
         )
-        project.generate_package_pipfile_entry.return_value = (
+        project.pipfile.generate_entry.return_value = (
             "requests",
             "requests",
             {"version": "*"},
         )
-        project.remove_package_from_pipfile.return_value = True
-        project.get_pipfile_section.return_value = {}
-        project.get_lockfile_meta.return_value = {}
+        project.pipfile.remove_package.return_value = True
+        project.pipfile.get_section.return_value = {}
+        project.lockfile.meta.return_value = {}
 
         ctx = RoutineContext.from_cli(
             packages=("requests",),

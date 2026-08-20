@@ -73,7 +73,7 @@ class Environment:
             sources = project.sources.all
         self.sources = sources
         if project and not pipfile:
-            pipfile = project.parsed_pipfile
+            pipfile = project.pipfile.parsed
         self.pipfile = pipfile
         self.extra_dists = []
         if self.is_venv and prefix is not None and not Path(prefix).exists():

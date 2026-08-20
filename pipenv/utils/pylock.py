@@ -193,6 +193,11 @@ class PylockFile:
                 pylock_data["packages"].append(package)
 
         # Add tool.pipenv section with metadata
+        # TODO(T_F.8): surface ``[tool.pipenv] resolver = "..."`` here
+        # so a pylock.toml-only project can pin a non-default resolver
+        # backend (sign-off 2026-05-12 answer 1).  T_F.5 lays the
+        # framework; populating this field is deferred to the uv-backend
+        # follow-up initiative.
         pylock_data["tool"] = {
             "pipenv": {
                 "generated_from": "Pipfile.lock",

@@ -61,20 +61,20 @@ def get_pipenv_diagnostics(project):
     print("")
     print("---------------------------")
     print("")
-    if project.pipfile_exists:
-        print(f"Contents of `Pipfile` ({project.pipfile_location!r}):")
+    if project.pipfile.exists:
+        print(f"Contents of `Pipfile` ({project.pipfile.location!r}):")
         print("")
         print("```toml")
-        with open(project.pipfile_location) as f:
+        with open(project.pipfile.location) as f:
             print(f.read())
         print("```")
         print("")
-    if project.lockfile_exists:
+    if project.lockfile.exists:
         print("")
-        print(f"Contents of `Pipfile.lock` ({project.lockfile_location!r}):")
+        print(f"Contents of `Pipfile.lock` ({project.lockfile.location!r}):")
         print("")
         print("```json")
-        with open(project.lockfile_location) as f:
+        with open(project.lockfile.location) as f:
             print(f.read())
         print("```")
     print("</details>")

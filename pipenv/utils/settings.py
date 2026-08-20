@@ -24,9 +24,9 @@ class Settings(MutableMapping):
     """``[pipenv]`` configuration subsystem of :class:`Project`.
 
     Constructed with a back-reference to its owning ``Project``. The
-    backing store is ``project.parsed_pipfile.get("pipenv", {})``; this
+    backing store is ``project.pipfile.parsed.get("pipenv", {})``; this
     class never caches a reference to that table — every read goes
-    through ``project.parsed_pipfile`` so the mtime-invalidated cache
+    through ``project.pipfile.parsed`` so the mtime-invalidated cache
     semantics on :class:`Project` are honoured.
 
     The ``MutableMapping`` ABC lets legacy callers continue to use the
@@ -52,12 +52,12 @@ class Settings(MutableMapping):
         """Return the live ``[pipenv]`` table view, or an empty dict if
         the section is absent.
 
-        Read through ``project.parsed_pipfile`` on every call so that
-        Pipfile-cache invalidation (handled by ``Project.write_toml``)
+        Read through ``project.pipfile.parsed`` on every call so that
+        Pipfile-cache invalidation (handled by ``Project.pipfile.write_toml``)
         is honoured automatically. Do not cache the returned reference
         across calls.
         """
-        return self._project.parsed_pipfile.get("pipenv", {})
+        return self._project.pipfile.parsed.get("pipenv", {})
 
     # ---- Mapping protocol --------------------------------------------------
 
@@ -104,7 +104,7 @@ class Settings(MutableMapping):
         Mirrors the previous ``Project.update_settings`` semantics:
         only keys NOT already present are added; pre-existing keys are
         left untouched. If any key is added, the Pipfile is rewritten
-        via :meth:`Project.write_toml`, which invalidates the parsed
+        via :meth:`Project.pipfile.write_toml`, which invalidates the parsed
         Pipfile cache.
         """
         settings = self._table()
@@ -114,10 +114,10 @@ class Settings(MutableMapping):
                 settings[new] = d[new]
                 changed = True
         if changed:
-            p = self._project.parsed_pipfile
+            p = self._project.pipfile.parsed
             p["pipenv"] = settings
             # Write the changes to disk.
-            self._project.write_toml(p)
+            self._project.pipfile.write_toml(p)
 
     # ---- typed read accessors ---------------------------------------------
 
@@ -128,3 +128,26 @@ class Settings(MutableMapping):
         Was ``Project.use_pylock`` prior to T_D.3.
         """
         return self.get("use_pylock", False)
+
+    @property
+    def resolver(self) -> str | None:
+        """Return the configured resolver backend name from
+        ``[pipenv] resolver = "..."`` in the Pipfile, or ``None`` if
+        unset.
+
+        Introduced by T_F.5 (pluggable resolver backends, scaffolding
+        only).  Per the maintainer sign-off (2026-05-12, answer 1) the
+        Pipfile field is ``resolver`` under the existing ``[pipenv]``
+        section — no new subsection.  Equivalent ``pyproject.toml`` /
+        ``pylock.toml`` plumbing is a separate hook; see
+        ``# TODO(T_F.8)`` markers in those readers.
+
+        The dispatcher in :mod:`pipenv.resolver.core` consults this via
+        :func:`pipenv.resolver.core._resolver_name_from_pipfile`, which
+        applies a precedence chain (CLI > env > Pipfile > default).
+        """
+        value = self.get("resolver")
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None

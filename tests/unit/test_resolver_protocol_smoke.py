@@ -89,8 +89,8 @@ def _invoke_subprocess(
     ``(returncode, response_dict_or_None, stderr_text)``.
 
     If ``inject_resolver_stub`` is true, the harness writes a small
-    sitecustomize-style preload that replaces
-    :func:`pipenv.resolver.main.resolve_packages` with a stub returning
+    sitecustomize-style preload that replaces the resolver core's dispatch
+    hook with a stub returning
     a single hard-coded ``LockedRequirement`` for ``pytz==2024.1``.  This
     lets the test exercise the wire-protocol logic without depending on
     the parent-side rewrite (B2) or the lockfile-writer rewrite (B3),
@@ -112,20 +112,15 @@ def _invoke_subprocess(
         # Drop a stub-injection ``sitecustomize`` module into a sibling
         # tempdir and prepend it to ``PYTHONPATH`` so Python imports it
         # before any other module on subprocess startup.  The stub
-        # rebinds :func:`pipenv.resolver.main.resolve_packages` to a
-        # zero-dep function returning a hard-coded
+        # rebinds the shared resolver core's dispatch hook to a zero-dep
+        # function returning a hard-coded
         # :class:`LockedRequirement` — that's enough to exercise the
         # wire protocol without dragging in B2 / B3's mid-flight files.
         stub_dir = tmp_path / "_stub_path"
         stub_dir.mkdir()
         (stub_dir / "sitecustomize.py").write_text(textwrap.dedent("""
-            import importlib
-
+            import pipenv.resolver.core as _resolver_core
             from pipenv.resolver.schema import LockedRequirement
-
-
-            _resolver_package = importlib.import_module("pipenv.resolver")
-            _resolver_main = importlib.import_module("pipenv.resolver.main")
 
 
             def _stub_resolve_packages(request):
@@ -137,8 +132,7 @@ def _invoke_subprocess(
                 return [LockedRequirement(name=pkg_name, version='==2024.1')], None
 
 
-            _resolver_main.resolve_packages = _stub_resolve_packages
-            _resolver_package.resolve_packages = _stub_resolve_packages
+            _resolver_core._dispatch_resolve_packages = _stub_resolve_packages
         """))
         pythonpath_entries.insert(0, str(stub_dir))
 
@@ -147,19 +141,11 @@ def _invoke_subprocess(
         pythonpath_entries.append(existing)
     env["PYTHONPATH"] = os.pathsep.join(pythonpath_entries)
 
-    # We invoke ``python -m pipenv.resolver.main`` rather than the
-    # script-path form used in production (``[venv_python,
-    # /path/to/main.py, ...]``) for one reason: stub injection.
-    # Running the script directly loads ``main.py`` under the
-    # ``__main__`` module identity, separate from
-    # ``pipenv.resolver.main`` in ``sys.modules`` — which means
-    # patching ``pipenv.resolver.main.resolve_packages`` does not
-    # reach the function the entry point actually calls.  With
-    # ``-m``, the script's module identity IS
-    # ``pipenv.resolver.main``, so the stub takes effect.  The
-    # production code path is exercised by the C2 integration test
-    # (``tests/integration/test_resolver_protocol.py``) which runs
-    # the real subprocess invocation end-to-end.
+    # The ``-m`` entry point executes ``pipenv.resolver.main`` as
+    # ``__main__``, but it reuses the already-imported resolver core where
+    # the sitecustomize hook is installed. The production script-path form
+    # is exercised by the C2 integration test
+    # (``tests/integration/test_resolver_protocol.py``).
     proc = subprocess.run(
         [
             sys.executable,
@@ -172,6 +158,7 @@ def _invoke_subprocess(
         ],
         env=env,
         capture_output=True,
+        check=False,
         text=True,
         timeout=180,
     )
