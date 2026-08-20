@@ -466,7 +466,7 @@ class PlettePipfile:
     def __getattr__(self, k, *args, **kwargs):
         pipfile = self.pipfile
         try:
-            retval = super(PlettePipfile).__getattribute__(k)
+            retval = super().__getattribute__(k)
         except AttributeError:
             retval = getattr(pipfile, k, None)
         return retval

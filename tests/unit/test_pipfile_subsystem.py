@@ -23,7 +23,7 @@ from unittest import mock
 import pytest
 
 from pipenv.project import Project
-from pipenv.utils.pipfile import NON_CATEGORY_SECTIONS, Pipfile
+from pipenv.utils.pipfile import NON_CATEGORY_SECTIONS, Pipfile, PlettePipfile
 
 PIPFILE_BARE = """\
 [[source]]
@@ -105,6 +105,21 @@ def test_project_pipfile_returns_pipfile_subsystem(project_bare):
     assert isinstance(pipfile, Pipfile)
     # Cached: two accesses return the same instance.
     assert pipfile is project_bare.pipfile
+
+
+@pytest.mark.utils
+def test_plette_pipfile_delegates_missing_attributes(tmp_path):
+    """Legacy wrapper attributes fall through to its plette loader."""
+    loader = mock.Mock()
+    delegated_value = object()
+    loader.delegated_attribute = delegated_value
+    pipfile = PlettePipfile(
+        path=tmp_path / "Pipfile",
+        projectfile=mock.Mock(),
+        pipfile=loader,
+    )
+
+    assert pipfile.delegated_attribute is delegated_value
 
 
 # ---- Location / existence / name -----------------------------------------
