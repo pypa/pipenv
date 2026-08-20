@@ -1,0 +1,1 @@
+Python-version mismatch warnings now recommend ``pipenv remove`` instead of the deprecated ``pipenv --rm`` flag.

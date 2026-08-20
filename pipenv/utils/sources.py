@@ -28,8 +28,10 @@ from random import randint
 from urllib import parse
 from urllib.parse import urljoin
 
+from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.utils.hashes import FAVORITE_HASH
+from pipenv.patched.pip._vendor.requests.exceptions import RequestException
 from pipenv.utils import err
 from pipenv.utils.dependencies import clean_pkg_version, pep423_name
 from pipenv.utils.fileutils import open_file
@@ -133,7 +135,7 @@ class Sources:
             for release in cleaned_releases[version]:
                 collected_hashes.add(release["digests"][FAVORITE_HASH])
             return self._prepend_hash_types(collected_hashes, FAVORITE_HASH)
-        except (ValueError, KeyError, ConnectionError):
+        except (ValueError, KeyError, RequestException, PipError):
             return None
 
     def get_hashes_from_remote_index_urls(self, ireq, source):
