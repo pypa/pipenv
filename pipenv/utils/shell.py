@@ -10,12 +10,15 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path, PurePath
 
-from pipenv.utils import err
-from pipenv.utils.fileutils import normalize_drive as normalize_drive  # noqa: PLC0414
+from pipenv.utils import err, fileutils
 from pipenv.vendor.pythonfinder.utils import ensure_path, parse_python_version
 
 from .constants import FALSE_VALUES, SCHEME_LIST, TRUE_VALUES
 from .processes import subprocess_run
+
+# Back-compat re-export: external callers still import normalize_drive from
+# pipenv.utils.shell even though it now lives in pipenv.utils.fileutils.
+normalize_drive = fileutils.normalize_drive
 
 
 @lru_cache

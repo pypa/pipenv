@@ -10,6 +10,7 @@ See docs/dev/initiative-c-design.md sections 2 and 9.
 
 from __future__ import annotations
 
+import inspect
 from dataclasses import FrozenInstanceError, replace
 
 import pytest
@@ -287,18 +288,26 @@ class TestFromCliDefaults:
 class TestFromCliKeywordOnly:
     """from_cli rejects positional arguments."""
 
+    # Binding arguments against the signature applies the same argument
+    # matching rules the interpreter uses for a direct call, so these assert
+    # the keyword-only contract without a deliberately malformed call site.
+
     def test_from_cli_positional_raises(self):
         # The first positional after cls would land on `system`.
-        from_cli = getattr(RoutineContext, "from_cli")
         with pytest.raises(TypeError):
-            # Deliberately violate the keyword-only API to test its contract.
-            from_cli(*[True])
+            inspect.signature(RoutineContext.from_cli).bind(True)
 
     def test_from_cli_two_positionals_raises(self):
-        from_cli = getattr(RoutineContext, "from_cli")
         with pytest.raises(TypeError):
-            # Deliberately violate the keyword-only API to test its contract.
-            from_cli(*[True, False])
+            inspect.signature(RoutineContext.from_cli).bind(True, False)
+
+    def test_from_cli_params_are_all_keyword_only(self):
+        parameters = inspect.signature(RoutineContext.from_cli).parameters
+        assert parameters
+        assert all(
+            param.kind is inspect.Parameter.KEYWORD_ONLY
+            for param in parameters.values()
+        )
 
 
 class TestSequenceCoercion:

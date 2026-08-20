@@ -34,7 +34,7 @@ def _parse_toml_inline_table(value: tomlkit.items.InlineTable) -> str:
     cmd_key = keys_list[0]
     if cmd_key not in Script.script_types:
         raise ScriptParseError(
-            f"Not an accepted script callabale, options are: {Script.script_types}"
+            f"Not an accepted script callable, options are: {Script.script_types}"
         )
     module, _, func = str(value["call"]).partition(":")
     if not module or not func:
