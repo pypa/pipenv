@@ -1228,8 +1228,12 @@ class Pipfile:
         The algorithm mirrors plette's ``Pipfile.get_hash()`` exactly,
         except every package-name key in ``[packages]``,
         ``[dev-packages]`` and any custom categories is replaced by its
-        PEP 503 canonical form before serialisation.
+        PEP 503 canonical form before serialisation. Returns an empty
+        string when the Pipfile does not exist.
         """
+        if not self.exists:
+            return ""
+
         import hashlib
         import json
 

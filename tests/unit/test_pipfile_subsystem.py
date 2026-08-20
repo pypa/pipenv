@@ -445,6 +445,11 @@ def test_calculate_hash_returns_hex_digest(project_bare):
 
 
 @pytest.mark.utils
+def test_calculate_hash_returns_empty_string_without_pipfile(project_no_pipfile):
+    assert project_no_pipfile.pipfile.calculate_hash() == ""
+
+
+@pytest.mark.utils
 def test_calculate_hash_is_casing_invariant(tmp_path, monkeypatch):
     """PEP 503 canonical hash should be the same regardless of casing."""
     pipfile = tmp_path / "Pipfile"

@@ -627,13 +627,13 @@ def _resolver_name_from_pipfile() -> str | None:
     """Return the ``[pipenv] resolver`` value from the current project
     Pipfile, or ``None`` if absent / unreadable.
 
-    Best-effort: this is called from the resolver-call layer in the
-    parent.  The subprocess child does NOT call this (it consults
-    ``request.options.backend`` only — the parent has already made the
-    selection by the time the wire request goes out).  If the project
-    isn't accessible (e.g. running unit tests with no Pipfile on disk),
-    return ``None`` silently and let the caller fall through to the
-    default.
+    Best-effort: the parent normally stamps its selection into
+    ``request.options.backend`` before starting the resolver subprocess,
+    so the child does not need to rediscover the Pipfile setting. Direct
+    or legacy calls with an empty backend can still reach this fallback.
+    If the project isn't accessible (e.g. running unit tests with no
+    Pipfile on disk), return ``None`` silently and let the caller fall
+    through to the default.
     """
     try:
         from pipenv.project import Project
