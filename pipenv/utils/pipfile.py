@@ -709,14 +709,16 @@ class Pipfile:
         """Ensure we get only package categories and that the default
         packages section is first.
         """
-        categories = set(self.parsed.keys())
-        package_categories = (
-            categories - NON_CATEGORY_SECTIONS - {"packages", "dev-packages"}
-        )
+        package_categories = [
+            category
+            for category in self.parsed
+            if category not in NON_CATEGORY_SECTIONS
+            and category not in {"packages", "dev-packages"}
+        ]
         if for_lockfile:
-            return ["default", "develop"] + list(package_categories)
+            return ["default", "develop"] + package_categories
         else:
-            return ["packages", "dev-packages"] + list(package_categories)
+            return ["packages", "dev-packages"] + package_categories
 
     @property
     def package_names(self) -> dict[str, set[str]]:

@@ -175,6 +175,8 @@ def cmd_uninstall(args, state):
         categories=state.installstate.categories,
         all_dev=args.all_dev,
         all=args.all,
+        # execution_options
+        resolver=state.resolver,
     )
     retcode = do_uninstall(state.project, ctx)
     if retcode:
@@ -388,6 +390,7 @@ def cmd_update(args, state):
         extra_pip_args=state.installstate.extra_pip_args,
         bare=args.bare,
         quiet=state.quiet,
+        resolver=state.resolver,
     )
     do_update(state.project, ctx)
 

@@ -20,6 +20,7 @@ The tests below verify the scaffolding only:
 """
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest import mock
 
 import pytest
@@ -225,3 +226,62 @@ class TestPipfileResolverSetting:
         # And the absent case returns None (the default).
         settings_without = Settings(_FakeProject({}))
         assert settings_without.resolver is None
+
+
+class TestCliResolverRouting:
+    @staticmethod
+    def _state():
+        installstate = SimpleNamespace(
+            all_categories=False,
+            categories=["default"],
+            pre=False,
+            packages=[],
+            editables=[],
+            lock_only=False,
+            dev=False,
+            extra_pip_args=(),
+        )
+        return SimpleNamespace(
+            resolver="custom",
+            system=False,
+            python=None,
+            pypi_mirror=None,
+            site_packages=False,
+            clear=False,
+            index=None,
+            quiet=False,
+            project=mock.Mock(),
+            installstate=installstate,
+        )
+
+    def test_uninstall_routes_cli_resolver_to_context(self):
+        from pipenv.cli import command
+        from pipenv.routines.context import RoutineContext
+
+        args = SimpleNamespace(dev=False, all_dev=False, all=False)
+        state = self._state()
+        context = mock.sentinel.context
+
+        with mock.patch.object(command, "apply_default_categories"), mock.patch.object(
+            RoutineContext, "from_cli", return_value=context
+        ) as from_cli, mock.patch(
+            "pipenv.routines.uninstall.do_uninstall", return_value=0
+        ):
+            command.cmd_uninstall(args, state)
+
+        assert from_cli.call_args.kwargs["resolver"] == "custom"
+
+    def test_update_routes_cli_resolver_to_context(self):
+        from pipenv.cli import command
+        from pipenv.routines.context import RoutineContext
+
+        args = SimpleNamespace(outdated=False, dry_run=False, bare=False)
+        state = self._state()
+        context = mock.sentinel.context
+
+        with mock.patch.object(command, "apply_default_categories"), mock.patch.object(
+            RoutineContext, "from_cli", return_value=context
+        ) as from_cli, mock.patch("pipenv.routines.update.do_update"):
+            command.cmd_update(args, state)
+
+        assert from_cli.call_args.kwargs["resolver"] == "custom"

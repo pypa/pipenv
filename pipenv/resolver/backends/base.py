@@ -63,13 +63,16 @@ class Backend(Protocol):
 
     name: str
 
-    def is_available(self) -> bool: ...
+    def is_available(self) -> bool:
+        raise NotImplementedError
 
-    def resolve(self, request: ResolverRequest) -> ResolverResponse: ...
+    def resolve(self, request: ResolverRequest) -> ResolverResponse:
+        raise NotImplementedError
 
 
 # Single shared registry.  The ``backends/__init__.py`` populates this
 # on import with the in-tree backends.  Keeping it here (rather than on
 # ``__init__``) lets test code patch via ``mock.patch.dict`` against a
 # single canonical reference no matter which module the patch targets.
-REGISTRY: dict[str, Backend] = {}
+BackendEntry = type[Backend] | Backend
+REGISTRY: dict[str, BackendEntry] = {}

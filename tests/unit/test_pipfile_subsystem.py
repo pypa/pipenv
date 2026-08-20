@@ -101,9 +101,10 @@ def test_pipfile_constructor_takes_project(project_bare):
 @pytest.mark.utils
 def test_project_pipfile_returns_pipfile_subsystem(project_bare):
     """``project.pipfile`` returns a cached ``Pipfile`` instance."""
-    assert isinstance(project_bare.pipfile, Pipfile)
+    pipfile = project_bare.pipfile
+    assert isinstance(pipfile, Pipfile)
     # Cached: two accesses return the same instance.
-    assert project_bare.pipfile is project_bare.pipfile
+    assert pipfile is project_bare.pipfile
 
 
 # ---- Location / existence / name -----------------------------------------
@@ -286,6 +287,17 @@ def test_get_package_categories_excludes_non_category_sections(
     cats = project_with_packages.pipfile.get_package_categories()
     for excluded in NON_CATEGORY_SECTIONS:
         assert excluded not in cats
+
+
+@pytest.mark.utils
+def test_get_package_categories_preserves_custom_category_order(project_with_packages):
+    parsed = project_with_packages.pipfile.parsed
+    parsed["docs"] = {"sphinx": "*"}
+    parsed["qa"] = {"ruff": "*"}
+
+    cats = project_with_packages.pipfile.get_package_categories()
+
+    assert cats[-2:] == ["docs", "qa"]
 
 
 @pytest.mark.utils

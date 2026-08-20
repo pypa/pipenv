@@ -89,9 +89,10 @@ def test_lockfile_constructor_takes_project(project_bare):
 def test_project_lockfile_returns_lockfile_subsystem(project_bare):
     """``project.lockfile`` returns a ``Lockfile`` subsystem instance,
     cached for the project lifetime."""
-    assert isinstance(project_bare.lockfile, Lockfile)
+    lockfile = project_bare.lockfile
+    assert isinstance(lockfile, Lockfile)
     # Cached: two accesses return the same instance.
-    assert project_bare.lockfile is project_bare.lockfile
+    assert lockfile is project_bare.lockfile
 
 
 @pytest.mark.utils
@@ -199,6 +200,18 @@ def test_lockfile_package_names_combined(project_with_lock):
     assert "develop" in names
     assert "requests" in names["combined"]
     assert "pytest" in names["combined"]
+
+
+@pytest.mark.utils
+def test_lockfile_package_names_handles_unlocked_custom_category(project_with_lock):
+    """A Pipfile-only category is represented by an empty lockfile-name set."""
+    pipfile_path = project_with_lock.pipfile.location
+    with open(pipfile_path, "a") as pipfile:
+        pipfile.write("\n[docs]\nsphinx = \"*\"\n")
+
+    names = project_with_lock.lockfile.package_names
+
+    assert names["docs"] == set()
 
 
 @pytest.mark.utils

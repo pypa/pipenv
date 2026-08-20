@@ -169,6 +169,8 @@ class Lockfile:
             except LockfileCorruptException:
                 raise
             except Exception:
+                # Try the pylock/Pipfile-derived fallbacks below when a legacy
+                # lockfile exists but cannot be loaded for another reason.
                 pass
         # TODO(pylock): format-detection seam — pylock fallback.
         if not lockfile_loaded and self.pylock_exists:
@@ -177,6 +179,8 @@ class Lockfile:
                 lockfile = pylock.convert_to_pipenv_lockfile()
                 lockfile_loaded = True
             except Exception:
+                # An unreadable pylock falls through to deriving lock data
+                # from the Pipfile, matching the legacy fallback behavior.
                 pass
         if not lockfile_loaded:
             with open(project.pipfile.location) as pf:
@@ -303,9 +307,10 @@ class Lockfile:
         results: dict[str, set[str]] = {
             "combined": set(),
         }
+        content = self.content
         for category in project.pipfile.get_package_categories(for_lockfile=True):
             category_packages = get_canonical_names(
-                self.content[category].keys()
+                content.get(category, {}).keys()
             )
             results[category] = set(category_packages)
             results["combined"] = results["combined"] | category_packages
