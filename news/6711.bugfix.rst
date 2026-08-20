@@ -1,1 +1,0 @@
-Hash-lookup sessions now use pip's combined certificate trust configuration, so custom CA bundles do not discard the public roots trusted by pip.

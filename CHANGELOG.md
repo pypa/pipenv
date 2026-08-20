@@ -1,3 +1,47 @@
+2026.8.0 (2026-08-20)
+=====================
+pipenv 2026.8.0 (2026-08-20)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- Pipenv now includes scaffolding for pluggable resolver backends. The
+  ``--resolver NAME`` CLI flag, ``PIPENV_RESOLVER`` environment variable,
+  and ``[pipenv] resolver`` Pipfile setting are now recognized, but only
+  ``pip`` (the default) is shipped in this release. Selecting an unknown
+  backend will produce a clear error message. Future releases will add
+  additional backends.  `#T_F.5 <https://github.com/pypa/pipenv/issues/T_F.5>`_
+- Add a pure-Python PEP 691 / PEP 503 simple-API client + parsed-manifest
+  cache + parallel fetcher under ``pipenv/resolver/``.  Initiative G
+  phase 1 ships the standalone surface; no integration yet.  Phase 2
+  (cache-prime bridge) and Phase 3 (full backend) will wire it in.
+  ``pipenv lock --clear`` and ``pipenv install --clear`` now invalidate
+  this parsed-manifest cache in addition to pip's HTTP cache.  `#initiative-g-phase1-pep691-client <https://github.com/pypa/pipenv/issues/initiative-g-phase1-pep691-client>`_
+- Add ``[pipenv] prefetch_index_manifests`` opt-in setting (also
+  ``PIPENV_PREFETCH_INDEX_MANIFESTS=1``) that pre-fetches simple-API
+  index pages for top-level Pipfile packages in parallel before the
+  resolver runs.  Most beneficial on cold caches or slow networks;
+  off-by-default because warm-cache dev machines see neutral-to-
+  slightly-slower behaviour.  Initiative G phase 2.  `#initiative-g-phase2-prefetch-bridge <https://github.com/pypa/pipenv/issues/initiative-g-phase2-prefetch-bridge>`_
+
+Bug Fixes
+---------
+
+- Fixed corrupt Pipfile and lockfile errors so they retain the affected path and
+  backup location while reporting the file-specific error message.
+- Allow dependency locking to fall back to a prerelease of a final lower bound, such as resolving ``odin~=2.11`` to ``2.11rc3`` before the ``2.11`` final release is available.  `#6701 <https://github.com/pypa/pipenv/issues/6701>`_
+- Python-version mismatch warnings now recommend ``pipenv remove`` instead of the deprecated ``pipenv --rm`` flag.  `#6704 <https://github.com/pypa/pipenv/issues/6704>`_
+- Hash-lookup sessions now use pip's combined certificate trust configuration, so custom CA bundles do not discard the public roots trusted by pip.  `#6711 <https://github.com/pypa/pipenv/issues/6711>`_
+- PyPI hash collection now handles requests and pip network exceptions and falls back to the resolver's other hash sources.  `#6712 <https://github.com/pypa/pipenv/issues/6712>`_
+
+Vendored Libraries
+------------------
+
+- Updated the bundled pip to 26.2.
+- Updated the bundled pip to 26.2.1.
+
 2026.7.1 (2026-08-03)
 =====================
 pipenv 2026.7.1 (2026-08-03)
