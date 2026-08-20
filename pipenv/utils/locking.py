@@ -418,7 +418,7 @@ class Lockfile:
             path_obj.rename(backup_path)
 
             # Try loading again after backing up corrupted file
-            cls.load(formatted_path, create=True)
+            return cls.load(formatted_path, create=True)
 
         # Create Path object from projectfile location
         lockfile_path = Path(projectfile.location)
