@@ -5,6 +5,7 @@ from unittest import mock
 import pytest
 
 from pipenv.exceptions import PipenvUsageError
+from pipenv.patched.pip._vendor.packaging import markers as pip_markers
 from pipenv.utils import dependencies, indexes, internet, shell, toml, virtualenv
 
 # Pipfile format <-> requirements.txt format.
@@ -400,7 +401,7 @@ class TestUtils:
         assert shell.is_python_command(line) == expected
 
     @pytest.mark.utils
-    def test_new_line_end_of_toml_file(this):
+    def test_new_line_end_of_toml_file(self):
         # toml file that needs clean up
         toml_data = """
 [dev-packages]
@@ -419,7 +420,7 @@ twine = "*"
         assert new_toml[-1] == "\n"
 
     @pytest.mark.utils
-    def test_cleanup_toml_preserves_single_blank_lines_within_sections(this):
+    def test_cleanup_toml_preserves_single_blank_lines_within_sections(self):
         """Blank lines placed by the user within a section survive cleanup. (#5914)"""
         toml_data = (
             "[packages]\n"
@@ -436,7 +437,7 @@ twine = "*"
         assert "" in lines[: lines.index("[dev-packages]")]
 
     @pytest.mark.utils
-    def test_cleanup_toml_collapses_multiple_blank_lines(this):
+    def test_cleanup_toml_collapses_multiple_blank_lines(self):
         """Multiple consecutive blank lines are collapsed to a single one. (#5914)"""
         toml_data = (
             "[packages]\n"
@@ -455,7 +456,7 @@ twine = "*"
             )
 
     @pytest.mark.utils
-    def test_cleanup_toml_adds_blank_line_before_section_header(this):
+    def test_cleanup_toml_adds_blank_line_before_section_header(self):
         """A blank line is inserted before a section header if one is missing. (#5914)"""
         toml_data = (
             "[packages]\n"
@@ -1294,7 +1295,6 @@ class TestPipfilePythonOverride:
     def test_patched_marker_environment_overrides_python(self):
         """_patched_marker_environment should override python_version and
         python_full_version in default_environment."""
-        import pipenv.patched.pip._vendor.packaging.markers as pip_markers
         from pipenv.utils.resolver import _patched_marker_environment
 
         override = {"python_version": "3.11", "python_full_version": "3.11.0"}
@@ -1310,7 +1310,6 @@ class TestPipfilePythonOverride:
     @pytest.mark.utils
     def test_patched_marker_environment_none_is_noop(self):
         """_patched_marker_environment(None) should be a no-op."""
-        import pipenv.patched.pip._vendor.packaging.markers as pip_markers
         from pipenv.utils.resolver import _patched_marker_environment
 
         env_before = pip_markers.default_environment()
@@ -1321,10 +1320,9 @@ class TestPipfilePythonOverride:
     @pytest.mark.utils
     def test_marker_evaluation_uses_override(self):
         """Markers should evaluate against the overridden Python version."""
-        from pipenv.patched.pip._vendor.packaging.markers import Marker
         from pipenv.utils.resolver import _patched_marker_environment
 
-        marker = Marker('python_full_version <= "3.11.2"')
+        marker = pip_markers.Marker('python_full_version <= "3.11.2"')
         override = {"python_version": "3.11", "python_full_version": "3.11.0"}
         with _patched_marker_environment(override):
             # 3.11.0 <= 3.11.2 → True
@@ -2472,7 +2470,7 @@ class TestResolverCreateCrossGroupIndexLookup:
                         req_dir=str(tmp_path),
                     )
                 except Exception:
-                    pass
+                    pass  # The test only needs the captured pre-failure state.
 
         index_lookup = captured.get("index_lookup", {})
         # The dev-packages entry for shared-lib (testpypi) must win over the
@@ -2664,9 +2662,7 @@ class TestTargetMarkerEnvironment:
     def test_marker_evaluation_with_target_env_passes_packages(self, monkeypatch):
         """A marker like ``python_version >= "3.11"`` must evaluate True when
         the target venv is Python 3.12 even if pipenv itself runs on 3.10."""
-        from pipenv.patched.pip._vendor.packaging.markers import Marker
-
-        marker = Marker('python_version >= "3.11"')
+        marker = pip_markers.Marker('python_version >= "3.11"')
         env = {"python_version": "3.12", "python_full_version": "3.12.3"}
         assert marker.evaluate(environment=env) is True
         env_low = {"python_version": "3.10", "python_full_version": "3.10.0"}

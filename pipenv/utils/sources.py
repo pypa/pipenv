@@ -249,11 +249,13 @@ class Sources:
         for source in self.pipfile_sources():
             if source.get("name") == index_name:
                 return source
+        return None
 
     def get_index_by_url(self, index_url):
         for source in self.pipfile_sources():
             if source.get("url") == index_url:
                 return source
+        return None
 
     @property
     def all(self):
@@ -322,6 +324,7 @@ class Sources:
                 )
             if source is not None:
                 return source
+            return None
 
         sources = (self.all, self.pipfile_sources())
         if refresh:

@@ -90,9 +90,11 @@ def test_venv_locator_constructor_takes_project(project_bare):
 def test_project_venv_locator_returns_venv_locator_subsystem(project_bare):
     """``project.venv_locator`` returns a ``VenvLocator`` subsystem
     instance, cached for the project lifetime via ``@cached_property``."""
-    assert isinstance(project_bare.venv_locator, VenvLocator)
+    first = project_bare.venv_locator
+    second = project_bare.venv_locator
+    assert isinstance(first, VenvLocator)
     # Cached: two accesses return the same instance.
-    assert project_bare.venv_locator is project_bare.venv_locator
+    assert first is second
 
 
 @pytest.mark.utils

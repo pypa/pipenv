@@ -76,9 +76,11 @@ def test_sources_constructor_takes_project(project_single):
 def test_project_sources_returns_sources_subsystem(project_single):
     """``project.sources`` returns a ``Sources`` subsystem instance,
     cached for the project lifetime."""
-    assert isinstance(project_single.sources, Sources)
+    first = project_single.sources
+    second = project_single.sources
+    assert isinstance(first, Sources)
     # Cached: two accesses return the same instance.
-    assert project_single.sources is project_single.sources
+    assert first is second
 
 
 @pytest.mark.utils

@@ -254,7 +254,7 @@ def _format_resolution_error(install_error):
                 "  4. Re-run with --verbose for the full pip build log."
             )
     except ImportError:
-        pass
+        pass  # Enhanced diagnostics are optional when pip internals cannot load.
 
     base_msg = str(install_error)
 
@@ -843,6 +843,7 @@ class Resolver:
             if markers:
                 self.markers_lookup[install_req.name] = markers
             return markers
+        return None
 
     def resolve_constraints(self):
         """Fold per-package ``requires-python`` markers into the resolved tree.
@@ -1346,11 +1347,11 @@ def resolve(cmd, st, project, *, deadline_seconds=None):
         try:
             c.kill()
         except Exception:
-            pass
+            pass  # Timeout cleanup is best-effort; preserve TimeoutExpired.
         try:
             c.wait(timeout=5)
         except Exception:
-            pass
+            pass  # Timeout cleanup is best-effort; preserve TimeoutExpired.
         stdout_thread.join(timeout=5)
         stderr_thread.join(timeout=5)
 

@@ -466,9 +466,7 @@ def cmd_sync(args, state):
         extra_pip_args=state.installstate.extra_pip_args,
         bare=args.bare,
     )
-    retcode = do_sync(state.project, ctx)
-    if retcode:
-        sys.exit(1)
+    do_sync(state.project, ctx)
 
 
 def cmd_clean(args, state):
@@ -696,7 +694,7 @@ def cli():
 
         argcomplete.autocomplete(parser)
     except ImportError:
-        pass
+        pass  # argcomplete is an optional shell-completion dependency
 
     argv = sys.argv[1:]
 
@@ -838,6 +836,7 @@ def cli():
         handler(args, state, extra_args=remaining)
     else:
         handler(args, state)
+    return 0
 
 
 if __name__ == "__main__":

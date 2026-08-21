@@ -454,6 +454,7 @@ def do_lock(project, ctx: RoutineContext):
             )
     else:
         return lockfile
+    return None
 
 
 def overwrite_with_default(default, dev):

@@ -39,6 +39,7 @@ def load_dot_env(project, as_dict=False, quiet=False):
 
             dotenv.load_dotenv(str(dotenv_file), override=True)
             project.s = environments.Setting()
+    return None
 
 
 def ensure_environment():

@@ -176,6 +176,7 @@ python_DateUtil = "*"
         assert c.returncode == 0
 
         c = p.pipenv("uninstall python_dateutil")
+        assert c.returncode == 0
         assert "Requests" in p.pipfile["packages"]
         assert "python_DateUtil" not in p.pipfile["packages"]
         with open(p.pipfile_path) as f:

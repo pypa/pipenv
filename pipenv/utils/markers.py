@@ -63,9 +63,10 @@ class PipenvMarkers:
         try:
             combined_marker = cls.make_marker(" and ".join(sorted(markers)))
         except RequirementError:
-            pass
+            pass  # Keep the original marker set when combination is invalid.
         else:
             return combined_marker
+        return None
 
 
 def is_instance(item, cls):
@@ -141,7 +142,7 @@ def _format_pyspec(specifier):
 
 def _get_specs(specset):
     if specset is None:
-        return
+        return []
     if is_instance(specset, Specifier):
         new_specset = SpecifierSet()
         specs = set()
@@ -525,11 +526,8 @@ def _get_specifiers_from_markers(marker_item):
 def get_specset(marker_list):
     # type: (List) -> Optional[SpecifierSet]
     specset = set()
-    _last_str = "and"
     for marker_parts in marker_list:
-        if isinstance(marker_parts, str):
-            _last_str = marker_parts  # noqa
-        else:
+        if not isinstance(marker_parts, str):
             specset.update(_get_specifiers_from_markers(marker_parts))
     specifiers = SpecifierSet()
     specifiers._specs = frozenset(specset)
@@ -545,10 +543,7 @@ def parse_marker_dict(marker_dict):
     side_spec_list = []
     side_markers_list = []
     finalized_marker = ""
-    # And if we hit the end of the parse tree we use this format string to make a marker
-    format_string = "{lhs} {op} {rhs}"
     specset = SpecifierSet()
-    specs = set()
     # Essentially we will iterate over each side of the parsed marker if either one is
     # A mapping instance (i.e. a dictionary) and recursively parse and reduce the specset
     # Union the "and" specs, intersect the "or"s to find the most appropriate range
@@ -595,8 +590,7 @@ def parse_marker_dict(marker_dict):
         # to be smashed together
         specs = set()
         if lhs == "python_version":
-            format_string = "{lhs}{op}{rhs}"
-            marker = Marker(format_string.format(**marker_dict))
+            marker = Marker("{lhs}{op}{rhs}".format(**marker_dict))
             marker_parts = getattr(marker, "_markers", [])
             _set = get_specset(marker_parts)
             if _set:

@@ -117,11 +117,11 @@ var Konami = function (callback) {
                 konami.removeEvent(document, 'touchstart', this.touchstartHandler);
             },
             check_direction: function () {
-                x_magnitude = Math.abs(this.start_x - this.stop_x);
-                y_magnitude = Math.abs(this.start_y - this.stop_y);
-                x = ((this.start_x - this.stop_x) < 0) ? "RIGHT" : "LEFT";
-                y = ((this.start_y - this.stop_y) < 0) ? "DOWN" : "UP";
-                result = (x_magnitude > y_magnitude) ? x : y;
+                var x_magnitude = Math.abs(this.start_x - this.stop_x);
+                var y_magnitude = Math.abs(this.start_y - this.stop_y);
+                var x = ((this.start_x - this.stop_x) < 0) ? "RIGHT" : "LEFT";
+                var y = ((this.start_y - this.stop_y) < 0) ? "DOWN" : "UP";
+                var result = (x_magnitude > y_magnitude) ? x : y;
                 result = (this.tap === true) ? "TAP" : result;
                 return result;
             }

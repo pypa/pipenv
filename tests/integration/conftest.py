@@ -226,7 +226,7 @@ class _PipenvInstance:
                         if venv_loc and os.path.isdir(venv_loc):
                             shutil.rmtree(venv_loc, ignore_errors=True)
             except Exception:
-                pass
+                pass  # Fixture teardown must not mask the test result.
 
         if self.pipfile_path:
             with contextlib.suppress(OSError):

@@ -266,8 +266,6 @@ class Environment:
         :return: The :data:`sys.path` from the environment
         :rtype: list
         """
-        import json
-
         current_executable = Path(sys.executable).as_posix()
         if not self.python or self.python == current_executable:
             return sys.path
@@ -506,7 +504,7 @@ class Environment:
             dists = importlib_metadata.distributions(path=[str(libdir)])
             yield from dists
 
-    def find_egg(self, egg_dist: importlib_metadata.Distribution) -> str:
+    def find_egg(self, egg_dist: importlib_metadata.Distribution) -> str | None:
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
         search_filename = f"{egg_dist._normalized_name}.egg-link"
@@ -519,6 +517,7 @@ class Environment:
             egg = os.path.join(site_directory, search_filename)
             if os.path.isfile(egg):
                 return egg
+        return None
 
     def locate_dist(self, dist: importlib_metadata.Distribution) -> str:
         """Given a distribution, try to find a corresponding egg link first.

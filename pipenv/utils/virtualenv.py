@@ -496,7 +496,7 @@ def _find_python_for_specifier(specifier_str, pyenv_only=False):
                 if ver_str in spec:
                     candidates.append(python_info)
             except Exception:
-                pass
+                pass  # Skip candidates whose version cannot satisfy this specifier.
 
     if not candidates:
         return None

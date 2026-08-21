@@ -34,17 +34,16 @@ def _parse_toml_inline_table(value: tomlkit.items.InlineTable) -> str:
     cmd_key = keys_list[0]
     if cmd_key not in Script.script_types:
         raise ScriptParseError(
-            f"Not an accepted script callabale, options are: {Script.script_types}"
+            f"Not an accepted script callable, options are: {Script.script_types}"
         )
-    if cmd_key == "call":
-        module, _, func = str(value["call"]).partition(":")
-        if not module or not func:
-            raise ScriptParseError(
-                "Callable must be like: name = {call = \"package.module:func('arg')\"}"
-            )
-        if re.search(r"\(.*?\)", func) is None:
-            func += "()"
-        return f'python -c "import {module} as _m; _m.{func}"'
+    module, _, func = str(value["call"]).partition(":")
+    if not module or not func:
+        raise ScriptParseError(
+            "Callable must be like: name = {call = \"package.module:func('arg')\"}"
+        )
+    if re.search(r"\(.*?\)", func) is None:
+        func += "()"
+    return f'python -c "import {module} as _m; _m.{func}"'
 
 
 class Script:

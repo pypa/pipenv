@@ -336,9 +336,6 @@ def _make_project_with_pipfile(packages_section=None, dev_packages_section=None)
     def fake_get_pipfile_entry(pkg_name, category):
         return pipfile.get((pkg_name, category))
 
-    def fake_get_package_categories():
-        return ["packages", "dev-packages"]
-
     project.pipfile.get_entry.side_effect = fake_get_pipfile_entry
     project.pipfile.get_package_categories.return_value = ["packages", "dev-packages"]
     return project

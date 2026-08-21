@@ -83,7 +83,7 @@ def _ensure_modules() -> None:
             try:
                 import typing_extensions  # noqa: F401
             except ImportError:
-                pass
+                pass  # The normal import path below reports required modules.
 
     if "pipenv" not in sys.modules:
         pipenv_parent = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
