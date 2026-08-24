@@ -22,7 +22,7 @@ parsing); everything else is supplied by the caller via ``**kwargs``.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, NamedTuple
 
@@ -101,6 +101,17 @@ class Candidate:
         :func:`pipenv.vendor.packaging.tags.parse_tag` so a compatibility
         check is a frozenset intersection (vs pip's
         ``Wheel.supported(tags)`` linear scan).
+    extras:
+        ``frozenset[str]`` of extras this candidate provides, used by
+        :meth:`PurePythonProvider.identify` (T3) to compute the
+        ``(name, extras)`` graph identifier.  The PEP 691 simple-API
+        does NOT report extras on candidates — the field exists so
+        callers that want to model "this candidate satisfies the
+        ``[argon2]`` extra of django" (e.g. constructed in unit tests
+        or by future code that synthesises extras-bearing candidates)
+        can do so.  Default is ``frozenset()`` — the PEP 691 parsers
+        in :mod:`pipenv.resolver.manifest_cache` rely on this default
+        and don't need to plumb the field through.
     """
 
     name: str
@@ -114,6 +125,11 @@ class Candidate:
     upload_time: datetime | None
     is_wheel: bool
     wheel_tags: frozenset[Tag] | None
+    # ``extras`` is added in Initiative G phase 3 (T3) — Phase 1's PEP
+    # 691 parsers don't populate it (the simple-API doesn't report
+    # extras), so it defaults to an empty frozenset.  Placed last so
+    # frozen-dataclass field ordering (no-default-then-default) holds.
+    extras: frozenset[str] = field(default_factory=frozenset)
 
     @classmethod
     def from_filename(cls, __filename: str, /, **kwargs: Any) -> Candidate:

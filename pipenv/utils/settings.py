@@ -202,3 +202,25 @@ class Settings(MutableMapping):
             return None
         text = str(value).strip()
         return text or None
+
+    @property
+    def resolver_backend(self) -> str | None:
+        """Return the configured resolver backend name from
+        ``[pipenv] resolver_backend = "..."`` in the Pipfile, or
+        ``None`` if unset.
+
+        Introduced by T_PLUMBING (Initiative G phase 3, 2026-05-12).
+        Coexists with the T_F.5 ``[pipenv] resolver`` accessor as the
+        back-compat alias; the lock routine prefers
+        ``resolver_backend`` over ``resolver`` when both are present.
+
+        Accepted values: ``"pip"`` (default), ``"pure-python"``.
+        Unknown values still produce a structured ``InternalError``
+        response from the dispatcher rather than crashing — see
+        :func:`pipenv.resolver.core.resolve_for_pipenv`.
+        """
+        value = self.get("resolver_backend")
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
