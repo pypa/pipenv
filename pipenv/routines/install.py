@@ -18,6 +18,7 @@ from pipenv.utils.dependencies import (
     import_requirements,
     install_req_from_pipfile,
     normalize_editable_path_for_pip,
+    requirement_from_lockfile,
 )
 from pipenv.utils.dependencies import (
     python_version as _python_version_for_path,
@@ -167,8 +168,6 @@ def _config_settings_pip_args(config_settings, extra_pip_args):
 
 def _pip_args_for_dependency(dependency, lockfile_section, pip_line=None):
     """Read reproducible, package-scoped pip arguments from a lock entry."""
-    from pipenv.utils.dependencies import requirement_from_lockfile
-
     dependency_name = getattr(dependency, "name", None)
 
     def normalize(name):
