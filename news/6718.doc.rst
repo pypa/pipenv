@@ -1,0 +1,4 @@
+Fixed the documentation link printed by ``pipenv --envs``.
+It pointed at ``advanced/#configuration-with-environment-variables``,
+which 404s: the docs are served as ``.html`` pages and the environment
+variable reference now lives on ``configuration.html``.

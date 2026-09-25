@@ -755,7 +755,7 @@ def cli():
                     console.print(f"  - {key}", style="bold")
             console.print(
                 "\nYou can learn more at:\n   "
-                "[green]https://pipenv.pypa.io/en/latest/advanced/#configuration-with-environment-variables[/green]",
+                "[green]https://pipenv.pypa.io/en/latest/configuration.html#available-environment-variables[/green]",
             )
             return 0
 
