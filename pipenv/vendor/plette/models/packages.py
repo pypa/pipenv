@@ -25,6 +25,7 @@ KNOWN_PACKAGE_KEYS = frozenset(
         "hashes",
         "index",
         "no_binary",
+        "pip_args",
         # Pipenv resolver control
         "skip_resolver",
         # Path / file source
@@ -53,7 +54,8 @@ class PackageSpecfiers(DataModel):
     __OPTIONAL__ = {
         "editable": bool,
         "version": str,
-        "extras": list
+        "extras": list,
+        "pip_args": list,
     }
 
     @classmethod
@@ -68,7 +70,7 @@ class PackageSpecfiers(DataModel):
                     f"Unrecognized Pipfile option(s): {', '.join(sorted(unknown))}. "
                     "Valid options include: version, extras, editable, markers, "
                     "ref, git, svn, hg, bzr, path, file, index, subdirectory, "
-                    "hashes, no_binary, skip_resolver, and PEP 508 marker keys."
+                    "pip_args, hashes, no_binary, skip_resolver, and PEP 508 marker keys."
                 )
 
 

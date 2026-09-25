@@ -945,7 +945,13 @@ class Pipfile:
         self.write_toml(parsed)
 
     def generate_entry(
-        self, package, pip_line, category=None, index_name=None, no_binary=False
+        self,
+        package,
+        pip_line,
+        category=None,
+        index_name=None,
+        no_binary=False,
+        pip_args=None,
     ):
         """Build a Pipfile entry dict from an ``InstallRequirement`` and the
         raw pip-install line that produced it.
@@ -1037,16 +1043,31 @@ class Pipfile:
         if no_binary:
             entry["no_binary"] = True
 
+        if pip_args:
+            entry["pip_args"] = list(pip_args)
+
         if len(entry) == 1 and "version" in entry:
             return name, normalized_name, specifier
         else:
             return name, normalized_name, entry
 
-    def add_package(self, package, pip_line, dev=False, category=None, no_binary=False):
+    def add_package(
+        self,
+        package,
+        pip_line,
+        dev=False,
+        category=None,
+        no_binary=False,
+        pip_args=None,
+    ):
         """Add a single package — generate entry + add to Pipfile."""
         category = category if category else "dev-packages" if dev else "packages"
         name, normalized_name, entry = self.generate_entry(
-            package, pip_line, category=category, no_binary=no_binary
+            package,
+            pip_line,
+            category=category,
+            no_binary=no_binary,
+            pip_args=pip_args,
         )
         return self.add_entry(name, normalized_name, entry, category=category)
 

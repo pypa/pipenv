@@ -531,6 +531,24 @@ class TestNoBinaryCleanResolvedDep:
 
         assert "no_binary" not in result.get("requests", {})
 
+    def test_pip_args_are_preserved(self):
+        """Per-package build arguments must survive lockfile generation."""
+        project = MagicMock()
+        project.pipfile.project_directory = None
+
+        dep = {
+            "name": "local-project",
+            "path": ".",
+            "editable": True,
+            "pip_args": ["--config-settings", "editable_mode=strict"],
+        }
+        result = clean_resolved_dep(project, dep)
+
+        assert result["local-project"]["pip_args"] == [
+            "--config-settings",
+            "editable_mode=strict",
+        ]
+
 
 class TestShouldUseNoBinary:
     """Tests for the _should_use_no_binary helper in routines/install.py."""
@@ -584,6 +602,75 @@ class TestShouldUseNoBinary:
 
     def test_none_pkg_name(self):
         assert self._call(None, ["--no-binary", "cartopy"]) is False
+
+
+class TestConfigSettingsPipArgs:
+    def test_explicit_settings_are_converted_to_pip_args(self):
+        from pipenv.routines.install import _config_settings_pip_args
+
+        assert _config_settings_pip_args(["editable_mode=strict"], []) == [
+            "--config-settings",
+            "editable_mode=strict",
+        ]
+
+    def test_legacy_extra_pip_args_are_recordable(self):
+        from pipenv.routines.install import _config_settings_pip_args
+
+        assert _config_settings_pip_args(
+            [], ["--config-settings=editable_mode=strict"]
+        ) == ["--config-settings", "editable_mode=strict"]
+
+    def test_config_settings_are_removed_from_generic_pip_args(self):
+        from pipenv.routines.install import _split_config_settings_pip_args
+
+        assert _split_config_settings_pip_args(
+            ["editable_mode=strict"],
+            ["--no-build-isolation", "--config-settings=build_number=42"],
+        ) == (
+            [
+                "--config-settings",
+                "editable_mode=strict",
+                "--config-settings",
+                "build_number=42",
+            ],
+            ["--no-build-isolation"],
+        )
+
+    def test_package_args_match_normalized_lockfile_name(self):
+        from pipenv.routines.install import _pip_args_for_dependency
+
+        dependency = MagicMock(name="local-package")
+        dependency.name = "local_package"
+        lockfile = {
+            "local-package": {
+                "path": ".",
+                "editable": True,
+                "pip_args": ["--config-settings", "editable_mode=strict"],
+            }
+        }
+
+        assert _pip_args_for_dependency(dependency, lockfile) == (
+            "--config-settings",
+            "editable_mode=strict",
+        )
+
+    def test_path_requirement_args_match_without_requirement_name(self):
+        from pipenv.routines.install import _pip_args_for_dependency
+
+        dependency = MagicMock()
+        dependency.name = None
+        lockfile = {
+            "local-project": {
+                "path": ".",
+                "editable": True,
+                "pip_args": ["--config-settings", "editable_mode=strict"],
+            }
+        }
+
+        assert _pip_args_for_dependency(dependency, lockfile, "-e .") == (
+            "--config-settings",
+            "editable_mode=strict",
+        )
 
 
 # ---------------------------------------------------------------------------

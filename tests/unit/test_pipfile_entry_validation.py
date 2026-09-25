@@ -12,12 +12,35 @@ def test_plette_accepts_skip_resolver():
     )
 
 
+def test_plette_accepts_per_package_pip_args():
+    PackageSpecfiers.validate(
+        {
+            "path": ".",
+            "editable": True,
+            "pip_args": ["--config-settings", "editable_mode=strict"],
+        }
+    )
+
+
 def test_install_requirement_accepts_skip_resolver():
     _, _, requirement = install_req_from_pipfile(
         "example", {"version": "*", "skip_resolver": True}
     )
 
     assert requirement == "example"
+
+
+def test_install_requirement_accepts_per_package_pip_args():
+    _, _, requirement = install_req_from_pipfile(
+        "example",
+        {
+            "path": ".",
+            "editable": True,
+            "pip_args": ["--config-settings", "editable_mode=strict"],
+        },
+    )
+
+    assert requirement == "-e ."
 
 
 def test_plette_rejects_unrecognized_key():

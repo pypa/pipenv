@@ -1,0 +1,3 @@
+Persist per-package pip build arguments from ``pipenv install --config-settings``
+in the Pipfile and lockfile so editable builds can be reproduced by later
+installs and syncs.

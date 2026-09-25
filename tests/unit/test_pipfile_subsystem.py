@@ -432,6 +432,21 @@ def test_add_entry_appends_to_category(project_with_packages, tmp_path):
     assert "django" in on_disk
 
 
+@pytest.mark.utils
+def test_add_package_records_per_package_pip_args(project_bare):
+    from pipenv.utils.dependencies import expansive_install_req_from_line
+
+    package, _ = expansive_install_req_from_line("requests")
+    project_bare.pipfile.add_package(
+        package,
+        "requests",
+        pip_args=["--config-settings", "editable_mode=strict"],
+    )
+
+    entry = project_bare.pipfile.parsed["packages"]["requests"]
+    assert entry["pip_args"] == ["--config-settings", "editable_mode=strict"]
+
+
 # ---- hash ----------------------------------------------------------------
 
 

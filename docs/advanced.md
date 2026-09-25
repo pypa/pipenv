@@ -22,6 +22,19 @@ This is particularly useful for:
 - Controlling cache behavior
 - Specifying platform-specific wheels
 
+### Persisting Build Backend Settings
+
+For editable packages, use `--config-settings` to pass a PEP 517 build-backend
+setting and record it with the package in the `Pipfile`:
+
+```bash
+$ pipenv install --editable . --config-settings editable_mode=strict
+```
+
+Pipenv stores the setting as package-level `pip_args`, and reuses it during
+future installs and syncs. Repeat the option when a backend needs more than
+one setting.
+
 ### Common Use Cases
 
 #### Using System Certificate Stores

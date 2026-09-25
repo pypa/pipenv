@@ -412,6 +412,12 @@ def clean_resolved_dep(  # noqa: PLR0912
     if dep.get("no_binary"):
         lockfile["no_binary"] = True
 
+    # Preserve per-package pip arguments (for example, ``--config-settings``
+    # needed by editable build backends) so installs from the lockfile remain
+    # reproducible.
+    if dep.get("pip_args"):
+        lockfile["pip_args"] = list(dep["pip_args"])
+
     # In case we lock a uri or a file when the user supplied a path
     # remove the uri or file keys from the entry and keep the path
     if dep and isinstance(dep, dict):
@@ -1379,7 +1385,7 @@ def _validate_pipfile_entry(name: str, pipfile_dict: Dict[str, Any]) -> None:
             f"Unrecognized option(s) in Pipfile for package '{name}': "
             f"{', '.join(sorted(unknown))}. "
             "Valid options include: version, extras, editable, markers, "
-            "ref, git, svn, hg, bzr, path, file, index, subdirectory, "
+            "ref, git, svn, hg, bzr, path, file, index, subdirectory, pip_args, "
             "hashes, no_binary, skip_resolver, and PEP 508 marker keys."
         )
 

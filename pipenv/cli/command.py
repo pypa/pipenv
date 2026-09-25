@@ -93,6 +93,7 @@ def cmd_install(args, state):
         requirementstxt=state.installstate.requirementstxt,
         # execution_options
         extra_pip_args=state.installstate.extra_pip_args,
+        config_settings=state.installstate.config_settings,
         resolver=state.resolver,
     )
     do_install(state.project, ctx)

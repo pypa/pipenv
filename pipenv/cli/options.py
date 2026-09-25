@@ -43,6 +43,7 @@ class InstallState:
         self.packages = []
         self.editables = []
         self.extra_pip_args = []
+        self.config_settings = []
         self.categories = []
         self.skip_lock = False
         self.all_categories = False
@@ -180,6 +181,17 @@ def _add_extra_pip_args(p):
         dest="extra_pip_args",
         default=None,
         help="Additional arguments passed directly to pip.",
+    )
+
+
+def _add_config_settings_option(p):
+    p.add_argument(
+        "--config-settings",
+        dest="config_settings",
+        action="append",
+        default=None,
+        metavar="KEY=VALUE",
+        help="Pass a build-backend configuration setting to pip for this package.",
     )
 
 
@@ -362,6 +374,7 @@ def _add_sync_options(p):
 
 def _add_install_options(p):
     _add_sync_options(p)
+    _add_config_settings_option(p)
     _add_index_option(p)
     _add_requirementstxt_option(p)
     _add_ignore_pipfile_option(p)
@@ -946,6 +959,10 @@ def build_state(args):
     raw_extra_pip_args = getattr(args, "extra_pip_args", None)
     if raw_extra_pip_args:
         state.installstate.extra_pip_args = raw_extra_pip_args.split()
+
+    state.installstate.config_settings = list(
+        getattr(args, "config_settings", None) or []
+    )
 
     state.installstate.packages = list(getattr(args, "packages", []))
     state.installstate.editables = list(getattr(args, "editables", None) or [])

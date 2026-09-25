@@ -970,6 +970,27 @@ def test_python_flag_defaults_to_none_when_absent():
 
 
 @pytest.mark.core
+def test_install_accepts_repeatable_config_settings():
+    """Build backend settings should be parsed as package install options."""
+    from pipenv.cli.options import build_parser
+
+    parser = build_parser()
+    args = parser.parse_args(
+        [
+            "install",
+            "--editable",
+            ".",
+            "--config-settings",
+            "editable_mode=strict",
+            "--config-settings",
+            "build_number=42",
+        ]
+    )
+
+    assert args.config_settings == ["editable_mode=strict", "build_number=42"]
+
+
+@pytest.mark.core
 def test_run_passes_verbose_to_remaining():
     """Regression test for GH-6626: ``pipenv run ./manage.py test --verbose``
     must pass ``--verbose`` through to the user's process, not consume it as a
