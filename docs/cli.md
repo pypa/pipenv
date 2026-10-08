@@ -160,6 +160,16 @@ $ pipenv lock --categories="docs,tests"
 
 Installs all packages specified in Pipfile.lock.
 
+> **Note**: `pipenv sync` only installs and updates packages. It does not
+> uninstall packages that are present in the virtualenv but missing from
+> `Pipfile.lock` (for example, a transitive dependency dropped by an upgrade).
+> To make the environment match the lock file exactly, follow it with
+> [`pipenv clean`](#clean):
+>
+> ```bash
+> $ pipenv sync && pipenv clean
+> ```
+
 ```bash
 pipenv sync [OPTIONS]
 ```
@@ -414,7 +424,7 @@ $ pipenv graph --json
 
 ### clean
 
-Uninstalls all packages not specified in Pipfile.lock.
+Uninstalls all packages not specified in Pipfile.lock. Use it after [`sync`](#sync), which installs packages but never removes them.
 
 ```bash
 pipenv clean [OPTIONS]

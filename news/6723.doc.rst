@@ -1,0 +1,3 @@
+Documented that ``pipenv sync`` does not uninstall packages missing from
+``Pipfile.lock``, cross-linked ``sync`` and ``clean``, and added the
+``pipenv sync && pipenv clean`` pattern to the deployment workflow docs.
