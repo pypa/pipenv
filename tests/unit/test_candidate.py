@@ -633,3 +633,101 @@ class TestEdgeCases:
         assert c.is_wheel is True
         assert c.wheel_tags is not None
         assert len(c.wheel_tags) >= 1
+
+
+# ---------------------------------------------------------------------------
+# T_M1 — Requires-Python end-to-end preservation (Initiative G Phase 3b)
+# ---------------------------------------------------------------------------
+#
+# T_M3 emits ``markers="python_version >= '3.10'"`` on a ``LockedRequirement``
+# whenever the resolved candidate carries a Requires-Python specifier.
+# That round-trip depends on ``Candidate.requires_python`` flowing
+# unchanged from the PEP 691 simple-API parse, through the candidate
+# cache, into the resolver.  T_M1's audit confirmed the field already
+# survives end-to-end (smoke: ``click 8.3.3`` came out with
+# ``requires_python=">=3.10"``); the test below pins that behaviour so
+# a future refactor cannot silently regress the field.
+
+
+class TestRequiresPythonPreservation:
+    """Pin :attr:`Candidate.requires_python` preservation through the
+    PEP 691 simple-API parse — T_M3 emits its marker output from this
+    field."""
+
+    def test_candidate_requires_python_preserved_from_pep691_parse(self):
+        """A synthetic PEP 691 JSON page with ``requires-python: ">=3.10"``
+        on a single wheel entry yields a :class:`Candidate` whose
+        :attr:`requires_python` equals the original string verbatim.
+
+        Covers the parse-side of the T_M3 marker-emission dependency:
+        the in-tree resolver reads ``candidate.requires_python``, so if
+        the simple-API parser ever drops or normalises the field, the
+        lockfile-marker output regresses silently.
+        """
+        import json
+
+        from pipenv.resolver.pep691 import _parse_pep691_json
+
+        page = {
+            "meta": {"api-version": "1.0"},
+            "name": "click",
+            "files": [
+                {
+                    "filename": (
+                        "click-8.3.3-py3-none-any.whl"
+                    ),
+                    "url": (
+                        "https://files.pythonhosted.org/packages/ab/cd/"
+                        "click-8.3.3-py3-none-any.whl"
+                    ),
+                    "hashes": {"sha256": "0" * 64},
+                    "requires-python": ">=3.10",
+                    "yanked": False,
+                }
+            ],
+        }
+        body = json.dumps(page).encode("utf-8")
+        candidates = _parse_pep691_json(
+            body, "https://pypi.org/simple/click/"
+        )
+
+        assert len(candidates) == 1
+        candidate = candidates[0]
+        assert candidate.name == "click"
+        assert candidate.version == "8.3.3"
+        # The exact string is what T_M3 will convert into
+        # ``python_version >= '3.10'`` on the LockedRequirement entry.
+        assert candidate.requires_python == ">=3.10"
+
+    def test_candidate_requires_python_none_preserved_from_pep691_parse(
+        self,
+    ):
+        """A PEP 691 page entry without ``requires-python`` produces
+        :attr:`Candidate.requires_python` ``= None`` — T_M3 omits a
+        ``python_version`` marker clause in that case."""
+        import json
+
+        from pipenv.resolver.pep691 import _parse_pep691_json
+
+        page = {
+            "meta": {"api-version": "1.0"},
+            "name": "six",
+            "files": [
+                {
+                    "filename": "six-1.16.0-py2.py3-none-any.whl",
+                    "url": (
+                        "https://files.pythonhosted.org/packages/ef/gh/"
+                        "six-1.16.0-py2.py3-none-any.whl"
+                    ),
+                    "hashes": {"sha256": "1" * 64},
+                    "yanked": False,
+                }
+            ],
+        }
+        body = json.dumps(page).encode("utf-8")
+        candidates = _parse_pep691_json(
+            body, "https://pypi.org/simple/six/"
+        )
+
+        assert len(candidates) == 1
+        assert candidates[0].requires_python is None

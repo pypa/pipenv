@@ -1,5 +1,7 @@
+import logging
 import os
 import queue
+import shutil
 import sys
 import warnings
 from collections import defaultdict
@@ -32,6 +34,8 @@ from pipenv.utils.pip import (
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
 from pipenv.utils.shell import temp_environ
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def _target_marker_environment(project, allow_global=False):
@@ -923,6 +927,7 @@ def batch_install(
     """
     target = ctx.target_env
     exec_opts = ctx.execution_options
+    policy = ctx.install_policy
 
     if sequential_deps is None:
         sequential_deps = []
@@ -981,79 +986,127 @@ def batch_install(
         trusted_hosts=get_trusted_hosts(),
         pypi_mirror=target.pypi_mirror,
     )
+
+    # Parallel wheel pre-fetch — fan out the wheel downloads across a
+    # 16-connection urllib3 pool BEFORE handing the requirements list
+    # to pip.  Pip downloads serially, so on a cold cache the sentry-
+    # base bench's 151 wheels cost ~12 s of network in the install
+    # subprocess; doing them in parallel here cuts that to ~3 s and
+    # pip's ``--find-links <dir>`` reuse path is a local stat / copy.
+    # Best-effort: a ``None`` return (no successful pre-fetches —
+    # nothing to share, network down, lockfile lacks hashes, etc.)
+    # leaves the regular index-driven pip-install path untouched.
+    #
+    # Only honour the pre-fetch when we're running from a hash-pinned
+    # lockfile (``policy.skip_lock`` is False) — without hashes there
+    # is no authoritative match key to verify the downloaded bytes
+    # against, and we MUST NOT mutate pip's install with unverified
+    # wheel files.
+    find_links_dir: str | None = None
+    if not policy.skip_lock and isinstance(lockfile_section, dict):
+        try:
+            from pipenv.utils.prefetch import prefetch_wheels
+
+            find_links_dir = prefetch_wheels(
+                project,
+                deps_to_install,
+                lockfile_section,
+                sources,
+                allow_global=target.allow_global,
+            )
+        except Exception as exc:  # noqa: BLE001 — defensive; never block install
+            _LOGGER.debug("prefetch_wheels raised, skipping: %s", exc)
+            find_links_dir = None
+
+    iter_extra_pip_args = list(extra_pip_args)
+    if find_links_dir:
+        iter_extra_pip_args += ["--find-links", find_links_dir]
+
     # Build a per-call ctx that carries the (possibly-augmented)
     # ``extra_pip_args`` down to ``batch_install_iteration``.
     iter_ctx = replace(
         ctx,
-        execution_options=replace(exec_opts, extra_pip_args=tuple(extra_pip_args)),
+        execution_options=replace(
+            exec_opts, extra_pip_args=tuple(iter_extra_pip_args)
+        ),
     )
 
-    if search_all_sources:
-        deps_by_pip_args = defaultdict(list)
-        for dependency, pip_line in deps_to_install:
-            deps_by_pip_args[
-                _pip_args_for_dependency(dependency, lockfile_section, pip_line)
-            ].append(pip_line)
-        for package_pip_args, dependencies in deps_by_pip_args.items():
-            phase_ctx = replace(
-                iter_ctx,
-                execution_options=replace(
-                    iter_ctx.execution_options,
-                    extra_pip_args=tuple(extra_pip_args) + package_pip_args,
-                ),
-            )
-            batch_install_iteration(
-                project,
-                phase_ctx,
-                dependencies,
-                sources,
-                procs,
-                requirements_dir,
-            )
-    else:
-        # Sort the dependencies out by index -- include editable/vcs in the default group
-        deps_by_index = defaultdict(lambda: defaultdict(list))
-        for dependency, pip_line in deps_to_install:
-            index = project.sources.default["name"]
-            if dependency.name and dependency.name in lockfile_section:
-                entry = lockfile_section[dependency.name]
-                if isinstance(entry, dict) and "index" in entry:
-                    index = entry["index"]
-            package_pip_args = _pip_args_for_dependency(
-                dependency, lockfile_section, pip_line
-            )
-            deps_by_index[index][package_pip_args].append(pip_line)
-        # Treat each index as its own pip install phase
-        for index_name, dependencies_by_args in deps_by_index.items():
-            try:
-                install_source = next(filter(lambda s: s["name"] == index_name, sources))
-                for package_pip_args, dependencies in dependencies_by_args.items():
-                    phase_ctx = replace(
-                        iter_ctx,
-                        execution_options=replace(
-                            iter_ctx.execution_options,
-                            extra_pip_args=tuple(extra_pip_args) + package_pip_args,
-                        ),
-                    )
-                    batch_install_iteration(
-                        project,
-                        phase_ctx,
-                        dependencies,
-                        [install_source],
-                        procs,
-                        requirements_dir,
-                    )
-            except StopIteration:  # noqa: PERF203
-                missing_dependencies = [
-                    dependency
-                    for dependencies in dependencies_by_args.values()
-                    for dependency in dependencies
-                ]
-                console.print(
-                    f"Unable to find {index_name} in sources, please check dependencies: {missing_dependencies}",
-                    style="bold red",
+    try:
+        if search_all_sources:
+            deps_by_pip_args = defaultdict(list)
+            for dependency, pip_line in deps_to_install:
+                deps_by_pip_args[
+                    _pip_args_for_dependency(dependency, lockfile_section, pip_line)
+                ].append(pip_line)
+            for package_pip_args, dependencies in deps_by_pip_args.items():
+                phase_ctx = replace(
+                    iter_ctx,
+                    execution_options=replace(
+                        iter_ctx.execution_options,
+                        extra_pip_args=tuple(iter_extra_pip_args) + package_pip_args,
+                    ),
                 )
-                sys.exit(1)
+                batch_install_iteration(
+                    project,
+                    phase_ctx,
+                    dependencies,
+                    sources,
+                    procs,
+                    requirements_dir,
+                )
+        else:
+            # Sort the dependencies out by index -- include editable/vcs in the default group
+            deps_by_index = defaultdict(lambda: defaultdict(list))
+            for dependency, pip_line in deps_to_install:
+                index = project.sources.default["name"]
+                if dependency.name and dependency.name in lockfile_section:
+                    entry = lockfile_section[dependency.name]
+                    if isinstance(entry, dict) and "index" in entry:
+                        index = entry["index"]
+                package_pip_args = _pip_args_for_dependency(
+                    dependency, lockfile_section, pip_line
+                )
+                deps_by_index[index][package_pip_args].append(pip_line)
+            # Treat each index as its own pip install phase
+            for index_name, dependencies_by_args in deps_by_index.items():
+                try:
+                    install_source = next(
+                        filter(lambda s: s["name"] == index_name, sources)
+                    )
+                    for package_pip_args, dependencies in dependencies_by_args.items():
+                        phase_ctx = replace(
+                            iter_ctx,
+                            execution_options=replace(
+                                iter_ctx.execution_options,
+                                extra_pip_args=tuple(iter_extra_pip_args)
+                                + package_pip_args,
+                            ),
+                        )
+                        batch_install_iteration(
+                            project,
+                            phase_ctx,
+                            dependencies,
+                            [install_source],
+                            procs,
+                            requirements_dir,
+                        )
+                except StopIteration:  # noqa: PERF203
+                    missing_dependencies = [
+                        dependency
+                        for dependencies in dependencies_by_args.values()
+                        for dependency in dependencies
+                    ]
+                    console.print(
+                        f"Unable to find {index_name} in sources, please check dependencies: {missing_dependencies}",
+                        style="bold red",
+                    )
+                    sys.exit(1)
+    finally:
+        # Clean up the prefetch temp directory after pip has consumed it.
+        # The directory is created by prefetch_wheels() with tempfile.mkdtemp()
+        # and must be removed to avoid leaving pipenv-prefetch-* dirs in /tmp.
+        if find_links_dir:
+            shutil.rmtree(find_links_dir, ignore_errors=True)
 
 
 def _cleanup_procs(project, procs):
