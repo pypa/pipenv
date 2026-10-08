@@ -19,10 +19,21 @@ def do_clean(
     system=False,
 ):
     # Ensure that virtualenv is available.
-    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-
     ensure_project(project, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(project, pypi_mirror=pypi_mirror)
+    failure = remove_extraneous_packages(
+        project, dry_run=dry_run, bare=bare, system=system
+    )
+    sys.exit(int(failure))
+
+
+def remove_extraneous_packages(project, dry_run=False, bare=False, system=False):
+    """Uninstall installed packages that are not in any lockfile category.
+
+    Returns ``True`` if any uninstall failed.
+    """
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
     # Make sure that the virtualenv's site packages are configured correctly
     # otherwise we may end up removing from the global site packages directory
     installed_package_names = project.installed_package_names.copy()
@@ -59,7 +70,7 @@ def do_clean(
             c = run_command(cmd, is_verbose=project.s.is_verbose())
             if c.returncode != 0:
                 failure = True
-    sys.exit(int(failure))
+    return failure
 
 
 def ensure_lockfile(project, pypi_mirror=None):

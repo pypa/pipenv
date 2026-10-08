@@ -1,0 +1,4 @@
+Added ``pipenv sync --clean``, which uninstalls packages not in the lock file
+after installing, equivalent to ``pipenv sync && pipenv clean``. As with
+``pipenv clean``, packages locked in any category are kept. It is refused with
+``--system``. ``pipenv clean --bare`` is now honoured as well.
