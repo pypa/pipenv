@@ -14,6 +14,13 @@
         ]
     },
     "default": {
+        "distlib": {
+            "hashes": [
+                "sha256:4b0ce306c966eb73bc3a7b6abad017c556dadd92c44701562cd528ac7fde4d5b",
+                "sha256:f152097224a0ae24be5a0f6bae1b9359af82133bce63f98a95f86cae1aede9ed"
+            ],
+            "version": "==0.4.3"
+        },
         "exceptiongroup": {
             "hashes": [
                 "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219",
@@ -21,6 +28,14 @@
             ],
             "markers": "python_version >= '3.7'",
             "version": "==1.3.1"
+        },
+        "filelock": {
+            "hashes": [
+                "sha256:37b8a3d9811b0f9aef7e5ec5c71bb320de52df51e6ca9bcd6f5ad81187660da7",
+                "sha256:65ff0d0190ea42038b32bda4b77834fb05be2cad4c5b9b01aa4dfb3614536e52"
+            ],
+            "markers": "python_version >= '3.10'",
+            "version": "==3.32.7"
         },
         "iniconfig": {
             "hashes": [
@@ -37,6 +52,14 @@
             ],
             "markers": "python_version >= '3.9'",
             "version": "==26.3"
+        },
+        "platformdirs": {
+            "hashes": [
+                "sha256:63743c02414e755de4e31b8f68125c1407495b86c5a006e203c01ff8b9924250",
+                "sha256:78bfb9db2a8471ed7eebe3c3c932da413911042994e699b384fbb4493fa872d7"
+            ],
+            "markers": "python_version >= '3.10'",
+            "version": "==4.12.4"
         },
         "pluggy": {
             "hashes": [
@@ -62,6 +85,14 @@
             "index": "pypi",
             "markers": "python_version >= '3.10'",
             "version": "==9.1.1"
+        },
+        "python-discovery": {
+            "hashes": [
+                "sha256:cf87d3627dfb4412437fdd5b13eae402607722998d21567993aedbc59b23c15e",
+                "sha256:d43fcdef879fe795352bd13ccf8d185ba5a9f86f36cfcd00529f596e737442b3"
+            ],
+            "markers": "python_version >= '3.8'",
+            "version": "==1.6.1"
         },
         "pytz": {
             "hashes": [
@@ -139,6 +170,15 @@
             ],
             "markers": "python_version >= '3.9'",
             "version": "==4.16.0"
+        },
+        "virtualenv": {
+            "hashes": [
+                "sha256:0355558b6f33619aab31347e43643b0ebc97f61ea3acf617b2b69e1f8a843d11",
+                "sha256:1bea5af7463f59c4719db48fe739579a2a4f569c96f26c086edda85c96da9f59"
+            ],
+            "index": "pypi",
+            "markers": "python_version >= '3.9'",
+            "version": "==21.7.13"
         }
     },
     "develop": {
