@@ -21,7 +21,7 @@ def test_pipenv_where(pipenv_instance_pypi):
 @pytest.mark.cli
 def test_pipenv_venv(pipenv_instance_pypi):
     with pipenv_instance_pypi() as p:
-        c = p.pipenv("install dataclasses-json")
+        c = p.pipenv("install jdcal")
         assert c.returncode == 0
         c = p.pipenv("--venv")
         assert c.returncode == 0
@@ -224,6 +224,25 @@ def test_pipenv_clean(pipenv_instance_private_pypi):
         c = p.pipenv("clean")
         assert c.returncode == 0
         assert "six" in c.stdout, f"{c.stdout} -- STDERR: {c.stderr}"
+
+
+@pytest.mark.cli
+@pytest.mark.clean
+def test_pipenv_sync_clean(pipenv_instance_private_pypi):
+    with pipenv_instance_private_pypi() as p:
+        c = p.pipenv("install six")
+        assert c.returncode == 0
+        c = p.pipenv(f"run pip install -i {p.index_url} jdcal")
+        assert c.returncode == 0
+        c = p.pipenv("sync")
+        assert c.returncode == 0
+        assert "jdcal" in p.pipenv("run pip freeze").stdout.lower()
+        c = p.pipenv("sync --clean")
+        assert c.returncode == 0, f"{c.stdout} -- STDERR: {c.stderr}"
+        assert "Uninstalling jdcal" in c.stdout
+        freeze = p.pipenv("run pip freeze").stdout.lower()
+        assert "jdcal" not in freeze
+        assert "six" in freeze
 
 
 @pytest.mark.cli

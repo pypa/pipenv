@@ -183,6 +183,7 @@ pipenv sync [OPTIONS]
 | `--categories TEXT` | Install packages from specified category groups |
 | `--python TEXT` | Specify which Python version to use |
 | `--extra-pip-args TEXT` | Pass additional arguments to pip |
+| `--clean` | After installing, uninstall packages not in Pipfile.lock (same as running `pipenv clean`) |
 
 #### Examples
 

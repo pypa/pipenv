@@ -163,6 +163,7 @@ $ pipenv sync --categories="tests,docs"
 | `--dev` | Install both development and default packages |
 | `--all` | Install packages from all categories defined in the Pipfile |
 | `--categories` | Install packages from specified category groups |
+| `--clean` | After installing, uninstall packages not in `Pipfile.lock` (same as running `pipenv clean`) |
 
 ## uninstall
 

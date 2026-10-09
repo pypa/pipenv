@@ -19,10 +19,21 @@ def do_clean(
     system=False,
 ):
     # Ensure that virtualenv is available.
-    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
-
     ensure_project(project, python=python, validate=False, pypi_mirror=pypi_mirror)
     ensure_lockfile(project, pypi_mirror=pypi_mirror)
+    failure = remove_extraneous_packages(
+        project, dry_run=dry_run, bare=bare, system=system
+    )
+    sys.exit(int(failure))
+
+
+def remove_extraneous_packages(project, dry_run=False, bare=False, system=False):
+    """Uninstall installed packages that are not in any lockfile category.
+
+    Returns ``True`` if any uninstall failed.
+    """
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
     # Make sure that the virtualenv's site packages are configured correctly
     # otherwise we may end up removing from the global site packages directory
     installed_package_names = project.installed_package_names.copy()
@@ -32,17 +43,23 @@ def do_clean(
             if project.s.is_verbose():
                 err.print(f"Ignoring {bad_package}.")
             installed_package_names.remove(canonicalize_name(bad_package))
-    # Intelligently detect if --dev should be used or not.
+    # Keep everything in every section of the lockfile itself. The Pipfile's
+    # categories aren't enough: sync works without a Pipfile, and a lock
+    # section may not (or no longer) be declared there.
     locked_packages = {
-        canonicalize_name(pkg) for pkg in project.lockfile.package_names["combined"]
+        canonicalize_name(pkg)
+        for section, packages in project.lockfile.content.items()
+        if section != "_meta" and isinstance(packages, dict)
+        for pkg in packages
     }
     for used_package in locked_packages:
         if used_package in installed_package_names:
             installed_package_names.remove(used_package)
     failure = False
     for apparent_bad_package in installed_package_names:
-        if dry_run and not bare:
-            console.print(apparent_bad_package)
+        if dry_run:
+            if not bare:
+                console.print(apparent_bad_package)
         else:
             if not bare:
                 console.print(
@@ -59,7 +76,7 @@ def do_clean(
             c = run_command(cmd, is_verbose=project.s.is_verbose())
             if c.returncode != 0:
                 failure = True
-    sys.exit(int(failure))
+    return failure
 
 
 def ensure_lockfile(project, pypi_mirror=None):

@@ -49,6 +49,7 @@ class InstallPolicy:
     lock_only: bool = False
     lock: bool = False
     dry_run: bool = False
+    clean: bool = False
 
 
 @dataclass(frozen=True)
@@ -173,6 +174,7 @@ class RoutineContext:
         lock_only: bool = False,
         lock: bool = False,
         dry_run: bool = False,
+        clean: bool = False,
         # package_selection
         packages: Sequence[str] = (),
         editable_packages: Sequence[str] = (),
@@ -229,6 +231,7 @@ class RoutineContext:
                 lock_only=lock_only,
                 lock=lock,
                 dry_run=dry_run,
+                clean=clean,
             ),
             package_selection=PackageSelection(
                 packages=tuple(packages),

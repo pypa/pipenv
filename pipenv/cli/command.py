@@ -460,6 +460,7 @@ def cmd_sync(args, state):
         site_packages=state.site_packages,
         # install_policy
         clear=state.clear,
+        clean=args.clean,
         # package_selection
         categories=state.installstate.categories,
         dev=state.installstate.dev,
@@ -477,6 +478,7 @@ def cmd_clean(args, state):
         state.project,
         python=state.python,
         dry_run=args.dry_run,
+        bare=args.bare,
         system=state.system,
     )
 

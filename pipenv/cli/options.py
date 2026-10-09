@@ -855,6 +855,14 @@ def build_parser():
     p.add_argument("-h", "--help", dest="help", action="store_true", default=False)
     _add_system_option(p)
     p.add_argument("--bare", action="store_true", default=False)
+    p.add_argument(
+        "--clean",
+        dest="clean",
+        action="store_true",
+        default=False,
+        help="Also uninstall packages not specified in Pipfile.lock "
+        "(same as running `pipenv clean` afterwards).",
+    )
     _add_sync_options(p)
     _add_site_packages_option(p)
 

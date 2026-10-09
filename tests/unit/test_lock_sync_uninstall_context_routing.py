@@ -517,3 +517,58 @@ class TestDoUninstallFlagRouting:
         # The recursive lock pass should NOT carry lock=True onward, to
         # avoid re-entering the post-uninstall lock branch.
         assert lock_ctx.install_policy.lock is False
+
+
+class TestDoSyncClean:
+    """``sync --clean`` removes extraneous packages after installing."""
+
+    def test_clean_defaults_off(self, sync_project_stub, patch_sync_pipeline, monkeypatch):
+        from pipenv.routines.sync import do_sync
+
+        remove = mock.MagicMock(return_value=False)
+        monkeypatch.setattr("pipenv.routines.sync.remove_extraneous_packages", remove)
+        do_sync(sync_project_stub, RoutineContext.from_cli())
+        remove.assert_not_called()
+
+    def test_clean_runs_after_install(
+        self, sync_project_stub, patch_sync_pipeline, monkeypatch
+    ):
+        from pipenv.routines.sync import do_sync
+
+        calls = []
+        patch_sync_pipeline["do_install_dependencies"].side_effect = (
+            lambda *a, **k: calls.append("install")
+        )
+        remove = mock.MagicMock(
+            side_effect=lambda *a, **k: calls.append("clean") or False
+        )
+        monkeypatch.setattr("pipenv.routines.sync.remove_extraneous_packages", remove)
+        do_sync(sync_project_stub, RoutineContext.from_cli(clean=True, bare=True))
+        assert calls == ["install", "clean"]
+        assert remove.call_args.kwargs["bare"] is True
+
+    def test_clean_failure_exits_nonzero(
+        self, sync_project_stub, patch_sync_pipeline, monkeypatch
+    ):
+        from pipenv.routines.sync import do_sync
+
+        monkeypatch.setattr(
+            "pipenv.routines.sync.remove_extraneous_packages",
+            mock.MagicMock(return_value=True),
+        )
+        with pytest.raises(SystemExit) as exc:
+            do_sync(sync_project_stub, RoutineContext.from_cli(clean=True))
+        assert exc.value.code == 1
+
+    def test_clean_refuses_system(
+        self, sync_project_stub, patch_sync_pipeline, monkeypatch
+    ):
+        from pipenv.routines.sync import do_sync
+
+        remove = mock.MagicMock(return_value=False)
+        monkeypatch.setattr("pipenv.routines.sync.remove_extraneous_packages", remove)
+        with pytest.raises(SystemExit) as exc:
+            do_sync(sync_project_stub, RoutineContext.from_cli(clean=True, system=True))
+        assert exc.value.code == 1
+        patch_sync_pipeline["do_install_dependencies"].assert_not_called()
+        remove.assert_not_called()

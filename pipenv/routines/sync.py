@@ -1,10 +1,12 @@
 import os
+import sys
 from dataclasses import replace
 
 from pipenv import exceptions
+from pipenv.routines.clean import remove_extraneous_packages
 from pipenv.routines.context import RoutineContext
 from pipenv.routines.install import do_init, do_install_dependencies
-from pipenv.utils import console, fileutils
+from pipenv.utils import console, err, fileutils
 from pipenv.utils.project import ensure_project
 
 
@@ -30,6 +32,14 @@ def do_sync(project, ctx: RoutineContext):
     # Accept either Pipfile.lock or pylock.toml.
     if not project.lockfile.any_exists:
         raise exceptions.LockfileNotFound("Pipfile.lock")
+
+    # Removing everything not in the lockfile from a system interpreter
+    # would uninstall unrelated packages, so only allow it in a virtualenv.
+    if policy.clean and target.system:
+        err.print(
+            "[bold red]--clean cannot be used with --system.[/bold red]"
+        )
+        sys.exit(1)
 
     # Ensure that virtualenv is available if not system.
     # sync only needs the lockfile, so skip Pipfile creation.
@@ -69,5 +79,7 @@ def do_sync(project, ctx: RoutineContext):
     )
     do_init(project, init_ctx)
     do_install_dependencies(project, ctx, requirements_dir)
+    if policy.clean and remove_extraneous_packages(project, bare=exec_opts.bare):
+        sys.exit(1)
     if not exec_opts.bare and not project.s.is_quiet():
         console.print("[green]All dependencies are now up-to-date![/green]")
