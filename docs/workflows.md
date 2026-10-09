@@ -141,6 +141,9 @@ $ pipenv clean
 $ pipenv clean --dry-run
 ```
 
+`pipenv install` and `pipenv sync` never uninstall anything, so packages dropped from
+`Pipfile.lock` stay installed until you run `pipenv clean`.
+
 ## Deployment Workflows
 
 ### Preparing for Deployment
@@ -164,6 +167,10 @@ $ pipenv install --deploy
 
 # For systems that don't support virtual environments
 $ pipenv install --system --deploy
+
+# If the virtualenv is reused between deploys (not rebuilt from scratch),
+# also remove packages that are no longer in the lock file
+$ pipenv sync && pipenv clean
 ```
 
 ### Continuous Integration

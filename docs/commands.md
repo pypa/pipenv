@@ -92,7 +92,7 @@ The `--ignore-pipfile` flag is similar to `pipenv sync`, but with an important d
 
 - **`pipenv install --ignore-pipfile`**: Installs packages from `Pipfile.lock`, ignoring the `Pipfile`. However, it may still attempt to re-lock your dependencies unless you also use the `--deploy` flag.
 
-- **`pipenv sync`**: Installs packages exactly as specified in `Pipfile.lock` without ever attempting to re-lock. This is considered an atomic operation.
+- **`pipenv sync`**: Installs packages exactly as specified in `Pipfile.lock` without ever attempting to re-lock. Like `install`, it does not remove packages that are installed but absent from the lock file; see [`clean`](#clean).
 
 **For deployment scenarios, `pipenv sync` is the recommended command** because it guarantees that no modifications will be made to your lock file.
 
@@ -103,13 +103,26 @@ $ pipenv install --ignore-pipfile
 # Production: never re-locks, fails if lock is out of date
 $ pipenv install --ignore-pipfile --deploy
 
-# Production (recommended): atomic install from lock file
+# Production (recommended): install from lock file without re-locking
 $ pipenv sync
+
+# Long-lived environments: also remove packages no longer in the lock file
+$ pipenv sync && pipenv clean
 ```
 
 ## sync
 
 The `sync` command installs dependencies from the Pipfile.lock without making any changes to the lockfile. This is useful for deployment scenarios where you want to ensure exact package versions are installed.
+
+> **Note**: `pipenv sync` only installs and updates packages. It does not
+> uninstall packages that are present in the virtualenv but missing from
+> `Pipfile.lock` (for example, a transitive dependency dropped by an upgrade).
+> To make the environment match the lock file exactly, follow it with
+> [`pipenv clean`](#clean):
+>
+> ```bash
+> $ pipenv sync && pipenv clean
+> ```
 
 ### Basic Usage
 
@@ -491,7 +504,9 @@ You can then recreate it with `pipenv install`.
 
 ## clean
 
-The `clean` command uninstalls all packages not specified in Pipfile.lock.
+The `clean` command uninstalls all packages not specified in Pipfile.lock. Packages locked in any category are kept, regardless of which categories were installed.
+
+Since [`sync`](#sync) and `install` never remove packages, run `clean` after them when an environment is reused rather than rebuilt from scratch (for example, a long-lived dev virtualenv or a non-containerised server).
 
 ### Basic Usage
 
