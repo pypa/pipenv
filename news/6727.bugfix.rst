@@ -1,8 +1,8 @@
 ``Requires-Python`` exclusions such as ``!=3.0.*, !=3.1.*`` are now translated
 into one ``python_version != '...'`` clause per version instead of being
-collapsed into ``python_version not in '3.0, 3.1'``.  Marker ``in``/``not in``
-use string containment, so the collapsed form was not a valid version
-comparison (for example ``'3.1' in '3.10, 3.11'`` is true).  Multiple ``==``
-versions are likewise rendered as a parenthesized ``or`` group.  Existing
-markers that use ``not in`` with ``python_version`` are now parsed correctly
-when merging markers.
+collapsed into ``python_version not in '3.0, 3.1'``.  Multiple ``==`` versions
+are likewise rendered as a parenthesized ``or`` group rather than ``in``.
+Marker ``in``/``not in`` use string containment, so the collapsed forms were
+not valid version comparisons (for example ``'3.1' in '3.10, 3.11'`` is true).
+Existing markers that use ``not in`` with ``python_version`` are now parsed
+correctly when merging markers, keeping exactly the listed versions.

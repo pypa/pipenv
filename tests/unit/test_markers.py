@@ -53,9 +53,13 @@ def test_normalize_legacy_not_in_marker():
     marker_str = normalize_marker_str(
         "python_version not in '3.0, 3.1' and python_version >= '2.7'"
     )
-    assert " in " not in marker_str
-    assert "python_version != '3.0'" in marker_str
-    assert "python_version != '3.1'" in marker_str
+    assert marker_str == (
+        "python_version >= '2.7' and python_version != '3.0' and "
+        "python_version != '3.1'"
+    )
+    assert not _evaluate(marker_str, "3.1")
+    assert _evaluate(marker_str, "3.2")
+    assert _evaluate(marker_str, "3.10")
 
 
 @pytest.mark.utils
@@ -64,6 +68,12 @@ def test_normalize_multiple_equals_uses_or_group():
     assert marker_str == "(python_version == '3.6' or python_version == '3.7')"
     assert _evaluate(marker_str, "3.7")
     assert not _evaluate(marker_str, "3.8")
+
+
+@pytest.mark.utils
+def test_normalize_multiple_equals_sorts_by_version():
+    marker_str = normalize_marker_str("python_version in '3.10, 3.9'")
+    assert marker_str == "(python_version == '3.9' or python_version == '3.10')"
 
 
 @pytest.mark.utils

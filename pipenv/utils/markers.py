@@ -14,7 +14,6 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
 )
 
 MAX_VERSIONS = {1: 7, 2: 7, 3: 11, 4: 0}
-DEPRECATED_VERSIONS = ["3.0", "3.1", "3.2", "3.3"]
 
 
 class RequirementError(Exception):
@@ -212,7 +211,10 @@ def normalize_specifier_set(specs):
 # And rename it to something meaningful
 def get_sorted_version_string(version_set):
     # type: (Set[AnyStr]) -> AnyStr
-    version_list = sorted(f"{_format_version(version)}" for version in version_set)
+    version_list = [
+        _format_version(version)
+        for version in sorted(version_set, key=_version_sort_key)
+    ]
     version = ", ".join(version_list)
     return version
 
@@ -276,7 +278,8 @@ def cleanup_pyspecs(specs, joiner="or"):
 
 
 def _version_sort_key(value):
-    # type: (AnyStr) -> Tuple
+    # type: (Union[AnyStr, Tuple]) -> Tuple
+    value = _format_version(value)
     first = value.split(",")[0].strip()
     try:
         return (0, tuple(int(part) for part in first.split(".")), value)
@@ -511,8 +514,6 @@ def _split_specifierset_str(specset_str, prefix="=="):
         values = [v.strip() for v in specset_str.split()]
     else:
         values = [v.strip() for v in specset_str.split(",")]
-    if prefix == "!=" and any(v in values for v in DEPRECATED_VERSIONS):
-        values += DEPRECATED_VERSIONS[:]
     for value in sorted(values):
         specifiers.add(Specifier(f"{prefix}{value}"))
     return specifiers
