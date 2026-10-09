@@ -43,17 +43,23 @@ def remove_extraneous_packages(project, dry_run=False, bare=False, system=False)
             if project.s.is_verbose():
                 err.print(f"Ignoring {bad_package}.")
             installed_package_names.remove(canonicalize_name(bad_package))
-    # Intelligently detect if --dev should be used or not.
+    # Keep everything in every section of the lockfile itself. The Pipfile's
+    # categories aren't enough: sync works without a Pipfile, and a lock
+    # section may not (or no longer) be declared there.
     locked_packages = {
-        canonicalize_name(pkg) for pkg in project.lockfile.package_names["combined"]
+        canonicalize_name(pkg)
+        for section, packages in project.lockfile.content.items()
+        if section != "_meta" and isinstance(packages, dict)
+        for pkg in packages
     }
     for used_package in locked_packages:
         if used_package in installed_package_names:
             installed_package_names.remove(used_package)
     failure = False
     for apparent_bad_package in installed_package_names:
-        if dry_run and not bare:
-            console.print(apparent_bad_package)
+        if dry_run:
+            if not bare:
+                console.print(apparent_bad_package)
         else:
             if not bare:
                 console.print(
