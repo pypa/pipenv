@@ -912,6 +912,7 @@ def build_parser():
         "--from-pipfile", dest="from_pipfile", action="store_true", default=False
     )
     p.add_argument("--no-lock", dest="no_lock", action="store_true", default=False)
+    _add_pypi_mirror_option(p)
 
     # ── pylock ────────────────────────────────────────────────────────────────
     p = subs.add_parser(

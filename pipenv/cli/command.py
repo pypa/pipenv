@@ -531,6 +531,7 @@ def cmd_requirements(args, state):
         from_pipfile=from_pipfile,
         no_lock=no_lock,
         include_index=not args.exclude_index,
+        pypi_mirror=state.pypi_mirror,
     )
 
 
