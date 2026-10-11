@@ -1,3 +1,192 @@
+2026.9.0 (2026-10-11)
+=====================
+pipenv 2026.9.0 (2026-10-11)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- The pure-Python resolver backend (``[pipenv] resolver_backend =
+  "pure-python"``) now builds sdists inside a PEP 517 isolated env via
+  the (newly-vendored) PyPA :pypi:`build` library.  Previously the
+  sdist METADATA hook ran in pipenv's own interpreter, which crashed
+  on import for any package whose declared
+  ``[build-system].build-backend`` (e.g. ``poetry-core``,
+  ``hatchling``, ``flit-core``) wasn't already installed.  The
+  resolver now spins up a throwaway venv per build, installs the
+  project's ``[build-system].requires`` plus any
+  ``get_requires_for_build("wheel")`` extras, then invokes the
+  backend's ``prepare_metadata_for_build_wheel`` hook against that
+  env.  :pypi:`build` lives at ``pipenv/vendor/build`` so the
+  resolver subprocess can import it from the project venv's Python
+  without an extra runtime dep.
+- ``pipenv install`` and ``pipenv sync`` now pre-fetch wheels in
+  parallel from the configured indexes BEFORE invoking ``pip install``,
+  populating a ``--find-links`` directory pip then reads from.  Pip's
+  own install step is sequential, so on a cold pip cache the network
+  download phase dominates wall time — the sentry-base benchmark's
+  151 wheels spent ~12 s of pure-network time in pip's subprocess
+  before this change.  Pre-fetching uses the resolver's existing
+  PEP 691 client + ``ParallelFetcher`` (urllib3 connection-pool capped
+  at 16 workers, mirroring the established resolver concurrency
+  contract) and verifies every downloaded body's SHA-256 against the
+  lockfile's pinned hashes before exposing it to pip.
+
+  The pre-fetch is best-effort: any per-package failure (missing
+  target-platform wheel, hash mismatch, network hiccup) falls through
+  silently and pip downloads that package via the index as usual.
+  The shortcut only fires when the install is driven from a
+  hash-pinned lockfile (i.e. ``pipenv sync`` or ``pipenv install``
+  without ``--skip-lock``); unpinned installs keep the legacy
+  behaviour.
+
+  Bench impact on the sentry-base fixture (Python 3.11 venv,
+  151 wheels, cold pip cache):
+
+  * Cold install:  ~34 s  →  ~23 s  (~32 % faster, locally)
+  * Warm install:  ~19 s  →  ~16 s  (-3 s — pip's ``--find-links``
+    read path is cheaper than its HTTP-cache lookup, so warm-cache
+    installs benefit too).
+- Persist per-package pip build arguments from ``pipenv install --config-settings``
+  in the Pipfile and lockfile so editable builds can be reproduced by later
+  installs and syncs.  `#5740 <https://github.com/pypa/pipenv/issues/5740>`_
+- Added ``pipenv sync --clean``, which uninstalls packages not in the lock file
+  after installing, equivalent to ``pipenv sync && pipenv clean``. As with
+  ``pipenv clean``, packages locked in any lockfile section are kept. It is
+  refused with ``--system``. ``pipenv clean --bare`` is now honoured, and
+  ``pipenv clean`` no longer removes packages from lockfile sections that the
+  Pipfile does not declare.  `#6724 <https://github.com/pypa/pipenv/issues/6724>`_
+
+Behavior Changes
+----------------
+
+- Pipfile name recasing is now opt-in via ``[pipenv] package_name_case``.
+  Previously, every ``pipenv install`` walked ``packages`` /
+  ``dev-packages`` and made one synchronous PyPI HTTP request per unknown
+  package name to learn its display capitalization, then rewrote the
+  Pipfile entry to match.  On a fresh ``install -r requirements.txt`` of
+  ~100 packages this added roughly 3 seconds of sequential network
+  latency on top of the resolve, regardless of cache state.
+
+  The new ``package_name_case`` setting accepts:
+
+  * (unset) / ``"off"`` — default; package names you wrote into your
+    Pipfile are preserved as-is.  PEP 503 normalization still governs
+    resolution, so behavior is unchanged for matching purposes.
+  * ``"canonical"`` — apply PEP 503 normalization
+    (``packaging.utils.canonicalize_name``) to every entry; fully offline.
+  * ``"pypi"`` — restore the prior behavior, fetching display
+    capitalization from PyPI per name.
+
+  The toggle lives in the Pipfile rather than in an environment variable
+  so every contributor on the project gets the same behaviour and
+  ``pipenv install`` does not bounce the Pipfile back and forth between
+  commits when teammates have different shell defaults.
+- ``pip install`` invocations driven by ``pipenv sync`` no longer
+  pass ``--upgrade``.  The flag was hardcoded ``True`` historically as
+  a safety net to force a re-install when a package was already
+  present at a different version, but with ``--no-deps`` (always set
+  for sync) plus explicit ``pkg==X.Y.Z`` lines and the upstream
+  ``Environment.is_satisfied`` filter that already runs before the
+  batch is handed to pip, ``--upgrade`` is redundant — it forces pip
+  to do a per-package metadata check that costs measurable wall time
+  when the lockfile has many entries.  ``pipenv install``
+  (Pipfile-driven, may need to downgrade) still passes ``--upgrade``.
+
+Bug Fixes
+---------
+
+- The pure-Python resolver backend (``[pipenv] resolver_backend =
+  "pure-python"``) now correctly threads extras
+  (``pkg[extra1,extra2]``) through the resolver pipeline so
+  marker-gated transitive dependencies appear in the lockfile.  For
+  example, ``psycopg[binary]`` now pulls ``psycopg-binary`` as a
+  locked transitive (it didn't before, because the wire-shape parser
+  dropped the extras section before the resolver ever saw it).
+
+  Five round-trip points were updated together so the bench fixture
+  keeps converging while T_PARITY_REAL hits 10/10 parity with pip:
+
+  * ``PurePythonBackend._spec_value_to_pipfile_entry`` parses the
+    ``[extras]`` segment of a wire-shape pip-install line and
+    surfaces it via the dict-form Pipfile-entry shape that
+    ``Requirement.from_pipfile_entry`` already accepts.
+
+  * ``PurePythonProvider.find_matches`` clones the filtered candidate
+    set with ``extras=identifier_extras`` so T7's
+    ``get_dependencies`` sees the right ``parent_extras`` context
+    when iterating ``Requires-Dist`` lines.
+
+  * ``PurePythonProvider.get_dependencies`` strips the
+    ``extra == X`` clauses from a transitive's runtime marker via a
+    new ``_strip_extra_clauses`` helper.  The extras-gating role was
+    already consumed at emission time; carrying the clause onto
+    ``Requirement.marker`` made every candidate fail the runtime
+    marker re-evaluation.  ``introducing_marker`` keeps the original
+    for the lockfile emitter.
+
+  * ``PurePythonProvider.get_dependencies`` also emits a synthetic
+    base-version requirement when the parent candidate carries
+    extras — pins the bare ``(name, frozenset())`` identifier to the
+    exact version of the extras-flavoured candidate.  Mirrors pip's
+    ``ExtrasCandidate.iter_dependencies`` shape and prevents the
+    bare and extras identifier streams from diverging.
+
+  * ``PurePythonProvider`` now implements
+    ``narrow_requirement_selection`` (mirroring pip's
+    ``PipProvider.narrow_requirement_selection``) plus a promote-to-
+    front polarity flip on ``get_preference``'s leading slot.  The
+    wider transitive constraint graph that extras propagation
+    surfaces (overlapping upper bounds on protobuf / grpcio /
+    grpcio-status from the sentry-protos + google-cloud-* fleet)
+    needed pip-style conflict tracking to converge — without it the
+    sentry-base bench fixture thrashed indefinitely.  The bench now
+    completes in ~40 s (down from ~2 min baseline) with
+    byte-identical hash to the pip backend.
+
+  T_PARITY_REAL hits **10/10 byte-identical parity** with the pip
+  backend across the design's wheel-heavy combos
+  (``django+psycopg[binary]``, ``flask+gunicorn``,
+  ``fastapi+uvicorn``, ``requests+httpx``, ``pandas+numpy``,
+  ``pytest+pytest-cov``, ``sqlalchemy+alembic``,
+  ``cryptography+pyopenssl``, ``boto3+botocore``, ``click+rich``).
+- The pure-Python resolver backend (``[pipenv] resolver_backend =
+  "pure-python"``) now mirrors pip's two-pass prerelease filter: the
+  first pass strictly excludes prereleases (matching pip's
+  ``CandidateEvaluator.get_applicable_candidates`` default), and only
+  falls back to admitting them when no stable version satisfies the
+  merged specifier.  Previously every prerelease leaked through under
+  plain ``>=X`` constraints because the per-candidate
+  ``SpecifierSet.contains(..., prereleases=None)`` shape applies
+  PEP 440's "no final release matched — accept the prerelease"
+  fallback on a one-element iterable; pip dodges this by filtering the
+  full candidate list at once.  Bench-fixture trigger: ``billiard``,
+  ``hiredis``, and ``sentry-sdk`` were resolving to pre-release
+  versions (``4.3.0rc1``, ``3.4.0.dev0``, ``3.0.0a7``) where pip
+  picked the stable below.
+- Fixed requirements export to respect an explicitly selected PyPI mirror without
+  changing the Pipfile or lockfile, while retaining private package indexes.  `#5270 <https://github.com/pypa/pipenv/issues/5270>`_
+- ``Requires-Python`` exclusions such as ``!=3.0.*, !=3.1.*`` are now translated
+  into one ``python_version != '...'`` clause per version instead of being
+  collapsed into ``python_version not in '3.0, 3.1'``.  Multiple ``==`` versions
+  are likewise rendered as a parenthesized ``or`` group rather than ``in``.
+  Marker ``in``/``not in`` use string containment, so the collapsed forms were
+  not valid version comparisons (for example ``'3.1' in '3.10, 3.11'`` is true).
+  Existing markers that use ``not in`` with ``python_version`` are now parsed
+  correctly when merging markers, keeping exactly the listed versions.  `#6727 <https://github.com/pypa/pipenv/issues/6727>`_
+
+Improved Documentation
+----------------------
+
+- Fixed the documentation link printed by ``pipenv --envs``.
+  It pointed at ``advanced/#configuration-with-environment-variables``,
+  which 404s: the docs are served as ``.html`` pages and the environment
+  variable reference now lives on ``configuration.html``.  `#6718 <https://github.com/pypa/pipenv/issues/6718>`_
+- Documented that ``pipenv sync`` does not uninstall packages missing from
+  ``Pipfile.lock``, cross-linked ``sync`` and ``clean``, and added the
+  ``pipenv sync && pipenv clean`` pattern to the deployment workflow docs.  `#6723 <https://github.com/pypa/pipenv/issues/6723>`_
+
 2026.8.0 (2026-08-20)
 =====================
 pipenv 2026.8.0 (2026-08-20)

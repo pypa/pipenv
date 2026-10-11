@@ -1,2 +1,0 @@
-Fixed requirements export to respect an explicitly selected PyPI mirror without
-changing the Pipfile or lockfile, while retaining private package indexes.
