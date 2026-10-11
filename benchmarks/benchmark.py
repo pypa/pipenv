@@ -9,6 +9,7 @@ import argparse
 import csv
 import json
 import os
+import re
 import shutil
 import statistics
 import subprocess
@@ -37,6 +38,9 @@ OPERATIONS = (
     "add-package",
     "stats",
 )
+
+BACKENDS = ("pip", "pure-python")
+DEFAULT_BACKEND = "pip"
 
 TIMED_STATS = (
     "tooling",
@@ -128,6 +132,7 @@ class PipenvBenchmark:
         profile: bool = False,
         output_json: Path | None = None,
         force_setup: bool = False,
+        backend: str = DEFAULT_BACKEND,
     ):
         self.benchmark_dir = benchmark_dir
         self.timings_dir = benchmark_dir / "timings"
@@ -140,6 +145,7 @@ class PipenvBenchmark:
         self.profile = profile
         self.output_json = output_json
         self.force_setup = force_setup
+        self.backend = backend
         self.records: list[TimingRecord] = []
         self.timing_samples: dict[str, list[TimingRecord]] = {}
 
@@ -337,6 +343,33 @@ class PipenvBenchmark:
             print(f"Failed to download requirements: {e}")
             raise
 
+    def configure_backend(self):
+        """Select the resolver backend via ``[pipenv] resolver_backend``.
+
+        The default ``pip`` backend leaves the key unset so its numbers stay
+        comparable with runs that predate the backend option.
+        """
+        print(f"Configuring resolver backend: {self.backend}")
+        pipfile = self.benchmark_dir / "Pipfile"
+        content = pipfile.read_text()
+        # Drop any previously configured backend so repeated runs are idempotent.
+        content = re.sub(r"(?m)^resolver_backend\s*=.*\n?", "", content)
+        if self.backend != DEFAULT_BACKEND:
+            setting = f'resolver_backend = "{self.backend}"\n'
+            if re.search(r"(?m)^\[pipenv\]\s*$", content):
+                content = re.sub(
+                    r"(?m)^\[pipenv\]\s*\n", lambda m: m.group(0) + setting, content
+                )
+            else:
+                content = content.rstrip("\n") + "\n\n[pipenv]\n" + setting
+        pipfile.write_text(content)
+
+    @property
+    def tool_label(self) -> str:
+        if self.backend == DEFAULT_BACKEND:
+            return "pipenv"
+        return f"pipenv ({self.backend})"
+
     def clean_cache(self):
         """Clean pipenv and pip caches."""
         print("Cleaning caches...")
@@ -469,7 +502,9 @@ class PipenvBenchmark:
                 if timing_file.exists():
                     with open(timing_file) as f:
                         timing_data = f.read().strip().split(",")
-                    writer.writerow(["pipenv", version, timestamp, stat] + timing_data)
+                    writer.writerow(
+                        [self.tool_label, version, timestamp, stat] + timing_data
+                    )
 
         print(f"Stats written to {stats_file}")
 
@@ -478,7 +513,8 @@ class PipenvBenchmark:
             return
 
         payload = {
-            "tool": "pipenv",
+            "tool": self.tool_label,
+            "backend": self.backend,
             "version": self.get_pipenv_version(),
             "generated_at": int(time.time()),
             "records": [asdict(record) for record in self.records],
@@ -587,6 +623,15 @@ def parse_args(argv=None):
         help="Do not write benchmark-results.json.",
     )
     parser.add_argument(
+        "--backend",
+        choices=BACKENDS,
+        default=DEFAULT_BACKEND,
+        help=(
+            "Resolver backend to benchmark, selected via [pipenv] "
+            "resolver_backend in the benchmark Pipfile."
+        ),
+    )
+    parser.add_argument(
         "--force-setup",
         action="store_true",
         help="Download requirements.txt even when a local copy already exists.",
@@ -606,7 +651,11 @@ def main(argv=None):
         profile=args.profile,
         output_json=output_json,
         force_setup=args.force_setup,
+        backend=args.backend,
     )
+
+    if args.operation != "stats":
+        benchmark.configure_backend()
 
     for iteration in range(1, args.repeat + 1):
         if args.repeat > 1:

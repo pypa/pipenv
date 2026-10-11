@@ -42,6 +42,9 @@ python benchmark.py update-warm        # Benchmark update with warm cache
 python benchmark.py add-package        # Benchmark adding a package
 python benchmark.py stats              # Generate stats.csv
 
+# Benchmark the experimental pure-Python resolver backend
+python benchmark.py --backend pure-python
+
 # Local diagnosis helpers
 python benchmark.py lock-warm --repeat 3
 python benchmark.py lock-warm --profile
@@ -50,10 +53,10 @@ python benchmark.py update-warm --output-json update-results.json
 
 ### CI Integration
 
-The benchmarks run automatically in GitHub Actions on the `ubuntu-latest` runner as part of the CI pipeline. Results are:
+The benchmarks run automatically in GitHub Actions on the `ubuntu-latest` runner as part of the CI pipeline, once per resolver backend (`pip` and `pure-python`). The `pure-python` job is non-blocking while that backend is experimental. Results are:
 
-- Displayed in the job summary with timing statistics
-- Uploaded as artifacts for historical analysis
+- Displayed in the job summary with timing statistics, one table per backend
+- Uploaded as `pipenv-benchmark-stats-<backend>` artifacts for historical analysis
 - Used to detect performance regressions
 
 ## Files
@@ -80,6 +83,7 @@ The benchmark uses Sentry's `requirements-base.txt` as a representative real-wor
 - Benchmarks only run on Linux in CI to ensure consistent timing measurements
 - System dependencies (libxmlsec1-dev, librdkafka-dev) are installed for Sentry requirements
 - Cache clearing ensures cold/warm scenarios are properly tested
+- `--backend` selects the resolver backend by writing `[pipenv] resolver_backend` into the benchmark `Pipfile`; the default `pip` backend leaves the key unset. Non-default backends are labelled in the `tool` column of `stats.csv` (e.g. `pipenv (pure-python)`) and in the `backend` field of `benchmark-results.json`
 - `python benchmark.py` reuses an existing local `requirements.txt`; pass `--force-setup` to re-download it
 - Results include elapsed time, CPU time, memory usage, and I/O statistics where the platform exposes them
 - `--profile` writes `.prof` files under `timings/` and keeps pipenv resolver work in-process for easier local profiling
