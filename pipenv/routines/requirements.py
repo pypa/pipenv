@@ -6,6 +6,7 @@ from pipenv.utils.dependencies import (
     requirements_from_lockfile,
     requirements_from_pipfile,
 )
+from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
 
 
 def generate_requirements(
@@ -18,6 +19,7 @@ def generate_requirements(
     from_pipfile=False,
     no_lock=False,
     include_index=True,
+    pypi_mirror=None,
 ):
     # If --no-lock, generate from Pipfile directly without using lockfile versions
     if no_lock:
@@ -28,6 +30,7 @@ def generate_requirements(
             include_markers=include_markers,
             categories=categories,
             include_index=include_index,
+            pypi_mirror=pypi_mirror,
         )
         return
 
@@ -41,7 +44,12 @@ def generate_requirements(
     # We *do* normalise bare ``$VAR`` to ``${VAR}`` because pip only supports
     # the braced form (#5272).
     if include_index:
-        for i, package_index in enumerate(lockfile["_meta"]["sources"]):
+        sources = lockfile["_meta"]["sources"]
+        if pypi_mirror:
+            sources = replace_pypi_sources(
+                sources, create_mirror_source(pypi_mirror, "pypi")
+            )
+        for i, package_index in enumerate(sources):
             prefix = "-i" if i == 0 else "--extra-index-url"
             url = re.sub(
                 r"\$([A-Za-z_][A-Za-z0-9_]*)",
@@ -104,6 +112,7 @@ def _generate_requirements_from_pipfile(
     include_markers=True,
     categories="",
     include_index=True,
+    pypi_mirror=None,
 ):
     """Generate requirements directly from Pipfile using flexible version specifiers.
 
@@ -115,6 +124,10 @@ def _generate_requirements_from_pipfile(
     # Print index URLs from Pipfile sources (unless excluded)
     if include_index:
         sources = parsed_pipfile.get("source", [])
+        if pypi_mirror:
+            sources = replace_pypi_sources(
+                sources, create_mirror_source(pypi_mirror, "pypi")
+            )
         for i, source in enumerate(sources):
             url = source.get("url", "")
             if url:
