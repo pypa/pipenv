@@ -238,8 +238,13 @@ def _download_sdist(candidate: Any, session: Any, dest_dir: Path) -> Path:
     # (PEP 691 / PyPI simple API), verify the downloaded body before
     # writing it to disk.  A mismatch is a security boundary — we
     # MUST NOT execute a tampered sdist's PEP 517 hooks.
-    expected_hashes = getattr(candidate, "hashes", None) or {}
-    sha256_hashes = expected_hashes.get("sha256", [])
+    # ``candidate.hashes`` is a ``frozenset[Hash]`` of ``(algo, value)``
+    # pairs (see :class:`pipenv.resolver.candidate.Candidate`).
+    sha256_hashes = sorted(
+        h.value
+        for h in getattr(candidate, "hashes", None) or ()
+        if h.algo == "sha256"
+    )
     if sha256_hashes:
         computed = hashlib.sha256(bytes(body)).hexdigest()
         if computed not in sha256_hashes:

@@ -247,6 +247,66 @@ class TestBuildResolverRequest:
         )
         assert request.options.backend == "uv"
 
+    def test_request_stamps_pipfile_resolver_backend(self, tmp_path, monkeypatch):
+        """The documented ``[pipenv] resolver_backend`` key is honored when
+        the caller passes no explicit backend (update/upgrade/uninstall).
+        """
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        project = _stub_project(tmp_path)
+        project.settings = {"resolver_backend": "pure-python"}
+        assert resolver_mod._selected_backend_for_request(project) == "pure-python"
+
+    def test_pipfile_resolver_backend_wins_over_alias(self, tmp_path, monkeypatch):
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        project = _stub_project(tmp_path)
+        project.settings = {"resolver_backend": "pure-python", "resolver": "pip"}
+        assert resolver_mod._selected_backend_for_request(project) == "pure-python"
+
+    def test_explicit_and_env_backend_win_over_pipfile(self, tmp_path, monkeypatch):
+        project = _stub_project(tmp_path)
+        project.settings = {"resolver_backend": "pure-python"}
+        monkeypatch.setenv("PIPENV_RESOLVER", "pip")
+        assert resolver_mod._selected_backend_for_request(project) == "pip"
+        monkeypatch.delenv("PIPENV_RESOLVER")
+        assert resolver_mod._selected_backend_for_request(project, "pip") == "pip"
+
+    def test_cache_key_uses_effective_backend_from_pipfile(self, tmp_path, monkeypatch):
+        """A Pipfile-selected backend must participate in the cache key so a
+        pip-resolved entry can't satisfy a pure-python lookup.
+        """
+        monkeypatch.delenv("PIPENV_RESOLVER", raising=False)
+        project = _stub_project(tmp_path)
+        project.settings = {"resolver_backend": "pure-python"}
+
+        observed = {}
+
+        def _fake_generate_cache_key(*_args, **kwargs):
+            observed["resolver_backend"] = kwargs.get("resolver_backend")
+            return "cache-key"
+
+        monkeypatch.setattr(
+            resolver_mod, "_generate_resolution_cache_key", _fake_generate_cache_key
+        )
+        monkeypatch.setattr(resolver_mod, "_should_use_resolution_cache", lambda *_a, **_k: True)
+        monkeypatch.setattr(resolver_mod, "prepare_lockfile", lambda *_a, **_k: {})
+
+        resolver_mod._resolution_cache["cache-key"] = []
+        try:
+            resolver_mod.venv_resolve_deps(
+                deps={"requests": "*"},
+                which=lambda *_a, **_k: "python",
+                project=project,
+                pipfile_category="packages",
+                pipfile={},
+                lockfile={"default": {}},
+                old_lock_data={},
+                resolver_backend=None,
+            )
+        finally:
+            resolver_mod._resolution_cache.pop("cache-key", None)
+
+        assert observed["resolver_backend"] == "pure-python"
+
     def test_cache_key_uses_effective_backend_from_env(self, tmp_path, monkeypatch):
         """When ``resolver_backend`` is omitted, the cache key still uses
         the effective backend selected from ``PIPENV_RESOLVER``.

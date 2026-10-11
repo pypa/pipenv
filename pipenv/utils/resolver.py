@@ -1518,12 +1518,13 @@ def _selected_backend_for_request(project, resolver_backend=None):
     if backend:
         return backend
 
+    # Prefer the documented ``[pipenv] resolver_backend`` key over the
+    # T_F.5 back-compat alias ``resolver``, matching ``do_lock`` and the
+    # subprocess-side fallback in ``pipenv.resolver.core``.
     pipfile_backend = None
     settings = getattr(project, "settings", None)
-    if settings is not None:
-        pipfile_backend = getattr(settings, "resolver", None)
-        if pipfile_backend is None and hasattr(settings, "get"):
-            pipfile_backend = settings.get("resolver")
+    if settings is not None and hasattr(settings, "get"):
+        pipfile_backend = settings.get("resolver_backend") or settings.get("resolver")
 
     backend = str(pipfile_backend or "").strip()
     return backend or "pip"

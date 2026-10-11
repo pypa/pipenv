@@ -305,10 +305,17 @@ jobs:
             --override-ini="addopts=-ra"
 
   benchmark:
-    name: Package Manager Benchmark
+    name: Package Manager Benchmark (${{ matrix.backend }})
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The pure-python backend is experimental; report its numbers without
+    # letting a failure there block CI.
+    continue-on-error: ${{ matrix.backend != 'pip' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [pip, pure-python]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -322,16 +329,17 @@ jobs:
         run: pip install csv2md
       - name: Run benchmark suite
         working-directory: benchmarks
-        run: python benchmark.py
+        run: python benchmark.py --backend ${{ matrix.backend }}
       - name: Display benchmark results
         working-directory: benchmarks
         run: |
           if [ -f stats.csv ]; then
+            echo "### Resolver backend: ${{ matrix.backend }}" >> $GITHUB_STEP_SUMMARY
             csv2md stats.csv >> $GITHUB_STEP_SUMMARY
           fi
       - uses: actions/upload-artifact@v7
         with:
-          name: pipenv-benchmark-stats
+          name: pipenv-benchmark-stats-${{ matrix.backend }}
           path: |
             benchmarks/stats.csv
             benchmarks/benchmark-results.json

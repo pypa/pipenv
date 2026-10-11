@@ -393,6 +393,109 @@ class TestFindMatchesEmpty:
         assert fetcher.populate_calls == [[(_INDEX, "django")]]
 
 
+class TestFindMatchesManifestMemoization:
+    """Backtracking calls ``find_matches`` for the same identifier many
+    times; the parsed manifest is read from the cache once per resolve.
+    """
+
+    def test_repeated_find_matches_reads_cache_once(self):
+        cands = [
+            _cand(name="django", version="4.2.0"),
+            _cand(name="django", version="5.0.0"),
+        ]
+        cache = _FakeCache({(_INDEX, "django"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+
+        identifier = ("django", frozenset())
+        for spec in (">=4.0", "<5", ">=4.0"):
+            req = _make_requirement(name="django", spec=spec)
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+
+        assert cache.get_calls == [(_INDEX, "django")]
+
+    def test_miss_is_not_memoized(self):
+        cache = _FakeCache()
+        fetcher = _FakeFetcher(cache, payload={})
+        provider = _make_provider(
+            cache=cache, fetcher=fetcher, index_urls=[_INDEX]
+        )
+
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        assert provider.find_matches(
+            identifier, requirements={identifier: iter([req])}, incompatibilities={}
+        ) == []
+
+        cache.seed(_INDEX, "django", (_cand(name="django"),))
+        result = provider.find_matches(
+            identifier, requirements={identifier: iter([req])}, incompatibilities={}
+        )
+        assert [c.version for c in result] == ["4.2.0"]
+
+
+class TestFindMatchesResultMemoization:
+    """Backtracking repeats identical ``find_matches`` queries; results
+    are memoized on every input the filters read."""
+
+    def _provider(self, monkeypatch):
+        cands = [
+            _cand(name="protobuf", version="5.29.0"),
+            _cand(name="protobuf", version="6.33.5"),
+            _cand(name="protobuf", version="7.0.0"),
+        ]
+        cache = _FakeCache({(_INDEX, "protobuf"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+        calls = []
+        orig = provider._candidate_satisfies_requirements
+
+        def _counting(*args, **kwargs):
+            calls.append(args[0].version)
+            return orig(*args, **kwargs)
+
+        monkeypatch.setattr(provider, "_candidate_satisfies_requirements", _counting)
+        return provider, cands, calls
+
+    def _versions(self, provider, specs, rejected=()):
+        identifier = ("protobuf", frozenset())
+        reqs = [_make_requirement(name="protobuf", spec=s) for s in specs]
+        return [
+            c.version
+            for c in provider.find_matches(
+                identifier,
+                requirements={identifier: iter(reqs)},
+                incompatibilities={identifier: iter(rejected)},
+            )
+        ]
+
+    def test_repeated_unsatisfiable_query_is_filtered_once(self, monkeypatch):
+        provider, _cands, calls = self._provider(monkeypatch)
+        specs = [">=5.27.3,<6", ">=6.33.5,<8"]
+
+        assert self._versions(provider, specs) == []
+        filtered_calls = len(calls)
+        assert filtered_calls > 0
+        # Same specifiers in a different order hit the memo.
+        assert self._versions(provider, list(reversed(specs))) == []
+        assert len(calls) == filtered_calls
+
+    def test_different_specifiers_are_not_served_from_memo(self, monkeypatch):
+        provider, _cands, _calls = self._provider(monkeypatch)
+
+        assert self._versions(provider, [">=6"]) == ["7.0.0", "6.33.5"]
+        assert self._versions(provider, ["<7"]) == ["6.33.5", "5.29.0"]
+
+    def test_rejected_set_is_part_of_the_key(self, monkeypatch):
+        provider, cands, _calls = self._provider(monkeypatch)
+
+        assert self._versions(provider, [">=6"]) == ["7.0.0", "6.33.5"]
+        assert self._versions(provider, [">=6"], rejected=[cands[2]]) == ["6.33.5"]
+        assert self._versions(provider, [">=6"]) == ["7.0.0", "6.33.5"]
+
+
 class TestFindMatchesIncompatibilitiesFilter:
     """Bullet 3: a candidate listed in ``incompatibilities`` is excluded
     from the result.

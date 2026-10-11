@@ -261,6 +261,18 @@ class PurePythonProvider(AbstractProvider):
 
         self._conflict_counts: dict[Identifier, int] = defaultdict(int)
         self._conflict_promoted: set[Identifier] = set()
+        # Per-resolve snapshot of parsed manifest candidates, keyed by
+        # project name.  ``find_matches`` runs for the same identifier on
+        # every backtracking round; re-reading and re-parsing the on-disk
+        # manifest each time dominated large resolves.  Only non-empty
+        # reads are memoized so a miss still dispatches ``populate``.
+        self._cached_candidates: dict[str, list[Any]] = {}
+        # ``find_matches`` results keyed by everything the filters read
+        # (see :meth:`_find_matches_key`).  While backtracking out of a
+        # conflict resolvelib repeats the same unsatisfiable query
+        # thousands of times; pip's ``PackageFinder.find_best_candidate``
+        # is ``lru_cache``-d for the same reason.
+        self._find_matches_memo: dict[tuple, tuple[Any, ...]] = {}
 
     # ------------------------------------------------------------------
     # T3 — identify
@@ -400,6 +412,20 @@ class PurePythonProvider(AbstractProvider):
         if not cached:
             return []
 
+        # Rejected set, keyed on ``(name, version, filename)`` so an
+        # incompatibility from a different cache copy still matches by
+        # identity tuple.  Built before the memo lookup because it is
+        # part of the key.
+        rejected: frozenset[tuple[str, str, str]] = frozenset(
+            (c.name, c.version, c.filename)
+            for c in incompatibilities.get(identifier, [])
+        )
+
+        memo_key = self._find_matches_key(identifier, reqs, rejected)
+        memo = self._find_matches_memo.get(memo_key)
+        if memo is not None:
+            return list(memo)
+
         # Step 5: dedup on ``(name, version, filename)`` — same wheel
         # served by mirror indexes is a single artifact.
         seen: set[tuple[str, str, str]] = set()
@@ -430,14 +456,6 @@ class PurePythonProvider(AbstractProvider):
             c for c in unique
             if c.is_wheel or c.version not in wheel_versions_in_cache
         ]
-
-        # Step 6: rejected set, keyed on ``(name, version, filename)``
-        # so an incompatibility from a different cache copy still
-        # matches by identity tuple.
-        rejected: set[tuple[str, str, str]] = {
-            (c.name, c.version, c.filename)
-            for c in incompatibilities.get(identifier, [])
-        }
 
         # Step 7: filter.  Two-pass prerelease policy mirrors pip's
         # ``get_applicable_candidates``
@@ -523,13 +541,38 @@ class PurePythonProvider(AbstractProvider):
             filtered = [
                 _dataclass_replace(cand, extras=_extras) for cand in filtered
             ]
+        self._find_matches_memo[memo_key] = tuple(filtered)
         return filtered
 
     # -- T4 helpers -----------------------------------------------------
 
+    @staticmethod
+    def _find_matches_key(
+        identifier: Identifier,
+        reqs: Sequence[Requirement],
+        rejected: frozenset[tuple[str, str, str]],
+    ) -> tuple:
+        """Memo key for :meth:`find_matches`.
+
+        Covers every input the filter steps read: the identifier
+        (name + extras), each requirement's specifier and its
+        prerelease opt-in (order-insensitive — every requirement must
+        be satisfied, and the yanked check is an any-``==`` test), and
+        the rejected ``(name, version, filename)`` set.  The cached
+        candidates, ``target_env`` and ``allow_prereleases`` are fixed
+        for the provider's lifetime.
+        """
+        spec_key = frozenset(
+            (str(req.specifier), req.specifier.prereleases) for req in reqs
+        )
+        return (identifier, spec_key, rejected)
+
     def _collect_cached_candidates(self, name: str) -> list[Any]:
         """Walk every configured index URL, concatenating non-empty
         cache hits.  Returns ``[]`` when every index misses."""
+        memo = self._cached_candidates.get(name)
+        if memo is not None:
+            return memo
         out: list[Any] = []
         for index_url in self._index_urls:
             manifest = self._cache.get(index_url, name)
@@ -538,6 +581,8 @@ class PurePythonProvider(AbstractProvider):
             # ``manifest.candidates`` is a tuple per
             # :class:`CachedManifest`; extend rather than append.
             out.extend(manifest.candidates)
+        if out:
+            self._cached_candidates[name] = out
         return out
 
     def _candidate_satisfies_requirements(

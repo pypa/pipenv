@@ -101,10 +101,12 @@ def _make_session(response_bytes: bytes, *, status: int = 200) -> MagicMock:
     return session
 
 
-def _make_candidate(filename: str, *, url: str | None = None) -> SimpleNamespace:
-    """Minimal candidate-shaped object — ``.url`` + ``.filename`` only."""
+def _make_candidate(
+    filename: str, *, url: str | None = None, hashes: frozenset = frozenset()
+) -> SimpleNamespace:
+    """Minimal candidate-shaped object — ``.url``, ``.filename``, ``.hashes``."""
     actual_url = url or f"https://example.test/sdists/{filename}"
-    return SimpleNamespace(url=actual_url, filename=filename)
+    return SimpleNamespace(url=actual_url, filename=filename, hashes=hashes)
 
 
 def _build_sdist_tarball(
@@ -241,6 +243,52 @@ class TestHappyPath:
 # ---------------------------------------------------------------------------
 # 2. Cache round-trip
 # ---------------------------------------------------------------------------
+
+
+class TestHashVerification:
+    """``candidate.hashes`` is a ``frozenset[Hash]`` as produced by the
+    simple-API parsers; PyPI advertises a sha256 for every sdist.
+    """
+
+    def test_matching_sha256_is_accepted(self):
+        import hashlib
+
+        from pipenv.resolver.candidate import Hash
+        from pipenv.resolver.pure_python_sdist import extract_metadata_from_sdist
+
+        sdist = _build_sdist_tarball(
+            pkg_name="hashed", version="1.0", pyproject_toml=None
+        )
+        candidate = _make_candidate(
+            "hashed-1.0.tar.gz",
+            hashes=frozenset(
+                {
+                    Hash("sha256", hashlib.sha256(sdist).hexdigest()),
+                    Hash("md5", "0" * 32),
+                }
+            ),
+        )
+
+        result = extract_metadata_from_sdist(candidate, _make_session(sdist))
+        assert result.name == "hashed"
+
+    def test_sha256_mismatch_raises(self):
+        from pipenv.resolver.candidate import Hash
+        from pipenv.resolver.pure_python_sdist import (
+            SdistBuildError,
+            extract_metadata_from_sdist,
+        )
+
+        sdist = _build_sdist_tarball(
+            pkg_name="tampered", version="1.0", pyproject_toml=None
+        )
+        candidate = _make_candidate(
+            "tampered-1.0.tar.gz",
+            hashes=frozenset({Hash("sha256", "0" * 64)}),
+        )
+
+        with pytest.raises(SdistBuildError, match="SHA-256 mismatch"):
+            extract_metadata_from_sdist(candidate, _make_session(sdist))
 
 
 class TestCacheRoundTrip:
