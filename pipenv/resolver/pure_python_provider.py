@@ -261,6 +261,12 @@ class PurePythonProvider(AbstractProvider):
 
         self._conflict_counts: dict[Identifier, int] = defaultdict(int)
         self._conflict_promoted: set[Identifier] = set()
+        # Per-resolve snapshot of parsed manifest candidates, keyed by
+        # project name.  ``find_matches`` runs for the same identifier on
+        # every backtracking round; re-reading and re-parsing the on-disk
+        # manifest each time dominated large resolves.  Only non-empty
+        # reads are memoized so a miss still dispatches ``populate``.
+        self._cached_candidates: dict[str, list[Any]] = {}
 
     # ------------------------------------------------------------------
     # T3 — identify
@@ -530,6 +536,9 @@ class PurePythonProvider(AbstractProvider):
     def _collect_cached_candidates(self, name: str) -> list[Any]:
         """Walk every configured index URL, concatenating non-empty
         cache hits.  Returns ``[]`` when every index misses."""
+        memo = self._cached_candidates.get(name)
+        if memo is not None:
+            return memo
         out: list[Any] = []
         for index_url in self._index_urls:
             manifest = self._cache.get(index_url, name)
@@ -538,6 +547,8 @@ class PurePythonProvider(AbstractProvider):
             # ``manifest.candidates`` is a tuple per
             # :class:`CachedManifest`; extend rather than append.
             out.extend(manifest.candidates)
+        if out:
+            self._cached_candidates[name] = out
         return out
 
     def _candidate_satisfies_requirements(

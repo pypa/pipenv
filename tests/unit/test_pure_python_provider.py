@@ -393,6 +393,50 @@ class TestFindMatchesEmpty:
         assert fetcher.populate_calls == [[(_INDEX, "django")]]
 
 
+class TestFindMatchesManifestMemoization:
+    """Backtracking calls ``find_matches`` for the same identifier many
+    times; the parsed manifest is read from the cache once per resolve.
+    """
+
+    def test_repeated_find_matches_reads_cache_once(self):
+        cands = [
+            _cand(name="django", version="4.2.0"),
+            _cand(name="django", version="5.0.0"),
+        ]
+        cache = _FakeCache({(_INDEX, "django"): tuple(cands)})
+        provider = _make_provider(cache=cache, index_urls=[_INDEX])
+
+        identifier = ("django", frozenset())
+        for spec in (">=4.0", "<5", ">=4.0"):
+            req = _make_requirement(name="django", spec=spec)
+            provider.find_matches(
+                identifier,
+                requirements={identifier: iter([req])},
+                incompatibilities={},
+            )
+
+        assert cache.get_calls == [(_INDEX, "django")]
+
+    def test_miss_is_not_memoized(self):
+        cache = _FakeCache()
+        fetcher = _FakeFetcher(cache, payload={})
+        provider = _make_provider(
+            cache=cache, fetcher=fetcher, index_urls=[_INDEX]
+        )
+
+        identifier = ("django", frozenset())
+        req = _make_requirement(name="django", spec=">=4.0")
+        assert provider.find_matches(
+            identifier, requirements={identifier: iter([req])}, incompatibilities={}
+        ) == []
+
+        cache.seed(_INDEX, "django", (_cand(name="django"),))
+        result = provider.find_matches(
+            identifier, requirements={identifier: iter([req])}, incompatibilities={}
+        )
+        assert [c.version for c in result] == ["4.2.0"]
+
+
 class TestFindMatchesIncompatibilitiesFilter:
     """Bullet 3: a candidate listed in ``incompatibilities`` is excluded
     from the result.
