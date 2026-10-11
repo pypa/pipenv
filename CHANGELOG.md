@@ -1,3 +1,42 @@
+2026.9.1 (2026-10-11)
+=====================
+pipenv 2026.9.1 (2026-10-11)
+============================
+
+
+Features & Improvements
+-----------------------
+
+- The pure-Python resolver backend no longer stalls on large dependency sets
+  with deep conflicts.  Parsed package manifests are now kept in memory for
+  the duration of a resolve, and candidate lookups are memoized on every
+  input that affects their result (as pip's finder does), so backtracking no
+  longer re-reads the on-disk cache or re-filters thousands of versions for
+  the same unsatisfiable query.  Locking the benchmark's Sentry requirement
+  set went from not finishing in over ten minutes to about ten seconds with
+  a warm cache, with an identical lock result.
+
+Bug Fixes
+---------
+
+- The pure-Python resolver backend no longer crashes with ``'frozenset' object
+  has no attribute 'get'`` when it has to build an sdist for metadata.  The
+  SHA-256 check on the downloaded sdist now reads the candidate's hashes in
+  the shape the simple-API parsers produce, so the check actually runs.
+- ``[pipenv] resolver_backend`` in the Pipfile is now honored by ``pipenv
+  update``, ``pipenv upgrade`` and ``pipenv uninstall``.  Previously only
+  ``pipenv lock`` read the documented key; the other commands only checked
+  the older ``[pipenv] resolver`` alias and silently re-locked with the pip
+  backend.
+
+Relates to dev process changes
+------------------------------
+
+- The CI package-manager benchmark now runs once per resolver backend
+  (``pip`` and ``pure-python``).  ``benchmarks/benchmark.py`` accepts
+  ``--backend``, which selects the backend through ``[pipenv]
+  resolver_backend`` in the benchmark Pipfile.
+
 2026.9.0 (2026-10-11)
 =====================
 pipenv 2026.9.0 (2026-10-11)
