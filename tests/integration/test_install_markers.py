@@ -194,8 +194,11 @@ def test_install_package_with_invalid_python_version_specifier(pipenv_instance_p
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.project
 @pytest.mark.needs_internet
-def test_environment_variable_value_does_not_change_hash(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p, temp_environ():
+def test_environment_variable_value_does_not_change_hash(pipenv_instance_pypi):
+    # Hardcodes "pypi.org" literally (tests credential substitution in the
+    # source URL), ignoring whichever fixture's index_url - doesn't need
+    # the local pypi-server, just real network.
+    with pipenv_instance_pypi() as p, temp_environ():
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
