@@ -1764,7 +1764,15 @@ def import_requirements(project, r=None, dev=False, categories=None):
     # --index <url>` already tags the package it adds. Without this, a
     # `-i <url>` line in requirements.txt would add the index to the
     # Pipfile but never actually use it to resolve any package.
-    indexes = sorted(set(indexes))
+    # Dedupe while preserving requirements-file order - the primary
+    # index must stay first. Alphabetically sorting (as this used to do)
+    # could reorder an --extra-index-url ahead of the primary -i URL;
+    # that extra source would then get added first, so by the time the
+    # primary index is processed below, `len(existing_sources) == 1` no
+    # longer holds and the untouched default pypi.org source never gets
+    # replaced.
+    seen_indexes = set()
+    indexes = [i for i in indexes if not (i in seen_indexes or seen_indexes.add(i))]
     trusted_hosts = sorted(set(trusted_hosts))
     primary_index_name = None
     for index in indexes:
