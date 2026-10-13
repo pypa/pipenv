@@ -22,6 +22,7 @@ def test_uninstall_requests(pipenv_instance_file_pypi):
 
 
 @pytest.mark.uninstall
+@pytest.mark.needs_internet
 @pytest.mark.skipif(
     sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
 )
@@ -54,16 +55,18 @@ def test_uninstall_django(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
+@pytest.mark.needs_internet
 @pytest.mark.skipif(
     sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
 )
 def test_mirror_uninstall(pipenv_instance_pypi):
-    # NOTE: stays on real network deliberately: (1) exercises --pypi-mirror,
-    # which pipenv's own validate_pypi_mirror() rejects for file:// URLs
-    # (no netloc) - same issue as test_sync.py's test_mirror_lock_sync;
-    # (2) unpinned "Django" risks resolving to our metadata-only extra_pypi
-    # stub instead of a real functional Django - see test_uninstall_django
-    # above.
+    # NOTE: stays on real network deliberately: (1) asserts the default
+    # source stays the *literal* string "https://pypi.org/simple"
+    # before/after the --pypi-mirror swap, which only holds starting
+    # from real pypi.org (same as test_install_basic.py's
+    # test_mirror_install); (2) unpinned "Django" risks resolving to
+    # our metadata-only extra_pypi stub instead of a real functional
+    # Django - see test_uninstall_django above.
     with temp_environ(), pipenv_instance_pypi() as p:
         mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
         assert "pypi.org" not in mirror_url
