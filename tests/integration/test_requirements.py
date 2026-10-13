@@ -52,6 +52,7 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_file_
 
 
 @pytest.mark.requirements
+@pytest.mark.needs_internet
 def test_requirements_generates_requirements_from_lockfile_multiple_sources(
     pipenv_instance_private_pypi,
 ):
@@ -88,6 +89,7 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(
 
 
 @pytest.mark.requirements
+@pytest.mark.needs_internet
 def test_requirements_generates_requirements_from_lockfile_from_categories(
     pipenv_instance_private_pypi,
 ):
