@@ -144,6 +144,7 @@ funcsigs = "*"
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.markers
 @pytest.mark.complex
+@pytest.mark.needs_internet
 @pytest.mark.skipif(
     sys.version_info[:2] == (3, 8), reason="Test package that gets installed is different on 3.8"
 )
