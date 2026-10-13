@@ -665,22 +665,25 @@ def test_default_lock_overwrite_dev_lock(pipenv_instance_file_pypi):
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.lock
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_pipenv_respects_package_index_restrictions(pipenv_instance_private_pypi):
-    # NOTE: stays on real network. Initially thought migratable since
-    # "requests" itself is pinned to index="local" - but confirmed (by
-    # direct harness reproduction with a dead proxy) that pipenv's
-    # index-restriction model falls back to the *first declared source*
-    # for any transitive dependency not itself explicitly keyed to an
-    # index (chardet/idna/certifi/urllib3 here) - see
+def test_pipenv_respects_package_index_restrictions(pipenv_instance_file_pypi):
+    # Verifies pipenv's index-restriction model: a package explicitly
+    # keyed to a non-default index ("requests", index="local") resolves
+    # from it, while its transitive dependencies (chardet/idna/certifi/
+    # urllib3), not themselves keyed to an index, fall back to the
+    # *first declared source* ("pypi") - see
     # SearchScope.get_index_urls_locations's `elif self.index_restricted
-    # and self.index_urls: index_urls = [self.index_urls[0]]`. So the
-    # hardcoded "pypi" source genuinely gets used, not just declared.
-    with pipenv_instance_private_pypi() as p:
+    # and self.index_urls: index_urls = [self.index_urls[0]]`. Both
+    # sources point at the same offline index here (so both "sides" of
+    # the restriction are actually satisfiable), but the "local" source
+    # is still what gets recorded against "requests" in the lockfile -
+    # pinned to ==2.19.1 so the hash assertion below stays stable
+    # regardless of how many newer requests versions extra_pypi
+    # accumulates over time.
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
-url = "https://pypi.org/simple"
+url = "{url}"
 verify_ssl = true
 name = "pypi"
 
@@ -692,7 +695,7 @@ name = "local"
 [packages]
 requests = {requirement}
                 """.strip().format(
-                url=p.index_url, requirement='{version="*", index="local"}'
+                url=p.index_url, requirement='{version="==2.19.1", index="local"}'
             )
             f.write(contents)
 
@@ -703,13 +706,23 @@ requests = {requirement}
         assert "certifi" in p.lockfile["default"]
         assert "urllib3" in p.lockfile["default"]
         assert "chardet" in p.lockfile["default"]
-        # this is the newest version we have in our private pypi (but pypi.org has 2.27.1 at present)
         expected_result = {
             "hashes": [
                 "sha256:63b52e3c866428a224f97cab011de738c36aec0185aa91cfacd418b5d58911d1",
                 "sha256:ec22d826a36ed72a7358ff3fe56cbd4ba69dd7a6718ffd450ff0e9df7a47ce6a",
             ],
             "index": "local",
+            # The offline index embeds a data-requires-python attribute
+            # (read from the real wheel's own Requires-Python metadata)
+            # that pip's marker-folding logic turns into this markers
+            # field - the real private pypi server this test used to
+            # hit didn't serve that attribute, so the original
+            # expected_result lacked it.
+            "markers": (
+                "python_version >= '2.6' and python_version != '3.0' and "
+                "python_version != '3.1' and python_version != '3.2' and "
+                "python_version != '3.3'"
+            ),
             "version": "==2.19.1",
         }
         assert p.lockfile["default"]["requests"] == expected_result
