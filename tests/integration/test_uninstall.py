@@ -4,8 +4,6 @@ import pytest
 
 from pipenv.utils.shell import temp_environ
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
-
 
 @pytest.mark.uninstall
 @pytest.mark.install
@@ -70,7 +68,7 @@ def test_mirror_uninstall(pipenv_instance_pypi):
     # our metadata-only extra_pypi stub instead of a real functional
     # Django - see test_uninstall_django above.
     with temp_environ(), pipenv_instance_pypi() as p:
-        mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
+        mirror_url = "https://pypi.python.org/simple"
         assert "pypi.org" not in mirror_url
 
         c = p.pipenv(f"install Django --pypi-mirror {mirror_url}")
