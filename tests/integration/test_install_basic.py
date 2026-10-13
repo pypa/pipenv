@@ -23,13 +23,17 @@ def test_basic_install(pipenv_instance_file_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_mirror_install(pipenv_instance_pypi):
-    # NOTE: stays on real network/pypi.org deliberately - tests the real
-    # --pypi-mirror flag and asserts the *default* source stays literally
-    # "https://pypi.org/simple", which only holds for pipenv_instance_pypi.
+def test_mirror_install(pipenv_instance_pypi, local_pypi_index_root):
+    # The *default* source must stay the literal string
+    # "https://pypi.org/simple" for --pypi-mirror to have anything to
+    # substitute - is_pypi_url() only matches that literal domain, so
+    # this can't come from pipenv_instance_file_pypi. That string is
+    # never actually contacted over the network though: --pypi-mirror
+    # substitutes it with mirror_url before any resolution happens, so
+    # the mirror itself can be (and is) the offline index - no real
+    # network needed at all.
     with temp_environ(), pipenv_instance_pypi() as p:
-        mirror_url = "https://pypi.python.org/simple"
+        mirror_url = local_pypi_index_root.as_uri()
         assert "pypi.org" not in mirror_url
         # This should sufficiently demonstrate the mirror functionality
         c = p.pipenv(f"install dataclasses-json --pypi-mirror {mirror_url}")
