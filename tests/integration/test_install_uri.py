@@ -105,8 +105,8 @@ def test_vcs_install(pipenv_instance_pypi):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_git_tag(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_git_tag(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -122,18 +122,17 @@ def test_install_git_tag(pipenv_instance_private_pypi):
 @pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_named_index_alias(pipenv_instance_private_pypi):
+def test_install_named_index_alias(pipenv_instance_file_pypi):
     """Test that pipenv can install packages from different named index sources.
 
     This test verifies that the --index parameter works correctly with named aliases
     by setting up two different named sources and installing packages from each.
     """
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 
@@ -197,13 +196,14 @@ name = "pypi"
 @pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_specifying_index_url(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_specifying_index_url(
+    pipenv_instance_file_pypi, local_pypi_index_root
+):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 
@@ -216,14 +216,24 @@ six = "*"
 install_search_all_sources = true
             """.strip()
             f.write(contents)
-        c = p.pipenv(
-            "install pipenv-test-private-package --index https://test.pypi.org/simple"
-        )
+        # Build a second, distinct local index root (a symlink to the
+        # same real index content) so --index actually adds a *new*
+        # source rather than matching the existing "pypi" one by URL.
+        # Use the local_pypi_index_root fixture's own Path directly
+        # rather than reparsing p.index_url's file:// URI - on Windows
+        # that reparse is easy to get subtly wrong (a file:// URL has
+        # an extra leading "/" before the drive letter).
+        second_index_root = local_pypi_index_root.parent / "secondary-index"
+        if not second_index_root.exists():
+            second_index_root.symlink_to(local_pypi_index_root)
+        second_index_url = second_index_root.as_uri()
+
+        c = p.pipenv(f"install dataclasses-json --index {second_index_url}")
         assert c.returncode == 0
         pipfile = p.pipfile
-        assert pipfile["source"][1]["url"] == "https://test.pypi.org/simple"
-        assert pipfile["source"][1]["name"] == "testpypi"
-        assert pipfile["packages"]["pipenv-test-private-package"]["index"] == "testpypi"
+        assert pipfile["source"][1]["url"] == second_index_url
+        expected_name = pipfile["source"][1]["name"]
+        assert pipfile["packages"]["dataclasses-json"]["index"] == expected_name
 
 
 @pytest.mark.vcs
