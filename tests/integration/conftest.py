@@ -522,7 +522,9 @@ def _build_local_git_repo(dest: Path, files: dict[str, str], tag: str) -> None:
     env = {**os.environ, "GIT_AUTHOR_NAME": "pipenv-test", "GIT_AUTHOR_EMAIL": "test@example.com"}
     env["GIT_COMMITTER_NAME"] = env["GIT_AUTHOR_NAME"]
     env["GIT_COMMITTER_EMAIL"] = env["GIT_AUTHOR_EMAIL"]
-    subprocess.run(["git", "init", "-q", str(dest)], check=True, env=env)
+    # -b main: pin the initial branch name explicitly rather than relying
+    # on this machine's init.defaultBranch config (tests pin `ref = "main"`).
+    subprocess.run(["git", "init", "-q", "-b", "main", str(dest)], check=True, env=env)
     for relpath, content in files.items():
         path = dest / relpath
         path.parent.mkdir(parents=True, exist_ok=True)
