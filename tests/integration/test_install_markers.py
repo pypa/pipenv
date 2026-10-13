@@ -8,8 +8,8 @@ from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.markers
-def test_package_environment_markers(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_package_environment_markers(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -39,11 +39,11 @@ dataclass-factory = {}
 
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.markers
-def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
+def test_platform_python_implementation_marker(pipenv_instance_file_pypi):
     """Markers should be converted during locking to help users who input this
     incorrectly.
     """
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install depends-on-marked-package")
         assert c.returncode == 0
 
@@ -61,12 +61,17 @@ def test_platform_python_implementation_marker(pipenv_instance_private_pypi):
 @pytest.mark.alt
 @pytest.mark.markers
 @pytest.mark.install
-def test_specific_package_environment_markers(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_specific_package_environment_markers(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
-six = {version = "*", os_name = "== 'splashwear'"}
+six = {{version = "*", os_name = "== 'splashwear'"}}
             """.strip()
             f.write(contents)
 
@@ -80,14 +85,19 @@ six = {version = "*", os_name = "== 'splashwear'"}
 
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.markers
-def test_top_level_overrides_environment_markers(pipenv_instance_pypi):
+def test_top_level_overrides_environment_markers(pipenv_instance_file_pypi):
     """Top-level environment markers should take precedence."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 apscheduler = "*"
-funcsigs = {version = "*", os_name = "== 'splashwear'"}
+funcsigs = {{version = "*", os_name = "== 'splashwear'"}}
             """.strip()
             f.write(contents)
 
@@ -104,14 +114,14 @@ funcsigs = {version = "*", os_name = "== 'splashwear'"}
 @pytest.mark.flaky(reruns=1)
 @pytest.mark.markers
 @pytest.mark.install
-def test_global_overrides_environment_markers(pipenv_instance_private_pypi):
+def test_global_overrides_environment_markers(pipenv_instance_file_pypi):
     """Empty (unconditional) dependency should take precedence.
     If a dependency is specified without environment markers, it should
     override dependencies with environment markers. In this example,
     APScheduler requires funcsigs only on Python 2, but since funcsigs is
     also specified as an unconditional dep, its markers should be empty.
     """
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]

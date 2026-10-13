@@ -1,18 +1,23 @@
 import contextlib
 import errno
 import functools
+import hashlib
+import html
 import json
 import logging
 import os
 import shutil
 import subprocess
 import sys
+import tarfile
 import warnings
+import zipfile
 from pathlib import Path
 from shutil import rmtree as _rmtree
 from tempfile import TemporaryDirectory
 
 import pytest
+from packaging.utils import canonicalize_name
 
 from pipenv.patched.pip._vendor import requests
 from pipenv.utils.funktools import handle_remove_readonly
@@ -83,7 +88,92 @@ def check_for_mercurial():
 
 TESTS_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, "pypi")
+EXTRA_PYPI_VENDOR_DIR = os.path.join(TESTS_ROOT, "test_artifacts", "extra_pypi")
 WE_HAVE_HG = check_for_mercurial()
+
+
+def _parse_requires_python(metadata_text: str) -> str | None:
+    for line in metadata_text.splitlines():
+        if not line.strip():
+            break  # end of the RFC822-style header block
+        if line.lower().startswith("requires-python:"):
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def _requires_python_of(pkg_file: Path) -> str | None:
+    """Best-effort ``Requires-Python`` lookup for a wheel/sdist.
+
+    pip's ``file://`` collector only picks up ``Requires-Python`` from the
+    index page's ``data-requires-python`` link attribute (see
+    pip._internal.models.link.Link.from_element), not by inspecting the
+    package file itself - exactly what a real PyPI "simple" index page
+    carries. We read it out of the file once at index-build time so our
+    generated index.html can advertise it the same way.
+    """
+    try:
+        if pkg_file.suffix == ".whl":
+            with zipfile.ZipFile(pkg_file) as zf:
+                for name in zf.namelist():
+                    if name.endswith(".dist-info/METADATA"):
+                        return _parse_requires_python(
+                            zf.read(name).decode("utf-8", "replace")
+                        )
+        elif pkg_file.name.endswith((".tar.gz", ".tgz")):
+            with tarfile.open(pkg_file) as tf:
+                for member in tf.getmembers():
+                    if member.name.endswith("PKG-INFO"):
+                        extracted = tf.extractfile(member)
+                        if extracted is not None:
+                            return _parse_requires_python(
+                                extracted.read().decode("utf-8", "replace")
+                            )
+    except (zipfile.BadZipFile, tarfile.TarError, OSError):
+        return None
+    return None
+
+
+def _build_local_simple_index(root: Path, source_dirs: list[Path]) -> None:
+    """Populate `root` with a PEP 503 "simple" index, offline.
+
+    Each immediate subdirectory of a `source_dirs` entry is treated as one
+    project's package files (the same flat layout already used by
+    tests/pypi/<project>/ for the real pypi-server fixture). For every such
+    project we symlink its files into `root/<canonicalized-name>/` and write
+    an `index.html` listing them with `#sha256=...` fragments, so pip's
+    `file://` collector (which auto-appends `index.html` to a directory URL,
+    see pip._internal.index.collector._get_index_content) can resolve and
+    download them without any network access at all - not even loopback.
+    """
+    for source_dir in source_dirs:
+        if not source_dir.is_dir():
+            continue
+        for project_dir in sorted(source_dir.iterdir()):
+            if not project_dir.is_dir():
+                continue
+            target_dir = root / canonicalize_name(project_dir.name)
+            target_dir.mkdir(parents=True, exist_ok=True)
+            links = []
+            for pkg_file in sorted(project_dir.iterdir()):
+                if pkg_file.suffix == ".sha256" or pkg_file.is_dir():
+                    continue
+                target_file = target_dir / pkg_file.name
+                if not target_file.exists():
+                    target_file.symlink_to(pkg_file.resolve())
+                digest = hashlib.sha256(pkg_file.read_bytes()).hexdigest()
+                requires_python = _requires_python_of(pkg_file)
+                requires_python_attr = (
+                    f' data-requires-python="{html.escape(requires_python)}"'
+                    if requires_python
+                    else ""
+                )
+                links.append(
+                    f'<a href="{pkg_file.name}#sha256={digest}"{requires_python_attr}>'
+                    f"{pkg_file.name}</a><br/>"
+                )
+            (target_dir / "index.html").write_text(
+                "<!DOCTYPE html><html><body>\n" + "\n".join(links) + "\n</body></html>"
+            )
 
 
 def pytest_runtest_setup(item):
@@ -362,6 +452,51 @@ def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
         try:
             yield functools.partial(
                 _PipenvInstance, capfd=capfdbinary, index_url=DEFAULT_PRIVATE_PYPI_SERVER
+            )
+        finally:
+            os.umask(original_umask)
+
+
+@pytest.fixture(scope="session")
+def local_pypi_index_root(tmp_path_factory):
+    """Session-scoped root of an offline `file://` PEP 503 simple index.
+
+    Built once from tests/pypi (the real-package fixture submodule) plus
+    tests/test_artifacts/extra_pypi (fixture-only packages that aren't in
+    the submodule). Requires no network access, not even loopback, so it
+    also works under `--network=none` / `unshare --net`.
+    """
+    root = tmp_path_factory.mktemp("local-pypi-index")
+    _build_local_simple_index(
+        root, [Path(PYPI_VENDOR_DIR), Path(EXTRA_PYPI_VENDOR_DIR)]
+    )
+    return root
+
+
+@pytest.fixture()
+def pipenv_instance_file_pypi(capfdbinary, monkeypatch, local_pypi_index_root):
+    """Like pipenv_instance_pypi/pipenv_instance_private_pypi, but backed by
+    a local `file://` index instead of a real pypi server or pypi.org, so
+    tests using it need no network access at all.
+
+    This coexists with the subprocess/http-based fixtures above during the
+    file-by-file migration; it is not a replacement for them yet.
+    """
+    with temp_environ(), monkeypatch.context() as m:
+        m.setattr(shutil, "rmtree", _rmtree_func)
+        original_umask = os.umask(0o007)
+        os.environ["PIPENV_NOSPIN"] = "1"
+        os.environ["CI"] = "1"
+        os.environ["PIPENV_DONT_USE_PYENV"] = "1"
+        warnings.simplefilter("ignore", category=ResourceWarning)
+        warnings.filterwarnings(
+            "ignore", category=ResourceWarning, message="unclosed.*<ssl.SSLSocket.*>"
+        )
+        try:
+            yield functools.partial(
+                _PipenvInstance,
+                capfd=capfdbinary,
+                index_url=local_pypi_index_root.as_uri(),
             )
         finally:
             os.umask(original_umask)
