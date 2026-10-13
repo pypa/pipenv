@@ -21,15 +21,8 @@ def test_sync_error_without_lockfile(pipenv_instance_file_pypi):
 
 @pytest.mark.sync
 @pytest.mark.lock
-def test_mirror_lock_sync(pipenv_instance_private_pypi):
-    """Exercises the --pypi-mirror flag specifically, so this stays on
-    pipenv_instance_private_pypi rather than the offline file:// index:
-    pipenv's own validate_pypi_mirror() (pipenv/cli/options.py) requires
-    the mirror URL to have a non-empty netloc via urllib.parse, which a
-    file:// URI never has - it would be rejected before ever reaching
-    the resolver.
-    """
-    with temp_environ(), pipenv_instance_private_pypi() as p:
+def test_mirror_lock_sync(pipenv_instance_file_pypi):
+    with temp_environ(), pipenv_instance_file_pypi() as p:
         mirror_url = p.index_url
         assert "pypi.org" not in mirror_url
         with open(p.pipfile_path, "w") as f:
