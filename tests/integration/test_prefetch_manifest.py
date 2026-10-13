@@ -41,8 +41,8 @@ import pytest
 
 PIPFILE_BODY = """\
 [[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
+url = "{index_url}"
+verify_ssl = false
 name = "pypi"
 
 [packages]
@@ -52,7 +52,9 @@ tablib = "*"
 """
 
 
-def _write_pipfile(path: Path, *, prefetch_pipfile_setting: bool = False) -> None:
+def _write_pipfile(
+    path: Path, index_url: str, *, prefetch_pipfile_setting: bool = False
+) -> None:
     """Write the test Pipfile.
 
     When ``prefetch_pipfile_setting`` is True the file also carries a
@@ -61,7 +63,7 @@ def _write_pipfile(path: Path, *, prefetch_pipfile_setting: bool = False) -> Non
     via the env-var override (so both surfaces are exercised across the
     suite).
     """
-    body = PIPFILE_BODY
+    body = PIPFILE_BODY.format(index_url=index_url)
     if prefetch_pipfile_setting:
         body += "\n[pipenv]\nprefetch_index_manifests = true\n"
     path.write_text(body)
@@ -176,9 +178,8 @@ def _write_sitecustomize_raising_populate(inject_dir: Path) -> None:
 # Test 1: setting on vs off produces identical lockfile pins + hash
 # ---------------------------------------------------------------------------
 @pytest.mark.lock
-@pytest.mark.needs_internet
 def test_prefetch_does_not_change_resolution_result(
-    pipenv_instance_pypi, monkeypatch
+    pipenv_instance_file_pypi, monkeypatch
 ):
     """Setting on must produce the same lockfile as setting off.
 
@@ -186,8 +187,8 @@ def test_prefetch_does_not_change_resolution_result(
     cache-state-dependent metadata) *and* the Pipfile-derived
     ``_meta.hash.sha256`` for parity.
     """
-    with pipenv_instance_pypi() as p:
-        _write_pipfile(Path(p.pipfile_path), prefetch_pipfile_setting=False)
+    with pipenv_instance_file_pypi() as p:
+        _write_pipfile(Path(p.pipfile_path), p.index_url, prefetch_pipfile_setting=False)
 
         # --- Baseline run: setting OFF (no env, no Pipfile key). ---
         monkeypatch.delenv("PIPENV_PREFETCH_INDEX_MANIFESTS", raising=False)
@@ -224,16 +225,15 @@ def test_prefetch_does_not_change_resolution_result(
 # Test 2: populate raising → lock still succeeds (best-effort contract)
 # ---------------------------------------------------------------------------
 @pytest.mark.lock
-@pytest.mark.needs_internet
-def test_prefetch_swallows_populate_failure(pipenv_instance_pypi, monkeypatch):
+def test_prefetch_swallows_populate_failure(pipenv_instance_file_pypi, monkeypatch):
     """``RuntimeError`` from ``ParallelFetcher.populate`` must not fail lock.
 
     Mocked via a ``sitecustomize.py`` injection because the child
     ``pipenv`` runs in a subprocess; in-process ``mock.patch`` is
     invisible across the process boundary.
     """
-    with pipenv_instance_pypi() as p:
-        _write_pipfile(Path(p.pipfile_path))
+    with pipenv_instance_file_pypi() as p:
+        _write_pipfile(Path(p.pipfile_path), p.index_url)
 
         inject_dir = Path(p.path) / "_t20_inject"
         _write_sitecustomize_raising_populate(inject_dir)
@@ -256,16 +256,15 @@ def test_prefetch_swallows_populate_failure(pipenv_instance_pypi, monkeypatch):
 # Test 3: --clear short-circuits the prefetch (populate NOT called)
 # ---------------------------------------------------------------------------
 @pytest.mark.lock
-@pytest.mark.needs_internet
-def test_prefetch_skipped_under_clear(pipenv_instance_pypi, monkeypatch):
+def test_prefetch_skipped_under_clear(pipenv_instance_file_pypi, monkeypatch):
     """``pipenv lock --clear`` must not invoke ``ParallelFetcher.populate``.
 
     Verified via a sitecustomize injection that touches a marker file
     on every populate call.  After the run, the marker file must not
     exist (or must be empty).
     """
-    with pipenv_instance_pypi() as p:
-        _write_pipfile(Path(p.pipfile_path))
+    with pipenv_instance_file_pypi() as p:
+        _write_pipfile(Path(p.pipfile_path), p.index_url)
 
         inject_dir = Path(p.path) / "_t20_inject"
         marker = Path(p.path) / "_t20_populate_marker"
@@ -290,8 +289,7 @@ def test_prefetch_skipped_under_clear(pipenv_instance_pypi, monkeypatch):
 # Test 4: verbose output contains the summary line and no URL/cred leakage
 # ---------------------------------------------------------------------------
 @pytest.mark.lock
-@pytest.mark.needs_internet
-def test_prefetch_verbose_output_no_url_leak(pipenv_instance_pypi, monkeypatch):
+def test_prefetch_verbose_output_no_url_leak(pipenv_instance_file_pypi, monkeypatch):
     """Verbose stderr must contain the prefetch summary, URL-free.
 
     The summary line is ``Prefetched N package indexes in M.MMs.`` —
@@ -302,8 +300,8 @@ def test_prefetch_verbose_output_no_url_leak(pipenv_instance_pypi, monkeypatch):
     ``LinkCandidate('https://...')`` lines at INFO level — that's a
     separate code path and outside T19's contract).
     """
-    with pipenv_instance_pypi() as p:
-        _write_pipfile(Path(p.pipfile_path))
+    with pipenv_instance_file_pypi() as p:
+        _write_pipfile(Path(p.pipfile_path), p.index_url)
         monkeypatch.setenv("PIPENV_PREFETCH_INDEX_MANIFESTS", "1")
 
         c = p.pipenv("lock --verbose")
@@ -356,7 +354,7 @@ def test_prefetch_verbose_output_no_url_leak(pipenv_instance_pypi, monkeypatch):
 # ---------------------------------------------------------------------------
 @pytest.mark.lock
 def test_clear_invalidates_parsed_manifest_cache(
-    pipenv_instance_pypi, monkeypatch, tmp_path
+    pipenv_instance_file_pypi, monkeypatch, tmp_path
 ):
     """``pipenv lock --clear`` wipes the parsed-manifest cache at
     ``<PIPENV_CACHE_DIR>/pipenv-manifests/manifests-v1/``.
@@ -389,8 +387,8 @@ def test_clear_invalidates_parsed_manifest_cache(
     (seeded_root / "stale-marker").write_text("seeded by T20")
     assert (seeded_root / "stale-marker").exists()
 
-    with pipenv_instance_pypi() as p:
-        _write_pipfile(Path(p.pipfile_path))
+    with pipenv_instance_file_pypi() as p:
+        _write_pipfile(Path(p.pipfile_path), p.index_url)
 
         c = p.pipenv("lock --clear")
         assert c.returncode == 0, c.stderr
