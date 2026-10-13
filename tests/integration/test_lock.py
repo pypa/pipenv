@@ -289,8 +289,11 @@ requests = {{version = "*", extras = ["socks"]}}
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.requirements
 @pytest.mark.needs_internet
-def test_private_index_lock_requirements(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_private_index_lock_requirements(pipenv_instance_pypi):
+    # Hardcodes both source URLs literally (testpypi hosts a package -
+    # "pipenv-test-private-package" - that only exists there), never
+    # touching p.index_url - doesn't need the local pypi-server.
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -317,9 +320,11 @@ pipenv-test-private-package = {version = "*", index = "testpypi"}
 @pytest.mark.requirements
 @pytest.mark.needs_internet
 def test_private_index_lock_requirements_for_not_canonical_package(
-    pipenv_instance_private_pypi,
+    pipenv_instance_pypi,
 ):
-    with pipenv_instance_private_pypi() as p:
+    # Same as test_private_index_lock_requirements above: hardcoded
+    # testpypi literal, doesn't need the local pypi-server.
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -562,7 +567,7 @@ six = "*"
 
 @pytest.mark.lock
 @pytest.mark.needs_internet
-def test_lock_nested_direct_url(pipenv_instance_private_pypi):
+def test_lock_nested_direct_url(pipenv_instance_file_pypi):
     """
     The dependency 'test_package' has a declared dependency on
     a PEP508 style VCS URL. This ensures that we capture the dependency
@@ -571,9 +576,11 @@ def test_lock_nested_direct_url(pipenv_instance_private_pypi):
     needs_internet added (was missing): test_package's own wheel
     METADATA hardcodes a real
     `vistir @ git+https://github.com/sarugaku/vistir.git` dependency,
-    so this needs real network regardless of index transport.
+    so this needs real network regardless of index transport. The
+    local pypi-server isn't needed though - "test_package" is vendored
+    in the same tests/pypi submodule the offline index is built from.
     """
-    with pipenv_instance_private_pypi(pipfile=False) as p:
+    with pipenv_instance_file_pypi(pipfile=False) as p:
         contents = f"""
 [[source]]
 url = "{p.index_url}"
@@ -785,8 +792,10 @@ dataclasses-json = {{extras = ["dev"], version = "==0.5.7"}}
 @pytest.mark.install  # private indexes need to be uncached for resolution
 @pytest.mark.skip_lock
 @pytest.mark.needs_internet
-def test_private_index_skip_lock(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_private_index_skip_lock(pipenv_instance_pypi):
+    # Same as test_private_index_lock_requirements above: hardcoded
+    # testpypi literal, doesn't need the local pypi-server.
+    with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
