@@ -37,7 +37,10 @@ pytz = "*"
 
 @pytest.mark.project
 @pytest.mark.sources
-@pytest.mark.parametrize("lock_first", [True, False])
+@pytest.mark.parametrize(
+    "lock_first",
+    [pytest.param(True, marks=pytest.mark.needs_internet), False],
+)
 def test_get_source(pipenv_instance_file_pypi, lock_first):
     # NOTE: the "pypi" source here is deliberately real pypi.org (the test
     # asserts on that literal URL and on six resolving from it) - only
@@ -185,6 +188,7 @@ def test_run_in_virtualenv(pipenv_instance_file_pypi):
 
 @pytest.mark.project
 @pytest.mark.sources
+@pytest.mark.needs_internet
 def test_no_sources_in_pipfile(pipenv_instance_pypi):
     # NOTE: stays on pipenv_instance_pypi/real pypi.org deliberately - the
     # whole point of this test is a Pipfile with no [[source]] at all, so
