@@ -258,8 +258,11 @@ def test_install_local_vcs_not_in_lockfile(pipenv_instance_file_pypi):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_get_vcs_refs(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_get_vcs_refs(pipenv_instance_file_pypi):
+    # Doesn't need the local pypi-server: installs purely via a real
+    # github.com VCS URL and asserts on real commit hashes, never
+    # touching p.index_url.
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
