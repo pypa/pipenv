@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from tempfile import mkdtemp
 
 import pytest
 
@@ -347,9 +348,18 @@ pipenv_test_private_package = {version = "*", index = "testpypi"}
 
 @pytest.mark.index
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_lock_updated_source(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_lock_updated_source(pipenv_instance_file_pypi, local_pypi_index_root):
+    # p.pypi assumes an http-shaped index_url ending in "/simple" (chop
+    # the last path segment to get the host); the file:// fixture's
+    # index_url IS the index root (no "/simple" suffix). Build a small
+    # mirror dir with a "simple" symlink pointing at the real index
+    # root instead, same trick as
+    # test_install_basic.py::test_install_does_not_extrapolate_environ.
+    with pipenv_instance_file_pypi() as p:
+        mirror_dir = Path(mkdtemp(prefix="pypi-url-mirror-"))
+        (mirror_dir / "simple").symlink_to(local_pypi_index_root, target_is_directory=True)
+        mirror_url = mirror_dir.as_uri()
+
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -360,7 +370,7 @@ verify_ssl = false
 [packages]
 requests = "==2.14.0"
             """.strip().format(
-                url=p.pypi
+                url=mirror_url
             )
             f.write(contents)
 
@@ -380,7 +390,7 @@ verify_ssl = false
 [packages]
 requests = "==2.14.0"
             """.strip().format(
-                url=p.pypi
+                url=mirror_url
             )
             f.write(contents)
 
