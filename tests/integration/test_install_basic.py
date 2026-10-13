@@ -900,12 +900,23 @@ sh = "*"
             """.strip()
             f.write(contents)
 
+        # The lockfile's _meta.hash must match the Pipfile we just
+        # wrote (pipenv compares them in handle_lockfile() and re-locks
+        # on a mismatch instead of respecting the existing lockfile
+        # version, which is exactly the behavior this test exists to
+        # verify) - p.index_url is a session-specific tmp path, so this
+        # can't be a hardcoded constant the way a literal
+        # "https://pypi.org/simple" source could be.
+        from pipenv.project import Project
+
+        pipfile_hash = Project().pipfile.calculate_hash()
+
         with open(p.lockfile_path, "w") as f:
             contents = f"""
 {{
     "_meta": {{
         "hash": {{
-            "sha256": "f9adf532d46f4787b6afe331abe415d5698ef7523cd6225605328b61f361d427"
+            "sha256": "{pipfile_hash}"
         }},
         "pipfile-spec": 6,
         "requires": {{}},
