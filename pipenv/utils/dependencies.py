@@ -1737,15 +1737,33 @@ def import_requirements(project, r=None, dev=False, categories=None):
 
     # Collect indexes and trusted hosts first
     indexes = []
+    primary_index = None
     trusted_hosts = []
     for line in contents.split("\n"):
         index, extra_index, trusted_host, _ = parse_indexes(line.strip(), strict=True)
         if index:
             indexes = [index]
+            primary_index = index
         if extra_index:
             indexes.append(extra_index)
         if trusted_host:
             trusted_hosts.append(get_host_and_port(trusted_host))
+
+    # Add indexes to the Pipfile before packages, so each imported
+    # package can be tagged with the primary index's resulting source
+    # name below - pipenv's resolver only honors a non-default index
+    # for packages explicitly keyed to it (SearchScope.index_restricted
+    # in pip's models.search_scope), the same way `pipenv install
+    # --index <url>` already tags the package it adds. Without this, a
+    # `-i <url>` line in requirements.txt would add the index to the
+    # Pipfile but never actually use it to resolve any package.
+    indexes = sorted(set(indexes))
+    trusted_hosts = sorted(set(trusted_hosts))
+    primary_index_name = None
+    for index in indexes:
+        index_name = add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
+        if index == primary_index:
+            primary_index_name = index_name
 
     # Collect all packages for batch processing
     packages_to_add = []
@@ -1754,6 +1772,8 @@ def import_requirements(project, r=None, dev=False, categories=None):
     for f in parse_requirements(req_path, session=PipSession()):
         package = install_req_from_parsed_requirement(f)
         if package.name not in BAD_PACKAGES:
+            if primary_index_name:
+                package.index = primary_index_name
             if package.link is not None:
                 if package.editable:
                     package_string = f"-e {package.link}"
@@ -1774,12 +1794,6 @@ def import_requirements(project, r=None, dev=False, categories=None):
             packages_to_add, dev=dev, categories=categories
         )
 
-    # Add indexes after packages
-    indexes = sorted(set(indexes))
-    trusted_hosts = sorted(set(trusted_hosts))
-    for index in indexes:
-        add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
-
     # Recase pipfile once at the end
     project.pipfile.recase()
 
@@ -1790,15 +1804,20 @@ def add_index_to_pipfile_with_trust_check(project, index, trusted_hosts=None):
         trusted_hosts = get_trusted_hosts()
 
     host_and_port = get_host_and_port(index)
-    require_valid_https = not any(
-        v in trusted_hosts
-        for v in (
-            host_and_port,
-            host_and_port.partition(":")[
-                0
-            ],  # also check if hostname without port is in trusted_hosts
+    if host_and_port is None:
+        # file:// URLs have no host - there's no TLS to verify, so
+        # there's nothing to mark as a trusted plain-http host either.
+        require_valid_https = True
+    else:
+        require_valid_https = not any(
+            v in trusted_hosts
+            for v in (
+                host_and_port,
+                host_and_port.partition(":")[
+                    0
+                ],  # also check if hostname without port is in trusted_hosts
+            )
         )
-    )
     index_name = project.sources.add_index_to_pipfile(index, verify_ssl=require_valid_https)
     return index_name
 

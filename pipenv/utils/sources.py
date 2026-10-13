@@ -341,7 +341,13 @@ class Sources:
         return found
 
     def src_name_from_url(self, index_url):
-        location = parse.urlsplit(index_url).netloc
+        parsed = parse.urlsplit(index_url)
+        location = parsed.netloc
+        if not location and parsed.scheme == "file":
+            # file:// URLs have no netloc; derive a name from the last
+            # path segment instead so we don't end up with an empty
+            # (and non-unique) source name.
+            location = os.path.basename(parsed.path.rstrip("/")) or "local"
         if "." in location:
             name, _, _tld_guess = location.rpartition(".")
         else:

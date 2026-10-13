@@ -593,7 +593,13 @@ def do_install_validations(
     # value was never consumed further inside this validator. Downstream
     # helpers re-read ``project.settings`` themselves, so the dead read is
     # omitted in the context-based signature.
-    remote = requirementstxt and is_valid_url(requirementstxt)
+    # file:// is a valid index/source URL but isn't something to fetch
+    # over the network the way an http(s) requirements.txt URL is.
+    remote = (
+        requirementstxt
+        and is_valid_url(requirementstxt)
+        and not requirementstxt.startswith("file://")
+    )
     if "default" in categories:
         raise exceptions.PipenvUsageError(
             message="Cannot install to category `default`-- did you mean `packages`?"

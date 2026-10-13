@@ -46,6 +46,11 @@ def get_requests_session(
 def is_valid_url(url):
     """Checks if a given string is an url"""
     pieces = urlparse(url)
+    if pieces.scheme == "file":
+        # file:// URLs have no netloc (no host), but are otherwise valid
+        # index/source locations - pip's own file:// index support relies
+        # on exactly this (see pip._internal.index.collector).
+        return bool(pieces.path)
     return all([pieces.scheme, pieces.netloc])
 
 
@@ -62,7 +67,12 @@ def replace_pypi_sources(sources, pypi_replacement_source):
 def create_mirror_source(url, name):
     return {
         "url": url,
-        "verify_ssl": url.startswith("https://"),
+        # Only plain http:// is treated as insecure here; file:// has no
+        # TLS to verify (so there's nothing to flag as untrusted) and
+        # marking it verify_ssl=False would make prepare_pip_source_args
+        # emit a nonsensical "--trusted-host None" (file:// URLs have no
+        # host for pip's --trusted-host flag).
+        "verify_ssl": not url.startswith("http://"),
         "name": name,
     }
 
@@ -105,7 +115,14 @@ def get_host_and_port(url):
 def get_url_name(url):
     if not isinstance(url, str):
         return None
-    return _urllib3_util().parse_url(url).host
+    parsed = _urllib3_util().parse_url(url)
+    if parsed.host:
+        return parsed.host
+    if parsed.scheme == "file" and parsed.path:
+        # file:// URLs have no host; fall back to the last path segment
+        # so callers that use this as a source name don't get None.
+        return os.path.basename(parsed.path.rstrip("/")) or None
+    return None
 
 
 def is_url_equal(url: str, other_url: str) -> bool:
