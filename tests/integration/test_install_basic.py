@@ -4,8 +4,6 @@ import re
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory, mkdtemp
-from urllib.parse import urlparse
-from urllib.request import url2pathname
 
 import pytest
 
@@ -401,7 +399,9 @@ def test_clean_on_empty_venv(pipenv_instance_file_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_does_not_extrapolate_environ(pipenv_instance_file_pypi):
+def test_install_does_not_extrapolate_environ(
+    pipenv_instance_file_pypi, local_pypi_index_root
+):
     """Ensure environment variables are not expanded in lock file."""
     with temp_environ(), pipenv_instance_file_pypi() as p:
         # p.index_url (file://<index_root>) has no trailing "/simple"
@@ -409,14 +409,12 @@ def test_install_does_not_extrapolate_environ(pipenv_instance_file_pypi):
         # generic "chop the last path segment" derivation doesn't apply
         # here. Build a small mirror dir with a "simple" symlink pointing
         # at the real index root so "${PYPI_URL}/simple" still resolves
-        # to a working index.
-        #
-        # file:// -> local path must go through url2pathname (not a
-        # naive "file://" prefix strip): on Windows, a file:// URL has
-        # an extra leading "/" before the drive letter
-        # (file:///C:/...), so slicing off "file://" alone leaves an
-        # invalid path ("/C:/...") that silently points nowhere.
-        index_root = Path(url2pathname(urlparse(p.index_url).path))
+        # to a working index. Use the local_pypi_index_root fixture's
+        # own Path directly rather than reparsing p.index_url's file://
+        # URI back into a path - on Windows that reparse is easy to get
+        # subtly wrong (a file:// URL has an extra leading "/" before
+        # the drive letter), and the fixture already has the Path.
+        index_root = local_pypi_index_root
         mirror_dir = Path(mkdtemp(prefix="pypi-url-mirror-"))
         (mirror_dir / "simple").symlink_to(index_root, target_is_directory=True)
         os.environ["PYPI_URL"] = mirror_dir.as_uri()
