@@ -502,6 +502,59 @@ def pipenv_instance_file_pypi(capfdbinary, monkeypatch, local_pypi_index_root):
             os.umask(original_umask)
 
 
+def _build_local_git_repo(dest: Path, files: dict[str, str], tag: str) -> None:
+    """Build a throwaway local git repo at ``dest`` with ``files`` written
+    and committed, then tagged ``tag``.
+
+    ``git clone`` (and pip's VCS support) work fine against a plain
+    ``file://`` path - no daemon, no network, not even loopback - so this
+    lets editable-VCS-dependency tests avoid a real github.com clone.
+    """
+    env = {**os.environ, "GIT_AUTHOR_NAME": "pipenv-test", "GIT_AUTHOR_EMAIL": "test@example.com"}
+    env["GIT_COMMITTER_NAME"] = env["GIT_AUTHOR_NAME"]
+    env["GIT_COMMITTER_EMAIL"] = env["GIT_AUTHOR_EMAIL"]
+    subprocess.run(["git", "init", "-q", str(dest)], check=True, env=env)
+    for relpath, content in files.items():
+        path = dest / relpath
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+    subprocess.run(["git", "add", "-A"], cwd=dest, check=True, env=env)
+    # -c commit.gpgsign=false: this is a disposable, in-memory-only fixture
+    # repo (never pushed, not real authorship history) - skip whatever the
+    # ambient git config does for signing so building the fixture doesn't
+    # hang/fail on a missing gpg-agent/keyserver in CI.
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "initial"],
+        cwd=dest,
+        check=True,
+        env=env,
+    )
+    subprocess.run(["git", "tag", tag], cwd=dest, check=True, env=env)
+
+
+@pytest.fixture(scope="session")
+def local_gunicorn_git_repo(tmp_path_factory):
+    """A throwaway local git repo standing in for
+    https://github.com/benoitc/gunicorn, tagged 23.0.0 like the real test
+    pins. Content is a minimal importable "gunicorn" package - enough for
+    an editable VCS install and `import gunicorn` to work, without
+    reproducing the real project's functionality.
+    """
+    dest = tmp_path_factory.mktemp("local-gunicorn-git-repo")
+    _build_local_git_repo(
+        dest,
+        files={
+            "setup.py": (
+                "from setuptools import setup\n\n"
+                "setup(name='gunicorn', version='23.0.0', packages=['gunicorn'])\n"
+            ),
+            "gunicorn/__init__.py": "__version__ = '23.0.0'\n",
+        },
+        tag="23.0.0",
+    )
+    return dest
+
+
 @pytest.fixture()
 def testsroot():
     return TESTS_ROOT

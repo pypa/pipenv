@@ -8,19 +8,20 @@ import pytest
 @pytest.mark.install
 @pytest.mark.editable
 @pytest.mark.vcs
-def test_editable_vcs_reinstall(pipenv_instance_private_pypi):
+def test_editable_vcs_reinstall(pipenv_instance_file_pypi, local_gunicorn_git_repo):
     """Test that editable VCS dependencies are reinstalled when the source checkout is missing."""
-    with pipenv_instance_private_pypi() as p:
-        # Create a Pipfile with an editable VCS dependency
+    with pipenv_instance_file_pypi() as p:
+        # Create a Pipfile with an editable VCS dependency, cloned from a
+        # local git repo (file://) standing in for the real github.com one.
         with open(p.pipfile_path, "w") as f:
-            f.write("""
+            f.write(f"""
 [[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
+url = "{p.index_url}"
+verify_ssl = false
 name = "pypi"
 
 [packages]
-gunicorn = {git = "https://github.com/benoitc/gunicorn", ref = "23.0.0", editable = true}
+gunicorn = {{git = "{local_gunicorn_git_repo.as_uri()}", ref = "23.0.0", editable = true}}
             """.strip())
 
         # Install the dependency
