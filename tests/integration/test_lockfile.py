@@ -22,14 +22,14 @@ def pypi_lockfile():
     yield lockfile
 
 
-def test_git_branch_contains_slashes(pipenv_instance_pypi, pypi_lockfile):
+def test_git_branch_contains_slashes(pipenv_instance_file_pypi, pypi_lockfile):
     pypi_lockfile["default"]["google-api-python-client"] = {
         "git": "https://github.com/thehesiod/google-api-python-client.git@thehesiod/batch-retries2",
         "markers": "python_version >= '3.7'",
         "ref": "03803c21fc13a345e978f32775b2f2fa23c8e706",
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(pypi_lockfile, f)
 
@@ -44,14 +44,14 @@ def test_git_branch_contains_slashes(pipenv_instance_pypi, pypi_lockfile):
         ]
 
 
-def test_git_branch_contains_subdirectory_fragment(pipenv_instance_pypi, pypi_lockfile):
+def test_git_branch_contains_subdirectory_fragment(pipenv_instance_file_pypi, pypi_lockfile):
     pypi_lockfile["default"]["pep508_package"] = {
         "git": "https://github.com/techalchemy/test-project.git@master",
         "subdirectory": "parent_folder/pep508-package",
         "ref": "03803c21fc13a345e978f32775b2f2fa23c8e706",
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(pypi_lockfile, f)
 
