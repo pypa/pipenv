@@ -342,6 +342,7 @@ pipenv_test_private_package = {version = "*", index = "testpypi"}
 
 @pytest.mark.index
 @pytest.mark.install
+@pytest.mark.needs_internet
 def test_lock_updated_source(pipenv_instance_private_pypi):
     with pipenv_instance_private_pypi() as p:
         with open(p.pipfile_path, "w") as f:
