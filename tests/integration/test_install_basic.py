@@ -712,7 +712,6 @@ def test_install_dev_use_default_constraints(pipenv_instance_file_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-@pytest.mark.needs_internet
 def test_install_does_not_exclude_packaging(pipenv_instance_file_pypi):
     """Install a transitive dependency even when it is available to Pipenv itself."""
     with pipenv_instance_file_pypi() as p:
