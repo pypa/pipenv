@@ -6,9 +6,9 @@ import pytest
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_github_vcs(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("install git+https://github.com/reagento/adaptix.git@2.16")
+def test_install_github_vcs(pipenv_instance_file_pypi, local_adaptix_git_repo):
+    with pipenv_instance_file_pypi() as p:
+        c = p.pipenv(f"install git+{local_adaptix_git_repo.as_uri()}@2.16")
         assert not c.returncode
         assert "dataclass-factory" in p.pipfile["packages"]
 
@@ -17,6 +17,10 @@ def test_install_github_vcs(pipenv_instance_pypi):
 @pytest.mark.install
 @pytest.mark.parametrize("use_credentials", [True, False])
 def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentials):
+    """Stays on real github.com: exercises ${GIT_USERNAME}:${GIT_PASSWORD}
+    @${GIT_REPO} substitution in an https:// URL specifically, which a
+    file:// URI (no host/credential components) can't stand in for.
+    """
     with pipenv_instance_pypi() as p:
         # Set environment variables
         os.environ['GIT_REPO'] = 'github.com/reagento/adaptix.git'
@@ -76,8 +80,17 @@ def test_install_vcs_ref_by_commit_hash(pipenv_instance_private_pypi):
 @pytest.mark.vcs
 @pytest.mark.dev
 @pytest.mark.install
+@pytest.mark.needs_internet
 def test_vcs_dev_package_install(pipenv_instance_pypi):
-    """Ensure VCS packages can be properly installed into dev-packages via --dev flag with existing Pipfile."""
+    """Ensure VCS packages can be properly installed into dev-packages via --dev flag with existing Pipfile.
+
+    Stays on real github.com and needs_internet: pins the exact real
+    commit hash (4dd2978...) that pytest-xdist's v3.6.1 tag resolves to
+    upstream, and checks a real transitive dependency (execnet) - not
+    something a local fixture repo can reproduce, since git commit
+    hashes are derived from real content/history we don't control.
+    Previously missing the needs_internet marker despite needing it.
+    """
     with pipenv_instance_pypi() as p:
         # Create a Pipfile with some existing packages
         with open(p.pipfile_path, "w") as f:

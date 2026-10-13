@@ -555,6 +555,30 @@ def local_gunicorn_git_repo(tmp_path_factory):
     return dest
 
 
+@pytest.fixture(scope="session")
+def local_adaptix_git_repo(tmp_path_factory):
+    """A throwaway local git repo standing in for
+    https://github.com/reagento/adaptix, tagged 2.16 like the real test
+    pins. The real project's distribution name is "dataclass-factory"
+    (a rename), which is the part these tests actually assert on - the
+    fixture reproduces just that, not adaptix's real functionality.
+    """
+    dest = tmp_path_factory.mktemp("local-adaptix-git-repo")
+    _build_local_git_repo(
+        dest,
+        files={
+            "setup.py": (
+                "from setuptools import setup\n\n"
+                "setup(name='dataclass-factory', version='2.16', "
+                "packages=['dataclass_factory'])\n"
+            ),
+            "dataclass_factory/__init__.py": "__version__ = '2.16'\n",
+        },
+        tag="2.16",
+    )
+    return dest
+
+
 @pytest.fixture()
 def testsroot():
     return TESTS_ROOT
