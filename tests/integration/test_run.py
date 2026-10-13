@@ -8,8 +8,8 @@ from pipenv.utils.shell import subprocess_run, temp_environ
 
 @pytest.mark.run
 @pytest.mark.dotenv
-def test_env(pipenv_instance_pypi):
-    with pipenv_instance_pypi(
+def test_env(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(
         pipfile=False,
     ) as p:
         with open(os.path.join(p.path, ".env"), "w") as f:
@@ -23,8 +23,8 @@ def test_env(pipenv_instance_pypi):
 
 
 @pytest.mark.run
-def test_scripts(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_scripts(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             f.write(
                 r"""
@@ -72,8 +72,8 @@ multicommand = "bash -c \"cd docs && make html\""
 
 
 @pytest.mark.run
-def test_scripts_with_package_functions(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_scripts_with_package_functions(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         p.pipenv("install")
         pkg_path = os.path.join(p.path, "pkg")
         os.makedirs(pkg_path, exist_ok=True)
@@ -107,8 +107,8 @@ argfunc = {call = "pkg.mod:arg_func('abc', 123)"}
 
 @pytest.mark.run
 @pytest.mark.skip_windows
-def test_run_with_usr_env_shebang(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_run_with_usr_env_shebang(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         p.pipenv("install")
         script_path = os.path.join(p.path, "test_script")
         with open(script_path, "w") as f:
@@ -136,8 +136,8 @@ def test_run_with_usr_env_shebang(pipenv_instance_pypi):
 
 @pytest.mark.run
 @pytest.mark.parametrize("quiet", [True, False])
-def test_scripts_resolve_dot_env_vars(quiet, pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_scripts_resolve_dot_env_vars(quiet, pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(".env", "w") as f:
             contents = """
 HELLO_VAR=WORLD
@@ -160,10 +160,15 @@ hello = "echo $HELLO_VAR"
 
 @pytest.mark.run
 @pytest.mark.parametrize("quiet", [True, False])
-def test_pipenv_run_pip_freeze_has_expected_output(quiet, pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_run_pip_freeze_has_expected_output(quiet, pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 requests = "==2.14.0"
                 """.strip()
@@ -181,7 +186,7 @@ requests = "==2.14.0"
 
 @pytest.mark.run
 @pytest.mark.skip_windows
-def test_run_inline_env_vars(pipenv_instance_pypi):
+def test_run_inline_env_vars(pipenv_instance_file_pypi):
     """Inline KEY=value tokens before the command are set in the environment.
 
     Regression test for https://github.com/pypa/pipenv/issues/6083.
@@ -189,7 +194,7 @@ def test_run_inline_env_vars(pipenv_instance_pypi):
     [scripts] form (``entry = "FOO=bar cmd"``) must be supported, including
     values that contain spaces (which shlex quote-strips during parsing).
     """
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         p.pipenv("install")
 
         # ── command-line form ─────────────────────────────────────────────
@@ -228,14 +233,14 @@ def test_run_inline_env_vars(pipenv_instance_pypi):
 
 @pytest.mark.run
 @pytest.mark.skip_windows
-def test_run_shell_builtins(pipenv_instance_pypi):
+def test_run_shell_builtins(pipenv_instance_file_pypi):
     """Test that shell builtins work with pipenv run.
 
     Shell builtins like 'echo', 'cd', 'pwd' don't have a path in the filesystem.
     They should still work with pipenv run by falling back to shell execution.
     See: https://github.com/pypa/pipenv/issues/6186
     """
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         p.pipenv("install")
 
         # Test 'echo' builtin

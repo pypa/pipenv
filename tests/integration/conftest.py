@@ -145,15 +145,22 @@ def _build_local_simple_index(root: Path, source_dirs: list[Path]) -> None:
     see pip._internal.index.collector._get_index_content) can resolve and
     download them without any network access at all - not even loopback.
     """
+    # Accumulate links per canonical project across ALL source_dirs before
+    # writing index.html - a project present in more than one source_dir
+    # (e.g. real old versions in tests/pypi + stub/extra versions in
+    # extra_pypi) must get every version merged into one page, not have
+    # the last source_dir visited silently clobber the earlier ones.
+    links_by_project: dict[str, list[str]] = {}
     for source_dir in source_dirs:
         if not source_dir.is_dir():
             continue
         for project_dir in sorted(source_dir.iterdir()):
             if not project_dir.is_dir():
                 continue
-            target_dir = root / canonicalize_name(project_dir.name)
+            canonical = canonicalize_name(project_dir.name)
+            target_dir = root / canonical
             target_dir.mkdir(parents=True, exist_ok=True)
-            links = []
+            links = links_by_project.setdefault(canonical, [])
             for pkg_file in sorted(project_dir.iterdir()):
                 if pkg_file.suffix == ".sha256" or pkg_file.is_dir():
                     continue
@@ -171,9 +178,11 @@ def _build_local_simple_index(root: Path, source_dirs: list[Path]) -> None:
                     f'<a href="{pkg_file.name}#sha256={digest}"{requires_python_attr}>'
                     f"{pkg_file.name}</a><br/>"
                 )
-            (target_dir / "index.html").write_text(
-                "<!DOCTYPE html><html><body>\n" + "\n".join(links) + "\n</body></html>"
-            )
+
+    for canonical, links in links_by_project.items():
+        (root / canonical / "index.html").write_text(
+            "<!DOCTYPE html><html><body>\n" + "\n".join(links) + "\n</body></html>"
+        )
 
 
 def pytest_runtest_setup(item):
