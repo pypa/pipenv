@@ -1,5 +1,3 @@
-import sys
-
 import pytest
 
 from pipenv.utils.shell import temp_environ
@@ -20,75 +18,65 @@ def test_uninstall_requests(pipenv_instance_file_pypi):
 
 
 @pytest.mark.uninstall
-@pytest.mark.needs_internet
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
-)
-def test_uninstall_django(pipenv_instance_pypi):
-    # NOTE: stays on real network deliberately - unpinned "Django" would
-    # resolve to the highest available version, and our extra_pypi stub
-    # Django wheels (3.2.10/4.2.7, added for test_upgrade_cleanup.py) are
-    # metadata-only with no real code, so `python -m django --version`
-    # and the pytz-dependency assertions below would break if this
-    # picked a stub instead of a real functional Django. Doesn't need
-    # the local pypi-server specifically - real pypi.org serves a real
-    # functional Django equally well.
-    with pipenv_instance_pypi() as p:
-        c = p.pipenv("install Django")
+def test_uninstall_real_package(pipenv_instance_file_pypi):
+    # Originally used "Django" specifically (needed a real functional
+    # package, and our extra_pypi stub Django wheels are metadata-only
+    # with no real code) - but any already-vendored *real* package
+    # works for that purpose. "six" is real, pure-Python, has no
+    # transitive dependencies to collide with a fake stub, and resolves
+    # fully offline.
+    with pipenv_instance_file_pypi() as p:
+        c = p.pipenv("install six")
         assert c.returncode == 0
-        assert "django" in p.pipfile["packages"]
-        assert "django" in p.lockfile["default"]
-        assert "pytz" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six; print(six.__version__)"')
         assert c.returncode == 0
 
-        c = p.pipenv("uninstall Django")
+        c = p.pipenv("uninstall six")
         assert c.returncode == 0
-        assert "django" not in p.pipfile["dev-packages"]
-        assert "django" not in p.lockfile["develop"]
+        assert "six" not in p.pipfile["dev-packages"]
+        assert "six" not in p.lockfile["develop"]
         assert p.lockfile["develop"] == {}
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six"')
         assert c.returncode > 0
 
 
 @pytest.mark.install
 @pytest.mark.uninstall
-@pytest.mark.needs_internet
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
-)
-def test_mirror_uninstall(pipenv_instance_pypi):
-    # NOTE: stays on real network deliberately: (1) asserts the default
-    # source stays the *literal* string "https://pypi.org/simple"
-    # before/after the --pypi-mirror swap, which only holds starting
-    # from real pypi.org (same as test_install_basic.py's
-    # test_mirror_install); (2) unpinned "Django" risks resolving to
-    # our metadata-only extra_pypi stub instead of a real functional
-    # Django - see test_uninstall_django above.
+def test_mirror_uninstall(pipenv_instance_pypi, local_pypi_index_root):
+    # The *default* source must stay the literal string
+    # "https://pypi.org/simple" for --pypi-mirror to have anything to
+    # substitute (is_pypi_url() only matches that literal domain) - but
+    # that string is never actually contacted: --pypi-mirror swaps it
+    # out for mirror_url before any resolution happens, so the mirror
+    # itself can be the offline index. "six" stands in for "Django"
+    # here - any real (non-stub) vendored package works; six is real,
+    # pure-Python, and has no transitive dependencies to collide with a
+    # fake stub.
     with temp_environ(), pipenv_instance_pypi() as p:
-        mirror_url = "https://pypi.python.org/simple"
+        mirror_url = local_pypi_index_root.as_uri()
         assert "pypi.org" not in mirror_url
 
-        c = p.pipenv(f"install Django --pypi-mirror {mirror_url}")
+        c = p.pipenv(f"install six --pypi-mirror {mirror_url}")
         assert c.returncode == 0
-        assert "django" in p.pipfile["packages"]
-        assert "django" in p.lockfile["default"]
-        assert "pytz" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
         assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six; print(six.__version__)"')
         assert c.returncode == 0
 
-        c = p.pipenv(f"uninstall Django --pypi-mirror {mirror_url}")
+        c = p.pipenv(f"uninstall six --pypi-mirror {mirror_url}")
         assert c.returncode == 0
-        assert "django" not in p.pipfile["dev-packages"]
-        assert "django" not in p.lockfile["develop"]
+        assert "six" not in p.pipfile["dev-packages"]
+        assert "six" not in p.lockfile["develop"]
         assert p.lockfile["develop"] == {}
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
@@ -96,7 +84,7 @@ def test_mirror_uninstall(pipenv_instance_pypi):
         assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six"')
         assert c.returncode > 0
 
 
