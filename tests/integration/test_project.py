@@ -12,8 +12,8 @@ from pipenv.vendor.plette import Pipfile
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.environ
-def test_pipfile_envvar_expansion(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p, temp_environ():
+def test_pipfile_envvar_expansion(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p, temp_environ():
         with open(p.pipfile_path, "w") as f:
             f.write(
                 """
@@ -38,8 +38,11 @@ pytz = "*"
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.parametrize("lock_first", [True, False])
-def test_get_source(pipenv_instance_private_pypi, lock_first):
-    with pipenv_instance_private_pypi() as p:
+def test_get_source(pipenv_instance_file_pypi, lock_first):
+    # NOTE: the "pypi" source here is deliberately real pypi.org (the test
+    # asserts on that literal URL and on six resolving from it) - only
+    # lock_first=True actually needs network, to lock six from it.
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -92,8 +95,8 @@ six = {{version = "*", index = "pypi"}}
 @pytest.mark.install
 @pytest.mark.project
 @pytest.mark.parametrize("newlines", ["\n", "\r\n"])
-def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
-    with pipenv_instance_pypi() as p:
+def test_maintain_file_line_endings(pipenv_instance_file_pypi, newlines):
+    with pipenv_instance_file_pypi() as p:
         # Initial pipfile + lockfile generation
         c = p.pipenv("install pytz")
         assert c.returncode == 0
@@ -124,8 +127,8 @@ def test_maintain_file_line_endings(pipenv_instance_pypi, newlines):
 @pytest.mark.project
 @pytest.mark.sources
 @pytest.mark.needs_internet
-def test_many_indexes(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_many_indexes(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -160,13 +163,13 @@ six = {{version = "*", index = "pypi"}}
     os.name == "nt" and sys.version_info[:2] == (3, 8),
     reason="Seems to work on 3.8 but not via the CI",
 )
-def test_run_in_virtualenv(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_run_in_virtualenv(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("run pip freeze")
         assert c.returncode == 0
         assert "Creating a virtualenv" in c.stderr
         project = Project()
-        c = p.pipenv("run pip install click")
+        c = p.pipenv(f"run pip install -i {p.index_url} click")
         assert c.returncode == 0
         c = p.pipenv("install six")
         assert c.returncode == 0
@@ -183,6 +186,9 @@ def test_run_in_virtualenv(pipenv_instance_pypi):
 @pytest.mark.project
 @pytest.mark.sources
 def test_no_sources_in_pipfile(pipenv_instance_pypi):
+    # NOTE: stays on pipenv_instance_pypi/real pypi.org deliberately - the
+    # whole point of this test is a Pipfile with no [[source]] at all, so
+    # it can't be pointed at the offline index without defeating the test.
     with pipenv_instance_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
