@@ -47,11 +47,13 @@ VCS_SCHEMES = {
     "hg+https",
     "hg+ssh",
     "hg+static-http",
+    "hg+file",
     "svn",
     "svn+ssh",
     "svn+http",
     "svn+https",
     "svn+svn",
+    "svn+file",
     "bzr",
     "bzr+http",
     "bzr+https",
@@ -59,6 +61,7 @@ VCS_SCHEMES = {
     "bzr+sftp",
     "bzr+ftp",
     "bzr+lp",
+    "bzr+file",
 }
 
 

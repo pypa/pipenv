@@ -66,6 +66,15 @@ def test_vcs_schemes_set_present_on_unpack_module():
     # Spot-check the ``+transport`` variants too.
     assert "git+https" in VCS_SCHEMES
     assert "hg+ssh" in VCS_SCHEMES
+    # "+file" variants: a local (daemon-less) VCS checkout is the only
+    # way to exercise git/hg/svn/bzr requirements offline, and this set
+    # must include them for local non-Git requirements to reach the VCS
+    # code path below instead of falling through to the HTTP downloader
+    # with an unsupported URL.
+    assert "git+file" in VCS_SCHEMES
+    assert "hg+file" in VCS_SCHEMES
+    assert "svn+file" in VCS_SCHEMES
+    assert "bzr+file" in VCS_SCHEMES
 
 
 def test_legacy_requirementslib_module_is_gone():
@@ -159,6 +168,36 @@ def test_unpack_url_bare_git_scheme_treated_as_vcs():
         )
 
     mock_unpack_vcs.assert_called_once()
+    assert isinstance(result, File)
+    assert result.content_type is None
+
+
+def test_unpack_url_unnamed_local_hg_requirement_reaches_vcs_path():
+    """A local (daemon-less), *unnamed* non-Git VCS requirement - e.g.
+    ``hg+file:///abs/path/to/repo`` with no ``#egg=`` fragment - must
+    reach ``unpack_vcs_link`` (the VCS checkout path), not fall through
+    to the HTTP downloader with an unsupported URL. This is exactly the
+    offline-local-fixture shape the git+file:// tests in this suite use
+    (see tests/integration/test_update.py's local_requests_git_repo),
+    just for a non-Git VCS, pinning that the "+file" scheme additions
+    cover more than just git.
+    """
+    from pipenv.utils.unpack import unpack_url
+
+    link = MagicMock()
+    link.scheme = "hg+file"
+
+    with patch("pipenv.utils.unpack.unpack_vcs_link") as mock_unpack_vcs:
+        result = unpack_url(
+            link=link,
+            location="/tmp/pipenv-test-unnamed-hg-file",
+            download=MagicMock(),
+            verbosity=0,
+        )
+
+    mock_unpack_vcs.assert_called_once_with(
+        link, "/tmp/pipenv-test-unnamed-hg-file", verbosity=0
+    )
     assert isinstance(result, File)
     assert result.content_type is None
 
