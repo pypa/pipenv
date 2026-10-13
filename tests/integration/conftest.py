@@ -567,6 +567,35 @@ def local_gunicorn_git_repo(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
+def local_requests_git_repo(tmp_path_factory):
+    """A throwaway local git repo standing in for
+    https://github.com/requests/requests, tagged "main". Named "requests"
+    deliberately - this is the fixture that originally hit (and now
+    exercises the fix for) VCS_SCHEMES missing "git+file": pipenv's
+    Pipfile write-back used to collapse a `git+file://...#egg=requests`
+    dependency down to a plain `requests = "*"` entry, because a VCS
+    dependency whose package name also resolves via the regular index
+    needs `determine_vcs_specifier()` to actually recognize the link as
+    VCS first (pipenv/utils/constants.py's VCS_SCHEMES list was missing
+    the "+file" variants that pipenv/utils/unpack.py's own copy already
+    had).
+    """
+    dest = tmp_path_factory.mktemp("local-requests-git-repo")
+    _build_local_git_repo(
+        dest,
+        files={
+            "setup.py": (
+                "from setuptools import setup\n\n"
+                "setup(name='requests', version='99.0.0', packages=['requests'])\n"
+            ),
+            "requests/__init__.py": "__version__ = '99.0.0'\n",
+        },
+        tag="main",
+    )
+    return dest
+
+
+@pytest.fixture(scope="session")
 def local_adaptix_git_repo(tmp_path_factory):
     """A throwaway local git repo standing in for
     https://github.com/reagento/adaptix, tagged 2.16 like the real test

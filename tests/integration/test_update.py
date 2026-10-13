@@ -119,17 +119,12 @@ def test_get_modified_pipfile_entries_changed_version(pipenv_instance_file_pypi)
         assert "requests" in modified["default"]
 
 
-def test_get_modified_pipfile_entries_vcs_changes(pipenv_instance_pypi):
-    # NOTE: stays on real github.com - migrating to a local git fixture
-    # (whose package name, "requests", also exists in our regular
-    # offline package index) hit a pipenv quirk where the Pipfile
-    # write-back collapses the VCS {git=..., ref=...} entry down to a
-    # plain `requests = "*"` instead of preserving it, when the VCS
-    # dependency's name also resolves via the normal index. Not
-    # root-caused; see tests/integration/KNOWN_ISSUES_offline_migration.md.
-    with pipenv_instance_pypi() as p:
+def test_get_modified_pipfile_entries_vcs_changes(
+    pipenv_instance_file_pypi, local_requests_git_repo
+):
+    with pipenv_instance_file_pypi() as p:
         # Install VCS package
-        p.pipenv("install git+https://github.com/requests/requests.git@main#egg=requests")
+        p.pipenv(f"install git+{local_requests_git_repo.as_uri()}@main#egg=requests")
 
         # Change ref
         pipfile = p.pipfile_path
@@ -181,12 +176,11 @@ def test_update_without_lockfile(pipenv_instance_file_pypi):
             '[packages]\nrequests = "==2.31.0"\n[dev-packages]\npytest = "==7.4.0"',
             {"pytest"}
         ),
-        # Test VCS package - stays on real github.com (see NOTE on
-        # test_get_modified_pipfile_entries_vcs_changes above for why a
-        # local git fixture named "requests" doesn't work here).
+        # Test VCS package - uses a local git fixture (file:// URL),
+        # substituted in below via the "{VCS_REPO}" placeholder.
         (
-            '[packages]\nrequests = {git = "https://github.com/requests/requests.git", ref = "main"}',
-            '[packages]\nrequests = {git = "https://github.com/requests/requests.git", ref = "v2.31.0"}',
+            '[packages]\nrequests = {git = "{VCS_REPO}", ref = "main"}',
+            '[packages]\nrequests = {git = "{VCS_REPO}", ref = "v2.31.0"}',
             {"requests"}
         ),
         # Test extras change
@@ -199,14 +193,16 @@ def test_update_without_lockfile(pipenv_instance_file_pypi):
 )
 def test_update_modified_packages(
     pipenv_instance_file_pypi,
+    local_requests_git_repo,
     initial_content,
     modified_content,
     expected_updates,
 ):
     with pipenv_instance_file_pypi() as p:
-        # Write initial Pipfile (prefixed with our offline [[source]] -
-        # harmless for the VCS case, which ignores it and stays on real
-        # github.com regardless; only that one case needs network).
+        vcs_repo_uri = local_requests_git_repo.as_uri()
+        initial_content = initial_content.replace("{VCS_REPO}", vcs_repo_uri)
+        modified_content = modified_content.replace("{VCS_REPO}", vcs_repo_uri)
+        # Write initial Pipfile (prefixed with our offline [[source]])
         source_block = f'[[source]]\nurl = "{p.index_url}"\nverify_ssl = false\nname = "pypi"\n\n'
         p.pipfile_path.write_text(source_block + initial_content)
         p.pipenv("lock")  # Generate initial lockfile

@@ -13,18 +13,22 @@ VCS_SCHEMES = [
     "git+https",
     "git+ssh",
     "git+git",
+    "git+file",
     "hg+http",
     "hg+https",
     "hg+ssh",
+    "hg+file",
     "svn+http",
     "svn+https",
     "svn+svn",
+    "svn+file",
     "bzr+http",
     "bzr+https",
     "bzr+ssh",
     "bzr+sftp",
     "bzr+ftp",
     "bzr+lp",
+    "bzr+file",
 ]
 REMOTE_SCHEMES = REMOTE_FILE_SCHEMES + VCS_SCHEMES
 
