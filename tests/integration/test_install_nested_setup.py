@@ -5,13 +5,12 @@ import pytest
 
 
 @pytest.mark.install
-@pytest.mark.needs_internet
 @pytest.mark.skipif(
     os.name == "nt",
     reason="This test is not for Windows",
 )
-def test_install_path_with_nested_setup_module(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_install_path_with_nested_setup_module(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         # Install setuptools first for Python 3.12+ compatibility
         c = p.pipenv("install setuptools")
         assert c.returncode == 0
