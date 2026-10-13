@@ -10,10 +10,10 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.dotvenv
 @pytest.mark.parametrize("true_value", TRUE_VALUES)
-def test_venv_in_project(true_value, pipenv_instance_pypi):
+def test_venv_in_project(true_value, pipenv_instance_file_pypi):
     with temp_environ():
         os.environ["PIPENV_VENV_IN_PROJECT"] = true_value
-        with pipenv_instance_pypi() as p:
+        with pipenv_instance_file_pypi() as p:
             c = p.pipenv("install dataclasses-json")
             assert c.returncode == 0
             assert p.path in p.pipenv("--venv").stdout
@@ -21,11 +21,11 @@ def test_venv_in_project(true_value, pipenv_instance_pypi):
 
 @pytest.mark.dotvenv
 @pytest.mark.parametrize("false_value", FALSE_VALUES)
-def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi):
+def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_file_pypi):
     venv_name = "my_project"
     with temp_environ():
         os.environ["PIPENV_VENV_IN_PROJECT"] = false_value
-        with pipenv_instance_pypi() as p:
+        with pipenv_instance_file_pypi() as p:
             file_path = os.path.join(p.path, ".venv")
             with open(file_path, "w") as f:
                 f.write(venv_name)
@@ -48,8 +48,8 @@ def test_venv_in_project_disabled_ignores_venv(false_value, pipenv_instance_pypi
 
 @pytest.mark.dotvenv
 @pytest.mark.parametrize("true_value", TRUE_VALUES)
-def test_venv_at_project_root(true_value, pipenv_instance_pypi):
-    with temp_environ(), pipenv_instance_pypi() as p:
+def test_venv_at_project_root(true_value, pipenv_instance_file_pypi):
+    with temp_environ(), pipenv_instance_file_pypi() as p:
         os.environ["PIPENV_VENV_IN_PROJECT"] = true_value
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -64,10 +64,10 @@ def test_venv_at_project_root(true_value, pipenv_instance_pypi):
 @pytest.mark.dotvenv
 @pytest.mark.parametrize("false_value", FALSE_VALUES)
 def test_venv_in_project_disabled_with_existing_venv_dir(
-    false_value, pipenv_instance_pypi
+    false_value, pipenv_instance_file_pypi
 ):
     venv_name = "my_project"
-    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+    with temp_environ(), pipenv_instance_file_pypi() as p, TemporaryDirectory(
         prefix="pipenv-", suffix="temp_workon_home"
     ) as workon_home:
         os.environ["PIPENV_VENV_IN_PROJECT"] = false_value
@@ -87,8 +87,8 @@ def test_venv_in_project_disabled_with_existing_venv_dir(
 
 
 @pytest.mark.dotvenv
-def test_reuse_previous_venv(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_reuse_previous_venv(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         os.mkdir(".venv")
         c = p.pipenv("install dataclasses-json")
         assert c.returncode == 0
@@ -97,11 +97,11 @@ def test_reuse_previous_venv(pipenv_instance_pypi):
 
 @pytest.mark.dotvenv
 @pytest.mark.parametrize("venv_name", ("test-venv", os.path.join("foo", "test-venv")))
-def test_venv_file(venv_name, pipenv_instance_pypi):
+def test_venv_file(venv_name, pipenv_instance_file_pypi):
     """Tests virtualenv creation when a .venv file exists at the project root
     and contains a venv name.
     """
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         file_path = os.path.join(p.path, ".venv")
         with open(file_path, "w") as f:
             f.write(venv_name)
@@ -128,9 +128,9 @@ def test_venv_file(venv_name, pipenv_instance_pypi):
 
 
 @pytest.mark.dotvenv
-def test_empty_venv_file(pipenv_instance_pypi):
+def test_empty_venv_file(pipenv_instance_file_pypi):
     """Tests virtualenv creation when an empty .venv file exists at the project root"""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         file_path = os.path.join(p.path, ".venv")
         with open(file_path, "w"):
             pass
@@ -154,9 +154,9 @@ def test_empty_venv_file(pipenv_instance_pypi):
 
 
 @pytest.mark.dotvenv
-def test_venv_in_project_default_when_venv_exists(pipenv_instance_pypi):
+def test_venv_in_project_default_when_venv_exists(pipenv_instance_file_pypi):
     """Tests virtualenv creation when a .venv file exists at the project root."""
-    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+    with temp_environ(), pipenv_instance_file_pypi() as p, TemporaryDirectory(
         prefix="pipenv-", suffix="-test_venv"
     ) as venv_path:
         file_path = os.path.join(p.path, ".venv")
@@ -174,14 +174,14 @@ def test_venv_in_project_default_when_venv_exists(pipenv_instance_pypi):
 
 
 @pytest.mark.dotvenv
-def test_rm_prefers_workon_home_venv_over_dot_venv_dir(pipenv_instance_pypi):
+def test_rm_prefers_workon_home_venv_over_dot_venv_dir(pipenv_instance_file_pypi):
     """Regression test for https://github.com/pypa/pipenv/issues/6331.
 
     When a pipenv-managed virtualenv already exists in WORKON_HOME and the user
     independently creates a .venv directory (e.g. via `python -m venv .venv`),
     `pipenv --rm` must remove the pipenv-managed venv, not the user-created .venv.
     """
-    with temp_environ(), pipenv_instance_pypi() as p, TemporaryDirectory(
+    with temp_environ(), pipenv_instance_file_pypi() as p, TemporaryDirectory(
         prefix="pipenv-", suffix="temp_workon_home"
     ) as workon_home:
         os.environ["WORKON_HOME"] = workon_home
@@ -214,9 +214,9 @@ def test_rm_prefers_workon_home_venv_over_dot_venv_dir(pipenv_instance_pypi):
 
 
 @pytest.mark.dotenv
-def test_venv_name_accepts_custom_name_environment_variable(pipenv_instance_pypi):
+def test_venv_name_accepts_custom_name_environment_variable(pipenv_instance_file_pypi):
     """Tests that virtualenv reads PIPENV_CUSTOM_VENV_NAME and accepts it as a name"""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         test_name = "sensible_custom_venv_name"
         with temp_environ():
             os.environ["PIPENV_CUSTOM_VENV_NAME"] = test_name
@@ -230,20 +230,20 @@ def test_venv_name_accepts_custom_name_environment_variable(pipenv_instance_pypi
 
 
 @pytest.mark.dotvenv
-def test_venv_in_project_via_pipfile_directive(pipenv_instance_pypi):
+def test_venv_in_project_via_pipfile_directive(pipenv_instance_file_pypi):
     """Test that [pipenv] venv_in_project = true in Pipfile creates venv in project."""
     with temp_environ():
         os.environ.pop("PIPENV_VENV_IN_PROJECT", None)
-        with pipenv_instance_pypi() as p:
+        with pipenv_instance_file_pypi() as p:
             with open(p.pipfile_path, "w") as f:
                 f.write(
-                    """
+                    f"""
 [pipenv]
 venv_in_project = true
 
 [[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
+url = "{p.index_url}"
+verify_ssl = false
 name = "pypi"
 
 [packages]
@@ -259,20 +259,20 @@ name = "pypi"
 
 
 @pytest.mark.dotvenv
-def test_venv_in_project_env_var_overrides_pipfile_directive(pipenv_instance_pypi):
+def test_venv_in_project_env_var_overrides_pipfile_directive(pipenv_instance_file_pypi):
     """Test that PIPENV_VENV_IN_PROJECT=0 overrides Pipfile venv_in_project=true."""
     with temp_environ():
         os.environ["PIPENV_VENV_IN_PROJECT"] = "0"
-        with pipenv_instance_pypi() as p:
+        with pipenv_instance_file_pypi() as p:
             with open(p.pipfile_path, "w") as f:
                 f.write(
-                    """
+                    f"""
 [pipenv]
 venv_in_project = true
 
 [[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
+url = "{p.index_url}"
+verify_ssl = false
 name = "pypi"
 
 [packages]
