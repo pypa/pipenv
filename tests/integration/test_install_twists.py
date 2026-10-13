@@ -11,8 +11,8 @@ from pipenv.vendor.packaging import version
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
-def test_local_path_issue_6016(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_local_path_issue_6016(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """
@@ -40,9 +40,9 @@ setup(
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
-def test_local_extras_install(pipenv_instance_pypi):
+def test_local_extras_install(pipenv_instance_file_pypi):
     """Ensure -e .[extras] installs."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """
@@ -64,9 +64,14 @@ setup(
         line = "-e .[dev]"
         with open(os.path.join(p.path, "Pipfile"), "w") as fh:
             fh.write(
-                """
+                f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
-testpipenv = {path = ".", editable = true, extras = ["dev"]}
+testpipenv = {{path = ".", editable = true, extras = ["dev"]}}
 
 [dev-packages]
             """.strip()
@@ -93,9 +98,9 @@ testpipenv = {path = ".", editable = true, extras = ["dev"]}
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.local
-def test_local_extras_install_alternate(pipenv_instance_pypi):
+def test_local_extras_install_alternate(pipenv_instance_file_pypi):
     """Ensure local package with extras installs correctly using pyproject.toml."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # Create pyproject.toml
         pyproject_toml = os.path.join(p.path, "pyproject.toml")
         with open(pyproject_toml, "w") as fh:
@@ -126,9 +131,14 @@ dev = ["six"]
         for install_method in ["pipfile", "direct"]:
             if install_method == "pipfile":
                 with open(os.path.join(p.path, "Pipfile"), "w") as fh:
-                    fh.write("""
+                    fh.write(f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
-testpipenv = {path = ".", editable = true, extras = ["dev"]}
+testpipenv = {{path = ".", editable = true, extras = ["dev"]}}
 
 [dev-packages]
                     """.strip())
@@ -198,11 +208,16 @@ setup(
 
 @pytest.mark.run
 @pytest.mark.install
-def test_normalize_name_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_normalize_name_install(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 # Pre comment
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 Requests = "==2.14.0"   # Inline comment
 """
@@ -227,14 +242,14 @@ Requests = "==2.14.0"   # Inline comment
 @pytest.mark.local
 @pytest.mark.resolver
 @pytest.mark.skip  # extracting this package may be where its causing the pip_to_deps failures
-def test_local_package(pipenv_instance_private_pypi, testsroot):
+def test_local_package(pipenv_instance_file_pypi, testsroot):
     """This test ensures that local packages (directories with a setup.py)
     installed in editable mode have their dependencies resolved as well"""
     file_name = "requests-2.19.1.tar.gz"
     package = "requests-2.19.1"
     # Not sure where travis/appveyor run tests from
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # This tests for a bug when installing a zipfile in the current dir
         copy_to = os.path.join(p.path, file_name)
         shutil.copy(source_path, copy_to)
@@ -269,10 +284,10 @@ def test_local_package(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.files
 @pytest.mark.local
-def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
+def test_local_tar_gz_file(pipenv_instance_file_pypi, testsroot):
     file_name = "requests-2.19.1.tar.gz"
 
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         requests_path = p._pipfile.get_fixture_path(f"{file_name}")
 
         # This tests for a bug when installing a zipfile
@@ -292,10 +307,10 @@ def test_local_tar_gz_file(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.urls
 @pytest.mark.install
-def test_install_local_uri_special_character(pipenv_instance_private_pypi, testsroot):
+def test_install_local_uri_special_character(pipenv_instance_file_pypi, testsroot):
     file_name = "six-1.11.0+mkl-py2.py3-none-any.whl"
     source_path = os.path.abspath(os.path.join(testsroot, "test_artifacts", file_name))
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         artifact_dir = "artifacts"
         artifact_path = os.path.join(p.path, artifact_dir)
         os.makedirs(artifact_path, exist_ok=True)
@@ -316,7 +331,7 @@ six = {{path = "./artifacts/{file_name}"}}
 @pytest.mark.files
 @pytest.mark.install
 def test_multiple_editable_packages_should_not_race(
-    pipenv_instance_private_pypi, testsroot
+    pipenv_instance_file_pypi, testsroot
 ):
     """Test for a race condition that can occur when installing multiple 'editable' packages at
     once, and which causes some of them to not be importable.
@@ -328,7 +343,7 @@ def test_multiple_editable_packages_should_not_race(
     """
     pkgs = ["six", "jinja2"]
 
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         pipfile_string = f"""
 [[source]]
 url = "{p.index_url}"
@@ -364,9 +379,9 @@ name = "testindex"
 )
 @pytest.mark.outdated
 def test_outdated_should_compare_postreleases_without_failing(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install ibm-db-sa-py3==0.3.0")
         assert c.returncode == 0
         c = p.pipenv("update --outdated")
@@ -393,9 +408,9 @@ def test_install_remote_wheel_file_with_extras(pipenv_instance_pypi):
 
 @pytest.mark.install
 @pytest.mark.skip_lock
-@pytest.mark.needs_internet
-def test_install_skip_lock(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_skip_lock(pipenv_instance_file_pypi):
+    # needs_internet dropped: six is vendored in the offline index.
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -416,14 +431,14 @@ six = {}
 
 @pytest.mark.install
 @pytest.mark.skip_lock
-def test_skip_lock_installs_correct_version(pipenv_instance_pypi):
+def test_skip_lock_installs_correct_version(pipenv_instance_file_pypi):
     """Ensure --skip-lock installs the exact version specified in Pipfile."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
+url = "{p.index_url}"
+verify_ssl = false
 name = "pypi"
 
 [packages]
@@ -448,20 +463,20 @@ gunicorn = "==20.0.2"
 
 @pytest.mark.install
 @pytest.mark.skip_lock
-def test_skip_lock_respects_markers(pipenv_instance_pypi):
+def test_skip_lock_respects_markers(pipenv_instance_file_pypi):
     """Ensure --skip-lock correctly handles packages with markers."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
-verify_ssl = true
+url = "{p.index_url}"
+verify_ssl = false
 name = "pypi"
 
 [packages]
 # Use python version markers since they're platform-independent
-simplejson = {version = "==3.17.2", markers = "python_version < '4'"}
-urllib3 = {version = "==1.26.6", markers = "python_version < '2'"}
+simplejson = {{version = "==3.17.2", markers = "python_version < '4'"}}
+urllib3 = {{version = "==1.26.6", markers = "python_version < '2'"}}
             """.strip()
             f.write(contents)
 
@@ -486,6 +501,14 @@ urllib3 = {version = "==1.26.6", markers = "python_version < '2'"}
 @pytest.mark.install
 def test_no_duplicate_source_on_install(pipenv_instance_private_pypi):
     """Ensure that running pipenv install with an index URL doesn't create duplicate [[source]] sections."""
+    # NOTE: stays on real pypi.org / pipenv_instance_private_pypi
+    # deliberately. Tried p.index_url (file://) for the `--index` CLI
+    # flag used below and hit a genuine pipenv limitation: add_index_to_pipfile
+    # -> get_host_and_port() returns None for a file:// URL (no netloc),
+    # and the caller does `host_and_port.partition(":")` unconditionally,
+    # raising AttributeError. Same family of issue as --pypi-mirror
+    # rejecting file:// URLs (test_sync.py's test_mirror_lock_sync) - CLI
+    # index/mirror flags generally assume a real http(s) host.
     with pipenv_instance_private_pypi() as p:
         # Create initial Pipfile with a source
         with open(p.pipfile_path, "w") as f:
@@ -534,8 +557,14 @@ name = "pypi"
 
 @pytest.mark.basic
 @pytest.mark.install
+@pytest.mark.needs_internet
 def test_install_dev_with_skip_lock(pipenv_instance_pypi):
-    """Test aws-cdk-lib installation and version verification."""
+    """Test aws-cdk-lib installation and version verification.
+
+    Stays on real pypi.org: aws-cdk-lib is too large/complex a real
+    dependency tree to stub faithfully. Was missing needs_internet
+    despite needing it.
+    """
     with pipenv_instance_pypi() as p:
         # Create the Pipfile with specified contents
         with open(p.pipfile_path, "w") as f:
