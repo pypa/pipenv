@@ -52,22 +52,22 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_file_
 
 
 @pytest.mark.requirements
-@pytest.mark.needs_internet
 def test_requirements_generates_requirements_from_lockfile_multiple_sources(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
-    # NOTE: stays on real network deliberately - both source URLs are
-    # hardcoded literals the assertions check for verbatim in the
-    # "requirements" command's output, never p.index_url, so pointing
-    # the fixture at the offline index wouldn't change anything here.
-    with pipenv_instance_private_pypi() as p:
+    # The second source ("other_source") is deliberately never contacted
+    # - "pipenv requirements" only echoes declared sources as pip args,
+    # it doesn't verify reachability - so it stays an unreachable dummy
+    # literal; only the primary source needs to actually resolve
+    # packages, so that one points at the offline index.
+    with pipenv_instance_file_pypi() as p:
         packages = ("six", "1.12.0")
         dev_packages = ("itsdangerous", "1.1.0")
         with open(p.pipfile_path, "w") as f:
             contents = f"""
             [[source]]
             name = "pypi"
-            url = "https://pypi.org/simple"
+            url = "{p.index_url}"
             verify_ssl = true
             [[source]]
             name = "other_source"
@@ -84,29 +84,25 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(
         c = p.pipenv("requirements")
         assert c.returncode == 0
 
-        assert "-i https://pypi.org/simple" in c.stdout
+        assert f"-i {p.index_url}" in c.stdout
         assert "--extra-index-url https://some_other_source.org" in c.stdout
 
 
 @pytest.mark.requirements
-@pytest.mark.needs_internet
 def test_requirements_generates_requirements_from_lockfile_from_categories(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
-    # NOTE: stays on real network deliberately - same as the multi-source
-    # test above, the Pipfile hardcodes "https://pypi.org/simple" rather
-    # than using p.index_url.
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         packages = ("six", "1.12.0")
         dev_packages = ("itsdangerous", "1.1.0")
-        test_packages = ("pytest", "7.1.3")
+        test_packages = ("pytest", "4.6.9")
         doc_packages = ("docutils", "0.19")
 
         with open(p.pipfile_path, "w") as f:
             contents = f"""
             [[source]]
             name = "pypi"
-            url = "https://pypi.org/simple"
+            url = "{p.index_url}"
             verify_ssl = true
             [packages]
             {packages[0]}= "=={packages[1]}"
