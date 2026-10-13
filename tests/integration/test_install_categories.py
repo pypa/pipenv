@@ -6,8 +6,8 @@ import pytest
 
 @pytest.mark.categories
 @pytest.mark.install
-def test_basic_category_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_basic_category_install(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install six --categories prereq")
         assert c.returncode == 0
         assert "six" not in p.pipfile["packages"]
@@ -19,9 +19,15 @@ def test_basic_category_install(pipenv_instance_private_pypi):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.requirements
-def test_basic_category_install_from_requirements(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(pipfile=False) as p:
-        # Write a requirements file
+def test_basic_category_install_from_requirements(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
+        # NOTE: stays on real pypi.org regardless of fixture. Neither a
+        # `-i <url>` line in requirements.txt nor `--index <url>` on the
+        # CLI gets respected during the requirements.txt->Pipfile
+        # conversion this exercises (confirmed: both silently resolve
+        # against real pypi.org even when pointed at the offline
+        # index) - a separate pre-existing pipenv limitation. See
+        # tests/integration/KNOWN_ISSUES_offline_migration.md.
         with open("requirements.txt", "w") as f:
             f.write("six==1.16.0")
 
@@ -41,8 +47,8 @@ def test_basic_category_install_from_requirements(pipenv_instance_private_pypi):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.parametrize("categories", ["prereq other", "prereq, other"])
-def test_multiple_category_install(pipenv_instance_private_pypi, categories):
-    with pipenv_instance_private_pypi() as p:
+def test_multiple_category_install(pipenv_instance_file_pypi, categories):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv('install six --categories="prereq other"')
         assert c.returncode == 0
         assert "six" not in p.pipfile["packages"]
@@ -56,9 +62,10 @@ def test_multiple_category_install(pipenv_instance_private_pypi, categories):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.requirements
-def test_multiple_category_install_from_requirements(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(pipfile=False) as p:
-        # Write a requirements file
+def test_multiple_category_install_from_requirements(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
+        # NOTE: stays on real pypi.org - see note in
+        # test_basic_category_install_from_requirements above.
         with open("requirements.txt", "w") as f:
             f.write("six==1.16.0")
 
@@ -82,10 +89,10 @@ def test_multiple_category_install_from_requirements(pipenv_instance_private_pyp
 @pytest.mark.local
 @pytest.mark.skipif(sys.version_info >= (3, 12), reason="test is not 3.12 compatible")
 def test_multiple_category_install_proceeds_in_order_specified(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
     """Ensure -e .[extras] installs."""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         setup_py = os.path.join(p.path, "setup.py")
         with open(setup_py, "w") as fh:
             contents = """
@@ -106,9 +113,14 @@ setup(
             fh.write(contents)
         with open(os.path.join(p.path, "Pipfile"), "w") as fh:
             fh.write(
-                """
+                f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
-testpipenv = {path = ".", editable = true, skip_resolver = true}
+testpipenv = {{path = ".", editable = true, skip_resolver = true}}
 
 [prereq]
 six = "*"
