@@ -7,6 +7,11 @@ from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 @pytest.mark.extras
 @pytest.mark.install
 def test_install_uri_with_extras(pipenv_instance_pypi):
+    # NOTE: stays on the real private pypi server, not the offline file://
+    # index - migrating hit a pip quirk where this file=+extras dependency
+    # form tries to tarfile-extract the .whl as if it were an sdist, which
+    # only reproduces over file:// transport. See
+    # tests/integration/KNOWN_ISSUES_offline_migration.md.
     server = DEFAULT_PRIVATE_PYPI_SERVER.replace("/simple", "")
     file_uri = f"{server}/packages/plette/plette-0.2.2-py2.py3-none-any.whl"
     with pipenv_instance_pypi() as p:
@@ -29,9 +34,9 @@ plette = {{file = "{file_uri}", extras = ["validation"]}}
 
 @pytest.mark.star
 @pytest.mark.install
-def test_install_major_version_star_specifier(pipenv_instance_pypi):
+def test_install_major_version_star_specifier(pipenv_instance_file_pypi):
     """Test that major version star specifiers like '1.*' work correctly."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -50,9 +55,9 @@ six = "==1.*"
 
 @pytest.mark.star
 @pytest.mark.install
-def test_install_full_wildcard_specifier(pipenv_instance_pypi):
+def test_install_full_wildcard_specifier(pipenv_instance_file_pypi):
     """Test that full wildcard specifiers '*' work correctly."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -71,9 +76,9 @@ requests = "*"
 
 @pytest.mark.star
 @pytest.mark.install
-def test_install_single_equals_star_specifier(pipenv_instance_pypi):
+def test_install_single_equals_star_specifier(pipenv_instance_file_pypi):
     """Test that single equals star specifiers like '=8.*' work correctly."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -93,9 +98,9 @@ requests = "==2.*"
 
 @pytest.mark.star
 @pytest.mark.install
-def test_install_command_with_star_specifier(pipenv_instance_pypi):
+def test_install_command_with_star_specifier(pipenv_instance_file_pypi):
     """Test that star specifiers work when used in the install command."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # Initialize pipfile first
         with open(p.pipfile_path, "w") as f:
             contents = f"""
