@@ -330,17 +330,8 @@ def test_bad_packages(pipenv_instance_file_pypi):
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.requirements
-@pytest.mark.needs_internet
-def test_requirements_to_pipfile(pipenv_instance_private_pypi):
-    # Stays on real network: a `-i <url>` line in requirements.txt is
-    # silently dropped during the requirements.txt->Pipfile conversion
-    # whenever the index URL has no netloc (confirmed genuine -
-    # add_index_to_pipfile_with_trust_check -> is_valid_url() rejects
-    # file:// URLs since urlparse() gives them an empty netloc, raising
-    # PipenvUsageError, which import_requirements()'s bare
-    # `except Exception` then silently swallows). See
-    # tests/integration/KNOWN_ISSUES_offline_migration.md.
-    with pipenv_instance_private_pypi(pipfile=False) as p:
+def test_requirements_to_pipfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
         # Write a requirements file
         with open("requirements.txt", "w") as f:
             f.write(f"-i {p.index_url}\nrequests[socks]==2.19.1\n")

@@ -55,7 +55,7 @@ from .constants import (
     VCS_SCHEMES,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
-from .internet import get_host_and_port, is_valid_url
+from .internet import get_host_and_port, is_pypi_url, is_valid_url
 from .markers import PipenvMarkers
 from .pip import get_trusted_hosts
 
@@ -1761,6 +1761,24 @@ def import_requirements(project, r=None, dev=False, categories=None):
     trusted_hosts = sorted(set(trusted_hosts))
     primary_index_name = None
     for index in indexes:
+        if index == primary_index:
+            # pip's own "-i <url>" REPLACES the default index rather
+            # than adding a secondary one. Mirror that when nothing but
+            # the untouched default pypi.org source exists yet (true
+            # right after project.create_pipfile() converts a bare
+            # requirements.txt with no prior Pipfile) - otherwise the
+            # default stays index_urls[0] and (per pip's
+            # SearchScope.index_restricted) keeps being used to resolve
+            # every transitive dependency of the packages we're about to
+            # tag with this index, even though those packages themselves
+            # correctly resolve against it.
+            existing_sources = project.pipfile.parsed.get("source")
+            if (
+                existing_sources
+                and len(existing_sources) == 1
+                and is_pypi_url(existing_sources[0].get("url", ""))
+            ):
+                del existing_sources[0]
         index_name = add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
         if index == primary_index:
             primary_index_name = index_name
