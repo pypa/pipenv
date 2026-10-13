@@ -499,17 +499,9 @@ urllib3 = {{version = "==1.26.6", markers = "python_version < '2'"}}
 
 
 @pytest.mark.install
-def test_no_duplicate_source_on_install(pipenv_instance_private_pypi):
+def test_no_duplicate_source_on_install(pipenv_instance_file_pypi):
     """Ensure that running pipenv install with an index URL doesn't create duplicate [[source]] sections."""
-    # NOTE: stays on real pypi.org / pipenv_instance_private_pypi
-    # deliberately. Tried p.index_url (file://) for the `--index` CLI
-    # flag used below and hit a genuine pipenv limitation: add_index_to_pipfile
-    # -> get_host_and_port() returns None for a file:// URL (no netloc),
-    # and the caller does `host_and_port.partition(":")` unconditionally,
-    # raising AttributeError. Same family of issue as --pypi-mirror
-    # rejecting file:// URLs (test_sync.py's test_mirror_lock_sync) - CLI
-    # index/mirror flags generally assume a real http(s) host.
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # Create initial Pipfile with a source
         with open(p.pipfile_path, "w") as f:
             contents = """
