@@ -1,25 +1,29 @@
-import pytest
+from pathlib import Path
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
+import pytest
 
 
 @pytest.mark.urls
 @pytest.mark.extras
 @pytest.mark.install
-def test_install_uri_with_extras(pipenv_instance_pypi):
-    # NOTE: stays on the real private pypi server, not the offline file://
-    # index - migrating hit a pip quirk where this file=+extras dependency
-    # form tries to tarfile-extract the .whl as if it were an sdist, which
-    # only reproduces over file:// transport. See
-    # tests/integration/KNOWN_ISSUES_offline_migration.md.
-    server = DEFAULT_PRIVATE_PYPI_SERVER.replace("/simple", "")
-    file_uri = f"{server}/packages/plette/plette-0.2.2-py2.py3-none-any.whl"
-    with pipenv_instance_pypi() as p:
+def test_install_uri_with_extras(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
+        whl = Path(
+            Path(__file__).resolve().parent.parent
+            / "pypi"
+            / "plette"
+            / "plette-0.2.2-py2.py3-none-any.whl"
+        )
+        try:
+            whl = whl.resolve()
+        except OSError:
+            whl = whl.absolute()
+        file_uri = whl.as_uri()
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [packages]

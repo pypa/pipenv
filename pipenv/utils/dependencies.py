@@ -547,7 +547,14 @@ def dependency_as_pip_install_line(
                     ("http:", "https:", "ftp:")
                 ):
                     line.append("-e")
-                if location.startswith(("http:", "https:")):
+                if location.startswith(("http:", "https:", "file:")):
+                    # A file:// URL is a URL like http(s), not a bare
+                    # local path - it needs the "name[extras] @ url"
+                    # form too. Appending "[extras]" directly onto the
+                    # URL (the bare-path branch below) breaks pip's
+                    # filename/extension detection for the downloaded
+                    # file, since the string pip sees no longer ends in
+                    # e.g. ".whl".
                     req_str = f"{dep_name}{extras} @ {location}"
                 else:
                     req_str = f"{location}{extras}"
