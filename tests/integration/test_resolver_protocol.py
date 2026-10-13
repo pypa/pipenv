@@ -106,7 +106,17 @@ def _normalize_request(payload: dict) -> dict:
     sources = out.get("sources")
     if isinstance(sources, list):
         for source in sources:
-            if isinstance(source, dict) and "url" in source:
+            # Only redact the dynamic file:// index path - redacting
+            # every source unconditionally would make this golden test
+            # pass even if the resolver emitted a wrong/different
+            # source (e.g. real pypi.org instead of the offline index),
+            # losing the source-transport assertion this test exists
+            # to make.
+            if (
+                isinstance(source, dict)
+                and isinstance(source.get("url"), str)
+                and source["url"].startswith("file://")
+            ):
                 source["url"] = "<redacted file:// index path>"
     return out
 
