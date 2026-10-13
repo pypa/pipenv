@@ -21,15 +21,8 @@ def test_basic_category_install(pipenv_instance_file_pypi):
 @pytest.mark.requirements
 def test_basic_category_install_from_requirements(pipenv_instance_file_pypi):
     with pipenv_instance_file_pypi(pipfile=False) as p:
-        # NOTE: stays on real pypi.org regardless of fixture. Neither a
-        # `-i <url>` line in requirements.txt nor `--index <url>` on the
-        # CLI gets respected during the requirements.txt->Pipfile
-        # conversion this exercises (confirmed: both silently resolve
-        # against real pypi.org even when pointed at the offline
-        # index) - a separate pre-existing pipenv limitation. See
-        # tests/integration/KNOWN_ISSUES_offline_migration.md.
         with open("requirements.txt", "w") as f:
-            f.write("six==1.16.0")
+            f.write(f"-i {p.index_url}\nsix==1.16.0")
 
         c = p.pipenv("install --categories prereq")
         assert c.returncode == 0
@@ -64,10 +57,8 @@ def test_multiple_category_install(pipenv_instance_file_pypi, categories):
 @pytest.mark.requirements
 def test_multiple_category_install_from_requirements(pipenv_instance_file_pypi):
     with pipenv_instance_file_pypi(pipfile=False) as p:
-        # NOTE: stays on real pypi.org - see note in
-        # test_basic_category_install_from_requirements above.
         with open("requirements.txt", "w") as f:
-            f.write("six==1.16.0")
+            f.write(f"-i {p.index_url}\nsix==1.16.0")
 
         c = p.pipenv('install --categories="prereq other"')
         assert c.returncode == 0
