@@ -225,7 +225,7 @@ install_search_all_sources = true
         # an extra leading "/" before the drive letter).
         second_index_root = local_pypi_index_root.parent / "secondary-index"
         if not second_index_root.exists():
-            second_index_root.symlink_to(local_pypi_index_root)
+            second_index_root.symlink_to(local_pypi_index_root, target_is_directory=True)
         second_index_url = second_index_root.as_uri()
 
         c = p.pipenv(f"install dataclasses-json --index {second_index_url}")
