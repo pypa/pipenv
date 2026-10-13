@@ -15,6 +15,7 @@ def test_install_github_vcs(pipenv_instance_file_pypi, local_adaptix_git_repo):
 
 @pytest.mark.basic
 @pytest.mark.install
+@pytest.mark.needs_internet
 @pytest.mark.parametrize("use_credentials", [True, False])
 def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentials):
     """Stays on real github.com: exercises ${GIT_USERNAME}:${GIT_PASSWORD}
