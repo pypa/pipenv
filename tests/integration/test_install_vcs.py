@@ -55,8 +55,11 @@ def test_install_github_vcs_with_credentials(pipenv_instance_pypi, use_credentia
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_vcs_ref_by_commit_hash(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_vcs_ref_by_commit_hash(pipenv_instance_file_pypi):
+    # Doesn't need the local pypi-server: installs purely via a real
+    # github.com VCS URL and asserts on real commit hashes, never
+    # touching p.index_url.
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install -e git+https://github.com/benjaminp/six.git@5efb522b0647f7467248273ec1b893d06b984a59#egg=six")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
