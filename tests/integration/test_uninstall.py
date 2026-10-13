@@ -9,8 +9,8 @@ from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
 
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall_requests(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_uninstall_requests(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install requests")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
@@ -26,6 +26,12 @@ def test_uninstall_requests(pipenv_instance_pypi):
     sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
 )
 def test_uninstall_django(pipenv_instance_private_pypi):
+    # NOTE: stays on real network deliberately - unpinned "Django" would
+    # resolve to the highest available version, and our extra_pypi stub
+    # Django wheels (3.2.10/4.2.7, added for test_upgrade_cleanup.py) are
+    # metadata-only with no real code, so `python -m django --version`
+    # and the pytz-dependency assertions below would break if this
+    # picked a stub instead of a real functional Django.
     with pipenv_instance_private_pypi() as p:
         c = p.pipenv("install Django")
         assert c.returncode == 0
@@ -52,6 +58,12 @@ def test_uninstall_django(pipenv_instance_private_pypi):
     sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
 )
 def test_mirror_uninstall(pipenv_instance_pypi):
+    # NOTE: stays on real network deliberately: (1) exercises --pypi-mirror,
+    # which pipenv's own validate_pypi_mirror() rejects for file:// URLs
+    # (no netloc) - same issue as test_sync.py's test_mirror_lock_sync;
+    # (2) unpinned "Django" risks resolving to our metadata-only extra_pypi
+    # stub instead of a real functional Django - see test_uninstall_django
+    # above.
     with temp_environ(), pipenv_instance_pypi() as p:
         mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
         assert "pypi.org" not in mirror_url
@@ -88,8 +100,8 @@ def test_mirror_uninstall(pipenv_instance_pypi):
 @pytest.mark.files
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_all_local_files(pipenv_instance_file_pypi, testsroot):
+    with pipenv_instance_file_pypi() as p:
         file_uri = p._pipfile.get_fixture_path(
             "tablib/tablib-0.12.1.tar.gz", fixtures="pypi"
         ).as_uri()
@@ -115,8 +127,8 @@ def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_dev(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_all_dev(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -161,11 +173,16 @@ six = "==1.12.0"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_normalize_name_uninstall(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_normalize_name_uninstall(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 # Pre comment
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 Requests = "*"
 python_DateUtil = "*"
@@ -186,10 +203,15 @@ python_DateUtil = "*"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+        [[source]]
+        url = "{p.index_url}"
+        verify_ssl = false
+        name = "pypi"
+
         [packages]
         pytest = "==4.6.11"
 
@@ -208,8 +230,8 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_missing_parameters(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install six")
         assert c.returncode == 0
 
@@ -221,10 +243,15 @@ def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_uninstall_category_with_shared_requirement(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+        [[source]]
+        url = "{p.index_url}"
+        verify_ssl = false
+        name = "pypi"
+
         [packages]
         six = "*"
 
@@ -245,10 +272,15 @@ def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_multiple_categories(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+        [[source]]
+        url = "{p.index_url}"
+        verify_ssl = false
+        name = "pypi"
+
         [after]
         six = "==1.12.0"
 
@@ -268,10 +300,15 @@ def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_sorted_alphabetically_with_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
@@ -294,19 +331,24 @@ atomicwrites = "*"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_sorting_handles_str_values_and_dict_values(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_sorting_handles_str_values_and_dict_values(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
 [packages]
 zipp = "*"
-parse = {version = "*"}
+parse = {{version = "*"}}
 colorama = "*"
 build = "*"
-atomicwrites = {version = "*"}
+atomicwrites = {{version = "*"}}
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
@@ -325,10 +367,15 @@ atomicwrites = {version = "*"}
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_not_sorted_without_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 parse = "*"
 colorama = "*"
@@ -351,10 +398,15 @@ atomicwrites = "*"
 
 
 @pytest.mark.uninstall
-def test_uninstall_without_venv(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_without_venv(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 colorama = "*"
 atomicwrites = "*"
