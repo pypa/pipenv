@@ -26,14 +26,16 @@ def test_uninstall_requests(pipenv_instance_file_pypi):
 @pytest.mark.skipif(
     sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
 )
-def test_uninstall_django(pipenv_instance_private_pypi):
+def test_uninstall_django(pipenv_instance_pypi):
     # NOTE: stays on real network deliberately - unpinned "Django" would
     # resolve to the highest available version, and our extra_pypi stub
     # Django wheels (3.2.10/4.2.7, added for test_upgrade_cleanup.py) are
     # metadata-only with no real code, so `python -m django --version`
     # and the pytz-dependency assertions below would break if this
-    # picked a stub instead of a real functional Django.
-    with pipenv_instance_private_pypi() as p:
+    # picked a stub instead of a real functional Django. Doesn't need
+    # the local pypi-server specifically - real pypi.org serves a real
+    # functional Django equally well.
+    with pipenv_instance_pypi() as p:
         c = p.pipenv("install Django")
         assert c.returncode == 0
         assert "django" in p.pipfile["packages"]
