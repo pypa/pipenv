@@ -257,7 +257,13 @@ class _Pipfile:
         if not self.document.get("source"):
             source_table = tomlkit.table()
             source_table["url"] = self.index
-            source_table["verify_ssl"] = bool(self.index.startswith("https"))
+            # file:// has no TLS to verify (so there's nothing to flag
+            # as untrusted) - marking it verify_ssl=False makes
+            # prepare_pip_source_args() emit a nonsensical
+            # "--trusted-host None", since file:// URLs have no host.
+            # Mirrors the same file:// carve-out in
+            # pipenv.utils.internet.create_mirror_source().
+            source_table["verify_ssl"] = self.index.startswith(("https", "file://"))
             source_table["name"] = "pipenv_test_index"
             self.document["source"].append(source_table)
         return tomlkit.dumps(self.document)
