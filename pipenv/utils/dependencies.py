@@ -1722,7 +1722,9 @@ def merge_items(target_list, sourced=False):
     return merged
 
 
-def import_requirements(project, r=None, dev=False, categories=None):
+def import_requirements(
+    project, r=None, dev=False, categories=None, replace_default_source=False
+):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -1787,13 +1789,23 @@ def import_requirements(project, r=None, dev=False, categories=None):
             # every transitive dependency of the packages we're about to
             # tag with this index, even though those packages themselves
             # correctly resolve against it.
-            existing_sources = project.pipfile.parsed.get("source")
-            if (
-                existing_sources
-                and len(existing_sources) == 1
-                and is_pypi_url(existing_sources[0].get("url", ""))
-            ):
-                del existing_sources[0]
+            #
+            # Only do this when the caller tells us (via
+            # replace_default_source) that it just created this Pipfile
+            # from scratch moments ago. Without that signal, the sole
+            # pypi.org source could just as easily be an existing
+            # project's own intentional configuration - e.g. `pipenv
+            # install -r requirements.txt` into an already-existing
+            # Pipfile - and silently deleting it would be a surprising,
+            # destructive side effect of an unrelated import.
+            if replace_default_source:
+                existing_sources = project.pipfile.parsed.get("source")
+                if (
+                    existing_sources
+                    and len(existing_sources) == 1
+                    and is_pypi_url(existing_sources[0].get("url", ""))
+                ):
+                    del existing_sources[0]
         index_name = add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
         if index == primary_index:
             primary_index_name = index_name
