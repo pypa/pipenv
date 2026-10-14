@@ -44,6 +44,37 @@ def test_file_path_from_pipfile_passes_through_file_url_unchanged():
     assert req_str == file_url
 
 
+def test_file_path_from_pipfile_with_extras_uses_pep_508_form_for_urls():
+    """A `file:///...` (or http(s)://) Pipfile entry with `extras` must
+    produce the PEP 508 "name[extras] @ url" direct-reference form, not
+    "url[extras]" - the latter breaks pip's filename/extension-based
+    archive detection, since the string it sees no longer ends in e.g.
+    ".whl". This is the --skip-lock install path's version of the same
+    bug already fixed for dependency_as_pip_install_line() in
+    de2fbe696 (the locked/normal install path).
+    """
+    file_url = "file:///abs/path/to/plette-0.2.2-py2.py3-none-any.whl"
+
+    req_str = file_path_from_pipfile(
+        file_url, {"extras": ["validation"]}, name="plette"
+    )
+
+    assert req_str == f"plette[validation] @ {file_url}"
+
+
+def test_file_path_from_pipfile_with_extras_appends_bracket_for_bare_paths():
+    """A bare local path (not a URL) with `extras` keeps the
+    "path[extras]" form - pip accepts this directly for local
+    directory/archive installs, and there's no filename-extension
+    detection to break since it isn't going through a URL download.
+    """
+    req_str = file_path_from_pipfile(
+        "./local/pkg", {"extras": ["dev"]}, name="pkg"
+    )
+
+    assert req_str == "./local/pkg[dev]"
+
+
 def test_clean_resolved_dep_with_vcs_url():
     project = {}  # Mock project object, adjust as needed
     dep = {

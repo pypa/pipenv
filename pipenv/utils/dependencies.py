@@ -1287,19 +1287,29 @@ def normalize_editable_path_for_pip(path_str):
     return path_str.replace(os.path.sep, "/")
 
 
-def file_path_from_pipfile(path_str, pipfile_entry):
+def file_path_from_pipfile(path_str, pipfile_entry, name=None):
     """Creates an installable file path from a pipfile entry.
     Handles local and remote paths, files and directories;
     supports extras and editable specification.
     Outputs a pip installable line.
     """
-    if path_str.startswith(("http:", "https:", "ftp:", "file:")):
+    is_url = path_str.startswith(("http:", "https:", "ftp:", "file:"))
+    if is_url:
         req_str = path_str
     else:
         req_str = ensure_path_is_relative(path_str)
 
     if pipfile_entry.get("extras"):
-        req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
+        extras_str = f"[{','.join(pipfile_entry['extras'])}]"
+        if is_url and name:
+            # A URL (file:// included) needs the "name[extras] @ url"
+            # PEP 508 direct-reference form pip expects. Appending
+            # "[extras]" straight onto the URL breaks pip's
+            # filename/extension-based archive detection, since the
+            # string it sees no longer ends in e.g. ".whl".
+            req_str = f"{name}{extras_str} @ {req_str}"
+        else:
+            req_str = f"{req_str}{extras_str}"
     if pipfile_entry.get("editable", False):
         req_str = f"-e {normalize_editable_path_for_pip(req_str)}"
 
@@ -1471,9 +1481,9 @@ def handle_non_vcs_requirement(
 ) -> str:
     """Helper function to handle non-VCS requirements."""
     if "path" in _pipfile:
-        return file_path_from_pipfile(_pipfile["path"], _pipfile)
+        return file_path_from_pipfile(_pipfile["path"], _pipfile, name=name)
     elif "file" in _pipfile:
-        return file_path_from_pipfile(_pipfile["file"], _pipfile)
+        return file_path_from_pipfile(_pipfile["file"], _pipfile, name=name)
     else:
         version = get_version(_pipfile)
         if is_star(version) or version == "==*":

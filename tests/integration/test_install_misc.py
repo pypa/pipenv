@@ -36,6 +36,50 @@ plette = {{file = "{file_uri}", extras = ["validation"]}}
         assert "cerberus" in p.lockfile["default"]
 
 
+@pytest.mark.urls
+@pytest.mark.extras
+@pytest.mark.install
+@pytest.mark.skip_lock
+def test_install_uri_with_extras_skip_lock(pipenv_instance_file_pypi):
+    """--skip-lock builds the pip install line via
+    install_req_from_pipfile() -> file_path_from_pipfile(), a separate
+    code path from the normal/locked install above - regression for a
+    Copilot PR review finding that this path appended "[extras]"
+    directly onto a file:// URL instead of using the PEP 508
+    "name[extras] @ url" form, breaking pip's archive-extension
+    detection.
+    """
+    with pipenv_instance_file_pypi() as p:
+        whl = Path(
+            Path(__file__).resolve().parent.parent
+            / "pypi"
+            / "plette"
+            / "plette-0.2.2-py2.py3-none-any.whl"
+        )
+        try:
+            whl = whl.resolve()
+        except OSError:
+            whl = whl.absolute()
+        file_uri = whl.as_uri()
+        with open(p.pipfile_path, "w") as f:
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "testindex"
+
+[packages]
+plette = {{file = "{file_uri}", extras = ["validation"]}}
+"""
+            f.write(contents)
+        c = p.pipenv("install --skip-lock")
+        assert c.returncode == 0
+        c = p.pipenv("run pip freeze")
+        assert c.returncode == 0
+        assert "plette" in c.stdout.lower()
+        assert "cerberus" in c.stdout.lower()
+
+
 @pytest.mark.star
 @pytest.mark.install
 def test_install_major_version_star_specifier(pipenv_instance_file_pypi):
