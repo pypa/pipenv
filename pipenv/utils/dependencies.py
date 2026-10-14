@@ -1293,7 +1293,7 @@ def file_path_from_pipfile(path_str, pipfile_entry):
     supports extras and editable specification.
     Outputs a pip installable line.
     """
-    if path_str.startswith(("http:", "https:", "ftp:")):
+    if path_str.startswith(("http:", "https:", "ftp:", "file:")):
         req_str = path_str
     else:
         req_str = ensure_path_is_relative(path_str)
