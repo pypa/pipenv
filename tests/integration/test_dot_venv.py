@@ -243,7 +243,7 @@ venv_in_project = true
 
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -272,7 +272,7 @@ venv_in_project = true
 
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

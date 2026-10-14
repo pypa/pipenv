@@ -318,7 +318,7 @@ def test_pipenv_outdated_prerelease(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

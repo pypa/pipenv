@@ -10,7 +10,7 @@ def test_uninstall_dev_flag(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -61,7 +61,7 @@ def test_uninstall_dev_flag_with_categories(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

@@ -166,7 +166,7 @@ def test_pipenv_run_pip_freeze_has_expected_output(quiet, pipenv_instance_file_p
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

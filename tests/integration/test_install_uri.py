@@ -138,7 +138,7 @@ name = "pypi"
 
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "secondary"
 
 [packages]
@@ -179,7 +179,7 @@ def test_install_invalid_index_name(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -304,7 +304,7 @@ def test_vcs_entry_supersedes_non_vcs(pipenv_instance_file_pypi):
                 f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

@@ -17,7 +17,7 @@ def test_lock_handle_eggs(pipenv_instance_file_pypi):
                 f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [packages]
@@ -39,7 +39,7 @@ def test_lock_gathers_pyproject_dependencies(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -79,7 +79,7 @@ def test_lock_requirements_file(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -134,7 +134,7 @@ def test_lock_includes_hashes_for_all_platforms(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [packages]
@@ -219,7 +219,7 @@ def test_lock_with_prereleases(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -264,7 +264,7 @@ def test_lock_extras_without_install(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -739,7 +739,7 @@ def test_dev_lock_use_default_packages_as_constraint(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [packages]
@@ -797,7 +797,7 @@ def test_pinned_pipfile_no_null_markers_when_extras(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

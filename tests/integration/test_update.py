@@ -203,7 +203,7 @@ def test_update_modified_packages(
         initial_content = initial_content.replace("{VCS_REPO}", vcs_repo_uri)
         modified_content = modified_content.replace("{VCS_REPO}", vcs_repo_uri)
         # Write initial Pipfile (prefixed with our offline [[source]])
-        source_block = f'[[source]]\nurl = "{p.index_url}"\nverify_ssl = false\nname = "pypi"\n\n'
+        source_block = f'[[source]]\nurl = "{p.index_url}"\nverify_ssl = true\nname = "pypi"\n\n'
         p.pipfile_path.write_text(source_block + initial_content)
         p.pipenv("lock")  # Generate initial lockfile
 

@@ -68,7 +68,7 @@ setup(
                 f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -135,7 +135,7 @@ dev = ["six"]
                     fh.write(f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -216,7 +216,7 @@ def test_normalize_name_install(pipenv_instance_file_pypi):
 # Pre comment
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -348,7 +348,7 @@ def test_multiple_editable_packages_should_not_race(
         pipfile_string = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [dev-packages]
@@ -439,7 +439,7 @@ def test_skip_lock_installs_correct_version(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -471,7 +471,7 @@ def test_skip_lock_respects_markers(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

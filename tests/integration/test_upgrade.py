@@ -14,7 +14,7 @@ def test_category_sorted_alphabetically_with_directive(pipenv_instance_file_pypi
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [pipenv]
@@ -46,7 +46,7 @@ def test_category_not_sorted_without_directive(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -127,7 +127,7 @@ def test_upgrade_updates_lockfile_in_all_categories(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -179,7 +179,7 @@ def test_upgrade_only_adds_to_explicit_categories(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

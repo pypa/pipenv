@@ -12,7 +12,7 @@ def test_upgrade_removes_unused_dependencies(pipenv_instance_file_pypi):
             f.write(f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

@@ -171,7 +171,7 @@ def test_normalize_name_uninstall(pipenv_instance_file_pypi):
 # Pre comment
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -200,7 +200,7 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_file_pypi):
             contents = f"""
         [[source]]
         url = "{p.index_url}"
-        verify_ssl = false
+        verify_ssl = true
         name = "pypi"
 
         [packages]
@@ -240,7 +240,7 @@ def test_uninstall_category_with_shared_requirement(pipenv_instance_file_pypi):
             contents = f"""
         [[source]]
         url = "{p.index_url}"
-        verify_ssl = false
+        verify_ssl = true
         name = "pypi"
 
         [packages]
@@ -269,7 +269,7 @@ def test_uninstall_multiple_categories(pipenv_instance_file_pypi):
             contents = f"""
         [[source]]
         url = "{p.index_url}"
-        verify_ssl = false
+        verify_ssl = true
         name = "pypi"
 
         [after]
@@ -297,7 +297,7 @@ def test_category_sorted_alphabetically_with_directive(pipenv_instance_file_pypi
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [pipenv]
@@ -328,7 +328,7 @@ def test_sorting_handles_str_values_and_dict_values(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [pipenv]
@@ -364,7 +364,7 @@ def test_category_not_sorted_without_directive(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -395,7 +395,7 @@ def test_uninstall_without_venv(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

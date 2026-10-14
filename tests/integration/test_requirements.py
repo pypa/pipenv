@@ -16,7 +16,7 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_file_
             contents = f"""
             [[source]]
             url = "{p.index_url}"
-            verify_ssl = false
+            verify_ssl = true
             name = "pypi"
             [packages]
             {packages[0]}= "=={packages[1]}"
@@ -148,7 +148,7 @@ def test_requirements_generates_requirements_from_pipfile(pipenv_instance_file_p
             contents = f"""
             [[source]]
             url = "{p.index_url}"
-            verify_ssl = false
+            verify_ssl = true
             name = "pypi"
             [packages]
             {packages[0]} = "=={packages[1]}"

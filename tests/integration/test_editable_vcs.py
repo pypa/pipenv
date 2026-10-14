@@ -17,7 +17,7 @@ def test_editable_vcs_reinstall(pipenv_instance_file_pypi, local_gunicorn_git_re
             f.write(f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]

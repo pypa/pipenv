@@ -50,7 +50,7 @@ def test_get_source(pipenv_instance_file_pypi, lock_first):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [[source]]
@@ -136,7 +136,7 @@ def test_many_indexes(pipenv_instance_file_pypi):
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "testindex"
 
 [[source]]
