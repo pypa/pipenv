@@ -9,6 +9,12 @@ REMOTE_FILE_SCHEMES = [
     "ftp",
 ]
 VCS_SCHEMES = [
+    # Bare schemes (no "+transport"): pip/pipenv may encounter a VCS
+    # link with no explicit transport, e.g. a bare "git" URL.
+    "git",
+    "hg",
+    "svn",
+    "bzr",
     "git+http",
     "git+https",
     "git+ssh",
@@ -17,6 +23,7 @@ VCS_SCHEMES = [
     "hg+http",
     "hg+https",
     "hg+ssh",
+    "hg+static-http",
     "hg+file",
     "svn+http",
     "svn+https",

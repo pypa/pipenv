@@ -45,20 +45,18 @@ def test_get_http_url_importable_from_new_location():
     assert callable(get_http_url)
 
 
-def test_vcs_schemes_set_present_on_unpack_module():
-    """The local ``VCS_SCHEMES`` set travels with the unpack pair (the
-    fork's VCS-link detection uses it directly -- see ``unpack_url``).
-    It is a set (not a list, unlike the cross-module ``VCS_SCHEMES``
-    list in ``pipenv.utils.constants``) and contains the bare ``git``
-    scheme, which is the load-bearing divergence from the constants
-    list.
+def test_vcs_schemes_imported_from_constants_on_unpack_module():
+    """``unpack_url``'s VCS-link detection uses
+    ``pipenv.utils.constants.VCS_SCHEMES`` directly (re-exported under
+    the same name for callers that import it from this module) -
+    previously this module kept its own separate copy because it
+    additionally needed the bare ``git``/``hg``/``svn``/``bzr``
+    schemes; that gap is now closed in the shared constant instead.
     """
+    from pipenv.utils.constants import VCS_SCHEMES as constants_VCS_SCHEMES
     from pipenv.utils.unpack import VCS_SCHEMES
 
-    assert isinstance(VCS_SCHEMES, set)
-    # Bare-scheme entries (no ``+transport``) are in this set but NOT in
-    # ``pipenv.utils.constants.VCS_SCHEMES`` -- this distinction is what
-    # makes the set local to ``unpack_url``.
+    assert VCS_SCHEMES is constants_VCS_SCHEMES
     assert "git" in VCS_SCHEMES
     assert "hg" in VCS_SCHEMES
     assert "svn" in VCS_SCHEMES
@@ -149,10 +147,10 @@ def test_unpack_url_vcs_link_returns_file_not_none():
 
 
 def test_unpack_url_bare_git_scheme_treated_as_vcs():
-    """The local ``VCS_SCHEMES`` set includes bare ``git`` (no
-    ``+transport``); pip's ``is_vcs`` property would also classify
-    this, but the test pins our explicit-set behaviour so future
-    refactors that swap to ``link.is_vcs`` don't silently regress.
+    """``VCS_SCHEMES`` includes bare ``git`` (no ``+transport``); pip's
+    ``is_vcs`` property would also classify this, but the test pins our
+    explicit-membership-check behaviour so future refactors that swap
+    to ``link.is_vcs`` don't silently regress.
     """
     from pipenv.utils.unpack import unpack_url
 
