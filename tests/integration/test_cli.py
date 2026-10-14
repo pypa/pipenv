@@ -11,16 +11,16 @@ from pipenv.utils.shell import normalize_drive
 
 
 @pytest.mark.cli
-def test_pipenv_where(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_where(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--where")
         assert c.returncode == 0
         assert normalize_drive(p.path) in c.stdout
 
 
 @pytest.mark.cli
-def test_pipenv_venv(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_venv(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install jdcal")
         assert c.returncode == 0
         c = p.pipenv("--venv")
@@ -30,8 +30,8 @@ def test_pipenv_venv(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_py(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_py(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--python python")
         assert c.returncode == 0
         c = p.pipenv("--py")
@@ -41,8 +41,8 @@ def test_pipenv_py(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_site_packages(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_site_packages(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--python python --site-packages")
         assert c.returncode == 0
         assert "Making site-packages available" in c.stderr
@@ -59,16 +59,16 @@ def test_pipenv_site_packages(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_support(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_support(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--support")
         assert c.returncode == 0
         assert c.stdout
 
 
 @pytest.mark.cli
-def test_pipenv_remove(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_remove(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--python python")
         assert c.returncode == 0
         c = p.pipenv("--venv")
@@ -83,9 +83,9 @@ def test_pipenv_remove(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_rm_deprecated(pipenv_instance_pypi):
+def test_pipenv_rm_deprecated(pipenv_instance_file_pypi):
     """--rm still works but emits a deprecation warning."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--python python")
         assert c.returncode == 0
         c = p.pipenv("--venv")
@@ -100,8 +100,8 @@ def test_pipenv_rm_deprecated(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_graph(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_graph(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install tablib")
         assert c.returncode == 0
         graph = p.pipenv("graph")
@@ -116,8 +116,8 @@ def test_pipenv_graph(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_pipenv_graph_reverse(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install tablib==0.13.0")
         assert c.returncode == 0
 
@@ -169,8 +169,8 @@ def test_pipenv_graph_reverse(pipenv_instance_private_pypi):
 @pytest.mark.cli
 @pytest.mark.needs_internet(reason="required by check")
 @pytest.mark.skip("This test will be revisited with the safety changes")
-def test_pipenv_check(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_pipenv_check(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install pyyaml")
         assert c.returncode == 0
         c = p.pipenv("check --use-installed")
@@ -198,8 +198,8 @@ def test_pipenv_check(pipenv_instance_private_pypi):
 @pytest.mark.needs_internet(reason="required by check")
 @pytest.mark.parametrize("category", ["CVE", "packages"])
 @pytest.mark.skip("This test will be revisited with the safety changes")
-def test_pipenv_check_checks_lockfile_categories(pipenv_instance_pypi, category):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_check_checks_lockfile_categories(pipenv_instance_file_pypi, category):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv(f"install wheel==0.37.1 --categories={category}")
         assert c.returncode == 0
         c = p.pipenv(f"check --categories={category}")
@@ -213,8 +213,8 @@ def test_pipenv_check_checks_lockfile_categories(pipenv_instance_pypi, category)
     sys.version_info[:2] == (3, 8) and os.name == "nt",
     reason="This test is not working om Windows Python 3. 8",
 )
-def test_pipenv_clean(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_pipenv_clean(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open("setup.py", "w") as f:
             f.write('from setuptools import setup; setup(name="empty")')
         c = p.pipenv("install -e .")
@@ -228,8 +228,8 @@ def test_pipenv_clean(pipenv_instance_private_pypi):
 
 @pytest.mark.cli
 @pytest.mark.clean
-def test_pipenv_sync_clean(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_pipenv_sync_clean(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install six")
         assert c.returncode == 0
         c = p.pipenv(f"run pip install -i {p.index_url} jdcal")
@@ -246,20 +246,20 @@ def test_pipenv_sync_clean(pipenv_instance_private_pypi):
 
 
 @pytest.mark.cli
-def test_venv_envs(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_venv_envs(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         assert p.pipenv("--envs").stdout
 
 
 @pytest.mark.cli
-def test_bare_output(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_bare_output(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         assert p.pipenv("").stdout
 
 
 @pytest.mark.cli
-def test_scripts(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_scripts(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [scripts]
@@ -272,22 +272,22 @@ pyver = "which python"
 
 
 @pytest.mark.cli
-def test_help(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_help(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         assert p.pipenv("--help").stdout
 
 
 @pytest.mark.cli
 @pytest.mark.skipif(os.name == "nt", reason="man is not available on Windows")
-def test_man(pipenv_instance_pypi):
-    with pipenv_instance_pypi():
+def test_man(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi():
         c = subprocess_run(["pipenv", "--man"])
         assert c.returncode == 0, c.stderr
 
 
 @pytest.mark.cli
-def test_install_parse_error(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_parse_error(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         # Make sure unparsable packages don't wind up in the pipfile
         # Escape $ for shell input
         with open(p.pipfile_path, "w") as f:
@@ -304,18 +304,23 @@ def test_install_parse_error(pipenv_instance_private_pypi):
 
 @pytest.mark.skip(reason="This test clears the cache that other tests may be using.")
 @pytest.mark.cli
-def test_pipenv_clear(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_clear(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--clear")
         assert c.returncode == 0
         assert "Clearing caches" in c.stdout
 
 
 @pytest.mark.outdated
-def test_pipenv_outdated_prerelease(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_outdated_prerelease(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 sqlalchemy = "<=1.2.3"
             """.strip()
@@ -325,24 +330,24 @@ sqlalchemy = "<=1.2.3"
 
 
 @pytest.mark.cli
-def test_pipenv_verify_without_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi(pipfile=False) as p:
+def test_pipenv_verify_without_pipfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
         c = p.pipenv("verify")
         assert c.returncode == 1
         assert "No Pipfile present at project home." in c.stderr
 
 
 @pytest.mark.cli
-def test_pipenv_verify_without_pipfile_lock(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_verify_without_pipfile_lock(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("verify")
         assert c.returncode == 1
         assert "Pipfile.lock is out-of-date." in c.stderr
 
 
 @pytest.mark.cli
-def test_pipenv_verify_locked_passing(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_verify_locked_passing(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         p.pipenv("lock")
         c = p.pipenv("verify")
         assert c.returncode == 0
@@ -350,8 +355,8 @@ def test_pipenv_verify_locked_passing(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_verify_locked_outdated_failing(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_pipenv_verify_locked_outdated_failing(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         p.pipenv("lock")
 
         # modify the Pipfile
@@ -367,10 +372,10 @@ def test_pipenv_verify_locked_outdated_failing(pipenv_instance_private_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_version_envvar_does_not_interfere(pipenv_instance_pypi, monkeypatch):
+def test_pipenv_version_envvar_does_not_interfere(pipenv_instance_file_pypi, monkeypatch):
     """Setting PIPENV_VERSION env var should not cause an error (issue #5627)."""
     monkeypatch.setenv("PIPENV_VERSION", "2024.0.2")
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("--version")
         assert c.returncode == 0
         assert "pipenv, version" in c.stdout

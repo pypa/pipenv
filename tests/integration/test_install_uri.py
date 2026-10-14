@@ -64,8 +64,8 @@ def test_urls_work(pipenv_instance_pypi):
 
 @pytest.mark.urls
 @pytest.mark.files
-def test_file_urls_work(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_file_urls_work(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         whl = Path(
             Path(__file__).resolve().parent.parent
             / "pypi"
@@ -105,8 +105,8 @@ def test_vcs_install(pipenv_instance_pypi):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_git_tag(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_git_tag(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install git+https://github.com/benjaminp/six.git@1.11.0")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -122,24 +122,23 @@ def test_install_git_tag(pipenv_instance_private_pypi):
 @pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_named_index_alias(pipenv_instance_private_pypi):
+def test_install_named_index_alias(pipenv_instance_file_pypi):
     """Test that pipenv can install packages from different named index sources.
 
     This test verifies that the --index parameter works correctly with named aliases
     by setting up two different named sources and installing packages from each.
     """
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "secondary"
 
 [packages]
@@ -168,19 +167,19 @@ six = "*"
 @pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
-def test_install_invalid_index_name(pipenv_instance_pypi):
+def test_install_invalid_index_name(pipenv_instance_file_pypi):
     """Test that pipenv install --index with an invalid index name raises an error.
 
     This test verifies the fix for issue #6168 where using --index with a name
     that doesn't exist in sources and isn't a valid URL would create a malformed
     source entry instead of raising an error.
     """
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
 url = "{p.index_url}"
-verify_ssl = false
+verify_ssl = true
 name = "pypi"
 
 [packages]
@@ -197,13 +196,14 @@ name = "pypi"
 @pytest.mark.urls
 @pytest.mark.index
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_specifying_index_url(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_specifying_index_url(
+    pipenv_instance_file_pypi, local_pypi_index_root
+):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 
@@ -216,22 +216,33 @@ six = "*"
 install_search_all_sources = true
             """.strip()
             f.write(contents)
-        c = p.pipenv(
-            "install pipenv-test-private-package --index https://test.pypi.org/simple"
-        )
+        # Build a second, distinct local index root (a symlink to the
+        # same real index content) so --index actually adds a *new*
+        # source rather than matching the existing "pypi" one by URL.
+        # Use the local_pypi_index_root fixture's own Path directly
+        # rather than reparsing p.index_url's file:// URI - on Windows
+        # that reparse is easy to get subtly wrong (a file:// URL has
+        # an extra leading "/" before the drive letter).
+        second_index_root = local_pypi_index_root.parent / "secondary-index"
+        if not second_index_root.exists():
+            second_index_root.symlink_to(local_pypi_index_root, target_is_directory=True)
+        second_index_url = second_index_root.as_uri()
+
+        c = p.pipenv(f"install dataclasses-json --index {second_index_url}")
         assert c.returncode == 0
         pipfile = p.pipfile
-        assert pipfile["source"][1]["url"] == "https://test.pypi.org/simple"
-        assert pipfile["source"][1]["name"] == "testpypi"
-        assert pipfile["packages"]["pipenv-test-private-package"]["index"] == "testpypi"
+        assert pipfile["source"][1]["url"] == second_index_url
+        expected_name = pipfile["source"][1]["name"]
+        assert pipfile["packages"]["dataclasses-json"]["index"] == expected_name
 
 
 @pytest.mark.vcs
 @pytest.mark.urls
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_install_local_vcs_not_in_lockfile(pipenv_instance_file_pypi):
+    # needs_internet dropped: the "git clone" below is of a local fixture
+    # path (tests/test_artifacts/git/six), not a real remote.
+    with pipenv_instance_file_pypi() as p:
         # six_path = os.path.join(p.path, "six")
         six_path = p._pipfile.get_fixture_path("git/six/")
         c = subprocess_run(["git", "clone", six_path, "./six"])
@@ -247,8 +258,11 @@ def test_install_local_vcs_not_in_lockfile(pipenv_instance_pypi):
 @pytest.mark.urls
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_get_vcs_refs(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_get_vcs_refs(pipenv_instance_file_pypi):
+    # Doesn't need the local pypi-server: installs purely via a real
+    # github.com VCS URL and asserts on real commit hashes, never
+    # touching p.index_url.
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install -e git+https://github.com/benjaminp/six.git@1.9.0#egg=six")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -273,19 +287,23 @@ def test_get_vcs_refs(pipenv_instance_private_pypi):
 @pytest.mark.vcs
 @pytest.mark.urls
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_vcs_entry_supersedes_non_vcs(pipenv_instance_pypi):
+def test_vcs_entry_supersedes_non_vcs(pipenv_instance_file_pypi):
     """See issue #2181 -- non-editable VCS dep was specified, but not showing up
     in the lockfile -- due to not running pip install before locking and not locking
     the resolution graph of non-editable vcs dependencies.
+
+    needs_internet dropped: Jinja2 is already a local git fixture clone
+    (tests/test_artifacts/git/jinja2); Flask only needed "*" and is
+    vendored, so swapped the hardcoded real pypi.org for the offline
+    index too.
     """
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         jinja2_uri = p._pipfile.get_fixture_path("git/jinja2").as_uri()
         with open(p.pipfile_path, "w") as f:
             f.write(
                 f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 
@@ -312,9 +330,10 @@ Jinja2 = {{ref = "2.11.0", git = "{jinja2_uri}"}}
 @pytest.mark.vcs
 @pytest.mark.urls
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_vcs_can_use_markers(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_vcs_can_use_markers(pipenv_instance_file_pypi):
+    # needs_internet dropped: six comes entirely from a local git fixture
+    # clone (tests/test_artifacts/git/six), no regular index package used.
+    with pipenv_instance_file_pypi() as p:
         path = p._pipfile.get_fixture_path("git/six/")
         p._pipfile.install(
             "six",

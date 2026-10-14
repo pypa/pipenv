@@ -11,9 +11,9 @@ pytestmark = pytest.mark.skipif(os.name != "nt", reason="only relevant on window
 
 
 @pytest.mark.project
-def test_case_changes_windows(pipenv_instance_pypi):
+def test_case_changes_windows(pipenv_instance_file_pypi):
     """Test project matching for case changes on Windows."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install pytz")
         assert c.returncode == 0
 
@@ -38,7 +38,7 @@ def test_case_changes_windows(pipenv_instance_pypi):
 
 @pytest.mark.files
 @pytest.mark.local
-def test_local_path_windows(pipenv_instance_pypi):
+def test_local_path_windows(pipenv_instance_file_pypi):
     whl = Path(__file__).parent.parent.joinpath(
         "pypi", "six", "six-1.11.0-py2.py3-none-any.whl"
     )
@@ -46,14 +46,14 @@ def test_local_path_windows(pipenv_instance_pypi):
         whl = whl.resolve()
     except OSError:
         whl = whl.absolute()
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv(f'install "{whl}" -v')
         assert c.returncode == 0
 
 
 @pytest.mark.local
 @pytest.mark.files
-def test_local_path_windows_forward_slash(pipenv_instance_pypi):
+def test_local_path_windows_forward_slash(pipenv_instance_file_pypi):
     whl = Path(__file__).parent.parent.joinpath(
         "pypi", "six", "six-1.11.0-py2.py3-none-any.whl"
     )
@@ -61,7 +61,7 @@ def test_local_path_windows_forward_slash(pipenv_instance_pypi):
         whl = whl.resolve()
     except OSError:
         whl = whl.absolute()
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv(f'install "{whl.as_posix()}" -v')
         assert c.returncode == 0
 
@@ -71,8 +71,8 @@ def test_local_path_windows_forward_slash(pipenv_instance_pypi):
     reason="Seems to work on 3.8 but not via the CI",
 )
 @pytest.mark.cli
-def test_pipenv_clean_windows(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pipenv_clean_windows(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install dataclasses-json")
         assert c.returncode == 0
         c = p.pipenv(f"run pip install -i {p.index_url} click")
@@ -84,7 +84,7 @@ def test_pipenv_clean_windows(pipenv_instance_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_run_with_special_chars_windows(pipenv_instance_pypi):
-    with pipenv_instance_pypi():
+def test_pipenv_run_with_special_chars_windows(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi():
         c = subprocess_run(["pipenv", "run", "echo", "[3-1]"])
         assert c.returncode == 0, c.stderr

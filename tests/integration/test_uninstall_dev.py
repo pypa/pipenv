@@ -3,11 +3,16 @@ import pytest
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_dev_flag(pipenv_instance_private_pypi):
+def test_uninstall_dev_flag(pipenv_instance_file_pypi):
     """Ensure that running `pipenv uninstall --dev` properly removes packages from dev-packages"""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
 
@@ -49,11 +54,16 @@ pytest = "*"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_dev_flag_with_categories(pipenv_instance_private_pypi):
+def test_uninstall_dev_flag_with_categories(pipenv_instance_file_pypi):
     """Ensure that running `pipenv uninstall --dev` works the same as `--categories dev-packages`"""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
 
@@ -67,9 +77,14 @@ pytest = "*"
         assert c.returncode == 0
 
         # Create a second project to test with categories
-        with pipenv_instance_private_pypi() as p2:
+        with pipenv_instance_file_pypi() as p2:
             with open(p2.pipfile_path, "w") as f:
-                contents = """
+                contents = f"""
+[[source]]
+url = "{p2.index_url}"
+verify_ssl = false
+name = "pypi"
+
 [packages]
 six = "*"
 

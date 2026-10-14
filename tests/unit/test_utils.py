@@ -622,6 +622,16 @@ twine = "*"
                     "custom.example.com",
                 ],
             ),
+            # A hostless file:// source has no host for --trusted-host to
+            # name, regardless of verify_ssl's value - plette's Source
+            # schema has no way to express "not applicable" for a
+            # non-HTTP scheme (verify_ssl is a plain bool), so this must
+            # be handled on the consuming side rather than relying on
+            # verify_ssl always being set "correctly" upstream.
+            (
+                [{"url": "file:///tmp/index", "verify_ssl": False}],
+                ["-i", "file:///tmp/index"],
+            ),
         ],
     )
     def test_prepare_pip_source_args(self, sources, expected_args):

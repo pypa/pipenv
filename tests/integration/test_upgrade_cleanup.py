@@ -4,14 +4,14 @@ import pytest
 
 @pytest.mark.upgrade
 @pytest.mark.cleanup
-def test_upgrade_removes_unused_dependencies(pipenv_instance_pypi):
+def test_upgrade_removes_unused_dependencies(pipenv_instance_file_pypi):
     """Test that `pipenv upgrade` removes dependencies that are no longer needed."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # Create a Pipfile with Django 3.2.10 (which depends on pytz)
         with open(p.pipfile_path, "w") as f:
-            f.write("""
+            f.write(f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 

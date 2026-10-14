@@ -46,9 +46,8 @@ REGEN_ENV_VAR = "PIPENV_REGEN_PROTOCOL_FIXTURES"
 
 
 # Pipfile used by the protocol smoke.  Two pure-Python pinned packages
-# from public PyPI exercise the representative wire-shape surface
-# without dragging in transitive deps that would inflate the golden
-# response:
+# exercise the representative wire-shape surface without dragging in
+# transitive deps that would inflate the golden response:
 #
 #   * ``pytz`` — plain release with a version pin (no transitive deps)
 #   * ``six``  — second plain release; pins the multi-entry ordering
@@ -56,17 +55,20 @@ REGEN_ENV_VAR = "PIPENV_REGEN_PROTOCOL_FIXTURES"
 #
 # ``[dev-packages]`` is intentionally empty so we lock the ``packages``
 # category alone and the golden response stays minimal and stable.
-# Versions are pinned to long-archived releases so the goldens do not
-# drift when upstream cuts a new release.
+# Versions are pinned to whatever tests/pypi vendors for these two
+# projects: since the index itself is a local, offline fixture (see
+# pipenv_instance_file_pypi in conftest.py) rather than real pypi.org,
+# the goldens cannot drift from an upstream release regardless of which
+# versions are pinned here.
 _PIPFILE_TEMPLATE = """\
 [[source]]
 url = "{index_url}"
-verify_ssl = true
+verify_ssl = false
 name = "pypi"
 
 [packages]
-pytz = "==2024.1"
-six = "==1.16.0"
+pytz = "==2018.4"
+six = "==1.12.0"
 
 [dev-packages]
 """
@@ -82,8 +84,10 @@ def _normalize_request(payload: dict) -> dict:
     * ``metadata.pipenv_version`` may be empty (uninstalled dev tree) or
       a real version string; replaced with a sentinel so the test passes
       on both a packaged install and a working-tree checkout.
-    * ``sources[*].url`` is the public-PyPI URL (``https://pypi.org/simple``),
-      which is stable.  No URL normalisation required.
+    * ``sources[*].url`` points at the local, offline ``file://`` index
+      (see ``pipenv_instance_file_pypi`` in conftest.py), whose path is a
+      fresh ``tmp_path_factory`` directory every test session.  Replaced
+      with a sentinel.
     """
     out = json.loads(json.dumps(payload))  # deep copy
     meta = out.get("metadata")
@@ -99,6 +103,21 @@ def _normalize_request(payload: dict) -> dict:
         # resolver_timeout_seconds``.
         if "deadline_seconds" in meta:
             meta["deadline_seconds"] = "<redacted>"
+    sources = out.get("sources")
+    if isinstance(sources, list):
+        for source in sources:
+            # Only redact the dynamic file:// index path - redacting
+            # every source unconditionally would make this golden test
+            # pass even if the resolver emitted a wrong/different
+            # source (e.g. real pypi.org instead of the offline index),
+            # losing the source-transport assertion this test exists
+            # to make.
+            if (
+                isinstance(source, dict)
+                and isinstance(source.get("url"), str)
+                and source["url"].startswith("file://")
+            ):
+                source["url"] = "<redacted file:// index path>"
     return out
 
 
@@ -156,9 +175,8 @@ def _find_unique(tmpdir: Path, prefix: str) -> Path:
 
 
 @pytest.mark.lock
-@pytest.mark.needs_internet
 def test_resolver_protocol_lock_smoke(
-    pipenv_instance_pypi, tmp_path, monkeypatch
+    pipenv_instance_file_pypi, tmp_path, monkeypatch
 ):
     """Lock a small Pipfile and compare the captured request/response
     JSON against the committed goldens (or regenerate them under
@@ -173,7 +191,7 @@ def test_resolver_protocol_lock_smoke(
     monkeypatch.setenv("TEMP", str(capture_dir))
     monkeypatch.setenv("TMP", str(capture_dir))
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         p.pipfile_path.write_text(_PIPFILE_TEMPLATE.format(index_url=p.index_url))
         c = p.pipenv("lock")
         assert c.returncode == 0, (

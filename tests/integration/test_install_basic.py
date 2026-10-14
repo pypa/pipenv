@@ -3,7 +3,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from tempfile import TemporaryDirectory
+from tempfile import TemporaryDirectory, mkdtemp
 
 import pytest
 
@@ -13,8 +13,8 @@ from pipenv.utils.shell import temp_environ
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_basic_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_basic_install(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install six -v")
         assert c.returncode == 0
         assert "six" in p.pipfile["packages"]
@@ -23,9 +23,17 @@ def test_basic_install(pipenv_instance_private_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_mirror_install(pipenv_instance_pypi):
+def test_mirror_install(pipenv_instance_pypi, local_pypi_index_root):
+    # The *default* source must stay the literal string
+    # "https://pypi.org/simple" for --pypi-mirror to have anything to
+    # substitute - is_pypi_url() only matches that literal domain, so
+    # this can't come from pipenv_instance_file_pypi. That string is
+    # never actually contacted over the network though: --pypi-mirror
+    # substitutes it with mirror_url before any resolution happens, so
+    # the mirror itself can be (and is) the offline index - no real
+    # network needed at all.
     with temp_environ(), pipenv_instance_pypi() as p:
-        mirror_url = "https://pypi.python.org/simple"
+        mirror_url = local_pypi_index_root.as_uri()
         assert "pypi.org" not in mirror_url
         # This should sufficiently demonstrate the mirror functionality
         c = p.pipenv(f"install dataclasses-json --pypi-mirror {mirror_url}")
@@ -52,8 +60,8 @@ def test_bad_mirror_install(pipenv_instance_pypi):
 
 @pytest.mark.dev
 @pytest.mark.run
-def test_basic_dev_install(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_basic_dev_install(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install dataclasses-json --dev")
         assert c.returncode == 0
         assert "dataclasses-json" in p.pipfile["dev-packages"]
@@ -66,11 +74,16 @@ def test_basic_dev_install(pipenv_instance_pypi):
 @pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_without_dev(pipenv_instance_private_pypi):
+def test_install_without_dev(pipenv_instance_file_pypi):
     """Ensure that running `pipenv install` doesn't install dev packages"""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
 
@@ -93,11 +106,16 @@ tablib = "*"
 @pytest.mark.dev
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_uses_default_categories_envvar(pipenv_instance_private_pypi, monkeypatch):
+def test_install_uses_default_categories_envvar(pipenv_instance_file_pypi, monkeypatch):
     monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
 
@@ -115,12 +133,17 @@ tablib = "*"
 @pytest.mark.basic
 @pytest.mark.install
 def test_install_explicit_dev_overrides_default_categories_envvar(
-    pipenv_instance_private_pypi, monkeypatch
+    pipenv_instance_file_pypi, monkeypatch
 ):
     monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages")
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
 
@@ -136,11 +159,16 @@ tablib = "*"
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_with_version_req_default_operator(pipenv_instance_private_pypi):
+def test_install_with_version_req_default_operator(pipenv_instance_file_pypi):
     """Ensure that running `pipenv install` work when spec is package = "X.Y.Z"."""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "1.12.0"
             """.strip()
@@ -152,10 +180,15 @@ six = "1.12.0"
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_without_dev_section(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_install_without_dev_section(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
             """.strip()
@@ -173,9 +206,12 @@ six = "*"
 @pytest.mark.lock
 @pytest.mark.extras
 @pytest.mark.install
-def test_extras_install(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        c = p.pipenv("install requests[socks]")
+def test_extras_install(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
+        # Pinned (was unconstrained "requests[socks]"): unconstrained now
+        # resolves to a modern requests using charset-normalizer instead of
+        # chardet as more requests versions get vendored for other tests.
+        c = p.pipenv("install requests[socks]==2.19.1")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
         assert "extras" in p.pipfile["packages"]["requests"]
@@ -190,10 +226,15 @@ def test_extras_install(pipenv_instance_private_pypi):
 @pytest.mark.pin
 @pytest.mark.basic
 @pytest.mark.install
-def test_pinned_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_pinned_pipfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 dataclasses-json = "==0.5.7"
             """.strip()
@@ -211,10 +252,15 @@ dataclasses-json = "==0.5.7"
 @pytest.mark.skipif(
     sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
 )
-def test_backup_resolver(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_backup_resolver(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 "ibm-db-sa-py3" = "==0.3.1-1"
             """.strip()
@@ -227,12 +273,17 @@ def test_backup_resolver(pipenv_instance_private_pypi):
 
 @pytest.mark.run
 @pytest.mark.alt
-def test_alternative_version_specifier(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_alternative_version_specifier(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
-six = {version = "*"}
+six = {{version = "*"}}
             """.strip()
             f.write(contents)
 
@@ -247,10 +298,15 @@ six = {version = "*"}
 
 @pytest.mark.run
 @pytest.mark.alt
-def test_outline_table_specifier(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_outline_table_specifier(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages.six]
 version = "*"
             """.strip()
@@ -268,8 +324,8 @@ version = "*"
 @pytest.mark.bad
 @pytest.mark.basic
 @pytest.mark.install
-def test_bad_packages(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_bad_packages(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install NotAPackage")
         assert c.returncode > 0
 
@@ -278,8 +334,8 @@ def test_bad_packages(pipenv_instance_private_pypi):
 @pytest.mark.extras
 @pytest.mark.install
 @pytest.mark.requirements
-def test_requirements_to_pipfile(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(pipfile=False) as p:
+def test_requirements_to_pipfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
         # Write a requirements file
         with open("requirements.txt", "w") as f:
             f.write(f"-i {p.index_url}\nrequests[socks]==2.19.1\n")
@@ -307,19 +363,24 @@ def test_requirements_to_pipfile(pipenv_instance_private_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.requirements
-def test_skip_requirements_when_pipfile(pipenv_instance_private_pypi):
+def test_skip_requirements_when_pipfile(pipenv_instance_file_pypi):
     """Ensure requirements.txt is NOT imported when
 
     1. We do `pipenv install [package]`
     2. A Pipfile already exists when we run `pipenv install`.
     """
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open("requirements.txt", "w") as f:
             f.write("requests==2.18.1\n")
         c = p.pipenv("install six")
         assert c.returncode == 0
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 six = "*"
             """.strip()
@@ -334,18 +395,33 @@ six = "*"
 
 @pytest.mark.cli
 @pytest.mark.clean
-def test_clean_on_empty_venv(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_clean_on_empty_venv(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("clean")
         assert c.returncode == 0
 
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_does_not_extrapolate_environ(pipenv_instance_private_pypi):
+def test_install_does_not_extrapolate_environ(
+    pipenv_instance_file_pypi, local_pypi_index_root
+):
     """Ensure environment variables are not expanded in lock file."""
-    with temp_environ(), pipenv_instance_private_pypi() as p:
-        os.environ["PYPI_URL"] = p.pypi
+    with temp_environ(), pipenv_instance_file_pypi() as p:
+        # p.index_url (file://<index_root>) has no trailing "/simple"
+        # segment the way the http fixtures' index_url does, so p.pypi's
+        # generic "chop the last path segment" derivation doesn't apply
+        # here. Build a small mirror dir with a "simple" symlink pointing
+        # at the real index root so "${PYPI_URL}/simple" still resolves
+        # to a working index. Use the local_pypi_index_root fixture's
+        # own Path directly rather than reparsing p.index_url's file://
+        # URI back into a path - on Windows that reparse is easy to get
+        # subtly wrong (a file:// URL has an extra leading "/" before
+        # the drive letter), and the fixture already has the Path.
+        index_root = local_pypi_index_root
+        mirror_dir = Path(mkdtemp(prefix="pypi-url-mirror-"))
+        (mirror_dir / "simple").symlink_to(index_root, target_is_directory=True)
+        os.environ["PYPI_URL"] = mirror_dir.as_uri()
 
         with open(p.pipfile_path, "w") as f:
             f.write(
@@ -374,8 +450,8 @@ name = 'mockpi'
 @pytest.mark.editable
 @pytest.mark.badparameter
 @pytest.mark.install
-def test_editable_no_args(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_editable_no_args(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install -e")
         assert c.returncode != 0
 
@@ -383,9 +459,9 @@ def test_editable_no_args(pipenv_instance_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.virtualenv
-def test_install_venv_project_directory(pipenv_instance_pypi):
+def test_install_venv_project_directory(pipenv_instance_file_pypi):
     """Test the project functionality during virtualenv creation."""
-    with pipenv_instance_pypi() as p, temp_environ(), TemporaryDirectory(
+    with pipenv_instance_file_pypi() as p, temp_environ(), TemporaryDirectory(
         prefix="pipenv-", suffix="temp_workon_home"
     ) as workon_home:
         os.environ["WORKON_HOME"] = workon_home
@@ -408,8 +484,8 @@ def test_install_venv_project_directory(pipenv_instance_pypi):
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_system_and_deploy_work(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_system_and_deploy_work(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install urllib3")
         assert c.returncode == 0
         c = p.pipenv("--rm")
@@ -424,8 +500,8 @@ def test_system_and_deploy_work(pipenv_instance_private_pypi):
 @pytest.mark.cli
 @pytest.mark.deploy
 @pytest.mark.system
-def test_system_works(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_system_works(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install urllib3")
         assert c.returncode == 0
         c = p.pipenv("--rm")
@@ -438,8 +514,8 @@ def test_system_works(pipenv_instance_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_creates_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi(pipfile=False) as p:
+def test_install_creates_pipfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
         assert not os.path.isfile(p.pipfile_path)
         c = p.pipenv("install")
         assert c.returncode == 0
@@ -450,8 +526,8 @@ def test_install_creates_pipfile(pipenv_instance_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_create_pipfile_requires_python_full_version(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi(pipfile=False) as p:
+def test_create_pipfile_requires_python_full_version(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi(pipfile=False) as p:
         python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
         python_full_version = f"{python_version}.{sys.version_info.micro}"
         c = p.pipenv(f"--python {python_full_version}")
@@ -465,15 +541,15 @@ def test_create_pipfile_requires_python_full_version(pipenv_instance_private_pyp
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.virtualenv
-def test_install_with_pipfile_including_exact_python_version(pipenv_instance_pypi):
+def test_install_with_pipfile_including_exact_python_version(pipenv_instance_file_pypi):
     valid_version = f"{sys.version_info.major}.{sys.version_info.minor}"
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             f.write(
                 f"""
 [[source]]
-url = "https://test.pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "testpypi"
 
@@ -498,7 +574,7 @@ python_version = "{valid_version}"
 @pytest.mark.install
 @pytest.mark.virtualenv
 def test_install_with_pipfile_including_unsatisfied_python_version_specifier(
-    pipenv_instance_pypi,
+    pipenv_instance_file_pypi,
 ):
     invalid_versions = [
         f">={sys.version_info.major + 50}.0",
@@ -507,7 +583,7 @@ def test_install_with_pipfile_including_unsatisfied_python_version_specifier(
         "<=1.0",
     ]
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         for version in invalid_versions:
             with open(p.pipfile_path, "w") as f:
                 f.write(
@@ -530,8 +606,8 @@ python_version = "{version}"
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_non_exist_dep(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_install_non_exist_dep(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install dateutil")
         assert c.returncode
         assert "dateutil" not in p.pipfile["packages"]
@@ -539,8 +615,8 @@ def test_install_non_exist_dep(pipenv_instance_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_package_with_dots(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_install_package_with_dots(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install backports.html")
         assert c.returncode == 0
         assert "backports.html" in p.pipfile["packages"]
@@ -548,8 +624,8 @@ def test_install_package_with_dots(pipenv_instance_private_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_rewrite_outline_table(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_rewrite_outline_table(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -579,8 +655,8 @@ extras = ["socks"]
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_rewrite_outline_table_ooo(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_rewrite_outline_table_ooo(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -614,10 +690,10 @@ extras = ["socks"]
 
 @pytest.mark.dev
 @pytest.mark.install
-def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
+def test_install_dev_use_default_constraints(pipenv_instance_file_pypi):
     # See https://github.com/pypa/pipenv/issues/4371
     # See https://github.com/pypa/pipenv/issues/2987
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install requests==2.14.0")
         assert c.returncode == 0
         assert "requests" in p.lockfile["default"]
@@ -640,10 +716,9 @@ def test_install_dev_use_default_constraints(pipenv_instance_private_pypi):
 
 @pytest.mark.basic
 @pytest.mark.install
-@pytest.mark.needs_internet
-def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
+def test_install_does_not_exclude_packaging(pipenv_instance_file_pypi):
     """Install a transitive dependency even when it is available to Pipenv itself."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install pytest")
         assert c.returncode == 0
         assert "packaging" in p.lockfile["default"]
@@ -658,8 +733,8 @@ def test_install_does_not_exclude_packaging(pipenv_instance_pypi):
 @pytest.mark.skip(
     reason="pip 23.3 now vendors in truststore and so test assumptions invalid "
 )
-def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_install_will_supply_extra_pip_args(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv(
             """install -v dataclasses-json --extra-pip-args="--use-feature=truststore --proxy=test" """
         )
@@ -670,9 +745,9 @@ def test_install_will_supply_extra_pip_args(pipenv_instance_pypi):
 @pytest.mark.basic
 @pytest.mark.install
 @pytest.mark.needs_internet
-def test_install_tarball_is_actually_installed(pipenv_instance_pypi):
+def test_install_tarball_is_actually_installed(pipenv_instance_file_pypi):
     """Test case for Issue 5326"""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [[source]]
@@ -694,10 +769,15 @@ dataclasses-json = {file = "https://files.pythonhosted.org/packages/85/94/1b3021
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_sorted_alphabetically_with_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
@@ -714,18 +794,23 @@ colorama = "*"
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_sorting_handles_str_values_and_dict_values(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_sorting_handles_str_values_and_dict_values(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
 [packages]
-zipp = {version = "*"}
+zipp = {{version = "*"}}
 parse = "*"
 colorama = "*"
-atomicwrites = {version = "*"}
+atomicwrites = {{version = "*"}}
             """.strip()
             f.write(contents)
         c = p.pipenv("install build")
@@ -742,10 +827,15 @@ atomicwrites = {version = "*"}
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_not_sorted_without_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 atomicwrites = "*"
 colorama = "*"
@@ -764,11 +854,16 @@ colorama = "*"
 @pytest.mark.basic
 @pytest.mark.install
 def test_category_sorted_with_directive_when_insalling_with_extras(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w+") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
@@ -790,13 +885,13 @@ six = "*"
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_respects_lockfile_versions(pipenv_instance_pypi):
+def test_install_respects_lockfile_versions(pipenv_instance_file_pypi):
     """Ensure that `pipenv install` respects versions from existing lockfile."""
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{p.index_url}"
 verify_ssl = true
 name = "pypi"
 
@@ -805,35 +900,46 @@ sh = "*"
             """.strip()
             f.write(contents)
 
+        # The lockfile's _meta.hash must match the Pipfile we just
+        # wrote (pipenv compares them in handle_lockfile() and re-locks
+        # on a mismatch instead of respecting the existing lockfile
+        # version, which is exactly the behavior this test exists to
+        # verify) - p.index_url is a session-specific tmp path, so this
+        # can't be a hardcoded constant the way a literal
+        # "https://pypi.org/simple" source could be.
+        from pipenv.project import Project
+
+        pipfile_hash = Project().pipfile.calculate_hash()
+
         with open(p.lockfile_path, "w") as f:
-            contents = """
-{
-    "_meta": {
-        "hash": {
-            "sha256": "f9adf532d46f4787b6afe331abe415d5698ef7523cd6225605328b61f361d427"
-        },
+            contents = f"""
+{{
+    "_meta": {{
+        "hash": {{
+            "sha256": "{pipfile_hash}"
+        }},
         "pipfile-spec": 6,
-        "requires": {},
+        "requires": {{}},
         "sources": [
-            {
+            {{
                 "name": "pypi",
-                "url": "https://pypi.org/simple",
+                "url": "{p.index_url}",
                 "verify_ssl": true
-            }
+            }}
         ]
-    },
-    "default": {
-        "sh": {
+    }},
+    "default": {{
+        "sh": {{
             "hashes": [
                 "sha256:39aa9af22f6558a0c5d132881cf43e34828ca03e4ae11114852ca6a55c7c1d8e",
                 "sha256:75e86a836f47de095d4531718fe8489e6f7446c75ddfa5596f632727b919ffae"
             ],
             "index": "pypi",
             "version": "==1.14.1"
-        }
-    },
-    "develop": {}
-}
+        }}
+    }},
+    "develop": {{}}
+}}
             """.strip()
             f.write(contents)
 

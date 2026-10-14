@@ -341,9 +341,24 @@ class Sources:
         return found
 
     def src_name_from_url(self, index_url):
-        location = parse.urlsplit(index_url).netloc
-        if "." in location:
-            name, _, _tld_guess = location.rpartition(".")
+        parsed = parse.urlsplit(index_url)
+        location = parsed.netloc
+        if location:
+            # Hostname/TLD split (e.g. "pypi.org" -> "pypi") - only
+            # meaningful for a real netloc.
+            if "." in location:
+                name, _, _tld_guess = location.rpartition(".")
+            else:
+                name = location
+        elif parsed.scheme == "file":
+            # file:// URLs have no netloc; derive a name from the last
+            # path segment instead so we don't end up with an empty
+            # (and non-unique) source name. Skip the hostname/TLD split
+            # above entirely here - applying it to a path basename
+            # mis-splits a dotted directory name (e.g. "index.v1" ->
+            # "index", losing uniqueness) and produces an empty name
+            # outright for a dotfile basename (e.g. ".index" -> "").
+            name = os.path.basename(parsed.path.rstrip("/")) or "local"
         else:
             name = location
         src_name = name.replace(".", "").replace(":", "")

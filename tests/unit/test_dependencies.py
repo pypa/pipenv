@@ -10,7 +10,11 @@ from pipenv.patched.pip._vendor.packaging.specifiers import (
     SpecifierSet as PipSpecifierSet,
 )
 from pipenv.patched.pip._vendor.packaging.version import Version as PipVersion
-from pipenv.utils.dependencies import _file_url_to_relative_path, clean_resolved_dep
+from pipenv.utils.dependencies import (
+    _file_url_to_relative_path,
+    clean_resolved_dep,
+    file_path_from_pipfile,
+)
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
 # T_F.3 Wave B1: the three former ``test_entry_get_cleaned_dict_*`` cases
@@ -20,6 +24,55 @@ from pipenv.vendor.packaging.specifiers import SpecifierSet
 # ``LockedRequirement`` schema instead.  The equivalent assertions live
 # in ``tests/unit/test_resolver_schema.py`` and the golden-snapshot
 # fixtures under ``tests/unit/fixtures/resolver_schema/``.
+
+
+def test_file_path_from_pipfile_passes_through_file_url_unchanged():
+    """A `file:///...` Pipfile entry must be treated as an already-complete
+    URL, not re-run through ensure_path_is_relative()'s Path(...).resolve()
+    logic - which, given a string starting with "file:" instead of a real
+    filesystem path, treats it as a plain relative path segment named
+    "file:" and goes on to compute a nonsensical path relative to the
+    current working directory (silently wrong on POSIX, a hard crash on
+    Windows - see CI run 38462446912, test_file_urls_work). This
+    regressed when `file` was dropped from the scheme allowlist during
+    the refactor in cd961a41b (#6012).
+    """
+    file_url = "file:///D:/a/pipenv/pipenv/tests/pypi/six/six-1.11.0-py2.py3-none-any.whl"
+
+    req_str = file_path_from_pipfile(file_url, {})
+
+    assert req_str == file_url
+
+
+def test_file_path_from_pipfile_with_extras_uses_pep_508_form_for_urls():
+    """A `file:///...` (or http(s)://) Pipfile entry with `extras` must
+    produce the PEP 508 "name[extras] @ url" direct-reference form, not
+    "url[extras]" - the latter breaks pip's filename/extension-based
+    archive detection, since the string it sees no longer ends in e.g.
+    ".whl". This is the --skip-lock install path's version of the same
+    bug already fixed for dependency_as_pip_install_line() in
+    de2fbe696 (the locked/normal install path).
+    """
+    file_url = "file:///abs/path/to/plette-0.2.2-py2.py3-none-any.whl"
+
+    req_str = file_path_from_pipfile(
+        file_url, {"extras": ["validation"]}, name="plette"
+    )
+
+    assert req_str == f"plette[validation] @ {file_url}"
+
+
+def test_file_path_from_pipfile_with_extras_appends_bracket_for_bare_paths():
+    """A bare local path (not a URL) with `extras` keeps the
+    "path[extras]" form - pip accepts this directly for local
+    directory/archive installs, and there's no filename-extension
+    detection to break since it isn't going through a URL download.
+    """
+    req_str = file_path_from_pipfile(
+        "./local/pkg", {"extras": ["dev"]}, name="pkg"
+    )
+
+    assert req_str == "./local/pkg[dev]"
 
 
 def test_clean_resolved_dep_with_vcs_url():

@@ -8,10 +8,15 @@ from pipenv.cli.command import cli
 
 
 @pytest.mark.upgrade
-def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_sorted_alphabetically_with_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
@@ -35,10 +40,15 @@ atomicwrites = "*"
 
 
 @pytest.mark.upgrade
-def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_not_sorted_without_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 zipp = "*"
 six = 1.11
@@ -59,7 +69,12 @@ atomicwrites = "*"
 
 
 @pytest.mark.cli
+@pytest.mark.needs_internet
 def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
+    # NOTE: stays on real pypi.org - google-api-core/protobuf's real-world
+    # version incompatibility is exactly what's under test; not something
+    # a local fixture could reproduce faithfully. Was missing
+    # needs_internet despite needing it.
     with pipenv_instance_pypi() as p:
         # Step 1: Install initial dependency version
         c = p.pipenv("install google-api-core==2.18.0")
@@ -104,12 +119,17 @@ def test_pipenv_dependency_incompatibility_resolution(pipenv_instance_pypi):
 
 
 @pytest.mark.upgrade
-def test_upgrade_updates_lockfile_in_all_categories(pipenv_instance_private_pypi):
+def test_upgrade_updates_lockfile_in_all_categories(pipenv_instance_file_pypi):
     """Test that upgrading a package updates it in all categories of the lockfile."""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # Create a Pipfile with a package in default and a dev package that depends on it
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 requests = "==2.25.0"
 
@@ -151,12 +171,17 @@ pytest = "*"
 
 
 @pytest.mark.upgrade
-def test_upgrade_only_adds_to_explicit_categories(pipenv_instance_private_pypi):
+def test_upgrade_only_adds_to_explicit_categories(pipenv_instance_file_pypi):
     """Test that upgrading a package only adds it to the Pipfile for explicitly requested categories."""
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         # Create a Pipfile with a package in default but not in dev-packages
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 requests = "==2.25.0"
 
@@ -211,7 +236,7 @@ pytest = "*"
 
 
 @pytest.mark.upgrade
-def test_upgrade_all_categories_flag(pipenv_instance_private_pypi, monkeypatch):
+def test_upgrade_all_categories_flag(pipenv_instance_file_pypi, monkeypatch):
     captured = {}
 
     def fake_upgrade(project, **kwargs):
@@ -222,7 +247,7 @@ def test_upgrade_all_categories_flag(pipenv_instance_private_pypi, monkeypatch):
 
     monkeypatch.setattr("pipenv.routines.update.upgrade", fake_upgrade)
     monkeypatch.setattr("pipenv.utils.project.ensure_project", fake_ensure_project)
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]

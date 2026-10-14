@@ -8,12 +8,16 @@ from pipenv.utils.shell import temp_environ
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_requirements_generates_requirements_from_lockfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         packages = ("requests", "2.14.0")
         dev_packages = ("flask", "0.12.2")
         with open(p.pipfile_path, "w") as f:
             contents = f"""
+            [[source]]
+            url = "{p.index_url}"
+            verify_ssl = true
+            name = "pypi"
             [packages]
             {packages[0]}= "=={packages[1]}"
             [dev-packages]
@@ -49,16 +53,21 @@ def test_requirements_generates_requirements_from_lockfile(pipenv_instance_pypi)
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile_multiple_sources(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
-    with pipenv_instance_private_pypi() as p:
+    # The second source ("other_source") is deliberately never contacted
+    # - "pipenv requirements" only echoes declared sources as pip args,
+    # it doesn't verify reachability - so it stays an unreachable dummy
+    # literal; only the primary source needs to actually resolve
+    # packages, so that one points at the offline index.
+    with pipenv_instance_file_pypi() as p:
         packages = ("six", "1.12.0")
         dev_packages = ("itsdangerous", "1.1.0")
         with open(p.pipfile_path, "w") as f:
             contents = f"""
             [[source]]
             name = "pypi"
-            url = "https://pypi.org/simple"
+            url = "{p.index_url}"
             verify_ssl = true
             [[source]]
             name = "other_source"
@@ -75,25 +84,25 @@ def test_requirements_generates_requirements_from_lockfile_multiple_sources(
         c = p.pipenv("requirements")
         assert c.returncode == 0
 
-        assert "-i https://pypi.org/simple" in c.stdout
+        assert f"-i {p.index_url}" in c.stdout
         assert "--extra-index-url https://some_other_source.org" in c.stdout
 
 
 @pytest.mark.requirements
 def test_requirements_generates_requirements_from_lockfile_from_categories(
-    pipenv_instance_private_pypi,
+    pipenv_instance_file_pypi,
 ):
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         packages = ("six", "1.12.0")
         dev_packages = ("itsdangerous", "1.1.0")
-        test_packages = ("pytest", "7.1.3")
+        test_packages = ("pytest", "4.6.9")
         doc_packages = ("docutils", "0.19")
 
         with open(p.pipfile_path, "w") as f:
             contents = f"""
             [[source]]
             name = "pypi"
-            url = "https://pypi.org/simple"
+            url = "{p.index_url}"
             verify_ssl = true
             [packages]
             {packages[0]}= "=={packages[1]}"
@@ -126,8 +135,8 @@ def test_requirements_generates_requirements_from_lockfile_from_categories(
 
 
 @pytest.mark.requirements
-def test_requirements_generates_requirements_from_pipfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_requirements_generates_requirements_from_pipfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         packages = ("requests", "2.31.0")
         sub_packages = (
             "urllib3",
@@ -137,6 +146,10 @@ def test_requirements_generates_requirements_from_pipfile(pipenv_instance_pypi):
 
         with open(p.pipfile_path, "w") as f:
             contents = f"""
+            [[source]]
+            url = "{p.index_url}"
+            verify_ssl = true
+            name = "pypi"
             [packages]
             {packages[0]} = "=={packages[1]}"
             [dev-packages]
@@ -179,7 +192,7 @@ def test_requirements_generates_requirements_from_pipfile(pipenv_instance_pypi):
 
 
 @pytest.mark.requirements
-def test_requirements_with_git_requirements(pipenv_instance_pypi):
+def test_requirements_with_git_requirements(pipenv_instance_file_pypi):
     req_hash = "3264a0046e1aa3c0a813335286ebdbc651f58b13"
     lockfile = {
         "_meta": {"sources": []},
@@ -193,7 +206,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
         "develop": {},
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 
@@ -208,7 +221,7 @@ def test_requirements_with_git_requirements(pipenv_instance_pypi):
 
 
 @pytest.mark.requirements
-def test_requirements_markers_get_included(pipenv_instance_pypi):
+def test_requirements_markers_get_included(pipenv_instance_file_pypi):
     package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
     lockfile = {
         "_meta": {"sources": []},
@@ -225,7 +238,7 @@ def test_requirements_markers_get_included(pipenv_instance_pypi):
         "develop": {},
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 
@@ -235,7 +248,7 @@ def test_requirements_markers_get_included(pipenv_instance_pypi):
 
 
 @pytest.mark.requirements
-def test_requirements_markers_get_excluded(pipenv_instance_pypi):
+def test_requirements_markers_get_excluded(pipenv_instance_file_pypi):
     package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
     lockfile = {
         "_meta": {"sources": []},
@@ -252,7 +265,7 @@ def test_requirements_markers_get_excluded(pipenv_instance_pypi):
         "develop": {},
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 
@@ -262,7 +275,7 @@ def test_requirements_markers_get_excluded(pipenv_instance_pypi):
 
 
 @pytest.mark.requirements
-def test_requirements_hashes_get_included(pipenv_instance_pypi):
+def test_requirements_hashes_get_included(pipenv_instance_file_pypi):
     package, version, markers = "werkzeug", "==2.1.2", "python_version >= '3.7'"
     first_hash = "sha256:1ce08e8093ed67d638d63879fd1ba3735817f7a80de3674d293f5984f25fb6e6"
     second_hash = (
@@ -280,7 +293,7 @@ def test_requirements_hashes_get_included(pipenv_instance_pypi):
         "develop": {},
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 
@@ -296,7 +309,7 @@ def test_requirements_hashes_get_included(pipenv_instance_pypi):
 
 
 def test_requirements_generates_requirements_from_lockfile_without_env_var_expansion(
-    pipenv_instance_pypi,
+    pipenv_instance_file_pypi,
 ):
     lockfile = {
         "_meta": {
@@ -311,7 +324,7 @@ def test_requirements_generates_requirements_from_lockfile_without_env_var_expan
         "default": {},
     }
 
-    with pipenv_instance_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.lockfile_path, "w") as f:
             json.dump(lockfile, f)
 

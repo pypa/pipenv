@@ -14,8 +14,8 @@ from pipenv.routines.update import get_modified_pipfile_entries
     "os.name == 'nt' and sys.version_info[:2] == (3, 8)",
     reason="Seems to work on 3.8 but not via the CI",
 )
-def test_update_outdated_with_outdated_package(pipenv_instance_private_pypi, cmd_option):
-    with pipenv_instance_private_pypi() as p:
+def test_update_outdated_with_outdated_package(pipenv_instance_file_pypi, cmd_option):
+    with pipenv_instance_file_pypi() as p:
         package_name = "six"
         p.pipenv(f"install {cmd_option} {package_name}==1.11")
         c = p.pipenv(f"update {package_name} {cmd_option} --outdated")
@@ -23,7 +23,7 @@ def test_update_outdated_with_outdated_package(pipenv_instance_private_pypi, cmd
 
 
 @pytest.mark.update
-def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, monkeypatch):
+def test_update_uses_default_categories_envvar(pipenv_instance_file_pypi, monkeypatch):
     captured = {}
 
     def fake_do_update(project, ctx):
@@ -34,7 +34,7 @@ def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, mon
 
     monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
     monkeypatch.setenv("PIPENV_DEFAULT_CATEGORIES", "packages,dev-packages")
-    with pipenv_instance_private_pypi() as _:
+    with pipenv_instance_file_pypi() as _:
         monkeypatch.setattr(sys, "argv", ["pipenv", "update", "six"])
         try:
             cli()
@@ -47,7 +47,7 @@ def test_update_uses_default_categories_envvar(pipenv_instance_private_pypi, mon
 
 
 @pytest.mark.update
-def test_update_all_categories_flag(pipenv_instance_private_pypi, monkeypatch):
+def test_update_all_categories_flag(pipenv_instance_file_pypi, monkeypatch):
     captured = {}
 
     def fake_do_update(project, ctx):
@@ -56,7 +56,7 @@ def test_update_all_categories_flag(pipenv_instance_private_pypi, monkeypatch):
         captured["categories"] = list(ctx.package_selection.categories)
 
     monkeypatch.setattr("pipenv.routines.update.do_update", fake_do_update)
-    with pipenv_instance_private_pypi() as p:
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = """
 [packages]
@@ -83,8 +83,8 @@ sphinx = "*"
     assert "docs" in captured["categories"]
 
 
-def test_get_modified_pipfile_entries_new_package(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_get_modified_pipfile_entries_new_package(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         # Add package to Pipfile
         p.pipenv("install requests==2.31.0")
 
@@ -101,8 +101,8 @@ def test_get_modified_pipfile_entries_new_package(pipenv_instance_pypi):
         assert "urllib3" in modified["default"]
 
 
-def test_get_modified_pipfile_entries_changed_version(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_get_modified_pipfile_entries_changed_version(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         # Install and lock initial version
         p.pipenv("install requests==2.31.0")
 
@@ -119,10 +119,12 @@ def test_get_modified_pipfile_entries_changed_version(pipenv_instance_pypi):
         assert "requests" in modified["default"]
 
 
-def test_get_modified_pipfile_entries_vcs_changes(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_get_modified_pipfile_entries_vcs_changes(
+    pipenv_instance_file_pypi, local_requests_git_repo
+):
+    with pipenv_instance_file_pypi() as p:
         # Install VCS package
-        p.pipenv("install git+https://github.com/requests/requests.git@main#egg=requests")
+        p.pipenv(f"install git+{local_requests_git_repo.as_uri()}@main#egg=requests")
 
         # Change ref
         pipfile = p.pipfile_path
@@ -137,8 +139,8 @@ def test_get_modified_pipfile_entries_vcs_changes(pipenv_instance_pypi):
         assert "requests" in modified["default"]
 
 
-def test_update_without_lockfile(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_update_without_lockfile(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         # Install without creating lockfile
         p.pipenv("install --skip-lock requests==2.31.0")
 
@@ -174,10 +176,11 @@ def test_update_without_lockfile(pipenv_instance_pypi):
             '[packages]\nrequests = "==2.31.0"\n[dev-packages]\npytest = "==7.4.0"',
             {"pytest"}
         ),
-        # Test VCS package
+        # Test VCS package - uses a local git fixture (file:// URL),
+        # substituted in below via the "{VCS_REPO}" placeholder.
         (
-            '[packages]\nrequests = {git = "https://github.com/requests/requests.git", ref = "main"}',
-            '[packages]\nrequests = {git = "https://github.com/requests/requests.git", ref = "v2.31.0"}',
+            '[packages]\nrequests = {git = "{VCS_REPO}", ref = "main"}',
+            '[packages]\nrequests = {git = "{VCS_REPO}", ref = "v2.31.0"}',
             {"requests"}
         ),
         # Test extras change
@@ -188,14 +191,24 @@ def test_update_without_lockfile(pipenv_instance_pypi):
         )
     ]
 )
-def test_update_modified_packages(pipenv_instance_pypi, initial_content, modified_content, expected_updates):
-    with pipenv_instance_pypi() as p:
-        # Write initial Pipfile
-        p.pipfile_path.write_text(initial_content)
+def test_update_modified_packages(
+    pipenv_instance_file_pypi,
+    local_requests_git_repo,
+    initial_content,
+    modified_content,
+    expected_updates,
+):
+    with pipenv_instance_file_pypi() as p:
+        vcs_repo_uri = local_requests_git_repo.as_uri()
+        initial_content = initial_content.replace("{VCS_REPO}", vcs_repo_uri)
+        modified_content = modified_content.replace("{VCS_REPO}", vcs_repo_uri)
+        # Write initial Pipfile (prefixed with our offline [[source]])
+        source_block = f'[[source]]\nurl = "{p.index_url}"\nverify_ssl = true\nname = "pypi"\n\n'
+        p.pipfile_path.write_text(source_block + initial_content)
         p.pipenv("lock")  # Generate initial lockfile
 
         # Modify Pipfile
-        p.pipfile_path.write_text(modified_content)
+        p.pipfile_path.write_text(source_block + modified_content)
 
         project = Project()
         # Verify correct packages identified for update

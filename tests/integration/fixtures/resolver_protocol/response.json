@@ -5,22 +5,21 @@
     "locked": [
       {
         "hashes": [
-          "sha256:2a29735ea9c18baf14b448846bde5a48030ed267578472d8955cd0e7443a9812",
-          "sha256:328171f4e3623139da4983451950b28e95ac706e13f3f2630a879749e7a8b319"
+          "sha256:65ae0c8101309c45772196b21b74c46b2e5d11b6275c45d251b150d5da334555",
+          "sha256:c06425302f2cf668f1bba7a0a03f3c1d34d4ebeef2c72003da308b3947c7f749"
         ],
         "index": "pypi",
         "name": "pytz",
-        "version": "==2024.1"
+        "version": "==2018.4"
       },
       {
         "hashes": [
-          "sha256:1e61c37477a1626458e36f7b1d82aa5c9b094fa4802892072e49de9c60c4c926",
-          "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"
+          "sha256:3350809f0555b11f552448330d0b52d5f24c91a322ea4a15ef22629740f3761c"
         ],
         "index": "pypi",
-        "markers": "python_version >= '2.7' and python_version != '3.0' and python_version != '3.1' and python_version != '3.2'",
+        "markers": "python_version >= '2.6' and python_version != '3.0' and python_version != '3.1'",
         "name": "six",
-        "version": "==1.16.0"
+        "version": "==1.12.0"
       }
     ]
   },

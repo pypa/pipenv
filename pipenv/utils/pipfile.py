@@ -236,7 +236,11 @@ def ensure_pipfile(
             ) as st:
                 # Import requirements.txt.
                 try:
-                    import_requirements(project, categories=pipfile_categories)
+                    import_requirements(
+                        project,
+                        categories=pipfile_categories,
+                        replace_default_source=True,
+                    )
                 except Exception:
                     err.print(environments.PIPENV_SPINNER_FAIL_TEXT.format("Failed..."))
                 else:

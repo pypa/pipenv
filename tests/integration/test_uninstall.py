@@ -1,16 +1,12 @@
-import sys
-
 import pytest
 
 from pipenv.utils.shell import temp_environ
 
-from .conftest import DEFAULT_PRIVATE_PYPI_SERVER
-
 
 @pytest.mark.uninstall
 @pytest.mark.install
-def test_uninstall_requests(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_uninstall_requests(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install requests")
         assert c.returncode == 0
         assert "requests" in p.pipfile["packages"]
@@ -22,58 +18,65 @@ def test_uninstall_requests(pipenv_instance_pypi):
 
 
 @pytest.mark.uninstall
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
-)
-def test_uninstall_django(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
-        c = p.pipenv("install Django")
+def test_uninstall_real_package(pipenv_instance_file_pypi):
+    # Originally used "Django" specifically (needed a real functional
+    # package, and our extra_pypi stub Django wheels are metadata-only
+    # with no real code) - but any already-vendored *real* package
+    # works for that purpose. "six" is real, pure-Python, has no
+    # transitive dependencies to collide with a fake stub, and resolves
+    # fully offline.
+    with pipenv_instance_file_pypi() as p:
+        c = p.pipenv("install six")
         assert c.returncode == 0
-        assert "django" in p.pipfile["packages"]
-        assert "django" in p.lockfile["default"]
-        assert "pytz" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six; print(six.__version__)"')
         assert c.returncode == 0
 
-        c = p.pipenv("uninstall Django")
+        c = p.pipenv("uninstall six")
         assert c.returncode == 0
-        assert "django" not in p.pipfile["dev-packages"]
-        assert "django" not in p.lockfile["develop"]
+        assert "six" not in p.pipfile["dev-packages"]
+        assert "six" not in p.lockfile["develop"]
         assert p.lockfile["develop"] == {}
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six"')
         assert c.returncode > 0
 
 
 @pytest.mark.install
 @pytest.mark.uninstall
-@pytest.mark.skipif(
-    sys.version_info >= (3, 12), reason="Package does not work with Python 3.12"
-)
-def test_mirror_uninstall(pipenv_instance_pypi):
+def test_mirror_uninstall(pipenv_instance_pypi, local_pypi_index_root):
+    # The *default* source must stay the literal string
+    # "https://pypi.org/simple" for --pypi-mirror to have anything to
+    # substitute (is_pypi_url() only matches that literal domain) - but
+    # that string is never actually contacted: --pypi-mirror swaps it
+    # out for mirror_url before any resolution happens, so the mirror
+    # itself can be the offline index. "six" stands in for "Django"
+    # here - any real (non-stub) vendored package works; six is real,
+    # pure-Python, and has no transitive dependencies to collide with a
+    # fake stub.
     with temp_environ(), pipenv_instance_pypi() as p:
-        mirror_url = DEFAULT_PRIVATE_PYPI_SERVER
+        mirror_url = local_pypi_index_root.as_uri()
         assert "pypi.org" not in mirror_url
 
-        c = p.pipenv(f"install Django --pypi-mirror {mirror_url}")
+        c = p.pipenv(f"install six --pypi-mirror {mirror_url}")
         assert c.returncode == 0
-        assert "django" in p.pipfile["packages"]
-        assert "django" in p.lockfile["default"]
-        assert "pytz" in p.lockfile["default"]
+        assert "six" in p.pipfile["packages"]
+        assert "six" in p.lockfile["default"]
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
         assert len(p.lockfile["_meta"]["sources"]) == 1
         assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six; print(six.__version__)"')
         assert c.returncode == 0
 
-        c = p.pipenv(f"uninstall Django --pypi-mirror {mirror_url}")
+        c = p.pipenv(f"uninstall six --pypi-mirror {mirror_url}")
         assert c.returncode == 0
-        assert "django" not in p.pipfile["dev-packages"]
-        assert "django" not in p.lockfile["develop"]
+        assert "six" not in p.pipfile["dev-packages"]
+        assert "six" not in p.lockfile["develop"]
         assert p.lockfile["develop"] == {}
         # Ensure the --pypi-mirror parameter hasn't altered the Pipfile or Pipfile.lock sources
         assert len(p.pipfile["source"]) == 1
@@ -81,15 +84,15 @@ def test_mirror_uninstall(pipenv_instance_pypi):
         assert p.pipfile["source"][0]["url"] == "https://pypi.org/simple"
         assert p.lockfile["_meta"]["sources"][0]["url"] == "https://pypi.org/simple"
 
-        c = p.pipenv("run python -m django --version")
+        c = p.pipenv('run python -c "import six"')
         assert c.returncode > 0
 
 
 @pytest.mark.files
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_all_local_files(pipenv_instance_file_pypi, testsroot):
+    with pipenv_instance_file_pypi() as p:
         file_uri = p._pipfile.get_fixture_path(
             "tablib/tablib-0.12.1.tar.gz", fixtures="pypi"
         ).as_uri()
@@ -115,8 +118,8 @@ def test_uninstall_all_local_files(pipenv_instance_private_pypi, testsroot):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_dev(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_all_dev(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
             contents = f"""
 [[source]]
@@ -161,11 +164,16 @@ six = "==1.12.0"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_normalize_name_uninstall(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_normalize_name_uninstall(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 # Pre comment
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 Requests = "*"
 python_DateUtil = "*"
@@ -186,10 +194,15 @@ python_DateUtil = "*"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+        [[source]]
+        url = "{p.index_url}"
+        verify_ssl = true
+        name = "pypi"
+
         [packages]
         pytest = "==4.6.11"
 
@@ -208,8 +221,8 @@ def test_uninstall_all_dev_with_shared_dependencies(pipenv_instance_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_missing_parameters(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install six")
         assert c.returncode == 0
 
@@ -221,10 +234,15 @@ def test_uninstall_missing_parameters(pipenv_instance_private_pypi):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
-    with pipenv_instance_pypi() as p:
+def test_uninstall_category_with_shared_requirement(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+        [[source]]
+        url = "{p.index_url}"
+        verify_ssl = true
+        name = "pypi"
+
         [packages]
         six = "*"
 
@@ -245,10 +263,15 @@ def test_uninstall_category_with_shared_requirement(pipenv_instance_pypi):
 @pytest.mark.categories
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_multiple_categories(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+        [[source]]
+        url = "{p.index_url}"
+        verify_ssl = true
+        name = "pypi"
+
         [after]
         six = "==1.12.0"
 
@@ -268,10 +291,15 @@ def test_uninstall_multiple_categories(pipenv_instance_private_pypi):
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_category_sorted_alphabetically_with_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_sorted_alphabetically_with_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
@@ -294,19 +322,24 @@ atomicwrites = "*"
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_sorting_handles_str_values_and_dict_values(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_sorting_handles_str_values_and_dict_values(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [pipenv]
 sort_pipfile = true
 
 [packages]
 zipp = "*"
-parse = {version = "*"}
+parse = {{version = "*"}}
 colorama = "*"
 build = "*"
-atomicwrites = {version = "*"}
+atomicwrites = {{version = "*"}}
             """.strip()
             f.write(contents)
         c = p.pipenv("install")
@@ -325,10 +358,15 @@ atomicwrites = {version = "*"}
 
 @pytest.mark.install
 @pytest.mark.uninstall
-def test_category_not_sorted_without_directive(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_category_not_sorted_without_directive(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 parse = "*"
 colorama = "*"
@@ -351,10 +389,15 @@ atomicwrites = "*"
 
 
 @pytest.mark.uninstall
-def test_uninstall_without_venv(pipenv_instance_private_pypi):
-    with pipenv_instance_private_pypi() as p:
+def test_uninstall_without_venv(pipenv_instance_file_pypi):
+    with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
+[[source]]
+url = "{p.index_url}"
+verify_ssl = true
+name = "pypi"
+
 [packages]
 colorama = "*"
 atomicwrites = "*"

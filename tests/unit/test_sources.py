@@ -190,6 +190,28 @@ def test_sources_src_name_from_url_synthesises_unique(project_single):
     assert isinstance(name, str)
 
 
+def test_sources_src_name_from_url_file_url_with_dotted_basename(project_single):
+    """A file:// URL's path-basename fallback must not be run through
+    the hostname/TLD rpartition split - that would mis-split a dotted
+    directory name like "index.v1" into just "index", discarding the
+    ".v1" and losing the uniqueness this fallback exists to provide.
+    Regression for a Copilot PR review finding on #6731.
+    """
+    name = project_single.sources.src_name_from_url("file:///tmp/index.v1")
+    assert name
+    assert "v1" in name
+
+
+def test_sources_src_name_from_url_file_url_with_dotfile_basename(project_single):
+    """A file:// URL whose basename is a dotfile (e.g. ".index") must not
+    produce an empty source name - rpartition(".") on ".index" yields
+    ("", ".", "index"), and naively taking the part before the dot
+    gives "". Regression for a Copilot PR review finding on #6731.
+    """
+    name = project_single.sources.src_name_from_url("file:///tmp/.index")
+    assert name
+
+
 @pytest.mark.utils
 def test_sources_populate_source_fills_defaults():
     """``Sources.populate_source`` infers ``name`` and ``verify_ssl`` from

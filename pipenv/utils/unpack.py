@@ -13,12 +13,12 @@ forks with the patched-pip versions without auditing the sole caller
 ``docs/dev/initiative-b-triage.md`` and ``docs/dev/initiative-e-design.md``
 §T_E.4 for rationale.
 
-The local :data:`VCS_SCHEMES` set is unique to this module's
-VCS-link detection and intentionally differs from
-:data:`pipenv.utils.constants.VCS_SCHEMES` (a list of ``vcs+transport``
-strings only). This set additionally contains the bare ``git``/``hg``/
-``svn``/``bzr`` schemes that `unpack_url` may encounter on real-world
-requirement links.
+VCS-link detection uses :data:`pipenv.utils.constants.VCS_SCHEMES`,
+which includes both bare schemes (``git``, ``hg``, ``svn``, ``bzr``)
+and ``vcs+transport`` forms (``git+https``, ``hg+file``, etc.) -
+previously this module kept its own separate copy of that set because
+it additionally needed the bare schemes; that gap is now closed in the
+shared constant instead of duplicated here.
 """
 
 from typing import Optional
@@ -34,32 +34,7 @@ from pipenv.patched.pip._internal.operations.prepare import (
 from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory
 from pipenv.patched.pip._internal.utils.unpacking import unpack_file
-
-VCS_SCHEMES = {
-    "git",
-    "git+http",
-    "git+https",
-    "git+ssh",
-    "git+git",
-    "git+file",
-    "hg",
-    "hg+http",
-    "hg+https",
-    "hg+ssh",
-    "hg+static-http",
-    "svn",
-    "svn+ssh",
-    "svn+http",
-    "svn+https",
-    "svn+svn",
-    "bzr",
-    "bzr+http",
-    "bzr+https",
-    "bzr+ssh",
-    "bzr+sftp",
-    "bzr+ftp",
-    "bzr+lp",
-}
+from pipenv.utils.constants import VCS_SCHEMES
 
 
 def unpack_url(
@@ -92,9 +67,9 @@ def unpack_url(
       ``package.link.scheme in REMOTE_SCHEMES`` includes VCS schemes
       (see ``pipenv/utils/constants.py``), so VCS links DO reach this
       function in practice.
-    * VCS-link detection uses ``link.scheme in VCS_SCHEMES`` (this
-      module's local constant) rather than pip's ``link.is_vcs``
-      property. Equivalent in practice but kept as-is.
+    * VCS-link detection uses ``link.scheme in VCS_SCHEMES``
+      (``pipenv.utils.constants.VCS_SCHEMES``) rather than pip's
+      ``link.is_vcs`` property. Equivalent in practice but kept as-is.
 
     Do not replace with the patched-pip version without auditing the
     caller -- see ``docs/dev/initiative-b-triage.md`` for rationale.

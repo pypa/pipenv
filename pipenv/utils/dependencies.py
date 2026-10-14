@@ -55,7 +55,7 @@ from .constants import (
     VCS_SCHEMES,
 )
 from .indexes import parse_indexes, prepare_pip_source_args
-from .internet import get_host_and_port, is_valid_url
+from .internet import get_host_and_port, is_pypi_url, is_valid_url
 from .markers import PipenvMarkers
 from .pip import get_trusted_hosts
 
@@ -547,7 +547,14 @@ def dependency_as_pip_install_line(
                     ("http:", "https:", "ftp:")
                 ):
                     line.append("-e")
-                if location.startswith(("http:", "https:")):
+                if location.startswith(("http:", "https:", "file:")):
+                    # A file:// URL is a URL like http(s), not a bare
+                    # local path - it needs the "name[extras] @ url"
+                    # form too. Appending "[extras]" directly onto the
+                    # URL (the bare-path branch below) breaks pip's
+                    # filename/extension detection for the downloaded
+                    # file, since the string pip sees no longer ends in
+                    # e.g. ".whl".
                     req_str = f"{dep_name}{extras} @ {location}"
                 else:
                     req_str = f"{location}{extras}"
@@ -1280,19 +1287,29 @@ def normalize_editable_path_for_pip(path_str):
     return path_str.replace(os.path.sep, "/")
 
 
-def file_path_from_pipfile(path_str, pipfile_entry):
+def file_path_from_pipfile(path_str, pipfile_entry, name=None):
     """Creates an installable file path from a pipfile entry.
     Handles local and remote paths, files and directories;
     supports extras and editable specification.
     Outputs a pip installable line.
     """
-    if path_str.startswith(("http:", "https:", "ftp:")):
+    is_url = path_str.startswith(("http:", "https:", "ftp:", "file:"))
+    if is_url:
         req_str = path_str
     else:
         req_str = ensure_path_is_relative(path_str)
 
     if pipfile_entry.get("extras"):
-        req_str = f"{req_str}[{','.join(pipfile_entry['extras'])}]"
+        extras_str = f"[{','.join(pipfile_entry['extras'])}]"
+        if is_url and name:
+            # A URL (file:// included) needs the "name[extras] @ url"
+            # PEP 508 direct-reference form pip expects. Appending
+            # "[extras]" straight onto the URL breaks pip's
+            # filename/extension-based archive detection, since the
+            # string it sees no longer ends in e.g. ".whl".
+            req_str = f"{name}{extras_str} @ {req_str}"
+        else:
+            req_str = f"{req_str}{extras_str}"
     if pipfile_entry.get("editable", False):
         req_str = f"-e {normalize_editable_path_for_pip(req_str)}"
 
@@ -1464,9 +1481,9 @@ def handle_non_vcs_requirement(
 ) -> str:
     """Helper function to handle non-VCS requirements."""
     if "path" in _pipfile:
-        return file_path_from_pipfile(_pipfile["path"], _pipfile)
+        return file_path_from_pipfile(_pipfile["path"], _pipfile, name=name)
     elif "file" in _pipfile:
-        return file_path_from_pipfile(_pipfile["file"], _pipfile)
+        return file_path_from_pipfile(_pipfile["file"], _pipfile, name=name)
     else:
         version = get_version(_pipfile)
         if is_star(version) or version == "==*":
@@ -1715,7 +1732,9 @@ def merge_items(target_list, sourced=False):
     return merged
 
 
-def import_requirements(project, r=None, dev=False, categories=None):
+def import_requirements(
+    project, r=None, dev=False, categories=None, replace_default_source=False
+):
     # Parse requirements.txt file with Pip's parser.
     # Pip requires a `PipSession` which is a subclass of requests.Session.
     # Since we're not making any network calls, it's initialized to nothing.
@@ -1737,15 +1756,69 @@ def import_requirements(project, r=None, dev=False, categories=None):
 
     # Collect indexes and trusted hosts first
     indexes = []
+    primary_index = None
     trusted_hosts = []
     for line in contents.split("\n"):
         index, extra_index, trusted_host, _ = parse_indexes(line.strip(), strict=True)
         if index:
             indexes = [index]
+            primary_index = index
         if extra_index:
             indexes.append(extra_index)
         if trusted_host:
             trusted_hosts.append(get_host_and_port(trusted_host))
+
+    # Add indexes to the Pipfile before packages, so each imported
+    # package can be tagged with the primary index's resulting source
+    # name below - pipenv's resolver only honors a non-default index
+    # for packages explicitly keyed to it (SearchScope.index_restricted
+    # in pip's models.search_scope), the same way `pipenv install
+    # --index <url>` already tags the package it adds. Without this, a
+    # `-i <url>` line in requirements.txt would add the index to the
+    # Pipfile but never actually use it to resolve any package.
+    # Dedupe while preserving requirements-file order - the primary
+    # index must stay first. Alphabetically sorting (as this used to do)
+    # could reorder an --extra-index-url ahead of the primary -i URL;
+    # that extra source would then get added first, so by the time the
+    # primary index is processed below, `len(existing_sources) == 1` no
+    # longer holds and the untouched default pypi.org source never gets
+    # replaced.
+    seen_indexes = set()
+    indexes = [i for i in indexes if not (i in seen_indexes or seen_indexes.add(i))]
+    trusted_hosts = sorted(set(trusted_hosts))
+    primary_index_name = None
+    for index in indexes:
+        if index == primary_index:
+            # pip's own "-i <url>" REPLACES the default index rather
+            # than adding a secondary one. Mirror that when nothing but
+            # the untouched default pypi.org source exists yet (true
+            # right after project.create_pipfile() converts a bare
+            # requirements.txt with no prior Pipfile) - otherwise the
+            # default stays index_urls[0] and (per pip's
+            # SearchScope.index_restricted) keeps being used to resolve
+            # every transitive dependency of the packages we're about to
+            # tag with this index, even though those packages themselves
+            # correctly resolve against it.
+            #
+            # Only do this when the caller tells us (via
+            # replace_default_source) that it just created this Pipfile
+            # from scratch moments ago. Without that signal, the sole
+            # pypi.org source could just as easily be an existing
+            # project's own intentional configuration - e.g. `pipenv
+            # install -r requirements.txt` into an already-existing
+            # Pipfile - and silently deleting it would be a surprising,
+            # destructive side effect of an unrelated import.
+            if replace_default_source:
+                existing_sources = project.pipfile.parsed.get("source")
+                if (
+                    existing_sources
+                    and len(existing_sources) == 1
+                    and is_pypi_url(existing_sources[0].get("url", ""))
+                ):
+                    del existing_sources[0]
+        index_name = add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
+        if index == primary_index:
+            primary_index_name = index_name
 
     # Collect all packages for batch processing
     packages_to_add = []
@@ -1754,6 +1827,8 @@ def import_requirements(project, r=None, dev=False, categories=None):
     for f in parse_requirements(req_path, session=PipSession()):
         package = install_req_from_parsed_requirement(f)
         if package.name not in BAD_PACKAGES:
+            if primary_index_name:
+                package.index = primary_index_name
             if package.link is not None:
                 if package.editable:
                     package_string = f"-e {package.link}"
@@ -1774,12 +1849,6 @@ def import_requirements(project, r=None, dev=False, categories=None):
             packages_to_add, dev=dev, categories=categories
         )
 
-    # Add indexes after packages
-    indexes = sorted(set(indexes))
-    trusted_hosts = sorted(set(trusted_hosts))
-    for index in indexes:
-        add_index_to_pipfile_with_trust_check(project, index, trusted_hosts)
-
     # Recase pipfile once at the end
     project.pipfile.recase()
 
@@ -1790,15 +1859,20 @@ def add_index_to_pipfile_with_trust_check(project, index, trusted_hosts=None):
         trusted_hosts = get_trusted_hosts()
 
     host_and_port = get_host_and_port(index)
-    require_valid_https = not any(
-        v in trusted_hosts
-        for v in (
-            host_and_port,
-            host_and_port.partition(":")[
-                0
-            ],  # also check if hostname without port is in trusted_hosts
+    if host_and_port is None:
+        # file:// URLs have no host - there's no TLS to verify, so
+        # there's nothing to mark as a trusted plain-http host either.
+        require_valid_https = True
+    else:
+        require_valid_https = not any(
+            v in trusted_hosts
+            for v in (
+                host_and_port,
+                host_and_port.partition(":")[
+                    0
+                ],  # also check if hostname without port is in trusted_hosts
+            )
         )
-    )
     index_name = project.sources.add_index_to_pipfile(index, verify_ssl=require_valid_https)
     return index_name
 
