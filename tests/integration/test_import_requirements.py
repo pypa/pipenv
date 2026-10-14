@@ -181,6 +181,27 @@ def test_import_requirements_preserves_existing_pypi_source(pipenv_instance_file
 
 
 @pytest.mark.integration
+def test_install_dash_r_with_file_url_requirementstxt(pipenv_instance_file_pypi):
+    """`pipenv install -r file:///abs/path/requirements.txt` must resolve
+    the file:// URL to a local filesystem path before do_install_validations()
+    hands it to project.path_to() - which, given the literal
+    "file:///abs/path/requirements.txt" string, treats it as a *relative*
+    path (it doesn't start with "/") and joins it onto the project
+    directory, producing a nonexistent path like
+    "<project>/file:/abs/path/requirements.txt" and failing the import.
+    Regression for a Copilot PR review finding on #6731.
+    """
+    with pipenv_instance_file_pypi() as p:
+        req_file_path = Path(p.path) / "requirements.txt"
+        req_file_path.write_text("six\n")
+
+        c = p.pipenv(f"install -r {req_file_path.as_uri()}")
+
+        assert c.returncode == 0, c.stderr
+        assert "six" in p.pipfile["packages"]
+
+
+@pytest.mark.integration
 def test_import_requirements_preserves_markers(pipenv_instance_file_pypi):
     """Test that import_requirements preserves environment markers like sys_platform.
 
