@@ -67,12 +67,15 @@ def replace_pypi_sources(sources, pypi_replacement_source):
 def create_mirror_source(url, name):
     return {
         "url": url,
-        # Only plain http:// is treated as insecure here; file:// has no
-        # TLS to verify (so there's nothing to flag as untrusted) and
-        # marking it verify_ssl=False would make prepare_pip_source_args
-        # emit a nonsensical "--trusted-host None" (file:// URLs have no
-        # host for pip's --trusted-host flag).
-        "verify_ssl": not url.startswith("http://"),
+        # https:// is secure, and file:// has no TLS to verify (so
+        # there's nothing to flag as untrusted - marking it
+        # verify_ssl=False would make prepare_pip_source_args emit a
+        # nonsensical "--trusted-host None", since file:// URLs have no
+        # host for pip's --trusted-host flag). Every other scheme
+        # (plain http://, ftp://, ...) keeps the original insecure
+        # classification so prepare_pip_source_args still supplies
+        # --trusted-host for it.
+        "verify_ssl": url.startswith(("https://", "file://")),
         "name": name,
     }
 
