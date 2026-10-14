@@ -1,6 +1,7 @@
 import os
 import shutil
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -502,11 +503,19 @@ urllib3 = {{version = "==1.26.6", markers = "python_version < '2'"}}
 def test_no_duplicate_source_on_install(pipenv_instance_file_pypi):
     """Ensure that running pipenv install with an index URL doesn't create duplicate [[source]] sections."""
     with pipenv_instance_file_pypi() as p:
-        # Create initial Pipfile with a source
+        # Create initial Pipfile with a source. This is deliberately a
+        # non-existent, never-queried file:// URL rather than the real
+        # pypi.org - it's only here to be the pre-existing default source
+        # that the test asserts isn't duplicated; "six" has no
+        # dependencies and is explicitly tagged to the --index URL below,
+        # so pip never needs to resolve anything against this first
+        # source, but it must still be a non-network URL to keep this
+        # test fully offline per #6731's offline-suite guarantee.
+        unused_primary_index_url = Path(p.path, "unused-primary-index").as_uri()
         with open(p.pipfile_path, "w") as f:
-            contents = """
+            contents = f"""
 [[source]]
-url = "https://pypi.org/simple"
+url = "{unused_primary_index_url}"
 verify_ssl = true
 name = "pypi"
 
