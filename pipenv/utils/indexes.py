@@ -23,6 +23,22 @@ def prepare_pip_source_args(sources, pip_args=None):
     writes alongside the subprocess invocation (or from any user-configured
     keyring/netrc).  See GHSA-8xgg-v3jj-95m2.
     """
+    def _add_trusted_host_if_needed(url, verify_ssl):
+        # --trusted-host is a hostname allowlist; it's meaningless for a
+        # hostless URL (file:// has no host to trust or distrust) and
+        # pip's own source-is-verified bookkeeping (verify_ssl) has no
+        # way to express "not applicable" - it's a plain bool (see
+        # plette.models.sources.Source.__SCHEMA__). Skipping on a
+        # missing host avoids emitting the nonsensical literal
+        # "--trusted-host None" regardless of what verify_ssl says.
+        if verify_ssl:
+            return
+        url_parts = parse_url(url)
+        if not url_parts.host:
+            return
+        url_port = f":{url_parts.port}" if url_parts.port else ""
+        pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
+
     if pip_args is None:
         pip_args = []
     if sources:
@@ -32,11 +48,7 @@ def prepare_pip_source_args(sources, pip_args=None):
             raise PipenvUsageError("[[source]] section does not contain a URL.")
         sanitized_url, _ = _strip_credentials_from_url(package_url)
         pip_args.extend(["-i", sanitized_url])
-        # Trust the host if it's not verified.
-        if not sources[0].get("verify_ssl", True):
-            url_parts = parse_url(sanitized_url)
-            url_port = f":{url_parts.port}" if url_parts.port else ""
-            pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
+        _add_trusted_host_if_needed(sanitized_url, sources[0].get("verify_ssl", True))
         # Add additional sources as extra indexes.
         if len(sources) > 1:
             for source in sources[1:]:
@@ -45,11 +57,9 @@ def prepare_pip_source_args(sources, pip_args=None):
                     continue
                 sanitized_extra_url, _ = _strip_credentials_from_url(url)
                 pip_args.extend(["--extra-index-url", sanitized_extra_url])
-                # Trust the host if it's not verified.
-                if not source.get("verify_ssl", True):
-                    url_parts = parse_url(sanitized_extra_url)
-                    url_port = f":{url_parts.port}" if url_parts.port else ""
-                    pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
+                _add_trusted_host_if_needed(
+                    sanitized_extra_url, source.get("verify_ssl", True)
+                )
     return pip_args
 
 
