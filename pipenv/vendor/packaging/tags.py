@@ -12,13 +12,10 @@ import struct
 import subprocess
 import sys
 import sysconfig
+from collections.abc import Iterable, Iterator, Sequence
 from importlib.machinery import EXTENSION_SUFFIXES
 from typing import (
     TYPE_CHECKING,
-    Iterable,
-    Iterator,
-    Sequence,
-    Tuple,
     TypeVar,
     cast,
 )
@@ -26,15 +23,17 @@ from typing import (
 from . import _manylinux, _musllinux
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
-    from typing import AbstractSet
+    from collections.abc import Callable
+    from collections.abc import Set as AbstractSet
 
 
 __all__ = [
     "INTERPRETER_SHORT_NAMES",
     "AppleVersion",
+    "InvalidTag",
     "PythonVersion",
     "Tag",
+    "TooManyTagsError",
     "UnsortedTagsError",
     "android_platforms",
     "compatible_tags",
@@ -47,6 +46,7 @@ __all__ = [
     "mac_platforms",
     "parse_tag",
     "platform_tags",
+    "pure_python_tags",
     "sys_tags",
 ]
 
@@ -58,7 +58,18 @@ def __dir__() -> list[str]:
 logger = logging.getLogger(__name__)
 
 PythonVersion = Sequence[int]
-AppleVersion = Tuple[int, int]
+"""
+A sequence of integers describing a Python version, e.g. ``(3, 13)``.
+
+.. versionadded:: 20.0
+"""
+
+AppleVersion = tuple[int, int]
+"""
+A ``(major, minor)`` integer pair describing an Apple OS version.
+
+.. versionadded:: 24.2
+"""
 _T = TypeVar("_T")
 
 INTERPRETER_SHORT_NAMES: dict[str, str] = {
@@ -82,6 +93,25 @@ _32_BIT_INTERPRETER = _compute_32_bit_interpreter()
 class UnsortedTagsError(ValueError):
     """
     Raised when a tag component is not in sorted order per PEP 425.
+
+    .. versionadded:: 26.1
+    """
+
+
+class InvalidTag(ValueError):
+    """
+    Raised when an interpreter component is not an identifier, a tag component
+    is empty, or a tag does not have exactly three components.
+
+    .. versionadded:: 26.3
+    """
+
+
+class TooManyTagsError(ValueError):
+    """
+    Raised when a compressed tag set exceeds the configured limit.
+
+    .. versionadded:: 26.3
     """
 
 
@@ -200,7 +230,9 @@ class Tag:
         raise TypeError(f"Cannot restore Tag from {state!r}")
 
 
-def parse_tag(tag: str, *, validate_order: bool = False) -> frozenset[Tag]:
+def parse_tag(
+    tag: str, *, validate_order: bool = False, limit: int | None = None
+) -> frozenset[Tag]:
     """
     Parses the provided tag (e.g. `py3-none-any`) into a frozenset of
     :class:`Tag` instances.
@@ -212,29 +244,70 @@ def parse_tag(tag: str, *, validate_order: bool = False) -> frozenset[Tag]:
     If **validate_order** is true, compressed tag set components are checked
     to be in sorted order as required by PEP 425.
 
+    If **limit** is not ``None``, the compressed tag set can generate at most
+    that many tags.
+
     :param str tag: The tag to parse, e.g. ``"py3-none-any"``.
     :param bool validate_order: Check whether compressed tag set components
         are in sorted order.
+    :param int | None limit: The maximum number of tags to parse.
     :raises UnsortedTagsError: If **validate_order** is true and any compressed tag
         set component is not in sorted order.
+    :raises InvalidTag: If the interpreter field is not an identifier; if the
+        interpreter, ABI, or platform field (or any member of a compressed tag
+        set) is empty; or if the tag does not have exactly three components.
+    :raises TooManyTagsError: If **limit** is not ``None`` and the compressed tag
+        set would generate more than **limit** tags.
+    :raises ValueError: If **limit** is negative.
 
     .. versionadded:: 26.1
        The *validate_order* parameter.
+
+    .. versionadded:: 26.3
+       Raises :class:`InvalidTag` when an interpreter component is not an
+       identifier, a tag component is empty, or a tag does not have exactly
+       three components.
+       Added the *limit* parameter. Raises :class:`TooManyTagsError` if the compressed
+       tag set would generate more than *limit* tags.
     """
-    tags = set()
-    interpreters, abis, platforms = tag.split("-")
-    if validate_order:
-        for component in (interpreters, abis, platforms):
-            parts = component.split(".")
-            if parts != sorted(parts):
-                raise UnsortedTagsError(
-                    f"Tag component {component!r} is not in sorted order per PEP 425"
-                )
-    for interpreter in interpreters.split("."):
-        for abi in abis.split("."):
-            for platform_ in platforms.split("."):
-                tags.add(Tag(interpreter, abi, platform_))
-    return frozenset(tags)
+
+    if limit is not None and limit < 0:
+        raise ValueError("limit must be non-negative")
+
+    component_parts = [component.split(".") for component in tag.split("-")]
+    for parts in component_parts:
+        if "" in parts:
+            component = ".".join(parts)
+            raise InvalidTag(f"Tag {tag!r} has an empty component: {component!r}")
+        if validate_order and parts != sorted(parts):
+            component = ".".join(parts)
+            raise UnsortedTagsError(
+                f"Tag component {component!r} is not in sorted order per PEP 425"
+            )
+
+    tag_count = 1
+    for parts in component_parts:
+        tag_count *= len(parts)
+
+    if limit is not None and tag_count > limit:
+        raise TooManyTagsError(
+            f"Compressed tag set would generate {tag_count} tags, exceeding "
+            f"limit {limit}"
+        )
+
+    try:
+        interpreters, abis, platforms = component_parts
+    except ValueError as exc:
+        raise InvalidTag(f"Tag {tag!r} must have exactly three components") from exc
+    for interpreter in interpreters:
+        if not interpreter.isidentifier():
+            raise InvalidTag(f"Tag {tag!r} has an invalid interpreter: {interpreter!r}")
+    return frozenset(
+        Tag(interpreter, abi, platform_)
+        for interpreter in interpreters
+        for abi in abis
+        for platform_ in platforms
+    )
 
 
 def _get_config_var(name: str, warn: bool = False) -> int | str | None:
@@ -355,6 +428,8 @@ def cpython_tags(
     :param Iterable platforms: Iterable of compatible platforms. Defaults to the
                                platforms compatible with the current system.
     :param bool warn: Whether warnings should be logged. Defaults to ``False``.
+
+    .. versionadded:: 20.0
     """
     if not python_version:
         python_version = sys.version_info[:2]
@@ -364,8 +439,10 @@ def cpython_tags(
     if abis is None:
         abis = _cpython_abis(python_version, warn) if len(python_version) > 1 else []
     abis = list(abis)
-    # 'abi3' and 'none' are explicitly handled later.
-    for explicit_abi in ("abi3", "none"):
+    threading = _is_threaded_cpython(abis)
+    # Stable ABIs and 'none' are explicitly handled later.
+    explicit_abis = ("abi3", "abi3t", "none") if threading else ("abi3", "none")
+    for explicit_abi in explicit_abis:
         try:
             abis.remove(explicit_abi)
         except ValueError:  # noqa: PERF203
@@ -376,10 +453,8 @@ def cpython_tags(
         for platform_ in platforms:
             yield Tag(interpreter, abi, platform_)
 
-    threading = _is_threaded_cpython(abis)
     use_abi3 = _abi3_applies(python_version, threading)
     use_abi3t = _abi3t_applies(python_version, threading)
-
     if use_abi3:
         yield from (Tag(interpreter, "abi3", platform_) for platform_ in platforms)
     if use_abi3t:
@@ -417,7 +492,7 @@ def _generic_abi() -> list[str]:
     #                                               => graalpy_38_native
 
     ext_suffix = _get_config_var("EXT_SUFFIX", warn=True)
-    if not isinstance(ext_suffix, str) or ext_suffix[0] != ".":
+    if not isinstance(ext_suffix, str) or not ext_suffix.startswith("."):
         raise SystemError("invalid sysconfig.get_config_var('EXT_SUFFIX')")
     parts = ext_suffix.split(".")
     if len(parts) < 3:
@@ -426,7 +501,10 @@ def _generic_abi() -> list[str]:
     soabi = parts[1]
     if soabi.startswith("cpython"):
         # non-windows
-        abi = "cp" + soabi.split("-")[1]
+        cpython_parts = soabi.split("-")
+        if len(cpython_parts) < 2 or not cpython_parts[1]:
+            raise SystemError("invalid sysconfig.get_config_var('EXT_SUFFIX')")
+        abi = "cp" + cpython_parts[1]
     elif soabi.startswith("cp"):
         # windows
         abi = soabi.split("-")[0]
@@ -469,6 +547,8 @@ def generic_tags(
     :param Iterable platforms: Iterable of compatible platforms. Defaults to the
                                platforms compatible with the current system.
     :param bool warn: Whether warnings should be logged. Defaults to ``False``.
+
+    .. versionadded:: 20.0
     """
     if not interpreter:
         interp_name = interpreter_name()
@@ -498,6 +578,30 @@ def _py_interpreter_range(py_version: PythonVersion) -> Iterator[str]:
             yield f"py{_version_nodot((py_version[0], minor))}"
 
 
+def pure_python_tags(
+    python_version: PythonVersion | None = None,
+) -> Iterator[Tag]:
+    """
+    Yields the pure-Python tags compatible with ``python_version``.
+
+    The tags use the ``"none"`` ABI and ``"any"`` platform, so their
+    generation does not depend on the running platform.
+
+    .. versionadded:: 26.3
+
+    :param Sequence python_version: A one- or two-item sequence representing the
+                                 compatible version of Python. Defaults to
+                                 ``sys.version_info[:2]``.
+    :raises ValueError: If ``python_version`` is an empty sequence.
+    """
+    if python_version is None:
+        python_version = sys.version_info[:2]
+    elif not python_version:
+        raise ValueError("python_version must contain at least one item")
+    for version in _py_interpreter_range(python_version):
+        yield Tag(version, "none", "any")
+
+
 def compatible_tags(
     python_version: PythonVersion | None = None,
     interpreter: str | None = None,
@@ -520,6 +624,8 @@ def compatible_tags(
                             ``"cp38"``. Defaults to the current interpreter.
     :param Iterable platforms: Iterable of compatible platforms. Defaults to the
                                platforms compatible with the current system.
+
+    .. versionadded:: 20.0
     """
     if not python_version:
         python_version = sys.version_info[:2]
@@ -529,8 +635,7 @@ def compatible_tags(
             yield Tag(version, "none", platform_)
     if interpreter:
         yield Tag(interpreter, "none", "any")
-    for version in _py_interpreter_range(python_version):
-        yield Tag(version, "none", "any")
+    yield from pure_python_tags(python_version)
 
 
 def _mac_arch(arch: str, is_32bit: bool = _32_BIT_INTERPRETER) -> str:
@@ -548,12 +653,12 @@ def _mac_binary_formats(version: AppleVersion, cpu_arch: str) -> list[str]:
     if cpu_arch == "x86_64":
         if version < (10, 4):
             return []
-        formats.extend(["intel", "fat64", "fat32"])
+        formats.extend(["intel", "fat64", "fat3"])
 
     elif cpu_arch == "i386":
         if version < (10, 4):
             return []
-        formats.extend(["intel", "fat32", "fat"])
+        formats.extend(["intel", "fat3", "fat"])
 
     elif cpu_arch == "ppc64":
         # TODO: Need to care about 32-bit PPC for ppc64 through 10.2?
@@ -564,7 +669,7 @@ def _mac_binary_formats(version: AppleVersion, cpu_arch: str) -> list[str]:
     elif cpu_arch == "ppc":
         if version > (10, 6):
             return []
-        formats.extend(["fat32", "fat"])
+        formats.extend(["fat3", "fat"])
 
     if cpu_arch in {"arm64", "x86_64"}:
         formats.append("universal2")
@@ -598,29 +703,33 @@ def mac_platforms(
         - On Windows, platform compatibility is statically specified
         - On Linux, code must be run on the system itself to determine
           compatibility
-    """
-    version_str, _, cpu_arch = platform.mac_ver()
-    if version is None:
-        version = cast("AppleVersion", tuple(map(int, version_str.split(".")[:2])))
-        if version == (10, 16):
-            # When built against an older macOS SDK, Python will report macOS 10.16
-            # instead of the real version.
-            version_str = subprocess.run(
-                [
-                    sys.executable,
-                    "-sS",
-                    "-c",
-                    "import platform; print(platform.mac_ver()[0])",
-                ],
-                check=True,
-                env={"SYSTEM_VERSION_COMPAT": "0"},
-                stdout=subprocess.PIPE,
-                text=True,
-            ).stdout
-            version = cast("AppleVersion", tuple(map(int, version_str.split(".")[:2])))
 
-    if arch is None:
-        arch = _mac_arch(cpu_arch)
+    .. versionadded:: 20.0
+    """
+    if version is None or arch is None:
+        version_str, _, cpu_arch = platform.mac_ver()
+        if version is None:
+            version = cast("AppleVersion", tuple(map(int, version_str.split(".")[:2])))
+            if version == (10, 16):
+                # When built against an older macOS SDK, Python will report macOS 10.16
+                # instead of the real version.
+                version_str = subprocess.run(
+                    [
+                        sys.executable,
+                        "-sS",
+                        "-c",
+                        "import platform; print(platform.mac_ver()[0])",
+                    ],
+                    check=True,
+                    env={"SYSTEM_VERSION_COMPAT": "0"},
+                    stdout=subprocess.PIPE,
+                    text=True,
+                ).stdout
+                version = cast(
+                    "AppleVersion", tuple(map(int, version_str.split(".")[:2]))
+                )
+        if arch is None:
+            arch = _mac_arch(cpu_arch)
 
     if (10, 0) <= version < (11, 0):
         # Prior to Mac OS 11, each yearly release of Mac OS bumped the
@@ -642,7 +751,6 @@ def mac_platforms(
             for binary_format in binary_formats:
                 yield f"macosx_{major_version}_{minor_version}_{binary_format}"
 
-    if version >= (11, 0):
         # Mac OS 11 on x86_64 is compatible with binaries from previous releases.
         # Arm64 support was introduced in 11.0, so no Arm binaries from previous
         # releases exist.
@@ -681,6 +789,8 @@ def ios_platforms(
     .. note::
         Behavior of this method is undefined if invoked on non-iOS platforms
         without providing explicit version and multiarch arguments.
+
+    .. versionadded:: 24.2
     """
     if version is None:
         # if iOS is the current platform, ios_ver *must* be defined. However,
@@ -740,6 +850,8 @@ def android_platforms(
         e.g. ``arm64_v8a``. Defaults to the current system's ABI , as returned by
         ``sysconfig.get_platform``. Hyphens and periods will be replaced with
         underscores.
+
+    .. versionadded:: 25.0
     """
     if platform.system() != "Android" and (api_level is None or abi is None):
         raise TypeError(
@@ -776,10 +888,10 @@ def _linux_platforms(is_32bit: bool = _32_BIT_INTERPRETER) -> Iterator[str]:
             linux = "linux_armv8l"
     _, arch = linux.split("_", 1)
     archs = {"armv8l": ["armv8l", "armv7l"]}.get(arch, [arch])
-    yield from _manylinux.platform_tags(archs)
-    yield from _musllinux.platform_tags(archs)
     for arch in archs:
         yield f"linux_{arch}"
+    yield from _manylinux.platform_tags(archs)
+    yield from _musllinux.platform_tags(archs)
 
 
 def _emscripten_platforms() -> Iterator[str]:
@@ -798,6 +910,8 @@ def _generic_platforms() -> Iterator[str]:
 def platform_tags() -> Iterator[str]:
     """
     Yields the :attr:`~Tag.platform` tags for the running interpreter.
+
+    .. versionadded:: 21.1
     """
     if platform.system() == "Darwin":
         return mac_platforms()
@@ -821,6 +935,8 @@ def interpreter_name() -> str:
     be returned when appropriate.
 
     This typically acts as the prefix to the :attr:`~Tag.interpreter` tag.
+
+    .. versionadded:: 20.0
     """
     name = sys.implementation.name
     return INTERPRETER_SHORT_NAMES.get(name) or name
@@ -833,6 +949,8 @@ def interpreter_version(*, warn: bool = False) -> str:
     This typically acts as the suffix to the :attr:`~Tag.interpreter` tag.
 
     :param bool warn: Whether warnings should be logged. Defaults to ``False``.
+
+    .. versionadded:: 20.0
     """
     version = _get_config_var("py_version_nodot", warn=warn)
     return str(version) if version else _version_nodot(sys.version_info[:2])
@@ -867,15 +985,18 @@ def sys_tags(*, warn: bool = False) -> Iterator[Tag]:
 
     .. versionchanged:: 21.3
         Added the `pp3-none-any` tag (:issue:`311`).
-    .. versionchanged:: 27.0
+    .. versionchanged:: 26.1
         Added the `abi3t` tag (:issue:`1099`).
+    .. versionchanged:: 26.3
+        Native ``linux_*`` platform tags are now ordered before ``manylinux``
+        and ``musllinux`` tags (:issue:`160`).
     """
 
     interp_name = interpreter_name()
     if interp_name == "cp":
         yield from cpython_tags(warn=warn)
     else:
-        yield from generic_tags()
+        yield from generic_tags(warn=warn)
 
     if interp_name == "pp":
         interp = "pp3"

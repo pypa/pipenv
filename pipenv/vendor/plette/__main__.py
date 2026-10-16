@@ -12,9 +12,9 @@ python -m plette -f examples/Pipfile.invalid.list
 
 import argparse
 
-import tomlkit
+import pipenv.vendor.tomlkit as tomlkit
 
-from plette import Pipfile, Lockfile
+from pipenv.vendor.plette import Pipfile, Lockfile
 
 
 parser = argparse.ArgumentParser()

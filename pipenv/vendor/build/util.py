@@ -2,6 +2,14 @@
 
 from __future__ import annotations
 
+
+__lazy_modules__ = {
+    'pathlib',
+    'tempfile',
+    f'{__spec__.parent}._compat',
+    f'{__spec__.parent}.env',
+}
+
 import pathlib
 import tempfile
 
@@ -9,14 +17,20 @@ import pipenv.vendor.pyproject_hooks as pyproject_hooks
 
 from . import ProjectBuilder
 from ._compat import importlib
-from ._types import StrPath, SubprocessRunner
 from .env import DefaultIsolatedEnv
+
+
+TYPE_CHECKING = False
+if TYPE_CHECKING:
+    from ._types import StrPath, SubprocessRunner
 
 
 def _project_wheel_metadata(builder: ProjectBuilder) -> importlib.metadata.PackageMetadata:
     with tempfile.TemporaryDirectory() as tmpdir:
         path = pathlib.Path(builder.metadata_path(tmpdir))
-        return importlib.metadata.PathDistribution(path).metadata
+        metadata = importlib.metadata.PathDistribution(path).metadata
+        assert metadata is not None
+        return metadata
 
 
 def project_wheel_metadata(
@@ -45,7 +59,7 @@ def project_wheel_metadata(
                 source_dir,
                 runner=runner,
             )
-            env.install(builder.build_system_requires)
+            env.install(builder.build_system_requires, _fresh=True)
             env.install(builder.get_requires_for_build('wheel'))
             return _project_wheel_metadata(builder)
     else:
