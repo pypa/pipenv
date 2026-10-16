@@ -1,4 +1,4 @@
-build==1.2.2
+build==1.6.1
 packaging==26.3
     # via pipdeptree
 pexpect==4.9.0

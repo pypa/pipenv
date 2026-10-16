@@ -2,6 +2,17 @@
 
 from __future__ import annotations
 
+
+__lazy_modules__ = {
+    'difflib',
+    'subprocess',
+    'warnings',
+    'zipfile',
+    f'{__spec__.parent}._compat',
+    f'{__spec__.parent}._exceptions',
+    f'{__spec__.parent}._util',
+}
+
 import contextlib
 import difflib
 import os
@@ -9,9 +20,6 @@ import subprocess
 import sys
 import warnings
 import zipfile
-
-from collections.abc import Iterator
-from typing import Any, Mapping, Sequence, TypeVar
 
 import pipenv.vendor.pyproject_hooks as pyproject_hooks
 
@@ -23,20 +31,37 @@ from ._exceptions import (
     BuildSystemTableValidationError,
     TypoWarning,
 )
-from ._types import ConfigSettings, Distribution, StrPath, SubprocessRunner
-from ._util import check_dependency, parse_wheel_filename
+from ._util import check_dependency
 
 
-_TProjectBuilder = TypeVar('_TProjectBuilder', bound='ProjectBuilder')
+TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from collections.abc import Generator, Iterable, Mapping, Sequence
+    from typing import TypedDict, TypeGuard
+
+    from typing_extensions import NotRequired, Self
+
+    from ._types import ConfigSettings, Distribution, StrPath, SubprocessRunner, TOMLValue
+
+    # The validated ``[build-system]`` table.
+    BuildSystemTable = TypedDict(
+        'BuildSystemTable',
+        {'requires': list[str], 'build-backend': str, 'backend-path': NotRequired[list[str]]},
+    )
 
 
-_DEFAULT_BACKEND = {
+_DEFAULT_BACKEND: BuildSystemTable = {
     'build-backend': 'setuptools.build_meta:__legacy__',
     'requires': ['setuptools >= 40.8.0'],
 }
 
 
-def _find_typo(dictionary: Mapping[str, str], expected: str) -> None:
+def _is_list_of_str(value: object) -> TypeGuard[list[str]]:
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
+def _find_typo(dictionary: Iterable[str], expected: str) -> None:
     for obj in dictionary:
         if difflib.SequenceMatcher(None, expected, obj).ratio() >= 0.8:
             warnings.warn(
@@ -57,62 +82,83 @@ def _validate_source_directory(source_dir: StrPath) -> None:
         raise BuildException(msg)
 
 
-def _read_pyproject_toml(path: StrPath) -> Mapping[str, Any]:
+def _read_pyproject_toml(path: StrPath) -> Mapping[str, TOMLValue]:
     try:
         with open(path, 'rb') as f:
-            return tomllib.loads(f.read().decode())
+            return tomllib.load(f)
     except FileNotFoundError:
         return {}
-    except PermissionError as e:
-        msg = f"{e.strerror}: '{e.filename}' "
+    except PermissionError as e:  # pragma: win32 no cover
+        msg = f"{e.strerror}: '{e.filename}'"
         raise BuildException(msg) from None
     except tomllib.TOMLDecodeError as e:
-        msg = f'Failed to parse {path}: {e} '
+        msg = f'Failed to parse {path}: {e}'
         raise BuildException(msg) from None
 
 
-def _parse_build_system_table(pyproject_toml: Mapping[str, Any]) -> Mapping[str, Any]:
+def _parse_build_system_table(pyproject_toml: Mapping[str, TOMLValue]) -> BuildSystemTable:
     # If pyproject.toml is missing (per PEP 517) or [build-system] is missing
     # (per PEP 518), use default values
     if 'build-system' not in pyproject_toml:
         _find_typo(pyproject_toml, 'build-system')
-        return _DEFAULT_BACKEND
+        # Return a fresh copy so callers mutating the result (e.g. the ``requires``
+        # list) cannot corrupt the shared default for later builders.
+        return {**_DEFAULT_BACKEND, 'requires': list(_DEFAULT_BACKEND['requires'])}
 
-    build_system_table = dict(pyproject_toml['build-system'])
+    build_system = pyproject_toml['build-system']
+    if not isinstance(build_system, dict):
+        msg = '`build-system` must be a table'
+        raise BuildSystemTableValidationError(msg)
 
     # If [build-system] is present, it must have a ``requires`` field (per PEP 518)
-    if 'requires' not in build_system_table:
-        _find_typo(build_system_table, 'requires')
+    if 'requires' not in build_system:
+        _find_typo(build_system, 'requires')
         msg = '`requires` is a required property'
         raise BuildSystemTableValidationError(msg)
-    elif not isinstance(build_system_table['requires'], list) or not all(
-        isinstance(i, str) for i in build_system_table['requires']
-    ):
+    requires = build_system['requires']
+    if not _is_list_of_str(requires):
         msg = '`requires` must be an array of strings'
         raise BuildSystemTableValidationError(msg)
 
-    if 'build-backend' not in build_system_table:
-        _find_typo(build_system_table, 'build-backend')
-        # If ``build-backend`` is missing, inject the legacy setuptools backend
-        # but leave ``requires`` intact to emulate pip
-        build_system_table['build-backend'] = _DEFAULT_BACKEND['build-backend']
-    elif not isinstance(build_system_table['build-backend'], str):
-        msg = '`build-backend` must be a string'
-        raise BuildSystemTableValidationError(msg)
+    table: BuildSystemTable = {
+        'requires': requires,
+        'build-backend': _DEFAULT_BACKEND['build-backend'],
+    }
 
-    if 'backend-path' in build_system_table and (
-        not isinstance(build_system_table['backend-path'], list)
-        or not all(isinstance(i, str) for i in build_system_table['backend-path'])
-    ):
-        msg = '`backend-path` must be an array of strings'
-        raise BuildSystemTableValidationError(msg)
+    match build_system:
+        case {'build-backend': str() as backend}:
+            table['build-backend'] = backend
+        case {'build-backend': _}:
+            msg = '`build-backend` must be a string'
+            raise BuildSystemTableValidationError(msg)
+        case _:
+            # If ``build-backend`` is missing, inject the legacy setuptools backend
+            # but leave ``requires`` intact to emulate pip
+            _find_typo(build_system, 'build-backend')
 
-    unknown_props = build_system_table.keys() - {'requires', 'build-backend', 'backend-path'}
+    match build_system:
+        case {'backend-path': backend_path} if _is_list_of_str(backend_path):
+            table['backend-path'] = backend_path
+        case {'backend-path': _}:
+            msg = '`backend-path` must be an array of strings'
+            raise BuildSystemTableValidationError(msg)
+        case _:
+            pass
+
+    unknown_props = build_system.keys() - {'requires', 'build-backend', 'backend-path'}
     if unknown_props:
         msg = f'Unknown properties: {", ".join(unknown_props)}'
         raise BuildSystemTableValidationError(msg)
 
-    return build_system_table
+    return table
+
+
+def _validate_backend_path(source_dir: str, backend_paths: Sequence[str]) -> None:
+    for path in backend_paths:
+        resolved = os.path.join(source_dir, path)
+        if not os.path.isdir(resolved):
+            msg = f'`backend-path` entry {path!r} does not exist or is not a directory'
+            raise BuildSystemTableValidationError(msg)
 
 
 def _wrap_subprocess_runner(runner: SubprocessRunner, env: env.IsolatedEnv) -> SubprocessRunner:
@@ -163,6 +209,9 @@ class ProjectBuilder:
 
         self._backend = self._build_system['build-backend']
 
+        if backend_paths := self._build_system.get('backend-path'):
+            _validate_backend_path(self._source_dir, backend_paths)
+
         self._hook = pyproject_hooks.BuildBackendHookCaller(
             self._source_dir,
             self._backend,
@@ -173,11 +222,11 @@ class ProjectBuilder:
 
     @classmethod
     def from_isolated_env(
-        cls: type[_TProjectBuilder],
+        cls,
         env: env.IsolatedEnv,
         source_dir: StrPath,
         runner: SubprocessRunner = pyproject_hooks.default_subprocess_runner,
-    ) -> _TProjectBuilder:
+    ) -> Self:
         return cls(
             source_dir=source_dir,
             python_executable=env.python_executable,
@@ -218,12 +267,17 @@ class ProjectBuilder:
             (``sdist`` or ``wheel``)
         :param config_settings: Config settings for the build backend
         """
-        _ctx.log(f'Getting build dependencies for {distribution}...')
+        _ctx.log(f'Getting build dependencies for {distribution}...', kind=('step',))
         hook_name = f'get_requires_for_build_{distribution}'
-        get_requires = getattr(self._hook, hook_name)
 
         with self._handle_backend(hook_name):
-            return set(get_requires(config_settings))
+            if distribution == 'editable':
+                requires = self._hook.get_requires_for_build_editable(config_settings)
+            elif distribution == 'sdist':
+                requires = self._hook.get_requires_for_build_sdist(config_settings)
+            else:
+                requires = self._hook.get_requires_for_build_wheel(config_settings)
+            return set(requires)
 
     def check_dependencies(
         self,
@@ -256,7 +310,7 @@ class ProjectBuilder:
         :param config_settings: Config settings for the build backend
         :returns: The full path to the prepared metadata directory
         """
-        _ctx.log(f'Getting metadata for {distribution}...')
+        _ctx.log(f'Getting metadata for {distribution}...', kind=('step',))
         try:
             return self._call_backend(
                 f'prepare_metadata_for_build_{distribution}',
@@ -286,7 +340,8 @@ class ProjectBuilder:
             previous ``prepare`` call on the same ``distribution`` kind
         :returns: The full path to the built distribution
         """
-        _ctx.log(f'Building {distribution}...')
+        _ctx.log(f'Building {distribution}...', kind=('step',))
+
         kwargs = {} if metadata_directory is None else {'metadata_directory': metadata_directory}
         return self._call_backend(f'build_{distribution}', output_directory, config_settings, **kwargs)
 
@@ -307,32 +362,43 @@ class ProjectBuilder:
 
         # fallback to build_wheel hook
         wheel = self.build('wheel', output_directory)
-        match = parse_wheel_filename(os.path.basename(wheel))
-        if not match:
+        try:
+            whl = zipfile.ZipFile(wheel)
+        except (OSError, zipfile.BadZipFile) as exception:
             msg = 'Invalid wheel'
-            raise ValueError(msg)
-        distinfo = f"{match['distribution']}-{match['version']}.dist-info"
-        member_prefix = f'{distinfo}/'
-        with zipfile.ZipFile(wheel) as w:
-            w.extractall(
+            raise BuildException(msg) from exception
+
+        with whl:
+            names = whl.namelist()
+            # The dist-info directory name cannot be reliably derived from the wheel filename (e.g. a build
+            # tag makes the filename ambiguous), so find it by inspecting the wheel's contents instead.
+            metadata_names = [name for name in names if name.count('/') == 1 and name.endswith('.dist-info/METADATA')]
+            if len(metadata_names) != 1:
+                msg = 'Invalid wheel'
+                raise BuildException(msg)
+            distinfo = metadata_names[0].rsplit('/', 1)[0]
+            member_prefix = f'{distinfo}/'
+            whl.extractall(
                 output_directory,
-                (member for member in w.namelist() if member.startswith(member_prefix)),
+                (member for member in names if member.startswith(member_prefix)),
             )
         return os.path.join(output_directory, distinfo)
 
     def _call_backend(
-        self, hook_name: str, outdir: StrPath, config_settings: ConfigSettings | None = None, **kwargs: Any
+        self, hook_name: str, outdir: StrPath, config_settings: ConfigSettings | None = None, **kwargs: str | bool
     ) -> str:
         outdir = os.path.abspath(outdir)
 
         callback = getattr(self._hook, hook_name)
 
-        if os.path.exists(outdir):
-            if not os.path.isdir(outdir):
-                msg = f"Build path '{outdir}' exists and is not a directory"
-                raise BuildException(msg)
-        else:
-            os.makedirs(outdir)
+        try:
+            os.makedirs(outdir, exist_ok=True)
+        except FileExistsError:
+            msg = f"Build path '{outdir}' exists and is not a directory"
+            raise BuildException(msg) from None
+        except (NotADirectoryError, FileNotFoundError):
+            msg = f"Build path '{outdir}' does not exist and cannot be a directory"
+            raise BuildException(msg) from None
 
         with self._handle_backend(hook_name):
             basename: str = callback(outdir, config_settings, **kwargs)
@@ -340,16 +406,12 @@ class ProjectBuilder:
         return os.path.join(outdir, basename)
 
     @contextlib.contextmanager
-    def _handle_backend(self, hook: str) -> Iterator[None]:
+    def _handle_backend(self, hook: str) -> Generator[None]:
         try:
             yield
         except pyproject_hooks.BackendUnavailable as exception:
-            raise BuildBackendException(
-                exception,
-                f"Backend '{self._backend}' is not available.",
-                sys.exc_info(),
-            ) from None
+            raise BuildBackendException(exception, f"Backend '{self._backend}' is not available.") from None
         except subprocess.CalledProcessError as exception:
             raise BuildBackendException(exception, f'Backend subprocess exited when trying to invoke {hook}') from None
         except Exception as exception:
-            raise BuildBackendException(exception, exc_info=sys.exc_info()) from None
+            raise BuildBackendException(exception) from None

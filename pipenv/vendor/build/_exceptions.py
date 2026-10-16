@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import subprocess
-import types
+
+TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    import subprocess
 
 
 class BuildException(Exception):
     """
-    Exception raised by :class:`build.ProjectBuilder`.
+    Exception raised by ``build`` when a build cannot proceed.
     """
 
 
@@ -19,15 +22,9 @@ class BuildBackendException(Exception):
         self,
         exception: Exception,
         description: str | None = None,
-        exc_info: tuple[type[BaseException], BaseException, types.TracebackType] | tuple[None, None, None] = (
-            None,
-            None,
-            None,
-        ),
     ) -> None:
         super().__init__()
-        self.exception = exception
-        self.exc_info = exc_info
+        self.exception: Exception = exception
         self._description = description
 
     def __str__(self) -> str:
@@ -52,7 +49,7 @@ class FailedProcessError(Exception):
 
     def __init__(self, exception: subprocess.CalledProcessError, description: str) -> None:
         super().__init__()
-        self.exception = exception
+        self.exception: subprocess.CalledProcessError = exception
         self._description = description
 
     def __str__(self) -> str:

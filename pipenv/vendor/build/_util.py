@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-import re
 
-from collections.abc import Iterator, Set
+__lazy_modules__ = {'packaging', 'packaging.requirements', f'{__spec__.parent}._compat'}
+
+import sys
+
+import packaging.requirements
+
+from ._compat import importlib
 
 
-_WHEEL_FILENAME_REGEX = re.compile(
-    r'(?P<distribution>.+)-(?P<version>.+)'
-    r'(-(?P<build_tag>.+))?-(?P<python_tag>.+)'
-    r'-(?P<abi_tag>.+)-(?P<platform_tag>.+)\.whl'
-)
+TYPE_CHECKING = False
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
+    from collections.abc import Set as AbstractSet
 
 
 def check_dependency(
-    req_string: str, ancestral_req_strings: tuple[str, ...] = (), parent_extras: Set[str] = frozenset()
+    req_string: str, ancestral_req_strings: tuple[str, ...] = (), parent_extras: AbstractSet[str] = frozenset()
 ) -> Iterator[tuple[str, ...]]:
     """
     Verify that a dependency and all of its dependencies are met.
@@ -22,12 +27,19 @@ def check_dependency(
     :param parent_extras: Extras (eg. "test" in myproject[test])
     :yields: Unmet dependencies
     """
-    import packaging.requirements
+    yield from _check_dependency(req_string, ancestral_req_strings, parent_extras, set())
 
-    from ._compat import importlib
 
+def _check_dependency(
+    req_string: str, ancestral_req_strings: tuple[str, ...], parent_extras: AbstractSet[str], seen: set[str]
+) -> Iterator[tuple[str, ...]]:
     req = packaging.requirements.Requirement(req_string)
     normalised_req_string = str(req)
+
+    # ``seen`` holds requirements already verified as fully satisfied (nothing
+    # yielded), so shared subtrees of a diamond dependency graph are walked once.
+    if normalised_req_string in seen:
+        return
 
     # ``Requirement`` doesn't implement ``__eq__`` so we cannot compare reqs for
     # equality directly but the string representation is stable.
@@ -49,15 +61,40 @@ def check_dependency(
     except importlib.metadata.PackageNotFoundError:
         # dependency is not installed in the environment.
         yield (*ancestral_req_strings, normalised_req_string)
-    else:
-        if req.specifier and not req.specifier.contains(dist.version, prereleases=True):
-            # the installed version is incompatible.
-            yield (*ancestral_req_strings, normalised_req_string)
-        elif dist.requires:
-            for other_req_string in dist.requires:
-                # yields transitive dependencies that are not satisfied.
-                yield from check_dependency(other_req_string, (*ancestral_req_strings, normalised_req_string), req.extras)
+        return
+
+    if req.specifier and not req.specifier.contains(dist.version, prereleases=True):
+        # the installed version is incompatible.
+        yield (*ancestral_req_strings, normalised_req_string)
+        return
+
+    satisfied = True
+    for other_req_string in dist.requires or ():
+        # yields transitive dependencies that are not satisfied.
+        for unmet in _check_dependency(other_req_string, (*ancestral_req_strings, normalised_req_string), req.extras, seen):
+            satisfied = False
+            yield unmet
+
+    # unmet requirements are not memoised: they must be reported once per
+    # dependency chain that reaches them.
+    if satisfied:
+        seen.add(normalised_req_string)
 
 
-def parse_wheel_filename(filename: str) -> re.Match[str] | None:
-    return _WHEEL_FILENAME_REGEX.match(filename)
+def format_unmet_dependencies(unmet: AbstractSet[tuple[str, ...]]) -> str:
+    body = ''.join(_format_missing_dependency(chain) for chain in sorted(unmet))
+    return f'Unmet dependencies (checked against {sys.executable}):{body}'
+
+
+def _format_missing_dependency(dep_chain: tuple[str, ...]) -> str:
+    requirement = packaging.requirements.Requirement(dep_chain[-1])
+    try:
+        found = importlib.metadata.distribution(requirement.name).version
+    except importlib.metadata.PackageNotFoundError:
+        found = 'not installed'
+    wanted = str(requirement.specifier) if requirement.specifier else 'any'
+    return f'\n\t{_format_dep_chain(dep_chain)}\n\t\twanted: {wanted}\n\t\tfound: {found}'
+
+
+def _format_dep_chain(dep_chain: tuple[str, ...]) -> str:
+    return ' -> '.join(dep.partition(';')[0].strip() for dep in dep_chain)

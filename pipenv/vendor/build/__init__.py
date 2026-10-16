@@ -4,6 +4,14 @@ build - A simple, correct Python build frontend
 
 from __future__ import annotations
 
+
+__lazy_modules__ = {
+    f'{__spec__.parent}._builder',
+    f'{__spec__.parent}._exceptions',
+    f'{__spec__.parent}._types',
+    f'{__spec__.parent}._util',
+}
+
 from ._builder import ProjectBuilder
 from ._exceptions import (
     BuildBackendException,
@@ -18,20 +26,20 @@ from ._types import SubprocessRunner as RunnerType
 from ._util import check_dependency
 
 
-__version__ = '1.2.2'
+__version__ = '1.6.1'
 
 __all__ = [
-    '__version__',
     'BuildBackendException',
     'BuildException',
     'BuildSystemTableValidationError',
-    'check_dependency',
     'ConfigSettingsType',
     'DistributionType',
     'FailedProcessError',
     'ProjectBuilder',
     'RunnerType',
     'TypoWarning',
+    '__version__',
+    'check_dependency',
 ]
 
 
