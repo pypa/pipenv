@@ -3,7 +3,7 @@ packaging==26.3
     # via pipdeptree
 pexpect==4.9.0
 pipdeptree==3.1.0
-plette==2.2.1
+plette==2.4.0
 ptyprocess==0.7.0
 pyproject_hooks==1.3.3
 python-dotenv==1.2.4
