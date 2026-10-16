@@ -33,6 +33,7 @@ from pipenv.utils.pip import (
 )
 from pipenv.utils.pipfile import ensure_pipfile
 from pipenv.utils.project import ensure_project
+from pipenv.utils.pylock import PylockError, PylockFile
 from pipenv.utils.shell import temp_environ
 
 _LOGGER = logging.getLogger(__name__)
@@ -81,6 +82,30 @@ def _target_marker_environment(project, allow_global=False):
         "python_version": ".".join(parts[:2]),
         "python_full_version": venv_full_version,
     }
+
+
+def _check_pylock_environment(project, categories, allow_global=False):
+    """Raise if ``pylock.toml`` doesn't apply to the target Python environment.
+
+    PEP 751 requires installers to error when the lock's ``requires-python``,
+    its ``environments``, or the ``requires-python`` of a package that would
+    be installed excludes the environment being installed for.
+    """
+    pylock = PylockFile.from_path(project.lockfile.pylock_location)
+    dependency_groups = set(pylock.default_groups)
+    if "dev-packages" in categories:
+        dependency_groups |= set(pylock.dependency_groups)
+    environment = _target_marker_environment(project, allow_global=allow_global)
+    try:
+        pylock.check_environment(
+            extras=set(pylock.extras),
+            dependency_groups=dependency_groups,
+            environment=environment,
+        )
+    except PylockError as e:
+        raise exceptions.PipenvException(
+            f"{project.lockfile.pylock_location} can't be installed: {e}"
+        )
 
 
 def _should_use_no_binary(pkg_name, extra_pip_args):
@@ -769,6 +794,15 @@ def do_install_dependencies(
             categories = ["packages", "dev-packages"]
         else:
             categories = ["packages"]
+
+    if (
+        not policy.skip_lock
+        and project.lockfile.pylock_exists
+        and (project.settings.use_pylock or not project.lockfile.exists)
+    ):
+        _check_pylock_environment(
+            project, categories, allow_global=target.allow_global
+        )
 
     # ``skip_lock`` implicitly forces ``ignore_hashes`` ON (you cannot hash
     # packages you never resolved). Compute the effective flag locally so

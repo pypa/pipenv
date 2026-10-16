@@ -36,6 +36,12 @@ class PylockFormatError(PylockError):
     pass
 
 
+class PylockEnvironmentError(PylockError):
+    """Raised when the pylock.toml file does not apply to the target environment."""
+
+    pass
+
+
 @dataclass
 class PylockFile:
     """Represents a pylock.toml file as specified in PEP 751."""
@@ -598,12 +604,15 @@ class PylockFile:
         self,
         extras: Optional[Set[str]] = None,
         dependency_groups: Optional[Set[str]] = None,
+        environment: Optional[Dict[str, str]] = None,
     ) -> List[Dict[str, Any]]:
         """Get packages that should be installed for the given environment.
 
         Args:
             extras: Set of extras to include
             dependency_groups: Set of dependency groups to include
+            environment: Marker variables that override the running
+                interpreter's (e.g. the target virtualenv's Python version)
 
         Returns:
             List of package dictionaries that should be installed
@@ -631,11 +640,14 @@ class PylockFile:
                     marker = Marker(marker_str)
                     # Evaluate the marker with the lock_file context
                     # which supports extras and dependency_groups as sets
-                    environment = {
+                    marker_environment = {
+                        **(environment or {}),
                         "extras": _extras,
                         "dependency_groups": _dependency_groups,
                     }
-                    if not marker.evaluate(environment=environment, context="lock_file"):
+                    if not marker.evaluate(
+                        environment=marker_environment, context="lock_file"
+                    ):
                         # Marker does not match, skip this package
                         continue
                 except InvalidMarker:
@@ -646,6 +658,81 @@ class PylockFile:
             result.append(package)
 
         return result
+
+    def check_environment(
+        self,
+        extras: Optional[Set[str]] = None,
+        dependency_groups: Optional[Set[str]] = None,
+        environment: Optional[Dict[str, str]] = None,
+    ) -> None:
+        """Check that the lock applies to the environment being installed for.
+
+        PEP 751 requires installers to raise an error when the top-level
+        ``requires-python``, the ``environments`` list, or the
+        ``requires-python`` of a package that would be installed excludes the
+        environment.
+
+        Args:
+            extras: Set of extras to include
+            dependency_groups: Set of dependency groups to include
+            environment: Marker variables that override the running
+                interpreter's (e.g. the target virtualenv's Python version)
+
+        Raises:
+            PylockEnvironmentError: If the lock doesn't apply to the environment
+            PylockFormatError: If a ``requires-python`` or environment marker
+                is invalid
+        """
+        from pipenv.patched.pip._vendor.packaging.markers import (
+            InvalidMarker,
+            Marker,
+            default_environment,
+        )
+        from pipenv.patched.pip._vendor.packaging.specifiers import (
+            InvalidSpecifier,
+            SpecifierSet,
+        )
+
+        target_environment = {**default_environment(), **(environment or {})}
+        python_version = target_environment["python_full_version"]
+
+        def satisfies(requires_python: str) -> bool:
+            try:
+                specifier = SpecifierSet(requires_python)
+            except InvalidSpecifier:
+                raise PylockFormatError(f"Invalid requires-python: {requires_python!r}")
+            return specifier.contains(python_version, prereleases=True)
+
+        if self.requires_python and not satisfies(self.requires_python):
+            raise PylockEnvironmentError(
+                f"Python {python_version} does not satisfy the lock file's "
+                f"requires-python {self.requires_python!r}"
+            )
+
+        if self.environments:
+            try:
+                markers = [Marker(marker) for marker in self.environments]
+            except InvalidMarker as e:
+                raise PylockFormatError(f"Invalid marker in environments: {e}")
+            if not any(
+                marker.evaluate(environment=target_environment) for marker in markers
+            ):
+                raise PylockEnvironmentError(
+                    "The environment does not match any of the lock file's "
+                    f"environments: {self.environments}"
+                )
+
+        for package in self.get_packages_for_environment(
+            extras=extras,
+            dependency_groups=dependency_groups,
+            environment=environment,
+        ):
+            requires_python = package.get("requires-python")
+            if requires_python and not satisfies(requires_python):
+                raise PylockEnvironmentError(
+                    f"Python {python_version} does not satisfy the requires-python "
+                    f"{requires_python!r} of package {package.get('name')!r}"
+                )
 
     def convert_to_pipenv_lockfile(self) -> Dict[str, Any]:
         """Convert the pylock.toml file to a Pipfile.lock format.
