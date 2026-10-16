@@ -34,7 +34,7 @@ class EMachine(enum.IntEnum):
     S390 = 22
     Arm = 40
     X8664 = 62
-    AArc64 = 183
+    AArch64 = 183
 
 
 class ELFFile:
@@ -57,8 +57,8 @@ class ELFFile:
         self.encoding = ident[5]  # Data structure encoding (endianness).
 
         try:
-            # e_fmt: Format for program header.
-            # p_fmt: Format for section header.
+            # e_fmt: Format for the ELF header.
+            # p_fmt: Format for a program header.
             # p_idx: Indexes to find p_type, p_offset, and p_filesz.
             e_fmt, self._p_fmt, self._p_idx = {
                 (1, 1): ("<HHIIIIIHHH", "<IIIIIIII", (0, 1, 4)),  # 32-bit LSB.
@@ -81,8 +81,8 @@ class ELFFile:
                 _,
                 self.flags,  # Processor-specific flags.
                 _,
-                self._e_phentsize,  # Size of section.
-                self._e_phnum,  # Number of sections.
+                self._e_phentsize,  # Size of a program header entry.
+                self._e_phnum,  # Number of program headers.
             ) = self._read(e_fmt)
         except struct.error as e:
             raise ELFInvalid("unable to parse machine and section information") from e
