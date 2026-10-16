@@ -74,7 +74,7 @@ class DotEnv:
 
     def dict(self) -> Dict[str, Optional[str]]:
         """Return dotenv as dict"""
-        if self._dict:
+        if self._dict is not None:
             return self._dict
 
         raw_values = self.parse()
@@ -216,7 +216,12 @@ def set_key(
     )
 
     if quote:
-        value_out = "'{}'".format(value_to_set.replace("'", "\\'"))
+        # The single-quoted-value parser decodes `\\` and `\'`, so both have to
+        # be escaped here for the value to survive a write/read round-trip.
+        # Backslashes first, otherwise the backslash added by the quote
+        # escaping would be escaped in turn.
+        escaped = value_to_set.replace("\\", "\\\\").replace("'", "\\'")
+        value_out = f"'{escaped}'"
     else:
         value_out = value_to_set
     if export:
@@ -397,12 +402,13 @@ def load_dotenv(
         verbose: Whether to output a warning the .env file is missing.
         override: Whether to override the system environment variables with the variables
             from the `.env` file.
+        interpolate: Whether to interpolate variables using POSIX variable expansion.
         encoding: Encoding to be used to read the file.
     Returns:
         Bool: True if at least one environment variable is set else False
 
     If both `dotenv_path` and `stream` are `None`, `find_dotenv()` is used to find the
-    .env file with it's default parameters. If you need to change the default parameters
+    .env file with its default parameters. If you need to change the default parameters
     of `find_dotenv()`, you can explicitly call `find_dotenv()` and pass the result
     to this function as `dotenv_path`.
 
@@ -447,6 +453,7 @@ def dotenv_values(
         dotenv_path: Absolute or relative path to the .env file.
         stream: `StringIO` object with .env content, used if `dotenv_path` is `None`.
         verbose: Whether to output a warning if the .env file is missing.
+        interpolate: Whether to interpolate variables using POSIX variable expansion.
         encoding: Encoding to be used to read the file.
 
     If both `dotenv_path` and `stream` are `None`, `find_dotenv()` is used to find the
