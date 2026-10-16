@@ -2,11 +2,12 @@ import json
 import os
 import sys
 import tempfile
+import subprocess
 from contextlib import contextmanager
 from os.path import abspath
 from os.path import join as pjoin
-from subprocess import STDOUT, check_call, check_output
 from typing import TYPE_CHECKING, Any, Iterator, Mapping, Optional, Sequence
+import warnings
 
 from ._in_process import _in_proc_script_path
 
@@ -35,6 +36,10 @@ def read_json(path: str) -> Mapping[str, Any]:
         return json.load(f)
 
 
+class BuildBackendWarning(UserWarning):
+    """Will be emitted for every UserWarning emitted by the hook process."""
+
+
 class BackendUnavailable(Exception):
     """Will be raised if the backend cannot be imported in the hook process."""
 
@@ -48,8 +53,11 @@ class BackendUnavailable(Exception):
         # Preserving arg order for the sake of API backward compatibility.
         self.backend_name = backend_name
         self.backend_path = backend_path
-        self.traceback = traceback
-        super().__init__(message or "Error while importing backend")
+        self.traceback = traceback or ""
+        super().__init__(
+            f"{message or 'Error while importing backend'}"
+            + (f"\n\nTraceback:\n{self.traceback}" if self.traceback else "")
+        )
 
 
 class HookMissing(Exception):
@@ -74,13 +82,13 @@ def default_subprocess_runner(
 ) -> None:
     """The default method of calling the wrapper subprocess.
 
-    This uses :func:`subprocess.check_call` under the hood.
+    This uses :func:`subprocess.run` under the hood.
     """
     env = os.environ.copy()
     if extra_environ:
         env.update(extra_environ)
 
-    check_call(cmd, cwd=cwd, env=env)
+    subprocess.run(cmd, cwd=cwd, env=env, check=True)
 
 
 def quiet_subprocess_runner(
@@ -90,13 +98,21 @@ def quiet_subprocess_runner(
 ) -> None:
     """Call the subprocess while suppressing output.
 
-    This uses :func:`subprocess.check_output` under the hood.
+    This uses :func:`subprocess.run` with `stdout=PIPE, stderr=STDOUT` under the hood.
     """
     env = os.environ.copy()
     if extra_environ:
         env.update(extra_environ)
 
-    check_output(cmd, cwd=cwd, env=env, stderr=STDOUT)
+    # Capturing output in case it fails (available on the exception object)
+    subprocess.run(
+        cmd,
+        cwd=cwd,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        check=True,
+    )
 
 
 def norm_and_check(source_tree: str, requested: str) -> str:
@@ -112,12 +128,9 @@ def norm_and_check(source_tree: str, requested: str) -> str:
 
     abs_source = os.path.abspath(source_tree)
     abs_requested = os.path.normpath(os.path.join(abs_source, requested))
-    # We have to use commonprefix for Python 2.7 compatibility. So we
-    # normalise case to avoid problems because commonprefix is a character
-    # based comparison :-(
     norm_source = os.path.normcase(abs_source)
     norm_requested = os.path.normcase(abs_requested)
-    if os.path.commonprefix([norm_source, norm_requested]) != norm_source:
+    if os.path.commonpath([norm_source, norm_requested]) != norm_source:
         raise ValueError("paths must be inside source tree")
 
     return abs_requested
@@ -161,6 +174,13 @@ class BuildBackendHookCaller:
         :ref:`subprocess runner <Subprocess Runners>`.
 
         :param runner: The new subprocess runner to use within the context.
+
+        .. warning::
+
+            This context manager temporarily mutates the hook caller instance and
+            is not thread-safe. Callers that need to run hooks concurrently
+            should create separate :class:`BuildBackendHookCaller` instances, or
+            provide the subprocess runner when constructing the caller.
 
         .. code-block:: python
 
@@ -285,7 +305,7 @@ class BuildBackendHookCaller:
         metadata_directory: str,
         config_settings: Optional[Mapping[str, Any]] = None,
         _allow_fallback: bool = True,
-    ) -> Optional[str]:
+    ) -> str:
         """Prepare a ``*.dist-info`` folder with metadata for this project.
 
         :param metadata_directory: The directory to write the metadata to
@@ -365,7 +385,7 @@ class BuildBackendHookCaller:
         """Build an sdist from this project.
 
         :returns:
-            The name of the newly created sdist within ``wheel_directory``.
+            The name of the newly created sdist within ``sdist_directory``.
         """
         return self._call_hook(
             "build_sdist",
@@ -379,8 +399,9 @@ class BuildBackendHookCaller:
         extra_environ = {"_PYPROJECT_HOOKS_BUILD_BACKEND": self.build_backend}
 
         if self.backend_path:
-            backend_path = os.pathsep.join(self.backend_path)
-            extra_environ["_PYPROJECT_HOOKS_BACKEND_PATH"] = backend_path
+            extra_environ["_PYPROJECT_HOOKS_BACKEND_PATH_JSON"] = json.dumps(
+                self.backend_path
+            )
 
         with tempfile.TemporaryDirectory() as td:
             hook_input = {"kwargs": kwargs}
@@ -407,4 +428,12 @@ class BuildBackendHookCaller:
                 )
             if data.get("hook_missing"):
                 raise HookMissing(data.get("missing_hook_name") or hook_name)
+
+            for w in data.get("warnings", []):
+                warnings.warn_explicit(
+                    message=w["message"],
+                    category=BuildBackendWarning,
+                    filename=w["filename"],
+                    lineno=w["lineno"],
+                )
             return data["return_val"]

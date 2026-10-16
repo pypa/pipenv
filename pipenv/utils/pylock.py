@@ -42,6 +42,11 @@ class PylockEnvironmentError(PylockError):
     pass
 
 
+# pylock.toml is read several times per command; warn about a newer minor
+# lock-version once per file.
+_warned_newer_lock_versions: Set[Path] = set()
+
+
 @dataclass
 class PylockFile:
     """Represents a pylock.toml file as specified in PEP 751."""
@@ -259,10 +264,22 @@ class PylockFile:
         if not lock_version:
             raise PylockFormatError("Missing required field: lock-version")
 
-        # Currently, we only support version 1.0
-        if lock_version != "1.0":
+        # Currently, we support version 1.0. PEP 751 requires an error for an
+        # unsupported major version; a newer minor version is still readable,
+        # so warn that keys it adds are ignored.
+        major, _, minor = str(lock_version).partition(".")
+        if not (major.isdigit() and minor.isdigit()):
+            raise PylockVersionError(f"Invalid lock-version: {lock_version}")
+        if int(major) != 1:
             raise PylockVersionError(
                 f"Unsupported lock-version: {lock_version}. Only version 1.0 is supported."
+            )
+        if int(minor) > 0 and path.resolve() not in _warned_newer_lock_versions:
+            _warned_newer_lock_versions.add(path.resolve())
+            err.print(
+                f"[bold yellow]Warning: {path} has lock-version {lock_version}, "
+                "newer than the 1.0 pipenv supports; keys added after 1.0 are "
+                "ignored.[/bold yellow]"
             )
 
         return cls(path=path, data=data_dict)

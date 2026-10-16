@@ -22,8 +22,10 @@ _export = make_regex(r"(?:export[^\S\r\n]+)?")
 _single_quoted_key = make_regex(r"'([^']+)'")
 _unquoted_key = make_regex(r"([^=\#\s]+)")
 _equal_sign = make_regex(r"(=[^\S\r\n]*)")
-_single_quoted_value = make_regex(r"'((?:\\'|[^'])*)'")
-_double_quoted_value = make_regex(r'"((?:\\"|[^"])*)"')
+# A backslash always escapes the character after it, so that an escaped
+# backslash (`\\`) is not mistaken for the start of an escaped quote.
+_single_quoted_value = make_regex(r"'((?:\\.|[^'\\])*)'", extra_flags=re.DOTALL)
+_double_quoted_value = make_regex(r'"((?:\\.|[^"\\])*)"', extra_flags=re.DOTALL)
 _unquoted_value = make_regex(r"([^\r\n]*)")
 _comment = make_regex(r"(?:[^\S\r\n]*#[^\r\n]*)?")
 _end_of_line = make_regex(r"[^\S\r\n]*(?:\r\n|\n|\r|$)")
@@ -68,7 +70,7 @@ class Error(Exception):
 
 class Reader:
     def __init__(self, stream: IO[str]) -> None:
-        self.string = stream.read()
+        self.string = stream.read().removeprefix("\ufeff")
         self.position = Position.start()
         self.mark = Position.start()
 
@@ -154,8 +156,15 @@ def parse_binding(reader: Reader) -> Binding:
         key = parse_key(reader)
         reader.read_regex(_whitespace)
         if reader.peek(1) == "=":
-            reader.read_regex(_equal_sign)
-            value: Optional[str] = parse_value(reader)
+            (equal_sign,) = reader.read_regex(_equal_sign)
+            # If there is whitespace after `=` and the value starts with `#`,
+            # the value is empty and the rest of the line is an inline comment
+            # (e.g. `KEY= # comment`). Without whitespace (`KEY=#novalue`) the
+            # `#` is part of the unquoted value.
+            if len(equal_sign) > 1 and reader.peek(1) == "#":
+                value: Optional[str] = ""
+            else:
+                value = parse_value(reader)
         else:
             value = None
         reader.read_regex(_comment)

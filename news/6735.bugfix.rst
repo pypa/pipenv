@@ -1,0 +1,2 @@
+Accept a ``pylock.toml`` with a newer minor ``lock-version`` (e.g. 1.1) with a warning instead of rejecting it,
+as PEP 751 requires an error only for an unsupported major version.

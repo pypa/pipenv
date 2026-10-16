@@ -4,7 +4,7 @@ import re
 from collections.abc import Mapping, Sequence
 
 from .errors import _ErrorCollector
-from .requirements import Requirement
+from .requirements import InvalidRequirement, Requirement
 
 __all__ = [
     "CyclicDependencyGroup",
@@ -28,12 +28,16 @@ def __dir__() -> list[str]:
 class DuplicateGroupNames(ValueError):
     """
     The same dependency groups were defined twice, with different non-normalized names.
+
+    .. versionadded:: 26.1
     """
 
 
 class CyclicDependencyGroup(ValueError):
     """
     The dependency group includes form a cycle.
+
+    .. versionadded:: 26.1
     """
 
     def __init__(self, requested_group: str, group: str, include_group: str) -> None:
@@ -50,6 +54,10 @@ class CyclicDependencyGroup(ValueError):
             f"{requested_group}: {reason}"
         )
 
+    # Support pickling; ``args`` does not match ``__init__``'s signature.
+    def __reduce__(self) -> tuple[type[CyclicDependencyGroup], tuple[str, str, str]]:
+        return (self.__class__, (self.requested_group, self.group, self.include_group))
+
 
 # in the PEP 735 spec, the tables in dependency group lists were described as
 # "Dependency Object Specifiers", but the only defined type of object was a
@@ -58,6 +66,8 @@ class InvalidDependencyGroupObject(ValueError):
     """
     A member of a dependency group was identified as a dict, but was not in a valid
     format.
+
+    .. versionadded:: 26.1
     """
 
 
@@ -67,6 +77,12 @@ class InvalidDependencyGroupObject(ValueError):
 
 
 class DependencyGroupInclude:
+    """
+    A reference to another dependency group by name.
+
+    .. versionadded:: 26.1
+    """
+
     __slots__ = ("include_group",)
 
     def __init__(self, include_group: str) -> None:
@@ -91,6 +107,8 @@ class DependencyGroupResolver:
 
     :param dependency_groups: A mapping, as provided via pyproject
         ``[dependency-groups]``.
+
+    .. versionadded:: 26.1
     """
 
     def __init__(
@@ -227,9 +245,10 @@ class DependencyGroupResolver:
         for item in raw_group:
             if isinstance(item, str):
                 # packaging.requirements.Requirement parsing ensures that this is a
-                # valid PEP 508 Dependency Specifier
-                # raises InvalidRequirement on failure
-                elements.append(Requirement(item))
+                # valid PEP 508 Dependency Specifier. Collect InvalidRequirement
+                # if it throws that.
+                with errors.collect(InvalidRequirement):
+                    elements.append(Requirement(item))
             elif isinstance(item, Mapping):
                 if tuple(item.keys()) != ("include-group",):
                     errors.error(
@@ -239,9 +258,21 @@ class DependencyGroupResolver:
                     )
                 else:
                     include_group = item["include-group"]
-                    elements.append(DependencyGroupInclude(include_group=include_group))
+                    if not isinstance(include_group, str):
+                        msg = (
+                            "Dependency group include-group value is not a string: "
+                            f"{item!r}"
+                        )
+                        errors.error(TypeError(msg))
+                    else:
+                        elements.append(
+                            DependencyGroupInclude(include_group=include_group)
+                        )
             else:
                 errors.error(TypeError(f"Invalid dependency group item: {item!r}"))
+
+        if errors.errors:
+            return ()
 
         self._parsed_groups[group] = tuple(elements)
         return self._parsed_groups[group]
@@ -261,6 +292,8 @@ def resolve_dependency_groups(
     :param dependency_groups: the parsed contents of the ``[dependency-groups]`` table
         from ``pyproject.toml``
     :param groups: the name of the group(s) to resolve
+
+    .. versionadded:: 26.1
     """
     resolver = DependencyGroupResolver(dependency_groups)
     return tuple(str(r) for group in groups for r in resolver.resolve(group))
