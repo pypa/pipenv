@@ -490,9 +490,9 @@ def _wheel_metadata(wheel: StrPath) -> bytes:
 
 
 def _print_metadata(raw_metadata: bytes) -> None:
-    import packaging.metadata
+    import pipenv.vendor.packaging.metadata as packaging_metadata
 
-    valid_metadata, _ = packaging.metadata.parse_email(raw_metadata)
+    valid_metadata, _ = packaging_metadata.parse_email(raw_metadata)
     print(  # noqa: T201
         json.dumps(valid_metadata, ensure_ascii=False, indent=2),
     )

@@ -5,7 +5,7 @@ __lazy_modules__ = {'packaging', 'packaging.requirements', f'{__spec__.parent}._
 
 import sys
 
-import packaging.requirements
+import pipenv.vendor.packaging.requirements as packaging_requirements
 
 from ._compat import importlib
 
@@ -33,7 +33,7 @@ def check_dependency(
 def _check_dependency(
     req_string: str, ancestral_req_strings: tuple[str, ...], parent_extras: AbstractSet[str], seen: set[str]
 ) -> Iterator[tuple[str, ...]]:
-    req = packaging.requirements.Requirement(req_string)
+    req = packaging_requirements.Requirement(req_string)
     normalised_req_string = str(req)
 
     # ``seen`` holds requirements already verified as fully satisfied (nothing
@@ -87,7 +87,7 @@ def format_unmet_dependencies(unmet: AbstractSet[tuple[str, ...]]) -> str:
 
 
 def _format_missing_dependency(dep_chain: tuple[str, ...]) -> str:
-    requirement = packaging.requirements.Requirement(dep_chain[-1])
+    requirement = packaging_requirements.Requirement(dep_chain[-1])
     try:
         found = importlib.metadata.distribution(requirement.name).version
     except importlib.metadata.PackageNotFoundError:

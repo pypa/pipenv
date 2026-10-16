@@ -331,12 +331,13 @@ class _PipBackend(_EnvBackend):
 
     def create(self, path: str) -> None:
         if self._create_with_virtualenv:
-            import packaging.version
             import virtualenv
+
+            from pipenv.vendor.packaging.version import Version
 
             from ._compat import importlib
 
-            virtualenv_ver = packaging.version.Version(importlib.metadata.version('virtualenv'))
+            virtualenv_ver = Version(importlib.metadata.version('virtualenv'))
 
             opts = [
                 path,
