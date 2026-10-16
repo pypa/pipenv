@@ -664,8 +664,80 @@ class PylockFile:
 
         return result
 
-    def convert_to_pipenv_lockfile(self) -> Dict[str, Any]:
+    def _narrow_package_entries(
+        self, environment: Optional[Dict[str, str]] = None
+    ) -> List[Dict[str, Any]]:
+        """Narrow packages listed more than once to the entry for the environment.
+
+        PEP 751 lets a lock list a package several times with different
+        markers (e.g. one version per Python range), and requires all entries
+        to narrow down to a single one at install time. Pipfile.lock holds one
+        entry per name, so pick it here instead of keeping whichever comes last.
+
+        Args:
+            environment: Marker variables that override the running
+                interpreter's (e.g. the target virtualenv's Python version)
+
+        Returns:
+            One package entry per name, in the order of their first entry
+
+        Raises:
+            PylockFormatError: If more than one entry for a name matches
+        """
+        from pipenv.patched.pip._vendor.packaging.markers import (
+            InvalidMarker,
+            Marker,
+        )
+
+        entries_by_name: Dict[str, List[Dict[str, Any]]] = {}
+        for package in self.packages:
+            name = package.get("name")
+            if name:
+                entries_by_name.setdefault(name.lower(), []).append(package)
+
+        marker_environment = {
+            **(environment or {}),
+            "extras": frozenset(self.extras),
+            "dependency_groups": frozenset(self.dependency_groups)
+            | frozenset(self.default_groups),
+        }
+
+        def matches(package: Dict[str, Any]) -> bool:
+            marker = package.get("marker")
+            if not marker:
+                return True
+            try:
+                return Marker(marker).evaluate(
+                    environment=marker_environment, context="lock_file"
+                )
+            except InvalidMarker:
+                return True
+
+        result = []
+        for name, entries in entries_by_name.items():
+            if len(entries) == 1:
+                result.append(entries[0])
+                continue
+            matching = [package for package in entries if matches(package)]
+            if len(matching) > 1:
+                raise PylockFormatError(
+                    f"Package {name!r} has {len(matching)} entries that match the "
+                    "environment; they must narrow down to a single entry"
+                )
+            # With no match, keep an entry whose marker excludes the
+            # environment, so the package is skipped like a single entry.
+            result.append(matching[0] if matching else entries[0])
+        return result
+
+    def convert_to_pipenv_lockfile(
+        self, environment: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
         """Convert the pylock.toml file to a Pipfile.lock format.
+
+        Args:
+            environment: Marker variables that override the running
+                interpreter's, used to pick between entries of a package
+                listed more than once
 
         Returns:
             A dictionary in Pipfile.lock format
@@ -713,10 +785,8 @@ class PylockFile:
             ]
 
         # Process packages
-        for package in self.packages:
+        for package in self._narrow_package_entries(environment):
             name = package.get("name")
-            if not name:
-                continue
 
             # Determine if this is a dev package based on markers
             # This is a simplification - in reality we'd need to parse the markers
