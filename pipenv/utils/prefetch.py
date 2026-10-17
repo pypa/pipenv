@@ -1,9 +1,8 @@
 """Parallel wheel pre-fetch for ``pipenv install`` / ``pipenv sync``.
 
 Pip's ``install`` step downloads wheels sequentially from the index —
-on a clean cache that dominates cold-install wall time (12 s of pure
-network for the sentry-base bench's 151 wheels, vs ~10 s for the
-sequential install phase itself).  This module pre-populates a local
+on a clean cache that can dominate cold-install wall time.  When a resolve
+has already cached the package index manifests, this module populates a local
 ``--find-links`` directory by downloading wheels concurrently
 (``urllib3`` connection-pool + ``ThreadPoolExecutor``, capped at 16
 workers to match the pool ceiling that the pure-Python resolver
@@ -39,12 +38,9 @@ Design constraints
   any missing files still resolve from the index).  No mutation of
   the user's pip cache.
 
-* **Existing resolver infrastructure reused**: the simple-API
-  metadata fetch goes through
-  :class:`pipenv.resolver.pep691.PEP691Client` +
-  :class:`pipenv.resolver.fetcher.ParallelFetcher`, so auth /
-  netrc / cert handling stays in one place (the same module already
-  vetted for credential leaks under GHSA-8xgg-v3jj-95m2).
+* **No repeated index fetch**: use the resolver's fresh parsed-manifest
+  cache.  If any target lacks a manifest, leave the normal pip install
+  path in charge instead of fetching all the index pages again.
 
 Entry point: :func:`prefetch_wheels`.  Called from
 :func:`pipenv.routines.install.batch_install` once the dependency
@@ -109,10 +105,8 @@ def prefetch_wheels(
     # Local imports keep the cold-import cost of pipenv unaffected
     # for callers that never hit install/sync.
     try:
-        from pipenv.patched.pip._vendor import requests, urllib3
-        from pipenv.resolver.fetcher import ParallelFetcher
+        from pipenv.patched.pip._vendor import urllib3
         from pipenv.resolver.manifest_cache import ParsedManifestCache
-        from pipenv.resolver.pep691 import PEP691Client
         from pipenv.utils.shell import project_python
         from pipenv.vendor.packaging.utils import canonicalize_name
     except Exception as exc:  # noqa: BLE001
@@ -166,41 +160,26 @@ def prefetch_wheels(
         # Tag query failed — bail rather than guess and waste downloads.
         return None
 
-    # Step 3: use a requests-compatible session for PEP 691 metadata
-    # fetches, because PEP691Client passes per-request verify/cert
-    # kwargs that bare urllib3.PoolManager.request() does not accept.
-    # Keep urllib3 for wheel downloads so the existing download path
-    # remains unchanged.
-    # The pure-Python resolver has just populated this cache during an
-    # ``install -r`` resolve.  Reuse those manifests instead of fetching
-    # every package's simple-index page a second time before installation.
-    # ParallelFetcher still refreshes expired entries, and wheel bytes are
-    # checked against the lockfile hashes below.
+    # Step 3: reuse the manifests populated by the pure-Python resolver.
+    # A pip-backed lock has no such manifests, and fetching every index page
+    # again made its install path substantially slower in CI.  If any target
+    # is missing a fresh manifest, let pip install from the index normally.
+    # Wheel bytes are still checked against the lockfile hashes below.
     manifest_cache_root = Path(project.s.PIPENV_CACHE_DIR) / "pipenv-manifests"
+    cache = ParsedManifestCache(manifest_cache_root)
+    if any(
+        not any(cache.get(idx, name) is not None for idx in index_urls)
+        for name, _, _ in targets
+    ):
+        return None
+
     download_dir = Path(tempfile.mkdtemp(prefix="pipenv-prefetch-"))
     try:
-        manifest_session = requests.Session()
-        manifest_adapter = requests.adapters.HTTPAdapter(
-            pool_connections=max_workers,
-            pool_maxsize=max_workers,
-        )
-        manifest_session.mount("http://", manifest_adapter)
-        manifest_session.mount("https://", manifest_adapter)
-
         download_session = urllib3.PoolManager(
             num_pools=max_workers,
             maxsize=max_workers,
         )
         try:
-            cache = ParsedManifestCache(manifest_cache_root)
-            client = PEP691Client(manifest_session)
-            fetcher = ParallelFetcher(client, cache, max_workers=max_workers)
-
-            fetch_targets = [
-                (idx, name) for idx in index_urls for name, _, _ in targets
-            ]
-            fetcher.populate(fetch_targets)
-
             # Step 4: pick the right wheel per target.  Filter by target
             # tags FIRST (skip incompatible wheels), then match hash
             # against the lockfile.
@@ -242,11 +221,11 @@ def prefetch_wheels(
             )
             return str(download_dir)
         finally:
-            manifest_session.close()
             download_session.clear()
-    except Exception:
+    except Exception as exc:
         shutil.rmtree(download_dir, ignore_errors=True)
-        raise
+        _LOGGER.debug("prefetch_wheels failed (%s); skipping", exc)
+        return None
 
 
 def _query_target_tags(target_python: str) -> frozenset[tuple[str, str, str]] | None:
