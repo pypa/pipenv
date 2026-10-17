@@ -39,6 +39,27 @@ def test_convert_picks_the_entry_matching_the_environment(
     assert lockfile["default"]["numpy"]["version"] == version
 
 
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize(
+    "environment, version", [(PY310, "==1.26.4"), (PY312, "==2.3.0")]
+)
+def test_environment_check_and_conversion_select_the_same_entry(
+    tmp_path, reverse, environment, version
+):
+    entries = [
+        NUMPY_OLD + "requires-python = '<3.12'\n",
+        NUMPY_NEW + "requires-python = '>=3.12'\n",
+    ]
+    if reverse:
+        entries.reverse()
+    pylock = _write_pylock(tmp_path, "".join(entries))
+
+    pylock.check_environment(environment=environment)
+    lockfile = pylock.convert_to_pipenv_lockfile(environment=environment)
+
+    assert lockfile["default"]["numpy"]["version"] == version
+
+
 def test_convert_keeps_an_excluded_entry_when_none_matches(tmp_path):
     pylock = _write_pylock(
         tmp_path,

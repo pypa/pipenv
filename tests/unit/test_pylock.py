@@ -4,7 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from pipenv.utils.pylock import PylockFile, PylockFormatError, PylockVersionError, find_pylock_file
+from pipenv.utils.pylock import (
+    PylockEnvironmentError,
+    PylockFile,
+    PylockFormatError,
+    PylockVersionError,
+    find_pylock_file,
+)
 
 
 @pytest.fixture
@@ -890,3 +896,91 @@ index = 'https://pypi.org/simple/'
         assert lockfile.lockfile is not None
     finally:
         os.chdir(old_cwd)
+
+
+PY310 = {"python_version": "3.10", "python_full_version": "3.10.20"}
+PY312 = {"python_version": "3.12", "python_full_version": "3.12.4"}
+
+
+def _write_pylock(tmp_path, content):
+    path = tmp_path / "pylock.toml"
+    path.write_text("lock-version = '1.0'\ncreated-by = 'test-tool'\n" + content)
+    return PylockFile.from_path(path)
+
+
+@pytest.mark.parametrize(
+    "content, message",
+    [
+        ("requires-python = '>=3.12'\n", "requires-python '>=3.12'"),
+        ("environments = [\"python_version >= '3.12'\"]\n", "environments"),
+        (
+            "[[packages]]\nname = 'click'\nversion = '8.5.0'\nrequires-python = '>=3.12'\n",
+            "of package 'click'",
+        ),
+    ],
+)
+def test_check_environment_rejects_lock_that_excludes_target_python(
+    tmp_path, content, message
+):
+    pylock = _write_pylock(tmp_path, content)
+
+    with pytest.raises(PylockEnvironmentError, match=message):
+        pylock.check_environment(environment=PY310)
+
+
+def test_check_environment_accepts_matching_python(tmp_path):
+    pylock = _write_pylock(
+        tmp_path,
+        "requires-python = '>=3.12'\n"
+        "environments = [\"python_version >= '3.12'\"]\n"
+        "[[packages]]\nname = 'click'\nversion = '8.5.0'\nrequires-python = '>=3.12'\n",
+    )
+
+    pylock.check_environment(environment=PY312)
+
+
+def test_check_environment_skips_packages_excluded_by_marker(tmp_path):
+    pylock = _write_pylock(
+        tmp_path,
+        "[[packages]]\nname = 'tomli'\nversion = '2.2.1'\n"
+        "marker = \"python_version < '3.11'\"\nrequires-python = '<3.11'\n",
+    )
+
+    pylock.check_environment(environment=PY312)
+
+
+def test_check_environment_only_checks_selected_dependency_groups(tmp_path):
+    pylock = _write_pylock(
+        tmp_path,
+        "dependency-groups = ['dev']\n"
+        "[[packages]]\nname = 'pytest'\nversion = '9.0.0'\n"
+        "marker = \"'dev' in dependency_groups\"\nrequires-python = '>=3.12'\n",
+    )
+
+    pylock.check_environment(environment=PY310)
+    with pytest.raises(PylockEnvironmentError, match="of package 'pytest'"):
+        pylock.check_environment(dependency_groups={"dev"}, environment=PY310)
+
+
+def test_check_environment_rejects_invalid_requires_python(tmp_path):
+    pylock = _write_pylock(tmp_path, "requires-python = 'not a specifier'\n")
+
+    with pytest.raises(PylockFormatError, match="Invalid requires-python"):
+        pylock.check_environment(environment=PY312)
+
+
+def test_install_aborts_when_pylock_excludes_target_python(tmp_path):
+    from unittest import mock
+
+    from pipenv.exceptions import PipenvException
+    from pipenv.routines.install import _check_pylock_environment
+
+    path = tmp_path / "pylock.toml"
+    path.write_text(
+        "lock-version = '1.0'\ncreated-by = 'test-tool'\nrequires-python = '<3'\n"
+    )
+    project = mock.Mock()
+    project.lockfile.pylock_location = str(path)
+
+    with pytest.raises(PipenvException, match="requires-python '<3'"):
+        _check_pylock_environment(project, ["packages"], allow_global=True)
