@@ -9,6 +9,11 @@ from pipenv.utils.dependencies import (
 from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
 
 
+def _brace_env_vars(url):
+    """Normalise bare ``$VAR`` to ``${VAR}``: pip only expands the braced form (#5272)."""
+    return re.sub(r"\$([A-Za-z_][A-Za-z0-9_]*)", r"${\1}", url)
+
+
 def generate_requirements(
     project,
     dev=False,
@@ -51,12 +56,7 @@ def generate_requirements(
             )
         for i, package_index in enumerate(sources):
             prefix = "-i" if i == 0 else "--extra-index-url"
-            url = re.sub(
-                r"\$([A-Za-z_][A-Za-z0-9_]*)",
-                r"${\1}",
-                package_index["url"],
-            )
-            print(f"{prefix} {url}")
+            print(f"{prefix} {_brace_env_vars(package_index['url'])}")
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []
@@ -132,7 +132,7 @@ def _generate_requirements_from_pipfile(
             url = source.get("url", "")
             if url:
                 prefix = "-i" if i == 0 else "--extra-index-url"
-                print(f"{prefix} {url}")
+                print(f"{prefix} {_brace_env_vars(url)}")
 
     deps = {}
     categories_list = re.split(r", *| ", categories) if categories else []
