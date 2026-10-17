@@ -99,6 +99,20 @@ class ParsedManifestCache:
         # Cache the versioned subdirectory once at construction time
         # so per-call ``get`` / ``put`` don't pay the f-string cost.
         self._versioned_root = self._root / f"manifests-v{schema_version}"
+        # A resolve reads each manifest several times.  Keep parsed
+        # candidates in this instance, while checking file identity so
+        # writes by another process or cache instance remain visible.
+        self._parsed: dict[Path, tuple[tuple[int, ...], CachedManifest]] = {}
+
+    @staticmethod
+    def _file_identity(stat: os.stat_result) -> tuple[int, ...]:
+        return (
+            stat.st_dev,
+            stat.st_ino,
+            stat.st_size,
+            stat.st_mtime_ns,
+            stat.st_ctime_ns,
+        )
 
     # --- public API -----------------------------------------------------
 
@@ -138,8 +152,13 @@ class ParsedManifestCache:
         """
         target = self._path_for(index_url, package_name)
         try:
+            identity = self._file_identity(target.stat())
+            parsed = self._parsed.get(target)
+            if parsed is not None and parsed[0] == identity:
+                return parsed[1]
             raw = target.read_bytes()
         except FileNotFoundError:
+            self._parsed.pop(target, None)
             return None
         except OSError:
             # Permission denied, etc — treat as miss rather than crash.
@@ -177,12 +196,14 @@ class ParsedManifestCache:
         if etag is not None and not isinstance(etag, str):
             etag = None
 
-        return CachedManifest(
+        manifest = CachedManifest(
             candidates=candidates,
             etag=etag,
             cached_at=cached_at,
             expires_at=expires_at,
         )
+        self._parsed[target] = (identity, manifest)
+        return manifest
 
     def peek_etag(self, index_url: str, package_name: str) -> str | None:
         """Return the on-disk etag for a possibly-expired entry, or ``None``.
@@ -283,13 +304,41 @@ class ParsedManifestCache:
             suffix=".tmp",
         )
         try:
+            written_inode = None
             try:
                 tmp.write(body)
                 tmp.flush()
                 os.fsync(tmp.fileno())
+                try:
+                    file_stat = os.fstat(tmp.fileno())
+                except OSError:
+                    pass
+                else:
+                    if file_stat.st_ino:
+                        written_inode = (file_stat.st_dev, file_stat.st_ino)
             finally:
                 tmp.close()
             _replace_with_windows_retry(tmp.name, str(target))
+            manifest = CachedManifest(
+                candidates=tuple(candidates),
+                etag=etag,
+                cached_at=cached_at,
+                expires_at=expires_at,
+            )
+            try:
+                target_stat = target.stat()
+            except OSError:
+                self._parsed.pop(target, None)
+            else:
+                # A concurrent writer may replace the file between our
+                # rename and stat.  Only memoize the payload we wrote when
+                # its inode is still the one at the target path.
+                if written_inode == (target_stat.st_dev, target_stat.st_ino):
+                    self._parsed[target] = (
+                        self._file_identity(target_stat), manifest
+                    )
+                else:
+                    self._parsed.pop(target, None)
         except BaseException:
             # os.replace failed (or any earlier step did).  Best-effort
             # cleanup of the temp file — if this also fails (rare), the
@@ -308,6 +357,7 @@ class ParsedManifestCache:
         Missing-file is not an error.
         """
         target = self._path_for(index_url, package_name)
+        self._parsed.pop(target, None)
         try:
             target.unlink()
         except FileNotFoundError:
@@ -325,6 +375,7 @@ class ParsedManifestCache:
         under the same root — only the one this instance manages.
         """
         shutil.rmtree(self._versioned_root, ignore_errors=True)
+        self._parsed.clear()
 
     # --- internals ------------------------------------------------------
 
@@ -355,7 +406,7 @@ def _candidate_to_json(c: Candidate) -> dict[str, Any]:
     * ``frozenset[Tag] | None`` → sorted ``list[str]`` of ``str(tag)``
       or ``None``.
     """
-    return {
+    payload = {
         "name": c.name,
         "version": c.version,
         "url": c.url,
@@ -372,6 +423,9 @@ def _candidate_to_json(c: Candidate) -> dict[str, Any]:
             else None
         ),
     }
+    if c.core_metadata is not None:
+        payload["core_metadata"] = c.core_metadata
+    return payload
 
 
 def _candidate_from_json(data: dict[str, Any]) -> Candidate:
@@ -421,6 +475,7 @@ def _candidate_from_json(data: dict[str, Any]) -> Candidate:
             upload_time=upload_time,
             is_wheel=is_wheel,
             wheel_tags=wheel_tags,
+            core_metadata=data.get("core_metadata"),
         )
 
     # No cached wheel_tags — fall back to filename-derived (handles
@@ -435,6 +490,7 @@ def _candidate_from_json(data: dict[str, Any]) -> Candidate:
         yanked=bool(data.get("yanked", False)),
         yanked_reason=data.get("yanked_reason"),
         upload_time=upload_time,
+        core_metadata=data.get("core_metadata"),
     )
 
 

@@ -273,6 +273,10 @@ class PurePythonProvider(AbstractProvider):
         # thousands of times; pip's ``PackageFinder.find_best_candidate``
         # is ``lru_cache``-d for the same reason.
         self._find_matches_memo: dict[tuple, tuple[Any, ...]] = {}
+        # Backtracking expands the same artifact repeatedly.  Its metadata
+        # and the target marker environment are fixed for this resolve, so
+        # keep the parsed dependency set keyed by artifact and extras.
+        self._dependencies_memo: dict[tuple, tuple[Requirement, ...]] = {}
 
     # ------------------------------------------------------------------
     # T3 — identify
@@ -1190,8 +1194,9 @@ class PurePythonProvider(AbstractProvider):
            :class:`pipenv.resolver.pure_python_metadata.CoreMetadata`.
            T9 wires the production stack so that this callable is a
            thin closure around :func:`fetch_metadata`, which itself
-           routes wheel candidates to RANGE-fetched ``METADATA`` files
-           and sdist candidates through T_S1's PEP 517 build path —
+           routes wheel candidates to advertised sidecar ``METADATA``
+           files or wheel-range fetching, and sdist candidates through
+           T_S1's PEP 517 build path —
            both producing the same :class:`CoreMetadata` shape.  Tests
            supply a stub mapping ``candidate.url`` → ``CoreMetadata``.
 
@@ -1261,6 +1266,16 @@ class PurePythonProvider(AbstractProvider):
         the same exception — a malformed METADATA body is a wheel-side
         bug worth surfacing rather than silently dropping a real dep.
         """
+        memo_key = (
+            getattr(candidate, "name", None),
+            getattr(candidate, "version", None),
+            getattr(candidate, "url", None),
+            frozenset(getattr(candidate, "extras", frozenset())),
+        )
+        cached_deps = self._dependencies_memo.get(memo_key)
+        if cached_deps is not None:
+            return list(cached_deps)
+
         # --------------- Metadata fetch (wheel OR sdist) -----------
         # Phase 3b T_S3: dropped the ``if not candidate.is_wheel: raise
         # _SdistEncountered(candidate)`` guard.  Sdist candidates now
@@ -1394,6 +1409,7 @@ class PurePythonProvider(AbstractProvider):
                 )
             )
 
+        self._dependencies_memo[memo_key] = tuple(deps)
         return deps
 
     def _marker_active_for_extras(

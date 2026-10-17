@@ -1425,6 +1425,34 @@ class TestGetDependenciesWheelRequiresDist:
         assert dep.parent == "django"
         assert dep.marker is None
 
+    def test_repeated_expansion_reuses_dependencies_but_respects_extras(self):
+        from dataclasses import replace
+
+        cand = _cand(name="django", version="4.2.0", is_wheel=True)
+        meta = _metadata(
+            name="django",
+            version="4.2.0",
+            requires_dist=('pytest>=7; extra == "dev"',),
+        )
+        fetches = []
+
+        def fetch(candidate):
+            fetches.append(candidate.url)
+            return meta
+
+        provider = _make_provider(
+            metadata_fetcher=fetch,
+            target_env={"python_version": "3.12"},
+        )
+        assert provider.get_dependencies(cand) == []
+        assert provider.get_dependencies(cand) == []
+
+        with_extra = replace(cand, extras=frozenset({"dev"}))
+        first = provider.get_dependencies(with_extra)
+        assert {dep.name for dep in first} == {"django", "pytest"}
+        assert provider.get_dependencies(with_extra) == first
+        assert len(fetches) == 2
+
     def test_multiple_requires_dist_returns_all(self):
         cand = _cand(name="flask", version="2.3.0", is_wheel=True)
         meta = _metadata(

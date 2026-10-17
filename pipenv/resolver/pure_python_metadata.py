@@ -35,11 +35,9 @@ is a duck-typed ``session`` parameter — production hands us the same
 session shape as the PEP 691 client uses; tests pass a
 :class:`unittest.mock.MagicMock`.
 
-The :class:`Candidate` shape (Phase 1) does not yet carry PEP 658
-advertisement.  T2 therefore accepts ``metadata_url`` and
-``metadata_hash`` as keyword parameters to :func:`fetch_metadata`;
-T3 / T7 are free to widen :class:`Candidate` later and pass the values
-through transparently.
+Candidates now carry PEP 658/714 sidecar advertisements from the simple
+index.  Explicit ``metadata_url`` and ``metadata_hash`` parameters remain
+available to callers that already know the metadata URL.
 """
 
 from __future__ import annotations
@@ -56,6 +54,7 @@ from email import policy as email_policy
 from email.parser import HeaderParser
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 from pipenv.resolver.candidate import Candidate
 from pipenv.vendor.packaging.utils import canonicalize_name
@@ -280,8 +279,9 @@ def fetch_metadata(
 
     1. If ``cache`` is supplied and has an entry for ``candidate.url``,
        return it (no network).
-    2. If ``metadata_url`` is supplied (PEP 658 fast path), GET it,
-       verify against ``metadata_hash`` if non-empty, parse.
+    2. If ``metadata_url`` is supplied or the candidate advertises a
+       PEP 658/714 sidecar, GET it, verify its SHA-256 if advertised,
+       and parse it.
     3. Otherwise: HEAD the wheel URL to read ``Content-Length`` (fall
        back to a tiny range GET if HEAD is rejected), then range-GET
        the last 64 kB of the wheel to capture the zip central
@@ -308,8 +308,8 @@ def fetch_metadata(
         Optional :class:`MetadataCache` for read-through caching.
     metadata_url:
         Optional explicit URL for the PEP 658 ``.metadata`` companion
-        file.  When ``None`` and ``metadata_hash`` is also ``None``,
-        the wheel-head fallback is used directly.
+        file.  When ``None``, the candidate's sidecar advertisement is
+        used if available; otherwise the wheel-head fallback applies.
     metadata_hash:
         Optional ``{algo: hexvalue}`` mapping advertised by the index
         for the metadata body.  Only ``sha256`` is honoured; other
@@ -350,6 +350,16 @@ def fetch_metadata(
             extract_metadata_from_sdist,
         )
         return extract_metadata_from_sdist(candidate, session, cache=cache)
+
+    # PEP 658/714 advertises a small sidecar body alongside the wheel.
+    # Keep the explicit parameters for callers that supply their own URL,
+    # and otherwise use the advertisement carried by the index candidate.
+    advertised = getattr(candidate, "core_metadata", None)
+    if metadata_url is None and advertised:
+        parts = urlsplit(candidate.url)
+        metadata_url = parts._replace(path=parts.path + ".metadata").geturl()
+        if isinstance(advertised, str):
+            metadata_hash = {"sha256": advertised}
 
     if metadata_url is not None:
         metadata = _fetch_pep658(session, metadata_url, metadata_hash)
