@@ -206,6 +206,21 @@ def _extract_version(filename: str, canonical_name: str) -> str | None:
     return remainder.split("-", 1)[0]
 
 
+def _metadata_advertisement(raw: Any) -> str | bool | None:
+    """Normalize PEP 658/714 sidecar metadata from JSON or HTML."""
+    if raw is True:
+        return True
+    if isinstance(raw, dict):
+        sha256 = raw.get("sha256")
+        return sha256 if isinstance(sha256, str) and sha256 else True
+    if isinstance(raw, str):
+        if raw.lower() == "true":
+            return True
+        if raw.lower().startswith("sha256="):
+            return raw.split("=", 1)[1] or True
+    return None
+
+
 def _build_candidate(
     entry: dict,
     *,
@@ -254,6 +269,12 @@ def _build_candidate(
             yanked=yanked,
             yanked_reason=yanked_reason,
             upload_time=_parse_upload_time(entry.get("upload-time")),
+            core_metadata=_metadata_advertisement(
+                entry.get(
+                    "core-metadata",
+                    entry.get("dist-info-metadata", entry.get("data-dist-info-metadata")),
+                )
+            ),
         )
     except (ValueError, TypeError):
         # ``Candidate.from_filename`` raises ``ValueError`` on a wheel
@@ -528,6 +549,9 @@ def _build_candidate_from_html(
             # PEP 503 carries no upload-time equivalent.  None matches
             # the JSON parser's behaviour on missing ``upload-time``.
             upload_time=None,
+            core_metadata=_metadata_advertisement(
+                attrs.get("data-core-metadata", attrs.get("data-dist-info-metadata"))
+            ),
         )
     except (ValueError, TypeError):
         # Malformed wheel tag triple — same skip path as

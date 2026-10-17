@@ -112,6 +112,10 @@ class Candidate:
         can do so.  Default is ``frozenset()`` — the PEP 691 parsers
         in :mod:`pipenv.resolver.manifest_cache` rely on this default
         and don't need to plumb the field through.
+    core_metadata:
+        PEP 658/714 sidecar advertisement from the simple index.  ``True``
+        means the sidecar is available without a SHA-256 digest; a string
+        is the digest.  ``None`` means use wheel-range metadata fetching.
     """
 
     name: str
@@ -127,9 +131,13 @@ class Candidate:
     wheel_tags: frozenset[Tag] | None
     # ``extras`` is added in Initiative G phase 3 (T3) — Phase 1's PEP
     # 691 parsers don't populate it (the simple-API doesn't report
-    # extras), so it defaults to an empty frozenset.  Placed last so
-    # frozen-dataclass field ordering (no-default-then-default) holds.
+    # extras), so it defaults to an empty frozenset.  Placed after all
+    # required fields so frozen-dataclass field ordering remains valid.
     extras: frozenset[str] = field(default_factory=frozenset)
+    # PEP 658 / PEP 714 simple-index metadata advertisement.  ``True``
+    # means a sidecar exists without a usable hash; a string is its
+    # advertised SHA-256 digest.  ``None`` means use the wheel fallback.
+    core_metadata: str | bool | None = None
 
     @classmethod
     def from_filename(cls, __filename: str, /, **kwargs: Any) -> Candidate:

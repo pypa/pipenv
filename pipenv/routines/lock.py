@@ -1,4 +1,5 @@
 import contextlib
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -42,13 +43,13 @@ def _clear_parsed_manifest_cache(project) -> None:
 
 
 def _prefetch_index_manifests_if_enabled(
-    project, lockfile_categories, *, clear: bool
+    project, lockfile_categories, *, clear: bool, default_enabled: bool = False
 ) -> None:
     """Best-effort: pre-fetch top-level package indexes in parallel.
 
-    Activated only when the user opted in via
-    ``[pipenv] prefetch_index_manifests = true`` (or the
-    ``PIPENV_PREFETCH_INDEX_MANIFESTS`` env-var override added in T18).
+    Enabled by default for the pure-Python backend, which consumes the
+    parsed manifests directly.  An explicit Pipfile or environment setting
+    still overrides the default.
     All exceptions are swallowed so the lock continues with cold-cache
     behaviour on any failure mode.
 
@@ -81,14 +82,8 @@ def _prefetch_index_manifests_if_enabled(
     ``verify_ssl=true``) see identical behaviour to T19: exactly one
     fetcher constructed, zero overhead.
 
-    Connection-pool sizing note: each fetcher carries its own
-    :class:`ThreadPoolExecutor` (``max_workers=16``).  For a
-    two-policy project, peak concurrent worker count is therefore 16 +
-    16 = 32, but each worker uses its own ``PipSession`` whose
-    urllib3 pool ceiling is 10.  So real concurrent connections are
-    bounded at 20 (2 sessions x 10 pool slots) even with both
-    executors saturated — well under any kernel ulimit and within
-    urllib3's "Connection pool is full" warning threshold per session.
+    Each fetcher uses at most 10 workers, matching PipSession's default
+    urllib3 connection pool.  Mixed TLS policies get separate sessions.
 
     Initiative G phase 2 — T19, plus phase-3 follow-up FU2.
     See ``initiative-g-phase1-2-plan.md`` §T19 for the design rationale
@@ -97,12 +92,13 @@ def _prefetch_index_manifests_if_enabled(
     if clear:
         return
     try:
-        if project.settings.get("prefetch_index_manifests", False) is not True:
+        setting = project.settings.get("prefetch_index_manifests")
+        if setting is not True and (setting is not None or not default_enabled):
             return
     except Exception:
         return
 
-    # Lazy imports — when the setting is disabled (the common case) the
+    # Lazy imports — when the setting is disabled the
     # cost of importing T7/T8/T9 modules is zero.  Same goes for the
     # ``time`` module and ``get_requests_session``.
     import time
@@ -195,7 +191,7 @@ def _prefetch_index_manifests_if_enabled(
         # doesn't sit inside the loop body (ruff PERF203).
         try:
             client = PEP691Client(session, verify=verify)
-            return ParallelFetcher(client, cache)
+            return ParallelFetcher(client, cache, max_workers=10)
         except Exception:
             return None
 
@@ -356,14 +352,16 @@ def do_lock(project, ctx: RoutineContext):
             if not hasattr(v, "keys"):
                 del lockfile[category][k]
 
-    # T19 (Initiative G phase 2): opt-in parallel manifest prefetch.
-    # No-op unless ``[pipenv] prefetch_index_manifests`` is truthy (or
-    # ``PIPENV_PREFETCH_INDEX_MANIFESTS`` is set).  Best-effort: any
-    # failure is swallowed and the resolve loop below proceeds with
-    # cold-cache behaviour.  Skipped entirely when ``--clear`` was
-    # requested (the user wanted a fresh resolution).
+    # Fan out top-level index lookups for pure-Python resolves.  The
+    # backend consumes the parsed cache; pip remains opt-in.  Best-effort:
+    # failures fall through to normal resolution, and --clear skips it.
     _prefetch_index_manifests_if_enabled(
-        project, lockfile_categories, clear=clear
+        project,
+        lockfile_categories,
+        clear=clear,
+        default_enabled=(
+            (resolver_backend or os.environ.get("PIPENV_RESOLVER")) == "pure-python"
+        ),
     )
 
     # Determine whether to enforce default constraints on non-default categories.

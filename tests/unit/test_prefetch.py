@@ -304,6 +304,97 @@ class TestPrefetchWheelsHappyPath:
     """Mock the network seams and verify the orchestration writes the
     expected wheel files to a returned dir."""
 
+    def test_reuses_manifest_from_resolve(self, tmp_path, monkeypatch):
+        from pipenv.resolver.candidate import Candidate, Hash
+        from pipenv.resolver.manifest_cache import ParsedManifestCache
+
+        body = b"cached-wheel"
+        digest = _sha256_hex(body)
+        index_url = "https://pypi.org/simple"
+        filename = "foo-1.0-py3-none-any.whl"
+        cache_root = tmp_path / "pipenv-manifests"
+        cache = ParsedManifestCache(cache_root)
+        cache.put(
+            index_url,
+            "foo",
+            [
+                Candidate.from_filename(
+                    filename,
+                    name="foo",
+                    version="1.0",
+                    url=f"https://pypi.org/packages/{filename}",
+                    hashes=frozenset({Hash("sha256", digest)}),
+                    requires_python=None,
+                    yanked=False,
+                    yanked_reason=None,
+                    upload_time=None,
+                )
+            ],
+            etag=None,
+        )
+
+        monkeypatch.setattr(
+            "pipenv.utils.prefetch._query_target_tags",
+            lambda *_args: frozenset({("py3", "none", "any")}),
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.shell.project_python", lambda *a, **k: "/usr/bin/python3"
+        )
+
+        class _FakeSession:
+            def request(self, method, url, **kwargs):
+                return _fake_response(status=200, body=body)
+
+            def clear(self):
+                pass
+
+        monkeypatch.setattr(
+            "pipenv.patched.pip._vendor.urllib3.PoolManager",
+            lambda **kwargs: _FakeSession(),
+        )
+        project = MagicMock()
+        project.s.PIPENV_CACHE_DIR = str(tmp_path)
+        dep = MagicMock()
+        dep.name = "foo"
+
+        result = prefetch_wheels(
+            project,
+            [(dep, "foo==1.0")],
+            {"foo": {"version": "==1.0", "hashes": [f"sha256:{digest}"]}},
+            [{"name": "pypi", "url": index_url}],
+        )
+
+        assert result is not None
+        assert (Path(result) / filename).read_bytes() == body
+        assert cache.get(index_url, "foo") is not None
+
+    def test_missing_manifest_skips_network(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "pipenv.utils.prefetch._query_target_tags",
+            lambda *_args: frozenset({("py3", "none", "any")}),
+        )
+        monkeypatch.setattr(
+            "pipenv.utils.shell.project_python", lambda *a, **k: "/usr/bin/python3"
+        )
+        pool = MagicMock(side_effect=AssertionError("unexpected wheel download"))
+        monkeypatch.setattr(
+            "pipenv.patched.pip._vendor.urllib3.PoolManager", pool
+        )
+        project = MagicMock()
+        project.s.PIPENV_CACHE_DIR = str(tmp_path)
+        dep = MagicMock()
+        dep.name = "foo"
+
+        result = prefetch_wheels(
+            project,
+            [(dep, "foo==1.0")],
+            {"foo": {"version": "==1.0", "hashes": ["sha256:abc"]}},
+            [{"name": "pypi", "url": "https://pypi.org/simple"}],
+        )
+
+        assert result is None
+        pool.assert_not_called()
+
     def test_two_packages_downloaded_in_parallel(self, tmp_path, monkeypatch):
         # Build matching candidate hashes.
         foo_body = b"foo-wheel-body"

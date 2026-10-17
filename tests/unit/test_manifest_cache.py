@@ -138,9 +138,47 @@ class TestRoundTripBasicAPI:
         # expires_at == cached_at + ttl_seconds (per docstring).
         assert result.expires_at == result.cached_at + timedelta(seconds=600)
 
+    def test_core_metadata_advertisement_survives_disk_round_trip(self, tmp_path):
+        from dataclasses import replace
+
+        candidate = replace(_make_wheel_candidate(), core_metadata="a" * 64)
+        writer = ParsedManifestCache(tmp_path)
+        writer.put("https://pypi.org/simple", "numpy", [candidate], etag=None)
+
+        reader = ParsedManifestCache(tmp_path)
+        assert reader.get("https://pypi.org/simple", "numpy").candidates == (candidate,)
+
     def test_get_returns_none_when_never_put(self, tmp_path):
         cache = ParsedManifestCache(tmp_path)
         assert cache.get("https://pypi.org/simple", "numpy") is None
+
+    def test_repeated_get_reuses_parsed_candidates_and_sees_other_writer(
+        self, tmp_path, monkeypatch,
+    ):
+        writer = ParsedManifestCache(tmp_path)
+        first = _make_wheel_candidate(version="1.26.0")
+        writer.put("https://pypi.org/simple", "numpy", [first], etag="first")
+
+        reader = ParsedManifestCache(tmp_path)
+        from pipenv.resolver import manifest_cache
+
+        original_parse = manifest_cache._candidate_from_json
+        parse_count = 0
+
+        def counting_parse(data):
+            nonlocal parse_count
+            parse_count += 1
+            return original_parse(data)
+
+        monkeypatch.setattr(manifest_cache, "_candidate_from_json", counting_parse)
+        assert reader.get("https://pypi.org/simple", "numpy").candidates == (first,)
+        assert reader.get("https://pypi.org/simple", "numpy").candidates == (first,)
+        assert parse_count == 1
+
+        second = _make_wheel_candidate(version="1.27.0")
+        writer.put("https://pypi.org/simple", "numpy", [second], etag="second")
+        assert reader.get("https://pypi.org/simple", "numpy").candidates == (second,)
+        assert parse_count == 2
 
     def test_get_returns_none_after_invalidate(self, tmp_path):
         cache = ParsedManifestCache(tmp_path)
@@ -680,7 +718,9 @@ class TestCorruptionRobustness:
             return original_read_bytes(self)
 
         monkeypatch.setattr(Path, "read_bytes", _boom_read)
-        assert cache.get("https://pypi.org/simple", "numpy") is None
+        # The writer has the parsed entry in memory; a new reader must
+        # take the disk path and treat the read error as a miss.
+        assert ParsedManifestCache(tmp_path).get("https://pypi.org/simple", "numpy") is None
 
     def test_invalidate_swallows_os_error(self, tmp_path, monkeypatch):
         """``invalidate`` swallows non-FileNotFoundError OSError too."""

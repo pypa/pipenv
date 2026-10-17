@@ -117,6 +117,31 @@ def _make_session_router(routes):
 class TestPEP658FastPath:
     """Fetch via ``<wheel_url>.metadata`` when the index advertises it."""
 
+    def test_candidate_advertisement_uses_sidecar_without_wheel_probe(self):
+        from dataclasses import replace
+
+        from pipenv.resolver.pure_python_metadata import fetch_metadata
+
+        body = NUMPY_METADATA_TEXT.encode("utf-8")
+        digest = hashlib.sha256(body).hexdigest()
+        candidate = replace(
+            _make_wheel_candidate(),
+            url="https://example.org/wheels/numpy-1.26.0-py3-none-any.whl?token=abc",
+            core_metadata=digest,
+        )
+        sidecar_url = (
+            "https://example.org/wheels/"
+            "numpy-1.26.0-py3-none-any.whl.metadata?token=abc"
+        )
+        session = _make_session_router(
+            [("GET", sidecar_url, _make_response(data=body))]
+        )
+
+        assert fetch_metadata(candidate, session).version == "1.26.0"
+        assert [(method, url) for method, url, _ in session._call_log] == [
+            ("GET", sidecar_url)
+        ]
+
     def test_pep658_fast_path_returns_parsed_metadata(self):
         from pipenv.resolver.pure_python_metadata import (
             CoreMetadata,

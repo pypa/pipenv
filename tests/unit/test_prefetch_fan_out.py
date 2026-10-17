@@ -27,7 +27,6 @@ from unittest.mock import MagicMock
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Fake-project plumbing — minimal duck-types matching what the helper
 # touches via ``project.<attr>``.  Kept inline (no fixture sprawl) so the
@@ -343,6 +342,34 @@ def test_setting_disabled_short_circuits(install_recording_imports, tmp_path):
     )
 
     assert _RecordingFetcher.instances == []
+
+
+@pytest.mark.utils
+def test_pure_python_default_prefetches_unless_disabled(
+    install_recording_imports, tmp_path
+):
+    from pipenv.routines.lock import _prefetch_index_manifests_if_enabled
+
+    project = _FakeProject(
+        sources=[
+            {"url": "https://pypi.org/simple", "verify_ssl": True, "name": "pypi"},
+        ],
+        packages={"packages": {"six": "*"}},
+        cache_dir=str(tmp_path / "cache"),
+        prefetch=None,
+    )
+
+    _prefetch_index_manifests_if_enabled(
+        project, ["default"], clear=False, default_enabled=True
+    )
+    assert len(_RecordingFetcher.populate_calls) == 1
+
+    _RecordingFetcher.populate_calls.clear()
+    project.settings = _FakeSettings(prefetch_index_manifests=False)
+    _prefetch_index_manifests_if_enabled(
+        project, ["default"], clear=False, default_enabled=True
+    )
+    assert _RecordingFetcher.populate_calls == []
 
 
 @pytest.mark.utils

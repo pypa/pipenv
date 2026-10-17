@@ -22,9 +22,8 @@ Test pinning notes
 * **Relative URL resolution semantics:** ``urljoin`` pops one path
   segment per ``..``.  To reach ``/files/`` from
   ``/simple/foo/`` you need ``../../files/``.
-* **PEP 658 metadata fields ignored:** ``data-core-metadata`` /
-  ``data-dist-info-metadata`` are observed by the HTML parser but not
-  threaded into the :class:`Candidate` in Phase 1.
+* **PEP 658 metadata fields:** JSON and HTML advertisements are
+  threaded into the candidate so the resolver can fetch a sidecar.
 * **Anchor text vs href filename:** when they disagree, the parser
   uses the anchor's inner text (with the href filename as fallback if
   the anchor had no text).
@@ -113,6 +112,36 @@ class TestPep691JsonFixtures:
 
 
 class TestPep691JsonSynthetic:
+    def test_metadata_sidecar_advertisement_json_and_html(self):
+        digest = "a" * 64
+        payload = {
+            "name": "foo",
+            "files": [{
+                "filename": "foo-1.0-py3-none-any.whl",
+                "url": "https://x/foo-1.0-py3-none-any.whl",
+                "core-metadata": {"sha256": digest},
+            }],
+        }
+        json_candidate = _parse_pep691_json(
+            json.dumps(payload).encode(), "https://x/simple/foo/"
+        )[0]
+        html_candidate = _parse_pep503_html(
+            (
+                '<a href="https://x/foo-1.0-py3-none-any.whl" '
+                f'data-core-metadata="sha256={digest}">'
+                'foo-1.0-py3-none-any.whl</a>'
+            ).encode(),
+            "https://x/simple/foo/",
+        )[0]
+        assert json_candidate.core_metadata == digest
+        assert html_candidate.core_metadata == digest
+        payload["files"][0].pop("core-metadata")
+        payload["files"][0]["dist-info-metadata"] = True
+        legacy = _parse_pep691_json(
+            json.dumps(payload).encode(), "https://x/simple/foo/"
+        )[0]
+        assert legacy.core_metadata is True
+
     def _minimal_payload(self, **overrides):
         payload = {
             "meta": {"api-version": "1.0"},
