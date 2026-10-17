@@ -1,3 +1,28 @@
+2026.10.0 (2026-10-17)
+======================
+pipenv 2026.10.0 (2026-10-17)
+=============================
+
+
+Bug Fixes
+---------
+
+- Raise an error when installing from a ``pylock.toml`` whose ``requires-python``, ``environments``, or a package's ``requires-python`` excludes the target Python, as PEP 751 requires.  `#6732 <https://github.com/pypa/pipenv/issues/6732>`_
+- Install the entry whose marker matches the target Python when ``pylock.toml`` lists a package more than once,
+  instead of the last entry, and raise an error when more than one entry matches.  `#6734 <https://github.com/pypa/pipenv/issues/6734>`_
+- Accept a ``pylock.toml`` with a newer minor ``lock-version`` (e.g. 1.1) with a warning instead of rejecting it,
+  as PEP 751 requires an error only for an unsupported major version.  `#6735 <https://github.com/pypa/pipenv/issues/6735>`_
+- Keep path, editable, VCS and file dependencies in ``pylock.toml`` as PEP 751 ``directory``, ``vcs`` and ``archive``
+  sources, and install them from those sources. Previously they were written as plain index packages, so installing
+  from ``pylock.toml`` looked the name up on the package index.  `#6737 <https://github.com/pypa/pipenv/issues/6737>`_
+
+Vendored Libraries
+------------------
+
+- Bump vendored packages: ``build`` to ``1.6.1``, ``packaging`` to ``26.3``,
+  ``pyproject_hooks`` to ``1.3.3``, ``python-dotenv`` to ``1.2.4``, and
+  ``plette`` to ``2.4.0``.
+
 2026.9.1 (2026-10-11)
 =====================
 pipenv 2026.9.1 (2026-10-11)
