@@ -1,0 +1,2 @@
+Install the entry whose marker matches the target Python when ``pylock.toml`` lists a package more than once,
+instead of the last entry, and raise an error when more than one entry matches.

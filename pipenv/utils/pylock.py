@@ -174,6 +174,15 @@ class PylockFile:
                 elif section == "develop":
                     package["marker"] = dev_marker
 
+                # Packages from a local path, a VCS or a URL don't come from the
+                # index: record where they come from (PEP 751 packages.directory,
+                # packages.vcs, packages.archive) instead of an index and wheels.
+                source = _pylock_source_from_lockfile_entry(package_data)
+                if source:
+                    package.update(source)
+                    pylock_data["packages"].append(package)
+                    continue
+
                 # Add package index URL (PEP 751 packages.index)
                 # Use the index from package_data if specified, otherwise default
                 if "index" in package_data:
@@ -751,8 +760,80 @@ class PylockFile:
                     f"{requires_python!r} of package {package.get('name')!r}"
                 )
 
-    def convert_to_pipenv_lockfile(self) -> Dict[str, Any]:
+    def _narrow_package_entries(
+        self, environment: Optional[Dict[str, str]] = None
+    ) -> List[Dict[str, Any]]:
+        """Narrow packages listed more than once to the entry for the environment.
+
+        PEP 751 lets a lock list a package several times with different
+        markers (e.g. one version per Python range), and requires all entries
+        to narrow down to a single one at install time. Pipfile.lock holds one
+        entry per name, so pick it here instead of keeping whichever comes last.
+
+        Args:
+            environment: Marker variables that override the running
+                interpreter's (e.g. the target virtualenv's Python version)
+
+        Returns:
+            One package entry per name, in the order of their first entry
+
+        Raises:
+            PylockFormatError: If more than one entry for a name matches
+        """
+        from pipenv.patched.pip._vendor.packaging.markers import (
+            InvalidMarker,
+            Marker,
+        )
+
+        entries_by_name: Dict[str, List[Dict[str, Any]]] = {}
+        for package in self.packages:
+            name = package.get("name")
+            if name:
+                entries_by_name.setdefault(name.lower(), []).append(package)
+
+        marker_environment = {
+            **(environment or {}),
+            "extras": frozenset(self.extras),
+            "dependency_groups": frozenset(self.dependency_groups)
+            | frozenset(self.default_groups),
+        }
+
+        def matches(package: Dict[str, Any]) -> bool:
+            marker = package.get("marker")
+            if not marker:
+                return True
+            try:
+                return Marker(marker).evaluate(
+                    environment=marker_environment, context="lock_file"
+                )
+            except InvalidMarker:
+                return True
+
+        result = []
+        for name, entries in entries_by_name.items():
+            if len(entries) == 1:
+                result.append(entries[0])
+                continue
+            matching = [package for package in entries if matches(package)]
+            if len(matching) > 1:
+                raise PylockFormatError(
+                    f"Package {name!r} has {len(matching)} entries that match the "
+                    "environment; they must narrow down to a single entry"
+                )
+            # With no match, keep an entry whose marker excludes the
+            # environment, so the package is skipped like a single entry.
+            result.append(matching[0] if matching else entries[0])
+        return result
+
+    def convert_to_pipenv_lockfile(
+        self, environment: Optional[Dict[str, str]] = None
+    ) -> Dict[str, Any]:
         """Convert the pylock.toml file to a Pipfile.lock format.
+
+        Args:
+            environment: Marker variables that override the running
+                interpreter's, used to pick between entries of a package
+                listed more than once
 
         Returns:
             A dictionary in Pipfile.lock format
@@ -800,10 +881,8 @@ class PylockFile:
             ]
 
         # Process packages
-        for package in self.packages:
+        for package in self._narrow_package_entries(environment):
             name = package.get("name")
-            if not name:
-                continue
 
             # Determine if this is a dev package based on markers
             # This is a simplification - in reality we'd need to parse the markers
@@ -815,10 +894,13 @@ class PylockFile:
                     is_dev = True
 
             # Create the package entry
-            package_entry = {}
+            package_entry = _lockfile_source_from_pylock_package(package)
 
             # Add version if present, otherwise use wildcard for Pipfile.lock compatibility
-            if "version" in package:
+            if package_entry:
+                # Local, VCS and URL entries are pinned by their source, not a version
+                pass
+            elif "version" in package:
                 package_entry["version"] = f"=={package['version']}"
             else:
                 # No version in pylock.toml means any version is acceptable
@@ -850,6 +932,94 @@ class PylockFile:
             lockfile[section][name] = package_entry
 
         return lockfile
+
+
+VCS_TYPES = ("git", "hg", "svn", "bzr")
+ARCHIVE_SUFFIXES = (".whl", ".zip", ".tar.gz", ".tgz", ".tar.bz2", ".tar.xz", ".tar")
+
+
+def _pylock_source_from_lockfile_entry(package_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Map a Pipfile.lock path, VCS or file entry to PEP 751 package fields."""
+    vcs_type = next((vcs for vcs in VCS_TYPES if vcs in package_data), None)
+    if vcs_type:
+        vcs = {"type": vcs_type, "url": package_data[vcs_type]}
+        if package_data.get("ref"):
+            vcs["commit-id"] = package_data["ref"]
+        if package_data.get("subdirectory"):
+            vcs["subdirectory"] = package_data["subdirectory"]
+        return {"vcs": vcs}
+
+    if "path" not in package_data and "file" not in package_data:
+        return {}
+
+    location = package_data.get("path") or package_data.get("file")
+    if "file" in package_data or location.lower().endswith(ARCHIVE_SUFFIXES):
+        archive = {"path" if "path" in package_data else "url": location}
+        hashes = {
+            algorithm: digest
+            for algorithm, _, digest in (
+                value.partition(":") for value in package_data.get("hashes", [])
+            )
+            if digest
+        }
+        if hashes:
+            archive["hashes"] = hashes
+        return {"archive": archive}
+
+    directory = {"path": location}
+    if package_data.get("editable"):
+        directory["editable"] = True
+    if package_data.get("subdirectory"):
+        directory["subdirectory"] = package_data["subdirectory"]
+    return {"directory": directory}
+
+
+def _lockfile_path(path: str) -> str:
+    """Return a pylock.toml path in the form Pipfile.lock uses for local paths.
+
+    PEP 751 writes relative paths as plain ``localpkg``, which pipenv would
+    read as a package name, so relative paths get a leading ``./``.
+    """
+    if Path(path).is_absolute() or path.startswith(("./", "../", ".\\", "..\\")):
+        return path
+    return f"./{path}"
+
+
+def _lockfile_source_from_pylock_package(package: Dict[str, Any]) -> Dict[str, Any]:
+    """Map PEP 751 directory, VCS and archive fields to a Pipfile.lock entry."""
+    if "vcs" in package:
+        vcs = package["vcs"]
+        entry = {vcs["type"]: vcs.get("url") or vcs.get("path")}
+        ref = vcs.get("commit-id") or vcs.get("requested-revision")
+        if ref:
+            entry["ref"] = ref
+        if vcs.get("subdirectory"):
+            entry["subdirectory"] = vcs["subdirectory"]
+        return entry
+
+    if "directory" in package:
+        directory = package["directory"]
+        entry = {"path": _lockfile_path(directory["path"])}
+        if directory.get("editable"):
+            entry = {"editable": True, **entry}
+        if directory.get("subdirectory"):
+            entry["subdirectory"] = directory["subdirectory"]
+        return entry
+
+    if "archive" in package:
+        archive = package["archive"]
+        entry = (
+            {"file": archive["url"]}
+            if "url" in archive
+            else {"path": _lockfile_path(archive["path"])}
+        )
+        if archive.get("hashes"):
+            entry["hashes"] = [
+                f"{algorithm}:{digest}" for algorithm, digest in archive["hashes"].items()
+            ]
+        return entry
+
+    return {}
 
 
 def find_pylock_file(directory: Union[str, Path] = None) -> Optional[Path]:

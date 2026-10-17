@@ -135,6 +135,19 @@ class Lockfile:
 
     # ---- content readers --------------------------------------------------
 
+    def _pylock_marker_environment(self):
+        """Marker variables of the target virtualenv, for reading ``pylock.toml``.
+
+        A package can be listed more than once in ``pylock.toml``; the entry is
+        picked for the virtualenv's Python rather than the one running pipenv.
+        """
+        # Imported lazily: the install routine imports this module.
+        from pipenv.routines.install import _target_marker_environment
+
+        return _target_marker_environment(
+            self._project, allow_global=bool(self._project.s.PIPENV_USE_SYSTEM)
+        )
+
     @property
     def content(self):
         """Returns the lockfile content, checking ``pylock.toml`` first.
@@ -147,7 +160,9 @@ class Lockfile:
             try:
                 if self.pylock_exists:
                     pylock = PylockFile.from_path(self.pylock_location)
-                    return pylock.convert_to_pipenv_lockfile()
+                    return pylock.convert_to_pipenv_lockfile(
+                        environment=self._pylock_marker_environment()
+                    )
             except Exception as e:
                 err.print(f"[bold yellow]Error loading pylock.toml: {e}[/bold yellow]")
         return self.load()
@@ -176,7 +191,9 @@ class Lockfile:
         if not lockfile_loaded and self.pylock_exists:
             try:
                 pylock = PylockFile.from_path(self.pylock_location)
-                lockfile = pylock.convert_to_pipenv_lockfile()
+                lockfile = pylock.convert_to_pipenv_lockfile(
+                    environment=self._pylock_marker_environment()
+                )
                 lockfile_loaded = True
             except Exception:
                 # An unreadable pylock falls through to deriving lock data
