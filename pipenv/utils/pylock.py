@@ -12,6 +12,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
+from urllib.parse import urljoin
 
 from pipenv.utils import err
 from pipenv.utils.locking import atomic_open_for_write
@@ -124,6 +125,7 @@ class PylockFile:
         # Extract sources and build index URL map
         sources = meta.get("sources", [])
         index_url_map = {}  # Map source name to URL
+        source_map = {}
         default_index = "https://pypi.org/simple/"
         if sources:
             for source in sources:
@@ -132,6 +134,7 @@ class PylockFile:
                 if source_name and source_url:
                     # Convert to simple API URL format
                     index_url_map[source_name] = source_url.rstrip("/") + "/"
+                    source_map[source_name] = source
             # Use the first source as default
             if sources and sources[0].get("url"):
                 default_index = sources[0]["url"].rstrip("/") + "/"
@@ -191,24 +194,35 @@ class PylockFile:
                 else:
                     package["index"] = default_index
 
-                # Add hashes if present, with proper wheel/sdist structure
-                if "hashes" in package_data:
-                    wheels = []
-                    for hash_value in package_data["hashes"]:
-                        if hash_value.startswith("sha256:"):
-                            hash_hex = hash_value[7:]  # Remove "sha256:" prefix
-                            version_str = package.get("version", "0.0.0")
-                            wheel_name = (
-                                f"{name.replace('-', '_')}-{version_str}-py3-none-any.whl"
-                            )
-                            wheel = {
-                                "name": wheel_name,
-                                "url": f"{package['index']}{name}/{wheel_name}",
-                                "hashes": {"sha256": hash_hex},
-                            }
-                            wheels.append(wheel)
+                # A Pipfile.lock hash does not identify a filename or URL. Match
+                # it against the actual files in the package's Simple API page.
+                hashes = package_data.get("hashes", [])
+                if hashes:
+                    source_info = source_map.get(package_data.get("index"))
+                    if source_info is None and sources:
+                        source_info = sources[0]
+                    files = _files_for_lockfile_hashes(
+                        name, package["index"], hashes, source_info
+                    )
+                    wheels = [item for item in files if item["name"].endswith(".whl")]
+                    sdists = [item for item in files if not item["name"].endswith(".whl")]
                     if wheels:
                         package["wheels"] = wheels
+                    if sdists:
+                        package["sdist"] = sdists[0]
+
+                    # Keep hashes that could not be assigned to a real file for
+                    # Pipenv's round trip. They cannot be portable PEP 751 file
+                    # entries without an artifact identity.
+                    recorded_files = wheels + sdists[:1]
+                    matched = {
+                        f"{algorithm}:{digest}"
+                        for item in recorded_files
+                        for algorithm, digest in item["hashes"].items()
+                    }
+                    unmatched = sorted(set(hashes) - matched)
+                    if unmatched:
+                        package["tool"] = {"pipenv": {"hashes": unmatched}}
 
                 pylock_data["packages"].append(package)
 
@@ -920,8 +934,9 @@ class PylockFile:
                 and "sha256" in package["sdist"]["hashes"]
             ):
                 hashes.append(f"sha256:{package['sdist']['hashes']['sha256']}")
+            hashes.extend(package.get("tool", {}).get("pipenv", {}).get("hashes", []))
             if hashes:
-                package_entry["hashes"] = hashes
+                package_entry["hashes"] = sorted(set(hashes))
 
             # Add marker if present
             if marker:
@@ -932,6 +947,76 @@ class PylockFile:
             lockfile[section][name] = package_entry
 
         return lockfile
+
+
+def _files_for_lockfile_hashes(name, index_url, hashes, source=None):
+    """Find actual distribution files for hashes in a Pipfile.lock entry.
+
+    The Simple API supplies file identities and hashes for both PyPI and
+    private indexes. A hash with no matching index file cannot be represented
+    as a PEP 751 wheel or sdist.
+    """
+    from pipenv.patched.pip._internal.index.collector import IndexContent, parse_links
+    from pipenv.patched.pip._internal.utils.misc import remove_auth_from_url
+    from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+    from pipenv.patched.pip._vendor.requests.exceptions import RequestException
+    from pipenv.utils.internet import get_requests_session
+    from pipenv.utils.shell import expand_url_credentials
+
+    wanted = {value[7:].lower() for value in hashes if value.startswith("sha256:")}
+    if not wanted:
+        return []
+
+    project_url = urljoin(
+        expand_url_credentials(index_url.rstrip("/") + "/"),
+        canonicalize_name(name) + "/",
+    )
+    try:
+        with get_requests_session(
+            max_retries=0,
+            verify_ssl=source.get("verify_ssl", True) if source else True,
+            source=expand_url_credentials(index_url),
+        ) as session:
+            response = session.get(
+                project_url,
+                headers={
+                    "Accept": "application/vnd.pypi.simple.v1+json, "
+                    "application/vnd.pypi.simple.v1+html;q=0.2, text/html;q=0.1"
+                },
+                timeout=5,
+            )
+            response.raise_for_status()
+            page = IndexContent(
+                response.content,
+                response.headers.get("Content-Type", "text/html"),
+                response.encoding,
+                response.url,
+                cache_link_parsing=False,
+            )
+            links = list(parse_links(page))
+    except (RequestException, ValueError, OSError):
+        return []
+
+    files = []
+    seen = set()
+    for link in links:
+        digest = link._hashes.get("sha256")
+        if not digest or digest.lower() not in wanted:
+            continue
+        filename = link.filename
+        if not filename.endswith((".whl", ".tar.gz", ".zip", ".tar.bz2", ".tar.xz", ".tgz")):
+            continue
+        if digest.lower() in seen:
+            continue
+        seen.add(digest.lower())
+        files.append(
+            {
+                "name": filename,
+                "url": remove_auth_from_url(link.url_without_fragment),
+                "hashes": {"sha256": digest.lower()},
+            }
+        )
+    return sorted(files, key=lambda item: item["name"])
 
 
 VCS_TYPES = ("git", "hg", "svn", "bzr")
