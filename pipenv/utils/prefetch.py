@@ -109,7 +109,7 @@ def prefetch_wheels(
     # Local imports keep the cold-import cost of pipenv unaffected
     # for callers that never hit install/sync.
     try:
-        from pipenv.patched.pip._vendor import urllib3
+        from pipenv.patched.pip._vendor import requests, urllib3
         from pipenv.resolver.fetcher import ParallelFetcher
         from pipenv.resolver.manifest_cache import ParsedManifestCache
         from pipenv.resolver.pep691 import PEP691Client
@@ -171,11 +171,14 @@ def prefetch_wheels(
     # kwargs that bare urllib3.PoolManager.request() does not accept.
     # Keep urllib3 for wheel downloads so the existing download path
     # remains unchanged.
-    cache_dir_holder = tempfile.mkdtemp(prefix="pipenv-prefetch-cache-")
+    # The pure-Python resolver has just populated this cache during an
+    # ``install -r`` resolve.  Reuse those manifests instead of fetching
+    # every package's simple-index page a second time before installation.
+    # ParallelFetcher still refreshes expired entries, and wheel bytes are
+    # checked against the lockfile hashes below.
+    manifest_cache_root = Path(project.s.PIPENV_CACHE_DIR) / "pipenv-manifests"
     download_dir = Path(tempfile.mkdtemp(prefix="pipenv-prefetch-"))
     try:
-        import requests
-
         manifest_session = requests.Session()
         manifest_adapter = requests.adapters.HTTPAdapter(
             pool_connections=max_workers,
@@ -189,7 +192,7 @@ def prefetch_wheels(
             maxsize=max_workers,
         )
         try:
-            cache = ParsedManifestCache(Path(cache_dir_holder))
+            cache = ParsedManifestCache(manifest_cache_root)
             client = PEP691Client(manifest_session)
             fetcher = ParallelFetcher(client, cache, max_workers=max_workers)
 
@@ -241,11 +244,9 @@ def prefetch_wheels(
         finally:
             manifest_session.close()
             download_session.clear()
-    finally:
-        # The manifest cache temp dir is throwaway scratch; the
-        # download_dir survives (consumed by pip via --find-links) or
-        # has already been cleaned in the no-success branch.
-        shutil.rmtree(cache_dir_holder, ignore_errors=True)
+    except Exception:
+        shutil.rmtree(download_dir, ignore_errors=True)
+        raise
 
 
 def _query_target_tags(target_python: str) -> frozenset[tuple[str, str, str]] | None:
