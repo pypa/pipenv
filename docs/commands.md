@@ -6,6 +6,7 @@ This document provides a comprehensive reference for all Pipenv commands, includ
 
 | Command | Description |
 |---------|-------------|
+| `init` | Create a Pipfile for a new project, prompting for its settings |
 | `install` | Install packages or create/update virtual environment |
 | `uninstall` | Remove packages from virtual environment and Pipfile |
 | `lock` | Generate Pipfile.lock with dependencies and hashes |
@@ -22,6 +23,43 @@ This document provides a comprehensive reference for all Pipenv commands, includ
 | `requirements` | Generate a requirements.txt from Pipfile.lock |
 | `scripts` | List scripts defined in the environment |
 | `open` | Open a Python module in your editor |
+
+## init
+
+The `init` command creates a Pipfile in the current directory by walking you through a short dialog, similar to `npm init`. It asks only about settings a Pipfile records:
+
+1. Whether to import packages from a `requirements.txt` in the directory (if one exists)
+2. The Python version (defaults to the detected interpreter, or `--python`)
+3. The package index URL (defaults to PyPI, or your pip configuration)
+4. Packages and dev packages to add, space-separated (e.g. `requests 'flask[async]>=3'`)
+5. Whether to create the virtualenv and lock right away
+
+Project metadata such as name, version and author belongs in `pyproject.toml` and is not part of the dialog.
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `-y`, `--yes` | Accept every default without prompting. Implied when stdin is not a terminal. |
+| `--install` / `--no-install` | Create the virtualenv and lock after writing the Pipfile, or skip it. By default you are asked; with `--yes` it is skipped. |
+| `--python VERSION` | Python version or interpreter path to record and use. |
+
+`init` refuses to overwrite an existing Pipfile in the current directory. A Pipfile in a *parent* directory does not stop it, so you can start a new project inside another one.
+
+### Examples
+
+```bash
+# Answer the dialog
+$ pipenv init
+
+# Non-interactive: write a Pipfile with defaults (and import requirements.txt if present)
+$ pipenv init --yes
+
+# Non-interactive, then create the virtualenv and lock
+$ pipenv init --yes --install --python 3.12
+```
+
+Packages given by path, URL or VCS reference aren't accepted in the dialog; add those afterwards with `pipenv install`.
 
 ## install
 

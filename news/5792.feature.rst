@@ -1,0 +1,1 @@
+Add ``pipenv init``, which creates a Pipfile for a new project through a short dialog (requirements.txt import, Python version, package index, packages and dev packages, and whether to create the virtualenv and lock). ``--yes`` accepts the defaults without prompting, and ``--install`` / ``--no-install`` control the follow-up install.
