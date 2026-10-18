@@ -1,3 +1,0 @@
-Fix ``pipenv lock`` failing with ``Invalid requirement: 'colorama*'`` when a default package has markers that exclude the current platform,
-such as ``colorama = {version = "*", markers = "sys_platform == 'win32'"}``, and the Pipfile also has ``[dev-packages]``.
-The default section's locked ``"*"`` entry was turned into an invalid constraint for the develop resolution.

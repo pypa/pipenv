@@ -1,3 +1,0 @@
-``pipenv requirements --no-lock`` now writes a bare ``$VAR`` in a source URL as ``${VAR}``, as ``pipenv requirements``
-already does from the lockfile, so pip can expand it. Previously the ``--no-lock`` output kept ``$VAR``, which pip leaves
-unexpanded.

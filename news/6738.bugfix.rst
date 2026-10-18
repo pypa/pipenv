@@ -1,3 +1,0 @@
-Write actual distribution filenames and URLs to generated ``pylock.toml`` files
-by matching locked hashes against the package index.
-Avoid fabricated wheel entries when an artifact cannot be identified.

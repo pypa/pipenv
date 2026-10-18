@@ -1,3 +1,28 @@
+2026.10.1 (2026-10-18)
+======================
+pipenv 2026.10.1 (2026-10-18)
+=============================
+
+
+Bug Fixes
+---------
+
+- Write actual distribution filenames and URLs to generated ``pylock.toml`` files
+  by matching locked hashes against the package index.
+  Avoid fabricated wheel entries when an artifact cannot be identified.  `#6738 <https://github.com/pypa/pipenv/issues/6738>`_
+- ``pipenv requirements --no-lock`` now writes a bare ``$VAR`` in a source URL as ``${VAR}``, as ``pipenv requirements``
+  already does from the lockfile, so pip can expand it. Previously the ``--no-lock`` output kept ``$VAR``, which pip leaves
+  unexpanded.  `#6741 <https://github.com/pypa/pipenv/issues/6741>`_
+- Keep the platform and Python version conditions of ``pylock.toml`` markers that also name a dependency group,
+  such as ``sys_platform == "win32" and "dev" in dependency_groups`` as written by ``pdm export -f pylock``.
+  Previously the whole marker was dropped, so installing from such a ``pylock.toml`` installed those packages on every platform.  `#6742 <https://github.com/pypa/pipenv/issues/6742>`_
+- Write a single ``pylock.toml`` entry for a package that ``Pipfile.lock`` lists in both ``default`` and ``develop``.
+  Previously both copies were written, so installing with the dev group failed: ``uv pip install -r pylock.toml --group dev``
+  reported multiple active entries, and Pipenv itself could not load the file (``has 2 entries that match the environment``).  `#6743 <https://github.com/pypa/pipenv/issues/6743>`_
+- Fix ``pipenv lock`` failing with ``Invalid requirement: 'colorama*'`` when a default package has markers that exclude the current platform,
+  such as ``colorama = {version = "*", markers = "sys_platform == 'win32'"}``, and the Pipfile also has ``[dev-packages]``.
+  The default section's locked ``"*"`` entry was turned into an invalid constraint for the develop resolution.  `#6744 <https://github.com/pypa/pipenv/issues/6744>`_
+
 2026.10.0 (2026-10-17)
 ======================
 pipenv 2026.10.0 (2026-10-17)
