@@ -10,7 +10,18 @@ from contextlib import contextmanager
 from functools import lru_cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
-from typing import TYPE_CHECKING, Any, AnyStr, Dict, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    List,
+    Mapping,
+    Optional,
+    Sequence,
+    Tuple,
+    Union,
+    overload,
+)
 from urllib.parse import unquote, urlparse, urlsplit, urlunparse, urlunsplit
 
 from pipenv.exceptions import PipenvUsageError
@@ -34,6 +45,7 @@ from pipenv.patched.pip._vendor.packaging.version import parse
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._internal.commands.install import InstallCommand
+    from pipenv.patched.pip._internal.models.link import Link
 from pipenv.utils import err
 from pipenv.utils.fileutils import (
     create_tracked_tempdir,
@@ -163,7 +175,7 @@ def pep423_name(name):
     return name
 
 
-def translate_markers(pipfile_entry):
+def translate_markers(pipfile_entry: Mapping[str, Any]) -> Dict[str, Any]:
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
     allowed_marker_keys = ["markers"] + list(default_environment().keys())
@@ -254,6 +266,12 @@ def extract_vcs_url(vcs_url):
     return clean_url
 
 
+@overload
+def add_ssh_scheme_to_git_uri(uri: str) -> str: ...
+@overload
+def add_ssh_scheme_to_git_uri(uri: bytes) -> bytes: ...
+@overload
+def add_ssh_scheme_to_git_uri(uri: None) -> None: ...
 def add_ssh_scheme_to_git_uri(uri: str | bytes | None) -> str | bytes | None:
     """Clean VCS URIs from pip format, preserving ``None`` unchanged."""
     if uri is None:
@@ -959,7 +977,7 @@ def get_pip_command() -> "InstallCommand":
 
 
 def determine_vcs_revision_hash(
-    package: InstallRequirement, vcs_type: str, revision: str
+    package: InstallRequirement, vcs_type: str, revision: str | None
 ):
     from pipenv.patched.pip._internal.utils.misc import hide_url
 
@@ -1078,8 +1096,7 @@ def find_package_name_from_filename(filename, file):
     return None
 
 
-def create_link(link):
-    # type: (AnyStr) -> Link
+def create_link(link: str) -> "Link":
     from pipenv.patched.pip._internal.models.link import Link
 
     if not isinstance(link, str):
@@ -1153,7 +1170,7 @@ def has_name_with_extras(requirement):
     return match is not None
 
 
-def expand_env_variables(line) -> AnyStr:
+def expand_env_variables(line: str) -> str:
     """Expand the env vars in a line following pip's standard.
     https://pip.pypa.io/en/stable/reference/pip_install/#id10.
 
@@ -1182,7 +1199,7 @@ def expansive_install_req_from_line(
     user_supplied: bool = False,
     config_settings: Optional[Dict[str, Union[str, List[str]]]] = None,
     expand_env: bool = False,
-) -> (InstallRequirement, str):
+) -> Tuple[InstallRequirement, Optional[str]]:
     """Create an InstallRequirement from a pip-style requirement line.
     InstallRequirement is a pip internal construct that represents an installable requirement,
     and is used as an intermediary between the pip command and the resolver.
@@ -1407,12 +1424,14 @@ def _validate_pipfile_entry(name: str, pipfile_dict: Dict[str, Any]) -> None:
         )
 
 
-def install_req_from_pipfile(name: str, pipfile: Dict[str, Any]) -> Tuple[Any, Any, str]:
+def install_req_from_pipfile(
+    name: str, pipfile: Union[str, Dict[str, Any]]
+) -> Tuple[Any, Any, str]:
     """
     Creates an InstallRequirement from a name and a pipfile entry.
     Enhanced to handle environment variables within VCS URLs.
     """
-    _pipfile = {}
+    _pipfile: Dict[str, Any] = {}
     vcs = None
 
     if hasattr(pipfile, "keys"):

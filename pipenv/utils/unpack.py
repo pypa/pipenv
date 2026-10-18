@@ -44,7 +44,7 @@ def unpack_url(
     verbosity: int,
     download_dir: Optional[str] = None,
     hashes: Optional[Hashes] = None,
-) -> Optional[File]:
+) -> File:
     """Unpack link into location, downloading if required.
 
     :param hashes: A Hashes object, one of whose embedded hashes must match,

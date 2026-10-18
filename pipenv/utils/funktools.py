@@ -318,7 +318,7 @@ def _find_icacls_exe():
     return None
 
 
-def set_write_bit(fn: str) -> None:
+def set_write_bit(fn: str | Path) -> None:
     """Set read-write permissions for the current user on the target path. Fail
     silently if the path doesn't exist.
 
@@ -366,9 +366,9 @@ def set_write_bit(fn: str) -> None:
                 return
 
     if not path.is_dir():
-        for path in [fn, Path(fn).parent]:
+        for target in [fn, Path(fn).parent]:
             try:
-                os.chflags(path, 0)
+                os.chflags(target, 0)  # type: ignore[attr-defined]
             except AttributeError:  # noqa: PERF203
                 pass
         return None

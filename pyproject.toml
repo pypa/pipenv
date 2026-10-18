@@ -333,6 +333,8 @@ showcontent = true
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = "skip"
-html_report = "mypyhtml"
-python_version = "3.7"
-mypy_path = "typeshed/pyi:typeshed/imports"
+python_version = "3.10"
+files = [ "pipenv" ]
+exclude = [ "^pipenv/vendor/", "^pipenv/patched/" ]
+# Bodies of unannotated functions are not checked yet; silence the reminder.
+disable_error_code = [ "annotation-unchecked" ]

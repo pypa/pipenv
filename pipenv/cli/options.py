@@ -2,6 +2,7 @@ import argparse
 import os
 import re
 from pathlib import Path
+from typing import NoReturn
 
 from pipenv.project import Project
 from pipenv.utils.internet import is_valid_url
@@ -500,7 +501,7 @@ class _PipenvArgumentParser(argparse.ArgumentParser):
     """ArgumentParser subclass that appends 'Did you mean …?' suggestions
     when the user types an unrecognised subcommand name."""
 
-    def error(self, message: str) -> None:
+    def error(self, message: str) -> NoReturn:
         import difflib
 
         m = re.search(r"invalid choice: '([^']+)'", message)

@@ -43,7 +43,7 @@ from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if typing.TYPE_CHECKING:
     from types import ModuleType
-    from typing import ContextManager, Generator
+    from typing import Any, Generator, Iterator
 
     from pipenv.project import Project, TPipfile, TSource
     from pipenv.vendor import tomlkit
@@ -54,10 +54,10 @@ BASE_WORKING_SET = importlib_metadata.distributions()
 class Environment:
     def __init__(
         self,
-        prefix: str | None = None,
+        prefix: str | Path | None = None,
         python: str | None = None,
         is_venv: bool = False,
-        base_working_set: list[importlib_metadata.Distribution] = None,
+        base_working_set: Iterable[importlib_metadata.Distribution] | None = None,
         pipfile: tomlkit.toml_document.TOMLDocument | TPipfile | None = None,
         sources: list[TSource] | None = None,
         project: Project | None = None,
@@ -65,7 +65,7 @@ class Environment:
         super().__init__()
         self._modules = {"pipenv": pipenv}
         self.base_working_set = base_working_set if base_working_set else BASE_WORKING_SET
-        prefix = normalize_path(prefix)
+        prefix = normalize_path(prefix if prefix else sys.prefix)
         self._python = None
         if python is not None:
             self._python = Path(python).absolute().as_posix()
@@ -79,30 +79,20 @@ class Environment:
         if project and not pipfile:
             pipfile = project.pipfile.parsed
         self.pipfile = pipfile
-        self.extra_dists = []
+        self.extra_dists: list[importlib_metadata.Distribution] = []
         if self.is_venv and prefix is not None and not Path(prefix).exists():
             return
         self.prefix = Path(prefix if prefix else sys.prefix)
-        self._base_paths = {}
+        self._base_paths: dict[str, Any] | None = {}
         if self.is_venv:
             self._base_paths = self.get_paths()
         self.sys_paths = get_paths()
 
     def safe_import(self, name: str) -> ModuleType:
         """Helper utility for reimporting previously imported modules while inside the env"""
-        module = None
         if name not in self._modules:
             self._modules[name] = importlib.import_module(name)
-        module = self._modules[name]
-        if not module:
-            dist = next(
-                iter(dist for dist in self.base_working_set if dist.project_name == name),
-                None,
-            )
-            if dist:
-                dist.activate()
-            module = importlib.import_module(name)
-        return module
+        return self._modules[name]
 
     @cached_property
     def python_version(self) -> str | None:
@@ -157,7 +147,7 @@ class Environment:
             return "posix_prefix"
 
     @cached_property
-    def base_paths(self) -> dict[str, str]:
+    def base_paths(self) -> dict[str, Any]:
         """
         Returns the context appropriate paths for the environment.
 
@@ -182,19 +172,21 @@ class Environment:
         """
 
         prefix = Path(self.prefix)
-        paths = {}
+        paths: dict[str, Any] = {}
         if self._base_paths:
             paths = self._base_paths.copy()
         else:
             try:
-                paths = self.get_paths()
+                paths = self.get_paths() or {}
             except Exception:
-                paths = get_paths(
-                    self.install_scheme,
-                    vars={
-                        "base": prefix,
-                        "platbase": prefix,
-                    },
+                paths.update(
+                    get_paths(
+                        self.install_scheme,
+                        vars={
+                            "base": prefix,
+                            "platbase": prefix,
+                        },
+                    )
                 )
                 current_version = get_python_version()
                 try:
@@ -207,16 +199,18 @@ class Environment:
                     # Sometimes virtualenvs are made using virtualenv interpreters and there is no
                     # include directory, which will cause this approach to fail. This failsafe
                     # will make sure we fall back to the shell execution to find the real include path
-                    paths = self.get_include_path()
+                    paths = self.get_include_path() or {}
                     paths.update(self.get_lib_paths())
                     paths["scripts"] = self.script_basedir
         if not paths:
-            paths = get_paths(
-                self.install_scheme,
-                vars={
-                    "base": prefix,
-                    "platbase": prefix,
-                },
+            paths.update(
+                get_paths(
+                    self.install_scheme,
+                    vars={
+                        "base": prefix,
+                        "platbase": prefix,
+                    },
+                )
             )
         if not os.path.exists(paths["purelib"]) and not os.path.exists(paths["platlib"]):
             lib_paths = self.get_lib_paths()
@@ -329,7 +323,7 @@ class Environment:
         py_command = py_command % lines_as_str
         return py_command
 
-    def get_paths(self) -> dict[str, str] | None:
+    def get_paths(self) -> dict[str, Any] | None:
         """
         Get the paths for the environment by running a subcommand
 
@@ -412,7 +406,7 @@ class Environment:
                 return paths
         return {}
 
-    def get_include_path(self) -> dict[str, str] | None:
+    def get_include_path(self) -> dict[str, Any] | None:
         """Get the include path for the environment
 
         :return: The python include path for the environment
@@ -464,7 +458,7 @@ class Environment:
         return self.paths["scripts"]
 
     @property
-    def libdir(self) -> str:
+    def libdir(self) -> tuple[str, str]:
         purelib = self.paths.get("purelib", None)
         if purelib and os.path.exists(purelib):
             return "purelib", purelib
@@ -507,12 +501,13 @@ class Environment:
     def find_egg(self, egg_dist: importlib_metadata.Distribution) -> str | None:
         """Find an egg by name in the given environment"""
         site_packages = self.libdir[1]
-        search_filename = f"{egg_dist._normalized_name}.egg-link"
+        search_filename = f"{egg_dist._normalized_name}.egg-link"  # type: ignore[attr-defined]
+        user_site: str | None
         try:
             user_site = site.getusersitepackages()
         except AttributeError:
             user_site = site.USER_SITE
-        search_locations = [site_packages, user_site]
+        search_locations = [loc for loc in (site_packages, user_site) if loc]
         for site_directory in search_locations:
             egg = os.path.join(site_directory, search_filename)
             if os.path.isfile(egg):
@@ -525,7 +520,7 @@ class Environment:
         If the egg - link doesn 't exist, return the supplied distribution."""
 
         location = self.find_egg(dist)
-        return location or dist._path
+        return location or dist._path  # type: ignore[attr-defined]
 
     def dist_is_in_project(self, dist: importlib_metadata.Distribution) -> bool:
         """Determine whether the supplied distribution is in the environment."""
@@ -548,12 +543,13 @@ class Environment:
         packages = [
             pkg
             for pkg in workingset
-            if self.dist_is_in_project(pkg) and pkg._normalized_name != "python"
+            if self.dist_is_in_project(pkg)
+            and pkg._normalized_name != "python"  # type: ignore[attr-defined]
         ]
         return packages
 
     @contextlib.contextmanager
-    def get_finder(self, pre: bool = False) -> ContextManager[PackageFinder]:
+    def get_finder(self, pre: bool = False) -> Iterator[PackageFinder]:
         from pipenv.patched.pip._internal.commands.install import InstallCommand
 
         from .utils.resolver import get_package_finder
@@ -561,6 +557,7 @@ class Environment:
         pip_command = InstallCommand(
             name="InstallCommand", summary="pip Install command."
         )
+        assert self.project is not None and self.pipfile is not None
         pip_args = prepare_pip_source_args(self.sources)
         pip_options, _ = pip_command.parser.parse_args(pip_args)
         pip_options.cache_dir = self.project.s.PIPENV_CACHE_DIR
@@ -581,11 +578,12 @@ class Environment:
     def get_package_info(
         self, pre: bool = False
     ) -> Generator[importlib_metadata.Distribution, None, None]:
+        assert self.pipfile is not None
         packages = self.get_installed_packages()
 
         with self.get_finder() as finder:
             for dist in packages:
-                name = dist._normalized_name
+                name = dist._normalized_name  # type: ignore[attr-defined]
                 all_candidates = finder.find_all_candidates(name)
                 allow_prereleases = self.pipfile.get("pre", False)
                 if not allow_prereleases and finder.release_control is not None:
@@ -614,7 +612,7 @@ class Environment:
                 else:
                     pass
                 # This is dirty but makes the rest of the code much cleaner
-                dist.latest_version = remote_version
+                dist.latest_version = remote_version  # type: ignore[attr-defined]
                 yield dist
 
     def get_outdated_packages(
@@ -623,7 +621,7 @@ class Environment:
         return [
             pkg
             for pkg in self.get_package_info(pre=pre)
-            if pkg.latest_version > parse_version(pkg.version)
+            if pkg.latest_version > parse_version(pkg.version)  # type: ignore[attr-defined]
         ]
 
     @classmethod
@@ -735,7 +733,11 @@ class Environment:
         :rtype: bool
         """
 
-        return any(d for d in self.get_distributions() if d._normalized_name == pkgname)
+        return any(
+            d
+            for d in self.get_distributions()
+            if d._normalized_name == pkgname  # type: ignore[attr-defined]
+        )
 
     def is_satisfied(self, req: InstallRequirement):
         match = next(
@@ -743,7 +745,8 @@ class Environment:
                 d
                 for d in self.get_distributions()
                 if req.name
-                and canonicalize_name(d._normalized_name) == canonicalize_name(req.name)
+                and canonicalize_name(d._normalized_name)  # type: ignore[attr-defined]
+                == canonicalize_name(req.name)
             ),
             None,
         )
@@ -767,8 +770,10 @@ class Environment:
                 else:
                     parsed_url = urlparse(requested_path)
                     local_path = parsed_url.path
-                return requested_path and os.path.samefile(local_path, match.location)
-            elif match.has_metadata("direct_url.json"):
+                return requested_path and os.path.samefile(
+                    local_path, str(match.locate_file(""))
+                )
+            elif match.read_text("direct_url.json") is not None:
                 # Direct URL installs we assume are not satisfied since we may be
                 # installing from Pipfile and have insufficient information to determine
                 # if the content has changed.

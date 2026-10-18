@@ -478,6 +478,7 @@ def _fetch_via_wheel_head(session: Any, wheel_url: str) -> CoreMetadata:
         )
         try:
             zf = zipfile.ZipFile(partial)
+            break
         except zipfile.BadZipFile:
             if window >= total_length or window >= _MAX_CENTRAL_DIRECTORY_WINDOW:
                 raise MetadataFetchError(
@@ -486,8 +487,6 @@ def _fetch_via_wheel_head(session: Any, wheel_url: str) -> CoreMetadata:
                 )
             # Double the window and retry.
             window = min(window * 2, total_length, _MAX_CENTRAL_DIRECTORY_WINDOW)
-            continue
-        break
 
     try:
         info = _find_metadata_member(zf)

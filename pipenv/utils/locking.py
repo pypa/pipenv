@@ -129,7 +129,9 @@ def prepare_lockfile(
 
 
 @contextmanager
-def atomic_open_for_write(target, binary=False, newline=None, encoding=None) -> None:
+def atomic_open_for_write(
+    target, binary=False, newline=None, encoding=None
+) -> Iterator[Any]:
     """Atomically open `target` for writing.
     This is based on Lektor's `atomic_open()` utility, but simplified a lot
     to handle only writing, and skip many multiprocess/thread edge cases
@@ -228,7 +230,7 @@ class Lockfile:
     )
     _requirements: Optional[List[Any]] = field(default_factory=list)
     _dev_requirements: Optional[List[Any]] = field(default_factory=list)
-    projectfile: ProjectFile = None
+    projectfile: Optional[ProjectFile] = None
     newlines: str = DEFAULT_NEWLINES
 
     def __post_init__(self):
@@ -325,11 +327,9 @@ class Lockfile:
     def load_projectfile(
         cls, path: Optional[str] = None, create: bool = True, data: Optional[Dict] = None
     ) -> "ProjectFile":
-        if not path:
-            path = os.curdir
-        path = Path(path).absolute()
-        project_path = path if path.is_dir() else path.parent
-        lockfile_path = path if path.is_file() else project_path / "Pipfile.lock"
+        abs_path = Path(path or os.curdir).absolute()
+        project_path = abs_path if abs_path.is_dir() else abs_path.parent
+        lockfile_path = abs_path if abs_path.is_file() else project_path / "Pipfile.lock"
         if not project_path.exists():
             raise OSError(f"Project does not exist: {project_path.as_posix()}")
         elif not lockfile_path.exists() and not create:
@@ -383,9 +383,7 @@ class Lockfile:
 
         projectfile = ProjectFile(
             line_ending=DEFAULT_NEWLINES,
-            location=str(
-                lockfile_path
-            ),  # Convert to string if ProjectFile expects a string
+            location=lockfile_path,
             model=lockfile,
         )
 
@@ -402,7 +400,7 @@ class Lockfile:
             projectfile = cls.load_projectfile(path, create=create)
         except JSONDecodeError:
             # Convert to Path object and resolve to absolute path
-            path_obj = Path(path).resolve()
+            path_obj = Path(path or os.curdir).resolve()
 
             # Determine if the path is a directory or file
             if path_obj.is_dir():
@@ -422,14 +420,12 @@ class Lockfile:
         # Create Path object from projectfile location
         lockfile_path = Path(projectfile.location)
 
-        # Create instance with required arguments
-        creation_args = {
-            "projectfile": projectfile,
-            "lockfile": projectfile.model,
-            "newlines": projectfile.line_ending,
-            "path": lockfile_path,
-        }
-        return cls(**creation_args)
+        return cls(
+            projectfile=projectfile,
+            lockfile=projectfile.model,
+            newlines=projectfile.line_ending,
+            path=lockfile_path,
+        )
 
     @classmethod
     def create(cls, path: Optional[str], create: bool = True) -> "Lockfile":
@@ -505,7 +501,7 @@ class Lockfile:
         from pipenv.utils.dependencies import requirement_from_lockfile
 
         if categories:
-            deps = {}
+            deps: Dict[str, Any] = {}
             for category in categories:
                 if category == "packages":
                     category = "default"
@@ -565,5 +561,6 @@ class Lockfile:
         return []
 
     def write(self) -> None:
+        assert self.projectfile is not None  # set in __post_init__
         self.projectfile.model = copy.deepcopy(self.lockfile)
         self.projectfile.write()

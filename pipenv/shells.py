@@ -388,22 +388,24 @@ class CmderPowershell(Shell):
 
 # Two dimensional dict. First is the shell type, second is the emulator type.
 # Example: SHELL_LOOKUP['powershell']['cmder'] => CmderPowershell.
-SHELL_LOOKUP = collections.defaultdict(
+SHELL_LOOKUP: collections.defaultdict[
+    str, collections.defaultdict[str, type[Shell]]
+] = collections.defaultdict(
     lambda: collections.defaultdict(lambda: Shell),
     {
-        "bash": collections.defaultdict(
+        "bash": collections.defaultdict[str, type[Shell]](
             lambda: Bash,
             {"msys": MsysBash},
         ),
-        "cmd": collections.defaultdict(
+        "cmd": collections.defaultdict[str, type[Shell]](
             lambda: Shell,
             {"cmder": CmderCommandPrompt},
         ),
-        "powershell": collections.defaultdict(
+        "powershell": collections.defaultdict[str, type[Shell]](
             lambda: Shell,
             {"cmder": CmderPowershell},
         ),
-        "pwsh": collections.defaultdict(
+        "pwsh": collections.defaultdict[str, type[Shell]](
             lambda: Shell,
             {"cmder": CmderPowershell},
         ),

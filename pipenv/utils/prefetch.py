@@ -372,7 +372,7 @@ def _download_and_verify(
         _LOGGER.debug("prefetch GET %s failed: %s", url, exc)
         return False
     try:
-        status = getattr(response, "status", None) or getattr(
+        status: Any = getattr(response, "status", None) or getattr(
             response, "status_code", 0
         )
         if int(status) != 200:

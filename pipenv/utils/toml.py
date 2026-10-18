@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Any, Dict, Union
 
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container, OutOfOrderTableProxy
@@ -111,8 +111,7 @@ def convert_toml_outline_tables(parsed: TOMLDocument, project) -> TOMLDocument:
     return parsed
 
 
-def tomlkit_value_to_python(toml_value):
-    # type: (Union[Array, AoT, TOML_DICT_TYPES, Item]) -> Union[List, Dict]
+def tomlkit_value_to_python(toml_value: Union[Array, AoT, TOML_DICT_TYPES, Item]) -> Any:
     value_type = type(toml_value).__name__
     if (
         isinstance(toml_value, TOML_DICT_OBJECTS + (dict,))
@@ -132,12 +131,11 @@ def tomlkit_value_to_python(toml_value):
     return toml_value
 
 
-def tomlkit_dict_to_python(toml_dict):
-    # type: (TOML_DICT_TYPES) -> Dict
+def tomlkit_dict_to_python(toml_dict: TOML_DICT_TYPES) -> Dict:
     value_type = type(toml_dict).__name__
     if toml_dict is None:
         raise TypeError("Invalid type NoneType when converting toml dict to python")
-    converted = None  # type: Optional[Dict]
+    converted: Any = None
     if isinstance(toml_dict, (InlineTable, Table)) or value_type in (
         "InlineTable",
         "Table",

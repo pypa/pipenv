@@ -8,7 +8,7 @@ import warnings
 from contextlib import contextmanager
 from pathlib import Path, PureWindowsPath
 from tempfile import TemporaryDirectory
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Iterator, Optional
 from urllib import parse as urllib_parse
 from urllib import request as urllib_request
 from urllib.parse import quote
@@ -53,7 +53,7 @@ def url_to_path(url: str) -> Path:
 
 if os.name == "nt":
     # code taken from click _winconsole.py
-    from ctypes import create_unicode_buffer, windll
+    from ctypes import create_unicode_buffer, windll  # type: ignore[attr-defined]
 
     def get_long_path(short_path: str) -> str:
         BUFFER_SIZE = 500
@@ -63,7 +63,7 @@ if os.name == "nt":
         return buffer.value
 
 
-def normalize_path(path: str) -> str:
+def normalize_path(path: str | Path) -> str:
     """Return a case-normalized absolute variable-expanded path."""
     # Convert to string if it's a Path object
     path_str = str(path)
@@ -195,8 +195,7 @@ def open_file(link, session: Optional["PipSession"] = None, stream: bool = False
 
 
 @contextmanager
-def temp_path():
-    # type: () -> Iterator[None]
+def temp_path() -> Iterator[None]:
     """A context manager which allows the ability to set sys.path temporarily.
 
     >>> path_from_virtualenv = load_path("/path/to/venv/bin/python")
@@ -228,7 +227,7 @@ def temp_path():
         sys.path = list(path)
 
 
-TRACKED_TEMPORARY_DIRECTORIES = []
+TRACKED_TEMPORARY_DIRECTORIES: list[TemporaryDirectory] = []
 
 
 def create_tracked_tempdir(*args: Any, **kwargs: Any) -> Path:
@@ -246,8 +245,7 @@ def create_tracked_tempdir(*args: Any, **kwargs: Any) -> Path:
     return Path(tempdir.name)
 
 
-def check_for_unc_path(path):
-    # type: (Path) -> bool
+def check_for_unc_path(path: Path) -> bool:
     """Checks to see if a pathlib `Path` object is a unc path or not."""
     return bool(
         os.name == "nt"

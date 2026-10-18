@@ -7,6 +7,7 @@ import warnings
 from collections import defaultdict
 from dataclasses import replace
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from pipenv import environments, exceptions
 from pipenv.patched.pip._internal.exceptions import PipError
@@ -743,7 +744,7 @@ def install_build_system_packages(
         pypi_mirror=pypi_mirror,
     )
 
-    procs = queue.Queue(maxsize=1)
+    procs: queue.Queue = queue.Queue(maxsize=1)
     cmds = pip_install_deps(
         project,
         deps=build_requires,
@@ -787,7 +788,7 @@ def do_install_dependencies(
         pypi_mirror=target.pypi_mirror,
         requirements_dir=requirements_dir,
     )
-    procs = queue.Queue(maxsize=1)
+    procs: queue.Queue = queue.Queue(maxsize=1)
     categories = list(sel.categories) if sel.categories else []
     if not categories:
         if sel.dev:
@@ -810,8 +811,8 @@ def do_install_dependencies(
     effective_ignore_hashes = exec_opts.ignore_hashes or policy.skip_lock
 
     for pipfile_category in categories:
-        lockfile = None
-        pipfile = None
+        lockfile: Any = None
+        pipfile: Any = None
         if policy.skip_lock:
             if not exec_opts.bare and not project.s.is_quiet():
                 console.print("Installing dependencies from Pipfile...", style="bold")
@@ -1097,7 +1098,9 @@ def batch_install(
                 )
         else:
             # Sort the dependencies out by index -- include editable/vcs in the default group
-            deps_by_index = defaultdict(lambda: defaultdict(list))
+            deps_by_index: defaultdict[str, defaultdict[Any, list]] = defaultdict(
+                lambda: defaultdict(list)
+            )
             for dependency, pip_line in deps_to_install:
                 index = project.sources.default["name"]
                 if dependency.name and dependency.name in lockfile_section:
