@@ -269,9 +269,10 @@ def ensure_pipfile(
             project.pipfile.write_toml(p)
 
 
-def reorder_source_keys(data):
-    # type: (tomlkit.toml_document.TOMLDocument) -> tomlkit.toml_document.TOMLDocument
-    sources = []  # type: sources_type
+def reorder_source_keys(
+    data: tomlkit.toml_document.TOMLDocument,
+) -> tomlkit.toml_document.TOMLDocument:
+    sources: list[Any] = []
     for source_key in ["source", "sources"]:
         sources.extend(data.get(source_key, tomlkit.aot()).value)
     new_source_aot = tomlkit.aot()
@@ -294,7 +295,9 @@ class ProjectFile:
     model: Any | None = field(default_factory=dict)
 
     @classmethod
-    def read(cls, location: str, model_cls, invalid_ok: bool = False) -> ProjectFile:
+    def read(
+        cls, location: str | Path, model_cls, invalid_ok: bool = False
+    ) -> ProjectFile:
         # Convert string location to Path
         path = Path(location)
         if not path.exists() and not invalid_ok:
@@ -311,8 +314,7 @@ class ProjectFile:
         return cls(location=path, line_ending=line_ending, model=model)
 
     def write(self) -> None:
-        kwargs = {"encoding": "utf-8", "newline": self.line_ending}
-        with self.location.open("w", **kwargs) as f:
+        with self.location.open("w", encoding="utf-8", newline=self.line_ending) as f:
             if self.model:
                 self.model.dump(f)
 
@@ -326,8 +328,7 @@ class ProjectFile:
 
 class PipfileLoader(pipfiles.Pipfile):
     @classmethod
-    def validate(cls, data):
-        # type: (tomlkit.toml_document.TOMLDocument) -> None
+    def validate(cls, data: tomlkit.toml_document.TOMLDocument) -> None:
         for key, klass in pipfiles.PIPFILE_SECTIONS.items():
             if key not in data or key == "sources":
                 continue
@@ -335,8 +336,9 @@ class PipfileLoader(pipfiles.Pipfile):
                 klass.validate(data[key])
 
     @classmethod
-    def ensure_package_sections(cls, data):
-        # type: (tomlkit.toml_document.TOMLDocument[Text, Any]) -> tomlkit.toml_document.TOMLDocument[Text, Any]
+    def ensure_package_sections(
+        cls, data: tomlkit.toml_document.TOMLDocument
+    ) -> tomlkit.toml_document.TOMLDocument:
         """Ensure that all pipfile package sections are present in the given
         toml document.
 
@@ -365,8 +367,7 @@ class PipfileLoader(pipfiles.Pipfile):
         return source
 
     @classmethod
-    def load(cls, f, encoding=None):
-        # type: (Any, Text) -> PipfileLoader
+    def load(cls, f: Any, encoding: str | None = None) -> PipfileLoader:
         content = f.read()
         if encoding is not None:
             content = content.decode(encoding)
@@ -389,16 +390,14 @@ class PipfileLoader(pipfiles.Pipfile):
         instance._data = dict(instance._data)
         return instance
 
-    def __contains__(self, key):
-        # type: (Text) -> bool
+    def __contains__(self, key: str) -> bool:
         if key not in self._data:
             package_keys = self._data.get("packages", {}).keys()
             dev_package_keys = self._data.get("dev-packages", {}).keys()
             return any(key in pkg_list for pkg_list in (package_keys, dev_package_keys))
         return True
 
-    def __getattribute__(self, key):
-        # type: (Text) -> Any
+    def __getattribute__(self, key: str) -> Any:
         if key == "source":
             return self._data[key]
         return super().__getattribute__(key)
@@ -453,7 +452,7 @@ class PlettePipfile:
     def get_deps(self, dev=False, only=True):
         from pipenv.utils.dependencies import merge_items
 
-        deps = {}  # type: Dict[Text, Dict[Text, Union[List[Text], Text]]]
+        deps: dict[str, dict[str, list[str] | str]] = {}
         if dev:
             deps.update(dict(self.pipfile._data.get("dev-packages", {})))
             if only:
@@ -499,8 +498,8 @@ class PlettePipfile:
         return retval
 
     @property
-    def requires_python(self):
-        # type: () -> bool
+    def requires_python(self) -> str | None:
+        assert self.pipfile is not None
         return getattr(
             self.pipfile.requires,
             "python_version",
@@ -508,13 +507,12 @@ class PlettePipfile:
         )
 
     @property
-    def allow_prereleases(self):
-        # type: () -> bool
+    def allow_prereleases(self) -> bool:
+        assert self.pipfile is not None
         return self.pipfile.get("pipenv", {}).get("allow_prereleases", False)
 
     @classmethod
-    def read_projectfile(cls, path):
-        # type: (Text) -> ProjectFile
+    def read_projectfile(cls, path: str | Path) -> ProjectFile:
         """Read the specified project file and provide an interface for
         writing/updating.
 
@@ -526,7 +524,9 @@ class PlettePipfile:
         return pf
 
     @classmethod
-    def load_projectfile(cls, path: str, create: bool = False) -> ProjectFile:
+    def load_projectfile(
+        cls, path: str | Path, create: bool = False
+    ) -> ProjectFile:
         """..."""
 
         if not path:
@@ -542,17 +542,15 @@ class PlettePipfile:
         return cls.read_projectfile(pipfile_path)
 
     @classmethod
-    def load(cls, path: str, create: bool = False) -> PlettePipfile:
+    def load(cls, path: str | Path, create: bool = False) -> PlettePipfile:
         """..."""
 
         projectfile = cls.load_projectfile(path, create=create)
-        pipfile = projectfile.model
-        creation_args = {
-            "projectfile": projectfile,
-            "pipfile": pipfile,
-            "path": Path(projectfile.location),
-        }
-        return cls(**creation_args)
+        return cls(
+            projectfile=projectfile,
+            pipfile=projectfile.model,
+            path=Path(projectfile.location),
+        )
 
 
 # ============================================================================
@@ -1375,6 +1373,4 @@ class Pipfile:
             data[category] = _normalize_section(values)
 
         content = json.dumps(data, sort_keys=True, separators=(",", ":"))
-        if isinstance(content, str):
-            content = content.encode("utf-8")
-        return hashlib.sha256(content).hexdigest()
+        return hashlib.sha256(content.encode("utf-8")).hexdigest()

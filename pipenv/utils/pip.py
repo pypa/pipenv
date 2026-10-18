@@ -1,7 +1,7 @@
 import os
 import tempfile
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from pipenv.patched.pip._internal.utils.misc import get_runnable_pip
 from pipenv.utils import err
@@ -216,7 +216,7 @@ def get_pip_args(
     src_dir: Optional[str] = None,
     extra_pip_args: Optional[List] = None,
 ) -> List[str]:
-    arg_map = {
+    arg_map: Dict[str, List[str]] = {
         "pre": ["--pre"],
         "verbose": ["--verbose"],
         "upgrade": ["--upgrade"],
@@ -224,12 +224,12 @@ def get_pip_args(
         "no_build_isolation": ["--no-build-isolation"],
         "no_use_pep517": ["--no-use-pep517"],
         "no_deps": ["--no-deps"],
-        "src_dir": src_dir,
+        "src_dir": ["--src", src_dir] if src_dir else [],
     }
     arg_set = ["--no-input"] if project.settings.get("disable_pip_input", True) else []
-    for key in arg_map:
+    for key, args in arg_map.items():
         if key in locals() and locals().get(key):
-            arg_set.extend(arg_map.get(key))
+            arg_set.extend(args)
     arg_set += extra_pip_args or []
     return list(dict.fromkeys(arg_set))
 

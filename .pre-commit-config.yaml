@@ -22,6 +22,15 @@ repos:
   hooks:
   - id: ruff
 
+- repo: https://github.com/pre-commit/mirrors-mypy
+  rev: v2.4.0
+  hooks:
+  - id: mypy
+    # Type-check pipenv's own code only; vendor/ and patched/ are excluded
+    # in [tool.mypy] and imports into them are skipped (follow_imports).
+    pass_filenames: false
+    args: []
+
 - repo: https://github.com/pre-commit/pygrep-hooks
   rev: v1.10.0
   hooks:

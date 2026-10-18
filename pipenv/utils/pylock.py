@@ -59,7 +59,7 @@ class PylockFile:
     def from_lockfile(
         cls,
         lockfile_path: Union[str, Path],
-        pylock_path: Union[str, Path] = None,
+        pylock_path: Optional[Union[str, Path]] = None,
         dev_groups: Optional[List[str]] = None,
     ) -> "PylockFile":
         """Create a PylockFile from a Pipfile.lock file.
@@ -98,7 +98,7 @@ class PylockFile:
             raise ValueError(f"Invalid Pipfile.lock file: {e}")
 
         # Create the basic pylock.toml structure
-        pylock_data = {
+        pylock_data: Dict[str, Any] = {
             "lock-version": "1.0",
             "environments": [],
             "extras": [],
@@ -144,7 +144,7 @@ class PylockFile:
 
         # Process packages
         default_packages = lockfile_data.get("default", {})
-        default_entries = {}
+        default_entries: Dict[str, Any] = {}
         for section in ["default", "develop"]:
             packages = lockfile_data.get(section, {})
             for name, package_data in packages.items():
@@ -163,7 +163,7 @@ class PylockFile:
                     )
                     continue
 
-                package = {"name": name}
+                package: Dict[str, Any] = {"name": name}
                 if section == "default":
                     default_entries[name] = package
 
@@ -330,7 +330,7 @@ class PylockFile:
     def from_pyproject(
         cls,
         pyproject_path: Union[str, Path],
-        pylock_path: Union[str, Path] = None,
+        pylock_path: Optional[Union[str, Path]] = None,
     ) -> "PylockFile":
         """Create a PylockFile skeleton from a pyproject.toml file.
 
@@ -493,7 +493,7 @@ class PylockFile:
         try:
             # Ensure all values are properly formatted for TOML
             # Create a deep copy of the data to avoid modifying the original
-            data_copy = {}
+            data_copy: Dict[str, Any] = {}
             for key, value in self.data.items():
                 if isinstance(value, dict):
                     data_copy[key] = value.copy()
@@ -872,7 +872,7 @@ class PylockFile:
             A dictionary in Pipfile.lock format
         """
         # Create the basic structure
-        lockfile = {
+        lockfile: Dict[str, Any] = {
             "_meta": {
                 "hash": {"sha256": ""},  # We don't have a hash in pylock.toml
                 "pipfile-spec": 6,
@@ -940,7 +940,7 @@ class PylockFile:
                 package_entry["version"] = "*"
 
             # Add hashes if present
-            hashes = []
+            hashes: List[str] = []
             if "wheels" in package:
                 hashes.extend(
                     f"sha256:{wheel['hashes']['sha256']}"
@@ -1081,7 +1081,7 @@ def _pylock_source_from_lockfile_entry(package_data: Dict[str, Any]) -> Dict[str
     if "path" not in package_data and "file" not in package_data:
         return {}
 
-    location = package_data.get("path") or package_data.get("file")
+    location = package_data.get("path") or package_data["file"]
     if "file" in package_data or location.lower().endswith(ARCHIVE_SUFFIXES):
         archive = {"path" if "path" in package_data else "url": location}
         hashes = {
@@ -1151,7 +1151,7 @@ def _lockfile_source_from_pylock_package(package: Dict[str, Any]) -> Dict[str, A
     return {}
 
 
-def find_pylock_file(directory: Union[str, Path] = None) -> Optional[Path]:
+def find_pylock_file(directory: Optional[Union[str, Path]] = None) -> Optional[Path]:
     """Find a pylock.toml file in the given directory.
 
     Args:

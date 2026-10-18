@@ -76,6 +76,7 @@ def _ensure_modules() -> None:
                 "typing_extensions",
                 location=typing_ext_path,
             )
+            assert spec is not None and spec.loader is not None
             typing_extensions = importlib.util.module_from_spec(spec)
             sys.modules["typing_extensions"] = typing_extensions
             spec.loader.exec_module(typing_extensions)

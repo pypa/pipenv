@@ -1131,7 +1131,7 @@ class PurePythonProvider(AbstractProvider):
         # ``Provides-Extra``.  Empty frozenset → metadata not loaded;
         # admit per the lazy-metadata clause above.  Non-empty →
         # strict subset check.
-        candidate_extras = getattr(candidate, "extras", frozenset())
+        candidate_extras: frozenset[str] = getattr(candidate, "extras", frozenset())
         if candidate_extras and not requirement.extras <= candidate_extras:
             return False
 

@@ -195,7 +195,7 @@ def check_version_conflicts(
     Check if updating a package would create version conflicts with its dependents.
     Returns set of conflicting packages.
     """
-    conflicts = set()
+    conflicts: Set[str] = set()
 
     # Handle various wildcard patterns
     if new_version == "*":

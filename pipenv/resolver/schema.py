@@ -292,7 +292,7 @@ class LockedRequirement:
         entry: dict = {"name": name}
 
         # ---- VCS branch (locking.py:60-83) ----
-        is_vcs_dep = next(
+        is_vcs_dep: str | bool | None = next(
             iter([v for v in VCS_LIST if v in pipfile_entry]), None
         )
         if getattr(req, "link", None) is not None and getattr(req.link, "is_vcs", False):

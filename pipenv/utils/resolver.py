@@ -11,7 +11,7 @@ import time
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from pipenv import environments
 from pipenv.exceptions import ResolutionFailure
@@ -392,15 +392,15 @@ class Resolver:
         cls,
         deps: Dict[str, str],
         project,
-        index_lookup: Dict[str, str] = None,
-        markers_lookup: Dict[str, str] = None,
-        sources: List[str] = None,
-        req_dir: str = None,
+        index_lookup: Optional[Dict[str, str]] = None,
+        markers_lookup: Optional[Dict[str, str]] = None,
+        sources: Optional[List[str]] = None,
+        req_dir: Optional[Union[str, Path]] = None,
         clear: bool = False,
         pre: bool = False,
-        pipfile_category: str = None,
-        resolved_default_deps: Dict[str, Any] = None,
-        extra_pip_args: List[str] = None,
+        pipfile_category: Optional[str] = None,
+        resolved_default_deps: Optional[Dict[str, Any]] = None,
+        extra_pip_args: Optional[List[str]] = None,
     ) -> "Resolver":
         if not req_dir:
             req_dir = create_tracked_tempdir(suffix="-requirements", prefix="pipenv-")
@@ -1137,8 +1137,8 @@ class Resolver:
 
 
 # Global cache for resolution results to avoid repeated expensive subprocess calls
-_resolution_cache = {}
-_resolution_cache_timestamp = {}
+_resolution_cache: Dict[str, Any] = {}
+_resolution_cache_timestamp: Dict[str, float] = {}
 
 
 def _generate_resolution_cache_key(

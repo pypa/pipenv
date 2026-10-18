@@ -91,6 +91,11 @@ and install the pre-commit hooks locally:
    $ pre-commit run --all-files --verbose
 ```
 
+The pre-commit hooks include [mypy](https://mypy.readthedocs.io/), which type-checks
+pipenv's own code (`pipenv/vendor/` and `pipenv/patched/` are excluded). Its
+settings live under `[tool.mypy]` in `pyproject.toml`, so you can also run it
+directly with `mypy`.
+
 ### Code Review
 
 Contributions will not be merged until they have been code reviewed. You should

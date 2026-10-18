@@ -1,7 +1,7 @@
 import itertools
 import sys
-from collections import namedtuple
 from traceback import format_tb
+from typing import NamedTuple, Optional
 
 from pipenv.patched.pip._vendor.rich.console import Console
 from pipenv.patched.pip._vendor.rich.text import Text
@@ -60,11 +60,11 @@ def unstyle(text: str) -> str:
         return str(text)
 
 
-KnownException = namedtuple(
-    "KnownException",
-    ["exception_name", "match_string", "show_from_string", "prefix"],
-)
-KnownException.__new__.__defaults__ = (None, None, None, "")
+class KnownException(NamedTuple):
+    exception_name: Optional[str] = None
+    match_string: Optional[str] = None
+    show_from_string: Optional[str] = None
+    prefix: str = ""
 
 KNOWN_EXCEPTIONS = [
     KnownException("PermissionError", prefix="Permission Denied:"),
