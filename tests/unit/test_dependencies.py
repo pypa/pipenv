@@ -998,6 +998,21 @@ class TestGetConstraintsFromResolvedDeps:
 
         assert get_constraints_from_resolved_deps({}) == set()
 
+    def test_skips_wildcard_versions(self):
+        """A package whose markers exclude the locking platform is locked as "*".
+
+        Writing it as ``colorama*`` made pip reject the constraints file, so
+        locking a dev category failed (``Invalid requirement: 'colorama*'``).
+        """
+        from pipenv.utils.dependencies import get_constraints_from_resolved_deps
+
+        resolved = {
+            "colorama": {"markers": "sys_platform == 'win32'", "version": "*"},
+            "normal": {"version": "==1.0"},
+        }
+        constraints = get_constraints_from_resolved_deps(resolved)
+        assert constraints == {"normal==1.0"}
+
     def test_canonicalizes_names(self):
         from pipenv.utils.dependencies import get_constraints_from_resolved_deps
 
