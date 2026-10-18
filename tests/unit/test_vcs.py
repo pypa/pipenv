@@ -115,20 +115,18 @@ def test_install_req_from_pipfile_subdirectory():
     assert '#subdirectory=subdir' in req_str
 
 
-@pytest.mark.parametrize("url_format,expected_url,expected_req", [
+@pytest.mark.parametrize("url_format,expected_url", [
     (
         "git+https://${HOST}/${REPO}.git",
-        "https://github.com/org/repo.git",
-        "package-name @ git+https://${HOST}/${REPO}.git@main"
+        "git+https://github.com/org/repo.git",
     ),
     (
         "git+ssh://${USER}@${HOST}:${REPO}.git",
         "git+ssh://git@${HOST}:${REPO}.git",
-        "package-name @ git+ssh://${USER}@${HOST}:${REPO}.git@main"
     ),
     # Note: Removing git+git@ test case as it's handled differently
 ])
-def test_various_vcs_url_formats(url_format, expected_url, expected_req):
+def test_various_vcs_url_formats(url_format, expected_url):
     """Test different VCS URL formats with environment variables."""
     os.environ.update({
         'HOST': 'github.com',
@@ -138,10 +136,7 @@ def test_various_vcs_url_formats(url_format, expected_url, expected_req):
 
     # When testing VCSURLProcessor directly
     processed = VCSURLProcessor.process_vcs_url(url_format)
-    if 'github.com' in expected_url:
-        assert 'github.com' in processed
-    if 'org/repo' in expected_url:
-        assert 'org/repo' in processed
+    assert processed == expected_url
 
     # When testing through install_req_from_pipfile
     pipfile = {'git': url_format, 'ref': 'main'}
