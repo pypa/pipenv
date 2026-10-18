@@ -311,6 +311,10 @@ jobs:
         run: |
           if [ -f stats.csv ]; then
             echo "### Resolver backend: ${{ matrix.backend }}" >> $GITHUB_STEP_SUMMARY
+            if [ -f runner.txt ]; then
+              echo "Runner: $(cat runner.txt)" >> $GITHUB_STEP_SUMMARY
+              echo >> $GITHUB_STEP_SUMMARY
+            fi
             csv2md stats.csv >> $GITHUB_STEP_SUMMARY
           fi
       - uses: actions/upload-artifact@v7
@@ -319,6 +323,7 @@ jobs:
           path: |
             benchmarks/stats.csv
             benchmarks/benchmark-results.json
+            benchmarks/runner.txt
           retention-days: 30
 
   build:

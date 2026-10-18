@@ -3,6 +3,7 @@ requirements.txt
 Pipfile.lock
 stats.csv
 benchmark-results.json
+runner.txt
 *-results.json
 
 # Timing data

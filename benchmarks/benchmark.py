@@ -9,6 +9,7 @@ import argparse
 import csv
 import json
 import os
+import platform
 import re
 import shutil
 import statistics
@@ -69,6 +70,67 @@ def subprocess_env(profile_resolver: bool = False):
         # Keep resolver work in the profiled parent process for local diagnosis.
         env["PIPENV_RESOLVER_PARENT_PYTHON"] = "1"
     return env
+
+
+def _cpu_model() -> str:
+    try:
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["sysctl", "-n", "machdep.cpu.brand_string"],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.stdout.strip():
+                return result.stdout.strip()
+        except OSError:
+            pass
+    return platform.processor() or "unknown"
+
+
+def _memory_gib() -> float | None:
+    try:
+        with open("/proc/meminfo") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    return round(int(line.split()[1]) / 1024 / 1024, 1)
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def runner_info() -> dict:
+    """Describe the machine running the benchmark.
+
+    CI runners vary in hardware between jobs, which moves timings as much
+    as code changes do; record it so results can be compared like for like.
+    """
+    try:
+        usable_cpus = len(os.sched_getaffinity(0))
+    except AttributeError:  # pragma: no cover - not available on macOS/Windows
+        usable_cpus = os.cpu_count()
+    return {
+        "cpu_model": _cpu_model(),
+        "cpus": usable_cpus,
+        "memory_gib": _memory_gib(),
+        "platform": platform.platform(),
+        "python": platform.python_version(),
+    }
+
+
+def runner_summary(info: dict) -> str:
+    memory = f", {info['memory_gib']} GiB RAM" if info.get("memory_gib") else ""
+    return (
+        f"{info['cpu_model']} ({info['cpus']} CPUs{memory}); "
+        f"{info['platform']}; Python {info['python']}"
+    )
 
 
 @dataclass
@@ -508,6 +570,10 @@ class PipenvBenchmark:
 
         print(f"Stats written to {stats_file}")
 
+        runner_file = self.benchmark_dir / "runner.txt"
+        runner_file.write_text(runner_summary(runner_info()) + "\n")
+        print(f"Runner: {runner_file.read_text().strip()}")
+
     def write_json_results(self):
         if not self.output_json:
             return
@@ -517,6 +583,7 @@ class PipenvBenchmark:
             "backend": self.backend,
             "version": self.get_pipenv_version(),
             "generated_at": int(time.time()),
+            "runner": runner_info(),
             "records": [asdict(record) for record in self.records],
         }
         with open(self.output_json, "w") as f:
