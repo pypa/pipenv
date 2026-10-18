@@ -1,0 +1,3 @@
+Write a single ``pylock.toml`` entry for a package that ``Pipfile.lock`` lists in both ``default`` and ``develop``.
+Previously both copies were written, so installing with the dev group failed: ``uv pip install -r pylock.toml --group dev``
+reported multiple active entries, and Pipenv itself could not load the file (``has 2 entries that match the environment``).
