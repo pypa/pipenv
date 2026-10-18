@@ -99,6 +99,18 @@ def cmd_install(args, state):
     do_install(state.project, ctx)
 
 
+def cmd_init(args, state):
+    from pipenv.routines.context import RoutineContext
+    from pipenv.routines.init import do_project_init
+
+    ctx = RoutineContext.from_cli(
+        python=state.python,
+        pypi_mirror=state.pypi_mirror,
+        clear=state.clear,
+    )
+    do_project_init(state.project, ctx, yes=args.yes, install=args.install)
+
+
 def cmd_remove(args, state):
     from pipenv.utils.virtualenv import cleanup_virtualenv
 
@@ -635,6 +647,7 @@ def cmd_pylock(args, state):
 
 
 _DISPATCH = {
+    "init": cmd_init,
     "install": cmd_install,
     "remove": cmd_remove,
     "upgrade": cmd_upgrade,
