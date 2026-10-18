@@ -1,0 +1,3 @@
+Keep the platform and Python version conditions of ``pylock.toml`` markers that also name a dependency group,
+such as ``sys_platform == "win32" and "dev" in dependency_groups`` as written by ``pdm export -f pylock``.
+Previously the whole marker was dropped, so installing from such a ``pylock.toml`` installed those packages on every platform.

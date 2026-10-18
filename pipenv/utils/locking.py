@@ -1,7 +1,6 @@
 import copy
 import itertools
 import os
-import re
 import stat
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
@@ -453,24 +452,52 @@ class Lockfile:
         marker string so that the result is valid PEP 508 for pip.
 
         Pipenv already filters packages by dependency group before calling pip,
-        so pip never needs to evaluate these conditions itself.
-
-        Patterns produced by PylockFile.from_lockfile:
-          * ``'dev' in dependency_groups``
-            → no marker (return None)
-          * ``('dev' in dependency_groups) and (python_version >= '3.10')``
-            → ``python_version >= '3.10'``
+        so every ``'<group>' in dependency_groups`` condition is treated as true
+        and dropped, keeping the rest of the marker. This covers the markers
+        written by PylockFile.from_lockfile, e.g.
+        ``('dev' in dependency_groups) and (python_version >= '3.10')``, and by
+        other tools, e.g. ``sys_platform == "win32" and "dev" in dependency_groups``.
+        Returns None when nothing but group conditions remains.
         """
         if "dependency_groups" not in marker_str:
             return marker_str
-        m = re.match(
-            r"^\([^)]*\bdependency_groups\b[^)]*\)\s+and\s+\((.+)\)$",
-            marker_str,
-            re.DOTALL,
-        )
-        if m:
-            return m.group(1)
-        return None
+        from pipenv.patched.pip._vendor.packaging.markers import Marker, Variable
+
+        def is_group_condition(atom):
+            return any(
+                isinstance(node, Variable) and node.value == "dependency_groups"
+                for node in atom
+            )
+
+        def simplify(markers):
+            # ``and`` binds tighter than ``or``: split into or-branches of and-terms.
+            branches, terms = [], []
+            for item in markers + ["or"]:
+                if item == "or":
+                    branches.append(terms)
+                    terms = []
+                elif item != "and":
+                    terms.append(item)
+            result = []
+            for branch in branches:
+                kept = []
+                for term in branch:
+                    if isinstance(term, list):
+                        term = simplify(term)
+                        if term is True:
+                            continue
+                    elif is_group_condition(term):
+                        continue
+                    kept.extend(["and", term] if kept else [term])
+                if not kept:
+                    return True  # this branch holds for the selected group
+                result.extend(["or", *kept] if result else kept)
+            return result
+
+        simplified = simplify(Marker(marker_str)._markers)
+        if simplified is True:
+            return None
+        return str(Marker._from_markers(simplified))
 
     def get_requirements(
         self, dev: bool = True, only: bool = False, categories: Optional[List[str]] = None
