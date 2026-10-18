@@ -1574,7 +1574,9 @@ def get_constraints_from_resolved_deps(resolved_deps):
         if any(k in dep_info for k in ("path", "file", "git", "hg", "svn", "bzr")):
             continue
         version = dep_info.get("version")
-        if version:
+        # A package skipped by its markers is locked as "*": there is no pin
+        # to carry over, and "name*" is not a valid requirement.
+        if version and not is_star(version):
             canonical = canonicalize_name(dep_name)
             constraints.add(f"{canonical}{version}")
     return constraints
