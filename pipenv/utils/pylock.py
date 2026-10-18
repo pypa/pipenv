@@ -143,10 +143,29 @@ class PylockFile:
         dev_marker = " or ".join(f"'{g}' in dependency_groups" for g in dev_groups)
 
         # Process packages
+        default_packages = lockfile_data.get("default", {})
+        default_entries = {}
         for section in ["default", "develop"]:
             packages = lockfile_data.get(section, {})
             for name, package_data in packages.items():
+                # Pipfile.lock repeats a shared dependency in both sections.
+                # PEP 751 requires every install to narrow down to a single
+                # entry per package, so fold the develop copy into the
+                # default entry instead of writing a second one.
+                if section == "develop" and _same_locked_package(
+                    default_packages.get(name), package_data
+                ):
+                    _merge_develop_marker(
+                        default_entries[name],
+                        default_packages[name].get("markers"),
+                        package_data.get("markers"),
+                        dev_marker,
+                    )
+                    continue
+
                 package = {"name": name}
+                if section == "default":
+                    default_entries[name] = package
 
                 # Add version if present and not a wildcard
                 if "version" in package_data:
@@ -947,6 +966,31 @@ class PylockFile:
             lockfile[section][name] = package_entry
 
         return lockfile
+
+
+def _same_locked_package(default_data, develop_data) -> bool:
+    """Whether two Pipfile.lock entries pin the same artifact, ignoring markers."""
+    if not isinstance(default_data, dict) or not isinstance(develop_data, dict):
+        return False
+
+    def without_markers(data):
+        return {key: value for key, value in data.items() if key != "markers"}
+
+    return without_markers(default_data) == without_markers(develop_data)
+
+
+def _merge_develop_marker(entry, default_markers, develop_markers, dev_marker):
+    """Widen a default entry's marker so it also covers the develop install."""
+    if not default_markers or develop_markers == default_markers:
+        # The default entry already applies whenever the develop one would.
+        return
+    if not develop_markers:
+        develop_condition = dev_marker
+    elif "dependency_groups" in develop_markers:
+        develop_condition = develop_markers
+    else:
+        develop_condition = f"({dev_marker}) and ({develop_markers})"
+    entry["marker"] = f"({default_markers}) or ({develop_condition})"
 
 
 def _files_for_lockfile_hashes(name, index_url, hashes, source=None):

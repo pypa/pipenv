@@ -524,6 +524,59 @@ def test_from_lockfile_with_custom_dev_groups(tmp_path):
     assert "'development' in dependency_groups" in pytest_pkg["marker"]
 
 
+@pytest.mark.parametrize(
+    "default_markers, develop_markers, expected_marker",
+    [
+        (None, None, None),
+        ("python_version >= '3.9'", "python_version >= '3.9'", "python_version >= '3.9'"),
+        (
+            "sys_platform == 'win32'",
+            None,
+            "(sys_platform == 'win32') or ('dev' in dependency_groups)",
+        ),
+        (
+            "sys_platform == 'win32'",
+            "python_version >= '3.9'",
+            (
+                "(sys_platform == 'win32') or "
+                "(('dev' in dependency_groups) and (python_version >= '3.9'))"
+            ),
+        ),
+    ],
+)
+def test_from_lockfile_package_in_default_and_develop_has_one_entry(
+    tmp_path, default_markers, develop_markers, expected_marker
+):
+    """A package locked in both sections must narrow down to one entry (PEP 751).
+
+    Pipfile.lock repeats a shared dependency in "default" and "develop".  Two
+    pylock.toml entries for it both match when the dev group is selected.
+    """
+    import json
+
+    default_entry = {"version": "==26.3"}
+    develop_entry = {"version": "==26.3"}
+    if default_markers:
+        default_entry["markers"] = default_markers
+    if develop_markers:
+        develop_entry["markers"] = develop_markers
+    lockfile_content = {
+        "_meta": {"sources": [], "requires": {"python_version": "3.13"}},
+        "default": {"packaging": default_entry},
+        "develop": {"packaging": develop_entry, "pytest": {"version": "==9.0.0"}},
+    }
+    lockfile_path = tmp_path / "Pipfile.lock"
+    lockfile_path.write_text(json.dumps(lockfile_content))
+
+    pylock = PylockFile.from_lockfile(lockfile_path)
+
+    entries = [p for p in pylock.packages if p["name"] == "packaging"]
+    assert len(entries) == 1
+    assert entries[0].get("marker") == expected_marker
+    names = [p["name"] for p in pylock._narrow_package_entries()]
+    assert names.count("packaging") == 1
+
+
 def test_from_lockfile_adds_package_index(tmp_path):
     """Test that from_lockfile adds packages.index field (PEP 751)."""
     lockfile_content = {
