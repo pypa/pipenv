@@ -303,7 +303,7 @@ class ProjectFile:
         if not path.exists() and not invalid_ok:
             raise FileNotFoundError(location)
         try:
-            with path.open(encoding="utf-8") as f:
+            with path.open(encoding="utf-8-sig") as f:
                 model = model_cls.load(f)
                 line_ending = preferred_newlines(f)
         except Exception:
@@ -697,7 +697,7 @@ class Pipfile:
         """
         if not self.exists:
             return ""
-        with open(self.location) as f:
+        with open(self.location, encoding="utf-8-sig") as f:
             contents = f.read()
             self._newlines = preferred_newlines(f)
         return contents
