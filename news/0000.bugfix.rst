@@ -1,0 +1,2 @@
+Fix ``pipenv`` failing to read a ``Pipfile``, ``Pipfile.lock``, ``pylock.toml`` or ``pyproject.toml`` that was saved as UTF-8 with a byte order mark (BOM), which editors such as Windows Notepad add.
+The files are now decoded as ``utf-8-sig``.

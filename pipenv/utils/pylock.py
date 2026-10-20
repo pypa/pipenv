@@ -92,7 +92,7 @@ class PylockFile:
             dev_groups = ["dev"]
 
         try:
-            with open(lockfile_path, encoding="utf-8") as f:
+            with open(lockfile_path, encoding="utf-8-sig") as f:
                 lockfile_data = json.load(f)
         except Exception as e:
             raise ValueError(f"Invalid Pipfile.lock file: {e}")
@@ -285,7 +285,7 @@ class PylockFile:
             raise FileNotFoundError(f"Pylock file not found: {path}")
 
         try:
-            with open(path, encoding="utf-8") as f:
+            with open(path, encoding="utf-8-sig") as f:
                 content = f.read()
                 data = tomlkit.parse(content)
                 # Convert tomlkit objects to Python native types
@@ -361,7 +361,7 @@ class PylockFile:
             pylock_path = Path(pylock_path)
 
         try:
-            with open(pyproject_path, encoding="utf-8") as f:
+            with open(pyproject_path, encoding="utf-8-sig") as f:
                 pyproject_data = tomlkit.parse(f.read())
         except Exception as e:
             raise ValueError(f"Invalid pyproject.toml file: {e}")

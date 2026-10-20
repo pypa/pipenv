@@ -226,7 +226,7 @@ class Lockfile:
         pipfile_path = Path(project.pipfile.location)
 
         try:
-            with lockfile_path.open(encoding="utf-8") as lock:
+            with lockfile_path.open(encoding="utf-8-sig") as lock:
                 try:
                     j = json.load(lock)
                     project._lockfile_newlines = _preferred_newlines(lock)
