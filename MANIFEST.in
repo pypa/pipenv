@@ -29,6 +29,11 @@ include tests/__init__.py
 include tests/conftest.py
 recursive-include tests/unit *.py
 
+# tests/unit/test_release_tasks.py imports the top-level `tasks` package, so it
+# must ship in the sdist too (it stays excluded from the installed packages).
+# See: https://github.com/pypa/pipenv/issues/6748
+recursive-include tasks *.py
+
 prune .azure-pipelines
 prune .github
 prune pipenv/vendor/importlib_metadata/tests
