@@ -1,1 +1,0 @@
-Include the top-level ``tasks`` package in the sdist so that the shipped ``tests/unit/test_release_tasks.py`` can import it when the test suite is run from a source distribution.

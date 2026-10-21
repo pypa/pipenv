@@ -1,3 +1,26 @@
+2026.10.2 (2026-10-21)
+======================
+pipenv 2026.10.2 (2026-10-21)
+=============================
+
+
+Bug Fixes
+---------
+
+- Include the top-level ``tasks`` package in the sdist so that the shipped ``tests/unit/test_release_tasks.py`` can import it when the test suite is run from a source distribution.  `#6748 <https://github.com/pypa/pipenv/issues/6748>`_
+- Fix ``pipenv`` failing to read a ``Pipfile``, ``Pipfile.lock``, ``pylock.toml`` or ``pyproject.toml`` that was saved as UTF-8 with a byte order mark (BOM), which editors such as Windows Notepad add.
+  The files are now decoded as ``utf-8-sig``.  `#6750 <https://github.com/pypa/pipenv/issues/6750>`_
+
+Vendored Libraries
+------------------
+
+- Updated the bundled pip to 26.2.2 to update certifi to 2026.10.19.
+
+Relates to dev process changes
+------------------------------
+
+- Enable mypy type checking for pipenv's own code (excluding ``pipenv/vendor`` and ``pipenv/patched``) as a pre-commit hook, which also gates CI. Existing type errors were fixed, mostly by correcting annotations and converting legacy ``# type:`` comments to inline annotations.
+
 2026.10.1 (2026-10-18)
 ======================
 pipenv 2026.10.1 (2026-10-18)

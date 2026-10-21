@@ -1,1 +1,0 @@
-Enable mypy type checking for pipenv's own code (excluding ``pipenv/vendor`` and ``pipenv/patched``) as a pre-commit hook, which also gates CI. Existing type errors were fixed, mostly by correcting annotations and converting legacy ``# type:`` comments to inline annotations.
