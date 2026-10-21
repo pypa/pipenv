@@ -140,13 +140,13 @@ wheels = [
 
 [[packages]]
 name = "certifi"
-version = "2026.2.25"
+version = "2026.10.19"
 marker = "('dev' in dependency_groups) and (python_version >= '3.7')"
 index = "https://pypi.org/simple/"
 wheels = [
-    {name = "certifi-2026.2.25-py3-none-any.whl", url = "https://pypi.org/simple/certifi/certifi-2026.2.25-py3-none-any.whl", hashes = {sha256 = "027692e4402ad994f1c42e52a4997a9763c646b73e4096e4d5d6db8af1d6f0fa"}},
-    {name = "certifi-2026.2.25-py3-none-any.whl", url = "https://pypi.org/simple/certifi/certifi-2026.2.25-py3-none-any.whl", hashes = {sha256 = "e887ab5cee78ea814d3472169153c2d12cd43b14bd03329a39a9c6e2e80bfba7"}},
+    {name = "certifi-2026.10.19-py3-none-any.whl", url = "https://files.pythonhosted.org/packages/c4/51/29046e48f693c54e5b7412216d447a1d8362c9653148d98c02cdf65fa733/certifi-2026.10.19-py3-none-any.whl", hashes = {sha256 = "42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b"}},
 ]
+sdist = {name = "certifi-2026.10.19.tar.gz", url = "https://files.pythonhosted.org/packages/a6/bd/1436c50cc46699de0230fbaacc1d1de7bfec413176099949e9d5112e88f2/certifi-2026.10.19.tar.gz", hashes = {sha256 = "035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae"}}
 
 
 [[packages]]
