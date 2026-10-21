@@ -15,11 +15,11 @@
       "version": "0.14.4"
     },
     {
-      "bom-ref": "pkg:pypi/certifi@2026.6.17",
+      "bom-ref": "pkg:pypi/certifi@2026.10.19",
       "name": "certifi",
-      "purl": "pkg:pypi/certifi@2026.6.17",
+      "purl": "pkg:pypi/certifi@2026.10.19",
       "type": "library",
-      "version": "2026.6.17"
+      "version": "2026.10.19"
     },
     {
       "bom-ref": "pkg:pypi/distlib@0.4.2",
@@ -138,7 +138,7 @@
     {
       "dependsOn": [
         "pkg:pypi/CacheControl@0.14.4",
-        "pkg:pypi/certifi@2026.6.17",
+        "pkg:pypi/certifi@2026.10.19",
         "pkg:pypi/distlib@0.4.2",
         "pkg:pypi/distro@1.9.0",
         "pkg:pypi/idna@3.18",
@@ -162,7 +162,7 @@
       "ref": "pkg:pypi/CacheControl@0.14.4"
     },
     {
-      "ref": "pkg:pypi/certifi@2026.6.17"
+      "ref": "pkg:pypi/certifi@2026.10.19"
     },
     {
       "ref": "pkg:pypi/distlib@0.4.2"
