@@ -604,6 +604,31 @@ def build_parser():
     _add_site_packages_option(p)
     _add_install_options(p)
 
+    # ── init ─────────────────────────────────────────────────────────────────
+    p = subs.add_parser(
+        "init",
+        add_help=False,
+        help="Create a Pipfile for a new project, prompting for its settings.",
+    )
+    p.add_argument("-h", "--help", dest="help", action="store_true", default=False)
+    p.add_argument(
+        "-y",
+        "--yes",
+        dest="yes",
+        action="store_true",
+        default=False,
+        help="Accept all defaults without prompting.",
+    )
+    p.add_argument(
+        "--install",
+        dest="install",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Create the virtualenv and lock after writing the Pipfile "
+        "(default: ask; off with --yes).",
+    )
+    _add_common_options(p)
+
     # ── remove ───────────────────────────────────────────────────────────────
     p = subs.add_parser(
         "remove", add_help=False, help="Remove the virtualenv for the current project."
