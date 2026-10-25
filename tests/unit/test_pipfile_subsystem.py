@@ -396,6 +396,29 @@ def test_remove_packages_bulk_drops_named_entries(project_with_packages):
     assert "pytest" not in parsed.get("dev-packages", {})
 
 
+@pytest.mark.utils
+def test_snapshot_restore_round_trips_bytes(project_with_packages, tmp_path):
+    pipfile = project_with_packages.pipfile
+    before = (tmp_path / "Pipfile").read_bytes()
+    snap = pipfile.snapshot()
+    assert snap == before
+    pipfile.remove_package("flask", category="packages")
+    assert "flask" not in pipfile.parsed.get("packages", {})
+    pipfile.restore(snap)
+    assert (tmp_path / "Pipfile").read_bytes() == before
+    # The parsed cache is dropped, not served stale.
+    assert "flask" in pipfile.parsed["packages"]
+
+
+@pytest.mark.utils
+def test_restore_none_removes_pipfile(project_no_pipfile, tmp_path):
+    pipfile = project_no_pipfile.pipfile
+    assert pipfile.snapshot() is None
+    (tmp_path / "Pipfile").write_text("[packages]\n")
+    pipfile.restore(None)
+    assert not (tmp_path / "Pipfile").exists()
+
+
 # ---- key lookup / casing --------------------------------------------------
 
 

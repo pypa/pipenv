@@ -438,3 +438,33 @@ class TestBatchInstallIterationSignature:
             "procs",
             "requirements_dir",
         ]
+
+
+class TestDoInstallRestoresPipfileOnFailure:
+    """A failed install puts the Pipfile back byte-for-byte."""
+
+    @pytest.mark.parametrize(
+        "failing, failure",
+        [
+            ("handle_new_packages", SystemExit(1)),
+            ("handle_new_packages", RuntimeError("boom")),
+            ("do_install_dependencies", SystemExit(1)),
+            ("do_install_dependencies", KeyboardInterrupt()),
+        ],
+    )
+    def test_failure_restores_snapshot(
+        self, project_stub, patch_install_pipeline, failing, failure
+    ):
+        from pipenv.routines.install import do_install
+
+        project_stub.pipfile.snapshot.return_value = b"original"
+        patch_install_pipeline[failing].side_effect = failure
+        with pytest.raises(type(failure)):
+            do_install(project_stub, RoutineContext.from_cli(packages=("x",)))
+        project_stub.pipfile.restore.assert_called_once_with(b"original")
+
+    def test_success_leaves_pipfile_alone(self, project_stub, patch_install_pipeline):
+        from pipenv.routines.install import do_install
+
+        do_install(project_stub, RoutineContext.from_cli(packages=("x",)))
+        project_stub.pipfile.restore.assert_not_called()
