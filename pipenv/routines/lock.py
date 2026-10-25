@@ -4,6 +4,7 @@ import sys
 import traceback
 from pathlib import Path
 
+from pipenv.exceptions import ResolutionFailure
 from pipenv.routines.context import RoutineContext
 from pipenv.utils import err
 from pipenv.utils.dependencies import (
@@ -455,6 +456,12 @@ def do_lock(project, ctx: RoutineContext):
                 resolver_backend=resolver_backend,
             )
         except RuntimeError:
+            sys.exit(1)
+        except ResolutionFailure:
+            # The resolver already printed pip's message; a traceback for
+            # an unresolvable requirement is just noise.
+            if project.s.is_verbose():
+                err.print(traceback.format_exc())
             sys.exit(1)
         except Exception:
             err.print(traceback.format_exc())

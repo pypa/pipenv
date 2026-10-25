@@ -83,6 +83,34 @@ def _ask_packages(question, interactive):
         )
 
 
+def _install_or_discard(project, ctx, pipfile_path, do_install):
+    """Run ``do_install``; if it fails, delete the Pipfile ``init`` just wrote.
+
+    Otherwise a typo'd or nonexistent package is left in a Pipfile that
+    blocks re-running ``init``.  ``do_install`` exits via ``SystemExit``
+    on success too (code 0) and on lock failure (code 1), so a plain
+    ``except Exception`` would miss the common failure path.
+    """
+    try:
+        do_install(project, ctx)
+    except SystemExit as exc:
+        if exc.code in (None, 0):
+            raise
+        _discard_pipfile(pipfile_path)
+        raise
+    except Exception:
+        _discard_pipfile(pipfile_path)
+        raise
+
+
+def _discard_pipfile(pipfile_path):
+    pipfile_path.unlink(missing_ok=True)
+    err.print(
+        f"[bold red]Installation failed, so {pipfile_path} was removed.[/bold red] "
+        "Fix the problem above and run [bold]pipenv init[/bold] again."
+    )
+
+
 def do_project_init(project, ctx, yes=False, install=None):
     """Create a Pipfile in the current directory.
 
@@ -156,7 +184,7 @@ def do_project_init(project, ctx, yes=False, install=None):
             "Create the virtualenv and lock now?", True, interactive
         )
     if install:
-        do_install(project, ctx)
+        _install_or_discard(project, ctx, pipfile_path, do_install)
     else:
         console.print(
             "Run [bold]pipenv install[/bold] when you're ready to create the "
