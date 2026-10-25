@@ -886,6 +886,22 @@ class Pipfile:
             self._parsed_cache = None
             self._parsed_mtime_ns = None
 
+    def snapshot(self) -> bytes | None:
+        """Return the Pipfile's raw bytes (``None`` if it doesn't exist)."""
+        try:
+            return Path(self.location).read_bytes()
+        except FileNotFoundError:
+            return None
+
+    def restore(self, content: bytes | None) -> None:
+        """Put back exactly what :meth:`snapshot` returned."""
+        if content is None:
+            Path(self.location).unlink(missing_ok=True)
+        else:
+            Path(self.location).write_bytes(content)
+        self._parsed_cache = None
+        self._parsed_mtime_ns = None
+
     # ---- key lookup / casing --------------------------------------------
 
     def get_package_name(self, package_name, category):

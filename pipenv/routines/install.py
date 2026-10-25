@@ -348,28 +348,24 @@ def handle_new_packages(
 
     # Use the update routine for new packages
     if perform_upgrades and (packages or editable_packages):
-        try:
-            # Post T_C.8 ``do_update`` consumes ``RoutineContext``. Build
-            # a context that mirrors the pre-migration kwargs verbatim
-            # (dev / pre / packages / editables / pypi_mirror / index /
-            # extra_pip_args / categories) so the post-install upgrade
-            # pass behaves identically.
-            update_ctx = RoutineContext.from_cli(
-                pypi_mirror=target.pypi_mirror,
-                pre=policy.pre,
-                packages=tuple(packages),
-                editable_packages=tuple(editable_packages),
-                categories=tuple(pipfile_categories),
-                dev=sel.dev,
-                index=index,
-                extra_pip_args=tuple(extra_pip_args),
-            )
-            do_update(project, update_ctx)
-            return new_packages, True
-        except Exception:
-            for pkg_name, category in new_packages:
-                project.pipfile.remove_package(pkg_name, category)
-            raise
+        # Post T_C.8 ``do_update`` consumes ``RoutineContext``. Build
+        # a context that mirrors the pre-migration kwargs verbatim
+        # (dev / pre / packages / editables / pypi_mirror / index /
+        # extra_pip_args / categories) so the post-install upgrade
+        # pass behaves identically.
+        update_ctx = RoutineContext.from_cli(
+            pypi_mirror=target.pypi_mirror,
+            pre=policy.pre,
+            packages=tuple(packages),
+            editable_packages=tuple(editable_packages),
+            categories=tuple(pipfile_categories),
+            dev=sel.dev,
+            index=index,
+            extra_pip_args=tuple(extra_pip_args),
+        )
+        # On failure, do_install restores the Pipfile from its snapshot.
+        do_update(project, update_ctx)
+        return new_packages, True
 
     return new_packages, False
 
@@ -538,7 +534,6 @@ def do_install(project, ctx: RoutineContext) -> None:
     sel = ctx.package_selection
 
     pipfile_categories = list(sel.categories)
-    new_packages: list[tuple[str, str]] = []
 
     ensure_project(
         project,
@@ -557,14 +552,18 @@ def do_install(project, ctx: RoutineContext) -> None:
 
     do_init(project, ctx)
 
-    if not policy.deploy:
-        new_packages, _ = handle_new_packages(
-            project,
-            ctx,
-            perform_upgrades=not policy.skip_lock,
-        )
-
+    # If anything below fails, put the Pipfile back exactly as it was.
+    # Removing just the "new" entries isn't enough: a failed upgrade of an
+    # existing package would delete it, and lock failures exit through
+    # SystemExit rather than an Exception.
+    pipfile_snapshot = project.pipfile.snapshot()
     try:
+        if not policy.deploy:
+            handle_new_packages(
+                project,
+                ctx,
+                perform_upgrades=not policy.skip_lock,
+            )
         # When --dev was requested, install both default and dev categories
         # from the Pipfile (the historical do_install behaviour).
         install_categories = (
@@ -577,11 +576,13 @@ def do_install(project, ctx: RoutineContext) -> None:
             ),
         )
         do_install_dependencies(project, deps_ctx, requirements_directory)
-    except Exception as e:
-        # If we fail to install, remove the package from the Pipfile.
-        for pkg_name, category in new_packages:
-            project.pipfile.remove_package(pkg_name, category)
-        raise e
+    except SystemExit as exc:
+        if exc.code not in (None, 0):
+            project.pipfile.restore(pipfile_snapshot)
+        raise
+    except BaseException:
+        project.pipfile.restore(pipfile_snapshot)
+        raise
 
     sys.exit(0)
 
