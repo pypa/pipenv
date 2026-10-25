@@ -120,3 +120,22 @@ def test_interactive_dialog(project, tmp_path, monkeypatch):
     assert parsed["packages"]["flask"]["extras"] == ["async"]
     assert parsed["dev-packages"]["pytest"] == "*"
     do_install.assert_called_once()
+
+
+@pytest.mark.parametrize("failure", [SystemExit(1), RuntimeError("boom")])
+def test_failed_install_removes_new_pipfile(project, tmp_path, failure):
+    proj = project()
+    with mock.patch(
+        "pipenv.routines.install.do_install", side_effect=failure
+    ), pytest.raises(type(failure)):
+        do_project_init(proj, _ctx(), yes=True, install=True)
+    assert not (tmp_path / "Pipfile").exists()
+
+
+def test_successful_install_keeps_pipfile(project, tmp_path):
+    proj = project()
+    with mock.patch(
+        "pipenv.routines.install.do_install", side_effect=SystemExit(0)
+    ), pytest.raises(SystemExit):
+        do_project_init(proj, _ctx(), yes=True, install=True)
+    assert (tmp_path / "Pipfile").is_file()
