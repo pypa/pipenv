@@ -403,14 +403,16 @@ class _PipenvInstance:
 
 if os.name == "nt":
     # Windows needs special handling for read-only files (e.g., git pack files)
-    # Use onexc for Python 3.12+ or onerror for older versions
+    # Use onexc for Python 3.12+ or onerror for older versions.
+    # Extra kwargs are forwarded since tempfile passes private ones
+    # (e.g. dir_fd/_onexc_kwargs as of 3.14.9).
     if sys.version_info >= (3, 12):
 
-        def _rmtree_func(path, ignore_errors=False, onexc=None):
+        def _rmtree_func(path, ignore_errors=False, onexc=None, **kwargs):
             if onexc is None:
                 onexc = handle_remove_readonly
             try:
-                _rmtree(path, ignore_errors=ignore_errors, onexc=onexc)
+                _rmtree(path, ignore_errors=ignore_errors, onexc=onexc, **kwargs)
             except (OSError, FileNotFoundError, PermissionError) as exc:
                 # Ignore removal failures where the file doesn't exist
                 if exc.errno != errno.ENOENT:
@@ -418,11 +420,11 @@ if os.name == "nt":
 
     else:
 
-        def _rmtree_func(path, ignore_errors=False, onerror=None):
+        def _rmtree_func(path, ignore_errors=False, onerror=None, **kwargs):
             if onerror is None:
                 onerror = handle_remove_readonly
             try:
-                _rmtree(path, ignore_errors=ignore_errors, onerror=onerror)
+                _rmtree(path, ignore_errors=ignore_errors, onerror=onerror, **kwargs)
             except (OSError, FileNotFoundError, PermissionError) as exc:
                 # Ignore removal failures where the file doesn't exist
                 if exc.errno != errno.ENOENT:
