@@ -211,15 +211,7 @@ def atomic_open_for_write(
         raise
     else:
         f.close()
-        try:
-            # This is needed on Windows
-            target_path.unlink(missing_ok=True)
-        except OSError:
-            pass  # The following rename reports any unrecoverable target conflict.
-
-        # Rename the temporary file to the target
-        # Note: Path.rename() is equivalent to os.rename()
-        temp_path.rename(target_path)
+        temp_path.replace(target_path)
 
 
 @dataclass

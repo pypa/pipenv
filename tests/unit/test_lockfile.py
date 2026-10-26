@@ -20,6 +20,7 @@ follow-up.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -245,3 +246,21 @@ def test_lockfile_write_persists_to_disk(project_bare, tmp_path):
     assert lockfile_path.exists()
     written = json.loads(lockfile_path.read_text())
     assert written["_meta"]["hash"]["sha256"] == "deadbeef"
+
+
+def test_lockfile_write_preserves_target_on_replace_error(
+    project_with_lock, tmp_path, monkeypatch
+):
+    target = tmp_path / "Pipfile.lock"
+    original = target.read_bytes()
+
+    def fail_replace(*args, **kwargs):
+        raise PermissionError("cannot replace lock")
+
+    monkeypatch.setattr(Path, "rename", fail_replace)
+    monkeypatch.setattr(Path, "replace", fail_replace)
+    with pytest.raises(PermissionError, match="cannot replace lock"):
+        project_with_lock.lockfile.write({"default": {}, "develop": {}})
+
+    assert target.exists()
+    assert target.read_bytes() == original
