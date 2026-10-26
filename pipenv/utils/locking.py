@@ -347,7 +347,7 @@ class Lockfile:
         else:
             if data:
                 raise ValueError("Cannot pass data when loading existing lockfile")
-            with open(lockfile_path.as_posix()) as f:
+            with open(lockfile_path.as_posix(), encoding="utf-8-sig") as f:
                 projectfile.model = lockfiles.Lockfile.load(f)
         return projectfile
 

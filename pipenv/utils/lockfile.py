@@ -200,7 +200,7 @@ class Lockfile:
                 # from the Pipfile, matching the legacy fallback behavior.
                 pass
         if not lockfile_loaded:
-            with open(project.pipfile.location) as pf:
+            with open(project.pipfile.location, encoding="utf-8-sig") as pf:
                 plette_lock = plette.Lockfile.with_meta_from(
                     plette.Pipfile.load(pf), categories=categories
                 )
@@ -237,7 +237,7 @@ class Lockfile:
 
         if not j.get("_meta"):
             if pipfile_path.exists():
-                with pipfile_path.open() as pf:
+                with pipfile_path.open(encoding="utf-8-sig") as pf:
                     default_lockfile = plette.Lockfile.with_meta_from(
                         plette.Pipfile.load(pf), categories=[]
                     )

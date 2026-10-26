@@ -880,7 +880,7 @@ class Pipfile:
         is_pipfile = Path(path).resolve() == Path(self.location).resolve()
         newlines = self._newlines if is_pipfile else DEFAULT_NEWLINES
         formatted_data = cleanup_toml(formatted_data)
-        with open(path, "w", newline=newlines) as f:
+        with open(path, "w", encoding="utf-8", newline=newlines) as f:
             f.write(formatted_data)
         if is_pipfile:
             self._parsed_cache = None
@@ -1351,7 +1351,7 @@ class Pipfile:
             """Return a new dict with all keys canonicalized (PEP 503)."""
             return {canonicalize_name(k): v for k, v in section.items()}
 
-        with open(self.location) as pf:
+        with open(self.location, encoding="utf-8-sig") as pf:
             p = plette.Pipfile.load(pf)
 
         raw = p._data
