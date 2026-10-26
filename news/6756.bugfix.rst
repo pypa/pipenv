@@ -1,0 +1,2 @@
+Fix ``pipenv`` crashing with ``UnicodeDecodeError``, or rewriting the ``Pipfile`` in the locale encoding (such as cp932 on Japanese Windows), when the ``Pipfile`` contains non-ASCII text such as a comment or a path.
+The ``Pipfile`` is now always read as ``utf-8-sig`` and written as UTF-8, and a ``Pipfile.lock`` saved with a byte order mark is no longer treated as corrupt and moved to ``Pipfile.lock.bak``.
