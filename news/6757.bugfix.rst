@@ -1,0 +1,2 @@
+Preserve the existing ``Pipfile.lock`` and ``pylock.toml`` if replacement fails,
+and avoid exposing a missing lockfile to concurrent readers.
