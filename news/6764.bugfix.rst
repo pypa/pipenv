@@ -1,1 +1,0 @@
-``pipenv install -r`` now reads the requirements file the way pip does (UTF-8/UTF-16 BOMs and PEP 263 coding comments) instead of the locale encoding when it looks for ``-i``, ``--extra-index-url`` and ``--trusted-host`` lines.

@@ -1,3 +1,27 @@
+2026.10.4 (2026-10-28)
+======================
+pipenv 2026.10.4 (2026-10-28)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Add ``pipenv init``, which creates a Pipfile for a new project through a short dialog (requirements.txt import, Python version, package index, packages and dev packages, and whether to create the virtualenv and lock). ``--yes`` accepts the defaults without prompting, and ``--install`` / ``--no-install`` control the follow-up install. If that install fails, the new Pipfile is removed so ``pipenv init`` can be run again.  `#5792 <https://github.com/pypa/pipenv/issues/5792>`_
+
+Bug Fixes
+---------
+
+- A failed ``pipenv install <package>`` (for example a package that doesn't exist, or a version that can't be resolved) now restores the Pipfile exactly as it was. Previously a lock failure left the new entry in the Pipfile, and a failed upgrade of a package already in the Pipfile could remove that package entirely. An unresolvable dependency also no longer prints a Python traceback after the resolver's error message; pass ``--verbose`` to see it.  `#6747 <https://github.com/pypa/pipenv/issues/6747>`_
+- Fix ``pipenv`` crashing with ``UnicodeDecodeError``, or rewriting the ``Pipfile`` in the locale encoding (such as cp932 on Japanese Windows), when the ``Pipfile`` contains non-ASCII text such as a comment or a path.
+  The ``Pipfile`` is now always read as ``utf-8-sig`` and written as UTF-8, and a ``Pipfile.lock`` saved with a byte order mark is no longer treated as corrupt and moved to ``Pipfile.lock.bak``.  `#6756 <https://github.com/pypa/pipenv/issues/6756>`_
+- Preserve the existing ``Pipfile.lock`` and ``pylock.toml`` if replacement fails,
+  and avoid exposing a missing lockfile to concurrent readers.  `#6757 <https://github.com/pypa/pipenv/issues/6757>`_
+- ``pipenv audit`` now exits with status 1 instead of 0 when ``pip-audit`` could not be installed, was declined, or is still missing after installing, so CI no longer treats an audit that never ran as a pass.  `#6763 <https://github.com/pypa/pipenv/issues/6763>`_
+- ``pipenv install -r`` now reads the requirements file the way pip does (UTF-8/UTF-16 BOMs and PEP 263 coding comments) instead of the locale encoding when it looks for ``-i``, ``--extra-index-url`` and ``--trusted-host`` lines.  `#6764 <https://github.com/pypa/pipenv/issues/6764>`_
+- ``pipenv graph`` in a project without a virtualenv now prints the "No virtualenv has been created" warning and exits with 1 instead of failing with an ``AttributeError``.  `#6765 <https://github.com/pypa/pipenv/issues/6765>`_
+- ``pipenv outdated`` now shows the version that a dependent package requires in the "Skipped Update" message instead of the literal ``{rdeps['required']}``.  `#6766 <https://github.com/pypa/pipenv/issues/6766>`_
+
 2026.10.3 (2026-10-25)
 ======================
 pipenv 2026.10.3 (2026-10-25)
