@@ -1,0 +1,1 @@
+``pipenv graph`` in a project without a virtualenv now prints the "No virtualenv has been created" warning and exits with 1 instead of failing with an ``AttributeError``.
