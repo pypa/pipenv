@@ -1,0 +1,1 @@
+``pipenv outdated`` now shows the version that a dependent package requires in the 
