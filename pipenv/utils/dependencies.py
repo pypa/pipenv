@@ -1770,8 +1770,11 @@ def import_requirements(
     # Default path, if none is provided.
     if r is None:
         r = project.pipfile.requirements_location
-    with open(r) as f:
-        contents = f.read()
+    # Decode the file like pip does (BOMs, UTF-16 and coding cookies), not with the locale encoding
+    from pipenv.patched.pip._internal.req.req_file import _decode_req_file
+
+    with open(r, "rb") as f:
+        contents = _decode_req_file(f.read(), str(r))
     if categories is None:
         categories = []
 
