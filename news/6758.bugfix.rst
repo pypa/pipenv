@@ -1,0 +1,1 @@
+``pylock.toml`` files with dependency groups other than ``dev``/``test`` now keep those packages in ``develop`` when converted to a ``Pipfile.lock``, and ``requires-python`` is written as a plain ``python_version`` (or ``python_full_version``) instead of the raw specifier.
