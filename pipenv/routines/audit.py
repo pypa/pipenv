@@ -192,7 +192,8 @@ def do_audit(  # noqa: PLR0913
     if not is_pip_audit_installed(project, system=system):
         if not install_pip_audit(project, system=system):
             console.print("[yellow]Vulnerability audit aborted.[/yellow]")
-            return
+            # Nothing was audited: a non-zero exit keeps CI from reading it as a pass.
+            sys.exit(1)
 
         # Check again after installation
         if not is_pip_audit_installed(project, system=system):
@@ -200,7 +201,7 @@ def do_audit(  # noqa: PLR0913
                 "[red]pip-audit installation was reported successful but module not found. "
                 "Please try again or install manually with 'pip install pip-audit'[/red]"
             )
-            return
+            sys.exit(1)
 
     # Build options for pip-audit
     options = build_audit_options(
