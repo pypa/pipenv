@@ -1,0 +1,1 @@
+``pipenv uninstall`` now exits with a non-zero status when ``pip uninstall`` fails for a package.
