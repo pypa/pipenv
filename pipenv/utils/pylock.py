@@ -9,6 +9,7 @@ installation reproducibility).
 import datetime
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Union
@@ -885,7 +886,9 @@ class PylockFile:
 
         # Add Python version requirement if present
         if self.requires_python:
-            lockfile["_meta"]["requires"]["python_version"] = self.requires_python
+            lockfile["_meta"]["requires"].update(
+                _pipfile_requires_from_pylock(self.requires_python)
+            )
 
         # Add sources if present
         if "sources" in self.data:
@@ -924,6 +927,12 @@ class PylockFile:
             if marker and "dependency_groups" in marker:
                 # Simple heuristic - if it mentions dev or test, it's probably a dev package
                 if "dev" in marker.lower() or "test" in marker.lower():
+                    is_dev = True
+                # Any other group that is not a default group (e.g. 'lint') is
+                # a development group too
+                elif set(_DEPENDENCY_GROUP_RE.findall(marker)) - set(
+                    self.default_groups
+                ):
                     is_dev = True
 
             # Create the package entry
@@ -966,6 +975,27 @@ class PylockFile:
             lockfile[section][name] = package_entry
 
         return lockfile
+
+
+_DEPENDENCY_GROUP_RE = re.compile(r"""['"]([^'"]+)['"]\s+in\s+dependency_groups""")
+_REQUIRES_PYTHON_RE = re.compile(r"^\s*(>=|==)\s*(\d+(?:\.\d+)*)\s*$")
+
+
+def _pipfile_requires_from_pylock(requires_python):
+    """Map a pylock ``requires-python`` to the Pipfile.lock ``requires`` entry.
+
+    This reverses what ``PylockFile.from_lockfile`` writes (``>=X.Y`` for
+    ``python_version`` and ``==X.Y.Z`` for ``python_full_version``). Any other
+    specifier is kept as ``python_version`` unchanged.
+    """
+    match = _REQUIRES_PYTHON_RE.match(requires_python)
+    if match:
+        operator, version = match.groups()
+        if operator == ">=":
+            return {"python_version": version}
+        if version.count(".") >= 2:
+            return {"python_full_version": version}
+    return {"python_version": requires_python}
 
 
 def _same_locked_package(default_data, develop_data) -> bool:
