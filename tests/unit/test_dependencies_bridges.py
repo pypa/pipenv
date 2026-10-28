@@ -124,6 +124,39 @@ def test_requirement_from_lockfile_star_returns_bare_name():
     assert requirement_from_lockfile("requests", "*") == "requests"
 
 
+def test_requirement_from_lockfile_vcs_keeps_markers():
+    """A VCS entry keeps its marker, as index and file entries do."""
+    from pipenv.utils.dependencies import requirement_from_lockfile
+
+    entry = {
+        "git": "https://github.com/pypa/pipenv.git",
+        "ref": "abc123",
+        "markers": "sys_platform == 'win32'",
+    }
+    assert requirement_from_lockfile("pipenv", entry) == (
+        "pipenv @ git+https://github.com/pypa/pipenv.git@abc123"
+        " ; sys_platform == 'win32'"
+    )
+    assert requirement_from_lockfile("pipenv", entry, include_markers=False) == (
+        "pipenv @ git+https://github.com/pypa/pipenv.git@abc123"
+    )
+
+
+def test_requirement_from_lockfile_editable_vcs_has_no_marker():
+    """pip ignores a marker on an editable line, so none is written."""
+    from pipenv.utils.dependencies import requirement_from_lockfile
+
+    entry = {
+        "git": "https://github.com/pypa/pipenv.git",
+        "ref": "abc123",
+        "editable": True,
+        "markers": "sys_platform == 'win32'",
+    }
+    assert requirement_from_lockfile("pipenv", entry) == (
+        "-e git+https://github.com/pypa/pipenv.git@abc123#egg=pipenv"
+    )
+
+
 def test_requirement_from_lockfile_dict_with_version():
     from pipenv.utils.dependencies import requirement_from_lockfile
 

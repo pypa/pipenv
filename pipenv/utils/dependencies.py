@@ -1951,6 +1951,11 @@ def requirement_from_lockfile(
             else:
                 pip_line = f"{package_name}{extras} @ {include_vcs}{vcs_url}{ref_str}"
                 pip_line += f"#subdirectory={subdirectory}" if subdirectory else ""
+                # pip ignores markers on an editable line, so only the direct
+                # reference form carries them. PEP 508 wants a space before ';'
+                # after a URL.
+                if os_markers or markers:
+                    pip_line += f" {os_markers}{markers}"
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:
