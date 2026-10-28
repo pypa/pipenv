@@ -1,0 +1,1 @@
+``pipenv outdated`` now shows the version that a dependent package requires in the "Skipped Update" message instead of the literal ``{rdeps['required']}``.
