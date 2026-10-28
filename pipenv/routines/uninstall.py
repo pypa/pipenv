@@ -82,6 +82,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
         categories = ["default"]
 
     lockfile_content = project.lockfile.content
+    failure = False
 
     if all_dev:
         console.print(
@@ -90,7 +91,8 @@ def do_uninstall(project: Project, ctx: RoutineContext):
         )
         # Uninstall all dev-packages from environment
         for package in project.pipfile.get_section("dev-packages"):
-            _uninstall_from_environment(project, package, system=system)
+            if not _uninstall_from_environment(project, package, system=system):
+                failure = True
         # Remove the package from the Pipfile
         if project.pipfile.reset_category(category="dev-packages"):
             console.print("Removed [dev-packages] from Pipfile.")
@@ -171,9 +173,9 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     project.lockfile.write(lockfile_content)
 
     # Perform uninstallation of packages and dependencies
-    failure = False
     for package in package_args:
-        _uninstall_from_environment(project, package, system=system)
+        if not _uninstall_from_environment(project, package, system=system):
+            failure = True
 
     if lock:
         # Build a lock-only ctx carrying the target env + pre flag from
