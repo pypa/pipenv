@@ -1,0 +1,1 @@
+``pipenv requirements`` now keeps the environment marker of git/VCS dependencies, so they are no longer installed on platforms the ``Pipfile.lock`` excludes.
