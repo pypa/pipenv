@@ -122,14 +122,14 @@ html_theme_options = {
     "show_related": False,
 }
 
+# sidebarlogo.html includes the search box near the top of the sidebar.
 html_sidebars = {
-    "index": ["sidebarlogo.html", "sourcelink.html", "searchbox.html", "hacks.html"],
+    "index": ["sidebarlogo.html", "sourcelink.html", "hacks.html"],
     "**": [
         "sidebarlogo.html",
         "localtoc.html",
         "relations.html",
         "sourcelink.html",
-        "searchbox.html",
         "hacks.html",
     ],
 }

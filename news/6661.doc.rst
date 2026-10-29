@@ -1,0 +1,2 @@
+Replace the documentation's outdated Algolia search with Sphinx's built-in search,
+so results point to pages in the documentation version being viewed.
