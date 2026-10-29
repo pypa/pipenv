@@ -1,3 +1,5 @@
+import hashlib
+import json
 import os
 import shutil
 from pathlib import Path
@@ -6,6 +8,46 @@ import pytest
 
 from pipenv.project import Project
 from pipenv.utils.pylock import PylockFile, find_pylock_file
+
+
+@pytest.mark.parametrize("selection, expected", [
+    ("", {"six"}),
+    ("--dev", {"six", "tomli"}),
+    ("--categories=lint", {"attrs"}),
+    ("--categories=packages,lint", {"six", "attrs"}),
+])
+def test_sync_installs_only_selected_pylock_groups(pipenv_instance_file_pypi, selection, expected):
+    wheels = Path(__file__).parent.parent / "test_artifacts" / "extra_pypi"
+    packages = []
+    for name, version, marker in [
+        ("six", "1.16.0", "'default' in dependency_groups"),
+        ("tomli", "2.0.1", "'dev'in dependency_groups"),
+        ("attrs", "19.3.0", "'lint' in dependency_groups"),
+        ("docutils", "0.19", "'docs' in dependency_groups"),
+    ]:
+        wheel = wheels / name / f"{name}-{version}-py3-none-any.whl"
+        packages.append({
+            "name": name,
+            "version": version,
+            "marker": marker,
+            "archive": {"url": wheel.as_uri(), "hashes": {"sha256": hashlib.sha256(wheel.read_bytes()).hexdigest()}},
+        })
+    # An unselected group's Python requirement must not block the install.
+    packages[-1]["requires-python"] = ">=99"
+    with pipenv_instance_file_pypi() as project:
+        project.pipfile_path.write_text("[packages]\n[dev-packages]\n[lint]\n[docs]\n")
+        PylockFile(Path(project.path) / "pylock.toml", {
+            "lock-version": "1.0", "created-by": "test",
+            "dependency-groups": ["dev", "lint", "docs"], "default-groups": ["default"],
+            "packages": packages,
+        }).write()
+
+        result = project.pipenv(f"sync {selection}")
+        assert result.returncode == 0, result.stderr
+        installed = project.pipenv("run python -m pip list --format=json")
+        assert installed.returncode == 0, installed.stderr
+        names = {package["name"].lower() for package in json.loads(installed.stdout)}
+        assert names & {"six", "tomli", "attrs", "docutils"} == expected
 
 
 @pytest.fixture

@@ -169,7 +169,8 @@ def test_convert_to_pipenv_lockfile(pylock_file):
     assert lockfile["default"]["requests"]["version"] == "==2.28.1"
     assert "hashes" in lockfile["default"]["requests"]
     assert lockfile["develop"]["pytest"]["version"] == "==7.0.0"
-    assert lockfile["develop"]["pytest"]["markers"] == "'dev' in dependency_groups or 'test' in dependency_groups"
+    assert "markers" not in lockfile["develop"]["pytest"]
+    assert lockfile["test"]["pytest"]["version"] == "==7.0.0"
 
 
 def test_convert_to_pipenv_lockfile_expands_env_vars_in_source_urls(
@@ -525,27 +526,16 @@ def test_from_lockfile_with_custom_dev_groups(tmp_path):
 
 
 @pytest.mark.parametrize(
-    "default_markers, develop_markers, expected_marker",
+    "default_markers, develop_markers",
     [
-        (None, None, None),
-        ("python_version >= '3.9'", "python_version >= '3.9'", "python_version >= '3.9'"),
-        (
-            "sys_platform == 'win32'",
-            None,
-            "(sys_platform == 'win32') or ('dev' in dependency_groups)",
-        ),
-        (
-            "sys_platform == 'win32'",
-            "python_version >= '3.9'",
-            (
-                "(sys_platform == 'win32') or "
-                "(('dev' in dependency_groups) and (python_version >= '3.9'))"
-            ),
-        ),
+        (None, None),
+        ("python_version >= '3.9'", "python_version >= '3.9'"),
+        ("sys_platform == 'win32'", None),
+        ("sys_platform == 'win32'", "python_version >= '3.9'"),
     ],
 )
 def test_from_lockfile_package_in_default_and_develop_has_one_entry(
-    tmp_path, default_markers, develop_markers, expected_marker
+    tmp_path, default_markers, develop_markers
 ):
     """A package locked in both sections must narrow down to one entry (PEP 751).
 
@@ -553,6 +543,7 @@ def test_from_lockfile_package_in_default_and_develop_has_one_entry(
     pylock.toml entries for it both match when the dev group is selected.
     """
     import json
+    from pipenv.patched.pip._vendor.packaging.markers import Marker
 
     default_entry = {"version": "==26.3"}
     develop_entry = {"version": "==26.3"}
@@ -572,7 +563,18 @@ def test_from_lockfile_package_in_default_and_develop_has_one_entry(
 
     entries = [p for p in pylock.packages if p["name"] == "packaging"]
     assert len(entries) == 1
-    assert entries[0].get("marker") == expected_marker
+    for environment in [
+        {"python_version": "3.8", "sys_platform": "win32"},
+        {"python_version": "3.12", "sys_platform": "linux"},
+    ]:
+        for groups in [{"default"}, {"dev"}, {"default", "dev"}]:
+            expected = (
+                "default" in groups and (not default_markers or Marker(default_markers).evaluate(environment))
+            ) or (
+                "dev" in groups and (not develop_markers or Marker(develop_markers).evaluate(environment))
+            )
+            selected = pylock.get_packages_for_environment(dependency_groups=groups, environment=environment)
+            assert any(package["name"] == "packaging" for package in selected) == expected
     names = [p["name"] for p in pylock._narrow_package_entries()]
     assert names.count("packaging") == 1
 

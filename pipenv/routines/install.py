@@ -93,9 +93,7 @@ def _check_pylock_environment(project, categories, allow_global=False):
     be installed excludes the environment being installed for.
     """
     pylock = PylockFile.from_path(project.lockfile.pylock_location)
-    dependency_groups = set(pylock.default_groups)
-    if "dev-packages" in categories:
-        dependency_groups |= set(pylock.dependency_groups)
+    dependency_groups = pylock.groups_for_categories(categories)
     environment = _target_marker_environment(project, allow_global=allow_global)
     try:
         pylock.check_environment(
