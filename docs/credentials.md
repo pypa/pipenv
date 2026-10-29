@@ -365,7 +365,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
     - name: Install dependencies
       env:
         USERNAME: ${{ secrets.PYPI_USERNAME }}
@@ -385,7 +385,7 @@ stages:
 
 test:
   stage: test
-  image: python:3.10
+  image: python:3.11
   variables:
     USERNAME: ${PYPI_USERNAME}
     PASSWORD: ${PYPI_PASSWORD}
@@ -403,7 +403,7 @@ For Jenkins, use credentials binding:
 pipeline {
     agent {
         docker {
-            image 'python:3.10'
+            image 'python:3.11'
         }
     }
     stages {

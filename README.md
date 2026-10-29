@@ -72,7 +72,7 @@ Table Of Contents
 Installation
 ------------
 
-**Pipenv can be installed with Python 3.10 and above.**
+**Pipenv can be installed with Python 3.11 and above, including Python 3.15.**
 
 For most users, we recommend installing Pipenv using `pip`:
 

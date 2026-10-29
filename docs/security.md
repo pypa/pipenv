@@ -242,7 +242,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install pipenv
         run: pip install pipenv
       - name: Install dependencies
@@ -307,7 +307,7 @@ When using Pipenv with Docker:
 ### Secure Dockerfile
 
 ```dockerfile
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -320,12 +320,12 @@ RUN pip install --no-cache-dir pipenv && \
     pip uninstall -y pipenv virtualenv-clone virtualenv
 
 # Use a smaller base image for the final image
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
 # Copy only the installed packages from the builder stage
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code

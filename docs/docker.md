@@ -20,7 +20,7 @@ Docker containers provide isolated, reproducible environments for applications, 
 Here's a basic Dockerfile that uses Pipenv:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -86,7 +86,7 @@ For most production containers that run a single Python application, `--system` 
 Multi-stage builds create smaller, more secure images by separating the build environment from the runtime environment:
 
 ```dockerfile
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 # Install pipenv
 RUN pip install pipenv
@@ -100,13 +100,13 @@ COPY Pipfile Pipfile.lock ./
 # Install dependencies
 RUN pipenv install --deploy --system
 
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
 # Copy installed packages from builder stage
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
@@ -131,7 +131,7 @@ This approach:
 To take advantage of Docker's layer caching and speed up builds:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -161,7 +161,7 @@ This separates dependency installation from code copying, so dependencies are on
 For development environments, you might want to include development dependencies:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -187,7 +187,7 @@ CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 For production, focus on security and minimal image size:
 
 ```dockerfile
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 # Install pipenv and dependencies
 RUN pip install pipenv
@@ -201,13 +201,13 @@ COPY Pipfile Pipfile.lock ./
 # Install only production dependencies
 RUN pipenv install --deploy --system
 
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
 # Copy installed packages from builder stage
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
@@ -299,7 +299,7 @@ volumes:
 For some workflows, you might want to use a project-local virtual environment:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -326,7 +326,7 @@ CMD ["./.venv/bin/python", "app.py"]
 If your application requires a specific Python version:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -338,7 +338,7 @@ WORKDIR /app
 COPY Pipfile Pipfile.lock ./
 
 # Install dependencies
-RUN pipenv install --deploy --system --python 3.10
+RUN pipenv install --deploy --system --python 3.11
 
 # Copy application code
 COPY . .
@@ -352,7 +352,7 @@ CMD ["python", "app.py"]
 For private packages or custom indexes:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -385,7 +385,7 @@ CMD ["python", "app.py"]
 Always run your application as a non-root user:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv and dependencies
 RUN pip install pipenv
@@ -416,7 +416,7 @@ CMD ["python", "app.py"]
 Use build arguments and environment variables for secrets:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -454,7 +454,7 @@ For runtime secrets, use environment variables or Docker secrets.
 Integrate security scanning into your Docker workflow:
 
 ```dockerfile
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 # Install pipenv
 RUN pip install pipenv
@@ -471,13 +471,13 @@ RUN pipenv install --deploy --system
 # Scan for vulnerabilities
 RUN pipenv scan
 
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Set working directory
 WORKDIR /app
 
 # Copy installed packages from builder stage
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
@@ -575,7 +575,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 For packages with system dependencies:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install system dependencies
 RUN apt-get update && \

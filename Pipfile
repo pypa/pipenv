@@ -20,19 +20,20 @@ gunicorn = {version = "26.2.*", sys_platform = "== 'linux'"}
 parse = "*"
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
-exceptiongroup = "==1.1.0"
 pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
 pypiserver = "*"
-tomli = "*"
 bottle = "*"
 legacy-cgi = {version = "*", markers = "python_version >= '3.13'"}
 pytest-rerunfailures = "*"
 
 [packages]
+filelock = ">=4.2.1"
 pytz = "*"
+setuptools = ">=84.1.0"
+virtualenv = ">=21.14.9"
 
 [scripts]
 tests = "bash ./run-tests.sh"

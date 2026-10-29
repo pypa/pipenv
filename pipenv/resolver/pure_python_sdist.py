@@ -64,14 +64,10 @@ import logging
 import ntpath
 import tarfile
 import tempfile
+import tomllib as _toml_loader
 import zipfile
 from pathlib import Path
 from typing import Any
-
-try:  # py3.11+
-    import tomllib as _toml_loader
-except ImportError:  # py3.10 fallback — pipenv supports >=3.10
-    from pipenv.patched.pip._vendor import tomli as _toml_loader  # type: ignore[no-redef]
 
 from pipenv.resolver.pure_python_metadata import (
     CoreMetadata,

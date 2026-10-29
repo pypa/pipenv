@@ -1023,7 +1023,7 @@ class Resolver:
             _ = self.hash_cache
         max_workers = min(len(ireqs), 16)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
-            for ireq, hashes in zip(ireqs, pool.map(self.collect_hashes, ireqs)):
+            for ireq, hashes in zip(ireqs, pool.map(self.collect_hashes, ireqs), strict=True):
                 self.hashes[ireq] = hashes
         return self.hashes
 

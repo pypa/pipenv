@@ -4,7 +4,7 @@ This guide provides comprehensive instructions for installing Pipenv on various 
 
 ## Prerequisites
 
-Before installing Pipenv, ensure you have Python and pip available on your system.
+Before installing Pipenv, ensure you have Python 3.11 or newer and pip available on your system. Python 3.15 is supported.
 
 ### Verifying Python Installation
 
@@ -12,7 +12,7 @@ Check that Python is installed and available from your command line:
 
 ```bash
 $ python --version
-Python 3.10.4
+Python 3.11.14
 ```
 
 You should see output showing your Python version. If you don't have Python installed, download and install the latest version from [python.org](https://python.org).
@@ -36,7 +36,7 @@ Windows is **pipx**, which installs Pipenv in an isolated environment and makes 
 
 ### Recommended: pipx (Windows)
 
-1. **Install pipx** (requires Python 3.7+):
+1. **Install pipx** using Python 3.11 or newer:
    ```powershell
    > python -m pip install --user pipx
    > python -m pipx ensurepath
@@ -304,7 +304,7 @@ $ source pipenv-venv/bin/activate  # On Windows: pipenv-venv\Scripts\activate
 For Docker environments, you can install Pipenv in your Dockerfile:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -344,7 +344,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: '3.11'
     - name: Install pipenv
       run: |
         python -m pip install --upgrade pip
@@ -390,7 +390,7 @@ If you encounter permission errors during installation:
 
 ### Python Version Compatibility
 
-Pipenv requires Python 3.10 or newer. If you're using an older version, you'll need to upgrade Python first.
+Pipenv requires Python 3.11 or newer. If you're using an older version, you'll need to upgrade Python first.
 
 ### pip Not Found
 

@@ -31,10 +31,10 @@ jobs:
         prerelease: false
         token: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Set up Python 3.10
+    - name: Set up Python 3.11
       uses: actions/setup-python@v6
       with:
-        python-version: "3.10"
+        python-version: "3.11"
 
     - name: Install dependencies
       run: |
@@ -42,7 +42,7 @@ jobs:
         python -m pip install -e . --upgrade
         python -m pipenv install --dev
       env:
-        PIPENV_DEFAULT_PYTHON_VERSION: "3.10"
+        PIPENV_DEFAULT_PYTHON_VERSION: "3.11"
 
     - name: Build wheels
       run: |

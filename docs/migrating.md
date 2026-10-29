@@ -302,7 +302,7 @@ steps:
   - uses: actions/checkout@v3
   - uses: actions/setup-python@v4
     with:
-      python-version: '3.10'
+      python-version: '3.11'
   - name: Install pipenv
     run: pip install pipenv
   - name: Install dependencies

@@ -407,6 +407,14 @@ def main(argv=None) -> int:
     """Console-script entry point.  Returns the exit code (does not
     ``sys.exit`` so tests can drive it directly).
     """
+    # The resolver runs under the target venv's interpreter; fail with a
+    # readable message rather than an ImportError deep in pipenv.
+    if sys.version_info < (3, 11):  # noqa: UP036
+        sys.stderr.write(
+            "pipenv requires Python 3.11 or newer in the project virtualenv; "
+            f"found {sys.version.split()[0]} at {sys.executable}.\n"
+        )
+        return 1
     parser = get_parser()
     parsed = parser.parse_args(argv)
     rc = _main(parsed.request_file, parsed.response_file)

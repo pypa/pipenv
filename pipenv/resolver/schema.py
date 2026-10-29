@@ -12,9 +12,10 @@ process and the ``pipenv-resolver`` subprocess.  See:
 Execution-environment constraint (design §3.6):
     ``pipenv-resolver`` runs under the *target venv*'s Python interpreter,
     which may be older than the Python pipenv itself was installed under.
-    pipenv currently supports CPython 3.10+ (``pyproject.toml`` ::
-    ``requires-python = ">=3.10"``).  This module therefore restricts
-    itself to stdlib idioms that import cleanly on 3.10:
+    pipenv currently supports CPython 3.11+ (``pyproject.toml`` ::
+    ``requires-python = ">=3.11"``), and ``pipenv-resolver`` refuses to
+    run under an older target interpreter.  This module therefore
+    restricts itself to stdlib idioms that import cleanly on 3.11:
 
     * ``@dataclass(frozen=True)`` from ``dataclasses``
     * ``from __future__ import annotations`` for forward refs

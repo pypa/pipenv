@@ -1,16 +1,11 @@
+import tomllib as toml
 from typing import Any, Dict, Union
 
+from pipenv.vendor import tomlkit
 from pipenv.vendor.plette.models import Package, PackageCollection
 from pipenv.vendor.tomlkit.container import Container, OutOfOrderTableProxy
 from pipenv.vendor.tomlkit.items import AoT, Array, Bool, InlineTable, Item, String, Table
 from pipenv.vendor.tomlkit.toml_document import TOMLDocument
-
-try:
-    import tomllib as toml
-except ImportError:
-    from pipenv.patched.pip._vendor import tomli as toml
-
-from pipenv.vendor import tomlkit
 
 TOML_DICT_TYPES = Union[Container, Package, PackageCollection, Table, InlineTable]
 TOML_DICT_OBJECTS = (Container, Package, Table, InlineTable, PackageCollection)
