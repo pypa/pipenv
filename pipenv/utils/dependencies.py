@@ -2,12 +2,12 @@ import ast
 import configparser
 import os
 import re
-import sys
 import tarfile
 import tempfile
+import tomllib
 import zipfile
 from contextlib import contextmanager
-from functools import lru_cache
+from functools import cache
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import (
@@ -36,7 +36,6 @@ from pipenv.exceptions import PipenvUsageError
 # ``import pipenv.utils.dependencies`` does not force the heavy
 # pip-internal chain.
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
-from pipenv.patched.pip._vendor import tomli
 from pipenv.patched.pip._vendor.distlib.util import COMPARE_OP
 from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.patched.pip._vendor.packaging.requirements import Requirement
@@ -736,31 +735,8 @@ def parse_setup_file(content):
                                 keyword.value.value, str
                             ):
                                 return keyword.value.value
-                            # Additional handling for Python versions and specific ways of defining the name
-                            elif sys.version_info < (3, 9) and isinstance(
-                                keyword.value, ast.Subscript
-                            ):
-                                if (
-                                    isinstance(keyword.value.value, ast.Name)
-                                    and keyword.value.value.id == "about"
-                                ):
-                                    if isinstance(
-                                        keyword.value.slice, ast.Index
-                                    ) and isinstance(
-                                        keyword.value.slice.value, ast.Constant
-                                    ):
-                                        if isinstance(
-                                            keyword.value.slice.value.value, str
-                                        ):
-                                            return keyword.value.slice.value.value
-                                # Handle ast.Constant for the subscript value
-                                if isinstance(keyword.value, ast.Constant) and isinstance(
-                                    keyword.value.value, str
-                                ):
-                                    return keyword.value.value
-                            elif sys.version_info >= (3, 9) and isinstance(
-                                keyword.value, ast.Subscript
-                            ):
+                            # Handle name=about["__title__"] style definitions
+                            elif isinstance(keyword.value, ast.Subscript):
                                 if (
                                     isinstance(keyword.value.value, ast.Name)
                                     and isinstance(keyword.value.slice, ast.Constant)
@@ -786,7 +762,7 @@ def parse_cfg_file(content):
 
 
 def parse_toml_file(content):
-    toml_dict = tomli.loads(content)
+    toml_dict = tomllib.loads(content)
     if "project" in toml_dict and "name" in toml_dict["project"]:
         return toml_dict["project"]["name"]
     if "tool" in toml_dict and "poetry" in toml_dict["tool"]:
@@ -919,7 +895,7 @@ def ensure_path_is_relative(file_path):
     except ValueError:
         # Path is not a subdirectory of current_dir — compute manually.
         common_parts = 0
-        for part_a, part_b in zip(abs_path.parts, current_dir.parts):
+        for part_a, part_b in zip(abs_path.parts, current_dir.parts, strict=False):
             if part_a == part_b:
                 common_parts += 1
             else:
@@ -993,7 +969,7 @@ def determine_vcs_revision_hash(
         return revision
 
 
-@lru_cache(maxsize=None)
+@cache
 def determine_package_name(package: InstallRequirement):
     req_name = None
     if package.name:

@@ -1,6 +1,5 @@
-from typing import Any, Dict, Union
-
 import tomllib as toml
+from typing import Any, Dict, Union
 
 from pipenv.vendor import tomlkit
 from pipenv.vendor.plette.models import Package, PackageCollection

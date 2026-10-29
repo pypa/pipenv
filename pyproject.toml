@@ -113,7 +113,7 @@ exclude = '''
 '''
 
 [tool.ruff]
-target-version = "py37"
+target-version = "py311"
 
 line-length = 137
 exclude = [
@@ -150,6 +150,14 @@ lint.ignore = [
   "PLC0415", # `import` should be placed at module level
   "PLW2901", # `for` loop variable overwritten
   "TID252",  # Relative imports
+  # PEP 585/604 annotation rewrites unlocked by the py311 target; deferred
+  # to a dedicated modernization pass rather than mixed into other changes.
+  "UP006",
+  "UP007",
+  "UP017",
+  "UP035",
+  "UP038",
+  "UP045",
 ]
 lint.per-file-ignores = { "pipenv/cli/command.py" = [
   "F811",

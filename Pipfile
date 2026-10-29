@@ -20,13 +20,11 @@ gunicorn = {version = "26.2.*", sys_platform = "== 'linux'"}
 parse = "*"
 myst-parser = {extras = ["linkify"], version = "*"}
 invoke = "*"
-exceptiongroup = "==1.1.0"
 pyyaml = "==6.0.1"
 build = "*"
 twine = "*"
 semver = "*"
 pypiserver = "*"
-tomli = "*"
 bottle = "*"
 legacy-cgi = {version = "*", markers = "python_version >= '3.13'"}
 pytest-rerunfailures = "*"

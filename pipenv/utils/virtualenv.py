@@ -80,8 +80,10 @@ def do_create_virtualenv(project, python=None, site_packages=None, pypi_mirror=N
         cmd = _create_virtualenv_cmd(project, python, site_packages=site_packages)
 
         # Issue: https://github.com/pypa/pipenv/issues/6568
-        # Run virtualenv from an empty temporary directory to prevent PYTHONPATH pollution.
-        # Once we drop support for python3.10 we can add a -P to the `python -m virtualenv` call to avoid this workaround
+        # Run virtualenv from an empty temporary directory so modules in the
+        # project directory can't shadow its imports.  ``python -P`` is not a
+        # substitute: it doesn't help when PYTHONPATH has an empty entry
+        # (which also means the current directory).
         temp_dir = create_tracked_tempdir()
         c = subprocess_run(cmd, env=pip_config, cwd=temp_dir)
 
