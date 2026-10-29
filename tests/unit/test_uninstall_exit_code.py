@@ -5,7 +5,7 @@ from unittest import mock
 import pytest
 
 from pipenv.routines.context import RoutineContext
-from pipenv.routines.uninstall import do_uninstall
+from pipenv.routines.uninstall import _uninstall_from_environment, do_uninstall
 
 
 def _project():
@@ -51,3 +51,16 @@ def test_uninstall_all_dev_exit_code(monkeypatch, succeeded, expected_code):
         do_uninstall(_project(), RoutineContext.from_cli(all_dev=True))
 
     exit_mock.assert_called_once_with(expected_code)
+
+
+def test_uninstall_without_virtualenv_explains_the_failure():
+    project = mock.MagicMock()
+    project.environment.activated.return_value.__enter__.return_value = False
+
+    with mock.patch("pipenv.routines.uninstall.console.print") as print_mock:
+        assert _uninstall_from_environment(project, "requests") is False
+
+    print_mock.assert_called_once()
+    message = print_mock.call_args.args[0]
+    assert "No virtualenv found" in message
+    assert "requests" in message

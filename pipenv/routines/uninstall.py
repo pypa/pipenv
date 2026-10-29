@@ -24,6 +24,10 @@ def _uninstall_from_environment(project: Project, package, system=False):
     # Execute the uninstall command for the package
     with project.environment.activated() as is_active:
         if not is_active:
+            console.print(
+                f"No virtualenv found; {package} was removed from the Pipfile but not uninstalled.",
+                style="yellow",
+            )
             return False
 
         console.print(f"Uninstalling {package}...", style="bold green")
