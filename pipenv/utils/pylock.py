@@ -98,12 +98,26 @@ class PylockFile:
         except Exception as e:
             raise ValueError(f"Invalid Pipfile.lock file: {e}")
 
+        from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+
+        # Group names are PEP 735 normalized; category names are not, so
+        # record which category each group came from for the way back.
+        dev_groups = list(dict.fromkeys(canonicalize_name(group) for group in dev_groups))
         category_groups = {"default": ["default"], "develop": dev_groups}
-        category_groups.update(
-            (section, [section])
-            for section in lockfile_data
-            if section not in {"_meta", "default", "develop"}
-        )
+        group_categories = {"default": "default"}
+        for section in dict.fromkeys(["develop", *lockfile_data]):
+            if section in {"_meta", "default"}:
+                continue
+            groups = category_groups.setdefault(section, [canonicalize_name(section)])
+            for group in groups:
+                owner = group_categories.setdefault(group, section)
+                if owner != section:
+                    raise ValueError(
+                        f"Pipfile.lock categories {owner!r} and {section!r} both "
+                        f"map to the dependency group {group!r}; rename the "
+                        "category or choose different --dev-groups"
+                    )
+        del group_categories["default"]
 
         # Create the basic pylock.toml structure
         pylock_data: Dict[str, Any] = {
@@ -243,6 +257,7 @@ class PylockFile:
                 "generation_date": datetime.datetime.now(
                     datetime.timezone.utc
                 ).isoformat(),
+                "categories": group_categories,
             }
         }
 
@@ -864,10 +879,17 @@ class PylockFile:
         for package in self.packages:
             for group in sorted(_marker_dependency_groups(package.get("marker"))):
                 names.setdefault(group, group)
+        # Pipenv records the category each group was exported from.
+        recorded = self.tool.get("pipenv", {}).get("categories", {})
+        if not isinstance(recorded, dict):
+            recorded = {}
+        recorded = {canonicalize_name(group): category for group, category in recorded.items()}
         for group, name in names.items():
             if group in defaults:
                 continue
-            category = "develop" if group in {"dev", "develop", "dev-packages"} else name
+            category = recorded.get(group) or (
+                "develop" if group in {"dev", "develop", "dev-packages"} else name
+            )
             categories.setdefault(category, set()).add(group)
         return categories
 

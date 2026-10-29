@@ -1,0 +1,2 @@
+Normalize the dependency group names written to ``pylock.toml`` and record each group's original category under ``[tool.pipenv.categories]`` so reading the file restores the same categories, including ``--dev-groups`` aliases as ``develop``.
+Generating ``pylock.toml`` now fails when two categories, or a category and one of the ``--dev-groups``, map to the same dependency group, instead of merging them.

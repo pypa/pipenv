@@ -207,3 +207,46 @@ def test_lock_data_keeps_unselected_pylock_categories(tmp_path, monkeypatch):
     assert list(lockfile["default"]) == ["runtime"]
     assert list(lockfile["develop"]) == ["devonly"]
     assert list(lockfile["lint"]) == ["lintonly"]
+
+
+def _lockfile(tmp_path, sections):
+    data = {"_meta": {"sources": [], "requires": {}}, "default": {}, "develop": {}, **sections}
+    path = tmp_path / "Pipfile.lock"
+    path.write_text(json.dumps(data))
+    return path
+
+
+def test_export_normalizes_group_names_and_restores_categories(tmp_path):
+    path = _lockfile(tmp_path, {
+        "develop": {"pytest": {"version": "==9.0"}},
+        "My_Docs": {"sphinx": {"version": "==8.0"}},
+    })
+
+    pylock = PylockFile.from_lockfile(path, dev_groups=["dev", "Test"])
+    pylock.write()
+    loaded = PylockFile.from_path(pylock.path)
+
+    assert loaded.dependency_groups == ["dev", "test", "my-docs"]
+    assert [pkg["marker"] for pkg in loaded.packages] == [
+        "'dev' in dependency_groups or 'test' in dependency_groups",
+        "'my-docs' in dependency_groups",
+    ]
+    converted = loaded.convert_to_pipenv_lockfile(environment=PY312)
+    # The --dev-groups alias reads back as develop, not as a "test" category.
+    assert sorted(key for key in converted if key != "_meta") == ["My_Docs", "default", "develop"]
+    assert list(converted["develop"]) == ["pytest"]
+    assert list(converted["My_Docs"]) == ["sphinx"]
+    assert loaded.groups_for_categories(["My_Docs"]) == {"my-docs"}
+
+
+@pytest.mark.parametrize("sections, dev_groups", [
+    ({"docs": {}}, ["dev", "docs"]),
+    ({"dev": {}}, None),
+    ({"my_docs": {}, "My-Docs": {}}, None),
+    ({}, ["default"]),
+])
+def test_export_rejects_categories_sharing_a_group(tmp_path, sections, dev_groups):
+    path = _lockfile(tmp_path, sections)
+
+    with pytest.raises(ValueError, match="both map to the dependency group"):
+        PylockFile.from_lockfile(path, dev_groups=dev_groups)
