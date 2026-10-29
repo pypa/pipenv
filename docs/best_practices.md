@@ -228,7 +228,7 @@ steps:
   - uses: actions/checkout@v3
   - uses: actions/setup-python@v4
     with:
-      python-version: '3.10'
+      python-version: '3.11'
   - name: Install pipenv
     run: pip install pipenv
   - name: Verify Pipfile.lock
@@ -246,7 +246,7 @@ steps:
 For containerized applications:
 
 ```dockerfile
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 

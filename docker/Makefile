@@ -1,4 +1,4 @@
-ALL_PYVERSIONS = 3.11-alpine 3.10-alpine 3.9-alpine 3.8-alpine 3.11 3.10 3.9 3.8
+ALL_PYVERSIONS = 3.15-alpine 3.14-alpine 3.13-alpine 3.12-alpine 3.11-alpine 3.15 3.14 3.13 3.12 3.11
 
 
 ifneq (,$(wildcard ./.env))

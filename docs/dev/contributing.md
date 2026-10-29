@@ -331,11 +331,11 @@ is not called `python` on your system or in case you have many.
 Here is an example how you can override both variables (you can
 override just one too):
 
-    $  PYTHON=python3.8 PIPENV_PYTHON=python3.9 run-tests.sh
+    $  PYTHON=python3.11 PIPENV_PYTHON=python3.15 run-tests.sh
 
 You can also do:
 
-$ PYTHON=/opt/python/python3.10/python3 run-tests.sh
+$ PYTHON=/opt/python/python3.11/python3 run-tests.sh
 
 If you need to change how pytest is invoked, see how to run the
 test suite manually. The `run-tests.sh` script does the same
@@ -367,7 +367,7 @@ stuff, and that the tests run in a pristine environment.
 
 Consider doing something like this:
 
-    $ docker run --rm -v $(pwd):/usr/src -it python:3.7 bash
+    $ docker run --rm -v $(pwd):/usr/src -it python:3.11 bash
     # inside the container
     # adduser --disabled-password debian
     # su debian && cd /usr/src/

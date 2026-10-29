@@ -28,12 +28,12 @@ level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
 .in \\n[rst2man-indent\\n[rst2man-indent-level]]u
 ..
-.TH "PIPENV" "1" "Oct 28, 2026" "2026.10.4" "pipenv"
+.TH "PIPENV" "1" "Oct 29, 2026" "2026.10.4" "pipenv"
 .sp
 This guide provides comprehensive instructions for installing Pipenv on various platforms and environments. Follow the approach that best suits your system and requirements.
 .SH PREREQUISITES
 .sp
-Before installing Pipenv, ensure you have Python and pip available on your system.
+Before installing Pipenv, ensure you have Python 3.11 or newer and pip available on your system. Python 3.15 is supported.
 .SS Verifying Python Installation
 .sp
 Check that Python is installed and available from your command line:
@@ -42,7 +42,7 @@ Check that Python is installed and available from your command line:
 .sp
 .EX
 $ python \-\-version
-Python 3.10.4
+Python 3.11.14
 
 .EE
 .UNINDENT
@@ -72,7 +72,7 @@ Windows is \fBpipx\fP, which installs Pipenv in an isolated environment and make
 .SS Recommended: pipx (Windows)
 .INDENT 0.0
 .IP 1. 3
-\fBInstall pipx\fP (requires Python 3.7+):
+\fBInstall pipx\fP using Python 3.11 or newer:
 .INDENT 3.0
 .INDENT 3.5
 .sp
@@ -468,7 +468,7 @@ For Docker environments, you can install Pipenv in your Dockerfile:
 .INDENT 3.5
 .sp
 .EX
-FROM python:3.10\-slim
+FROM python:3.11\-slim
 
 # Install pipenv
 RUN pip install pipenv
@@ -512,7 +512,7 @@ jobs:
     \- name: Set up Python
       uses: actions/setup\-python@v4
       with:
-        python\-version: \(aq3.10\(aq
+        python\-version: \(aq3.11\(aq
     \- name: Install pipenv
       run: |
         python \-m pip install \-\-upgrade pip
@@ -579,7 +579,7 @@ Check file permissions in your installation directories.
 .UNINDENT
 .SS Python Version Compatibility
 .sp
-Pipenv requires Python 3.10 or newer. If you’re using an older version, you’ll need to upgrade Python first.
+Pipenv requires Python 3.11 or newer. If you’re using an older version, you’ll need to upgrade Python first.
 .SS pip Not Found
 .sp
 If pip is not found:

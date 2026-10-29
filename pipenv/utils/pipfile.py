@@ -709,10 +709,7 @@ class Pipfile:
         except Exception:
             # We lose comments here, but it's for the best.
             # Fallback to toml parser, for large files.
-            try:
-                import tomllib as _toml
-            except ImportError:
-                from pipenv.patched.pip._vendor import tomli as _toml
+            import tomllib as _toml
             return _toml.loads(contents)
 
     @property

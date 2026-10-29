@@ -3,8 +3,8 @@ get_venv_dir:=$(shell mktemp -d 2>/dev/null || mktemp -d -t 'tmpvenv')
 venv_dir := $(get_venv_dir)/pipenv_venv
 venv_file := $(CURDIR)/.test_venv
 get_venv_path =$(file < $(venv_file))
-# This is how we will build tag-specific wheels, e.g. py36 or py37
-PY_VERSIONS:= 3.8 3.9 3.10 3.11
+# Python versions used by the development environments.
+PY_VERSIONS:= 3.11 3.12 3.13 3.14 3.15
 BACKSLASH = '\\'
 # This is how we will build generic wheels, e.g. py2 or py3
 INSTALL_TARGETS := $(addprefix install-py,$(PY_VERSIONS))

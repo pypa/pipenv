@@ -133,7 +133,7 @@ This is useful in CI/CD pipelines to ensure the lock file has been properly upda
 For Docker deployments, a multi-stage build approach is recommended:
 
 ```dockerfile
-FROM python:3.10-slim AS builder
+FROM python:3.11-slim AS builder
 
 WORKDIR /app
 
@@ -144,12 +144,12 @@ COPY Pipfile Pipfile.lock ./
 RUN pip install pipenv && \
     pipenv install --deploy --system
 
-FROM python:3.10-slim
+FROM python:3.11-slim
 
 WORKDIR /app
 
 # Copy installed packages from builder stage
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 
 # Copy application code
 COPY . .
@@ -473,7 +473,7 @@ Here's an example `tox.ini` for testing with multiple Python versions:
 
 ```ini
 [tox]
-envlist = py37, py38, py39, py310, py311
+envlist = py311, py312, py313, py314, py315
 
 [testenv]
 deps = pipenv
@@ -494,7 +494,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.11', '3.12', '3.13', '3.14', '3.15']
 
     steps:
     - uses: actions/checkout@v3

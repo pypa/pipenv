@@ -1,7 +1,7 @@
 [build-system]
 build-backend = "setuptools.build_meta"
 requires = [
-  "setuptools>=67",
+  "setuptools>=84.1.0",
 ]
 
 [project]
@@ -12,16 +12,16 @@ license = { text = "MIT License (MIT)" }
 authors = [
   { name = "Pipenv maintainer team", email = "matteius@gmail.com" },
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
   "License :: OSI Approved :: MIT License",
   "Programming Language :: Python",
   "Programming Language :: Python :: 3 :: Only",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
   "Programming Language :: Python :: 3.13",
   "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: 3.15",
   "Programming Language :: Python :: Implementation :: CPython",
   "Programming Language :: Python :: Implementation :: PyPy",
 ]
@@ -30,9 +30,10 @@ dynamic = [
 ]
 dependencies = [
   "certifi",
+  "filelock>=4.2.1",
   "packaging>=22",
-  "setuptools>=67",
-  "virtualenv>=21.14.6",
+  "setuptools>=84.1.0",
+  "virtualenv>=21.14.9",
 ]
 optional-dependencies.completion = [
   "argcomplete>=3.1",
@@ -197,7 +198,7 @@ indent = 2
 # if false will remove unnecessary trailing ``.0``'s from version specifiers
 keep_full_version = true
 # maximum Python version to use when generating version specifiers
-max_supported_python = "3.14"
+max_supported_python = "3.15"
 
 [tool.pytest.ini_options]
 addopts = "-ra --no-cov"
@@ -333,7 +334,7 @@ showcontent = true
 [tool.mypy]
 ignore_missing_imports = true
 follow_imports = "skip"
-python_version = "3.10"
+python_version = "3.11"
 files = [ "pipenv" ]
 exclude = [ "^pipenv/vendor/", "^pipenv/patched/" ]
 # Bodies of unannotated functions are not checked yet; silence the reminder.
