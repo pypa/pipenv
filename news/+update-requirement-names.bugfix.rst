@@ -1,0 +1,1 @@
+Fixed ``pipenv update`` conflict detection and extra-category lookup for package arguments with extras or version ranges (``requests[socks]==2.0``, ``pkg>=2``): the package name is now parsed as a requirement instead of splitting on ``=``, and only exact pins are checked for conflicts.

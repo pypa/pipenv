@@ -4,7 +4,10 @@ from unittest.mock import MagicMock, patch
 from pipenv.routines.context import RoutineContext
 from pipenv.routines.update import (
     _clean_unused_dependencies,
+    _detect_conflicts,
+    _find_additional_categories,
     _process_package_args,
+    _requirement_name,
     do_update,
 )
 
@@ -512,3 +515,46 @@ def test_do_update_outdated_skips_both_lock_and_upgrade():
     mock_lock.assert_not_called()
     mock_upgrade.assert_not_called()
     mock_outdated.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _detect_conflicts / _find_additional_categories / _requirement_name
+# ---------------------------------------------------------------------------
+
+
+def test_detect_conflicts_flags_a_pinned_package_with_extras():
+    """`requests[socks]==2.0` is checked against `requests`, not `requests[socks]`."""
+    reverse_deps = {"requests": {("dependent", ">=3")}}
+
+    assert _detect_conflicts(["requests[socks]==2.0"], reverse_deps, {}) is True
+
+
+def test_detect_conflicts_flags_a_legacy_single_equals_pin():
+    reverse_deps = {"requests": {("dependent", ">=3")}}
+
+    assert _detect_conflicts(["requests=2.0"], reverse_deps, {}) is True
+
+
+def test_detect_conflicts_normalizes_the_package_name():
+    reverse_deps = {"my-package": {("dependent", ">=3")}}
+
+    assert _detect_conflicts(["My_Package==2.0"], reverse_deps, {}) is True
+
+
+def test_detect_conflicts_leaves_ranges_to_the_resolver():
+    """A range is not a pinned version: `pkg~=2.1` must not be checked as version 2.1."""
+    reverse_deps = {"pkg": {("dependent", ">=2.3")}}
+
+    assert _detect_conflicts(["pkg~=2.1", "pkg>=2", "pkg<=2.0", "pkg!=1.0"], reverse_deps, {}) is False
+
+
+def test_find_additional_categories_matches_a_package_with_a_specifier():
+    lockfile = {"default": {"requests": {}}, "develop": {"requests": {}}}
+
+    assert _find_additional_categories(["requests>=2"], lockfile, ["default"]) == ["develop"]
+    assert _find_additional_categories(["requests[socks]~=2.1"], lockfile, ["default"]) == ["develop"]
+
+
+def test_requirement_name_falls_back_for_non_requirement_arguments():
+    assert _requirement_name("git+https://example.com/repo.git#egg=pkg") == "git+https://example.com/repo.git#egg=pkg"
+    assert _requirement_name("Flask_Login==1.0") == "flask-login"
