@@ -383,7 +383,7 @@ class TestBackendCLIFlag:
         import pytest
 
         with pytest.raises(SystemExit):
-            self._parse_lock_args(["--backend", "uv"])  # not in choices
+            self._parse_lock_args(["--backend", "poetry"])  # not in choices
         err_text = capsys.readouterr().err
         assert "invalid choice" in err_text or "argument" in err_text
 

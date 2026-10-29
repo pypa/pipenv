@@ -40,7 +40,7 @@ OPERATIONS = (
     "stats",
 )
 
-BACKENDS = ("pip", "pure-python")
+BACKENDS = ("pip", "pure-python", "uv")
 DEFAULT_BACKEND = "pip"
 
 TIMED_STATS = (
@@ -436,13 +436,24 @@ class PipenvBenchmark:
         return f"pipenv ({self.backend})"
 
     def clean_cache(self):
-        """Clean pipenv and pip caches."""
+        """Clean pipenv and pip caches, plus uv's when benchmarking uv."""
         print("Cleaning caches...")
         cache_dirs = [Path.home() / ".cache" / "pip", Path.home() / ".cache" / "pipenv"]
 
         for cache_dir in cache_dirs:
             if cache_dir.exists():
                 shutil.rmtree(cache_dir, ignore_errors=True)
+
+        # The uv backend resolves through uv's own cache; leaving it warm
+        # would make the "cold" timings meaningless.
+        if self.backend == "uv":
+            subprocess.run(
+                ["uv", "cache", "clean"],
+                capture_output=True,
+                check=False,
+                timeout=300,
+                env=subprocess_env(),
+            )
 
     def clean_venv(self):
         """Clean virtual environment."""

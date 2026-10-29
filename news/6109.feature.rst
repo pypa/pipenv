@@ -1,0 +1,1 @@
+Add a ``uv`` resolver backend. ``pipenv lock --backend uv``, ``PIPENV_RESOLVER=uv`` or ``resolver_backend = "uv"`` in the ``[pipenv]`` section of the ``Pipfile`` resolves dependencies with `uv <https://docs.astral.sh/uv/>`_ (which must be on ``$PATH``) while keeping pipenv's index restriction, hashes and markers. See the new "Resolver Backends" documentation page.
