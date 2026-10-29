@@ -443,8 +443,7 @@ class Project:
         # TODO(pylock): pylock branch — will fold into the format-detection layer.
         elif self.lockfile.pylock_exists:
             # Load from pylock.toml when no Pipfile.lock exists.
-            # lockfile.content already handles pylock.toml → internal format conversion.
-            lockfile_dict = self.lockfile.content.copy()
+            lockfile_dict = self.lockfile.load_pylock(categories=categories)
             sources = lockfile_dict.get("_meta", {}).get("sources", [])
             if not sources and self.pipfile.exists:
                 sources = self.sources.pipfile_sources(expand_vars=False)

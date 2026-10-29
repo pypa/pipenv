@@ -117,11 +117,29 @@ pipenv pylock --generate --output /path/to/pylock.toml
 
 ### Custom Dependency Groups
 
-Specify which dependency groups should be used for develop packages:
+Custom Pipfile categories such as `[lint]` and `[docs]` are exported with their
+own dependency group names. Reading a pylock file restores those names as
+separate categories. The `dev` group maps to `dev-packages` (`develop` in
+`Pipfile.lock`); `--dev` does not enable every custom group.
+
+```bash
+pipenv sync --categories="lint"
+pipenv sync --categories="packages,lint"
+```
+
+The first command installs the `lint` category alone. The second also installs
+the default packages. Group selection is applied before checking package
+Python requirements and choosing between alternative locked versions.
+
+Use `--dev-groups` to label develop packages with alternative group names:
 
 ```bash
 pipenv pylock --generate --dev-groups "dev,test,docs"
 ```
+
+Those packages can then be selected through any of the named groups. Custom
+Pipfile categories are exported automatically, independently of this option.
+Shared dependencies retain each category's environment markers during conversion.
 
 ## pyproject.toml Support
 

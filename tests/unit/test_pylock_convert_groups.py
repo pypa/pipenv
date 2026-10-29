@@ -2,6 +2,7 @@
 
 import pytest
 
+from pipenv.patched.pip._vendor.packaging.markers import Marker
 from pipenv.utils.pylock import PylockFile
 
 
@@ -29,11 +30,12 @@ marker = "'lint' in dependency_groups"
 """
 
 
-def test_packages_of_a_custom_dev_group_go_to_develop(tmp_path):
+def test_packages_of_a_custom_group_keep_their_category(tmp_path):
     lockfile = _convert(tmp_path, PYLOCK.format(requires=">=3.12"))
 
     assert "requests" in lockfile["default"]
-    assert "ruff" in lockfile["develop"]
+    assert "ruff" in lockfile["lint"]
+    assert "ruff" not in lockfile["develop"]
     assert "ruff" not in lockfile["default"]
 
 
@@ -76,14 +78,15 @@ def test_shared_package_with_a_narrower_default_marker_stays_in_default(tmp_path
 
     # It installs without the lint group on 3.10, so production needs it
     assert "tomli" in lockfile["default"]
-    assert "tomli" in lockfile["develop"]
+    assert "tomli" in lockfile["lint"]
 
 
-def test_shared_package_only_the_lint_group_installs_goes_to_develop(tmp_path):
+def test_shared_package_only_the_lint_group_installs_keeps_its_default_marker(tmp_path):
     lockfile = _convert(tmp_path, SHARED_PYLOCK, {"python_version": "3.12"})
 
-    assert "tomli" not in lockfile["default"]
-    assert "tomli" in lockfile["develop"]
+    assert not Marker(lockfile["default"]["tomli"]["markers"]).evaluate({"python_version": "3.12"})
+    assert "tomli" in lockfile["lint"]
+    assert "markers" not in lockfile["lint"]["tomli"]
 
 
 def test_package_excluded_by_the_environment_keeps_its_group_section(tmp_path):

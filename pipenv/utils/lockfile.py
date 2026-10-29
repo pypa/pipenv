@@ -148,6 +148,15 @@ class Lockfile:
             self._project, allow_global=bool(self._project.s.PIPENV_USE_SYSTEM)
         )
 
+    def load_pylock(self, categories=None):
+        """Read pylock entries for the target interpreter and category selection."""
+        path = self.pylock_location
+        if path is None:
+            raise FileNotFoundError("No pylock.toml found")
+        return PylockFile.from_path(path).convert_to_pipenv_lockfile(
+            environment=self._pylock_marker_environment(), categories=categories
+        )
+
     @property
     def content(self):
         """Returns the lockfile content, checking ``pylock.toml`` first.
@@ -159,10 +168,7 @@ class Lockfile:
         if self.pylock_exists or self._project.settings.use_pylock:
             try:
                 if self.pylock_exists:
-                    pylock = PylockFile.from_path(self.pylock_location)
-                    return pylock.convert_to_pipenv_lockfile(
-                        environment=self._pylock_marker_environment()
-                    )
+                    return self.load_pylock()
             except Exception as e:
                 err.print(f"[bold yellow]Error loading pylock.toml: {e}[/bold yellow]")
         return self.load()
@@ -190,10 +196,9 @@ class Lockfile:
         # TODO(pylock): format-detection seam — pylock fallback.
         if not lockfile_loaded and self.pylock_exists:
             try:
-                pylock = PylockFile.from_path(self.pylock_location)
-                lockfile = pylock.convert_to_pipenv_lockfile(
-                    environment=self._pylock_marker_environment()
-                )
+                # Convert every category independently: locking writes this
+                # data back, so it must not be narrowed to an install selection.
+                lockfile = self.load_pylock()
                 lockfile_loaded = True
             except Exception:
                 # An unreadable pylock falls through to deriving lock data
