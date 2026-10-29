@@ -285,13 +285,13 @@ jobs:
     needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # The pure-python backend is experimental; report its numbers without
-    # letting a failure there block CI.
+    # The pure-python and uv backends are experimental; report their
+    # numbers without letting a failure there block CI.
     continue-on-error: ${{ matrix.backend != 'pip' }}
     strategy:
       fail-fast: false
       matrix:
-        backend: [pip, pure-python]
+        backend: [pip, pure-python, uv]
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-python@v6
@@ -303,6 +303,9 @@ jobs:
           sudo apt-get install -y libxmlsec1-dev librdkafka-dev
       - name: Install benchmark utilities
         run: pip install csv2md
+      - name: Install uv
+        if: matrix.backend == 'uv'
+        run: pip install uv
       - name: Run benchmark suite
         working-directory: benchmarks
         run: python benchmark.py --backend ${{ matrix.backend }}
