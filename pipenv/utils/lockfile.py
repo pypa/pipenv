@@ -196,7 +196,9 @@ class Lockfile:
         # TODO(pylock): format-detection seam — pylock fallback.
         if not lockfile_loaded and self.pylock_exists:
             try:
-                lockfile = self.load_pylock(categories=categories)
+                # Convert every category independently: locking writes this
+                # data back, so it must not be narrowed to an install selection.
+                lockfile = self.load_pylock()
                 lockfile_loaded = True
             except Exception:
                 # An unreadable pylock falls through to deriving lock data

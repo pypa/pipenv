@@ -186,3 +186,24 @@ def test_install_validates_custom_group_python_requirement(tmp_path):
 
     with pytest.raises(PipenvException, match="of package 'ruff'"):
         _check_pylock_environment(project, ["lint"], allow_global=True)
+
+
+def test_lock_data_keeps_unselected_pylock_categories(tmp_path, monkeypatch):
+    """Locking a subset of categories must not empty the others it writes back."""
+    from pipenv.project import Project
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("PIPENV_PIPFILE", str(tmp_path / "Pipfile"))
+    (tmp_path / "Pipfile").write_text("[packages]\n[dev-packages]\n[lint]\n")
+    _pylock(tmp_path, [
+        {"name": "runtime", "version": "1.0", "marker": "'default' in dependency_groups"},
+        {"name": "devonly", "version": "1.0", "marker": "'dev' in dependency_groups"},
+        {"name": "lintonly", "version": "1.0", "marker": "'lint' in dependency_groups"},
+    ]).write()
+    project = Project(chdir=False)
+
+    lockfile = project.lockfile.as_dict(categories=["lint"])
+
+    assert list(lockfile["default"]) == ["runtime"]
+    assert list(lockfile["develop"]) == ["devonly"]
+    assert list(lockfile["lint"]) == ["lintonly"]
