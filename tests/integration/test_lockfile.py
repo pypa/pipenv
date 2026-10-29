@@ -40,7 +40,10 @@ def test_git_branch_contains_slashes(pipenv_instance_file_pypi, pypi_lockfile):
             deps, include_hashes=False, include_markers=True
         )
         assert pip_installable_lines == [
-            "google-api-python-client @ git+https://github.com/thehesiod/google-api-python-client.git@03803c21fc13a345e978f32775b2f2fa23c8e706"
+            (
+                "google-api-python-client @ git+https://github.com/thehesiod/google-api-python-client.git@03803c21fc13a345e978f32775b2f2fa23c8e706"
+                " ; python_version >= '3.7'"
+            )
         ]
 
 

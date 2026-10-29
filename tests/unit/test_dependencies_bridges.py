@@ -157,6 +157,27 @@ def test_requirement_from_lockfile_editable_vcs_has_no_marker():
     )
 
 
+def test_requirement_from_lockfile_joins_os_markers_and_markers_with_and():
+    """Both marker keys are one PEP 508 expression on every kind of entry."""
+    from pipenv.utils.dependencies import requirement_from_lockfile
+
+    markers = {
+        "os_markers": "sys_platform == 'win32'",
+        "markers": "python_version >= '3.8'",
+    }
+    joined = "; (sys_platform == 'win32') and (python_version >= '3.8')"
+    vcs = {"git": "https://github.com/pypa/pipenv.git", "ref": "abc123", **markers}
+    assert requirement_from_lockfile("pipenv", vcs) == (
+        f"pipenv @ git+https://github.com/pypa/pipenv.git@abc123 {joined}"
+    )
+    assert requirement_from_lockfile("pipenv", {"file": "./pipenv.whl", **markers}) == (
+        f"./pipenv.whl {joined}"
+    )
+    assert requirement_from_lockfile(
+        "pipenv", {"version": "==1.0", **markers}, include_hashes=False
+    ) == (f"pipenv==1.0{joined}")
+
+
 def test_requirement_from_lockfile_dict_with_version():
     from pipenv.utils.dependencies import requirement_from_lockfile
 

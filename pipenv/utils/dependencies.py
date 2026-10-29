@@ -1908,16 +1908,16 @@ def requirement_from_lockfile(
         else:
             return package_name
 
-    markers = (
-        "; {}".format(package_info["markers"])
-        if include_markers and "markers" in package_info and package_info["markers"]
-        else ""
-    )
-    os_markers = (
-        "; {}".format(package_info["os_markers"])
-        if include_markers and "os_markers" in package_info and package_info["os_markers"]
-        else ""
-    )
+    # os_markers and markers are two expressions of one PEP 508 marker: joining
+    # them with another ';' would not parse.
+    marker_parts = [
+        package_info[key]
+        for key in ("os_markers", "markers")
+        if include_markers and package_info.get(key)
+    ]
+    if len(marker_parts) > 1:
+        marker_parts = [f"({part})" for part in marker_parts]
+    markers = f"; {' and '.join(marker_parts)}" if marker_parts else ""
 
     # Handling vcs repositories
     for vcs in VCS_LIST:
@@ -1954,8 +1954,8 @@ def requirement_from_lockfile(
                 # pip ignores markers on an editable line, so only the direct
                 # reference form carries them. PEP 508 wants a space before ';'
                 # after a URL.
-                if os_markers or markers:
-                    pip_line += f" {os_markers}{markers}"
+                if markers:
+                    pip_line += f" {markers}"
             return pip_line
     # Handling file-sourced packages
     for k in ["file", "path"]:
@@ -1965,8 +1965,6 @@ def requirement_from_lockfile(
             if package_info.get("editable") and is_editable_path(path):
                 line.append("-e")
             line.append(f"{package_info[k]}")
-            if os_markers:
-                line.append(os_markers)
             if markers:
                 line.append(markers)
             pip_line = " ".join(line)
@@ -1987,7 +1985,7 @@ def requirement_from_lockfile(
         if "extras" in package_info
         else ""
     )
-    pip_line = f"{package_name}{extras}{version}{os_markers}{markers}{hashes}"
+    pip_line = f"{package_name}{extras}{version}{markers}{hashes}"
     return pip_line
 
 
