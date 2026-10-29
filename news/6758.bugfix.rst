@@ -1,0 +1,1 @@
+``pylock.toml`` files with custom dependency groups now convert to a ``Pipfile.lock`` by whether each package installs: ``default`` when it installs with the default groups only, ``develop`` when a non-default group installs it, and both when either applies. ``requires-python`` is written as a plain ``python_version`` (or ``python_full_version``) instead of the raw specifier.

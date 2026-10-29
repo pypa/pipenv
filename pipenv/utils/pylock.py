@@ -9,9 +9,10 @@ installation reproducibility).
 import datetime
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, Iterable, List, Optional, Set, Union
 from urllib.parse import urljoin
 
 from pipenv.utils import err
@@ -858,6 +859,32 @@ class PylockFile:
             result.append(matching[0] if matching else entries[0])
         return result
 
+    def _marker_installs(
+        self,
+        marker: Optional[str],
+        groups: Iterable[str],
+        environment: Optional[Dict[str, str]] = None,
+    ) -> bool:
+        """Whether a package with this marker installs for the given groups."""
+        from pipenv.patched.pip._vendor.packaging.markers import (
+            InvalidMarker,
+            Marker,
+        )
+
+        if not marker:
+            return True
+        try:
+            return Marker(marker).evaluate(
+                environment={
+                    **(environment or {}),
+                    "extras": frozenset(self.extras),
+                    "dependency_groups": frozenset(groups),
+                },
+                context="lock_file",
+            )
+        except InvalidMarker:
+            return True
+
     def convert_to_pipenv_lockfile(
         self, environment: Optional[Dict[str, str]] = None
     ) -> Dict[str, Any]:
@@ -885,7 +912,9 @@ class PylockFile:
 
         # Add Python version requirement if present
         if self.requires_python:
-            lockfile["_meta"]["requires"]["python_version"] = self.requires_python
+            lockfile["_meta"]["requires"].update(
+                _pipfile_requires_from_pylock(self.requires_python)
+            )
 
         # Add sources if present
         if "sources" in self.data:
@@ -917,14 +946,21 @@ class PylockFile:
         for package in self._narrow_package_entries(environment):
             name = package.get("name")
 
-            # Determine if this is a dev package based on markers
-            # This is a simplification - in reality we'd need to parse the markers
-            is_dev = False
+            # A package belongs to "default" if it installs with only the default
+            # groups, and to "develop" if a non-default group installs it. Both
+            # when it qualifies for both, as Pipfile.lock repeats shared packages.
             marker = package.get("marker", "")
-            if marker and "dependency_groups" in marker:
-                # Simple heuristic - if it mentions dev or test, it's probably a dev package
-                if "dev" in marker.lower() or "test" in marker.lower():
-                    is_dev = True
+            extra_groups = set(_DEPENDENCY_GROUP_RE.findall(marker or ""))
+            extra_groups -= set(self.default_groups)
+            all_groups = set(self.dependency_groups) | set(self.default_groups)
+            in_default = self._marker_installs(marker, self.default_groups, environment)
+            in_develop = bool(extra_groups) and self._marker_installs(
+                marker, all_groups, environment
+            )
+            if not (in_default or in_develop):
+                # Excluded by the environment: keep the entry where its groups
+                # put it, so the package is skipped like a single entry
+                in_default, in_develop = not extra_groups, bool(extra_groups)
 
             # Create the package entry
             package_entry = _lockfile_source_from_pylock_package(package)
@@ -961,11 +997,34 @@ class PylockFile:
             if marker:
                 package_entry["markers"] = marker
 
-            # Add to the appropriate section
-            section = "develop" if is_dev else "default"
-            lockfile[section][name] = package_entry
+            # Add to the appropriate sections
+            if in_default:
+                lockfile["default"][name] = package_entry
+            if in_develop:
+                lockfile["develop"][name] = dict(package_entry)
 
         return lockfile
+
+
+_DEPENDENCY_GROUP_RE = re.compile(r"""['"]([^'"]+)['"]\s+in\s+dependency_groups""")
+_REQUIRES_PYTHON_RE = re.compile(r"^\s*(>=|==)\s*(\d+(?:\.\d+)*)\s*$")
+
+
+def _pipfile_requires_from_pylock(requires_python):
+    """Map a pylock ``requires-python`` to the Pipfile.lock ``requires`` entry.
+
+    This reverses what ``PylockFile.from_lockfile`` writes (``>=X.Y`` for
+    ``python_version`` and ``==X.Y.Z`` for ``python_full_version``). Any other
+    specifier is kept as ``python_version`` unchanged.
+    """
+    match = _REQUIRES_PYTHON_RE.match(requires_python)
+    if match:
+        operator, version = match.groups()
+        if operator == ">=":
+            return {"python_version": version}
+        if version.count(".") >= 2:
+            return {"python_full_version": version}
+    return {"python_version": requires_python}
 
 
 def _same_locked_package(default_data, develop_data) -> bool:
