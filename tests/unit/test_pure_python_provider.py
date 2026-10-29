@@ -2150,7 +2150,6 @@ class TestGetPreferenceDefensiveBranches:
     def test_backtrack_cause_for_different_identifier_not_counted(self):
         provider = _make_provider()
         identifier_a = ("alpha", frozenset())
-        identifier_b = ("beta", frozenset())
         req_a = _make_requirement(name="alpha", spec=">=1.0")
         req_b = _make_requirement(name="beta", spec=">=1.0")
         # backtrack_causes points at ``beta`` -- it must NOT bump

@@ -478,8 +478,6 @@ class PylockFile:
             return package
         except Exception:
             # Fallback: simple name extraction
-            import re
-
             match = re.match(r"^([a-zA-Z0-9][-a-zA-Z0-9._]*)", dep_string)
             if match:
                 return {"name": match.group(1).lower()}

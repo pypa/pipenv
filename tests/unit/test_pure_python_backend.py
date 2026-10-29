@@ -33,10 +33,7 @@ Mocks everything (no HTTP, no real resolvelib drive).
 """
 from __future__ import annotations
 
-from typing import Any
 from unittest import mock
-
-import pytest
 
 from pipenv.resolver.candidate import Candidate, Hash
 from pipenv.resolver.schema import (
@@ -1933,32 +1930,17 @@ class TestTranslateMappingIndexName:
         assert locked[0].index == "pypi"
 
     def test_unmatched_url_falls_back_to_url(self):
-        """``request.sources`` carries a single source whose URL does NOT
-        match the backend's configured ``index_urls`` ⇒ the URL is
-        emitted verbatim as a defensive fallback.
-
-        Construction: pass ``index_urls`` explicitly so the resolve path
-        consults that URL while ``request.sources`` advertises a
-        different one.  The URL→name map built from ``request.sources``
-        therefore has no entry for the default URL ⇒ fallback fires.
-        """
+        """Keep the index URL when the source-name map has no matching entry."""
         from pipenv.resolver.backends.pure_python import PurePythonBackend
+        from pipenv.resolver.schema import LockedRequirement
 
-        # Backend's default index — the URL the resolve path lands on.
         unmatched_url = "https://pypi.org/simple"
-        # request.sources advertises a different URL under a custom name.
-        # The URL→name map built from ``request.sources`` will only
-        # contain ``https://other.example/simple -> "custom"`` — no entry
-        # for the unmatched_url default, so the fallback fires.
         custom_source = Source(
             name="custom", url="https://other.example/simple", verify_ssl=True
         )
         cache = _FakeCache(
             {
                 (unmatched_url, "pkg"): (_wheel_candidate("pkg", "1.0.0"),),
-                # Also seed the request-source URL so the prefetch path
-                # has something to find (not strictly required but
-                # mirrors a realistic production cache).
                 (custom_source.url, "pkg"): (
                     _wheel_candidate("pkg", "1.0.0"),
                 ),
@@ -1973,52 +1955,11 @@ class TestTranslateMappingIndexName:
             fetcher=_FakeFetcher(),
             session=mock.MagicMock(),
             metadata_cache=mock.MagicMock(),
-            # Force the resolve path to land on unmatched_url as the
-            # default_index even though request.sources advertises
-            # custom_source.url.  We achieve this by building a request
-            # whose sources contain ONLY custom_source — then
-            # request_index_urls is (custom_source.url,) and
-            # default_index is custom_source.url, which IS in url_to_name
-            # ⇒ wrong test.  Reverse: supply request.sources with a
-            # source whose URL doesn't match the default_index — but
-            # default_index IS the first source URL.  So the path can
-            # only produce an unmatched default_index when the URL→name
-            # map omits it.  Concretely: the test exercises the
-            # defensive branch via the dict.get fallback semantic — see
-            # below.
         )
-        # Build a request whose sources advertise custom_source.  The
-        # backend will set ``request_index_urls = (custom_source.url,)``
-        # and ``default_index = custom_source.url``.  ``url_to_name``
-        # maps ``custom_source.url -> "custom"`` ⇒ this is the
-        # HAPPY-path mapping, not the fallback.
-        #
-        # To exercise the FALLBACK we instead force ``default_index`` to
-        # a URL absent from ``url_to_name`` by hand-patching the
-        # translator: we want a unit-level assertion on the defensive
-        # branch, so call ``_translate_mapping`` directly with a mocked
-        # url_to_name that omits the default_index.
-        from pipenv.resolver.schema import LockedRequirement
-
+        # Exercise the translator directly with an unmapped default index.
         url_to_name = {custom_source.url: custom_source.name}
-        # default_index = unmatched_url which is NOT in url_to_name.
-        criteria: dict = {}
-        from pipenv.resolver.backends.pure_python import PurePythonBackend as _B
-
-        translator_backend = _B(
-            cache=cache,
-            fetcher=_FakeFetcher(),
-            session=mock.MagicMock(),
-            metadata_cache=mock.MagicMock(),
-        )
-
-        class _StubResult:
-            def __init__(self):
-                self.mapping = {("pkg", frozenset()): resolved}
-                self.criteria = criteria
-
-        locked = translator_backend._translate_mapping(
-            _StubResult(),
+        locked = backend._translate_mapping(
+            fake_result,
             (unmatched_url,),  # index_urls[0] = unmatched_url
             url_to_name,
         )
