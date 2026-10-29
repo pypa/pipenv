@@ -12,6 +12,7 @@ SOURCES = [
     {"url": "https://pypi.org/simple", "name": "pypi", "verify_ssl": True},
     {"url": "https://user:${TOKEN}@private.example:8443/simple", "name": "private", "verify_ssl": False},
     {"url": "https://other.example/simple", "name": "other", "verify_ssl": False},
+    {"url": "https://${PRIVATE_HOST}/simple", "name": "env-host", "verify_ssl": False},
 ]
 
 
@@ -47,5 +48,23 @@ def test_requirements_trusted_host(tmp_path, no_lock):
         "--trusted-host private.example:8443",
         "--extra-index-url https://other.example/simple",
         "--trusted-host other.example",
+        "--extra-index-url https://${PRIVATE_HOST}/simple",
+        "--trusted-host ${PRIVATE_HOST}",
         "example==1.2.3",
     ]
+
+
+@pytest.mark.parametrize(
+    ("url", "verify_ssl", "expected"),
+    [
+        ("https://Example.com:8443/simple", False, "example.com:8443"),
+        ("https://${PRIVATE_HOST}/simple", False, "${PRIVATE_HOST}"),
+        ("https://user:pw@${PRIVATE_HOST}:8443/simple", False, "${PRIVATE_HOST}:8443"),
+        ("https://example.com/simple", True, None),
+        ("file:///tmp/simple", False, None),
+    ],
+)
+def test_trusted_host_for_source(url, verify_ssl, expected):
+    from pipenv.utils.indexes import trusted_host_for_source
+
+    assert trusted_host_for_source(url, verify_ssl) == expected

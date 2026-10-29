@@ -1,12 +1,12 @@
 import re
 import sys
 
-from pipenv.patched.pip._vendor.urllib3.util import parse_url
 from pipenv.utils.dependencies import (
     get_lockfile_section_using_pipfile_category,
     requirements_from_lockfile,
     requirements_from_pipfile,
 )
+from pipenv.utils.indexes import trusted_host_for_source
 from pipenv.utils.internet import create_mirror_source, replace_pypi_sources
 
 
@@ -21,16 +21,15 @@ def _print_trusted_host(source):
     ``pipenv install`` passes it to pip for such sources, so the requirements
     file needs it as well for ``pip install -r`` to accept the index.
     """
-    if source.get("verify_ssl", True):
-        return
     try:
-        url_parts = parse_url(source.get("url", ""))
+        trusted_host = trusted_host_for_source(
+            _brace_env_vars(source.get("url", "")),
+            source.get("verify_ssl", True),
+        )
     except Exception:
         return
-    if not url_parts.host:
-        return
-    port = f":{url_parts.port}" if url_parts.port else ""
-    print(f"--trusted-host {url_parts.host}{port}")
+    if trusted_host:
+        print(f"--trusted-host {trusted_host}")
 
 
 def generate_requirements(
