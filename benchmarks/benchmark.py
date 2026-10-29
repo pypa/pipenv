@@ -79,6 +79,7 @@ def _cpu_model() -> str:
                 if line.startswith("model name"):
                     return line.split(":", 1)[1].strip()
     except OSError:
+        # /proc is unavailable on some platforms; try the other CPU probes.
         pass
     if sys.platform == "darwin":
         try:
@@ -91,6 +92,7 @@ def _cpu_model() -> str:
             if result.stdout.strip():
                 return result.stdout.strip()
         except OSError:
+            # If sysctl is unavailable, use platform.processor() below.
             pass
     return platform.processor() or "unknown"
 
@@ -102,6 +104,7 @@ def _memory_gib() -> float | None:
                 if line.startswith("MemTotal:"):
                     return round(int(line.split()[1]) / 1024 / 1024, 1)
     except (OSError, ValueError, IndexError):
+        # Missing or malformed /proc data means the memory size is unknown.
         pass
     return None
 

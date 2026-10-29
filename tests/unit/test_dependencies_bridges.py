@@ -327,10 +327,8 @@ def test_old_requirementslib_module_no_longer_exports_moved_symbols():
     strictly stronger property that the module itself is gone. The
     T_E.3-era symbol-by-symbol check is implied by module non-existence.
     """
-    import importlib
-
     try:
-        importlib.import_module("pipenv.utils.requirementslib")
+        import_module("pipenv.utils.requirementslib")
     except ModuleNotFoundError:
         return
     raise AssertionError(

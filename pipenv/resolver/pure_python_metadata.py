@@ -246,6 +246,7 @@ class MetadataCache:
             try:
                 os.unlink(tmp.name)
             except OSError:
+                # Cleanup is best-effort; preserve the original write failure.
                 pass
             raise
 
