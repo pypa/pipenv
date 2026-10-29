@@ -1,0 +1,1 @@
+``pipenv requirements`` now prints ``--trusted-host`` for sources with ``verify_ssl = false``, as ``pipenv install`` passes it to pip.

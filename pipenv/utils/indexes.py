@@ -13,6 +13,33 @@ if MYPY_RUNNING:
     from pipenv.project import Project, TSource  # noqa
 
 
+def trusted_host_for_source(url, verify_ssl):
+    """Return the ``--trusted-host`` value for a source, or ``None``.
+
+    ``--trusted-host`` is a hostname allowlist; it's meaningless for a
+    hostless URL (file:// has no host to trust or distrust) and pip's own
+    source-is-verified bookkeeping (verify_ssl) has no way to express "not
+    applicable" - it's a plain bool (see
+    plette.models.sources.Source.__SCHEMA__). Skipping on a missing host
+    avoids emitting the nonsensical literal "--trusted-host None" regardless
+    of what verify_ssl says.
+    """
+    if verify_ssl:
+        return None
+    url_parts = parse_url(url)
+    host = url_parts.host
+    if not host:
+        return None
+    if "$" in host:
+        # parse_url lowercases the host, which breaks a ${ENV_VAR} placeholder.
+        authority = url.partition("//")[2].partition("/")[0]
+        start = authority.lower().rfind(host)
+        if start != -1:
+            host = authority[start : start + len(host)]
+    port = f":{url_parts.port}" if url_parts.port else ""
+    return f"{host}{port}"
+
+
 def prepare_pip_source_args(sources, pip_args=None):
     """Build pip CLI args for ``sources``.
 
@@ -24,20 +51,9 @@ def prepare_pip_source_args(sources, pip_args=None):
     keyring/netrc).  See GHSA-8xgg-v3jj-95m2.
     """
     def _add_trusted_host_if_needed(url, verify_ssl):
-        # --trusted-host is a hostname allowlist; it's meaningless for a
-        # hostless URL (file:// has no host to trust or distrust) and
-        # pip's own source-is-verified bookkeeping (verify_ssl) has no
-        # way to express "not applicable" - it's a plain bool (see
-        # plette.models.sources.Source.__SCHEMA__). Skipping on a
-        # missing host avoids emitting the nonsensical literal
-        # "--trusted-host None" regardless of what verify_ssl says.
-        if verify_ssl:
-            return
-        url_parts = parse_url(url)
-        if not url_parts.host:
-            return
-        url_port = f":{url_parts.port}" if url_parts.port else ""
-        pip_args.extend(["--trusted-host", f"{url_parts.host}{url_port}"])
+        trusted_host = trusted_host_for_source(url, verify_ssl)
+        if trusted_host:
+            pip_args.extend(["--trusted-host", trusted_host])
 
     if pip_args is None:
         pip_args = []
