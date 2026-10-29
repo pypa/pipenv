@@ -118,8 +118,9 @@ pipenv pylock --generate --output /path/to/pylock.toml
 ### Custom Dependency Groups
 
 Custom Pipfile categories such as `[lint]` and `[docs]` are exported with their
-own dependency group names. Reading a pylock file restores those names as
-separate categories. The `dev` group maps to `dev-packages` (`develop` in
+own dependency group names, normalized as PEP 735 requires (`[My_Docs]` becomes
+`my-docs`). Pipenv records the original category of each group under
+`[tool.pipenv.categories]`, so reading the file restores the same categories. The `dev` group maps to `dev-packages` (`develop` in
 `Pipfile.lock`); `--dev` does not enable every custom group.
 
 ```bash
@@ -137,8 +138,11 @@ Use `--dev-groups` to label develop packages with alternative group names:
 pipenv pylock --generate --dev-groups "dev,test,docs"
 ```
 
-Those packages can then be selected through any of the named groups. Custom
-Pipfile categories are exported automatically, independently of this option.
+Other installers can then select those packages through any of the named
+groups; Pipenv reads them back as `dev-packages`. Custom Pipfile categories are
+exported automatically, independently of this option. Generation fails if two
+categories, or a category and one of the `--dev-groups`, normalize to the same
+group name.
 Shared dependencies retain each category's environment markers during conversion.
 
 ## pyproject.toml Support
