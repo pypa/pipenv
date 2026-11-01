@@ -1,1 +1,0 @@
-Integration tests now fail fast with a clear message when the ``pipenv`` command on ``PATH`` is not the checkout under test.

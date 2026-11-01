@@ -1,3 +1,39 @@
+2026.10.5 (2026-11-01)
+======================
+pipenv 2026.10.5 (2026-11-01)
+=============================
+
+
+Behavior Changes
+----------------
+
+- Require Python 3.11 or newer and add support for Python 3.15.
+  Project virtualenvs must also use Python 3.11+; the resolver now reports a
+  clear error instead of failing on import under an older interpreter.
+  Raise the minimum versions of virtualenv to 21.14.9, filelock to 4.2.1,
+  and setuptools to 84.1.0 to include their security fixes, and refresh
+  the development lockfiles.  `#6771 <https://github.com/pypa/pipenv/issues/6771>`_
+
+Bug Fixes
+---------
+
+- Fixed ``pipenv update`` conflict detection and extra-category lookup for package arguments with extras or version ranges (``requests[socks]==2.0``, ``pkg>=2``): the package name is now parsed as a requirement instead of splitting on ``=``, and only exact pins are checked for conflicts.
+- Preserve custom dependency categories when importing and exporting ``pylock.toml``.
+  Apply the selected groups when validating and installing packages, and retain each category's environment markers for shared dependencies.
+  Parse group markers independently of whitespace so dev-only packages cannot be moved into the default category by compact marker syntax.
+  Convert simple ``requires-python`` specifiers to a plain ``python_version`` or ``python_full_version``.  `#6758 <https://github.com/pypa/pipenv/issues/6758>`_
+- Normalize the dependency group names written to ``pylock.toml`` and record each group's original category under ``[tool.pipenv.categories]`` so reading the file restores the same categories, including ``--dev-groups`` aliases as ``develop``.
+  Generating ``pylock.toml`` now fails when two categories, or a category and one of the ``--dev-groups``, map to the same dependency group, instead of merging them.  `#6759 <https://github.com/pypa/pipenv/issues/6759>`_
+- ``pipenv requirements`` now keeps the environment marker of git/VCS dependencies, so they are no longer installed on platforms the ``Pipfile.lock`` excludes.  `#6760 <https://github.com/pypa/pipenv/issues/6760>`_
+- ``pipenv requirements`` now prints ``--trusted-host`` for sources with ``verify_ssl = false``, as ``pipenv install`` passes it to pip.  `#6761 <https://github.com/pypa/pipenv/issues/6761>`_
+- ``pipenv uninstall`` now exits with a non-zero status when ``pip uninstall`` fails for a package.  `#6762 <https://github.com/pypa/pipenv/issues/6762>`_
+
+Improved Documentation
+----------------------
+
+- Replace the documentation's outdated Algolia search with Sphinx's built-in search,
+  so results point to pages in the documentation version being viewed.  `#6661 <https://github.com/pypa/pipenv/issues/6661>`_
+
 2026.10.4 (2026-10-28)
 ======================
 pipenv 2026.10.4 (2026-10-28)
