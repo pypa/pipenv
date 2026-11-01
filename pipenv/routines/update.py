@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import sys
 from collections import defaultdict
 from dataclasses import replace
@@ -20,6 +21,7 @@ from pipenv.utils.dependencies import (
     expansive_install_req_from_line,
     get_lockfile_section_using_pipfile_category,
     get_pipfile_category_using_lockfile_section,
+    pep423_name,
 )
 from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
@@ -365,6 +367,27 @@ def _prepare_categories(categories, dev, packages):
     return result
 
 
+_REQUIREMENT_NAME_RE = re.compile(
+    r"^\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*(?=[<>=!~;@]|$)"
+)
+_PINNED_REQUIREMENT_RE = re.compile(
+    r"^\s*(?P<name>[A-Za-z0-9][A-Za-z0-9._-]*)\s*(?:\[[^\]]*\])?\s*"
+    r"={1,2}\s*(?P<version>[^=<>!~,;\s][^,;\s]*)\s*$"
+)
+
+
+def _requirement_name(package):
+    """Normalized distribution name of a package argument such as ``requests[socks]>=2``.
+
+    Falls back to the part before ``==`` for arguments that are not plain
+    requirements (URLs, paths, VCS references).
+    """
+    match = _REQUIREMENT_NAME_RE.match(package)
+    if match:
+        return pep423_name(match.group("name"))
+    return package.split("==")[0] if "==" in package else package
+
+
 def _find_additional_categories(packages, lockfile, current_categories):
     """Find additional categories where packages exist."""
     if not packages:
@@ -381,7 +404,7 @@ def _find_additional_categories(packages, lockfile, current_categories):
 
         category_section = lockfile.get(category, {})
         for package in packages:
-            package_name = package.split("==")[0] if "==" in package else package
+            package_name = _requirement_name(package)
             if package_name in category_section:
                 # If the package is also in this category, add it to categories
                 additional_categories.append(category)
@@ -397,13 +420,13 @@ def _detect_conflicts(package_args, reverse_deps, lockfile):
     """Detect version conflicts in package arguments."""
     conflicts_found = False
     for package in package_args:
-        # Handle both == and = version specifiers
-        if "==" in package:
-            name, version = package.split("==", 1)  # Split only on the first occurrence
-        elif "=" in package and not package.startswith("-e"):  # Avoid matching -e flag
-            name, version = package.split("=", 1)  # Split only on the first occurrence
-        else:
-            continue  # Skip packages without version specifiers
+        # Only an exact pin (== or the legacy single =) names the version to check;
+        # ranges such as >=2 or ~=2.1 are left to the resolver.
+        pinned = _PINNED_REQUIREMENT_RE.match(package)
+        if not pinned:
+            continue
+        name = pep423_name(pinned.group("name"))
+        version = pinned.group("version")
 
         conflicts = check_version_conflicts(name, version, reverse_deps, lockfile)
         if conflicts:
@@ -731,7 +754,7 @@ def upgrade(
     # Track which packages were explicitly requested for which categories
     explicitly_requested = {}
     for package in packages or []:
-        package_name = package.split("==")[0] if "==" in package else package
+        package_name = _requirement_name(package)
         explicitly_requested[package_name] = categories[:]  # Copy the original categories
 
     # Find additional categories where packages exist
