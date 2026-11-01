@@ -64,7 +64,36 @@ def test_requirements_trusted_host(tmp_path, no_lock):
         ("file:///tmp/simple", False, None),
     ],
 )
-def test_trusted_host_for_source(url, verify_ssl, expected):
-    from pipenv.utils.indexes import trusted_host_for_source
+def test_get_insecure_source_host(url, verify_ssl, expected):
+    from pipenv.utils.indexes import get_insecure_source_host
 
-    assert trusted_host_for_source(url, verify_ssl) == expected
+    assert get_insecure_source_host(url, verify_ssl) == expected
+
+
+@pytest.mark.parametrize(
+    ("url", "verify_ssl", "expected"),
+    [
+        ("https://user:password@private.example:8443/simple", False, "private.example:8443"),
+        ("https://user:p%40ss%3Aword@private.example/simple", False, "private.example"),
+        ("https://token-only@private.example/simple", False, "private.example"),
+        ("https://${USER}:${TOKEN}@private.example/simple", False, "private.example"),
+        ("https://user:password@$PRIVATE_HOST:8443/simple", False, "${PRIVATE_HOST}:8443"),
+        ("https://user:password@[2001:db8::1]:8443/simple", False, "[2001:db8::1]:8443"),
+        ("https://private.example/simple?token=query-token#fragment-token", False, "private.example"),
+        ("https://user:password@private.example/simple", True, None),
+        ("file:///tmp/simple", False, None),
+        ("https://user:password@private.example:invalid/simple", False, None),
+    ],
+)
+def test_print_trusted_host_excludes_credentials(url, verify_ssl, expected, capsys, monkeypatch):
+    from pipenv.routines.requirements import _print_trusted_host
+
+    monkeypatch.setenv("USER", "expanded-user")
+    monkeypatch.setenv("TOKEN", "expanded-token")
+    monkeypatch.setenv("PRIVATE_HOST", "expanded-host.example")
+
+    _print_trusted_host({"url": url, "verify_ssl": verify_ssl})
+
+    captured = capsys.readouterr()
+    assert captured.out == (f"--trusted-host {expected}\n" if expected else "")
+    assert captured.err == ""

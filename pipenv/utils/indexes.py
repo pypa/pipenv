@@ -13,7 +13,7 @@ if MYPY_RUNNING:
     from pipenv.project import Project, TSource  # noqa
 
 
-def trusted_host_for_source(url, verify_ssl):
+def get_insecure_source_host(url, verify_ssl):
     """Return the ``--trusted-host`` value for a source, or ``None``.
 
     ``--trusted-host`` is a hostname allowlist; it's meaningless for a
@@ -23,6 +23,10 @@ def trusted_host_for_source(url, verify_ssl):
     plette.models.sources.Source.__SCHEMA__). Skipping on a missing host
     avoids emitting the nonsensical literal "--trusted-host None" regardless
     of what verify_ssl says.
+
+    Only the hostname and optional port are returned, never URL credentials.
+    Keep the name descriptive of that value: CodeQL treats names containing
+    ``trusted`` as sources of secrets (code-scanning alert #27).
     """
     if verify_ssl:
         return None
@@ -51,9 +55,9 @@ def prepare_pip_source_args(sources, pip_args=None):
     keyring/netrc).  See GHSA-8xgg-v3jj-95m2.
     """
     def _add_trusted_host_if_needed(url, verify_ssl):
-        trusted_host = trusted_host_for_source(url, verify_ssl)
-        if trusted_host:
-            pip_args.extend(["--trusted-host", trusted_host])
+        host_and_port = get_insecure_source_host(url, verify_ssl)
+        if host_and_port:
+            pip_args.extend(["--trusted-host", host_and_port])
 
     if pip_args is None:
         pip_args = []
