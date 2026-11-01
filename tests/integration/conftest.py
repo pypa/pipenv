@@ -1,3 +1,4 @@
+import ast
 import contextlib
 import errno
 import functools
@@ -6,6 +7,7 @@ import html
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +21,7 @@ from tempfile import TemporaryDirectory
 import pytest
 from packaging.utils import canonicalize_name
 
+import pipenv
 from pipenv.patched.pip._vendor import requests
 from pipenv.utils.funktools import handle_remove_readonly
 from pipenv.utils.processes import subprocess_run
@@ -472,6 +475,36 @@ def pipenv_instance_private_pypi(capfdbinary, monkeypatch):
             )
         finally:
             os.umask(original_umask)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def pipenv_on_path_is_checkout(tmp_path_factory):
+    """Fail fast when the ``pipenv`` command isn't the code under test.
+
+    Integration tests shell out to ``pipenv`` from ``PATH``.  If the test
+    virtualenv has no pipenv of its own, that resolves to some other
+    install (e.g. ``~/.local/bin/pipenv``) and tests fail in confusing ways
+    against a different version.  Run the check from an empty directory,
+    as the tests do, so the current directory can't mask the mismatch.
+    """
+    expected = Path(pipenv.__file__).resolve().parent
+    c = subprocess.run(
+        "pipenv --support",
+        shell=True,
+        capture_output=True,
+        text=True,
+        check=False,
+        cwd=tmp_path_factory.mktemp("pipenv-location-check"),
+    )
+    match = re.search(r"^Pipenv location: `(.+)`$", c.stdout, re.MULTILINE)
+    actual = Path(ast.literal_eval(match.group(1))).resolve() if match else None
+    if actual != expected:
+        pytest.fail(
+            f"The `pipenv` command on PATH runs {actual or 'nothing'}, not the "
+            f"checkout under test ({expected}).  Install it into the test "
+            'environment with: pipenv run python -m pip install -e ".[tests,dev]"',
+            pytrace=False,
+        )
 
 
 @pytest.fixture(scope="session")
