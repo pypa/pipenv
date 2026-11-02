@@ -283,7 +283,7 @@ def cmd_activate(args, state):
         sys.exit(1)
 
     try:
-        shell_type, shell_cmd = detect_info(state.project)
+        _, shell_cmd = detect_info(state.project)
     except ShellDetectionFailure:
         err.print(
             "Unable to detect shell. Set PIPENV_SHELL environment variable.",

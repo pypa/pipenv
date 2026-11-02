@@ -281,23 +281,6 @@ def _version_sort_key(value: Union[str, Tuple]) -> Tuple:
         return (1, (), value)
 
 
-# TODO: Rename this to something meaningful
-def fix_version_tuple(version_tuple: Tuple[str, Tuple[int, int]]) -> Tuple[str, Tuple[int, int]]:
-    op, version = version_tuple
-    max_major = max(MAX_VERSIONS.keys())
-    if version[0] > max_major:
-        return (op, (max_major, MAX_VERSIONS[max_major]))
-    # If version[0] is not in MAX_VERSIONS, we return the original version tuple.
-    # This fallback is intentional to allow handling of unexpected or future versions.
-    if version[0] not in MAX_VERSIONS:
-        return (op, version)
-    max_allowed = MAX_VERSIONS[version[0]]
-    if op == "<" and version[1] > max_allowed and version[1] - 1 <= max_allowed:
-        op = "<="
-        version = (version[0], version[1] - 1)
-    return (op, version)
-
-
 def _ensure_marker(marker: Union[str, Marker]) -> Marker:
     if not is_instance(marker, Marker):
         return Marker(str(marker))
@@ -309,12 +292,6 @@ def gen_marker(mkr: List[str]) -> Marker:
     m._markers.pop()
     m._markers.append(mkr)
     return m
-
-
-def _strip_extra(elements):
-    """Remove the "extra == ..." operands from the list."""
-
-    return _strip_marker_elem("extra", elements)
 
 
 def _strip_pyversion(elements):
@@ -366,19 +343,6 @@ def _get_stripped_marker(marker, strip_func):
     return None
 
 
-def get_without_extra(marker):
-    """Build a new marker without the `extra == ...` part.
-
-    The implementation relies very deep into packaging's internals, but I don't
-    have a better way now (except implementing the whole thing myself).
-
-    This could return `None` if the `extra == ...` part is the only one in the
-    input marker.
-    """
-
-    return _get_stripped_marker(marker, _strip_extra)
-
-
 def get_without_pyversion(marker):
     """Built a new marker without the `python_version` part.
 
@@ -412,15 +376,6 @@ def _markers_collect_pyversions(markers, collection):
         collection.extend(local_collection)
 
 
-def _markers_contains_extra(markers):
-    # Optimization: the marker element is usually appended at the end.
-    return _markers_contains_key(markers, "extra")
-
-
-def _markers_contains_pyversion(markers):
-    return _markers_contains_key(markers, "python_version")
-
-
 def _markers_contains_key(markers, key):
     for element in reversed(markers):
         if isinstance(element, tuple) and element[0].value == key:
@@ -428,19 +383,6 @@ def _markers_contains_key(markers, key):
         elif isinstance(element, list) and _markers_contains_key(element, key):
             return True
     return False
-
-
-def get_contained_extras(marker):
-    """Collect "extra == ..." operands from a marker.
-
-    Returns a list of str. Each str is a specified extra in this marker.
-    """
-    if not marker:
-        return set()
-    extras = set()
-    marker = _ensure_marker(marker)
-    _markers_collect_extras(marker._markers, extras)
-    return extras
 
 
 def get_contained_pyversions(marker):
@@ -471,23 +413,6 @@ def get_contained_pyversions(marker):
     if version_set:
         versions = reduce(lambda x, y: x & y, version_set)
     return versions
-
-
-def contains_extra(marker):
-    """Check whether a marker contains an "extra == ..." operand."""
-    if not marker:
-        return False
-    marker = _ensure_marker(marker)
-    return _markers_contains_extra(marker._markers)
-
-
-def contains_pyversion(marker):
-    """Check whether a marker contains a python_version operand."""
-
-    if not marker:
-        return False
-    marker = _ensure_marker(marker)
-    return _markers_contains_pyversion(marker._markers)
 
 
 def _split_specifierset_str(specset_str: str, prefix: str = "==") -> Set[Specifier]:
