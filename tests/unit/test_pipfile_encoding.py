@@ -12,7 +12,9 @@ import json
 
 import pytest
 
+from pipenv.help import get_pipenv_diagnostics
 from pipenv.project import Project
+from pipenv.routines import check, scan
 from pipenv.utils.locking import Lockfile
 from pipenv.vendor import plette
 
@@ -28,6 +30,9 @@ requests = "*"
 mylib = {path = "./ライブラリ/mylib", editable = true}
 
 [dev-packages]
+
+[requires]
+python_version = "3.11"
 """
 
 LOCKFILE = {
@@ -88,3 +93,22 @@ def test_locking_lockfile_load_reads_pipfile_lock_with_bom(tmp_path):
     # Not mistaken for a corrupt lockfile, backed up and regenerated.
     assert lockfile.lockfile._data["_meta"]["hash"]["sha256"] == "abc123"
     assert not (tmp_path / "Pipfile.lock.bak").exists()
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize("routine", [check, scan])
+def test_check_pep508_requirements_reads_pipfile_as_utf8(project, routine):
+    routine.check_pep508_requirements(project, {"python_version": "3.11"}, quiet=True)
+    with pytest.raises(SystemExit):
+        routine.check_pep508_requirements(
+            project, {"python_version": "3.10"}, quiet=True
+        )
+
+
+@pytest.mark.utils
+def test_support_output_reads_pipfile_and_lockfile_as_utf8(project, tmp_path, capsys):
+    (tmp_path / "Pipfile.lock").write_text(json.dumps(LOCKFILE), encoding="utf-8-sig")
+    get_pipenv_diagnostics(project)
+    out = capsys.readouterr().out
+    assert "# 社内ライブラリはローカルのパスから入れる" in out
+    assert '"sha256": "abc123"' in out
