@@ -22,7 +22,6 @@ import sys
 
 try:
     from distutils.cmd import Command as DistutilsCommand
-    from distutils.command.install import SCHEME_KEYS
     from distutils.command.install import install as distutils_install_command
     from distutils.sysconfig import get_python_lib
 except ModuleNotFoundError as _distutils_missing_exc:
@@ -39,7 +38,7 @@ except ModuleNotFoundError as _distutils_missing_exc:
         "(e.g. 'python3-distutils' on Debian/Ubuntu)."
     ) from _distutils_missing_exc
 
-from pipenv.patched.pip._internal.models.scheme import Scheme
+from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
 from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 

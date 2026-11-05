@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import email.message
 import logging
 import mimetypes
@@ -210,11 +211,16 @@ class Downloader:
         filepath = join_within_directory(
             location, _get_http_response_filename(resp, link)
         )
-        with open(filepath, "wb") as content_file:
-            download = _FileDownload(link, content_file, download_size)
-            self._process_response(download, resp)
-            if download.is_incomplete():
-                self._attempt_resumes_or_redownloads(download, resp)
+        try:
+            with open(filepath, "wb") as content_file:
+                download = _FileDownload(link, content_file, download_size)
+                self._process_response(download, resp)
+                if download.is_incomplete():
+                    self._attempt_resumes_or_redownloads(download, resp)
+        except IncompleteDownloadError:
+            with contextlib.suppress(OSError):
+                os.remove(filepath)
+            raise
 
         content_type = resp.headers.get("Content-Type", "")
         return filepath, content_type
@@ -295,7 +301,6 @@ class Downloader:
 
         # No more resume attempts. Raise an error if the download is still incomplete.
         if download.is_incomplete():
-            os.remove(download.output_file.name)
             raise IncompleteDownloadError(download)
 
         # If we successfully completed the download via resume, manually cache it

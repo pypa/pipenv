@@ -120,7 +120,7 @@ try:
     # Note: This logic prevents upgrading cryptography on Windows, if imported
     #       as part of pip.
     from pipenv.patched.pip._internal.utils.compat import WINDOWS
-    if not WINDOWS:
+    if WINDOWS:
         raise ImportError("pip internals: don't import cryptography on Windows")
     try:
         import ssl

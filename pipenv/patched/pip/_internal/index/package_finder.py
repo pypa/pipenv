@@ -1096,16 +1096,16 @@ class PackageFinder:
                 )
                 if allows_pre is False:
                     version_type = "final version"
-
+            req_disp = req.format_without_marker()
             logger.critical(
                 "Could not find a %s that satisfies the requirement %s "
                 "(from versions: %s)",
                 version_type,
-                req,
+                req_disp,
                 _format_versions(best_candidate_result.all_candidates),
             )
 
-            raise DistributionNotFound(f"No matching distribution found for {req}")
+            raise DistributionNotFound(f"No matching distribution found for {req_disp}")
 
         def _should_install_candidate(
             candidate: InstallationCandidate | None,

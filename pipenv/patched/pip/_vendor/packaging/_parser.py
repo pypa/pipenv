@@ -7,9 +7,10 @@ the implementation.
 from __future__ import annotations
 
 import ast
-from typing import List, Literal, NamedTuple, Sequence, Tuple, Union
+from collections.abc import Sequence
+from typing import Literal, NamedTuple, Union
 
-from ._tokenizer import DEFAULT_RULES, Tokenizer
+from ._tokenizer import DEFAULT_RULES, ParserSyntaxError, Tokenizer
 
 
 class Node:
@@ -67,7 +68,14 @@ class Value(Node):
     __slots__ = ()
 
     def serialize(self) -> str:
-        return f'"{self}"'
+        value = str(self)
+        if '"' not in value:
+            return f'"{value}"'
+        if "'" not in value:
+            return f"'{value}'"
+        raise ValueError(
+            "Cannot serialize marker value containing both quote characters"
+        )
 
 
 class Op(Node):
@@ -79,9 +87,9 @@ class Op(Node):
 
 MarkerLogical = Literal["and", "or"]
 MarkerVar = Union[Variable, Value]
-MarkerItem = Tuple[MarkerVar, Op, MarkerVar]
+MarkerItem = tuple[MarkerVar, Op, MarkerVar]
 MarkerAtom = Union[MarkerItem, Sequence["MarkerAtom"]]
-MarkerList = List[Union["MarkerList", MarkerAtom, MarkerLogical]]
+MarkerList = list[Union["MarkerList", MarkerAtom, MarkerLogical]]
 
 
 class ParsedRequirement(NamedTuple):
@@ -264,10 +272,19 @@ def _parse_version_many(tokenizer: Tokenizer) -> str:
     parsed_specifiers = ""
     while tokenizer.check("SPECIFIER"):
         span_start = tokenizer.position
-        parsed_specifiers += tokenizer.read().text
+        specifier = tokenizer.read().text
+        parsed_specifiers += specifier
         if tokenizer.check("VERSION_PREFIX_TRAIL", peek=True):
+            message = ".* suffix can only be used with `==` or `!=` operators"
+            if specifier.startswith("!=") or (
+                specifier.startswith("==") and not specifier.startswith("===")
+            ):
+                message = (
+                    ".* suffix cannot be used with pre-release, post-release, "
+                    "dev or local versions"
+                )
             tokenizer.raise_syntax_error(
-                ".* suffix can only be used with `==` or `!=` operators",
+                message,
                 span_start=span_start,
                 span_end=tokenizer.position + 1,
             )
@@ -354,7 +371,15 @@ def _parse_marker_var(tokenizer: Tokenizer) -> MarkerVar:  # noqa: RET503
     if tokenizer.check("VARIABLE"):
         return process_env_var(tokenizer.read().text.replace(".", "_"))
     elif tokenizer.check("QUOTED_STRING"):
-        return process_python_str(tokenizer.read().text)
+        token = tokenizer.read()
+        try:
+            return process_python_str(token.text)
+        except (SyntaxError, ValueError) as exc:
+            raise ParserSyntaxError(
+                "Invalid quoted string",
+                source=tokenizer.source,
+                span=(token.position, token.position + len(token.text)),
+            ) from exc
     else:
         tokenizer.raise_syntax_error(
             message="Expected a marker variable or quoted string"

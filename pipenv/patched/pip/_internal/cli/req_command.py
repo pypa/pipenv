@@ -10,8 +10,11 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from functools import partial
+from itertools import chain
 from optparse import Values
+from pathlib import Path
 from typing import Any, TypeVar
 
 from pipenv.patched.pip._internal.build_env import (
@@ -46,7 +49,7 @@ from pipenv.patched.pip._internal.req.constructors import (
 )
 from pipenv.patched.pip._internal.req.pep723 import PEP723Exception, pep723_metadata
 from pipenv.patched.pip._internal.req.req_dependency_group import parse_dependency_groups
-from pipenv.patched.pip._internal.req.req_file import parse_requirements
+from pipenv.patched.pip._internal.req.req_file import get_file_content, parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.resolution.base import BaseResolver
 from pipenv.patched.pip._internal.utils.packaging import check_requires_python
@@ -56,11 +59,64 @@ from pipenv.patched.pip._internal.utils.pylock import (
 )
 from pipenv.patched.pip._internal.utils.temp_dir import (
     TempDirectory,
+    TempDirectoryKind,
     TempDirectoryTypeRegistry,
-    tempdir_kinds,
 )
+from pipenv.patched.pip._internal.utils.urls import strip_extras
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _PylockRequest:
+    """Accumulate one lock's selectors before evaluating its package markers."""
+
+    filename: str
+    extras: set[str] = field(default_factory=set)
+    dependency_groups: set[str] = field(default_factory=set)
+    include_default_groups: bool = False
+
+
+def _pylock_source_key(filename: str) -> tuple[str, str, str]:
+    """Identify a source together with the base used for its relative artifacts."""
+    if filename.lower().startswith(("http:", "https:", "file:")):
+        return "url", filename, ""
+    # Preserve case and parent components because either can change which file opens.
+    source = str(Path(filename).absolute())
+    artifact_base = str(Path(os.path.dirname(filename)).absolute())
+    return "path", source, artifact_base
+
+
+def _collect_requirement_sources(
+    requirements: list[str], groups: list[tuple[str, str]]
+) -> tuple[list[str | _PylockRequest], list[tuple[str, str]]]:
+    """Combine selectors for each lock while retaining separate project inputs."""
+    pylocks: dict[tuple[str, str, str], _PylockRequest] = {}
+    requirement_files: list[str | _PylockRequest] = []
+    project_groups: list[tuple[str, str]] = []
+
+    sources = chain(((filename, None) for filename in requirements), groups)
+    for source, group in sources:
+        filename, extras = strip_extras(source)
+        if not is_valid_pylock_filename(filename):
+            if group is None:
+                requirement_files.append(source)
+            else:
+                project_groups.append((source, group))
+            continue
+
+        key = _pylock_source_key(filename)
+        if key not in pylocks:
+            pylocks[key] = _PylockRequest(filename)
+            requirement_files.append(pylocks[key])
+        request = pylocks[key]
+        request.extras.update(extras)
+        if group is None:
+            request.include_default_groups = True
+        else:
+            request.dependency_groups.add(group)
+
+    return requirement_files, project_groups
 
 
 def should_ignore_regular_constraints() -> bool:
@@ -77,9 +133,9 @@ def should_ignore_regular_constraints() -> bool:
 
 
 KEEPABLE_TEMPDIR_TYPES = [
-    tempdir_kinds.BUILD_ENV,
-    tempdir_kinds.EPHEM_WHEEL_CACHE,
-    tempdir_kinds.REQ_BUILD,
+    TempDirectoryKind.BUILD_ENV,
+    TempDirectoryKind.EPHEM_WHEEL_CACHE,
+    TempDirectoryKind.REQ_BUILD,
 ]
 
 
@@ -145,6 +201,20 @@ class RequirementCommand(IndexGroupCommand):
 
         self.cmd_opts.add_option(cmdoptions.dependency_groups())
         self.cmd_opts.add_option(cmdoptions.no_clean())
+
+    def check_build_constraints(self, options: Values) -> None:
+        """Check build constraints with the command's network session."""
+        if not options.build_constraints:
+            return
+
+        if not options.build_isolation:
+            raise CommandError(
+                "--build-constraint cannot be used with --no-build-isolation."
+            )
+
+        session = self.get_default_session(options)
+        for constraint_file in options.build_constraints:
+            get_file_content(constraint_file, session)
 
     @staticmethod
     def determine_resolver_variant(options: Values) -> str:
@@ -317,6 +387,9 @@ class RequirementCommand(IndexGroupCommand):
         Parse command-line arguments into the corresponding requirements.
         """
         requirements: list[InstallRequirement] = []
+        requirement_sources, project_groups = _collect_requirement_sources(
+            options.requirements, options.dependency_groups
+        )
 
         if should_ignore_regular_constraints():
             # Inside an isolated build subprocess: apply the build constraints
@@ -340,8 +413,8 @@ class RequirementCommand(IndexGroupCommand):
             )
             requirements.append(req_to_add)
 
-        if options.dependency_groups:
-            for req in parse_dependency_groups(options.dependency_groups):
+        if project_groups:
+            for req in parse_dependency_groups(project_groups):
                 req_to_add = install_req_from_req_string(
                     req,
                     isolated=options.isolated_mode,
@@ -359,8 +432,8 @@ class RequirementCommand(IndexGroupCommand):
             requirements.append(req_to_add)
 
         # NOTE: options.require_hashes may be set if --require-hashes is True
-        for filename in options.requirements:
-            if is_valid_pylock_filename(filename):
+        for source in requirement_sources:
+            if isinstance(source, _PylockRequest):
                 logger.warning(
                     "Using pylock.toml as a requirements source "
                     "is an experimental feature. "
@@ -368,12 +441,17 @@ class RequirementCommand(IndexGroupCommand):
                     "without prior warning."
                 )
                 for package, package_dist in select_from_pylock_path_or_url(
-                    filename, session=session
+                    source.filename,
+                    session=session,
+                    format_control=options.format_control,
+                    extras=source.extras,
+                    dependency_groups=source.dependency_groups,
+                    include_default_groups=source.include_default_groups,
                 ):
                     req_to_add, locked_link = install_req_from_pylock_package(
                         package,
                         package_dist,
-                        filename,
+                        source.filename,
                         user_supplied=True,
                     )
                     requirements.append(req_to_add)
@@ -381,7 +459,7 @@ class RequirementCommand(IndexGroupCommand):
                         finder.add_locked_link(package.name, locked_link)
                 continue
             for parsed_req in parse_requirements(
-                filename, finder=finder, options=options, session=session
+                source, finder=finder, options=options, session=session
             ):
                 req_to_add = install_req_from_parsed_requirement(
                     parsed_req,

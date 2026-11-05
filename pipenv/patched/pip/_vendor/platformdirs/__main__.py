@@ -2,7 +2,12 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from pipenv.patched.pip._vendor.platformdirs import PlatformDirs, __version__
+
+if TYPE_CHECKING:
+    from pipenv.patched.pip._vendor.platformdirs.api import PlatformDirsABC
 
 PROPS = (
     "user_data_dir",
@@ -15,6 +20,7 @@ PROPS = (
     "user_pictures_dir",
     "user_videos_dir",
     "user_music_dir",
+    "user_desktop_dir",
     "user_projects_dir",
     "user_publicshare_dir",
     "user_templates_dir",
@@ -39,27 +45,32 @@ def main() -> None:
     app_name = "MyApp"
     app_author = "MyCompany"
 
-    print(f"-- platformdirs {__version__} --")  # noqa: T201
+    print(f"-- platformdirs {__version__} --")  # ruff:ignore[print]
 
-    print("-- app dirs (with optional 'version')")  # noqa: T201
-    dirs = PlatformDirs(app_name, app_author, version="1.0")
-    for prop in PROPS:
-        print(f"{prop}: {getattr(dirs, prop)}")  # noqa: T201
+    print("-- app dirs (with optional 'version')")  # ruff:ignore[print]
+    _print_dirs(PlatformDirs(app_name, app_author, version="1.0"))
 
-    print("\n-- app dirs (without optional 'version')")  # noqa: T201
-    dirs = PlatformDirs(app_name, app_author)
-    for prop in PROPS:
-        print(f"{prop}: {getattr(dirs, prop)}")  # noqa: T201
+    print("\n-- app dirs (without optional 'version')")  # ruff:ignore[print]
+    _print_dirs(PlatformDirs(app_name, app_author))
 
-    print("\n-- app dirs (without optional 'appauthor')")  # noqa: T201
-    dirs = PlatformDirs(app_name)
-    for prop in PROPS:
-        print(f"{prop}: {getattr(dirs, prop)}")  # noqa: T201
+    print("\n-- app dirs (without optional 'appauthor')")  # ruff:ignore[print]
+    _print_dirs(PlatformDirs(app_name))
 
-    print("\n-- app dirs (with disabled 'appauthor')")  # noqa: T201
-    dirs = PlatformDirs(app_name, appauthor=False)
+    print("\n-- app dirs (with disabled 'appauthor')")  # ruff:ignore[print]
+    _print_dirs(PlatformDirs(app_name, appauthor=False))
+
+
+def _print_dirs(dirs: PlatformDirsABC) -> None:
     for prop in PROPS:
-        print(f"{prop}: {getattr(dirs, prop)}")  # noqa: T201
+        print(f"{prop}: {_dir_or_error(dirs, prop)}")  # ruff:ignore[print]
+
+
+def _dir_or_error(dirs: PlatformDirsABC, prop: str) -> str:
+    # user_runtime_dir raises when its temporary fallback is not a directory the user owns.
+    try:
+        return getattr(dirs, prop)
+    except PermissionError as error:
+        return str(error)
 
 
 if __name__ == "__main__":

@@ -23,7 +23,6 @@ from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
 from pipenv.patched.pip._vendor.packaging.utils import parse_sdist_filename, parse_wheel_filename
 
 from pipenv.patched.pip._internal.exceptions import InstallationError
-from pipenv.patched.pip._internal.models.index import PyPI, TestPyPI
 from pipenv.patched.pip._internal.models.link import Link
 from pipenv.patched.pip._internal.models.wheel import Wheel
 from pipenv.patched.pip._internal.req.req_file import ParsedRequirement
@@ -38,7 +37,7 @@ from pipenv.patched.pip._internal.utils.pylock import (
     package_vcs_requirement_url,
     package_wheel_requirement_url,
 )
-from pipenv.patched.pip._internal.utils.urls import path_to_url
+from pipenv.patched.pip._internal.utils.urls import path_to_url, strip_extras
 from pipenv.patched.pip._internal.vcs import is_url, vcs
 
 __all__ = [
@@ -52,24 +51,6 @@ logger = logging.getLogger(__name__)
 # All standard version specifier operators
 # https://packaging.python.org/en/latest/specifications/version-specifiers/#id5
 operators = ("~=", "==", "!=", "<=", ">=", "<", ">", "===")
-
-
-def strip_extras(path: str) -> tuple[str, set[str]]:
-    m = re.match(r"^(.+)(\[[^\]]+\])$", path)
-    extras = None
-    if m:
-        path_no_extras = m.group(1).rstrip()
-        extras = m.group(2)
-    else:
-        path_no_extras = path
-
-    return path_no_extras, _convert_extras(extras)
-
-
-def _convert_extras(extras: str | None) -> set[str]:
-    if not extras:
-        return set()
-    return get_requirement("placeholder" + extras.lower()).extras
 
 
 def _set_requirement_extras(req: Requirement, new_extras: set[str]) -> Requirement:
@@ -463,23 +444,6 @@ def install_req_from_req_string(
     except InvalidRequirement as exc:
         raise InstallationError(f"Invalid requirement: {req_string!r}: {exc}")
 
-    domains_not_allowed = [
-        PyPI.file_storage_domain,
-        TestPyPI.file_storage_domain,
-    ]
-    if (
-        req.url
-        and comes_from
-        and comes_from.link
-        and comes_from.link.netloc in domains_not_allowed
-    ):
-        # Explicitly disallow pypi packages that depend on external urls
-        raise InstallationError(
-            "Packages installed from PyPI cannot depend on packages "
-            "which are not also hosted on PyPI.\n"
-            f"{comes_from.name} depends on {req} "
-        )
-
     return InstallRequirement(
         req,
         comes_from,
@@ -556,6 +520,7 @@ def install_req_drop_extras(ireq: InstallRequirement) -> InstallRequirement:
         extras=[],
         config_settings=ireq.config_settings,
         user_supplied=ireq.user_supplied,
+        source_link=ireq.source_link,
     )
 
 

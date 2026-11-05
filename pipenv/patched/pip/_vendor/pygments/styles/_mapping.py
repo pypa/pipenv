@@ -30,6 +30,7 @@ STYLES = {
     'MonokaiStyle': ('pygments.styles.monokai', 'monokai', ()),
     'MurphyStyle': ('pygments.styles.murphy', 'murphy', ()),
     'NativeStyle': ('pygments.styles.native', 'native', ()),
+    'NightOwlStyle': ('pygments.styles.night_owl', 'night-owl', ()),
     'NordDarkerStyle': ('pygments.styles.nord', 'nord-darker', ()),
     'NordStyle': ('pygments.styles.nord', 'nord', ()),
     'OneDarkStyle': ('pygments.styles.onedark', 'one-dark', ()),

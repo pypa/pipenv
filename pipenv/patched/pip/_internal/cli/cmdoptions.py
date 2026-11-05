@@ -35,6 +35,7 @@ from pipenv.patched.pip._internal.models.target_python import TargetPython
 from pipenv.patched.pip._internal.utils.datetime import parse_iso_datetime
 from pipenv.patched.pip._internal.utils.hashes import STRONG_HASHES
 from pipenv.patched.pip._internal.utils.misc import strtobool
+from pipenv.patched.pip._internal.utils.urls import strip_extras
 
 logger = logging.getLogger(__name__)
 
@@ -139,36 +140,17 @@ def check_dist_restriction(options: Values, check_target: bool = False) -> None:
         # Lazy import to keep CLI startup fast
         from pipenv.patched.pip._internal.utils import pylock as pylock_utils
 
-        for filename in options.requirements:
-            if pylock_utils.is_valid_pylock_filename(filename):
+        filenames = list(options.requirements)
+        filenames.extend(path for path, _ in options.dependency_groups)
+        for filename in filenames:
+            filename_without_extras, _ = strip_extras(filename)
+            if pylock_utils.is_valid_pylock_filename(filename_without_extras):
                 raise CommandError(
                     "Platform and interpreter constraints using "
                     "--python-version, --platform, --abi, or --implementation, "
-                    f"are not supported when selecting requirements from {filename!r}"
+                    f"are not supported when selecting requirements "
+                    f"from {filename_without_extras!r}"
                 )
-
-
-def check_build_constraints(options: Values) -> None:
-    """Function for validating build constraints options.
-
-    :param options: The OptionParser options.
-    """
-    if hasattr(options, "build_constraints") and options.build_constraints:
-        if not options.build_isolation:
-            raise CommandError(
-                "--build-constraint cannot be used with --no-build-isolation."
-            )
-
-        # Import here to avoid circular imports
-        from pipenv.patched.pip._internal.network.session import PipSession
-        from pipenv.patched.pip._internal.req.req_file import get_file_content
-
-        # Eagerly check build constraints file contents
-        # is valid so that we don't fail in when trying
-        # to check constraints in isolated build process
-        with PipSession() as session:
-            for constraint_file in options.build_constraints:
-                get_file_content(constraint_file, session)
 
 
 def _path_option_check(option: Option, opt: str, value: str) -> str:
@@ -539,7 +521,8 @@ def uploaded_prior_to() -> Option:
         help=(
             "Only consider packages uploaded prior to the given value. "
             "Accepts an ISO 8601 datetime (e.g., '2023-01-01T00:00:00Z', "
-            "uses local timezone if none specified) or a duration in days "
+            "uses local timezone if none specified) "
+            "or duration in integer days with syntax `P<n>D` "
             "(e.g., 'P3D' for packages uploaded at least 3 days ago). "
             "Only effective when using indexes that provide "
             "upload-time metadata."
@@ -598,7 +581,10 @@ def requirements() -> Option:
         help=(
             "Install from the given requirements file. "
             "The file or URL can be in pip's requirements.txt format, "
-            "or pylock.toml format. pylock.toml support is experimental. "
+            "or pylock.toml format. "
+            "Extras may be selected from a pylock.toml file by "
+            "appending [extras] to the file name. "
+            "pylock.toml support is experimental. "
             "This option can be used multiple times."
         ),
     )
@@ -1061,8 +1047,7 @@ def _handle_dependency_group(
     """
     Process a value provided for the --group option.
 
-    Splits on the rightmost ":", and validates that the path (if present) ends
-    in `pyproject.toml`. Defaults the path to `pyproject.toml` when one is not given.
+    Splits on the rightmost ":", and validates an explicit source filename.
 
     `:` cannot appear in dependency group names, so this is a safe and simple parse.
 
@@ -1072,10 +1057,15 @@ def _handle_dependency_group(
     if not sep:
         path = "pyproject.toml"
     else:
-        # check for 'pyproject.toml' filenames using pathlib
+        # Local pyproject.toml paths may contain URL-like prefixes.
         if pathlib.PurePath(path).name != "pyproject.toml":
-            msg = "group paths use 'pyproject.toml' filenames"
-            raise_option_error(parser, option=option, msg=msg)
+            # Keep lock parsing imports confined to commands that request it.
+            from pipenv.patched.pip._internal.utils.pylock import is_valid_pylock_filename
+
+            filename, _ = strip_extras(path)
+            if not is_valid_pylock_filename(filename, allow_urls=False):
+                msg = "group paths use local 'pyproject.toml' or 'pylock.toml' files"
+                raise_option_error(parser, option=option, msg=msg)
 
     parser.values.dependency_groups.append((path, groupname))
 
@@ -1089,8 +1079,8 @@ dependency_groups: Callable[..., Option] = partial(
     action="callback",
     callback=_handle_dependency_group,
     metavar="[path:]group",
-    help='Install a named dependency-group from a "pyproject.toml" file. '
-    'If a path is given, the name of the file must be "pyproject.toml". '
+    help='Install a named dependency-group from a "pyproject.toml" or '
+    '"pylock.toml" file. Named "pylock.<name>.toml" files are also supported. '
     'Defaults to using "pyproject.toml" in the current directory.',
 )
 
@@ -1360,7 +1350,6 @@ general_group: dict[str, Any] = {
         require_virtualenv,
         python,
         verbose,
-        version,
         quiet,
         log,
         no_input,

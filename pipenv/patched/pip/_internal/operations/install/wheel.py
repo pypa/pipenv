@@ -30,10 +30,10 @@ from typing import (
 from zipfile import ZipFile, ZipInfo
 
 from pipenv.patched.pip._vendor.distlib.scripts import ScriptMaker
-from pipenv.patched.pip._vendor.distlib.util import get_export_entry
+from pipenv.patched.pip._vendor.distlib.util import FileOperator, get_export_entry
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
-from pipenv.patched.pip._internal.exceptions import InstallationError
+from pipenv.patched.pip._internal.exceptions import BlockedImportError, InstallationError
 from pipenv.patched.pip._internal.locations import get_major_minor_version
 from pipenv.patched.pip._internal.metadata import (
     BaseDistribution,
@@ -57,6 +57,10 @@ class File(Protocol):
     src_record_path: RecordPath
     dest_path: str
     changed: bool
+
+    @property
+    def written(self) -> bool:
+        pass
 
     def save(self) -> None:
         pass
@@ -133,18 +137,26 @@ def message_about_scripts_not_on_PATH(scripts: Sequence[str]) -> str | None:
         script_name = dest_path.name
         grouped_by_dir[parent_dir].add(script_name)
 
-    # We don't want to warn for directories that are on PATH.
-    not_warn_dirs = [
-        Path(i).resolve() for i in os.environ.get("PATH", "").split(os.pathsep)
-    ]
     # If an executable sits with sys.executable, we don't warn for it.
     #     This covers the case of venv invocations without activating the venv.
-    not_warn_dirs.append(Path(sys.executable).parent.resolve())
+    executable_dir = Path(sys.executable).parent.resolve()
+    path_entries = os.environ.get("PATH", "").split(os.pathsep)
+
+    # We don't want to warn for directories that are on PATH.
     warn_for: dict[Path, set[str]] = {
         parent_dir: scripts
         for parent_dir, scripts in grouped_by_dir.items()
-        if parent_dir not in not_warn_dirs
+        if parent_dir != executable_dir and str(parent_dir) not in path_entries
     }
+
+    # Resolving PATH entries can be slow, so only do it for what's left.
+    if warn_for:
+        not_warn_dirs = {Path(i).resolve() for i in path_entries}
+        warn_for = {
+            parent_dir: scripts
+            for parent_dir, scripts in warn_for.items()
+            if parent_dir not in not_warn_dirs
+        }
     if not warn_for:
         return None
 
@@ -173,9 +185,7 @@ def message_about_scripts_not_on_PATH(scripts: Sequence[str]) -> str | None:
         msg_lines.append(last_line_fmt.format("these directories"))
 
     # Add a note if any directory starts with ~
-    warn_for_tilde = any(
-        i[0] == "~" for i in os.environ.get("PATH", "").split(os.pathsep) if i
-    )
+    warn_for_tilde = any(i[0] == "~" for i in path_entries if i)
     if warn_for_tilde:
         tilde_warning_msg = (
             "NOTE: The current PATH contains path(s) starting with `~`, "
@@ -342,6 +352,7 @@ class ZipBackedFile:
         self.dest_path = dest_path
         self._zip_file = zip_file
         self.changed = False
+        self.written = False
 
     def _getinfo(self) -> ZipInfo:
         return self._zip_file.getinfo(self.src_record_path)
@@ -363,6 +374,7 @@ class ZipBackedFile:
         # optimization: the file is created by open(),
         # skip the decompression when there is 0 bytes to decompress.
         with open(self.dest_path, "wb") as dest:
+            self.written = True
             if zipinfo.file_size > 0:
                 with self._zip_file.open(zipinfo) as f:
                     blocksize = min(zipinfo.file_size, 1024 * 1024)
@@ -378,6 +390,10 @@ class ScriptFile:
         self.src_record_path = self._file.src_record_path
         self.dest_path = self._file.dest_path
         self.changed = False
+
+    @property
+    def written(self) -> bool:
+        return self._file.written
 
     def save(self) -> None:
         self._file.save()
@@ -432,6 +448,133 @@ class PipScriptMaker(ScriptMaker):
         return super().make(specification, options)
 
 
+class _WheelInstallRecord:
+    """Track files and metadata needed to recover an interrupted installation."""
+
+    def __init__(self, info_dir: str, lib_dir: str) -> None:
+        self.info_dir = info_dir
+        self.lib_dir = lib_dir
+        self.installed: dict[RecordPath, RecordPath] = {}
+        self.generated: list[str] = []
+        self.script_fileop = FileOperator()
+        self.script_fileop.record = True
+        self.started = False
+
+    def written_paths(self) -> set[str]:
+        """Return the files written so far, including partial copies and scripts."""
+        paths = {os.path.join(self.lib_dir, path) for path in self.installed.values()}
+        paths.update(self.generated)
+        paths.update(self.script_fileop.files_written)
+        return paths
+
+
+@contextlib.contextmanager
+def _generate_file(
+    path: str, file_mode: int, **kwargs: Any
+) -> Generator[BinaryIO, None, None]:
+    """Write metadata atomically with the requested permissions."""
+    temporary_path = None
+    try:
+        with adjacent_tmp_file(path, **kwargs) as f:
+            temporary_path = f.name
+            yield f
+
+        os.chmod(f.name, file_mode)
+        replace(f.name, path)
+    except BaseException:
+        if temporary_path is not None:
+            with contextlib.suppress(FileNotFoundError):
+                os.unlink(temporary_path)
+        raise
+
+
+def _write_recovery_record(wheel_zip: ZipFile, record: _WheelInstallRecord) -> None:
+    """Write readable metadata and an uninstall record for files already written."""
+    info_dir, lib_dir = record.info_dir, record.lib_dir
+    file_mode = 0o666 & ~current_umask()
+
+    recovery_paths = {
+        _fs_to_record_path(path, lib_dir) for path in record.written_paths()
+    }
+
+    dest_info_dir = os.path.join(lib_dir, info_dir)
+    ensure_dir(dest_info_dir)
+    metadata_path = os.path.join(dest_info_dir, "METADATA")
+    with _generate_file(metadata_path, file_mode) as metadata_file:
+        metadata_file.write(wheel_zip.read(f"{info_dir}/METADATA"))
+    recovery_paths.add(_fs_to_record_path(metadata_path, lib_dir))
+
+    # Uninstall must not infer wrappers that were never generated.
+    with contextlib.suppress(FileNotFoundError):
+        os.unlink(os.path.join(dest_info_dir, "entry_points.txt"))
+
+    record_path = os.path.join(dest_info_dir, "RECORD")
+    recovery_paths.add(_fs_to_record_path(record_path, lib_dir))
+    with _generate_file(record_path, file_mode, **csv_io_kwargs("w")) as record_file:
+        writer = csv.writer(cast("IO[str]", record_file))
+        writer.writerows((path, "", "") for path in sorted(recovery_paths))
+
+
+@contextlib.contextmanager
+def _record_wheel_installation(
+    wheel_zip: ZipFile, name: str, scheme: Scheme, *, rollback_on_error: bool = False
+) -> Generator[_WheelInstallRecord, None, None]:
+    """Provide the file journal and recover writes interrupted by blocked imports."""
+    info_dir, metadata = parse_wheel(wheel_zip, name)
+    lib_dir = scheme.purelib if wheel_root_is_purelib(metadata) else scheme.platlib
+    record = _WheelInstallRecord(info_dir, lib_dir)
+
+    try:
+        yield record
+    except BlockedImportError as error:
+        # A blocked preparation step must leave an existing install alone.
+        if not record.started:
+            raise
+
+        if rollback_on_error:
+            # Remove replacement files before the previous installation is restored.
+            try:
+                for path in record.written_paths():
+                    with contextlib.suppress(FileNotFoundError):
+                        os.unlink(path)
+
+                # Empty dist-info directories still look like installed distributions.
+                for directory, _, _ in os.walk(
+                    os.path.join(lib_dir, info_dir), topdown=False
+                ):
+                    with contextlib.suppress(OSError):
+                        os.rmdir(directory)
+            except (OSError, BlockedImportError) as cleanup_error:
+                raise BlockedImportError(
+                    f"Could not remove incomplete installation of {name!r}: "
+                    f"{cleanup_error}\n{error}"
+                ) from cleanup_error
+
+            raise
+
+        try:
+            _write_recovery_record(wheel_zip, record)
+        except (OSError, BlockedImportError) as recovery_error:
+            raise BlockedImportError(
+                f"Could not write recovery metadata for {name!r} at "
+                f"{os.path.join(lib_dir, info_dir)!r}: {recovery_error}\n{error}"
+            ) from recovery_error
+
+        raise BlockedImportError(
+            f"Installation of {name!r} was interrupted and the package may be "
+            f"corrupt. Run 'pip uninstall {name}' to remove it. {error}"
+        ) from error
+
+
+def _compile_wheel_file(path: str) -> bool:
+    """Skip optional compilation when it requires a blocked or unavailable import."""
+    try:
+        return compileall.compile_file(path, force=True, quiet=True)
+    except (BlockedImportError, ImportError) as error:
+        logger.debug("Skipping bytecode compilation for %s: %s", path, error)
+        return False
+
+
 def _install_wheel(  # noqa: C901, PLR0915 function is too long
     name: str,
     wheel_zip: ZipFile,
@@ -442,14 +585,14 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
     direct_url: DirectUrl | None = None,
     requested: bool = False,
     script_executable: str | None = None,
+    *,
+    record: _WheelInstallRecord,
 ) -> None:
     """Install a wheel.
 
     :param name: Name of the project to install
     :param wheel_zip: open ZipFile for wheel being installed
     :param scheme: Distutils scheme dictating the install directories
-    :param req_description: String used in place of the requirement, for
-        logging
     :param pycompile: Whether to byte-compile installed Python files
     :param warn_script_location: Whether to check that scripts are installed
         into a directory on PATH
@@ -459,20 +602,15 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
           Wheel-Version
         * when the .dist-info dir does not match the wheel
     """
-    info_dir, metadata = parse_wheel(wheel_zip, name)
-
-    if wheel_root_is_purelib(metadata):
-        lib_dir = scheme.purelib
-    else:
-        lib_dir = scheme.platlib
+    info_dir, lib_dir = record.info_dir, record.lib_dir
 
     # Record details of the files moved
     #   installed = files copied from the wheel to the destination
     #   changed = files changed while installing (scripts #! line typically)
-    #   generated = files newly generated during the install (script wrappers)
-    installed: dict[RecordPath, RecordPath] = {}
+    #   generated = scripts and installation metadata generated during the install
+    installed = record.installed
     changed: set[RecordPath] = set()
-    generated: list[str] = []
+    generated = record.generated
 
     def record_installed(
         srcfile: RecordPath, destfile: str, modified: bool = False
@@ -593,6 +731,8 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
     script_scheme_files = map(ScriptFile, script_scheme_files)
     files = chain(files, script_scheme_files)
 
+    # File saves may unlink old files before creating replacements.
+    record.started = True
     existing_parents = set()
     for file in files:
         # directory creation is lazy and after file filtering
@@ -602,7 +742,14 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
         if parent_dir not in existing_parents:
             ensure_dir(parent_dir)
             existing_parents.add(parent_dir)
-        file.save()
+
+        try:
+            file.save()
+        except BlockedImportError:
+            if file.written:
+                record_installed(file.src_record_path, file.dest_path, True)
+            raise
+
         record_installed(file.src_record_path, file.dest_path, file.changed)
 
     def pyc_source_file_paths() -> Generator[str, None, None]:
@@ -630,7 +777,7 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
             with warnings.catch_warnings():
                 warnings.filterwarnings("ignore")
                 for path in pyc_source_file_paths():
-                    success = compileall.compile_file(path, force=True, quiet=True)
+                    success = _compile_wheel_file(path)
                     if success:
                         pyc_path = pyc_output_path(path)
                         assert os.path.exists(pyc_path)
@@ -640,7 +787,8 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
                         record_installed(pyc_record_path, pyc_path)
         logger.debug(stdout.getvalue())
 
-    maker = PipScriptMaker(None, scheme.scripts)
+    # Track scripts even if generation fails before returning their paths.
+    maker = PipScriptMaker(None, scheme.scripts, fileop=record.script_fileop)
 
     # Embed the target environment's interpreter in console-script launchers
     # rather than the one running pip, so an in-process install into another
@@ -678,26 +826,18 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
             logger.warning(msg)
 
     generated_file_mode = 0o666 & ~current_umask()
-
-    @contextlib.contextmanager
-    def _generate_file(path: str, **kwargs: Any) -> Generator[BinaryIO, None, None]:
-        with adjacent_tmp_file(path, **kwargs) as f:
-            yield f
-        os.chmod(f.name, generated_file_mode)
-        replace(f.name, path)
-
     dest_info_dir = os.path.join(lib_dir, info_dir)
 
     # Record pip as the installer
     installer_path = os.path.join(dest_info_dir, "INSTALLER")
-    with _generate_file(installer_path) as installer_file:
+    with _generate_file(installer_path, generated_file_mode) as installer_file:
         installer_file.write(b"pip\n")
     generated.append(installer_path)
 
     # Record the PEP 610 direct URL reference
     if direct_url is not None:
         direct_url_path = os.path.join(dest_info_dir, DIRECT_URL_METADATA_NAME)
-        with _generate_file(direct_url_path) as direct_url_file:
+        with _generate_file(direct_url_path, generated_file_mode) as direct_url_file:
             direct_url_file.write(direct_url.to_json().encode("utf-8"))
         generated.append(direct_url_path)
 
@@ -711,9 +851,10 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
     record_text = distribution.read_text("RECORD")
     record_rows = list(csv.reader(record_text.splitlines()))
 
+    # RECORD generation consumes its input; recovery still needs the journal.
     rows = get_csv_rows_for_installed(
         record_rows,
-        installed=installed,
+        installed=installed.copy(),
         changed=changed,
         generated=generated,
         lib_dir=lib_dir,
@@ -722,7 +863,9 @@ def _install_wheel(  # noqa: C901, PLR0915 function is too long
     # Record details of all files installed
     record_path = os.path.join(dest_info_dir, "RECORD")
 
-    with _generate_file(record_path, **csv_io_kwargs("w")) as record_file:
+    with _generate_file(
+        record_path, generated_file_mode, **csv_io_kwargs("w")
+    ) as record_file:
         # Explicitly cast to typing.IO[str] as a workaround for the mypy error:
         # "writer" has incompatible type "BinaryIO"; expected "_Writer"
         writer = csv.writer(cast("IO[str]", record_file))
@@ -748,9 +891,16 @@ def install_wheel(
     direct_url: DirectUrl | None = None,
     requested: bool = False,
     script_executable: str | None = None,
+    *,
+    rollback_on_error: bool = False,
 ) -> None:
     with ZipFile(wheel_path, allowZip64=True) as z:
-        with req_error_context(req_description):
+        with (
+            req_error_context(req_description),
+            _record_wheel_installation(
+                z, name, scheme, rollback_on_error=rollback_on_error
+            ) as record,
+        ):
             _install_wheel(
                 name=name,
                 wheel_zip=z,
@@ -761,4 +911,5 @@ def install_wheel(
                 direct_url=direct_url,
                 requested=requested,
                 script_executable=script_executable,
+                record=record,
             )

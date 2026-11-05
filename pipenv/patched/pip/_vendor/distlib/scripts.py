@@ -120,19 +120,19 @@ class ScriptMaker(object):
             executable = os.path.join(dn, fn)
         return executable
 
-    if sys.platform.startswith('java'):  # pragma: no cover
+    def _is_shell(self, executable):
+        """
+        Determine if the specified executable is a script
+        (contains a #! line)
+        """
+        try:
+            with open(executable, 'rb') as fp:
+                return fp.read(2) == b'#!'
+        except (OSError, IOError):
+            logger.warning('Failed to open %s', executable)
+            return False
 
-        def _is_shell(self, executable):
-            """
-            Determine if the specified executable is a script
-            (contains a #! line)
-            """
-            try:
-                with open(executable) as fp:
-                    return fp.read(2) == '#!'
-            except (OSError, IOError):
-                logger.warning('Failed to open %s', executable)
-                return False
+    if sys.platform.startswith('java'):  # pragma: no cover
 
         def _fix_jython_executable(self, executable):
             if self._is_shell(executable):
@@ -172,7 +172,9 @@ class ScriptMaker(object):
                 max_shebang_length = 512
             else:
                 max_shebang_length = 127
-            simple_shebang = ((b' ' not in executable) and (shebang_length <= max_shebang_length))
+            simple_shebang = ((b' ' not in executable) and
+                              (shebang_length <= max_shebang_length) and
+                              not self._is_shell(executable.decode('utf-8')))
 
         if simple_shebang:
             result = b'#!' + executable + post_interp + b'\n'
@@ -290,6 +292,10 @@ class ScriptMaker(object):
                 try:
                     self._fileop.write_binary_file(outname, script_bytes)
                 except Exception:
+                    if not os.path.exists(outname):
+                        # Nothing to move aside, so the original error
+                        # (e.g. no write permission) is the real one.
+                        raise
                     # Failed writing an executable - it might be in use.
                     logger.warning('Failed to write executable - trying to '
                                    'use .deleteme logic')

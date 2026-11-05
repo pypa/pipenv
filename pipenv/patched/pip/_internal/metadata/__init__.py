@@ -80,7 +80,7 @@ def _emit_pkg_resources_deprecation_if_needed() -> None:
             "to use the default importlib.metadata backend, "
             "by unsetting the _PIP_USE_IMPORTLIB_METADATA environment variable"
         ),
-        gone_in="26.3",
+        gone_in="27.0",
         issue=13317,
     )
 

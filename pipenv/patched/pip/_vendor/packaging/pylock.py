@@ -14,9 +14,14 @@ from typing import (
     TypeVar,
     cast,
 )
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
-from .markers import Environment, Marker, default_environment
+from .markers import (
+    Environment,
+    Marker,
+    _pep440_python_full_version,
+    default_environment,
+)
 from .specifiers import SpecifierSet
 from .tags import create_compatible_tags_selector, sys_tags
 from .utils import (
@@ -45,6 +50,7 @@ __all__ = [
     "PackageVcs",
     "PackageWheel",
     "Pylock",
+    "PylockSelectError",
     "PylockUnsupportedVersionError",
     "PylockValidationError",
     "is_valid_pylock_path",
@@ -99,7 +105,10 @@ def _get(d: Mapping[str, Any], expected_type: type[_T], key: str) -> _T | None:
     """Get a value from the dictionary and verify it's the expected type."""
     if (value := d.get(key)) is None:
         return None
-    if not isinstance(value, expected_type):
+    if not isinstance(value, expected_type) or (
+        # Special case: bool is a subclass of int, but TOML distinguishes the two
+        expected_type is int and isinstance(value, bool)
+    ):
         raise PylockValidationError(
             f"Unexpected type {type(value).__name__} "
             f"(expected {expected_type.__name__})",
@@ -255,7 +264,8 @@ def _url_name(url: str | None) -> str | None:
     if not url:
         return None
     url_path = urlparse(url).path
-    return url_path.rsplit("/", 1)[-1]
+    # The last path component is percent-encoded, so decode it to the file name
+    return unquote(url_path.rsplit("/", 1)[-1])
 
 
 def _validate_hashes(hashes: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -306,7 +316,10 @@ class PylockUnsupportedVersionError(PylockValidationError):
 
 
 class PylockSelectError(Exception):
-    """Base exception for errors raised by :meth:`Pylock.select`."""
+    """Base exception for errors raised by :meth:`Pylock.select`.
+
+    .. versionadded:: 26.1
+    """
 
 
 @dataclass(frozen=True, init=False)
@@ -460,7 +473,10 @@ class PackageSdist:
 
     @property
     def filename(self) -> str:
-        """Get the filename of the sdist."""
+        """Get the filename of the sdist.
+
+        .. versionadded:: 26.1
+        """
         filename = self.name or _path_name(self.path) or _url_name(self.url)
         if not filename:
             raise PylockValidationError("Cannot determine sdist filename")
@@ -737,6 +753,7 @@ class Pylock:
         tags: Sequence[Tag] | None = None,
         extras: Collection[str] | None = None,
         dependency_groups: Collection[str] | None = None,
+        prefer_sdist_predicate: Callable[[NormalizedName], bool] | None = None,
     ) -> Iterator[
         tuple[
             Package,
@@ -758,11 +775,23 @@ class Pylock:
         The *dependency_groups* parameter represents the groups to install. If
         unspecified, the default groups are used.
 
+        The *prefer_sdist_predicate* parameter is called for packages with a source
+        distribution. If it returns ``True``, the source distribution is selected
+        before attempting wheel compatibility. If no source distribution is
+        available, wheel selection proceeds as usual without calling the predicate.
+
         This method must be used on valid Pylock instances (i.e. one obtained
         from :meth:`Pylock.from_dict` or if constructed manually, after calling
         :meth:`Pylock.validate`).
+
+        .. versionadded:: 26.1
+
+        .. versionchanged:: 26.3
+            Added the *prefer_sdist_predicate* parameter.
         """
-        compatible_tags_selector = create_compatible_tags_selector(tags or sys_tags())
+        compatible_tags_selector = create_compatible_tags_selector(
+            tags if tags is not None else sys_tags()
+        )
 
         # #. Gather the extras and dependency groups to install and set ``extras`` and
         #    ``dependency_groups`` for marker evaluation, respectively.
@@ -782,7 +811,7 @@ class Pylock:
                 ),
             ),
         )
-        env_python_full_version = (
+        env_python_full_version = _pep440_python_full_version(
             environment["python_full_version"]
             if environment
             else default_environment()["python_full_version"]
@@ -869,6 +898,15 @@ class Pylock:
             # - Else if :ref:`pylock-packages-archive` is set:
             elif package.archive is not None:
                 yield package, package.archive
+
+            # - Else if source preference selects an available
+            #   :ref:`pylock-packages-sdist`:
+            elif (
+                package.sdist is not None
+                and prefer_sdist_predicate is not None
+                and prefer_sdist_predicate(package.name)
+            ):
+                yield package, package.sdist
 
             # - Else if there are entries for :ref:`pylock-packages-wheels`:
             elif package.wheels:

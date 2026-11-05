@@ -48,7 +48,7 @@ def __dir__() -> list[str]:
     return __all__
 
 
-license_ref_allowed = re.compile("^[A-Za-z0-9.-]*$")
+license_ref_allowed = re.compile("^[A-Za-z0-9.-]+$")
 
 NormalizedLicenseExpression = NewType("NormalizedLicenseExpression", str)
 """
@@ -64,7 +64,7 @@ class InvalidLicenseExpression(ValueError):
     >>> canonicalize_license_expression("invalid")
     Traceback (most recent call last):
         ...
-    packaging.licenses.InvalidLicenseExpression: Invalid license expression: 'invalid'
+    packaging.licenses.InvalidLicenseExpression: Unknown license: 'invalid'
     """
 
 
@@ -148,9 +148,18 @@ def canonicalize_license_expression(
 
     # Take a final pass to check for unknown licenses/exceptions.
     normalized_tokens = []
-    for token in tokens:
+    last_license_start = False
+    for index, token in enumerate(tokens):
         if token in {"or", "and", "with", "(", ")"}:
+            if token == "with" and (
+                not last_license_start
+                or index + 1 == len(tokens)
+                or tokens[index + 1] in {"or", "and", "with", "(", ")"}
+            ):
+                message = f"Invalid license expression: {raw_license_expression!r}"
+                raise InvalidLicenseExpression(message)
             normalized_tokens.append(token.upper())
+            last_license_start = False
             continue
 
         if normalized_tokens and normalized_tokens[-1] == "WITH":
@@ -159,6 +168,7 @@ def canonicalize_license_expression(
                 raise InvalidLicenseExpression(message)
 
             normalized_tokens.append(EXCEPTIONS[token]["id"])
+            last_license_start = False
         else:
             if token.endswith("+"):
                 final_token = token[:-1]
@@ -168,15 +178,17 @@ def canonicalize_license_expression(
                 suffix = ""
 
             if final_token.startswith("licenseref-"):
-                if not license_ref_allowed.match(final_token):
-                    message = f"Invalid licenseref: {final_token!r}"
+                license_ref_id = final_token[len("licenseref-") :]
+                if suffix or not license_ref_allowed.match(license_ref_id):
+                    message = f"Invalid licenseref: {token!r}"
                     raise InvalidLicenseExpression(message)
-                normalized_tokens.append(license_refs[final_token] + suffix)
+                normalized_tokens.append(license_refs[final_token])
             else:
                 if final_token not in LICENSES:
                     message = f"Unknown license: {final_token!r}"
                     raise InvalidLicenseExpression(message)
                 normalized_tokens.append(LICENSES[final_token]["id"] + suffix)
+            last_license_start = True
 
     normalized_expression = " ".join(normalized_tokens)
 

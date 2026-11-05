@@ -14,7 +14,7 @@ from pipenv.patched.pip._internal.build_env.base import (
     BuildEnvironmentInstaller,
     Prefix,
 )
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, TempDirectoryKind
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._internal.req.req_install import InstallRequirement
@@ -37,7 +37,9 @@ class VirtualBuildEnvironment(BuildEnvironment):
     def __init__(self, installer: BuildEnvironmentInstaller) -> None:
         self.python_executable = sys.executable
         self.installer = installer
-        temp_dir = TempDirectory(kind=tempdir_kinds.BUILD_ENV, globally_managed=True)
+        temp_dir = TempDirectory(
+            kind=TempDirectoryKind.BUILD_ENV, globally_managed=True
+        )
 
         self._prefixes = OrderedDict(
             (name, Prefix(os.path.join(temp_dir.path, name)))

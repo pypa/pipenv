@@ -7,9 +7,14 @@ from __future__ import annotations
 import logging
 import os
 import warnings
+from collections.abc import Generator
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any, TextIO
 
 from pipenv.patched.pip._vendor.packaging.version import parse
+from pipenv.patched.pip._vendor.pyproject_hooks import BuildBackendWarning
+from pipenv.patched.pip._vendor.rich.text import Text
 
 from pipenv.patched.pip import __version__ as current_version  # NOTE: tests patch this name.
 
@@ -21,6 +26,19 @@ class PipDeprecationWarning(Warning):
 
 
 _original_showwarning: Any = None
+_build_backend_warning_level = ContextVar(
+    "build_backend_warning_level", default=logging.DEBUG
+)
+
+
+@contextmanager
+def build_backend_warnings(level: int) -> Generator[None, None, None]:
+    """Set the logging level for warnings from this build backend call."""
+    token = _build_backend_warning_level.set(level)
+    try:
+        yield
+    finally:
+        _build_backend_warning_level.reset(token)
 
 
 # Warnings <-> Logging Integration
@@ -43,6 +61,15 @@ def _showwarning(
             logger.warning("%s (%s:%s)", message, filename, lineno)
         else:
             logger.warning(message)
+    elif issubclass(category, BuildBackendWarning):
+        logger = logging.getLogger("pipenv.patched.pip._internal.build_backend")
+        formatted = warnings.formatwarning(message, category, filename, lineno, line)
+        logger.log(
+            _build_backend_warning_level.get(),
+            "%s",
+            Text(formatted.rstrip()),
+            extra={"rich": True},
+        )
     else:
         _original_showwarning(message, category, filename, lineno, file, line)
 

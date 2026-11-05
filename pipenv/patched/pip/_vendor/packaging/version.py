@@ -18,7 +18,6 @@ from typing import (
     Literal,
     NamedTuple,
     SupportsInt,
-    Tuple,
     TypedDict,
     Union,
 )
@@ -67,13 +66,13 @@ def __dir__() -> list[str]:
     return __all__
 
 
-LocalType = Tuple[Union[int, str], ...]
+LocalType = tuple[Union[int, str], ...]
 
-CmpLocalType = Tuple[Tuple[int, str], ...]
-CmpSuffix = Tuple[int, int, int, int, int, int]
+CmpLocalType = tuple[tuple[int, str], ...]
+CmpSuffix = tuple[int, int, int, int, int, int]
 CmpKey = Union[
-    Tuple[int, Tuple[int, ...], CmpSuffix],
-    Tuple[int, Tuple[int, ...], CmpSuffix, CmpLocalType],
+    tuple[int, tuple[int, ...], CmpSuffix],
+    tuple[int, tuple[int, ...], CmpSuffix, CmpLocalType],
 ]
 VersionComparisonMethod = Callable[[CmpKey, CmpKey], bool]
 
@@ -288,10 +287,15 @@ def _validate_pre(value: object, /) -> tuple[Literal["a", "b", "rc"], int] | Non
         return value
     if isinstance(value, tuple) and len(value) == 2:
         letter, number = value
-        letter = normalize_pre(letter)
-        if letter in {"a", "b", "rc"} and isinstance(number, int) and number >= 0:
+        # The letter must be a string before it can be normalized.
+        if (
+            isinstance(letter, str)
+            and (normalized := normalize_pre(letter)) in {"a", "b", "rc"}
+            and isinstance(number, int)
+            and number >= 0
+        ):
             # type checkers can't infer the Literal type here on letter
-            return (letter, number)  # type: ignore[return-value]
+            return (normalized, number)  # type: ignore[return-value]
     msg = f"pre must be a tuple of ('a'|'b'|'rc', non-negative int), got {value}"
     raise InvalidVersion(msg)
 
@@ -411,9 +415,16 @@ class Version(_BaseVersion):
             If the ``version`` does not conform to PEP 440 in any way then this
             exception will be raised.
         """
-        if _SIMPLE_VERSION_INDICATORS.issuperset(version):
+        try:
+            is_simple = _SIMPLE_VERSION_INDICATORS.issuperset(version)
+        except TypeError:
+            raise InvalidVersion(f"Invalid version: {version!r}") from None
+
+        if is_simple:
             try:
                 self._release = tuple(map(int, version.split(".")))
+            except AttributeError:
+                raise InvalidVersion(f"Invalid version: {version!r}") from None
             except ValueError:
                 # Empty parts (from "1..2", ".1", etc.) are invalid versions.
                 # Any other ValueError (e.g. int str-digits limit) should
@@ -433,7 +444,10 @@ class Version(_BaseVersion):
             return
 
         # Validate the version and parse it into pieces
-        match = self._regex.fullmatch(version)
+        try:
+            match = self._regex.fullmatch(version)
+        except TypeError:
+            raise InvalidVersion(f"Invalid version: {version!r}") from None
         if not match:
             raise InvalidVersion(f"Invalid version: {version!r}")
         self._epoch = int(match.group("epoch")) if match.group("epoch") else 0
@@ -1041,6 +1055,8 @@ class Version(_BaseVersion):
 
         >>> Version("1.2.3").major
         1
+
+        .. versionadded:: 20.0
         """
         return self.release[0] if len(self.release) >= 1 else 0
 
@@ -1052,6 +1068,8 @@ class Version(_BaseVersion):
         2
         >>> Version("1").minor
         0
+
+        .. versionadded:: 20.0
         """
         return self.release[1] if len(self.release) >= 2 else 0
 
@@ -1063,6 +1081,8 @@ class Version(_BaseVersion):
         3
         >>> Version("1").micro
         0
+
+        .. versionadded:: 20.0
         """
         return self.release[2] if len(self.release) >= 3 else 0
 
@@ -1079,6 +1099,7 @@ class _TrimmedRelease(Version):
             self._post = version._post
             self._local = version._local
             self._key_cache = version._key_cache
+            self._hash_cache = version._hash_cache
             return
         super().__init__(version)  # pragma: no cover
 

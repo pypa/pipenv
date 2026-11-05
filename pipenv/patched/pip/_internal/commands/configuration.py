@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import inspect
 import logging
 import os
 import subprocess
 from collections.abc import Callable
 from optparse import Values
-from typing import Any
 
 from pipenv.patched.pip._internal.cli.base_command import Command
 from pipenv.patched.pip._internal.cli.status_codes import ERROR, SUCCESS
@@ -13,13 +13,36 @@ from pipenv.patched.pip._internal.configuration import (
     Configuration,
     Kind,
     get_configuration_files,
-    kinds,
 )
 from pipenv.patched.pip._internal.exceptions import PipError
 from pipenv.patched.pip._internal.utils.logging import indent_log
 from pipenv.patched.pip._internal.utils.misc import get_prog, write_output
 
 logger = logging.getLogger(__name__)
+
+
+def _config_handler(
+    name: str, handler: Callable[..., None]
+) -> Callable[[Values, list[str]], None]:
+    """Adapt a configuration action's positional parameters to CLI arguments."""
+    signature = inspect.signature(handler)
+
+    def invoke(options: Values, args: list[str]) -> None:
+        try:
+            signature.bind(options, *args)
+        except TypeError:
+            # Skip options; these action handlers are bound methods.
+            arguments = list(signature.parameters)[1:]
+            example = " ".join([name, *(f"[{argument}]" for argument in arguments)])
+            raise PipError(
+                f"Got unexpected number of arguments, expected {len(arguments)}. "
+                f'(example: "{get_prog()} config {example}")'
+            ) from None
+
+        # TypeErrors raised by the action itself are programming errors.
+        handler(options, *args)
+
+    return invoke
 
 
 class ConfigurationCommand(Command):
@@ -97,13 +120,17 @@ class ConfigurationCommand(Command):
         self.parser.insert_option_group(0, self.cmd_opts)
 
     def handler_map(self) -> dict[str, Callable[[Values, list[str]], None]]:
-        return {
+        handlers: dict[str, Callable[..., None]] = {
             "list": self.list_values,
             "edit": self.open_in_editor,
             "get": self.get_name,
             "set": self.set_name_value,
             "unset": self.unset_name,
             "debug": self.list_config_values,
+        }
+
+        return {
+            name: _config_handler(name, handler) for name, handler in handlers.items()
         }
 
     def run(self, options: Values, args: list[str]) -> int:
@@ -148,9 +175,9 @@ class ConfigurationCommand(Command):
         file_options = [
             key
             for key, value in (
-                (kinds.USER, options.user_file),
-                (kinds.GLOBAL, options.global_file),
-                (kinds.SITE, options.site_file),
+                (Kind.USER, options.user_file),
+                (Kind.GLOBAL, options.global_file),
+                (Kind.SITE, options.site_file),
             )
             if value
         ]
@@ -161,11 +188,11 @@ class ConfigurationCommand(Command):
             # Default to user, unless there's a site file.
             elif any(
                 os.path.exists(site_config_file)
-                for site_config_file in get_configuration_files()[kinds.SITE]
+                for site_config_file in get_configuration_files()[Kind.SITE]
             ):
-                return kinds.SITE
+                return Kind.SITE
             else:
-                return kinds.USER
+                return Kind.USER
         elif len(file_options) == 1:
             return file_options[0]
 
@@ -174,34 +201,28 @@ class ConfigurationCommand(Command):
             "(--user, --site, --global) to perform."
         )
 
-    def list_values(self, options: Values, args: list[str]) -> None:
-        self._get_n_args(args, "list", n=0)
-
+    def list_values(self, options: Values) -> None:
         for key, value in sorted(self.configuration.items()):
             for key, value in sorted(value.items()):
                 write_output("%s=%r", key, value)
 
-    def get_name(self, options: Values, args: list[str]) -> None:
-        key = self._get_n_args(args, "get [name]", n=1)
-        value = self.configuration.get_value(key)
+    def get_name(self, options: Values, name: str) -> None:
+        value = self.configuration.get_value(name)
 
         write_output("%s", value)
 
-    def set_name_value(self, options: Values, args: list[str]) -> None:
-        key, value = self._get_n_args(args, "set [name] [value]", n=2)
-        self.configuration.set_value(key, value)
+    def set_name_value(self, options: Values, name: str, value: str) -> None:
+        self.configuration.set_value(name, value)
 
         self._save_configuration()
 
-    def unset_name(self, options: Values, args: list[str]) -> None:
-        key = self._get_n_args(args, "unset [name]", n=1)
-        self.configuration.unset_value(key)
+    def unset_name(self, options: Values, name: str) -> None:
+        self.configuration.unset_value(name)
 
         self._save_configuration()
 
-    def list_config_values(self, options: Values, args: list[str]) -> None:
+    def list_config_values(self, options: Values) -> None:
         """List config key-value pairs across different config files"""
-        self._get_n_args(args, "debug", n=0)
 
         self.print_env_var_values()
         # Iterate over config files and print if they exist, and the
@@ -231,7 +252,7 @@ class ConfigurationCommand(Command):
                 env_var = f"PIP_{key.upper()}"
                 write_output("%s=%r", env_var, value)
 
-    def open_in_editor(self, options: Values, args: list[str]) -> None:
+    def open_in_editor(self, options: Values) -> None:
         editor = self._determine_editor(options)
 
         fname = self.configuration.get_file_to_edit()
@@ -252,20 +273,6 @@ class ConfigurationCommand(Command):
             raise
         except subprocess.CalledProcessError as e:
             raise PipError(f"Editor Subprocess exited with exit code {e.returncode}")
-
-    def _get_n_args(self, args: list[str], example: str, n: int) -> Any:
-        """Helper to make sure the command got the right number of arguments"""
-        if len(args) != n:
-            msg = (
-                f"Got unexpected number of arguments, expected {n}. "
-                f'(example: "{get_prog()} config {example}")'
-            )
-            raise PipError(msg)
-
-        if n == 1:
-            return args[0]
-        else:
-            return args
 
     def _save_configuration(self) -> None:
         # We successfully ran a modifying command. Need to save the

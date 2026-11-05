@@ -4,8 +4,11 @@
 
 from __future__ import annotations
 
+# Defer loading regular expressions until we actually need them in
+# parse_value().
+__lazy_modules__ = ["tomli._re", "tomllib._re"]
+
 import sys
-from types import MappingProxyType
 
 from ._re import (
     RE_DATETIME,
@@ -15,6 +18,9 @@ from ._re import (
     match_to_localtime,
     match_to_number,
 )
+
+if sys.version_info < (3, 15):  # pragma: no cover
+    from types import MappingProxyType as frozendict
 
 TYPE_CHECKING = False
 if TYPE_CHECKING:
@@ -29,10 +35,12 @@ if TYPE_CHECKING:
 # mypyc docs this will be fixed in the future:
 # https://mypyc.readthedocs.io/en/latest/differences_from_python.html#stack-overflows
 # Before mypyc's fix is in, recursion needs to be limited by this library.
-# Choosing `sys.getrecursionlimit()` as maximum inline table/array nesting
-# level, as it allows more nesting than pure Python, but still seems a far
-# lower number than where mypyc binaries crash.
-MAX_INLINE_NESTING: Final = sys.getrecursionlimit()
+# Choosing 400 as maximum inline table/array nesting level, as it's 4x the
+# spec recommended minimum (https://github.com/toml-lang/toml/pull/1087)
+# (unreleased at the time of writing) and less than half of what causes an
+# unrecoverable crash in a worker (not main) thread on a python:3.13-alpine
+# image.
+MAX_INLINE_NESTING: Final = 400
 
 # Pathologically excessive number of parts in a key runs into quadratic
 # behavior (e.g. in Flags.is_).
@@ -61,14 +69,13 @@ BARE_KEY_CHARS: Final = frozenset(
 KEY_INITIAL_CHARS: Final = BARE_KEY_CHARS | frozenset("\"'")
 HEXDIGIT_CHARS: Final = frozenset("abcdef" "ABCDEF" "0123456789")
 
-BASIC_STR_ESCAPE_REPLACEMENTS: Final = MappingProxyType(
+BASIC_STR_ESCAPE_REPLACEMENTS: Final = frozendict(
     {
         "\\b": "\u0008",  # backspace
         "\\t": "\u0009",  # tab
         "\\n": "\u000a",  # linefeed
         "\\f": "\u000c",  # form feed
         "\\r": "\u000d",  # carriage return
-        "\\e": "\u001b",  # escape
         '\\"': "\u0022",  # quote
         "\\\\": "\u005c",  # backslash
     }
@@ -543,7 +550,7 @@ def parse_inline_table(
     nested_dict = NestedDict()
     flags = Flags()
 
-    pos = skip_comments_and_array_ws(src, pos)
+    pos = skip_chars(src, pos, TOML_WS)
     if src.startswith("}", pos):
         return pos + 1, nested_dict.dict
     while True:
@@ -558,18 +565,16 @@ def parse_inline_table(
         if key_stem in nest:
             raise TOMLDecodeError(f"Duplicate inline table key {key_stem!r}", src, pos)
         nest[key_stem] = value
-        pos = skip_comments_and_array_ws(src, pos)
+        pos = skip_chars(src, pos, TOML_WS)
         c = src[pos : pos + 1]
         if c == "}":
             return pos + 1, nested_dict.dict
         if c != ",":
             raise TOMLDecodeError("Unclosed inline table", src, pos)
-        pos += 1
-        pos = skip_comments_and_array_ws(src, pos)
-        if src.startswith("}", pos):
-            return pos + 1, nested_dict.dict
         if isinstance(value, (dict, list)):
             flags.set(key, Flags.FROZEN, recursive=True)
+        pos += 1
+        pos = skip_chars(src, pos, TOML_WS)
 
 
 def parse_basic_str_escape(
@@ -591,8 +596,6 @@ def parse_basic_str_escape(
             pos += 1
         pos = skip_chars(src, pos, TOML_WS_AND_NEWLINE)
         return pos, ""
-    if escape_id == "\\x":
-        return parse_hex_char(src, pos, 2)
     if escape_id == "\\u":
         return parse_hex_char(src, pos, 4)
     if escape_id == "\\U":

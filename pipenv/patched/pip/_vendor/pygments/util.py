@@ -10,6 +10,7 @@
 
 import re
 from io import TextIOWrapper
+import html
 
 
 split_path_re = re.compile(r'[/\\ ]')
@@ -22,7 +23,7 @@ doctype_lookup_re = re.compile(r'''
      )
      [^>]*>
 ''', re.DOTALL | re.MULTILINE | re.VERBOSE)
-tag_re = re.compile(r'<(.+?)(\s.*?)?>.*?</.+?>',
+tag_re = re.compile(r'<([a-zA-Z][a-zA-Z0-9._:-]*)(\s[^>]*)?>.*?</\1\s*>',
                     re.IGNORECASE | re.DOTALL | re.MULTILINE)
 xml_decl_re = re.compile(r'\s*<\?xml[^>]*\?>', re.I)
 
@@ -322,3 +323,22 @@ class UnclosingTextIOWrapper(TextIOWrapper):
     # Don't close underlying buffer on destruction.
     def close(self):
         self.flush()
+
+
+def html_escape(string, quote=True) -> str:
+    """Return a safe version of the passed `string`,
+    and an empty string if `None`.
+
+    `NoneType` is not supported by `html.escape`, as `html.escape`
+    uses the built-in `replace` function on `string`, so we need to
+    check for it first.
+
+    Optional flag quote is true by default, which also escapes
+    double and single quotes.
+    See https://docs.python.org/3/library/html.html#html.escape for more details.
+    """
+    if string is not None:
+        # TODO: Eventually, check that string is a str, and if not, print a
+        #       warning or error here.
+        return html.escape(str(string), quote=quote)
+    return ''

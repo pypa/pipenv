@@ -6,9 +6,9 @@ import typing
 
 # candidates based on https://github.com/tiran/certifi-system-store by Christian Heimes
 _CA_FILE_CANDIDATES = [
-    # Alpine, Arch, Fedora 34-42, OpenWRT, RHEL 9-10, BSD
+    # Alpine, Arch, Fedora 34-43, OpenWRT, RHEL 9-10, BSD
     "/etc/ssl/cert.pem",
-    # Fedora 43+, RHEL 11+
+    # Fedora 44+, RHEL 11+
     "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",
     # Fedora <= 34, RHEL <= 9, CentOS <= 9
     "/etc/pki/tls/cert.pem",
@@ -52,10 +52,7 @@ def _capath_contains_certs(capath: str) -> bool:
     """Check whether capath exists and contains certs in the expected format."""
     if not os.path.isdir(capath):
         return False
-    for name in os.listdir(capath):
-        if _HASHED_CERT_FILENAME_RE.match(name):
-            return True
-    return False
+    return any(_HASHED_CERT_FILENAME_RE.match(name) for name in os.listdir(capath))
 
 
 def _verify_peercerts_impl(

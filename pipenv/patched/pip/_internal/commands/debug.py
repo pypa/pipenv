@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import logging
 import os
 import sys
@@ -47,22 +48,21 @@ def create_vendor_txt_map() -> dict[str, str]:
     return dict(line.split("==", 1) for line in lines)
 
 
-def get_module_from_module_name(module_name: str) -> ModuleType | None:
+def get_module_from_module_name(module_name: str) -> ModuleType:
     # Module name can be uppercase in vendor.txt for some reason...
     module_name = module_name.lower().replace("-", "_")
     # PATCH: setuptools is actually only pkg_resources.
     if module_name == "setuptools":
         module_name = "pkg_resources"
 
-    __import__(f"pipenv.patched.pip._vendor.{module_name}", globals(), locals(), level=0)
-    return getattr(pipenv.patched.pip._vendor, module_name)
+    return importlib.import_module(f"pipenv.patched.pip._vendor.{module_name}")
 
 
 def get_vendor_version_from_module(module_name: str) -> str | None:
     module = get_module_from_module_name(module_name)
     version = getattr(module, "__version__", None)
 
-    if module and not version:
+    if not version:
         # Try to find version in debundled module info.
         assert module.__file__ is not None
         env = get_environment([os.path.dirname(module.__file__)])

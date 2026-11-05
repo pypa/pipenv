@@ -15,18 +15,18 @@
       "version": "0.14.4"
     },
     {
-      "bom-ref": "pkg:pypi/certifi@2026.10.19",
+      "bom-ref": "pkg:pypi/certifi@2026.10.23",
       "name": "certifi",
-      "purl": "pkg:pypi/certifi@2026.10.19",
+      "purl": "pkg:pypi/certifi@2026.10.23",
       "type": "library",
-      "version": "2026.10.19"
+      "version": "2026.10.23"
     },
     {
-      "bom-ref": "pkg:pypi/distlib@0.4.2",
+      "bom-ref": "pkg:pypi/distlib@0.4.4",
       "name": "distlib",
-      "purl": "pkg:pypi/distlib@0.4.2",
+      "purl": "pkg:pypi/distlib@0.4.4",
       "type": "library",
-      "version": "0.4.2"
+      "version": "0.4.4"
     },
     {
       "bom-ref": "pkg:pypi/distro@1.9.0",
@@ -36,46 +36,46 @@
       "version": "1.9.0"
     },
     {
-      "bom-ref": "pkg:pypi/idna@3.18",
+      "bom-ref": "pkg:pypi/idna@3.20",
       "name": "idna",
-      "purl": "pkg:pypi/idna@3.18",
+      "purl": "pkg:pypi/idna@3.20",
       "type": "library",
-      "version": "3.18"
+      "version": "3.20"
     },
     {
-      "bom-ref": "pkg:pypi/msgpack@1.1.2",
+      "bom-ref": "pkg:pypi/msgpack@1.2.4",
       "name": "msgpack",
-      "purl": "pkg:pypi/msgpack@1.1.2",
+      "purl": "pkg:pypi/msgpack@1.2.4",
       "type": "library",
-      "version": "1.1.2"
+      "version": "1.2.4"
     },
     {
-      "bom-ref": "pkg:pypi/packaging@26.2",
+      "bom-ref": "pkg:pypi/packaging@26.3",
       "name": "packaging",
-      "purl": "pkg:pypi/packaging@26.2",
+      "purl": "pkg:pypi/packaging@26.3",
       "type": "library",
-      "version": "26.2"
+      "version": "26.3"
     },
     {
-      "bom-ref": "pkg:pypi/platformdirs@4.10.0",
+      "bom-ref": "pkg:pypi/platformdirs@4.12.4",
       "name": "platformdirs",
-      "purl": "pkg:pypi/platformdirs@4.10.0",
+      "purl": "pkg:pypi/platformdirs@4.12.4",
       "type": "library",
-      "version": "4.10.0"
+      "version": "4.12.4"
     },
     {
-      "bom-ref": "pkg:pypi/pygments@2.20.0",
+      "bom-ref": "pkg:pypi/pygments@2.21.0",
       "name": "pygments",
-      "purl": "pkg:pypi/pygments@2.20.0",
+      "purl": "pkg:pypi/pygments@2.21.0",
       "type": "library",
-      "version": "2.20.0"
+      "version": "2.21.0"
     },
     {
-      "bom-ref": "pkg:pypi/pyproject-hooks@1.2.0",
+      "bom-ref": "pkg:pypi/pyproject-hooks@1.3.3",
       "name": "pyproject-hooks",
-      "purl": "pkg:pypi/pyproject-hooks@1.2.0",
+      "purl": "pkg:pypi/pyproject-hooks@1.3.3",
       "type": "library",
-      "version": "1.2.0"
+      "version": "1.3.3"
     },
     {
       "bom-ref": "pkg:pypi/requests@2.34.2",
@@ -92,11 +92,11 @@
       "version": "1.2.1"
     },
     {
-      "bom-ref": "pkg:pypi/rich@14.2.0",
+      "bom-ref": "pkg:pypi/rich@15.0.0",
       "name": "rich",
-      "purl": "pkg:pypi/rich@14.2.0",
+      "purl": "pkg:pypi/rich@15.0.0",
       "type": "library",
-      "version": "14.2.0"
+      "version": "15.0.0"
     },
     {
       "bom-ref": "pkg:pypi/setuptools@70.3.0",
@@ -106,11 +106,11 @@
       "version": "70.3.0"
     },
     {
-      "bom-ref": "pkg:pypi/tomli@2.4.1",
+      "bom-ref": "pkg:pypi/tomli@2.3.2",
       "name": "tomli",
-      "purl": "pkg:pypi/tomli@2.4.1",
+      "purl": "pkg:pypi/tomli@2.3.2",
       "type": "library",
-      "version": "2.4.1"
+      "version": "2.3.2"
     },
     {
       "bom-ref": "pkg:pypi/tomli-w@1.2.0",
@@ -120,41 +120,41 @@
       "version": "1.2.0"
     },
     {
-      "bom-ref": "pkg:pypi/truststore@0.10.4",
+      "bom-ref": "pkg:pypi/truststore@0.10.5",
       "name": "truststore",
-      "purl": "pkg:pypi/truststore@0.10.4",
+      "purl": "pkg:pypi/truststore@0.10.5",
       "type": "library",
-      "version": "0.10.4"
+      "version": "0.10.5"
     },
     {
-      "bom-ref": "pkg:pypi/urllib3@2.7.0",
+      "bom-ref": "pkg:pypi/urllib3@2.8.0",
       "name": "urllib3",
-      "purl": "pkg:pypi/urllib3@2.7.0",
+      "purl": "pkg:pypi/urllib3@2.8.0",
       "type": "library",
-      "version": "2.7.0"
+      "version": "2.8.0"
     }
   ],
   "dependencies": [
     {
       "dependsOn": [
         "pkg:pypi/CacheControl@0.14.4",
-        "pkg:pypi/certifi@2026.10.19",
-        "pkg:pypi/distlib@0.4.2",
+        "pkg:pypi/certifi@2026.10.23",
+        "pkg:pypi/distlib@0.4.4",
         "pkg:pypi/distro@1.9.0",
-        "pkg:pypi/idna@3.18",
-        "pkg:pypi/msgpack@1.1.2",
-        "pkg:pypi/packaging@26.2",
-        "pkg:pypi/platformdirs@4.10.0",
-        "pkg:pypi/pygments@2.20.0",
-        "pkg:pypi/pyproject-hooks@1.2.0",
+        "pkg:pypi/idna@3.20",
+        "pkg:pypi/msgpack@1.2.4",
+        "pkg:pypi/packaging@26.3",
+        "pkg:pypi/platformdirs@4.12.4",
+        "pkg:pypi/pygments@2.21.0",
+        "pkg:pypi/pyproject-hooks@1.3.3",
         "pkg:pypi/requests@2.34.2",
         "pkg:pypi/resolvelib@1.2.1",
-        "pkg:pypi/rich@14.2.0",
+        "pkg:pypi/rich@15.0.0",
         "pkg:pypi/setuptools@70.3.0",
-        "pkg:pypi/tomli@2.4.1",
+        "pkg:pypi/tomli@2.3.2",
         "pkg:pypi/tomli-w@1.2.0",
-        "pkg:pypi/truststore@0.10.4",
-        "pkg:pypi/urllib3@2.7.0"
+        "pkg:pypi/truststore@0.10.5",
+        "pkg:pypi/urllib3@2.8.0"
       ],
       "ref": "bom-ref:pip"
     },
@@ -162,31 +162,31 @@
       "ref": "pkg:pypi/CacheControl@0.14.4"
     },
     {
-      "ref": "pkg:pypi/certifi@2026.10.19"
+      "ref": "pkg:pypi/certifi@2026.10.23"
     },
     {
-      "ref": "pkg:pypi/distlib@0.4.2"
+      "ref": "pkg:pypi/distlib@0.4.4"
     },
     {
       "ref": "pkg:pypi/distro@1.9.0"
     },
     {
-      "ref": "pkg:pypi/idna@3.18"
+      "ref": "pkg:pypi/idna@3.20"
     },
     {
-      "ref": "pkg:pypi/msgpack@1.1.2"
+      "ref": "pkg:pypi/msgpack@1.2.4"
     },
     {
-      "ref": "pkg:pypi/packaging@26.2"
+      "ref": "pkg:pypi/packaging@26.3"
     },
     {
-      "ref": "pkg:pypi/platformdirs@4.10.0"
+      "ref": "pkg:pypi/platformdirs@4.12.4"
     },
     {
-      "ref": "pkg:pypi/pygments@2.20.0"
+      "ref": "pkg:pypi/pygments@2.21.0"
     },
     {
-      "ref": "pkg:pypi/pyproject-hooks@1.2.0"
+      "ref": "pkg:pypi/pyproject-hooks@1.3.3"
     },
     {
       "ref": "pkg:pypi/requests@2.34.2"
@@ -195,22 +195,22 @@
       "ref": "pkg:pypi/resolvelib@1.2.1"
     },
     {
-      "ref": "pkg:pypi/rich@14.2.0"
+      "ref": "pkg:pypi/rich@15.0.0"
     },
     {
       "ref": "pkg:pypi/setuptools@70.3.0"
     },
     {
-      "ref": "pkg:pypi/tomli@2.4.1"
+      "ref": "pkg:pypi/tomli@2.3.2"
     },
     {
       "ref": "pkg:pypi/tomli-w@1.2.0"
     },
     {
-      "ref": "pkg:pypi/truststore@0.10.4"
+      "ref": "pkg:pypi/truststore@0.10.5"
     },
     {
-      "ref": "pkg:pypi/urllib3@2.7.0"
+      "ref": "pkg:pypi/urllib3@2.8.0"
     }
   ],
   "metadata": {

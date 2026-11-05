@@ -1,8 +1,10 @@
 import os
+import re
 import string
 import urllib.parse  # noqa: F401
 
 from .compat import WINDOWS
+from .packaging import get_requirement
 
 
 def path_to_url(path: str) -> str:
@@ -56,3 +58,21 @@ def url_to_path(url: str) -> str:
         path = path[1:]
 
     return path
+
+
+def _convert_extras(extras: str | None) -> set[str]:
+    if not extras:
+        return set()
+    return get_requirement("placeholder" + extras.lower()).extras
+
+
+def strip_extras(path: str) -> tuple[str, set[str]]:
+    m = re.match(r"^(.+)(\[[^\]]+\])$", path)
+    extras = None
+    if m:
+        path_no_extras = m.group(1).rstrip()
+        extras = m.group(2)
+    else:
+        path_no_extras = path
+
+    return path_no_extras, _convert_extras(extras)

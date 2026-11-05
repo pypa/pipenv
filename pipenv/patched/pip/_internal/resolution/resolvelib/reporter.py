@@ -17,8 +17,9 @@ class PipReporter(BaseReporter[Requirement, Candidate, str]):
         self.reject_count_by_package: defaultdict[str, int] = defaultdict(int)
         self._constraints = constraints or {}
 
+        # Only true after a second candidate of this package is rejected.
         self._messages_at_reject_count = {
-            1: (
+            2: (
                 "pip is looking at multiple versions of {package_name} to "
                 "determine which version is compatible with other "
                 "requirements. This could take a while."

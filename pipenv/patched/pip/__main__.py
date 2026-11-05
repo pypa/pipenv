@@ -27,6 +27,6 @@ if __name__ == "__main__":
     pipenv = importlib.util.module_from_spec(spec)
     sys.modules["pipenv"] = pipenv
     spec.loader.exec_module(pipenv)
-    from pipenv.patched.pip._internal.cli.main import main as _main
+    from pipenv.patched.pip._internal.cli.main import cli as _main
 
     sys.exit(_main())

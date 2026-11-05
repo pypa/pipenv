@@ -52,6 +52,7 @@ class Command(CommandContextMixIn):
     def __init__(self, name: str, summary: str, isolated: bool = False) -> None:
         super().__init__()
 
+        self._cli = False
         self.name = name
         self.summary = summary
         self.parser = ConfigOptionParser(

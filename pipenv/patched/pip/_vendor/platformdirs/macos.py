@@ -2,21 +2,15 @@
 
 from __future__ import annotations
 
-import os.path
+import re
 import sys
-from typing import TYPE_CHECKING
+from typing import Final
 
-if TYPE_CHECKING:
-    from collections.abc import Iterator
-
-from ._xdg import XDGMixin
+from ._xdg import XDGMixin, _expand_user
 from .api import PlatformDirsABC
 
-if TYPE_CHECKING:
-    from pathlib import Path
 
-
-class _MacOSDefaults(PlatformDirsABC):  # noqa: PLR0904
+class _MacOSDefaults(PlatformDirsABC):  # ruff:ignore[too-many-public-methods]
     """Default platform directories for macOS without XDG environment variable overrides.
 
     Follows the guidance from `Apple's File System Programming Guide
@@ -26,18 +20,16 @@ class _MacOSDefaults(PlatformDirsABC):  # noqa: PLR0904
     """
 
     def _base_user_app_support_dir(self) -> str:
-        return self._append_app_name_and_version(os.path.expanduser("~/Library/Application Support"))  # noqa: PTH111
+        return self._append_app_name_and_version(_expand_user("~/Library/Application Support"), private=True)
 
     def _base_site_dirs(self) -> list[str]:
-        is_homebrew = "/opt/python" in sys.prefix
-        homebrew_prefix = sys.prefix.split("/opt/python")[0] if is_homebrew else ""
-        path_list = [self._append_app_name_and_version(f"{homebrew_prefix}/share")] if is_homebrew else []
-        path_list.append(self._append_app_name_and_version("/Library/Application Support"))
+        path_list = [self._join_app_name_and_version(f"{prefix}/share")] if (prefix := _homebrew_prefix()) else []
+        path_list.append(self._join_app_name_and_version("/Library/Application Support"))
         return path_list
 
     @property
     def user_data_dir(self) -> str:
-        """:returns: data directory tied to the user, e.g. ``~/Library/Application Support/$appname/$version``"""
+        """Data directory tied to the user, e.g. ``~/Library/Application Support/$appname/$version``."""
         return self._base_user_app_support_dir()
 
     @property
@@ -45,18 +37,8 @@ class _MacOSDefaults(PlatformDirsABC):  # noqa: PLR0904
         return self._base_site_dirs()
 
     @property
-    def site_data_path(self) -> Path:
-        """:returns: data path shared by users. Only return the first item, even if ``multipath`` is set to ``True``"""
-        return self._first_item_as_path_if_multipath(self.site_data_dir)
-
-    @property
-    def site_config_path(self) -> Path:
-        """:returns: config path shared by users. Only return the first item, even if ``multipath`` is set to ``True``"""
-        return self._first_item_as_path_if_multipath(self.site_config_dir)
-
-    @property
     def user_config_dir(self) -> str:
-        """:returns: config directory tied to the user, same as `user_data_dir`"""
+        """Config directory tied to the user, same as `user_data_dir`."""
         return self._base_user_app_support_dir()
 
     @property
@@ -65,144 +47,125 @@ class _MacOSDefaults(PlatformDirsABC):  # noqa: PLR0904
 
     @property
     def user_cache_dir(self) -> str:
-        """:returns: cache directory tied to the user, e.g. ``~/Library/Caches/$appname/$version``"""
-        return self._append_app_name_and_version(os.path.expanduser("~/Library/Caches"))  # noqa: PTH111
+        """Cache directory tied to the user, e.g. ``~/Library/Caches/$appname/$version``."""
+        return self._append_app_name_and_version(_expand_user("~/Library/Caches"), private=True)
+
+    @property
+    def _site_cache_dirs(self) -> list[str]:
+        path_list = [self._join_app_name_and_version(f"{prefix}/var/cache")] if (prefix := _homebrew_prefix()) else []
+        path_list.append(self._join_app_name_and_version("/Library/Caches"))
+        return path_list
 
     @property
     def site_cache_dir(self) -> str:
-        """:returns: cache directory shared by users, e.g. ``/Library/Caches/$appname/$version``. If we're using a Python binary managed by `Homebrew <https://brew.sh>`_, the directory will be under the Homebrew prefix, e.g. ``$homebrew_prefix/var/cache/$appname/$version``. If `multipath <platformdirs.api.PlatformDirsABC.multipath>` is enabled, and we're in Homebrew, the response is a multi-path string separated by ":", e.g. ``$homebrew_prefix/var/cache/$appname/$version:/Library/Caches/$appname/$version``"""
-        is_homebrew = "/opt/python" in sys.prefix
-        homebrew_prefix = sys.prefix.split("/opt/python")[0] if is_homebrew else ""
-        path_list = [self._append_app_name_and_version(f"{homebrew_prefix}/var/cache")] if is_homebrew else []
-        path_list.append(self._append_app_name_and_version("/Library/Caches"))
-        if self.multipath:
-            return os.pathsep.join(path_list)
-        return path_list[0]
-
-    @property
-    def site_cache_path(self) -> Path:
-        """:returns: cache path shared by users. Only return the first item, even if ``multipath`` is set to ``True``"""
-        return self._first_item_as_path_if_multipath(self.site_cache_dir)
+        """Cache directory shared by users, e.g. ``/Library/Caches/$appname/$version``. If we're using a Python binary managed by `Homebrew <https://brew.sh>`_, the directory will be under the Homebrew prefix, e.g. ``$homebrew_prefix/var/cache/$appname/$version``. If `multipath <platformdirs.api.PlatformDirsABC.multipath>` is enabled, and we're in Homebrew, the response is a multi-path string separated by ":", e.g. ``$homebrew_prefix/var/cache/$appname/$version:/Library/Caches/$appname/$version``."""
+        return self._select_site_dirs(self._site_cache_dirs)
 
     @property
     def user_state_dir(self) -> str:
-        """:returns: state directory tied to the user, same as `user_data_dir`"""
+        """State directory tied to the user, same as `user_data_dir` without ``$XDG_DATA_HOME``, e.g. ``~/Library/Application Support/$appname/$version``."""
         return self._base_user_app_support_dir()
 
     @property
     def site_state_dir(self) -> str:
-        """:returns: state directory shared by users, same as `site_data_dir`"""
-        return self._base_site_dirs()[0]
+        """State directory shared by users, the first entry of `site_data_dir` without ``$XDG_DATA_DIRS``, ignoring `multipath <platformdirs.api.PlatformDirsABC.multipath>`."""
+        path = self._base_site_dirs()[0]
+        self._optionally_create_directory(path, private=False)
+        return path
 
     @property
     def user_log_dir(self) -> str:
-        """:returns: log directory tied to the user, e.g. ``~/Library/Logs/$appname/$version``"""
-        return self._append_app_name_and_version(os.path.expanduser("~/Library/Logs"))  # noqa: PTH111
+        """Log directory tied to the user, e.g. ``~/Library/Logs/$appname/$version``."""
+        return self._append_app_name_and_version(_expand_user("~/Library/Logs"), private=True)
 
     @property
     def site_log_dir(self) -> str:
-        """:returns: log directory shared by users, e.g. ``/Library/Logs/$appname/$version``"""
-        return self._append_app_name_and_version("/Library/Logs")
+        """Log directory shared by users, e.g. ``/Library/Logs/$appname/$version``."""
+        return self._append_app_name_and_version("/Library/Logs", private=False)
 
     @property
     def user_documents_dir(self) -> str:
-        """:returns: documents directory tied to the user, e.g. ``~/Documents``"""
-        return os.path.expanduser("~/Documents")  # noqa: PTH111
+        """Documents directory tied to the user, e.g. ``~/Documents``."""
+        return _expand_user("~/Documents")
 
     @property
     def user_downloads_dir(self) -> str:
-        """:returns: downloads directory tied to the user, e.g. ``~/Downloads``"""
-        return os.path.expanduser("~/Downloads")  # noqa: PTH111
+        """Downloads directory tied to the user, e.g. ``~/Downloads``."""
+        return _expand_user("~/Downloads")
 
     @property
     def user_pictures_dir(self) -> str:
-        """:returns: pictures directory tied to the user, e.g. ``~/Pictures``"""
-        return os.path.expanduser("~/Pictures")  # noqa: PTH111
+        """Pictures directory tied to the user, e.g. ``~/Pictures``."""
+        return _expand_user("~/Pictures")
 
     @property
     def user_videos_dir(self) -> str:
-        """:returns: videos directory tied to the user, e.g. ``~/Movies``"""
-        return os.path.expanduser("~/Movies")  # noqa: PTH111
+        """Videos directory tied to the user, e.g. ``~/Movies``."""
+        return _expand_user("~/Movies")
 
     @property
     def user_music_dir(self) -> str:
-        """:returns: music directory tied to the user, e.g. ``~/Music``"""
-        return os.path.expanduser("~/Music")  # noqa: PTH111
+        """Music directory tied to the user, e.g. ``~/Music``."""
+        return _expand_user("~/Music")
 
     @property
     def user_desktop_dir(self) -> str:
-        """:returns: desktop directory tied to the user, e.g. ``~/Desktop``"""
-        return os.path.expanduser("~/Desktop")  # noqa: PTH111
+        """Desktop directory tied to the user, e.g. ``~/Desktop``."""
+        return _expand_user("~/Desktop")
 
     @property
     def user_projects_dir(self) -> str:
-        """:returns: projects directory tied to the user, e.g. ``~/Projects``"""
-        return os.path.expanduser("~/Projects")  # noqa: PTH111
+        """Projects directory tied to the user, e.g. ``~/Projects``."""
+        return _expand_user("~/Projects")
 
     @property
     def user_publicshare_dir(self) -> str:
-        """:returns: public share directory tied to the user, e.g. ``~/Public``"""
-        return os.path.expanduser("~/Public")  # noqa: PTH111  # API returns str, not Path
+        """Public share directory tied to the user, e.g. ``~/Public``."""
+        return _expand_user("~/Public")
 
     @property
     def user_templates_dir(self) -> str:
-        """:returns: templates directory tied to the user, e.g. ``~/Templates``"""
-        return os.path.expanduser("~/Templates")  # noqa: PTH111  # API returns str, not Path
+        """Templates directory tied to the user, e.g. ``~/Templates``."""
+        return _expand_user("~/Templates")
 
     @property
     def user_fonts_dir(self) -> str:
-        """:returns: fonts directory tied to the user, e.g. ``~/Library/Fonts``"""
-        return os.path.expanduser("~/Library/Fonts")  # noqa: PTH111  # API returns str, not Path
+        """Fonts directory tied to the user, e.g. ``~/Library/Fonts``."""
+        return _expand_user("~/Library/Fonts")
 
     @property
     def user_preference_dir(self) -> str:
-        """:returns: preference directory tied to the user, e.g. ``~/Library/Preferences/AppName``"""
-        return self._append_app_name_and_version(os.path.expanduser("~/Library/Preferences"))  # noqa: PTH111  # API returns str, not Path
+        """Preference directory tied to the user, e.g. ``~/Library/Preferences/AppName``."""
+        return self._append_app_name_and_version(_expand_user("~/Library/Preferences"), private=True)
 
     @property
     def user_bin_dir(self) -> str:
-        """:returns: bin directory tied to the user, e.g. ``~/.local/bin``"""
-        return os.path.expanduser("~/.local/bin")  # noqa: PTH111
+        """Bin directory tied to the user, e.g. ``~/.local/bin``."""
+        return _expand_user("~/.local/bin")
 
     @property
     def site_bin_dir(self) -> str:
-        """:returns: bin directory shared by users, e.g. ``/usr/local/bin``"""
+        """Bin directory shared by users, e.g. ``/usr/local/bin``."""
         return "/usr/local/bin"
 
     @property
     def user_applications_dir(self) -> str:
-        """:returns: applications directory tied to the user, e.g. ``~/Applications``"""
-        return os.path.expanduser("~/Applications")  # noqa: PTH111
+        """Applications directory tied to the user, e.g. ``~/Applications``."""
+        return _expand_user("~/Applications")
 
     @property
     def _site_applications_dirs(self) -> list[str]:
         return ["/Applications"]
 
     @property
-    def site_applications_dir(self) -> str:
-        """:returns: applications directory shared by users, e.g. ``/Applications``"""
-        dirs = self._site_applications_dirs
-        return os.pathsep.join(dirs) if self.multipath else dirs[0]
-
-    @property
     def user_runtime_dir(self) -> str:
-        """:returns: runtime directory tied to the user, e.g. ``~/Library/Caches/TemporaryItems/$appname/$version``"""
-        return self._append_app_name_and_version(os.path.expanduser("~/Library/Caches/TemporaryItems"))  # noqa: PTH111
+        """Runtime directory tied to the user, e.g. ``~/Library/Caches/TemporaryItems/$appname/$version``."""
+        return self._append_app_name_and_version(_expand_user("~/Library/Caches/TemporaryItems"), private=True)
 
     @property
     def site_runtime_dir(self) -> str:
-        """:returns: runtime directory shared by users, same as `user_runtime_dir`"""
+        """Runtime directory shared by users, same as `user_runtime_dir`."""
         return self.user_runtime_dir
-
-    def iter_config_dirs(self) -> Iterator[str]:
-        """:yield: all user and site configuration directories."""
-        yield self.user_config_dir
-        yield from self._site_config_dirs
-
-    def iter_data_dirs(self) -> Iterator[str]:
-        """:yield: all user and site data directories."""
-        yield self.user_data_dir
-        yield from self._site_data_dirs
 
 
 class MacOS(XDGMixin, _MacOSDefaults):
@@ -216,6 +179,24 @@ class MacOS(XDGMixin, _MacOSDefaults):
     XDG environment variables (e.g. ``$XDG_DATA_HOME``) are supported and take precedence over macOS defaults.
 
     """
+
+
+# Homebrew links each Python formula as a framework build, and a virtual environment keeps it as sys.base_prefix.
+_HOMEBREW_PYTHON: Final = re.compile(
+    r"""
+    (?P<prefix>.+)                 # $HOMEBREW_PREFIX, such as /opt/homebrew or /usr/local
+    /opt/python[^/]*               # formula link: python, python3 or python@3.13
+    /Frameworks/Python\.framework  # framework build
+    /Versions/[^/]+                # interpreter version, such as 3.13
+    """,
+    re.VERBOSE,
+)
+
+
+def _homebrew_prefix() -> str | None:
+    if match := _HOMEBREW_PYTHON.fullmatch(sys.base_prefix):
+        return match["prefix"]
+    return None
 
 
 __all__ = [

@@ -55,6 +55,9 @@ def make_headers(
     basic_auth: str | None = None,
     proxy_basic_auth: str | None = None,
     disable_cache: bool | None = None,
+    *,
+    basic_auth_encoding: str = "latin-1",
+    proxy_basic_auth_encoding: str = "latin-1",
 ) -> dict[str, str]:
     """
     Shortcuts for generating request headers.
@@ -78,11 +81,42 @@ def make_headers(
 
     :param basic_auth:
         Colon-separated username:password string for 'authorization: basic ...'
-        auth header.
+        auth header. Basic authentication transmits Base64-encoded bytes, not
+        Unicode text, so the string is encoded with ``basic_auth_encoding``
+        before Base64 encoding.
+
+        Must contain decoded credentials (not percent-encoded).
+        For URLs parsed with :func:`parse_url`, use :attr:`Url.auth_decoded_joined`
+        to get the properly formatted string.
+
+    :param basic_auth_encoding:
+        Text encoding used to encode ``basic_auth`` before Base64 encoding.
+        Defaults to "latin-1" for backward compatibility. Use "utf-8" only
+        when the peer expects UTF-8 Basic authentication credentials.
+
+        Must contain decoded credentials (not percent-encoded).
+        For URLs parsed with :func:`parse_url`, use :attr:`Url.auth_decoded_joined`
+        to get the properly formatted string.
 
     :param proxy_basic_auth:
         Colon-separated username:password string for 'proxy-authorization: basic ...'
-        auth header.
+        auth header. Basic authentication transmits Base64-encoded bytes, not
+        Unicode text, so the string is encoded with ``proxy_basic_auth_encoding``
+        before Base64 encoding.
+
+        Must contain decoded credentials (not percent-encoded).
+        For URLs parsed with :func:`parse_url`, use :attr:`Url.auth_decoded_joined`
+        to get the properly formatted string.
+
+    :param proxy_basic_auth_encoding:
+        Text encoding used to encode ``proxy_basic_auth`` before Base64
+        encoding. Defaults to "latin-1" for backward compatibility. Use
+        "utf-8" only when the proxy expects UTF-8 Basic authentication
+        credentials.
+
+        Must contain decoded credentials (not percent-encoded).
+        For URLs parsed with :func:`parse_url`, use :attr:`Url.auth_decoded_joined`
+        to get the properly formatted string.
 
     :param disable_cache:
         If ``True``, adds 'cache-control: no-cache' header.
@@ -116,12 +150,12 @@ def make_headers(
 
     if basic_auth:
         headers["authorization"] = (
-            f"Basic {b64encode(basic_auth.encode('latin-1')).decode()}"
+            f"Basic {b64encode(basic_auth.encode(basic_auth_encoding)).decode()}"
         )
 
     if proxy_basic_auth:
         headers["proxy-authorization"] = (
-            f"Basic {b64encode(proxy_basic_auth.encode('latin-1')).decode()}"
+            f"Basic {b64encode(proxy_basic_auth.encode(proxy_basic_auth_encoding)).decode()}"
         )
 
     if disable_cache:
@@ -174,6 +208,8 @@ def rewind_body(body: typing.IO[typing.AnyStr], body_pos: _TYPE_BODY_POSITION) -
             "Unable to record file position for rewinding "
             "request body during a redirect/retry."
         )
+    elif body_seek is None:
+        raise UnrewindableBodyError("body does not implement seek.")
     else:
         raise ValueError(
             f"body_pos must be of type integer, instead it was {type(body_pos)}."

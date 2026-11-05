@@ -30,18 +30,16 @@ diff --git b/pipenv/patched/pip/_internal/locations/_distutils.py a/pipenv/patch
 index 9e9ee5f1..c9044585 100644
 --- b/pipenv/patched/pip/_internal/locations/_distutils.py
 +++ a/pipenv/patched/pip/_internal/locations/_distutils.py
-@@ -19,10 +19,25 @@ except (ImportError, AttributeError):
+@@ -19,9 +19,24 @@ except (ImportError, AttributeError):
  import logging
  import os
  import sys
 -from distutils.cmd import Command as DistutilsCommand
--from distutils.command.install import SCHEME_KEYS
 -from distutils.command.install import install as distutils_install_command
 -from distutils.sysconfig import get_python_lib
 +
 +try:
 +    from distutils.cmd import Command as DistutilsCommand
-+    from distutils.command.install import SCHEME_KEYS
 +    from distutils.command.install import install as distutils_install_command
 +    from distutils.sysconfig import get_python_lib
 +except ModuleNotFoundError as _distutils_missing_exc:
@@ -58,5 +56,5 @@ index 9e9ee5f1..c9044585 100644
 +        "(e.g. 'python3-distutils' on Debian/Ubuntu)."
 +    ) from _distutils_missing_exc
  
- from pipenv.patched.pip._internal.models.scheme import Scheme
+ from pipenv.patched.pip._internal.models.scheme import SCHEME_KEYS, Scheme
  from pipenv.patched.pip._internal.utils.compat import WINDOWS

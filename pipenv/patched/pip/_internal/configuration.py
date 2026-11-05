@@ -17,33 +17,41 @@ import configparser
 import os
 import sys
 from collections.abc import Iterable
-from typing import Any, NewType
+from enum import Enum
+from typing import Any
 
 from pipenv.patched.pip._internal.exceptions import (
     ConfigurationError,
     ConfigurationFileCouldNotBeLoaded,
 )
 from pipenv.patched.pip._internal.utils import appdirs
+from pipenv.patched.pip._internal.utils._log import getLogger
 from pipenv.patched.pip._internal.utils.compat import WINDOWS, get_locale_encoding
-from pipenv.patched.pip._internal.utils.logging import getLogger
-from pipenv.patched.pip._internal.utils.misc import ensure_dir, enum
+from pipenv.patched.pip._internal.utils.misc import ensure_dir
 
 RawConfigParser = configparser.RawConfigParser  # Shorthand
-Kind = NewType("Kind", str)
 
 CONFIG_BASENAME = "pip.ini" if WINDOWS else "pip.conf"
 ENV_NAMES_IGNORED = "version", "help"
 
+
 # The kinds of configurations there are.
-kinds = enum(
-    USER="user",  # User Specific
-    GLOBAL="global",  # System Wide
-    SITE="site",  # [Virtual] Environment Specific
-    ENV="env",  # from PIP_CONFIG_FILE
-    ENV_VAR="env-var",  # from Environment Variables
-)
-OVERRIDE_ORDER = kinds.GLOBAL, kinds.USER, kinds.SITE, kinds.ENV, kinds.ENV_VAR
-VALID_LOAD_ONLY = kinds.USER, kinds.GLOBAL, kinds.SITE
+# TODO: Use StrEnum when Python 3.10 support is dropped.
+class Kind(str, Enum):
+    """Configuration sources, including files and environment variables."""
+
+    USER = "user"  # User Specific
+    GLOBAL = "global"  # System Wide
+    SITE = "site"  # [Virtual] Environment Specific
+    ENV = "env"  # from PIP_CONFIG_FILE
+    ENV_VAR = "env-var"  # from Environment Variables
+
+    __str__ = str.__str__
+    __repr__ = str.__repr__
+
+
+OVERRIDE_ORDER = Kind.GLOBAL, Kind.USER, Kind.SITE, Kind.ENV, Kind.ENV_VAR
+VALID_LOAD_ONLY = Kind.USER, Kind.GLOBAL, Kind.SITE
 
 logger = getLogger(__name__)
 
@@ -79,10 +87,17 @@ def get_configuration_files() -> dict[Kind, list[str]]:
     )
     new_config_file = os.path.join(appdirs.user_config_dir("pip"), CONFIG_BASENAME)
     return {
-        kinds.GLOBAL: global_config_files,
-        kinds.SITE: [site_config_file],
-        kinds.USER: [legacy_config_file, new_config_file],
+        Kind.GLOBAL: global_config_files,
+        Kind.SITE: [site_config_file],
+        Kind.USER: [legacy_config_file, new_config_file],
     }
+
+
+class _RawConfigParser(configparser.RawConfigParser):
+    """RawConfigParser with normalized key names."""
+
+    def optionxform(self, optionstr: str) -> str:
+        return _normalize_name(optionstr)
 
 
 class Configuration:
@@ -119,6 +134,7 @@ class Configuration:
             variant: {} for variant in OVERRIDE_ORDER
         }
         self._modified_parsers: list[tuple[str, RawConfigParser]] = []
+        self._use_env = False
 
     def load(self) -> None:
         """Loads configuration from configuration files and environment"""
@@ -132,7 +148,7 @@ class Configuration:
 
         try:
             return self._get_parser_to_modify()[0]
-        except IndexError:
+        except ConfigurationError:
             return None
 
     def items(self) -> Iterable[tuple[str, Any]]:
@@ -183,12 +199,10 @@ class Configuration:
         self._ensure_have_load_only()
 
         assert self.load_only
-        fname, parser = self._get_parser_to_modify()
-
-        if (
-            key not in self._config[self.load_only][fname]
-            and key not in self._config[self.load_only]
-        ):
+        fname, parser = self._get_parser_to_modify(key)
+        load_config = Kind.ENV if self._use_env else self.load_only
+        file_config = self._config[load_config].get(fname, {})
+        if key not in file_config:
             raise ConfigurationError(f"No such key - {orig_key}")
 
         if parser is not None:
@@ -206,9 +220,9 @@ class Configuration:
                 parser.remove_section(section)
             self._mark_as_modified(fname, parser)
         try:
-            del self._config[self.load_only][fname][key]
+            del self._config[load_config][fname][key]
         except KeyError:
-            del self._config[self.load_only][key]
+            del self._config[load_config][key]
 
     def save(self) -> None:
         """Save the current in-memory state."""
@@ -254,20 +268,27 @@ class Configuration:
     def _load_config_files(self) -> None:
         """Loads configuration from configuration files"""
         config_files = dict(self.iter_config_files())
-        if config_files[kinds.ENV][0:1] == [os.devnull]:
+        if config_files[Kind.ENV][0:1] == [os.devnull]:
             logger.debug(
                 "Skipping loading configuration files due to "
                 "environment's PIP_CONFIG_FILE being os.devnull"
             )
             return
 
+        env_config_file = os.environ.get("PIP_CONFIG_FILE")
         for variant, files in config_files.items():
             for fname in files:
                 # If there's specific variant set in `load_only`, load only
                 # that variant, not the others.
                 if self.load_only is not None and variant != self.load_only:
-                    logger.debug("Skipping file '%s' (variant: %s)", fname, variant)
-                    continue
+                    is_env_redirect = (
+                        variant == Kind.ENV
+                        and fname == env_config_file
+                        and self.load_only == Kind.USER
+                    )
+                    if not is_env_redirect:
+                        logger.debug("Skipping file '%s' (variant: %s)", fname, variant)
+                        continue
 
                 parser = self._load_file(variant, fname)
 
@@ -278,27 +299,27 @@ class Configuration:
         logger.verbose("For variant '%s', will try loading '%s'", variant, fname)
         parser = self._construct_parser(fname)
 
+        self._config[variant].setdefault(fname, {})
         for section in parser.sections():
             items = parser.items(section)
-            self._config[variant].setdefault(fname, {})
             self._config[variant][fname].update(self._normalized_keys(section, items))
 
         return parser
 
     def _construct_parser(self, fname: str) -> RawConfigParser:
-        parser = configparser.RawConfigParser()
+        parser = _RawConfigParser()
         # If there is no such file, don't bother reading it but create the
         # parser anyway, to hold the data.
         # Doing this is useful when modifying and saving files, where we don't
         # need to construct a parser.
         if os.path.exists(fname):
-            locale_encoding = get_locale_encoding()
+            encoding = "utf-8" if sys.flags.utf8_mode else get_locale_encoding()
             try:
-                parser.read(fname, encoding=locale_encoding)
+                parser.read(fname, encoding=encoding)
             except UnicodeDecodeError:
                 # See https://github.com/pypa/pip/issues/4963
                 raise ConfigurationFileCouldNotBeLoaded(
-                    reason=f"contains invalid {locale_encoding} characters",
+                    reason=f"contains invalid {encoding} characters",
                     fname=fname,
                 )
             except configparser.Error as error:
@@ -308,8 +329,8 @@ class Configuration:
 
     def _load_environment_vars(self) -> None:
         """Loads configuration from environment variables"""
-        self._config[kinds.ENV_VAR].setdefault(":env:", {})
-        self._config[kinds.ENV_VAR][":env:"].update(
+        self._config[Kind.ENV_VAR].setdefault(":env:", {})
+        self._config[Kind.ENV_VAR][":env:"].update(
             self._normalized_keys(":env:", self.get_environ_vars())
         )
 
@@ -350,7 +371,7 @@ class Configuration:
         env_config_file = os.environ.get("PIP_CONFIG_FILE", None)
         config_files = get_configuration_files()
 
-        yield kinds.GLOBAL, config_files[kinds.GLOBAL]
+        yield Kind.GLOBAL, config_files[Kind.GLOBAL]
 
         # per-user config is not loaded when env_config_file exists
         should_load_user_config = not self.isolated and not (
@@ -358,29 +379,57 @@ class Configuration:
         )
         if should_load_user_config:
             # The legacy config file is overridden by the new config file
-            yield kinds.USER, config_files[kinds.USER]
+            yield Kind.USER, config_files[Kind.USER]
 
         # virtualenv config
-        yield kinds.SITE, config_files[kinds.SITE]
+        yield Kind.SITE, config_files[Kind.SITE]
 
         if env_config_file is not None:
-            yield kinds.ENV, [env_config_file]
+            yield Kind.ENV, [env_config_file]
         else:
-            yield kinds.ENV, []
+            yield Kind.ENV, []
 
     def get_values_in_config(self, variant: Kind) -> dict[str, Any]:
         """Get values present in a config file"""
         return self._config[variant]
 
-    def _get_parser_to_modify(self) -> tuple[str, RawConfigParser]:
+    def _get_parser_to_modify(
+        self, key: str | None = None
+    ) -> tuple[str, RawConfigParser]:
         # Determine which parser to modify
         assert self.load_only
         parsers = self._parsers[self.load_only]
         if not parsers:
-            # This should not happen if everything works correctly.
+            env_config_file = os.environ.get("PIP_CONFIG_FILE")
+            if env_config_file == os.devnull:
+                raise ConfigurationError(
+                    "Cannot write to PIP_CONFIG_VALUE when it is set to "
+                    f"{env_config_file}"
+                )
+            if env_config_file and self.load_only in (Kind.USER, Kind.GLOBAL):
+                parser = self._construct_parser(env_config_file)
+                self._parsers[self.load_only].append((env_config_file, parser))
+                self._use_env = True
+                logger.warning(
+                    "Because PIP_CONFIG_FILE is set, changes will be applied to "
+                    "'%s', not to '%s'. To restore normal behavior, "
+                    "unset PIP_CONFIG_FILE.",
+                    env_config_file,
+                    self.load_only,
+                )
+                return env_config_file, parser
+
             raise ConfigurationError(
                 "Fatal Internal error [id=2]. Please report as a bug."
             )
+
+        if key is None:
+            return parsers[-1]
+
+        section, name = _disassemble_key(key)
+        for fname, parser in reversed(parsers):
+            if parser.has_section(section) and parser.has_option(section, name):
+                return fname, parser
 
         # Use the highest priority parser.
         return parsers[-1]
