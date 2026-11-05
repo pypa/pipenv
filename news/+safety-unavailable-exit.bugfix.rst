@@ -1,1 +1,0 @@
-Fixed ``pipenv check`` and ``pipenv scan`` exiting with status 0 when safety could not be installed (or was still missing after the install): they now exit with status 1, so CI no longer passes without having scanned anything.

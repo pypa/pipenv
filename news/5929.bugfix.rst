@@ -1,1 +1,0 @@
-``pipenv graph`` no longer fails with ``UnicodeEncodeError`` when its output is piped or redirected on Windows (``pipenv graph > deps.txt``): the tree is drawn with ASCII characters when stdout cannot encode box-drawing characters.

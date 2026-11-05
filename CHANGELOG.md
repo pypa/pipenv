@@ -1,3 +1,17 @@
+2026.10.6 (2026-11-05)
+======================
+pipenv 2026.10.6 (2026-11-05)
+=============================
+
+
+Bug Fixes
+---------
+
+- Fixed ``pipenv check`` and ``pipenv scan`` exiting with status 0 when safety could not be installed (or was still missing after the install): they now exit with status 1, so CI no longer passes without having scanned anything.
+- ``pipenv check``, ``pipenv scan`` and ``pipenv --support`` now read the Pipfile
+  and ``Pipfile.lock`` as UTF-8 (with or without a BOM) instead of the locale encoding.
+- ``pipenv graph`` no longer fails with ``UnicodeEncodeError`` when its output is piped or redirected on Windows (``pipenv graph > deps.txt``): the tree is drawn with ASCII characters when stdout cannot encode box-drawing characters.  `#5929 <https://github.com/pypa/pipenv/issues/5929>`_
+
 2026.10.5 (2026-11-01)
 ======================
 pipenv 2026.10.5 (2026-11-01)
