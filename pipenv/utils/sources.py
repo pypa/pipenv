@@ -251,12 +251,6 @@ class Sources:
                 return source
         return None
 
-    def get_index_by_url(self, index_url):
-        for source in self.pipfile_sources():
-            if source.get("url") == index_url:
-                return source
-        return None
-
     @property
     def all(self):
         """The active source list.

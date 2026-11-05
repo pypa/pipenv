@@ -129,7 +129,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
 
         for package in package_args[:]:
             install_req, _ = expansive_install_req_from_line(package, expand_env=True)
-            name, normalized_name, pipfile_entry = project.pipfile.generate_entry(
+            name, normalized_name, _ = project.pipfile.generate_entry(
                 install_req, package, category=pipfile_category
             )
 

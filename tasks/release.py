@@ -1,4 +1,3 @@
-import datetime
 import os
 import pathlib
 import re
@@ -31,10 +30,6 @@ def find_version(ctx):
     if version_match:
         return version_match.group(1)
     raise RuntimeError("Unable to find version string.")
-
-
-def get_history_file(ctx):
-    return _get_git_root(ctx).joinpath("HISTORY.txt")
 
 
 def get_dist_dir(ctx):
@@ -250,31 +245,6 @@ def tag_version(ctx, push=False):
         log("Pushing tags...")
         ctx.run("git push origin master")
         ctx.run("git push --tags")
-
-
-def add_one_day(dt):
-    return dt + datetime.timedelta(days=1)
-
-
-def date_offset(dt, month_offset=0, day_offset=0, truncate=False):
-    new_month = (dt.month + month_offset) % 12
-    year_offset = new_month // 12
-    replace_args = {
-        "month": dt.month + month_offset,
-        "year": dt.year + year_offset,
-    }
-    log(
-        "Getting updated date from date: {} using month offset: {} and year offset {}".format(
-            dt, new_month, replace_args["year"]
-        )
-    )
-    if day_offset:
-        dt = dt + datetime.timedelta(days=day_offset)
-        log(f"updated date using day offset: {day_offset} => {dt}")
-    if truncate:
-        log("Truncating...")
-        replace_args["day"] = 1
-    return dt.replace(**replace_args)
 
 
 @invoke.task

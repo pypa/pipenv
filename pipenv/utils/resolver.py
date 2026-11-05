@@ -428,7 +428,7 @@ class Resolver:
             install_req, _ = expansive_install_req_from_line(dep, expand_env=True)
             original_deps[package_name] = dep
             install_reqs[package_name] = install_req
-            index, extra_index, trust_host, remainder = parse_indexes(dep)
+            index, _, _, _ = parse_indexes(dep)
             if package_name in packages:
                 pipfile_entry = pipfile_entries.get(package_name)
                 if isinstance(pipfile_entry, dict):
@@ -2163,7 +2163,7 @@ def resolve_deps(
     with HackedPythonVersion(python_path=project.venv_locator.python(system=allow_global)):
         with _patched_marker_environment(python_override):
             try:
-                results, hashes, internal_resolver = actually_resolve_deps(
+                results, _, internal_resolver = actually_resolve_deps(
                     deps,
                     index_lookup,
                     markers_lookup,
@@ -2191,7 +2191,7 @@ def resolve_deps(
                     # packages.
                     (
                         results,
-                        hashes,
+                        _,
                         internal_resolver,
                     ) = actually_resolve_deps(
                         deps,

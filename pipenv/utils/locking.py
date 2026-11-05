@@ -545,13 +545,6 @@ class Lockfile:
                     pass  # Preserve the requirement when an optional marker is invalid.
             yield install_req, pip_line_specified
 
-    def requirements_list(self, category: str) -> List[Dict]:
-        if self.lockfile.get(category):
-            return [
-                {name: entry._data} for name, entry in self.lockfile[category].items()
-            ]
-        return []
-
     def write(self) -> None:
         assert self.projectfile is not None  # set in __post_init__
         self.projectfile.model = copy.deepcopy(self.lockfile)

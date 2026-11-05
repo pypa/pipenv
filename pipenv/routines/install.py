@@ -838,7 +838,7 @@ def do_install_dependencies(
         if policy.skip_lock:
             deps_list = []
             for req_name, pipfile_entry in pipfile.items():
-                install_req, markers, req_line = install_req_from_pipfile(
+                install_req, _, req_line = install_req_from_pipfile(
                     req_name, pipfile_entry
                 )
                 deps_list.append(

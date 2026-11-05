@@ -781,15 +781,6 @@ class Pipfile:
             if is_editable(v)
         }
 
-    def _get_vcs_packages(self, dev=False):
-        """Internal: VCS-shaped entries from packages/dev-packages."""
-        section = "dev-packages" if dev else "packages"
-        return {
-            k: v
-            for k, v in self.parsed.get(section, {}).items()
-            if is_vcs(v) or is_vcs(k)
-        } or {}
-
     # ---- build-system metadata -------------------------------------------
 
     @property

@@ -213,7 +213,7 @@ def unearth_hashes_for_dep(project, dep):
             break
 
     # 1 Try to get hashes directly form index
-    install_req, markers, _ = install_req_from_pipfile(dep["name"], dep)
+    install_req, _, _ = install_req_from_pipfile(dep["name"], dep)
     if not install_req or not install_req.req:
         return []
     if "https://pypi.org/simple/" in index_url:
@@ -1127,7 +1127,7 @@ def get_link_from_line(line):
     # Split the VCS part out if needed.
     original_scheme = parsed_url.scheme  # type: str
     if "+" in original_scheme:
-        vcs_type, _, scheme = original_scheme.partition("+")
+        _, _, scheme = original_scheme.partition("+")
         parsed_url = parsed_url._replace(scheme=scheme)  # type: ignore
     else:
         pass
