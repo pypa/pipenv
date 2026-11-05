@@ -65,7 +65,7 @@ def get_pipenv_diagnostics(project):
         print(f"Contents of `Pipfile` ({project.pipfile.location!r}):")
         print("")
         print("```toml")
-        with open(project.pipfile.location) as f:
+        with open(project.pipfile.location, encoding="utf-8-sig") as f:
             print(f.read())
         print("```")
         print("")
@@ -74,7 +74,7 @@ def get_pipenv_diagnostics(project):
         print(f"Contents of `Pipfile.lock` ({project.lockfile.location!r}):")
         print("")
         print("```json")
-        with open(project.lockfile.location) as f:
+        with open(project.lockfile.location, encoding="utf-8-sig") as f:
             print(f.read())
         print("```")
     print("</details>")
