@@ -52,7 +52,7 @@ If the `uv` backend is selected and `uv` is not on your `$PATH`, locking fails w
 
 The `uv` backend resolves with `uv pip compile` against your project's virtualenv interpreter, so it targets the same single environment the `pip` backend does (including the `python_full_version` from `[requires]`). It keeps Pipenv's semantics:
 
-- **Index restriction.** A package without an `index` key resolves only from the first `[[source]]`. A package with `index = "name"` resolves only from that source. Other sources are never searched implicitly, which protects against dependency-confusion attacks.
+- **Index restriction.** A package without an `index` key resolves only from the first `[[source]]`. A package with `index = "name"` resolves only from that source. Other sources are never searched implicitly, which protects against dependency-confusion attacks. This also applies when a category depends on a package pinned to an index in another category. To guarantee that, such a package takes part in resolving every non-default category, even one that turns out not to need it, and is left out of that category's lock section in that case.
 - **Hashes.** Every distribution of each pinned version is hashed, so the lockfile installs on other platforms.
 - **Markers.** Markers on `Pipfile` entries are kept and carried over to the dependencies those packages introduce. A package whose markers exclude the current platform is still recorded in the lockfile.
 - **Categories.** Non-default categories such as `[dev-packages]` are resolved consistently with the versions locked for `[packages]`.

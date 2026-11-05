@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -30,7 +31,10 @@ from pipenv.resolver.backends.uv import (
     _fold_markers,
     _parse_compile_output,
     _parse_spec,
+    _render_constraints,
     _render_pyproject,
+    _unneeded_pin_only,
+    _uv_environment,
     _vcs_pin,
 )
 from pipenv.resolver.schema import (
@@ -44,6 +48,7 @@ from pipenv.resolver.schema import (
     ResolverRequest,
     ResolverSuccess,
     Source,
+    VCSPin,
 )
 
 if sys.version_info >= (3, 11):
@@ -168,6 +173,102 @@ class TestParseSpec:
         assert dep.editable is True
         assert dep.path == "./localpkg"
         assert dep.abs_path == str(pkg)
+
+    def test_editable_path_with_extras_and_markers(self, tmp_path):
+        pkg = tmp_path / "localpkg"
+        pkg.mkdir()
+        dep = _parse_spec(
+            "localpkg",
+            f"-e {pkg}[test,docs]; sys_platform == 'linux'",
+            {"path": str(pkg), "editable": True},
+            _URL_TO_NAME,
+        )
+        assert dep.abs_path == str(pkg)
+        assert dep.extras == ("docs", "test")
+        assert dep.markers == "sys_platform == 'linux'"
+
+    def test_non_editable_local_file_is_a_direct_reference(self, tmp_path):
+        wheel = tmp_path / "pkg-1.0-py3-none-any.whl"
+        dep = _parse_spec(
+            "pkg",
+            f"{wheel}[extra]; os_name == 'posix'",
+            {"file": str(wheel)},
+            _URL_TO_NAME,
+        )
+        assert dep.pep508 == f"pkg[extra] @ {wheel.as_uri()} ; os_name == 'posix'"
+        assert dep.file == str(wheel)
+        assert dep.path is None
+
+    def test_package_named_like_a_local_directory_is_not_a_path(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "flask").mkdir()
+        monkeypatch.chdir(tmp_path)
+        dep = _parse_spec("flask", "flask", "*", _URL_TO_NAME)
+        assert dep.abs_path is None
+        assert dep.path is None
+        assert dep.pep508 == "flask"
+
+    @pytest.mark.parametrize(
+        "spec, url, vcs",
+        [
+            (
+                "pkg @ https://example.com/pkg-1.0.whl; os_name == 'posix'",
+                "https://example.com/pkg-1.0.whl",
+                False,
+            ),
+            (
+                "pkg @ git+https://example.com/r.git@v1; os_name == 'posix'",
+                "git+https://example.com/r.git@v1",
+                True,
+            ),
+        ],
+    )
+    def test_url_with_marker_and_no_space(self, spec, url, vcs):
+        dep = _parse_spec("pkg", spec, None, _URL_TO_NAME)
+        assert dep.markers == "os_name == 'posix'"
+        assert dep.pep508.startswith(f"pkg @ {url} ;")
+        assert bool(dep.vcs) is vcs
+
+    def test_legacy_local_vcs_spec(self):
+        entry = {
+            "git": "file:///repo",
+            "ref": "abc",
+            "editable": True,
+            "extras": ["x"],
+            "subdirectory": "sub",
+            "markers": "os_name == 'posix'",
+        }
+        dep = _parse_spec(
+            "pkg",
+            "-e git+file:///repo@abc#egg=pkg&subdirectory=sub[x]",
+            entry,
+            _URL_TO_NAME,
+        )
+        assert dep.pep508.startswith("pkg[x] @ git+file:///repo@abc#subdirectory=sub ;")
+        assert dep.vcs == VCSPin(
+            backend="git", url="file:///repo", ref="abc", subdirectory="sub"
+        )
+        assert dep.extras == ("x",)
+        assert dep.markers == "os_name == 'posix'"
+        assert dep.editable is True
+
+    def test_legacy_vcs_editable_follows_pipfile(self):
+        dep = _parse_spec(
+            "pkg", "-e git+file:///repo#egg=pkg", {"git": "file:///repo"}, _URL_TO_NAME
+        )
+        assert dep.pep508 == "pkg @ git+file:///repo"
+        assert dep.editable is False
+
+    def test_legacy_vcs_local_path_repository(self, tmp_path):
+        dep = _parse_spec(
+            "pkg",
+            f"-e git+{tmp_path}@abc#egg=pkg",
+            {"git": str(tmp_path), "ref": "abc"},
+            _URL_TO_NAME,
+        )
+        assert dep.pep508 == f"pkg @ git+{tmp_path.as_uri()}@abc"
+        assert dep.vcs.ref == "abc"
 
     def test_remote_file(self):
         url = "https://files.example.com/idna-3.20-py3-none-any.whl"
@@ -300,10 +401,39 @@ class TestFoldMarkers:
         )
         assert folded["shared"] == "(os_name == 'nt') or (sys_platform == 'darwin')"
 
+    def test_cycle_through_other_root_keeps_every_marker(self):
+        parents = {"a": {"", "b"}, "b": {"c"}, "c": {"a", "d"}, "d": {""}}
+        folded = _fold_markers(
+            parents, self._deps(a="os_name == 'posix'", d="os_name == 'nt'")
+        )
+        both = "(os_name == 'nt') or (os_name == 'posix')"
+        assert folded["a"] == both
+        assert folded["b"] == both
+        assert folded["c"] == both
+        assert folded["d"] == "os_name == 'nt'"
+
     def test_cycles_terminate(self):
         parents = {"a": {"", "b"}, "b": {"a"}}
         folded = _fold_markers(parents, self._deps(a="os_name == 'nt'"))
         assert folded["b"] == "os_name == 'nt'"
+
+
+class TestUnneededPinOnly:
+    def test_unused_pin_and_its_dependencies_are_unneeded(self):
+        parents = {"app": {""}, "pinned": {""}, "helper": {"pinned"}}
+        assert _unneeded_pin_only(parents, frozenset({"pinned"})) == {
+            "pinned",
+            "helper",
+        }
+
+    def test_used_pin_is_kept_without_its_root_edge(self):
+        parents = {"app": {""}, "pinned": {"", "app"}, "helper": {"pinned"}}
+        assert _unneeded_pin_only(parents, frozenset({"pinned"})) == set()
+        assert parents["pinned"] == {"app"}
+
+    def test_cycle_among_unused_pins_is_unneeded(self):
+        parents = {"app": {""}, "x": {"", "y"}, "y": {"x"}}
+        assert _unneeded_pin_only(parents, frozenset({"x"})) == {"x", "y"}
 
 
 # ---------------------------------------------------------------------------
@@ -388,6 +518,86 @@ class TestResolve:
             UvBackend().resolve(request)
         assert captured["constraints"] == "six==1.17.0\n"
 
+    def test_resolved_vcs_constraint_keeps_subdirectory(self):
+        request = _request(
+            {"six": "six"},
+            category="dev-packages",
+            resolved_default_deps=ResolvedDeps(
+                entries=(
+                    LockedRequirement(
+                        name="pkg",
+                        vcs=VCSPin(
+                            backend="git",
+                            url="https://example.com/r.git",
+                            ref="abc",
+                            subdirectory="sub",
+                        ),
+                    ),
+                )
+            ),
+        )
+        assert _render_constraints(request) == (
+            "pkg @ git+https://example.com/r.git@abc#subdirectory=sub\n"
+        )
+
+    def test_foreign_pin_is_required_then_dropped_when_unused(self):
+        captured = {}
+
+        def fake_run(cmd, **kwargs):
+            captured["pyproject"] = Path(cmd[3]).read_text(encoding="utf-8")
+            return mock.Mock(
+                returncode=0,
+                stderr="",
+                stdout=(
+                    "app==1.0\n    # via your-pipfile (pyproject.toml)\n"
+                    "helper==1.0\n    # via pinned\n"
+                    "pinned==1.0\n    # via your-pipfile (pyproject.toml)\n"
+                ),
+            )
+
+        with mock.patch("shutil.which", return_value="/usr/bin/uv"), mock.patch(
+            "pipenv.resolver.backends.uv._pipfile_context",
+            return_value=({}, {"pinned": "private"}),
+        ), mock.patch("subprocess.run", side_effect=fake_run):
+            response = UvBackend().resolve(
+                _request({"app": "app"}, category="dev-packages")
+            )
+        assert '"pinned",' in captured["pyproject"]
+        assert '"pinned" = { index = "private" }' in captured["pyproject"]
+        assert [r.name for r in response.result.locked] == ["app"]
+
+    def test_foreign_pin_used_transitively_is_locked_with_its_index(self):
+        stdout = (
+            "app==1.0\n    # via your-pipfile (pyproject.toml)\n"
+            "pinned==1.0\n    # via\n"
+            "    #   your-pipfile (pyproject.toml)\n    #   app\n"
+        )
+        with mock.patch("shutil.which", return_value="/usr/bin/uv"), mock.patch(
+            "pipenv.resolver.backends.uv._pipfile_context",
+            return_value=({}, {"pinned": "private"}),
+        ), mock.patch(
+            "subprocess.run",
+            return_value=mock.Mock(returncode=0, stderr="", stdout=stdout),
+        ):
+            response = UvBackend().resolve(
+                _request({"app": "app"}, category="dev-packages")
+            )
+        locked = {r.name: r for r in response.result.locked}
+        assert locked["pinned"].index == "private"
+        assert locked["pinned"].version == "==1.0"
+
+    def test_non_editable_path_output_line_has_no_name(self, tmp_path):
+        pkg = tmp_path / "localpkg"
+        pkg.mkdir()
+        entries = {"localpkg": {"path": str(pkg)}}
+        stdout = f"{pkg}\n    # via your-pipfile (pyproject.toml)\n"
+        response, _ = _run_resolve(
+            _request({"localpkg": str(pkg)}), stdout=stdout, pipfile=(entries, {})
+        )
+        locked = response.result.locked
+        assert [r.name for r in locked] == ["localpkg"]
+        assert locked[0].path == str(pkg)
+
     def test_exit_1_is_resolution_error(self):
         response, _ = _run_resolve(
             _request({"six": "six"}),
@@ -409,6 +619,13 @@ class TestResolve:
             response = UvBackend().resolve(_request({"six": "six"}))
         assert isinstance(response.result, InternalError)
         assert "uv was not found" in response.result.message
+
+    @pytest.mark.parametrize(
+        "variable", ["UV_NO_SOURCES", "UV_NO_SOURCES_PACKAGE", "UV_TORCH_BACKEND"]
+    )
+    def test_source_overriding_variables_are_scrubbed(self, monkeypatch, variable):
+        monkeypatch.setenv(variable, "1")
+        assert variable not in _uv_environment("https://pypi.org/simple")
 
     def test_primary_index_is_uv_default_index(self, monkeypatch):
         monkeypatch.setenv("UV_INDEX_URL", "https://evil.example.com/simple")

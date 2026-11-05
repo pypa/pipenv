@@ -33,7 +33,10 @@ Flow inside :meth:`UvBackend.resolve`:
    declared in the input file, so the primary index is passed as
    ``UV_DEFAULT_INDEX`` — in the environment rather than on the command
    line, so credentials embedded in the URL stay out of process
-   listings.
+   listings.  uv only honours an index pin on a requirement it is
+   resolving, so a package pinned in another Pipfile category is added
+   as a requirement too, and dropped from the result afterwards if
+   nothing in this category needs it.
 3. Write ``request.resolved_default_deps`` as a constraints file.
 4. Run ``uv pip compile`` and parse its requirements-format output
    (``--hash`` lines and ``# via`` annotations).
@@ -50,6 +53,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -95,8 +99,11 @@ _SCRUBBED_UV_ENV = (
     "UV_INDEX_STRATEGY",
     "UV_INDEX_URL",
     "UV_NO_INDEX",
+    "UV_NO_SOURCES",
+    "UV_NO_SOURCES_PACKAGE",
     "UV_OVERRIDE",
     "UV_PRERELEASE",
+    "UV_TORCH_BACKEND",
 )
 
 INSTALL_HINT = (
@@ -209,9 +216,19 @@ class UvBackend:
         index_pins = {
             k: v for k, v in index_pins.items() if v in known and k not in direct
         }
+        # A pin only reaches a package uv is resolving as a requirement,
+        # so foreign pins become requirements as well.  Resolving without
+        # them first to see which are needed isn't an option: that pass
+        # could fetch, and even build, a same-named package from the
+        # primary index.
+        top_level = {_canonical(dep.name) for dep in deps}
+        pin_only = frozenset(
+            k for k, v in index_pins.items()
+            if k not in top_level and v != sources[0].name
+        )
         pyproject = workdir / "pyproject.toml"
         pyproject.write_text(
-            _render_pyproject(deps, sources, index_pins), encoding="utf-8"
+            _render_pyproject(deps, sources, index_pins, pin_only), encoding="utf-8"
         )
 
         cmd = [
@@ -292,6 +309,7 @@ class UvBackend:
             _parse_compile_output(proc.stdout),
             deps,
             index_pins,
+            pin_only,
         )
         return ResolverResponse(
             schema_version=SCHEMA_VERSION,
@@ -314,7 +332,9 @@ def _parse_spec(
     """Translate one wire-shape spec (a pip-install argument line, as
     produced by ``convert_deps_to_pip``) into a :class:`_Dependency`.
     """
+    from pipenv.utils.dependencies import translate_markers
     from pipenv.utils.indexes import parse_indexes
+    from pipenv.vendor.packaging.markers import Marker
     from pipenv.vendor.packaging.requirements import Requirement
 
     entry = pipfile_entry if isinstance(pipfile_entry, dict) else {}
@@ -324,6 +344,18 @@ def _parse_spec(
         editable = True
         remainder = remainder[1:]
     text = " ".join(remainder).strip()
+    if _is_legacy_vcs(text):
+        # The install line always says ``-e`` for these, whatever the
+        # Pipfile asks for, and leaves out the markers.
+        if isinstance(pipfile_entry, dict):
+            editable = bool(entry.get("editable"))
+        text = _legacy_vcs_to_pep508(
+            name, text, translate_markers(entry).get("markers")
+        )
+    elif " @ " in text:
+        # The install line has ``URL; marker``, but PEP 508 requires
+        # whitespace after a URL.
+        text = text.replace("; ", " ; ", 1)
 
     index = entry.get("index")
     if index_url and not index:
@@ -347,14 +379,33 @@ def _parse_spec(
         skip=bool(entry.get("skip_resolver")),
     )
 
-    if _looks_like_path(text):
-        location = entry.get("path") or entry.get("file") or text
-        dep.abs_path = os.path.abspath(os.path.expanduser(text))
+    if " @ " not in text and (
+        entry.get("path") or entry.get("file") or _looks_like_path(text)
+    ):
+        # ``location[extras]; marker``
+        requirement, _, marker = text.partition("; ")
+        extras = re.search(r"\[([^\]]*)\]$", requirement)
+        if extras:
+            requirement = requirement[: extras.start()]
+            dep.extras = tuple(
+                sorted(e.strip() for e in extras.group(1).split(",") if e.strip())
+            )
+        if marker:
+            dep.markers = str(Marker(marker)).replace('"', "'")
+        location = entry.get("path") or entry.get("file") or requirement
+        dep.abs_path = os.path.abspath(os.path.expanduser(requirement))
         if entry.get("file"):
             dep.file = location
         else:
             dep.path = location
         dep.pep508 = name
+        if dep.file and not editable:
+            # Refer to the file directly: a bare ``name`` with no path
+            # source would make uv look it up on the index.
+            extra_text = f"[{','.join(dep.extras)}]" if dep.extras else ""
+            marker_text = f" ; {dep.markers}" if dep.markers else ""
+            uri = Path(dep.abs_path).as_uri()
+            dep.pep508 = f"{name}{extra_text} @ {uri}{marker_text}"
         dep.index = dep.lock_index = None
         return dep
 
@@ -381,6 +432,7 @@ def _render_pyproject(
     deps: Sequence[_Dependency],
     sources: Sequence[Source],
     index_pins: Mapping[str, str],
+    pin_only: frozenset[str] = frozenset(),
 ) -> str:
     """Render the throwaway ``pyproject.toml`` uv compiles.
 
@@ -404,6 +456,7 @@ def _render_pyproject(
         else:
             requirement = dep.pep508
         lines.append(f"    {q(requirement)},")
+    lines.extend(f"    {q(name)}," for name in sorted(pin_only))
     lines.append("]")
     lines.append("")
     lines.append("[tool.uv.sources]")
@@ -440,7 +493,14 @@ def _render_constraints(request: ResolverRequest) -> str:
     for entry in resolved.entries:
         if entry.vcs is not None:
             ref = f"@{entry.vcs.ref}" if entry.vcs.ref else ""
-            lines.append(f"{entry.name} @ {entry.vcs.backend}+{entry.vcs.url}{ref}")
+            subdirectory = (
+                f"#subdirectory={entry.vcs.subdirectory}"
+                if entry.vcs.subdirectory
+                else ""
+            )
+            lines.append(
+                f"{entry.name} @ {entry.vcs.backend}+{entry.vcs.url}{ref}{subdirectory}"
+            )
         elif entry.version and entry.version.startswith("=="):
             lines.append(f"{entry.name}{entry.version}")
     return "\n".join(lines) + ("\n" if lines else "")
@@ -536,6 +596,7 @@ def _translate(
     entries: Sequence[_CompiledEntry],
     deps: Sequence[_Dependency],
     index_pins: Mapping[str, str],
+    pin_only: frozenset[str] = frozenset(),
 ) -> tuple[LockedRequirement, ...]:
     from pipenv.utils.dependencies import pep423_name
     from pipenv.vendor.packaging.requirements import Requirement
@@ -549,8 +610,14 @@ def _translate(
     for entry in entries:
         dep: _Dependency | None = None
         req = None
+        # uv prints local path requirements without a name: ``-e /path``
+        # when editable, otherwise just ``/path``.
+        location = None
         if entry.line.startswith(("-e ", "--editable ")):
             location = entry.line.split(None, 1)[1].strip()
+        elif entry.line.startswith("file:") or _looks_like_path(entry.line):
+            location = entry.line
+        if location is not None:
             if location.startswith("file:"):
                 location = _file_url_to_path(location)
             dep = by_path.get(os.path.normcase(os.path.abspath(location)))
@@ -571,6 +638,10 @@ def _translate(
                 parents[key].add("")
             elif not via.startswith("-"):
                 parents[key].add(_canonical(via.split()[0]))
+    if pin_only:
+        for key in _unneeded_pin_only(parents, pin_only):
+            del resolved[key]
+            del parents[key]
     markers = _fold_markers(parents, top_level)
 
     locked: list[LockedRequirement] = []
@@ -636,50 +707,59 @@ def _fold_markers(
     of their markers.  ``""`` in ``parents`` means "required directly
     by the project".
     """
-    memo: dict[str, tuple[str, ...] | None] = {}
-
-    def conditions(key: str, visiting: frozenset[str]) -> tuple[str, ...] | None:
-        # ``None`` means unconditional; a tuple lists alternative markers
-        # (empty when every path back to the project runs through a
-        # cycle edge, i.e. no contribution from this branch).
-        if key in memo:
-            return memo[key]
-        found: list[str] = []
-        partial = False
-        for parent in sorted(parents.get(key, ())):
-            if parent == "":
-                dep = top_level.get(key)
-                if dep is None or not dep.markers:
-                    memo[key] = None
-                    return None
-                found.append(dep.markers)
-            elif parent in visiting:
-                partial = True
-            else:
-                upstream = conditions(parent, visiting | {key})
-                if upstream is None:
-                    memo[key] = None
-                    return None
-                found.extend(upstream)
-        unique = tuple(dict.fromkeys(found))
-        # A result computed while skipping a cycle edge depends on the
-        # path taken to get here, so only memoize complete results.
-        if not partial:
-            memo[key] = unique
-        return unique
-
     folded: dict[str, str | None] = {}
     for key in parents:
-        found = conditions(key, frozenset())
-        if not found:
-            # Unconditional, or only reachable through an unknown parent
+        seen = {key}
+        stack = [key]
+        found: set[str] = set()
+        unconditional = False
+        while stack and not unconditional:
+            current = stack.pop()
+            for parent in parents.get(current, ()):
+                if parent == "":
+                    dep = top_level.get(current)
+                    if dep is None or not dep.markers:
+                        unconditional = True
+                        break
+                    found.add(dep.markers)
+                elif parent not in seen:
+                    seen.add(parent)
+                    stack.append(parent)
+        if unconditional or not found:
+            # ``not found``: only reachable through an unknown parent
             # (e.g. a constraints file).
             folded[key] = None
         elif len(found) == 1:
-            folded[key] = found[0]
+            folded[key] = next(iter(found))
         else:
-            folded[key] = " or ".join(f"({m})" for m in found)
+            folded[key] = " or ".join(f"({m})" for m in sorted(found))
     return folded
+
+
+def _unneeded_pin_only(
+    parents: dict[str, set[str]], pin_only: frozenset[str]
+) -> set[str]:
+    """Return the packages only in the result because of a ``pin_only``
+    requirement, and remove those requirements' edges from ``parents``."""
+    roots = [
+        key
+        for key, ups in parents.items()
+        if key not in pin_only and ("" in ups or not ups)
+    ]
+    for key in pin_only:
+        parents.get(key, set()).discard("")
+    children: dict[str, set[str]] = {}
+    for key, ups in parents.items():
+        for parent in ups:
+            children.setdefault(parent, set()).add(key)
+    needed = set(roots)
+    stack = list(roots)
+    while stack:
+        for child in children.get(stack.pop(), ()):
+            if child not in needed:
+                needed.add(child)
+                stack.append(child)
+    return set(parents) - needed
 
 
 # ---------------------------------------------------------------------------
@@ -722,8 +802,40 @@ def _looks_like_path(text: str) -> bool:
     return (
         text.startswith((".", "/", "~", "\\"))
         or (len(text) > 1 and text[1] == ":")  # Windows drive
-        or os.path.exists(text)
     )
+
+
+def _is_legacy_vcs(text: str) -> bool:
+    """Whether ``text`` is a bare ``git+URL`` rather than a PEP 508 line."""
+    scheme, plus, _ = text.partition("+")
+    return bool(plus) and scheme in _VCS_SCHEMES and " @ " not in text
+
+
+def _legacy_vcs_to_pep508(name: str, text: str, markers: str | None) -> str:
+    """Turn ``git+file:///repo@ref#egg=pkg&subdirectory=sub[extra]``, the
+    form ``dependency_as_pip_install_line`` emits for local repositories,
+    into ``pkg[extra] @ git+file:///repo@ref#subdirectory=sub``."""
+    extras = ""
+    match = re.search(r"\[[^\]]*\]$", text)
+    if match:
+        extras = match.group()
+        text = text[: match.start()]
+    url, _, fragment = text.partition("#")
+    kept = [i for i in fragment.split("&") if i and not i.startswith("egg=")]
+    backend, _, location = url.partition("+")
+    if "://" not in location:
+        # A local repository given as a path.
+        path, at, ref = location.rpartition("@")
+        if not at:
+            path, ref = location, ""
+        absolute = os.path.abspath(os.path.expanduser(path))
+        location = Path(absolute).as_uri() + (f"@{ref}" if ref else "")
+    pep508 = f"{name}{extras} @ {backend}+{location}"
+    if kept:
+        pep508 += "#" + "&".join(kept)
+    if markers:
+        pep508 += f" ; {markers}"
+    return pep508
 
 
 def _file_url_to_path(url: str) -> str:
