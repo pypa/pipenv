@@ -273,7 +273,7 @@ def install_safety(project, system=False, auto_install=False):
         err.print(
             "[red]Failed to install safety. Please install it manually with 'pip install pipenv[safety]'[/red]"
         )
-        return False
+        sys.exit(1)
 
     console.print("[green]Safety installed successfully![/green]")
     return True
@@ -434,7 +434,7 @@ def do_scan(  # noqa: PLR0913
                     "[red]Safety installation was reported successful but module not found. "
                     "Please try again or install manually with 'pip install pipenv[safety]'[/red]"
                 )
-                return
+                sys.exit(1)
 
         # Set up environment variables for safety
         os.environ["SAFETY_CUSTOM_INTEGRATION"] = "True"
