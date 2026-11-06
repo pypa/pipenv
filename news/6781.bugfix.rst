@@ -1,0 +1,3 @@
+Fixed latent crashes in ``RequirementError`` when no requirement is given and in
+``Lockfile.from_data`` when the project directory is missing, and removed a stray
+``!s`` from the ``UninstallError`` message.
