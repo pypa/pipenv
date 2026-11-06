@@ -320,7 +320,7 @@ class UninstallError(PipenvException):
             package = " ".join(package)
         message = "{!s} {!s}...".format(
             "Failed to uninstall package(s)",
-            f"[bold yellow]{package}!s[/bold yellow]",
+            f"[bold yellow]{package!s}[/bold yellow]",
         )
         self.exit_code = return_code
         PipenvException.__init__(self, message=message, extra=extra)
@@ -406,6 +406,7 @@ class RequirementError(PipenvException):
             + VCS_LIST
             + ("line", "uri", "url", "relpath")
         )
+        req_value = None
         if req is not None:
             possible_display_values = [getattr(req, value, None) for value in keys]
             req_value = next(
