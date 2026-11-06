@@ -39,6 +39,13 @@ from pipenv.patched.pip._internal.utils.unpacking import (
 
 
 @pytest.mark.utils
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "Windows collapses '..' lexically before following symlinks, so "
+        "'link\\..\\escape' really does resolve inside the destination"
+    ),
+)
 def test_directory_containment_resolves_symlink_parent_traversal(tmp_path):
     destination = tmp_path / "extract"
     destination.mkdir()
