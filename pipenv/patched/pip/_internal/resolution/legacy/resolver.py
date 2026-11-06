@@ -415,6 +415,8 @@ class Resolver(BaseResolver):
         """
         if req.link is None:
             req.link = self._find_requirement_link(req)
+            if req.link is not None:
+                req.set_source_link(req.link)
 
         if self.wheel_cache is None or self.preparer.require_hashes:
             return

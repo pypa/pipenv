@@ -37,6 +37,38 @@ from pipenv.patched.pip._internal.utils.unpacking import (
     untar_file,
 )
 
+
+@pytest.mark.utils
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "Windows collapses '..' lexically before following symlinks, so "
+        "'link\\..\\escape' really does resolve inside the destination"
+    ),
+)
+def test_directory_containment_resolves_symlink_parent_traversal(tmp_path):
+    destination = tmp_path / "extract"
+    destination.mkdir()
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    link = destination / "link"
+    try:
+        link.symlink_to(outside, target_is_directory=True)
+    except OSError:
+        pytest.skip("Creating symlinks is unavailable")
+
+    target = str(link / ".." / "escape")
+    assert unpacking.is_within_directory(str(destination), target)
+    assert not unpacking.is_within_directory(
+        str(destination), target, resolve_symlinks=True
+    )
+
+
+@pytest.mark.utils
+def test_directory_containment_accepts_files_under_filesystem_root(tmp_path):
+    assert unpacking.is_within_directory(tmp_path.anchor, str(tmp_path))
+
+
 # ----------------------------------------------------------------------------
 # _tar_link_target_is_within
 # ----------------------------------------------------------------------------

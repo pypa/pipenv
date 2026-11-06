@@ -30,6 +30,7 @@ def create_main_parser() -> ConfigOptionParser:
     parser.disable_interspersed_args()
 
     parser.version = get_pip_version()
+    parser.add_option(cmdoptions.version())
 
     # add the general options
     gen_opts = cmdoptions.make_option_group(cmdoptions.general_group, parser)
@@ -96,13 +97,23 @@ def parse_command(args: list[str]) -> tuple[str, list[str]]:
 
         # Set a flag so the child doesn't re-invoke itself, causing
         # an infinite loop.
-        os.environ["_PIP_RUNNING_IN_SUBPROCESS"] = "1"
-        returncode = 0
+        subprocess_env = os.environ.copy()
+        subprocess_env["_PIP_RUNNING_IN_SUBPROCESS"] = "1"
+
         try:
-            proc = subprocess.run(pip_cmd)
-            returncode = proc.returncode
+            # Based on CPython's test-runner interrupt cleanup:
+            # https://github.com/python/cpython/blob/6c695bfad45ddde73d0d674286800fbe295f0627/Lib/test/libregrtest/main.py#L728-L739
+            with subprocess.Popen(pip_cmd, env=subprocess_env) as proc:
+                try:
+                    returncode = proc.wait()
+                except KeyboardInterrupt:
+                    # Reap before warning or traceback rendering reads replaced files.
+                    proc.kill()
+                    proc.wait()
+                    returncode = 1
         except (subprocess.SubprocessError, OSError) as exc:
             raise CommandError(f"Failed to run pip under {interpreter}: {exc}")
+
         sys.exit(returncode)
 
     # --version

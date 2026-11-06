@@ -33,7 +33,6 @@
     :license: BSD, see LICENSE for details.
 """
 import functools
-from importlib.metadata import entry_points
 
 LEXER_ENTRY_POINT = 'pygments.lexers'
 FORMATTER_ENTRY_POINT = 'pygments.formatters'
@@ -43,6 +42,8 @@ FILTER_ENTRY_POINT = 'pygments.filters'
 
 @functools.cache
 def iter_entry_points(group_name):
+    from importlib.metadata import entry_points
+
     groups = entry_points()
     if hasattr(groups, 'select'):
         # New interface in Python 3.10 and newer versions of the

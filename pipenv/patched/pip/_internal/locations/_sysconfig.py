@@ -159,6 +159,14 @@ def get_scheme(
         scheme_name = _infer_prefix()
 
     # Special case: When installing into a custom prefix, use posix_prefix
+    # instead of posix_local because it should *only* be used to redirecting
+    # to /usr/local for system packager installs. Notably, posix_local is used
+    # on Debian and its derivatives.
+    # See also: https://discuss.python.org/t/18240
+    if prefix is not None and scheme_name == "posix_local":
+        scheme_name = "posix_prefix"
+
+    # Special case: When installing into a custom prefix, use posix_prefix
     # instead of osx_framework_library. See _should_use_osx_framework_prefix()
     # docstring for details.
     if prefix is not None and scheme_name == "osx_framework_library":

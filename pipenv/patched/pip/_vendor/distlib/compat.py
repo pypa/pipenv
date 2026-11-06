@@ -471,14 +471,39 @@ if sys.version_info[:2] < (3, 4):
 else:
     from html import unescape
 
+_get_ident = None
+
+
+def _thread_get_ident():
+    global _get_ident
+    if _get_ident is None:
+        try:
+            # Python 2
+            from thread import get_ident as _get_ident
+        except ImportError:
+            try:
+                from dummy_thread import get_ident as _get_ident
+            except ImportError:
+                # Python >= 3
+                try:
+                    from _thread import get_ident as _get_ident
+                except ImportError:
+                    from _dummy_thread import get_ident as _get_ident
+    return _get_ident
+
+
 try:
+    # Python >= 3.3
     from collections import ChainMap
 except ImportError:  # pragma: no cover
     from collections import MutableMapping
 
     try:
+        # Python >= 3.2
         from reprlib import recursive_repr as _recursive_repr
     except ImportError:
+
+        _get_ident = _thread_get_ident()
 
         def _recursive_repr(fillvalue='...'):
             '''
@@ -490,7 +515,7 @@ except ImportError:  # pragma: no cover
                 repr_running = set()
 
                 def wrapper(self):
-                    key = id(self), get_ident()
+                    key = id(self), _get_ident()
                     if key in repr_running:
                         return fillvalue
                     repr_running.add(key)
@@ -623,15 +648,13 @@ except ImportError:  # pragma: no cover
 
 
 try:
+    # Python >= 3.1
     from collections import OrderedDict
 except ImportError:  # pragma: no cover
     # {{{ http://code.activestate.com/recipes/576693/ (r9)
     # Backport of OrderedDict() class that runs on Python 2.4, 2.5, 2.6, 2.7 and pypy.
     # Passes Python2.7's test suite and incorporates all the latest updates.
-    try:
-        from thread import get_ident as _get_ident
-    except ImportError:
-        from dummy_thread import get_ident as _get_ident
+    _get_ident = _thread_get_ident()
 
     try:
         from _abcoll import KeysView, ValuesView, ItemsView

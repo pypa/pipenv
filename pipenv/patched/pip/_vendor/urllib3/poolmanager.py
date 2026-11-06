@@ -47,6 +47,8 @@ SSL_KEYWORDS = (
     "ssl_context",
     "key_password",
     "server_hostname",
+    "assert_hostname",
+    "assert_fingerprint",
 )
 # Default value for `blocksize` - a new parameter introduced to
 # http.client.HTTPConnection & http.client.HTTPSConnection in Python 3.7
@@ -309,7 +311,7 @@ class PoolManager(RequestMethods):
 
         request_context = self._merge_pool_kwargs(pool_kwargs)
         request_context["scheme"] = scheme or "http"
-        if not port:
+        if port is None:
             port = port_by_scheme.get(request_context["scheme"].lower(), 80)
         request_context["port"] = port
         request_context["host"] = host
@@ -452,7 +454,7 @@ class PoolManager(RequestMethods):
             kw["headers"] = self.headers
 
         if self._proxy_requires_url_absolute_form(u):
-            response = conn.urlopen(method, url, **kw)
+            response = conn.urlopen(method, u._replace(fragment=None).url, **kw)
         else:
             response = conn.urlopen(method, u.request_uri, **kw)
 
@@ -468,6 +470,11 @@ class PoolManager(RequestMethods):
             method = "GET"
             # And lose the body not to transfer anything sensitive.
             kw["body"] = None
+            # The body is gone, so the state that describes it has to go too:
+            # there is nothing left to frame with chunked transfer encoding,
+            # and nothing left to rewind.
+            kw["chunked"] = False
+            kw["body_pos"] = None
             kw["headers"] = HTTPHeaderDict(kw["headers"])._prepare_for_method_change()
 
         retries = kw.get("retries", response.retries)
@@ -581,13 +588,30 @@ class ProxyManager(PoolManager):
         if proxy.scheme not in ("http", "https"):
             raise ProxySchemeUnknown(proxy.scheme)
 
-        if not proxy.port:
+        # Keep the deprecated ssl_context fallback on the manager for
+        # compatibility, while passing only explicit proxy policy to connections.
+        self.proxy_ssl_context = proxy_ssl_context
+        if (
+            use_forwarding_for_https
+            and proxy.scheme == "https"
+            and connection_pool_kw.get("ssl_context") is not None
+        ):
+            warnings.warn(
+                "Passing ssl_context when use_forwarding_for_https=True is deprecated "
+                "and will raise an error in urllib3 v3.0. "
+                "Use proxy_ssl_context to configure the TLS connection to the proxy.",
+                FutureWarning,
+                stacklevel=2,
+            )
+            if self.proxy_ssl_context is None:
+                self.proxy_ssl_context = connection_pool_kw.get("ssl_context")
+
+        if proxy.port is None:
             port = port_by_scheme.get(proxy.scheme, 80)
             proxy = proxy._replace(port=port)
 
         self.proxy = proxy
         self.proxy_headers = proxy_headers or {}
-        self.proxy_ssl_context = proxy_ssl_context
         self.proxy_config = ProxyConfig(
             proxy_ssl_context,
             use_forwarding_for_https,

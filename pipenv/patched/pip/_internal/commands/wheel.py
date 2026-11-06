@@ -94,7 +94,7 @@ class WheelCommand(RequirementCommand):
 
     @with_cleanup
     def run(self, options: Values, args: list[str]) -> int:
-        cmdoptions.check_build_constraints(options)
+        self.check_build_constraints(options)
         cmdoptions.check_release_control_exclusive(options)
         cmdoptions.check_only_deps_option_does_not_conflict(options)
 

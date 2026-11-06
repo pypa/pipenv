@@ -720,9 +720,35 @@ ENTRY_RE = re.compile(
                       \s*(\[\s*(?P<flags>[\w-]+(=\w+)?(,\s*\w+(=\w+)?)*)\s*\])?
                       ''', re.VERBOSE)
 
+# ENTRY_RE, but only starting at the first or last character of a whitespace
+# run. See _search_export_entry.
+_ENTRY_RE_AT_SPACE = re.compile(r'(?:(?<!\s)(?=\s)|(?=\s\S))' +
+                                ENTRY_RE.pattern, re.VERBOSE)
+
+
+def _search_export_entry(specification):
+    """
+    Return ENTRY_RE.search(specification), in linear rather than quadratic
+    time.
+
+    search() tries every start position, and each attempt can rescan the rest
+    of a long name. Most positions cannot hold the leftmost match: a match that
+    starts inside a run of non-space characters implies one starting earlier in
+    the run (or at the whitespace just before it, since a name may start with
+    whitespace), and a match starting inside a whitespace run, other than at
+    its last character, implies one at its first. So the leftmost match starts
+    at the first character that is not '[' (a name cannot start with '['), or
+    at the first or last character of a whitespace run.
+    """
+    start = len(specification) - len(specification.lstrip('['))
+    m = ENTRY_RE.match(specification, start)
+    if not m:
+        m = _ENTRY_RE_AT_SPACE.search(specification, start)
+    return m
+
 
 def get_export_entry(specification):
-    m = ENTRY_RE.search(specification)
+    m = _search_export_entry(specification)
     if not m:
         result = None
         if '[' in specification or ']' in specification:
@@ -1227,14 +1253,33 @@ ARCHIVE_EXTENSIONS = ('.tar.gz', '.tar.bz2', '.tar', '.zip', '.tgz', '.tbz', '.w
 
 def unarchive(archive_filename, dest_dir, format=None, check=True):
 
+    # Symlinks seen so far in the archive, mapping the link's resolved path
+    # to its resolved target. Earlier members don't exist on disk while we
+    # check, so later member paths are resolved through this map lexically.
+    links = {}
+
+    def resolve(path):
+        cur = dest_dir
+        if not (path == dest_dir or path.startswith(dest_dir + os.sep)):
+            return os.path.realpath(path)
+        for part in path[len(dest_dir):].split(os.sep):
+            if part in ('', '.'):
+                continue
+            if part == '..':
+                cur = os.path.dirname(cur)
+            else:
+                cur = links.get(os.path.join(cur, part), os.path.join(cur, part))
+        return os.path.realpath(cur)
+
     def check_path(path, base=None):
         if not isinstance(path, text_type):
             path = path.decode('utf-8')
         if base is None:
             base = dest_dir
-        p = os.path.abspath(os.path.join(base, path))
-        if not p.startswith(dest_dir) or p[plen] != os.sep:
+        p = resolve(os.path.join(base, path))
+        if not (p == dest_dir or p.startswith(dest_dir + os.sep)):
             raise ValueError('path outside destination: %r' % p)
+        return p
 
     def check_link(member):
         # A symlink/hardlink member's name is validated like any other
@@ -1246,14 +1291,14 @@ def unarchive(archive_filename, dest_dir, format=None, check=True):
         # relative to the archive root (i.e. dest_dir).
         if not (member.issym() or member.islnk()):
             return
-        if member.issym():
-            link_base = os.path.dirname(os.path.join(dest_dir, member.name))
-        else:
-            link_base = dest_dir
-        check_path(member.linkname, base=link_base)
+        if member.islnk():
+            check_path(member.linkname)
+            return
+        name = member.name.rstrip('/')
+        parent = check_path(os.path.dirname(name) or '.')
+        links[os.path.join(parent, os.path.basename(name))] = check_path(member.linkname, base=parent)
 
-    dest_dir = os.path.abspath(dest_dir)
-    plen = len(dest_dir)
+    dest_dir = os.path.realpath(dest_dir)
     archive = None
     if format is None:
         if archive_filename.endswith(('.zip', '.whl')):
@@ -1294,11 +1339,13 @@ def unarchive(archive_filename, dest_dir, format=None, check=True):
         # Limit extraction of dangerous items, if this Python
         # allows it easily. If not, just trust the input.
         # See: https://docs.python.org/3/library/tarfile.html#extraction-filters
+        # data_filter is the stdlib default from Python 3.14 onwards; using the
+        # laxer tar_filter here would downgrade that secure default.
         def extraction_filter(member, path):
-            """Run tarfile.tar_filter, but raise the expected ValueError"""
+            """Run tarfile.data_filter, but raise the expected ValueError"""
             # This is only called if the current Python has tarfile filters
             try:
-                return tarfile.tar_filter(member, path)
+                return tarfile.data_filter(member, path)
             except tarfile.FilterError as exc:
                 raise ValueError(str(exc))
 

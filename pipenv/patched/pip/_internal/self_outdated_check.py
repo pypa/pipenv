@@ -15,6 +15,7 @@ from pipenv.patched.pip._vendor.rich.console import Group
 from pipenv.patched.pip._vendor.rich.markup import escape
 from pipenv.patched.pip._vendor.rich.text import Text
 
+from pipenv.patched.pip import __version__
 from pipenv.patched.pip._internal.index.collector import LinkCollector
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import get_default_environment
@@ -37,6 +38,7 @@ from pipenv.patched.pip._internal.utils.misc import (
     ExternallyManagedEnvironment,
     check_externally_managed,
     ensure_dir,
+    running_under_zipapp,
 )
 
 _WEEK = datetime.timedelta(days=7)
@@ -133,25 +135,30 @@ class SelfCheckState:
 class UpgradePrompt:
     old: str
     new: str
+    show_upgrade_hint: bool = True
 
     def __rich__(self) -> Group:
-        if WINDOWS:
-            pip_cmd = f"{get_best_invocation_for_this_python()} -m pip"
-        else:
-            pip_cmd = get_best_invocation_for_this_pip()
-
         notice = "[bold][[reset][blue]notice[reset][bold]][reset]"
-        return Group(
+        lines = [
             Text(),
             Text.from_markup(
                 f"{notice} A new release of pip is available: "
                 f"[red]{self.old}[reset] -> [green]{self.new}[reset]"
             ),
-            Text.from_markup(
-                f"{notice} To update, run: "
-                f"[green]{escape(pip_cmd)} install --upgrade pip"
-            ),
-        )
+        ]
+        if self.show_upgrade_hint:
+            if WINDOWS:
+                pip_cmd = f"{get_best_invocation_for_this_python()} -m pip"
+            else:
+                pip_cmd = get_best_invocation_for_this_pip()
+
+            lines.append(
+                Text.from_markup(
+                    f"{notice} To update, run: "
+                    f"[green]{escape(pip_cmd)} install --upgrade pip"
+                )
+            )
+        return Group(*lines)
 
 
 def _get_current_remote_pip_version(
@@ -183,7 +190,10 @@ def _get_current_remote_pip_version(
 
 
 def _compute_upgrade_prompt(
-    local_version: Version, remote_version_str: str, installed_by_pip: bool
+    local_version: Version,
+    remote_version_str: str,
+    installed_by_pip: bool,
+    show_upgrade_hint: bool = True,
 ) -> UpgradePrompt | None:
     remote_version = parse_version(remote_version_str)
     logger.debug("Remote version of pip: %s", remote_version)
@@ -198,7 +208,11 @@ def _compute_upgrade_prompt(
         and local_version.base_version != remote_version.base_version
     )
     if local_version_is_older:
-        return UpgradePrompt(old=str(local_version), new=remote_version_str)
+        return UpgradePrompt(
+            old=str(local_version),
+            new=remote_version_str,
+            show_upgrade_hint=show_upgrade_hint,
+        )
 
     return None
 
@@ -215,13 +229,22 @@ def pip_self_version_check_fetch(
     Pair with :func:`pip_self_version_check_emit`, which displays the prompt
     after the command body runs.
     """
-    installed_dist = get_default_environment().get_distribution("pip")
-    if not installed_dist:
-        return None
-    try:
-        check_externally_managed()
-    except ExternallyManagedEnvironment:
-        return None
+    if running_under_zipapp():
+        # Use the running pip's version; environment scans target the installed
+        # pip, not the zipapp. Skip checks that don't apply to zipapps.
+        local_version = parse_version(__version__)
+        installed_by_pip = True
+    else:
+        installed_dist = get_default_environment().get_distribution("pip")
+        if not installed_dist:
+            return None
+        try:
+            check_externally_managed()
+        except ExternallyManagedEnvironment:
+            return None
+
+        local_version = installed_dist.version
+        installed_by_pip = installed_dist.installer == "pip"
 
     state = SelfCheckState(cache_dir=options.cache_dir)
     current_time = datetime.datetime.now(datetime.timezone.utc)
@@ -234,9 +257,10 @@ def pip_self_version_check_fetch(
         state.set(remote_version_str, current_time)
 
     return _compute_upgrade_prompt(
-        local_version=installed_dist.version,
+        local_version=local_version,
         remote_version_str=remote_version_str,
-        installed_by_pip=installed_dist.installer == "pip",
+        installed_by_pip=installed_by_pip,
+        show_upgrade_hint=not running_under_zipapp(),
     )
 
 

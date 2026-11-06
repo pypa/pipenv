@@ -74,6 +74,7 @@ def install_given_reqs(
         for requirement in items:
             req_name = requirement.name
             assert req_name is not None
+
             if requirement.should_reinstall:
                 logger.info("Attempting uninstall: %s", req_name)
                 with indent_log():
@@ -90,6 +91,9 @@ def install_given_reqs(
                     use_user_site=use_user_site,
                     pycompile=pycompile,
                     script_executable=script_executable,
+                    rollback_on_error=bool(
+                        uninstalled_pathset and uninstalled_pathset.can_rollback
+                    ),
                 )
             except Exception:
                 # if install did not succeed, rollback previous uninstall

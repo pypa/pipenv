@@ -77,6 +77,37 @@ port_by_scheme = {"http": 80, "https": 443}
 RECENT_DATE = datetime.date(2025, 1, 1)
 
 _CONTAINS_CONTROL_CHAR_RE = re.compile(r"[^-!#$%&'*+.^_`|~0-9a-zA-Z]")
+# Starting the optional OWS match at the beginning of a whitespace run avoids
+# quadratic backtracking for long header values.
+_OBSOLETE_FOLD_RE = re.compile(r"(?:(?<![ \t])[ \t]+)?\r\n[ \t]+")
+
+
+def _normalize_header_value(value: str) -> str:
+    if "\r\n" not in value:
+        return value
+    return _OBSOLETE_FOLD_RE.sub(" ", value)
+
+
+def _normalize_header_values(
+    message: http.client.HTTPMessage,
+) -> list[tuple[str, str]]:
+    header_items = message.items()
+    headers_changed = False
+    for index, (name, value) in enumerate(header_items):
+        normalized_value = _normalize_header_value(value)
+        if normalized_value != value:
+            header_items[index] = (name, normalized_value)
+            headers_changed = True
+
+    if headers_changed:
+        # Keep the original message in sync for downstream consumers such as
+        # cookie jars while preserving its identity and header ordering.
+        for name, _ in header_items:
+            del message[name]
+        for name, value in header_items:
+            message[name] = value
+
+    return header_items
 
 
 class HTTPConnection(_HTTPConnection):
@@ -108,9 +139,13 @@ class HTTPConnection(_HTTPConnection):
 
     #: Disable Nagle's algorithm by default.
     #: ``[(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)]``
-    default_socket_options: typing.ClassVar[connection._TYPE_SOCKET_OPTIONS] = [
-        (socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-    ]
+    #:
+    #: Use the ``socket_options`` parameter of :class:`~urllib3.PoolManager`,
+    #: :class:`~urllib3.ProxyManager`, or :class:`~urllib3.HTTPConnectionPool`
+    #: to change this behavior.
+    default_socket_options: typing.ClassVar[
+        typing.Final[connection._TYPE_SOCKET_OPTIONS]
+    ] = [(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)]
 
     #: Whether this connection verifies the host's certificate.
     is_verified: bool = False
@@ -238,19 +273,33 @@ class HTTPConnection(_HTTPConnection):
         super().set_tunnel(host, port=port, headers=headers)
         self._tunnel_scheme = scheme
 
-    if sys.version_info < (3, 11, 9) or ((3, 12) <= sys.version_info < (3, 12, 3)):
+    if sys.version_info < (3, 11, 16) or ((3, 12) <= sys.version_info < (3, 12, 14)):
         # Taken from python/cpython#100986 which was backported in 3.11.9 and 3.12.3.
         # When using connection_from_host, host will come without brackets.
+        # With a security patch from python/cpython#146211.
         def _wrap_ipv6(self, ip: bytes) -> bytes:
             if b":" in ip and ip[0] != b"["[0]:
                 return b"[" + ip + b"]"
             return ip
 
-        if sys.version_info < (3, 11, 9):
-            # `_tunnel` copied from 3.11.13 backporting
+        # Copied from CPython 3.12.13 Lib/http/client.py
+        _is_legal_header_name = staticmethod(re.compile(rb"[^:\s][^:\r\n]*").fullmatch)
+        _is_illegal_header_value = staticmethod(
+            re.compile(rb"\n(?![ \t])|\r(?![ \t\n])").search
+        )
+        _contains_disallowed_url_pchar_re = re.compile("[\x00-\x20\x7f]")
+
+        if sys.version_info < (3, 11, 16):
+            # `_tunnel` copied from 3.11.15 backporting
             # https://github.com/python/cpython/commit/0d4026432591d43185568dd31cef6a034c4b9261
             # and https://github.com/python/cpython/commit/6fbc61070fda2ffb8889e77e3b24bca4249ab4d1
+            # plus a fix from https://github.com/python/cpython/commit/56b7100b04e44ea27989242b176beb8f016b2c53
             def _tunnel(self) -> None:
+                if self._contains_disallowed_url_pchar_re.search(self._tunnel_host):  # type: ignore[arg-type]
+                    raise ValueError(
+                        "Tunnel host can't contain control characters %r"
+                        % (self._tunnel_host,)
+                    )
                 _MAXLINE = http.client._MAXLINE  # type: ignore[attr-defined]
                 connect = b"CONNECT %s:%d HTTP/1.0\r\n" % (  # type: ignore[str-format]
                     self._wrap_ipv6(self._tunnel_host.encode("ascii")),  # type: ignore[union-attr]
@@ -258,7 +307,13 @@ class HTTPConnection(_HTTPConnection):
                 )
                 headers = [connect]
                 for header, value in self._tunnel_headers.items():  # type: ignore[attr-defined]
-                    headers.append(f"{header}: {value}\r\n".encode("latin-1"))
+                    header_bytes = header.encode("latin-1")
+                    value_bytes = value.encode("latin-1")
+                    if not self._is_legal_header_name(header_bytes):
+                        raise ValueError(f"Invalid header name {header_bytes!r}")
+                    if self._is_illegal_header_value(value_bytes):
+                        raise ValueError(f"Invalid header value {value_bytes!r}")
+                    headers.append(b"%s: %s\r\n" % (header_bytes, value_bytes))
                 headers.append(b"\r\n")
                 # Making a single send() call instead of one per line encourages
                 # the host OS to use a more optimal packet size instead of
@@ -268,7 +323,7 @@ class HTTPConnection(_HTTPConnection):
 
                 response = self.response_class(self.sock, method=self._method)  # type: ignore[attr-defined]
                 try:
-                    (version, code, message) = response._read_status()  # type: ignore[attr-defined]
+                    version, code, message = response._read_status()  # type: ignore[attr-defined]
 
                     if code != http.HTTPStatus.OK:
                         self.close()
@@ -290,17 +345,29 @@ class HTTPConnection(_HTTPConnection):
                 finally:
                     response.close()
 
-        elif (3, 12) <= sys.version_info < (3, 12, 3):
-            # `_tunnel` copied from 3.12.11 backporting
+        elif (3, 12) <= sys.version_info < (3, 12, 14):
+            # `_tunnel` copied from 3.12.13 backporting
             # https://github.com/python/cpython/commit/23aef575c7629abcd4aaf028ebd226fb41a4b3c8
+            # plus a fix from https://github.com/python/cpython/commit/c00c386faa579ad71196d33408644478488e43ec
             def _tunnel(self) -> None:  # noqa: F811
+                if self._contains_disallowed_url_pchar_re.search(self._tunnel_host):  # type: ignore[arg-type]
+                    raise ValueError(
+                        "Tunnel host can't contain control characters %r"
+                        % (self._tunnel_host,)
+                    )
                 connect = b"CONNECT %s:%d HTTP/1.1\r\n" % (  # type: ignore[str-format]
                     self._wrap_ipv6(self._tunnel_host.encode("idna")),  # type: ignore[union-attr]
                     self._tunnel_port,
                 )
                 headers = [connect]
                 for header, value in self._tunnel_headers.items():  # type: ignore[attr-defined]
-                    headers.append(f"{header}: {value}\r\n".encode("latin-1"))
+                    header_bytes = header.encode("latin-1")
+                    value_bytes = value.encode("latin-1")
+                    if not self._is_legal_header_name(header_bytes):
+                        raise ValueError(f"Invalid header name {header_bytes!r}")
+                    if self._is_illegal_header_value(value_bytes):
+                        raise ValueError(f"Invalid header value {value_bytes!r}")
+                    headers.append(b"%s: %s\r\n" % (header_bytes, value_bytes))
                 headers.append(b"\r\n")
                 # Making a single send() call instead of one per line encourages
                 # the host OS to use a more optimal packet size instead of
@@ -310,7 +377,7 @@ class HTTPConnection(_HTTPConnection):
 
                 response = self.response_class(self.sock, method=self._method)  # type: ignore[attr-defined]
                 try:
-                    (version, code, message) = response._read_status()  # type: ignore[attr-defined]
+                    version, code, message = response._read_status()  # type: ignore[attr-defined]
 
                     self._raw_proxy_headers = http.client._read_headers(response.fp)  # type: ignore[attr-defined]
 
@@ -580,7 +647,8 @@ class HTTPConnection(_HTTPConnection):
                 exc_info=True,
             )
 
-        headers = HTTPHeaderDict(httplib_response.msg.items())
+        header_items = _normalize_header_values(httplib_response.msg)
+        headers = HTTPHeaderDict(header_items)
 
         response = HTTPResponse(
             body=httplib_response,
@@ -793,25 +861,39 @@ class HTTPSConnection(HTTPConnection):
             # Remove trailing '.' from fqdn hostnames to allow certificate validation
             server_hostname_rm_dot = server_hostname.rstrip(".")
 
-            sock_and_verified = _ssl_wrap_socket_and_match_hostname(
-                sock=sock,
-                cert_reqs=self.cert_reqs,
-                ssl_version=self.ssl_version,
-                ssl_minimum_version=self.ssl_minimum_version,
-                ssl_maximum_version=self.ssl_maximum_version,
-                ca_certs=self.ca_certs,
-                ca_cert_dir=self.ca_cert_dir,
-                ca_cert_data=self.ca_cert_data,
-                cert_file=self.cert_file,
-                key_file=self.key_file,
-                key_password=self.key_password,
-                server_hostname=server_hostname_rm_dot,
-                ssl_context=self.ssl_context,
-                tls_in_tls=tls_in_tls,
-                assert_hostname=self.assert_hostname,
-                assert_fingerprint=self.assert_fingerprint,
-            )
-            self.sock = sock_and_verified.socket
+            # Forwarding proxies should use proxy SSL context for
+            # wrapping since that's the connection being established,
+            # whereas tunneling proxies should use the connection's SSL
+            # context.
+            # However, for backwards compatibility reasons, if the proxy
+            # is forwarding but no proxy SSL context is provided, we
+            # fall back to using the connection's SSL context until
+            # urllib3 v3.0. Appropriate warning is emitted in
+            # ``ProxyManager.__init__``.
+            wrapped_socket: ssl.SSLSocket | SSLTransport
+            if self.proxy_is_forwarding and self.proxy_config is not None:
+                wrapped_socket = self._connect_tls_proxy(self.host, sock)
+                is_verified = self.proxy_is_verified is True
+            else:
+                wrapped_socket, is_verified = _ssl_wrap_socket_and_match_hostname(
+                    sock=sock,
+                    cert_reqs=self.cert_reqs,
+                    ssl_version=self.ssl_version,
+                    ssl_minimum_version=self.ssl_minimum_version,
+                    ssl_maximum_version=self.ssl_maximum_version,
+                    ca_certs=self.ca_certs,
+                    ca_cert_dir=self.ca_cert_dir,
+                    ca_cert_data=self.ca_cert_data,
+                    cert_file=self.cert_file,
+                    key_file=self.key_file,
+                    key_password=self.key_password,
+                    server_hostname=server_hostname_rm_dot,
+                    ssl_context=self.ssl_context,
+                    tls_in_tls=tls_in_tls,
+                    assert_hostname=self.assert_hostname,
+                    assert_fingerprint=self.assert_fingerprint,
+                )
+            self.sock = wrapped_socket
 
         # If an error occurs during connection/handshake we may need to release
         # our lock so another connection can probe the origin.
@@ -832,7 +914,7 @@ class HTTPSConnection(HTTPConnection):
         # If this connection doesn't know if the origin supports HTTP/2
         # we report back to the HTTP/2 probe our result.
         if target_supports_http2 is None:
-            supports_http2 = sock_and_verified.socket.selected_alpn_protocol() == "h2"
+            supports_http2 = wrapped_socket.selected_alpn_protocol() == "h2"
             http2_probe.set_and_release(
                 host=probe_http2_host,
                 port=probe_http2_port,
@@ -846,7 +928,7 @@ class HTTPSConnection(HTTPConnection):
         if self.proxy_is_forwarding:
             self.is_verified = False
         else:
-            self.is_verified = sock_and_verified.is_verified
+            self.is_verified = is_verified
 
         # If there's a proxy to be connected to we are fully connected.
         # This is set twice (once above and here) due to forwarding proxies
@@ -856,24 +938,47 @@ class HTTPSConnection(HTTPConnection):
         # Set `self.proxy_is_verified` unless it's already set while
         # establishing a tunnel.
         if self._has_connected_to_proxy and self.proxy_is_verified is None:
-            self.proxy_is_verified = sock_and_verified.is_verified
+            self.proxy_is_verified = is_verified
 
     def _connect_tls_proxy(self, hostname: str, sock: socket.socket) -> ssl.SSLSocket:
         """
-        Establish a TLS connection to the proxy using the provided SSL context.
+        Establish a TLS connection to the proxy using proxy-specific policy.
         """
-        # `_connect_tls_proxy` is called when self._tunnel_host is truthy.
         proxy_config = typing.cast(ProxyConfig, self.proxy_config)
-        ssl_context = proxy_config.ssl_context
+        proxy_ssl_context = proxy_config.ssl_context
+
+        ssl_context: ssl.SSLContext | None
+        cert_reqs: int | str | None
+        if proxy_ssl_context is not None:
+            # Prefer the proxy's cert policy for the proxy connection
+            ssl_context = proxy_ssl_context
+            cert_reqs = proxy_ssl_context.verify_mode
+            ca_certs = None
+            ca_cert_dir = None
+            ca_cert_data = None
+            ssl_version = None
+            ssl_minimum_version = None
+            ssl_maximum_version = None
+        else:
+            # Otherwise we inherit the pool's cert policies
+            ssl_context = self.ssl_context if self.proxy_is_forwarding else None
+            cert_reqs = self.cert_reqs
+            ca_certs = self.ca_certs
+            ca_cert_dir = self.ca_cert_dir
+            ca_cert_data = self.ca_cert_data
+            ssl_version = self.ssl_version
+            ssl_minimum_version = self.ssl_minimum_version
+            ssl_maximum_version = self.ssl_maximum_version
+
         sock_and_verified = _ssl_wrap_socket_and_match_hostname(
             sock,
-            cert_reqs=self.cert_reqs,
-            ssl_version=self.ssl_version,
-            ssl_minimum_version=self.ssl_minimum_version,
-            ssl_maximum_version=self.ssl_maximum_version,
-            ca_certs=self.ca_certs,
-            ca_cert_dir=self.ca_cert_dir,
-            ca_cert_data=self.ca_cert_data,
+            cert_reqs=cert_reqs,
+            ssl_version=ssl_version,
+            ssl_minimum_version=ssl_minimum_version,
+            ssl_maximum_version=ssl_maximum_version,
+            ca_certs=ca_certs,
+            ca_cert_dir=ca_cert_dir,
+            ca_cert_data=ca_cert_data,
             server_hostname=hostname,
             ssl_context=ssl_context,
             assert_hostname=proxy_config.assert_hostname,

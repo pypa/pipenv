@@ -74,6 +74,8 @@ class StyleMeta(type):
                     return col[0] * 2 + col[1] * 2 + col[2] * 2
             elif text == '':
                 return ''
+            elif text == 'transparent':
+                return text
             elif text.startswith('var') or text.startswith('calc'):
                 return text
             assert False, f"wrong color format {text!r}"

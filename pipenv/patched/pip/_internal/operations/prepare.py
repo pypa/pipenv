@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement
+from pipenv.patched.pip._vendor.packaging.requirements import InvalidRequirement, Requirement
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 
 from pipenv.patched.pip._internal.build_env import BuildEnvironmentInstaller, BuildIsolationMode
@@ -31,6 +31,7 @@ from pipenv.patched.pip._internal.exceptions import (
 )
 from pipenv.patched.pip._internal.index.package_finder import PackageFinder
 from pipenv.patched.pip._internal.metadata import BaseDistribution, get_metadata_distribution
+from pipenv.patched.pip._internal.metadata.direct_references import check_pypi_direct_references
 from pipenv.patched.pip._internal.models.direct_url import ArchiveInfo, DirectUrl
 from pipenv.patched.pip._internal.models.link import Link, join_within_directory
 from pipenv.patched.pip._internal.models.wheel import Wheel
@@ -83,6 +84,17 @@ def _get_prepared_distribution(
                 build_env_installer, build_isolation, check_build_deps, allow_editables
             )
     return abstract_dist.get_metadata_distribution()
+
+
+def _check_linked_requirement_metadata(
+    req: InstallRequirement,
+    distribution: BaseDistribution,
+) -> None:
+    """Apply source-dependent checks to prepared metadata."""
+    source_link = req.source_link
+    if source_link is None:
+        raise InstallationError(f"Cannot prepare {req}: the source link is missing.")
+    check_pypi_direct_references(distribution, source_link)
 
 
 def unpack_vcs_link(link: Link, location: str, verbosity: int) -> None:
@@ -227,48 +239,21 @@ def _check_download_dir(
     return download_path
 
 
-def _canonicalize_requirement(raw: str) -> str:
-    """Return a normalized form of a PEP 508 requirement string.
-
-    Used to compare ``Requires-Dist`` entries from two sources of metadata
-    for the same distribution without being confused by superficial
-    differences in name casing, extra casing, or extras ordering. May raise
-    ``InvalidRequirement`` if ``raw`` is not a valid PEP 508 string.
-
-    TODO: once https://github.com/pypa/packaging/pull/1278 is released and
-    vendored, ``Requirement.__eq__`` will canonicalize requested extras and
-    this manual normalization can be dropped in favour of comparing
-    ``Requirement`` objects directly.
-    """
-    parsed = get_requirement(raw)
-    parts: list[str] = [canonicalize_name(parsed.name)]
-    if parsed.extras:
-        normalized_extras = sorted(canonicalize_name(e) for e in parsed.extras)
-        parts.append(f"[{','.join(normalized_extras)}]")
-    if parsed.specifier:
-        parts.append(str(parsed.specifier))
-    if parsed.url:
-        parts.append(f" @ {parsed.url}")
-    if parsed.marker:
-        parts.append(f"; {parsed.marker}")
-    return "".join(parts)
-
-
 def _canonical_requires(
     req: InstallRequirement, dist: BaseDistribution, source: str
-) -> frozenset[str]:
+) -> frozenset[Requirement]:
     """Return the canonicalized ``Requires-Dist`` entries of ``dist``.
 
     ``source`` describes which metadata file ``dist`` was parsed from, for
     use in error messages.
     """
-    canonical: set[str] = set()
+    canonical = set()
     for raw in dist.iter_raw_dependencies():
         try:
             # strip() because a folded metadata header may be returned
             # with a leading newline; iter_dependencies() strips for the
             # same reason.
-            canonical.add(_canonicalize_requirement(raw.strip()))
+            canonical.add(get_requirement(raw.strip()))
         except InvalidRequirement as e:
             raise MetadataInvalid(req, f"Requires-Dist in {source}: {e}")
     return frozenset(canonical)
@@ -316,8 +301,8 @@ def _check_sidecar_matches_wheel(
         raise SidecarMetadataInconsistent(
             req,
             "Requires-Dist",
-            ", ".join(sorted(sidecar_requires - wheel_requires)),
-            ", ".join(sorted(wheel_requires - sidecar_requires)),
+            ", ".join(sorted(map(str, sidecar_requires - wheel_requires))),
+            ", ".join(sorted(map(str, wheel_requires - sidecar_requires))),
         )
 
     if sidecar_dist.requires_python != wheel_dist.requires_python:
@@ -464,7 +449,8 @@ class RequirementPreparer:
         # (For example, we can raise VcsHashUnsupported for a VCS URL
         # rather than HashMissing.)
         if not self.require_hashes:
-            return req.hashes(trust_internet=True)
+            # An index-provided hash must not override one supplied by the user.
+            return req.hashes(trust_internet=not req.has_hash_options)
 
         # We could check these first 2 conditions inside unpack_url
         # and save repetition of conditions, but then we would
@@ -651,6 +637,7 @@ class RequirementPreparer:
                 # The file is not available, attempt to fetch only metadata
                 metadata_dist = self._fetch_metadata_only(req)
                 if metadata_dist is not None:
+                    _check_linked_requirement_metadata(req, metadata_dist)
                     req.needs_more_preparation = True
                     req.set_dist(metadata_dist)
                     # Ensure download_info is available even in dry-run mode
@@ -788,6 +775,7 @@ class RequirementPreparer:
             self.check_build_deps,
             self.allow_editables,
         )
+        _check_linked_requirement_metadata(req, dist)
 
         # If a PEP 658 .metadata file was used, check that fields relevant for
         # dependency resolution match with the wheel's METADATA file.

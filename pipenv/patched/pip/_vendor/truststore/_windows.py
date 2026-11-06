@@ -1,8 +1,8 @@
-import contextlib
+import contextlib  # noqa: I001
 import ssl
 import typing
-from ctypes import WinDLL  # type: ignore
-from ctypes import WinError  # type: ignore
+from ctypes import WinDLL  # type: ignore[attr-defined]
+from ctypes import WinError  # type: ignore[attr-defined]
 from ctypes import (
     POINTER,
     Structure,

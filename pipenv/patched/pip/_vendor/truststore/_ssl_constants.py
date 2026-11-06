@@ -1,6 +1,5 @@
 import ssl
 import sys
-import typing
 
 # Hold on to the original class so we can create it consistently
 # even if we inject our own SSLContext into the ssl module.
@@ -12,7 +11,7 @@ _original_super_SSLContext = super(_original_SSLContext, _original_SSLContext)
 # subclass the SSLContext.
 
 # This is returned by truststore.SSLContext.__class__()
-_truststore_SSLContext_dunder_class: typing.Optional[type]
+_truststore_SSLContext_dunder_class: type | None
 
 # This value is the superclass of truststore.SSLContext.
 _truststore_SSLContext_super_class: type

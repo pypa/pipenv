@@ -8,13 +8,14 @@ import tempfile
 import traceback
 from collections.abc import Callable, Generator
 from contextlib import ExitStack, contextmanager
+from enum import Enum
 from pathlib import Path
 from typing import (
     Any,
     TypeVar,
 )
 
-from pipenv.patched.pip._internal.utils.misc import enum, rmtree
+from pipenv.patched.pip._internal.utils.misc import rmtree
 
 logger = logging.getLogger(__name__)
 
@@ -23,11 +24,13 @@ _T = TypeVar("_T", bound="TempDirectory")
 
 # Kinds of temporary directories. Only needed for ones that are
 # globally-managed.
-tempdir_kinds = enum(
-    BUILD_ENV="build-env",
-    EPHEM_WHEEL_CACHE="ephem-wheel-cache",
-    REQ_BUILD="req-build",
-)
+# TODO: Use StrEnum when Python 3.10 support is dropped.
+class TempDirectoryKind(str, Enum):
+    BUILD_ENV = "build-env"
+    EPHEM_WHEEL_CACHE = "ephem-wheel-cache"
+    REQ_BUILD = "req-build"
+
+    __str__ = str.__str__
 
 
 _tempdir_manager: ExitStack | None = None

@@ -153,11 +153,13 @@ class ResourceFinder(object):
         parts.insert(0, self.base)
         result = os.path.join(*parts)
         result = self._adjust_path(result)
+        # See issue 263: code below commented out as it proved to be
+        # too aggressively cautious, causing problems in valid use case scenarios.
         # Confine the resolved resource to the package base so a resource
         # name containing '..' cannot read files outside the package.
-        if not self._is_in_base(result):
-            raise DistlibException('Resource name escapes package: '
-                                   '%r' % resource_name)
+        # if not self._is_in_base(result):
+            # raise DistlibException('Resource name escapes package: '
+                                   # '%r' % resource_name)
         return result
 
     def _find(self, path):

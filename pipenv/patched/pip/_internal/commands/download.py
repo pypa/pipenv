@@ -84,7 +84,7 @@ class DownloadCommand(RequirementCommand):
         options.editables = []
 
         cmdoptions.check_dist_restriction(options)
-        cmdoptions.check_build_constraints(options)
+        self.check_build_constraints(options)
         cmdoptions.check_release_control_exclusive(options)
         cmdoptions.check_only_deps_option_does_not_conflict(options)
 

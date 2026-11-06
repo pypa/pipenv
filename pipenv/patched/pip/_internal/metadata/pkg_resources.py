@@ -16,7 +16,12 @@ from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonical
 from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pip._internal.exceptions import InvalidWheel, NoneMetadataError, UnsupportedWheel
+from pipenv.patched.pip._internal.exceptions import (
+    InstallationError,
+    InvalidWheel,
+    NoneMetadataError,
+    UnsupportedWheel,
+)
 from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_location
 from pipenv.patched.pip._internal.utils.misc import display_path, normalize_path
 from pipenv.patched.pip._internal.utils.wheel import parse_wheel, read_wheel_metadata_file
@@ -208,7 +213,13 @@ class Distribution(BaseDistribution):
         return content
 
     def iter_entry_points(self) -> Iterable[BaseEntryPoint]:
-        for group, entries in self._dist.get_entry_map().items():
+        try:
+            entry_map = self._dist.get_entry_map()
+        except ValueError as e:
+            raise InstallationError(
+                f"Error parsing entry points for {self.raw_name}: {e}"
+            ) from e
+        for group, entries in entry_map.items():
             for name, entry_point in entries.items():
                 name, _, value = str(entry_point).partition("=")
                 yield EntryPoint(name=name.strip(), value=value.strip(), group=group)

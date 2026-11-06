@@ -200,14 +200,15 @@ diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/requirements.py 
 diff --git a/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py b/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
 --- a/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
 +++ b/pipenv/patched/pip/_internal/resolution/resolvelib/factory.py
-@@ -47,7 +47,10 @@
+@@ -47,7 +47,11 @@
  from pip._internal.resolution.base import InstallRequirementProvider
  from pip._internal.utils.compatibility_tags import get_supported
  from pip._internal.utils.hashes import Hashes
--from pip._internal.utils.packaging import get_requirement
+-from pip._internal.utils.packaging import get_requirement, requirement_without_marker
 +from pip._internal.utils.packaging import (
 +    get_requirement,
 +    is_prerelease_of_satisfying_lower_bound,
++    requirement_without_marker,
 +)
  from pip._internal.utils.virtualenv import running_under_virtualenv
 

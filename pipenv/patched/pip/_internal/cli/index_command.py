@@ -100,6 +100,13 @@ class SessionCommandMixin(CommandContextMixIn):
         else:
             ssl_context = None
 
+        has_custom_ca = bool(options.cert)
+        if options.proxy is None and not options.no_proxy_env:
+            # Requests reads CA bundle environment variables only with trust_env.
+            has_custom_ca = has_custom_ca or bool(
+                os.environ.get("REQUESTS_CA_BUNDLE") or os.environ.get("CURL_CA_BUNDLE")
+            )
+
         session = PipSession(
             cache=os.path.join(cache_dir, "http-v2") if cache_dir else None,
             retries=retries if retries is not None else options.retries,
@@ -107,6 +114,7 @@ class SessionCommandMixin(CommandContextMixIn):
             trusted_hosts=options.trusted_hosts,
             index_urls=self._get_index_urls(options),
             ssl_context=ssl_context,
+            use_ssl_context_for_proxy=not has_custom_ca,
             refresh_package=getattr(options, "refresh_package", set()),
         )
 

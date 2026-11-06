@@ -40,8 +40,10 @@ like this:
 
 from __future__ import annotations
 
-import OpenSSL.SSL  # type: ignore[import-not-found]
+import OpenSSL.SSL
 from cryptography import x509
+from cryptography.hazmat.primitives.serialization import load_pem_private_key
+from cryptography.x509.oid import NameOID
 
 try:
     from cryptography.x509 import UnsupportedExtension  # type: ignore[attr-defined]
@@ -54,13 +56,12 @@ except ImportError:
 import logging
 import ssl
 import typing
-from io import BytesIO
 from socket import socket as socket_cls
 
 from .. import util
 
 if typing.TYPE_CHECKING:
-    from OpenSSL.crypto import X509  # type: ignore[import-not-found]
+    from OpenSSL.crypto import X509
 
 
 __all__ = ["inject_into_urllib3", "extract_from_urllib3"]
@@ -69,8 +70,10 @@ __all__ = ["inject_into_urllib3", "extract_from_urllib3"]
 _openssl_versions: dict[int, int] = {
     util.ssl_.PROTOCOL_TLS: OpenSSL.SSL.SSLv23_METHOD,  # type: ignore[attr-defined]
     util.ssl_.PROTOCOL_TLS_CLIENT: OpenSSL.SSL.SSLv23_METHOD,  # type: ignore[attr-defined]
-    ssl.PROTOCOL_TLSv1: OpenSSL.SSL.TLSv1_METHOD,
 }
+
+if hasattr(ssl, "PROTOCOL_TLSv1") and hasattr(OpenSSL.SSL, "TLSv1_METHOD"):
+    _openssl_versions[ssl.PROTOCOL_TLSv1] = OpenSSL.SSL.TLSv1_METHOD
 
 if hasattr(ssl, "PROTOCOL_TLSv1_1") and hasattr(OpenSSL.SSL, "TLSv1_1_METHOD"):
     _openssl_versions[ssl.PROTOCOL_TLSv1_1] = OpenSSL.SSL.TLSv1_1_METHOD
@@ -270,6 +273,15 @@ def get_subj_alt_name(peer_cert: X509) -> list[tuple[str, str]]:
     return names
 
 
+def _get_common_name(peer_cert: X509) -> str | None:
+    """
+    Given a pyOpenSSL certificate, return the subject's common name.
+    """
+    cert = peer_cert.to_cryptography()
+    names = cert.subject.get_attributes_for_oid(NameOID.COMMON_NAME)
+    return typing.cast(str, names[0].value) if names else None
+
+
 class WrappedSocket:
     """API-compatibility wrapper for Python OpenSSL's Connection-class."""
 
@@ -318,11 +330,11 @@ class WrappedSocket:
         except OpenSSL.SSL.Error as e:
             raise ssl.SSLError(f"read error: {e!r}") from e
         else:
-            return data  # type: ignore[no-any-return]
+            return data
 
     def recv_into(self, *args: typing.Any, **kwargs: typing.Any) -> int:
         try:
-            return self.connection.recv_into(*args, **kwargs)  # type: ignore[no-any-return]
+            return self.connection.recv_into(*args, **kwargs)
         except OpenSSL.SSL.SysCallError as e:
             if self.suppress_ragged_eofs and e.args == (-1, "Unexpected EOF"):
                 return 0
@@ -349,7 +361,7 @@ class WrappedSocket:
     def _send_until_done(self, data: bytes) -> int:
         while True:
             try:
-                return self.connection.send(data)  # type: ignore[no-any-return]
+                return self.connection.send(data)
             except OpenSSL.SSL.WantWriteError as e:
                 if not util.wait_for_write(self.socket, self.socket.gettimeout()):
                     raise TimeoutError() from e
@@ -382,24 +394,32 @@ class WrappedSocket:
         except OpenSSL.SSL.Error:
             return
 
+    @typing.overload
+    def getpeercert(
+        self, binary_form: typing.Literal[False] = False
+    ) -> dict[str, list[typing.Any]] | None: ...
+
+    @typing.overload
+    def getpeercert(self, binary_form: typing.Literal[True]) -> bytes | None: ...
+
     def getpeercert(
         self, binary_form: bool = False
-    ) -> dict[str, list[typing.Any]] | None:
+    ) -> dict[str, list[typing.Any]] | bytes | None:
         x509 = self.connection.get_peer_certificate()
 
-        if not x509:
-            return x509  # type: ignore[no-any-return]
+        if x509 is None:
+            return None
 
         if binary_form:
-            return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, x509)  # type: ignore[no-any-return]
+            return OpenSSL.crypto.dump_certificate(OpenSSL.crypto.FILETYPE_ASN1, x509)
 
         return {
-            "subject": ((("commonName", x509.get_subject().CN),),),  # type: ignore[dict-item]
+            "subject": ((("commonName", _get_common_name(x509)),),),  # type: ignore[dict-item]
             "subjectAltName": get_subj_alt_name(x509),
         }
 
     def version(self) -> str:
-        return self.connection.get_protocol_version_name()  # type: ignore[no-any-return]
+        return self.connection.get_protocol_version_name()
 
     def selected_alpn_protocol(self) -> str | None:
         alpn_proto = self.connection.get_alpn_proto_negotiated()
@@ -441,7 +461,7 @@ class PyOpenSSLContext:
     @verify_flags.setter
     def verify_flags(self, value: int) -> None:
         self._verify_flags = value
-        self._ctx.get_cert_store().set_flags(self._verify_flags)
+        self._ctx.get_cert_store().set_flags(self._verify_flags)  # type: ignore[union-attr]
 
     @property
     def verify_mode(self) -> int:
@@ -472,7 +492,7 @@ class PyOpenSSLContext:
         try:
             self._ctx.load_verify_locations(cafile, capath)
             if cadata is not None:
-                self._ctx.load_verify_locations(BytesIO(cadata))
+                self._ctx.load_verify_locations(cadata)
         except OpenSSL.SSL.Error as e:
             raise ssl.SSLError(f"unable to load trusted certificates: {e!r}") from e
 
@@ -480,21 +500,41 @@ class PyOpenSSLContext:
         self,
         certfile: str,
         keyfile: str | None = None,
-        password: str | None = None,
+        password: str | bytes | None = None,
     ) -> None:
         try:
             self._ctx.use_certificate_chain_file(certfile)
             if password is not None:
                 if not isinstance(password, bytes):
-                    password = password.encode("utf-8")  # type: ignore[assignment]
-                self._ctx.set_passwd_cb(lambda *_: password)
-            self._ctx.use_privatekey_file(keyfile or certfile)
-        except OpenSSL.SSL.Error as e:
+                    password = password.encode("utf-8")
+                # pyOpenSSL added cryptography-key support in 24.3.0.
+                # Keep using the older password-callback path until 2026's
+                # versions because set_passwd_cb() became deprecated in 26.3.0.
+                if int(OpenSSL.__version__.split(".")[0]) >= 26:
+                    with open(keyfile or certfile, "rb") as key_file:
+                        key_data = key_file.read()
+                    try:
+                        private_key = load_pem_private_key(key_data, password)
+                    except TypeError:
+                        # Match SSLContext by ignoring passwords supplied
+                        # for unencrypted keys.
+                        # Incorrect passwords for encrypted keys raise
+                        # ValueError instead.
+                        private_key = load_pem_private_key(key_data, None)
+                    # cryptography's loader returns a wider private-key union
+                    # than pyOpenSSL accepts, so we add `type: ignore` here.
+                    self._ctx.use_privatekey(private_key)  # type: ignore[arg-type]
+                else:
+                    self._ctx.set_passwd_cb(lambda *_: password)
+                    self._ctx.use_privatekey_file(keyfile or certfile)
+            else:
+                self._ctx.use_privatekey_file(keyfile or certfile)
+        except (OpenSSL.SSL.Error, TypeError, ValueError) as e:
             raise ssl.SSLError(f"Unable to load certificate chain: {e!r}") from e
 
     def set_alpn_protocols(self, protocols: list[bytes | str]) -> None:
         protocols = [util.util.to_bytes(p, "ascii") for p in protocols]
-        return self._ctx.set_alpn_protos(protocols)  # type: ignore[no-any-return]
+        return self._ctx.set_alpn_protos(protocols)  # type: ignore[arg-type]
 
     def wrap_socket(
         self,

@@ -2,19 +2,24 @@ from __future__ import annotations
 
 import functools
 import os
+import shutil
 import sys
 import sysconfig
 from collections.abc import Callable, Generator, Iterable
 from importlib.util import cache_from_source
 from typing import Any
 
-from pipenv.patched.pip._internal.exceptions import LegacyDistutilsInstall, UninstallMissingRecord
+from pipenv.patched.pip._internal.exceptions import (
+    BlockedImportError,
+    LegacyDistutilsInstall,
+    UninstallMissingRecord,
+)
 from pipenv.patched.pip._internal.locations import get_bin_prefix, get_bin_user
 from pipenv.patched.pip._internal.metadata import BaseDistribution
 from pipenv.patched.pip._internal.utils.compat import WINDOWS
 from pipenv.patched.pip._internal.utils.egg_link import egg_link_path_from_location
 from pipenv.patched.pip._internal.utils.logging import getLogger, indent_log
-from pipenv.patched.pip._internal.utils.misc import ask, normalize_path, renames, rmtree
+from pipenv.patched.pip._internal.utils.misc import ask, normalize_path, rmtree
 from pipenv.patched.pip._internal.utils.temp_dir import AdjacentTempDirectory, TempDirectory
 from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
@@ -206,6 +211,8 @@ class StashedUninstallPathSet:
         # (old path, new path) tuples for each move that may need
         # to be undone.
         self._moves: list[tuple[str, str]] = []
+        # Interrupted transfers must not be retried automatically.
+        self._manual_recovery: list[tuple[str, str]] = []
 
     def _get_directory_stash(self, path: str) -> str:
         """Stashes a directory.
@@ -249,51 +256,102 @@ class StashedUninstallPathSet:
         return save_dir.path
 
     def stash(self, path: str) -> str:
-        """Stashes the directory or file and returns its new location.
-        Handle symlinks as files to avoid modifying the symlink targets.
-        """
+        """Move a path into temporary storage and return its new location."""
         path_is_dir = os.path.isdir(path) and not os.path.islink(path)
         if path_is_dir:
             new_path = self._get_directory_stash(path)
         else:
             new_path = self._get_file_stash(path)
 
-        self._moves.append((path, new_path))
         if path_is_dir and os.path.isdir(new_path):
-            # If we're moving a directory, we need to
-            # remove the destination first or else it will be
-            # moved to inside the existing directory.
-            # We just created new_path ourselves, so it will
-            # be removable.
+            # Remove the empty placeholder so the directory moves to this exact path.
             os.rmdir(new_path)
-        renames(path, new_path)
+
+        parent = os.path.dirname(new_path)
+        if not os.path.exists(parent):
+            os.makedirs(parent)
+
+        try:
+            shutil.move(path, new_path)
+        except BaseException:
+            if os.path.lexists(new_path):
+                # A failed move may leave either path with only part of the data.
+                self._manual_recovery.append((path, new_path))
+            raise
+        self._moves.append((path, new_path))
+
+        old_parent, name = os.path.split(path)
+        if old_parent and name:
+            try:
+                os.removedirs(old_parent)
+            except OSError:
+                pass
+
         return new_path
 
     def commit(self) -> None:
-        """Commits the uninstall by removing stashed files."""
+        """Remove backups unless an interrupted transfer needs manual recovery."""
+        if self._manual_recovery:
+            return
+
         for save_dir in self._save_dirs.values():
             save_dir.cleanup()
         self._moves = []
         self._save_dirs = {}
 
+    def _restore(self, original: str, stashed: str) -> None:
+        """Restore a completed stash and record failures for manual recovery."""
+        try:
+            # Check the backup before removing a replacement.
+            os.lstat(stashed)
+
+            if os.path.isfile(original) or os.path.islink(original):
+                os.unlink(original)
+            elif os.path.isdir(original):
+                rmtree(original)
+
+            parent, name = os.path.split(original)
+            if parent and name and not os.path.exists(parent):
+                os.makedirs(parent)
+
+            shutil.move(stashed, original)
+        except BaseException:
+            self._manual_recovery.append((original, stashed))
+            raise
+
     def rollback(self) -> None:
-        """Undoes the uninstall by moving stashed files back."""
+        """Restore stashed files, keeping backups when restoration fails."""
         for p in self._moves:
             logger.info("Moving to %s\n from %s", *p)
 
-        for new_path, path in self._moves:
-            try:
-                logger.debug("Replacing %s from %s", new_path, path)
-                if os.path.isfile(new_path) or os.path.islink(new_path):
-                    os.unlink(new_path)
-                elif os.path.isdir(new_path):
-                    rmtree(new_path)
-                renames(path, new_path)
-            except OSError as ex:
-                logger.error("Failed to restore %s", new_path)
-                logger.debug("Exception: %s", ex)
+        attempted: set[tuple[str, str]] = set()
+        try:
+            for original, stashed in self._moves:
+                try:
+                    logger.debug("Replacing %s from %s", original, stashed)
+                    attempted.add((original, stashed))
+                    self._restore(original, stashed)
+                except OSError as ex:
+                    logger.debug("Exception: %s", ex)
+        finally:
+            # Retrying an interrupted move could overwrite the complete copy.
+            self._moves = [move for move in self._moves if move not in attempted]
 
         self.commit()
+
+    def report_failed_recovery(self) -> None:
+        """Report retained backups that still need manual restoration."""
+        for original, backup in self.recovery_paths:
+            logger.error(
+                "Could not restore %r from %r. Check both paths before retrying.",
+                original,
+                backup,
+            )
+
+    @property
+    def recovery_paths(self) -> tuple[tuple[str, str], ...]:
+        """Return original paths and their pending backup locations."""
+        return tuple(self._moves + self._manual_recovery)
 
     @property
     def can_rollback(self) -> bool:
@@ -374,14 +432,22 @@ class UninstallPathSet:
 
                 for_rename = compress_for_rename(self._paths)
 
-                for path in sorted(compact(for_rename)):
-                    moved.stash(path)
-                    logger.verbose("Removing file or directory %s", path)
+                try:
+                    for path in sorted(compact(for_rename)):
+                        moved.stash(path)
+                        logger.verbose("Removing file or directory %s", path)
 
-                for pth in self._pth.values():
-                    pth.remove()
+                    for pth in self._pth.values():
+                        pth.remove()
 
-                logger.info("Successfully uninstalled %s", dist_name_version)
+                    logger.info("Successfully uninstalled %s", dist_name_version)
+                except (OSError, BlockedImportError):
+                    if moved.can_rollback:
+                        self.rollback()
+                    else:
+                        moved.commit()
+                        moved.report_failed_recovery()
+                    raise
 
     def _allowed_to_proceed(self, verbose: bool) -> bool:
         """Display which files would be deleted and prompt for confirmation"""
@@ -411,16 +477,24 @@ class UninstallPathSet:
 
         return ask("Proceed (Y/n)? ", ("y", "n", "")) != "n"
 
+    @property
+    def can_rollback(self) -> bool:
+        return self._moved_paths.can_rollback
+
     def rollback(self) -> None:
         """Rollback the changes previously made by remove()."""
-        if not self._moved_paths.can_rollback:
+        # Manual file recovery can still leave saved .pth entries to restore.
+        if not self.can_rollback and not self._moved_paths.recovery_paths:
             logger.error(
                 "Can't roll back %s; was not uninstalled",
                 self._dist.raw_name,
             )
             return
         logger.info("Rolling back uninstall of %s", self._dist.raw_name)
-        self._moved_paths.rollback()
+        try:
+            self._moved_paths.rollback()
+        finally:
+            self._moved_paths.report_failed_recovery()
         for pth in self._pth.values():
             pth.rollback()
 
@@ -614,23 +688,26 @@ class UninstallPthEntries:
         if not os.path.isfile(self.file):
             logger.warning("Cannot remove entries from nonexistent file %s", self.file)
             return
+
         with open(self.file, "rb") as fh:
-            # windows uses '\r\n' with py3k, but uses '\n' with py2.x
             lines = fh.readlines()
-            self._saved_lines = lines
+            self._saved_lines = lines.copy()
+
         if any(b"\r\n" in line for line in lines):
             endline = "\r\n"
         else:
             endline = "\n"
-        # handle missing trailing newline
+        # Match entries even when the last line has no newline.
         if lines and not lines[-1].endswith(endline.encode("utf-8")):
             lines[-1] = lines[-1] + endline.encode("utf-8")
+
         for entry in self.entries:
             try:
                 logger.verbose("Removing entry: %s", entry)
                 lines.remove((entry + endline).encode("utf-8"))
             except ValueError:
                 pass
+
         with open(self.file, "wb") as fh:
             fh.writelines(lines)
 
@@ -638,7 +715,15 @@ class UninstallPthEntries:
         if self._saved_lines is None:
             logger.error("Cannot roll back changes to %s, none were made", self.file)
             return False
+
         logger.debug("Rolling %s back to previous state", self.file)
-        with open(self.file, "wb") as fh:
-            fh.writelines(self._saved_lines)
+        try:
+            with open(self.file, "wb") as fh:
+                fh.writelines(self._saved_lines)
+        except (OSError, BlockedImportError):
+            logger.error(
+                "Could not restore %r. Check this file before retrying.", self.file
+            )
+            raise
+
         return True

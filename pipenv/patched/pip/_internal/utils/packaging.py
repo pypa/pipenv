@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import functools
 import logging
 
@@ -83,3 +84,14 @@ def get_requirement(req_string: str) -> Requirement:
     # minimize repeated parsing of the same string to construct equivalent
     # Requirement objects.
     return Requirement(req_string)
+
+
+def requirement_without_marker(req: Requirement) -> Requirement:
+    """Return a copy of ``req`` with its environment marker removed.
+
+    Intended for error messages. The original is left unchanged, which
+    matters because ``get_requirement`` caches and shares instances.
+    """
+    stripped = copy.copy(req)
+    stripped.marker = None
+    return stripped

@@ -13,7 +13,7 @@ from pipenv.patched.pip._internal.build_env.base import (
     Prefix,
 )
 from pipenv.patched.pip._internal.exceptions import VenvCreationError, VenvImportError
-from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, tempdir_kinds
+from pipenv.patched.pip._internal.utils.temp_dir import TempDirectory, TempDirectoryKind
 
 if TYPE_CHECKING:
     from pipenv.patched.pip._internal.req.req_install import InstallRequirement
@@ -39,7 +39,7 @@ class VenvBuildEnvironment(BuildEnvironment):
             raise VenvImportError
 
         self._env_path = TempDirectory(
-            kind=tempdir_kinds.BUILD_ENV, globally_managed=True
+            kind=TempDirectoryKind.BUILD_ENV, globally_managed=True
         ).path
         # Use symlinks to support relocatable Python installations on POSIX, including
         # python-build-standalone. This matches upstream venv CLI's behaviour.

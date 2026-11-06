@@ -127,10 +127,11 @@ class HTTP2Connection(HTTPSConnection):
         self._request_url = url or "/"
         self._validate_path(url)  # type: ignore[attr-defined]
 
+        port = self.port if self.port is not None else 443
         if ":" in self.host:
-            authority = f"[{self.host}]:{self.port or 443}"
+            authority = f"[{self.host}]:{port}"
         else:
-            authority = f"{self.host}:{self.port or 443}"
+            authority = f"{self.host}:{port}"
 
         self._headers.append((b":scheme", b"https"))
         self._headers.append((b":method", method.encode()))

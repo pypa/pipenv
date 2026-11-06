@@ -49,6 +49,7 @@ from pipenv.patched.pip._internal.utils.hashes import Hashes
 from pipenv.patched.pip._internal.utils.packaging import (
     get_requirement,
     is_prerelease_of_satisfying_lower_bound,
+    requirement_without_marker,
 )
 from pipenv.patched.pip._internal.utils.virtualenv import running_under_virtualenv
 
@@ -695,11 +696,12 @@ class Factory:
     def _report_single_requirement_conflict(
         self, req: Requirement, parent: Candidate | None
     ) -> DistributionNotFound:
-        if parent is None:
-            req_disp = str(req)
+        _, ireq = req.get_candidate_lookup()
+        if ireq is not None and ireq.req is not None:
+            req_str = str(requirement_without_marker(ireq.req))
         else:
-            req_disp = f"{req} (from {parent.name})"
-
+            req_str = str(req)
+        req_disp = req_str if parent is None else f"{req_str} (from {parent.name})"
         cands = self._finder.find_all_candidates(req.project_name)
         skipped_by_requires_python = self._finder.requires_python_skipped_reasons()
 
@@ -772,8 +774,7 @@ class Factory:
                 "using the '-r' flag to install the packages listed in "
                 "requirements.txt"
             )
-
-        return DistributionNotFound(f"No matching distribution found for {req}")
+        return DistributionNotFound(f"No matching distribution found for {req_disp}")
 
     def _has_any_candidates(self, project_name: str) -> bool:
         """

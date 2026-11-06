@@ -15,7 +15,7 @@ from pipenv.patched.pip._vendor.packaging.utils import NormalizedName, canonical
 from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 
-from pipenv.patched.pip._internal.exceptions import InvalidWheel, UnsupportedWheel
+from pipenv.patched.pip._internal.exceptions import InstallationError, InvalidWheel, UnsupportedWheel
 from pipenv.patched.pip._internal.metadata.base import (
     BaseDistribution,
     BaseEntryPoint,
@@ -199,7 +199,13 @@ class Distribution(BaseDistribution):
 
     def iter_entry_points(self) -> Iterable[BaseEntryPoint]:
         # importlib.metadata's EntryPoint structure satisfies BaseEntryPoint.
-        return self._dist.entry_points
+        try:
+            return self._dist.entry_points
+        except ValueError as e:
+            # Python 3.15+ validates entry points while parsing.
+            raise InstallationError(
+                f"Error parsing entry points for {self.raw_name}: {e}"
+            ) from e
 
     def _metadata_impl(self) -> email.message.Message:
         # From Python 3.10+, importlib.metadata declares PackageMetadata as the

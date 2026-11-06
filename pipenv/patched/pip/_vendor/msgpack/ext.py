@@ -2,6 +2,8 @@ import datetime
 import struct
 from collections import namedtuple
 
+_EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
+
 
 class ExtType(namedtuple("ExtType", "code data")):
     """ExtType represents ext type in msgpack."""
@@ -156,8 +158,7 @@ class Timestamp:
 
         :rtype: `datetime.datetime`
         """
-        utc = datetime.timezone.utc
-        return datetime.datetime.fromtimestamp(0, utc) + datetime.timedelta(
+        return _EPOCH + datetime.timedelta(
             seconds=self.seconds, microseconds=self.nanoseconds // 1000
         )
 
@@ -167,4 +168,17 @@ class Timestamp:
 
         :rtype: Timestamp
         """
-        return Timestamp(seconds=int(dt.timestamp()), nanoseconds=dt.microsecond * 1000)
+        # Use integer timedelta arithmetic (like the Cython packer) rather than
+        # ``int(dt.timestamp() // 1)``.  ``datetime.timestamp()`` returns a float
+        # that cannot hold microsecond precision for datetimes far from the epoch,
+        # so it may round the whole-second part up while the exact ``microsecond``
+        # is still used for the nanoseconds -- producing a Timestamp one second in
+        # the future (and OverflowError near datetime.max).
+        if dt.tzinfo is None:
+            # Match datetime.timestamp(): a naive datetime is treated as local time.
+            dt = dt.astimezone()
+        delta = dt - _EPOCH
+        return Timestamp(
+            seconds=delta.days * 86400 + delta.seconds,
+            nanoseconds=delta.microseconds * 1000,
+        )

@@ -14,6 +14,6 @@ index 599132611..1fa416e9a 100644
 +    pipenv = importlib.util.module_from_spec(spec)
 +    sys.modules["pipenv"] = pipenv
 +    spec.loader.exec_module(pipenv)
-     from pip._internal.cli.main import main as _main
+     from pip._internal.cli.main import cli as _main
 
      sys.exit(_main())
