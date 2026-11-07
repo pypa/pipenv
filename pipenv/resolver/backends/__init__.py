@@ -19,6 +19,7 @@ from __future__ import annotations
 from pipenv.resolver.backends.base import REGISTRY, Backend
 from pipenv.resolver.backends.pip import PipBackend
 from pipenv.resolver.backends.pure_python import PurePythonBackend
+from pipenv.resolver.backends.uv import UvBackend
 
 # Default backend used when no explicit selection has been made via CLI,
 # env var, or Pipfile.  Kept at module scope so the dispatcher in
@@ -36,6 +37,9 @@ REGISTRY["pip"] = PipBackend
 # ``None``); the dispatcher injects cache/fetcher/session/metadata_cache
 # before invoking ``.resolve()`` (Phase 4 wiring).
 REGISTRY["pure-python"] = PurePythonBackend
+# gh-6109: the uv backend shells out to a system ``uv`` binary; its
+# ``is_available()`` gates dispatch so a missing binary fails loud.
+REGISTRY["uv"] = UvBackend
 
 
 def get_backend(name: str) -> Backend:
@@ -89,6 +93,7 @@ __all__ = [
     "PipBackend",
     "PurePythonBackend",
     "REGISTRY",
+    "UvBackend",
     "get_backend",
     "list_backends",
 ]

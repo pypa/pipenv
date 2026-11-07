@@ -347,7 +347,7 @@ def _add_backend_option(p):
 
     User-facing surface for the pluggable resolver-backend dispatcher.
     ``--backend NAME`` is the documented spelling on ``pipenv lock``;
-    accepted values are ``pip`` (default) and ``pure-python``.  Unlike
+    accepted values are ``pip`` (default), ``pure-python`` and ``uv``.  Unlike
     ``--resolver NAME`` (kept for back-compat with T_F.5 scaffolding),
     this flag validates the value at parse time via ``choices=`` so
     typos fail with an actionable error instead of falling through to
@@ -362,7 +362,7 @@ def _add_backend_option(p):
     p.add_argument(
         "--backend",
         dest="backend",
-        choices=("pip", "pure-python"),
+        choices=("pip", "pure-python", "uv"),
         default=None,
         help=(
             "Resolver backend to use.  Defaults to "

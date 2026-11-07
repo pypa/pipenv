@@ -729,13 +729,17 @@ def resolve_for_pipenv(request: ResolverRequest) -> ResolverResponse:
         )
 
     if not backend.is_available():
+        # Backends that depend on an external tool (e.g. uv) carry an
+        # ``install_hint`` naming the binary and how to install it.
+        install_hint = getattr(backend, "install_hint", None)
+        hint = f"\n{install_hint}\n" if install_hint else "  "
         return ResolverResponse(
             schema_version=SCHEMA_VERSION,
             result=InternalError(
                 kind="internal_error",
                 message=(
                     f"Resolver backend {backend_name!r} is not available "
-                    f"on this machine.  Install it and re-run, or remove "
+                    f"on this machine.{hint}Install it and re-run, or remove "
                     f"the [pipenv] resolver setting from your Pipfile / "
                     f"unset PIPENV_RESOLVER / pass --resolver pip."
                 ),

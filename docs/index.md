@@ -100,6 +100,7 @@ security
 troubleshooting
 specifiers
 indexes
+resolver_backends
 credentials
 shell
 docker

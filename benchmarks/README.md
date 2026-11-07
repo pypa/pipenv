@@ -45,6 +45,10 @@ python benchmark.py stats              # Generate stats.csv
 # Benchmark the experimental pure-Python resolver backend
 python benchmark.py --backend pure-python
 
+# Benchmark the uv resolver backend (requires uv on $PATH; cold runs
+# also clear uv's cache)
+python benchmark.py --backend uv
+
 # Local diagnosis helpers
 python benchmark.py lock-warm --repeat 3
 python benchmark.py lock-warm --profile
@@ -53,7 +57,7 @@ python benchmark.py update-warm --output-json update-results.json
 
 ### CI Integration
 
-The benchmarks run automatically in GitHub Actions on the `ubuntu-latest` runner as part of the CI pipeline, once per resolver backend (`pip` and `pure-python`). The `pure-python` job is non-blocking while that backend is experimental. Results are:
+The benchmarks run automatically in GitHub Actions on the `ubuntu-latest` runner as part of the CI pipeline, once per resolver backend (`pip`, `pure-python` and `uv`). The `pure-python` and `uv` jobs are non-blocking while those backends are experimental. Results are:
 
 - Displayed in the job summary with timing statistics, one table per backend
 - Uploaded as `pipenv-benchmark-stats-<backend>` artifacts for historical analysis
