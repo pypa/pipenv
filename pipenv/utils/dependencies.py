@@ -2012,6 +2012,19 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
     if not isinstance(package_spec, dict):
         return package_name
 
+    # Process markers
+    markers = ""
+    if include_markers:
+        # Handle sys_platform and other common markers
+        marker_parts = []
+        if "markers" in package_spec and package_spec["markers"]:
+            marker_parts.append(package_spec["markers"])
+        if "sys_platform" in package_spec and package_spec["sys_platform"]:
+            marker_parts.append(f"sys_platform {package_spec['sys_platform']}")
+
+        if marker_parts:
+            markers = "; " + " and ".join(marker_parts)
+
     # Handle VCS dependencies
     for vcs_type in ["git", "hg", "svn", "bzr"]:
         if vcs_type in package_spec:
@@ -2043,6 +2056,10 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
                 line = f"{package_name}{extras} @ {vcs_type}+{vcs_url}{ref_str}"
                 if subdirectory:
                     line += f"#subdirectory={subdirectory}"
+                # pip ignores markers on an editable line, so only the direct
+                # reference form carries them (as requirement_from_lockfile does).
+                if markers:
+                    line += f" {markers}"
             return line
 
     # Handle file/path dependencies
@@ -2076,19 +2093,6 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
         version_str = f"=={version}"
     else:
         version_str = ""
-
-    # Process markers
-    markers = ""
-    if include_markers:
-        # Handle sys_platform and other common markers
-        marker_parts = []
-        if "markers" in package_spec and package_spec["markers"]:
-            marker_parts.append(package_spec["markers"])
-        if "sys_platform" in package_spec and package_spec["sys_platform"]:
-            marker_parts.append(f"sys_platform {package_spec['sys_platform']}")
-
-        if marker_parts:
-            markers = "; " + " and ".join(marker_parts)
 
     return f"{package_name}{extras}{version_str}{markers}"
 
