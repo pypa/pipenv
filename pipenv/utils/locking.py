@@ -360,8 +360,10 @@ class Lockfile:
         # Determine project directory
         if path_obj.is_dir():
             project_path = path_obj
-        elif not path_obj.is_dir() and path_obj.parent.is_dir():
+        elif path_obj.parent.is_dir():
             project_path = path_obj.parent
+        else:
+            raise FileNotFoundError(f"No project directory found for {path_obj}")
 
         # Create paths for Pipfile and Pipfile.lock
         pipfile_path = project_path / "Pipfile"
