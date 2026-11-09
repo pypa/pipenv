@@ -1,1 +1,0 @@
-Fixed ``pipenv requirements --no-lock`` dropping the environment markers of VCS entries.

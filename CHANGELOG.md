@@ -1,3 +1,30 @@
+2026.11.0 (2026-11-08)
+======================
+pipenv 2026.11.0 (2026-11-08)
+=============================
+
+
+Features & Improvements
+-----------------------
+
+- Add a ``uv`` resolver backend. ``pipenv lock --backend uv``, ``PIPENV_RESOLVER=uv`` or ``resolver_backend = "uv"`` in the ``[pipenv]`` section of the ``Pipfile`` resolves dependencies with `uv <https://docs.astral.sh/uv/>`_ (which must be on ``$PATH``) while keeping pipenv's index restriction, hashes and markers. See the new "Resolver Backends" documentation page.  `#6109 <https://github.com/pypa/pipenv/issues/6109>`_
+
+Bug Fixes
+---------
+
+- Fixed latent crashes in ``RequirementError`` when no requirement is given and in
+  ``Lockfile.from_data`` when the project directory is missing, and removed a stray
+  ``!s`` from the ``UninstallError`` message.  `#6781 <https://github.com/pypa/pipenv/issues/6781>`_
+- Fixed ``pipenv requirements --no-lock`` dropping the environment markers of VCS entries.  `#6782 <https://github.com/pypa/pipenv/issues/6782>`_
+- Preserve Safety's error output when running ``pipenv --quiet check --scan``
+  if the scan fails, while keeping successful quiet scans free of stderr warnings.  `#quiet-scan-stderr <https://github.com/pypa/pipenv/issues/quiet-scan-stderr>`_
+
+Vendored Libraries
+------------------
+
+- Updated the bundled pip to 26.3 and rebased Pipenv's patches for tarfile safety,
+  prerelease handling, command startup, and the distutils fallback.  `#6780 <https://github.com/pypa/pipenv/issues/6780>`_
+
 2026.10.6 (2026-11-05)
 ======================
 pipenv 2026.10.6 (2026-11-05)
