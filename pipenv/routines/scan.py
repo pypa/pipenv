@@ -496,7 +496,7 @@ def do_scan(  # noqa: PLR0913
             parse_safety_output(output, quiet)
         else:
             sys.stdout.write(output)
-            sys.stderr.write(error)
+        sys.stderr.write(error)
 
         sys.exit(exit_code)
     finally:
