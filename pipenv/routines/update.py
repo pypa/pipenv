@@ -13,7 +13,7 @@ from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock, overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
-from pipenv.utils import err
+from pipenv.utils import console, err
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import (
     add_index_to_pipfile_with_trust_check,
@@ -136,12 +136,17 @@ def do_update(project, ctx: RoutineContext):
 
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
-    from pipenv.routines.graph import install_pipdeptree, is_pipdeptree_installed
+    from pipenv.routines.graph import is_pipdeptree_installed
 
-    # Check if pipdeptree is installed
+    # Check if pipdeptree is installed; if not, fall back to an empty map.
+    # pipdeptree is an optional helper for conflict detection and is not
+    # strictly required, so a missing install must not abort the upgrade.
     if not is_pipdeptree_installed(project):
-        if not install_pipdeptree(project):
-            sys.exit(1)
+        console.print(
+            "[yellow]pipdeptree is not installed; skipping reverse-dependency "
+            "conflict checks. Install it with 'pip install pipdeptree' to enable them.[/yellow]"
+        )
+        return defaultdict(set)
 
     python_path = project_python(project)
     cmd_args = [
