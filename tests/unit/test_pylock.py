@@ -543,6 +543,7 @@ def test_from_lockfile_package_in_default_and_develop_has_one_entry(
     pylock.toml entries for it both match when the dev group is selected.
     """
     import json
+
     from pipenv.patched.pip._vendor.packaging.markers import Marker
 
     default_entry = {"version": "==26.3"}

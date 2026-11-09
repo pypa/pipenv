@@ -48,7 +48,6 @@ from pipenv.resolver.schema import (
     Source,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -230,7 +229,6 @@ class TestResolutionImpossible:
         from pipenv.patched.pip._vendor.resolvelib.structs import (
             RequirementInformation,
         )
-
         from pipenv.resolver.backends.pure_python import PurePythonBackend
         from pipenv.resolver.pure_python_requirement import Requirement
 
@@ -801,7 +799,6 @@ class TestResolutionImpossibleFormattingEdges:
 
     def test_empty_causes_yields_header_only_message(self):
         from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
-
         from pipenv.resolver.backends.pure_python import PurePythonBackend
 
         cache = _FakeCache(
@@ -831,7 +828,6 @@ class TestResolutionImpossibleFormattingEdges:
         from pipenv.patched.pip._vendor.resolvelib.structs import (
             RequirementInformation,
         )
-
         from pipenv.resolver.backends.pure_python import PurePythonBackend
         from pipenv.resolver.pure_python_requirement import Requirement
 
@@ -865,7 +861,6 @@ class TestResolutionImpossibleFormattingEdges:
         from pipenv.patched.pip._vendor.resolvelib.structs import (
             RequirementInformation,
         )
-
         from pipenv.resolver.backends.pure_python import PurePythonBackend
         from pipenv.resolver.pure_python_requirement import Requirement
 
@@ -2418,8 +2413,8 @@ class TestBootstrapFromRequest:
         """
         import sys
 
-        from pipenv.resolver.backends.pure_python import PurePythonBackend
         from pipenv.patched.pip._vendor.urllib3 import PoolManager
+        from pipenv.resolver.backends.pure_python import PurePythonBackend
 
         # Force the canonical-factory import to fail by shadowing the
         # parent module with a broken stub that raises at attribute time.

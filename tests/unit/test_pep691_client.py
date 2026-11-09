@@ -571,7 +571,6 @@ class TestAuthDispatch:
         def fake_lookup(host, path):
             captured["host"] = host
             captured["path"] = path
-            return None
 
         monkeypatch.setattr(
             "pipenv.resolver.pep691.lookup_netrc_auth", fake_lookup

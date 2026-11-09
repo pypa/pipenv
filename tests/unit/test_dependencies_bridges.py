@@ -400,7 +400,6 @@ def test_get_pip_command_returns_install_command():
     """``get_pip_command`` returns a pip ``InstallCommand`` with a
     parser ready to consume general options."""
     from pipenv.patched.pip._internal.commands.install import InstallCommand
-
     from pipenv.utils.dependencies import get_pip_command
 
     cmd = get_pip_command()

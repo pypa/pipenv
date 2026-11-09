@@ -1,7 +1,6 @@
 import json
 import os
 import re
-import sys
 from collections import defaultdict
 from dataclasses import replace
 from typing import Dict, Set, Tuple
@@ -13,7 +12,7 @@ from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock, overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
-from pipenv.utils import console, err
+from pipenv.utils import err
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import (
     add_index_to_pipfile_with_trust_check,
@@ -136,17 +135,9 @@ def do_update(project, ctx: RoutineContext):
 
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
-    from pipenv.routines.graph import is_pipdeptree_installed
+    from pipenv.routines.graph import ensure_pipdeptree
 
-    # Check if pipdeptree is installed; if not, fall back to an empty map.
-    # pipdeptree is an optional helper for conflict detection and is not
-    # strictly required, so a missing install must not abort the upgrade.
-    if not is_pipdeptree_installed(project):
-        console.print(
-            "[yellow]pipdeptree is not installed; skipping reverse-dependency "
-            "conflict checks. Install it with 'pip install pipdeptree' to enable them.[/yellow]"
-        )
-        return defaultdict(set)
+    ensure_pipdeptree(project)
 
     python_path = project_python(project)
     cmd_args = [
@@ -772,16 +763,18 @@ def upgrade(
     additional_categories = _find_additional_categories(packages, lockfile, categories)
     categories.extend(additional_categories)
 
-    # Early conflict detection
+    # Early conflict detection. The installed dependents only constrain the
+    # packages as currently locked; the resolver may be able to move them to
+    # compatible versions, so warn and let it have the final say.
     conflicts_found = _detect_conflicts(package_args, reverse_deps, lockfile)
     if conflicts_found:
         err.print(
-            "\nTo resolve conflicts, try:\n"
+            "\nThe resolver will try to upgrade the conflicting packages. If it "
+            "cannot, try:\n"
             "1. Explicitly upgrade conflicting packages together\n"
             "2. Use compatible versions\n"
             "3. Remove version constraints from Pipfile"
         )
-        sys.exit(1)
 
     # Flag for tracking if we have package arguments
     has_package_args = bool(package_args)

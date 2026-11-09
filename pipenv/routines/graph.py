@@ -29,41 +29,48 @@ def is_pipdeptree_installed(project=None, system=False):
         return False
 
 
+def ensure_pipdeptree(project):
+    """Install pipdeptree on demand when it is missing, exiting on failure.
+
+    pipdeptree is a non-vendored dependency (handled like pip-audit). Install
+    progress is printed to stderr so stdout stays clean for `graph --json`.
+    """
+    if is_pipdeptree_installed(project):
+        return
+    err.print(
+        "[yellow bold]pipdeptree is required for the dependency graph but is "
+        "not installed. Installing it now (this does not modify your "
+        "Pipfile/lockfile)...[/yellow bold]"
+    )
+    cmd = [
+        project_python(project),
+        "-m",
+        "pip",
+        "install",
+        "pipdeptree>=2.0.0",
+        "--quiet",
+    ]
+    c = run_command(cmd)
+    if c.returncode != 0:
+        err.print(
+            "[red]Failed to install pipdeptree. Please install it manually "
+            "with 'pip install pipdeptree'[/red]"
+        )
+        sys.exit(1)
+
+    # Check again after installation
+    if not is_pipdeptree_installed(project):
+        err.print(
+            "[red]pipdeptree installation was reported successful but module not found. "
+            "Please try again or install manually with 'pip install pipdeptree'[/red]"
+        )
+        sys.exit(1)
+
+
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     import json as jsonlib
 
-    # pipdeptree is an on-demand, non-vendored dependency. Install it when it
-    # is missing (mirroring how pip-audit is handled). Install progress is
-    # printed to stderr so stdout stays clean for `graph --json` output.
-    if not is_pipdeptree_installed(project):
-        err.print(
-            "[yellow bold]pipdeptree is required for the dependency graph but is "
-            "not installed. Installing it now (this does not modify your "
-            "Pipfile/lockfile)...[/yellow bold]"
-        )
-        cmd = [
-            project_python(project),
-            "-m",
-            "pip",
-            "install",
-            "pipdeptree>=2.0.0",
-            "--quiet",
-        ]
-        c = run_command(cmd)
-        if c.returncode != 0:
-            err.print(
-                "[red]Failed to install pipdeptree. Please install it manually "
-                "with 'pip install pipdeptree'[/red]"
-            )
-            sys.exit(1)
-
-        # Check again after installation
-        if not is_pipdeptree_installed(project):
-            err.print(
-                "[red]pipdeptree installation was reported successful but module not found. "
-                "Please try again or install manually with 'pip install pipdeptree'[/red]"
-            )
-            sys.exit(1)
+    ensure_pipdeptree(project)
 
     try:
         python_path = project.venv_locator.python()

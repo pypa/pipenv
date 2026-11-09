@@ -29,7 +29,6 @@ from unittest import mock
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Helpers — minimal doubles re-used across the cases below
 # ---------------------------------------------------------------------------

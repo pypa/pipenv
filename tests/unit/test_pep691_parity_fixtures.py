@@ -30,9 +30,7 @@ import pytest
 # readability — no actual noqa rule needed (ruff/etc. don't flag this
 # import).
 from pipenv.patched.pip._internal.models.link import Link  # parity-test-by-design
-
-from pipenv.resolver.pep691 import _parse_pep691_json, _parse_pep503_html
-
+from pipenv.resolver.pep691 import _parse_pep503_html, _parse_pep691_json
 
 FIXTURE_DIR = Path(__file__).parent / "fixtures"
 JSON_FIXTURES = sorted(p.name for p in (FIXTURE_DIR / "pep691").glob("*.json"))
