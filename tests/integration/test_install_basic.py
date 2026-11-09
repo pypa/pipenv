@@ -885,7 +885,7 @@ six = "*"
 
 @pytest.mark.basic
 @pytest.mark.install
-def test_install_respects_lockfile_versions(pipenv_instance_file_pypi):
+def test_install_respects_lockfile_versions(pipenv_instance_file_pypi, monkeypatch):
     """Ensure that `pipenv install` respects versions from existing lockfile."""
     with pipenv_instance_file_pypi() as p:
         with open(p.pipfile_path, "w") as f:
@@ -945,6 +945,10 @@ sh = "*"
 
         c = p.pipenv("install")
         assert c.returncode == 0
+
+        # pipdeptree is an optional on-demand dependency; opt into the
+        # automatic install so the graph check below works in CI.
+        monkeypatch.setenv("PIPENV_AUTO_INSTALL_PIPDEPTREE", "1")
 
         # Verify that the locked version is installed, not the latest
         c = p.pipenv("graph --json")
