@@ -1,2 +1,2 @@
-Preserve Safety's error output when running ``pipenv scan --quiet`` so failures
-such as invalid API keys remain visible.
+Preserve Safety's error output when running ``pipenv --quiet check --scan``
+if the scan fails, while keeping successful quiet scans free of stderr warnings.

@@ -12,8 +12,9 @@ from pipenv.routines import scan
     ("output", "error", "returncode"),
     [
         ("", "Safety API key is invalid\n", 1),
-        ("", "No module named safety\n", 1),
+        ("", "Safety network error\n", 1),
         ('{"report_meta": {"vulnerabilities_found": 0}}', "", 0),
+        ('{"report_meta": {"vulnerabilities_found": 0}}', "AuthlibDeprecationWarning\n", 0),
         ('{"report_meta": {"vulnerabilities_found": 1}}', "Safety warning\n", 64),
     ],
 )
@@ -42,7 +43,7 @@ def test_scan_preserves_stderr(
 
     assert exc.value.code == returncode
     captured = capsys.readouterr()
-    if error:
+    if error and (not quiet or returncode != 0):
         assert captured.err.count(error) == 1
     else:
         assert captured.err == ""
