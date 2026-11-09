@@ -38,7 +38,7 @@ def install_pipdeptree(project):
     Returns True when pipdeptree is usable afterwards.
     """
     err.print(
-        "[yellow bold]pipdeptree is required for dependency analysis but is "
+        "[yellow bold]pipdeptree is required for the dependency graph but is "
         "not installed. Installing it now (this does not modify your "
         "Pipfile/lockfile)...[/yellow bold]"
     )

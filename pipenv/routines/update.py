@@ -5,8 +5,12 @@ from collections import defaultdict
 from dataclasses import replace
 from typing import Dict, Set, Tuple
 
-from pipenv.exceptions import JSONParseError, PipenvCmdError
+from pipenv.patched.pip._vendor.packaging.requirements import (
+    InvalidRequirement,
+    Requirement,
+)
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
+from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import InvalidVersion, Version
 from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock, overwrite_with_default
@@ -21,10 +25,8 @@ from pipenv.utils.dependencies import (
     get_pipfile_category_using_lockfile_section,
     pep423_name,
 )
-from pipenv.utils.processes import run_command
 from pipenv.utils.project import ensure_project
 from pipenv.utils.resolver import venv_resolve_deps
-from pipenv.utils.shell import project_python
 
 
 def do_update(project, ctx: RoutineContext):
@@ -134,66 +136,52 @@ def do_update(project, ctx: RoutineContext):
 
 
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
-    """Get reverse dependencies using pipdeptree."""
-    from pipenv.routines.graph import install_pipdeptree, is_pipdeptree_installed
+    """Map each installed package to the installed packages that depend on it.
 
-    # The reverse-dependency check is advisory (the resolver is authoritative),
-    # so install pipdeptree when possible but never abort the update if it
-    # cannot be installed, e.g. with an offline or restricted index.
-    if not is_pipdeptree_installed(project) and not install_pipdeptree(project):
-        err.print(
-            "[yellow]Skipping reverse-dependency conflict checks because "
-            "pipdeptree is unavailable.[/yellow]"
-        )
-        return defaultdict(set)
+    Built from the project environment's installed distributions, so no
+    external tool is needed. The result maps a canonical package name to a set
+    of ``(dependent_name, required_version)`` tuples. Transitive dependents are
+    included. ``required_version`` is the specifier a *direct* dependent places
+    on the package, or ``"Any"`` when it has none or the dependent is only
+    transitive.
+    """
+    direct: Dict[str, Dict[str, str]] = defaultdict(dict)
+    installed = {}
+    for dist in project.environment.get_installed_packages():
+        name = dist.metadata["Name"]
+        if name:
+            installed[canonicalize_name(name)] = dist
 
-    python_path = project_python(project)
-    cmd_args = [
-        python_path,
-        "-m",
-        "pipdeptree",
-        "--python",
-        python_path,
-        "-l",
-        "--reverse",
-        "--json-tree",
-    ]
+    for dependent, dist in installed.items():
+        for line in dist.requires or []:
+            try:
+                req = Requirement(line)
+            except InvalidRequirement:  # noqa: PERF203
+                continue
+            # Extras-only requirements are optional, and markers are not
+            # evaluated because the environment's interpreter may differ from
+            # pipenv's: only edges to packages that are installed count.
+            if req.marker is not None and "extra" in str(req.marker):
+                continue
+            target = canonicalize_name(req.name)
+            if target in installed and target != dependent:
+                direct[target][dependent] = str(req.specifier) or "Any"
 
-    c = run_command(cmd_args, is_verbose=project.s.is_verbose())
-    if c.returncode != 0:
-        raise PipenvCmdError(c.err, c.out, c.returncode)
-    try:
-        dep_tree = json.loads(c.stdout.strip())
-    except json.JSONDecodeError:
-        raise JSONParseError(c.stdout, c.stderr)
-
-    # Build reverse dependency map: package -> set of (dependent_package, required_version)
     reverse_deps = defaultdict(set)
-
-    def process_tree_node(n, parents=None):
-        if parents is None:
-            parents = []
-
-        package_name = n["package_name"]
-        required_version = n.get("required_version", "Any")
-
-        # Add the current node to its parents' reverse dependencies
-        for parent in parents:
-            reverse_deps[parent].add((package_name, required_version))
-
-        # Process dependencies recursively, keeping track of parent path
-        for dep in n.get("dependencies", []):
-            process_tree_node(dep, parents + [package_name])
-
-    # Start processing the tree from the root nodes
-    for node in dep_tree:
-        try:
-            process_tree_node(node)
-        except Exception as e:  # noqa: PERF203
-            err.print(
-                f"[red bold]Warning[/red bold]: Unable to analyze dependencies: {str(e)}"
-            )
-
+    for package in installed:
+        seen = {package}
+        queue = []
+        for dependent, spec in direct.get(package, {}).items():
+            seen.add(dependent)
+            reverse_deps[package].add((dependent, spec))
+            queue.append(dependent)
+        while queue:
+            current = queue.pop()
+            for dependent in direct.get(current, {}):
+                if dependent not in seen:
+                    seen.add(dependent)
+                    reverse_deps[package].add((dependent, "Any"))
+                    queue.append(dependent)
     return reverse_deps
 
 

@@ -1,6 +1,7 @@
 """Unit tests for pipenv.routines.update helpers."""
 from unittest.mock import MagicMock, patch
 
+from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.routines.context import RoutineContext
 from pipenv.routines.update import (
     _clean_unused_dependencies,
@@ -9,6 +10,7 @@ from pipenv.routines.update import (
     _process_package_args,
     _requirement_name,
     do_update,
+    get_reverse_dependencies,
 )
 
 
@@ -558,3 +560,82 @@ def test_find_additional_categories_matches_a_package_with_a_specifier():
 def test_requirement_name_falls_back_for_non_requirement_arguments():
     assert _requirement_name("git+https://example.com/repo.git#egg=pkg") == "git+https://example.com/repo.git#egg=pkg"
     assert _requirement_name("Flask_Login==1.0") == "flask-login"
+
+
+# ---------------------------------------------------------------------------
+# get_reverse_dependencies
+# ---------------------------------------------------------------------------
+
+
+def _fake_dist(name, requires=()):
+    dist = MagicMock()
+    dist.metadata = {"Name": name}
+    dist.requires = list(requires)
+    return dist
+
+
+def _project_with(*dists):
+    project = MagicMock()
+    project.environment.get_installed_packages.return_value = list(dists)
+    return project
+
+
+def test_reverse_dependencies_direct_dependent_keeps_its_specifier():
+    project = _project_with(
+        _fake_dist("protobuf"),
+        _fake_dist("google-api-core", ["protobuf>=3.19.5,<5.0.0.dev0"]),
+    )
+
+    deps = get_reverse_dependencies(project)
+
+    ((dependent, spec),) = deps["protobuf"]
+    assert dependent == "google-api-core"
+    assert SpecifierSet(spec) == SpecifierSet(">=3.19.5,<5.0.0.dev0")
+    assert "google-api-core" not in deps
+
+
+def test_reverse_dependencies_include_transitive_dependents_as_any():
+    project = _project_with(
+        _fake_dist("c"),
+        _fake_dist("b", ["c==1.0"]),
+        _fake_dist("a", ["b>=2"]),
+    )
+
+    deps = get_reverse_dependencies(project)
+
+    assert {d for d, _ in deps["c"]} == {"b", "a"}
+    specs = dict(deps["c"])
+    assert specs["a"] == "Any"  # only transitive: b's spec says nothing about a
+    assert SpecifierSet(specs["b"]) == SpecifierSet("==1.0")
+
+
+def test_reverse_dependencies_ignore_uninstalled_extras_and_bad_requirements():
+    project = _project_with(
+        _fake_dist("dep"),
+        _fake_dist(
+            "pkg",
+            [
+                "dep",
+                "missing>=1",
+                'dep[extra]; extra == "test"',
+                "not a requirement ???",
+            ],
+        ),
+    )
+
+    deps = get_reverse_dependencies(project)
+
+    assert deps["dep"] == {("pkg", "Any")}
+    assert "missing" not in deps
+
+
+def test_reverse_dependencies_normalizes_names_and_survives_cycles():
+    project = _project_with(
+        _fake_dist("Foo_Bar", ["baz"]),
+        _fake_dist("baz", ["foo-bar"]),
+    )
+
+    deps = get_reverse_dependencies(project)
+
+    assert deps["foo-bar"] == {("baz", "Any")}
+    assert deps["baz"] == {("foo-bar", "Any")}
