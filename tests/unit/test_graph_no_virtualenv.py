@@ -4,16 +4,18 @@ from unittest import mock
 
 import pytest
 
-from pipenv.routines.graph import do_graph
+from pipenv.routines import graph
 
 
-def test_graph_without_virtualenv_exits_with_error(capsys):
+def test_graph_without_virtualenv_exits_with_error(monkeypatch, capsys):
     project = mock.MagicMock()
     project.venv_locator.python.return_value = "/venv/bin/python"
     project.venv_locator.exists = False
 
+    monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: True)
+
     with pytest.raises(SystemExit) as excinfo:
-        do_graph(project)
+        graph.do_graph(project)
 
     assert excinfo.value.code == 1
     assert "No virtualenv has been created" in capsys.readouterr().err

@@ -11,7 +11,6 @@ import tempfile
 import typing
 from collections.abc import Iterable
 from functools import cached_property
-from itertools import chain
 from pathlib import Path
 from sysconfig import get_paths, get_python_version, get_scheme_names
 from urllib.parse import urlparse
@@ -24,21 +23,17 @@ from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 # call site).  Eager import drags ~79 ms of pip-internal command
 # machinery into every ``pipenv`` invocation that touches
 # ``pipenv.environment``.
-from pipenv.patched.pip._vendor.packaging.markers import UndefinedEnvironmentName
 from pipenv.patched.pip._vendor.packaging.specifiers import SpecifierSet
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
 from pipenv.patched.pip._vendor.packaging.version import Version
 from pipenv.patched.pip._vendor.packaging.version import parse as parse_version
 from pipenv.utils import console
 from pipenv.utils.fileutils import normalize_path, temp_path
-from pipenv.utils.funktools import chunked, unnest
 from pipenv.utils.indexes import prepare_pip_source_args
 from pipenv.utils.internet import write_credentials_netrc
 from pipenv.utils.processes import subprocess_run
 from pipenv.utils.shell import temp_environ
 from pipenv.utils.virtualenv import virtualenv_scripts_dir
-from pipenv.vendor.pipdeptree._models.dag import PackageDAG
-from pipenv.vendor.pipdeptree._models.package import InvalidRequirementError
 from pipenv.vendor.pythonfinder.utils import is_in_path
 
 if typing.TYPE_CHECKING:
@@ -619,100 +614,6 @@ class Environment:
             if pkg.latest_version > parse_version(pkg.version)  # type: ignore[attr-defined]
         ]
 
-    @classmethod
-    def _get_requirements_for_package(cls, node, key_tree, parent=None, chain=None):
-        if chain is None:
-            chain = [node.project_name]
-
-        d = node.as_dict()
-        if parent:
-            d["required_version"] = node.version_spec if node.version_spec else "Any"
-        else:
-            d["required_version"] = d["installed_version"]
-
-        get_children = lambda n: key_tree.get(n.key, [])  # noqa
-
-        d["dependencies"] = [
-            cls._get_requirements_for_package(
-                c, key_tree, parent=node, chain=chain + [c.project_name]
-            )
-            for c in get_children(node)
-            if c.project_name not in chain
-        ]
-
-        return d
-
-    def get_package_requirements(self, pkg=None):
-        flatten = chain.from_iterable
-
-        packages = self.get_installed_packages()
-        if pkg:
-            packages = [p for p in packages if p._normalized_name == pkg]
-
-        try:
-            tree = PackageDAG.from_pkgs(packages)
-        except InvalidRequirementError as e:
-            console.print(f"Invalid requirement: {e}", style="yellow")
-            tree = PackageDAG({})
-        except UndefinedEnvironmentName:
-            # Handle the case when 'extra' environment variable is not defined
-            tree = PackageDAG({})
-        except Exception as e:
-            # Handle any other exceptions that may occur during PackageDAG initialization
-            console.print(f"Failed to create PackageDAG: {e}", style="yellow")
-            tree = PackageDAG({})
-
-        tree = tree.sort()
-        branch_keys = {r.project_name for r in flatten(tree.values())}
-        if pkg is None:
-            nodes = [p for p in tree if p.project_name not in branch_keys]
-        else:
-            nodes = [p for p in tree if p.project_name == pkg]
-        key_tree = {k.project_name: v for k, v in tree.items()}
-
-        return [self._get_requirements_for_package(p, key_tree) for p in nodes]
-
-    @classmethod
-    def reverse_dependency(cls, node):
-        new_node = {
-            "package_name": node["package_name"],
-            "installed_version": node["installed_version"],
-            "required_version": node["required_version"],
-        }
-        for dependency in node.get("dependencies", []):
-            for dep in cls.reverse_dependency(dependency):
-                new_dep = dep.copy()
-                new_dep["parent"] = (node["package_name"], node["installed_version"])
-                yield new_dep
-        yield new_node
-
-    def reverse_dependencies(self):
-        rdeps = {}
-        for req in self.get_package_requirements():
-            for d in self.reverse_dependency(req):
-                parents = None
-                name = d["package_name"]
-                pkg = {
-                    name: {
-                        "installed": d["installed_version"],
-                        "required": d["required_version"],
-                    }
-                }
-                parents = tuple(d.get("parent", ()))
-                pkg[name]["parents"] = parents
-                if rdeps.get(name):
-                    if not (rdeps[name].get("required") or rdeps[name].get("installed")):
-                        rdeps[name].update(pkg[name])
-                    rdeps[name]["parents"] = rdeps[name].get("parents", ()) + parents
-                else:
-                    rdeps[name] = pkg[name]
-        for k in list(rdeps.keys()):
-            entry = rdeps[k]
-            if entry.get("parents"):
-                rdeps[k]["parents"] = {
-                    p for p, version in chunked(2, unnest(entry["parents"]))
-                }
-        return rdeps
 
     def get_working_set(self) -> Iterable:
         """Retrieve the working set of installed packages for the environment."""

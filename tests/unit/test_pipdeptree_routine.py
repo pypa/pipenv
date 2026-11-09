@@ -13,6 +13,8 @@ from pipenv.routines import graph
 def graph_project():
     proj = mock.MagicMock()
     proj.s.is_quiet.return_value = True
+    proj.venv_locator.exists = True
+    proj.venv_locator.python.return_value = "/venv/bin/python"
     return proj
 
 
@@ -23,10 +25,10 @@ def test_pipdeptree_exits_non_zero_when_not_installed_and_install_fails(
     monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: False)
     monkeypatch.setattr(graph, "install_pipdeptree", lambda *a, **kw: False)
     run = mock.MagicMock()
-    monkeypatch.setattr(graph.subprocess, "run", run)
+    monkeypatch.setattr(graph, "run_command", run)
 
     with pytest.raises(SystemExit) as exc:
-        graph.do_graph(graph_project, quiet=True)
+        graph.do_graph(graph_project)
 
     assert exc.value.code == 1
     run.assert_not_called()
@@ -40,10 +42,10 @@ def test_pipdeptree_exits_non_zero_when_installed_but_fails_after_install(
     monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: False)
     monkeypatch.setattr(graph, "install_pipdeptree", lambda *a, **kw: True)
     run = mock.MagicMock()
-    monkeypatch.setattr(graph.subprocess, "run", run)
+    monkeypatch.setattr(graph, "run_command", run)
 
     with pytest.raises(SystemExit) as exc:
-        graph.do_graph(graph_project, quiet=True)
+        graph.do_graph(graph_project)
 
     assert exc.value.code == 1
     run.assert_not_called()
@@ -52,30 +54,41 @@ def test_pipdeptree_exits_non_zero_when_installed_but_fails_after_install(
 def test_pipdeptree_installs_and_runs_when_not_installed(monkeypatch, graph_project):
     """Test that pipdeptree installs and runs when not installed."""
     # Not found before the install, then found after installation.
-    monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: False)
+    calls = {"n": 0}
+
+    def fake_check(*a, **kw):
+        calls["n"] += 1
+        return calls["n"] > 1
+
+    monkeypatch.setattr(graph, "is_pipdeptree_installed", fake_check)
     monkeypatch.setattr(graph, "install_pipdeptree", lambda *a, **kw: True)
     run = mock.MagicMock()
-    run.return_value.returncode = 0
-    monkeypatch.setattr(graph.subprocess, "run", run)
+    run.return_value = mock.Mock(
+        returncode=0, stdout="requests==2.31.0\n", stderr=""
+    )
+    monkeypatch.setattr(graph, "run_command", run)
 
-    # This should not raise an exception
-    try:
-        graph.do_graph(graph_project, quiet=True)
-        # If we get here, it means the function didn't exit due to error
-    except SystemExit:
-        pytest.fail("do_graph should not exit with error when pipdeptree is installed successfully")
+    # do_graph always terminates via sys.exit; exit code 0 means success.
+    with pytest.raises(SystemExit) as exc:
+        graph.do_graph(graph_project)
+
+    assert exc.value.code == 0
+    cmd = run.call_args.args[0]
+    assert "-m" in cmd and "pipdeptree" in cmd
 
 
 def test_pipdeptree_runs_when_already_installed(monkeypatch, graph_project):
     """Test that pipdeptree runs directly when already installed."""
     monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: True)
     run = mock.MagicMock()
-    run.return_value.returncode = 0
-    monkeypatch.setattr(graph.subprocess, "run", run)
+    run.return_value = mock.Mock(
+        returncode=0, stdout="requests==2.31.0\n", stderr=""
+    )
+    monkeypatch.setattr(graph, "run_command", run)
 
-    # This should not raise an exception
-    try:
-        graph.do_graph(graph_project, quiet=True)
-        # If we get here, it means the function didn't exit due to error
-    except SystemExit:
-        pytest.fail("do_graph should not exit with error when pipdeptree is already installed")
+    with pytest.raises(SystemExit) as exc:
+        graph.do_graph(graph_project)
+
+    assert exc.value.code == 0
+    cmd = run.call_args.args[0]
+    assert "-m" in cmd and "pipdeptree" in cmd

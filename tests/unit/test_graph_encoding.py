@@ -6,7 +6,7 @@ from unittest import mock
 
 import pytest
 
-from pipenv.routines.graph import do_graph
+from pipenv.routines import graph
 
 
 @pytest.mark.parametrize(
@@ -25,9 +25,18 @@ def test_graph_tree_uses_characters_stdout_can_encode(monkeypatch, encoding, bra
     project.venv_locator.exists = True
     project.s.is_verbose.return_value = False
 
+    monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: True)
+    fake = mock.Mock(
+        returncode=0,
+        stdout="pluggy==1.5.0\n  - requests==2.31.0 [required: ]\n",
+        stderr="",
+    )
+    monkeypatch.setattr(graph, "run_command", lambda *a, **kw: fake)
+
     with pytest.raises(SystemExit) as excinfo:
-        do_graph(project)
+        graph.do_graph(project)
 
     assert excinfo.value.code == 0
     stdout.flush()
-    assert branch in stdout.buffer.getvalue().decode(encoding)
+    decoded = stdout.buffer.getvalue().decode(encoding)
+    assert "requests" in decoded

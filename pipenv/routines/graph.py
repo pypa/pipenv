@@ -1,19 +1,19 @@
 import json as simplejson
 import subprocess
 import sys
-from pathlib import Path
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.rich.markup import escape as rich_escape
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import BAD_PACKAGES
 from pipenv.utils.processes import run_command
+from pipenv.utils.shell import project_python
 
 
 def is_pipdeptree_installed(project=None, system=False):
     """Check if pipdeptree is installed by trying to run it."""
     if project:
-        python = project.venv_locator.python()
+        python = project_python(project, system=system)
     else:
         python = sys.executable
 
@@ -33,7 +33,7 @@ def install_pipdeptree(project, system=False):
     """Install pipdeptree."""
     from pipenv.utils import Confirm
 
-    python = project.venv_locator.python()
+    python = project_python(project, system=system)
 
     console.print(
         "[yellow bold]pipdeptree is required for dependency graph but not installed.[/yellow bold]"
@@ -81,9 +81,6 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
             )
             sys.exit(1)
 
-    from pipenv.vendor import pipdeptree
-
-    pipdeptree_path = Path(pipdeptree.__file__).parent
     try:
         python_path = project.venv_locator.python()
     except (AttributeError, RuntimeError):
@@ -102,7 +99,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
 
     # Build command arguments list (run_command forces UTF-8, so pass the encoding we print with)
-    cmd_args = [python_path, str(pipdeptree_path), "--python", python_path, "-l", "--encoding", console.encoding]
+    cmd_args = [python_path, "-m", "pipdeptree", "--python", python_path, "-l", "--encoding", console.encoding]
 
     # Add flags as needed - multiple flags now supported
     if json:
