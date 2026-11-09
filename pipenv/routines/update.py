@@ -14,7 +14,7 @@ from pipenv.routines.context import RoutineContext
 from pipenv.routines.lock import do_lock, overwrite_with_default
 from pipenv.routines.outdated import do_outdated
 from pipenv.routines.sync import do_sync
-from pipenv.utils import err
+from pipenv.utils import console, err
 from pipenv.utils.constants import VCS_LIST
 from pipenv.utils.dependencies import (
     add_index_to_pipfile_with_trust_check,
@@ -137,6 +137,52 @@ def do_update(project, ctx: RoutineContext):
 
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
+    # Check if pipdeptree is installed
+    import subprocess
+
+    python_path = project.venv_locator.python()
+
+    try:
+        result = subprocess.run(
+            [python_path, "-m", "pipdeptree", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            # pipdeptree not installed, install it
+            from pipenv.utils import Confirm
+
+            console.print(
+                "[yellow bold]pipdeptree is required for dependency resolution but not installed.[/yellow bold]"
+            )
+
+            install = Confirm.ask(
+                "Would you like to install pipdeptree? This will not modify your Pipfile/lockfile.",
+                default=True,
+            )
+
+            if not install:
+                console.print(
+                    "[yellow]Dependency resolution skipped. Install pipdeptree with 'pip install pipdeptree'[/yellow]"
+                )
+                sys.exit(1)
+
+            console.print("[green]Installing pipdeptree...[/green]")
+            cmd = [python_path, "-m", "pip", "install", "pipdeptree>=2.0.0", "--quiet"]
+            c = run_command(cmd)
+
+            if c.returncode != 0:
+                err.print(
+                    "[red]Failed to install pipdeptree. Please install it manually with 'pip install pipdeptree'[/red]"
+                )
+                sys.exit(1)
+
+            console.print("[green]pipdeptree installed successfully![/green]")
+    except Exception:
+        # If we can't check, try to proceed anyway
+        pass
+
     pipdeptree_path = Path(pipdeptree.__file__).parent
     python_path = project.venv_locator.python()
     cmd_args = [

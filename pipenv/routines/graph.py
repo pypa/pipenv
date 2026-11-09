@@ -1,4 +1,5 @@
 import json as simplejson
+import subprocess
 import sys
 from pathlib import Path
 
@@ -9,8 +10,76 @@ from pipenv.utils.dependencies import BAD_PACKAGES
 from pipenv.utils.processes import run_command
 
 
+def is_pipdeptree_installed(project=None, system=False):
+    """Check if pipdeptree is installed by trying to run it."""
+    if project:
+        python = project.venv_locator.python()
+    else:
+        python = sys.executable
+
+    try:
+        result = subprocess.run(
+            [python, "-m", "pipdeptree", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def install_pipdeptree(project, system=False):
+    """Install pipdeptree."""
+    from pipenv.utils import Confirm
+
+    python = project.venv_locator.python()
+
+    console.print(
+        "[yellow bold]pipdeptree is required for dependency graph but not installed.[/yellow bold]"
+    )
+
+    install = Confirm.ask(
+        "Would you like to install pipdeptree? This will not modify your Pipfile/lockfile.",
+        default=True,
+    )
+
+    if not install:
+        console.print(
+            "[yellow]Dependency graph skipped. Install pipdeptree with 'pip install pipdeptree'[/yellow]"
+        )
+        return False
+
+    console.print("[green]Installing pipdeptree...[/green]")
+    cmd = [python, "-m", "pip", "install", "pipdeptree>=2.0.0", "--quiet"]
+    c = run_command(cmd)
+
+    if c.returncode != 0:
+        err.print(
+            "[red]Failed to install pipdeptree. Please install it manually with 'pip install pipdeptree'[/red]"
+        )
+        return False
+
+    console.print("[green]pipdeptree installed successfully![/green]")
+    return True
+
+
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     import json as jsonlib
+
+    # Check if pipdeptree is installed
+    if not is_pipdeptree_installed(project):
+        if not install_pipdeptree(project):
+            console.print("[yellow]Dependency graph aborted.[/yellow]")
+            sys.exit(1)
+
+        # Check again after installation
+        if not is_pipdeptree_installed(project):
+            err.print(
+                "[red]pipdeptree installation was reported successful but module not found. "
+                "Please try again or install manually with 'pip install pipdeptree'[/red]"
+            )
+            sys.exit(1)
 
     from pipenv.vendor import pipdeptree
 
