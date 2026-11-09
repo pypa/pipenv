@@ -6,6 +6,7 @@ from pipenv import exceptions
 from pipenv.patched.pip._vendor.rich.markup import escape as rich_escape
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import BAD_PACKAGES
+from pipenv.utils.internet import _strip_credentials_from_url
 from pipenv.utils.processes import run_command
 from pipenv.utils.shell import project_python
 
@@ -29,16 +30,15 @@ def is_pipdeptree_installed(project=None, system=False):
         return False
 
 
-def ensure_pipdeptree(project):
-    """Install pipdeptree on demand when it is missing, exiting on failure.
+def install_pipdeptree(project):
+    """Install pipdeptree into the project's environment.
 
     pipdeptree is a non-vendored dependency (handled like pip-audit). Install
     progress is printed to stderr so stdout stays clean for `graph --json`.
+    Returns True when pipdeptree is usable afterwards.
     """
-    if is_pipdeptree_installed(project):
-        return
     err.print(
-        "[yellow bold]pipdeptree is required for the dependency graph but is "
+        "[yellow bold]pipdeptree is required for dependency analysis but is "
         "not installed. Installing it now (this does not modify your "
         "Pipfile/lockfile)...[/yellow bold]"
     )
@@ -50,13 +50,22 @@ def ensure_pipdeptree(project):
         "pipdeptree>=2.0.0",
         "--quiet",
     ]
-    c = run_command(cmd)
+    # Install from the project's primary index so offline/private mirrors work.
+    # Never put embedded credentials in the environment (GHSA-8xgg-v3jj-95m2).
+    env = {}
+    try:
+        index_url = project.sources.default.get("url")
+    except (AttributeError, IndexError, KeyError):
+        index_url = None
+    if index_url and _strip_credentials_from_url(index_url)[1] is None:
+        env["PIP_INDEX_URL"] = index_url
+    c = run_command(cmd, catch_exceptions=False, env=env)
     if c.returncode != 0:
         err.print(
             "[red]Failed to install pipdeptree. Please install it manually "
             "with 'pip install pipdeptree'[/red]"
         )
-        sys.exit(1)
+        return False
 
     # Check again after installation
     if not is_pipdeptree_installed(project):
@@ -64,6 +73,13 @@ def ensure_pipdeptree(project):
             "[red]pipdeptree installation was reported successful but module not found. "
             "Please try again or install manually with 'pip install pipdeptree'[/red]"
         )
+        return False
+    return True
+
+
+def ensure_pipdeptree(project):
+    """Install pipdeptree on demand when it is missing, exiting on failure."""
+    if not is_pipdeptree_installed(project) and not install_pipdeptree(project):
         sys.exit(1)
 
 

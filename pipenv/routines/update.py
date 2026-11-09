@@ -135,9 +135,17 @@ def do_update(project, ctx: RoutineContext):
 
 def get_reverse_dependencies(project) -> Dict[str, Set[Tuple[str, str]]]:
     """Get reverse dependencies using pipdeptree."""
-    from pipenv.routines.graph import ensure_pipdeptree
+    from pipenv.routines.graph import install_pipdeptree, is_pipdeptree_installed
 
-    ensure_pipdeptree(project)
+    # The reverse-dependency check is advisory (the resolver is authoritative),
+    # so install pipdeptree when possible but never abort the update if it
+    # cannot be installed, e.g. with an offline or restricted index.
+    if not is_pipdeptree_installed(project) and not install_pipdeptree(project):
+        err.print(
+            "[yellow]Skipping reverse-dependency conflict checks because "
+            "pipdeptree is unavailable.[/yellow]"
+        )
+        return defaultdict(set)
 
     python_path = project_python(project)
     cmd_args = [

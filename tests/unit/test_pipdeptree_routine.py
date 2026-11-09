@@ -15,6 +15,7 @@ def graph_project():
     proj.s.is_quiet.return_value = True
     proj.venv_locator.exists = True
     proj.venv_locator.python.return_value = "/venv/bin/python"
+    proj.sources.default = {"url": "https://pypi.org/simple"}
     return proj
 
 
@@ -75,3 +76,24 @@ def test_graph_runs_when_already_installed(monkeypatch, graph_project):
     cmd = run.call_args.args[0]
     assert "-m" in cmd and "pipdeptree" in cmd
     run.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "url, expected",
+    [
+        ("file:///tmp/index", {"PIP_INDEX_URL": "file:///tmp/index"}),
+        ("https://user:secret@example.com/simple", {}),
+    ],
+)
+def test_install_uses_project_index_without_leaking_credentials(
+    monkeypatch, graph_project, url, expected
+):
+    """pipdeptree is installed from the project's index, never with embedded credentials."""
+    graph_project.sources.default = {"url": url}
+    monkeypatch.setattr(graph, "is_pipdeptree_installed", lambda *a, **kw: True)
+    run = mock.MagicMock(return_value=mock.Mock(returncode=0, stdout="", stderr=""))
+    monkeypatch.setattr(graph, "run_command", run)
+
+    assert graph.install_pipdeptree(graph_project) is True
+
+    assert run.call_args.kwargs["env"] == expected
