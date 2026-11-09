@@ -1,5 +1,4 @@
 import json as simplejson
-import os
 import subprocess
 import sys
 
@@ -33,35 +32,15 @@ def is_pipdeptree_installed(project=None, system=False):
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     import json as jsonlib
 
-    # Check if pipdeptree is installed; if not, install it (skipping the
-    # interactive prompt in non-interactive environments unless explicitly
-    # opted in via PIPENV_AUTO_INSTALL_PIPDEPTREE=1).
+    # pipdeptree is an on-demand, non-vendored dependency. Install it when it
+    # is missing (mirroring how pip-audit is handled). Install progress is
+    # printed to stderr so stdout stays clean for `graph --json` output.
     if not is_pipdeptree_installed(project):
-        auto_install = os.environ.get("PIPENV_AUTO_INSTALL_PIPDEPTREE") == "1"
-        non_interactive = not sys.stdin.isatty()
-        if non_interactive and not auto_install:
-            err.print(
-                "[red]pipdeptree is required for the dependency graph but is not "
-                "installed. Please install it with 'pip install pipdeptree'[/red]"
-            )
-            sys.exit(1)
-        # Route install progress to stderr so stdout stays clean (e.g. for --json).
         err.print(
-            "[yellow bold]pipdeptree is required for dependency graph but not installed.[/yellow bold]"
+            "[yellow bold]pipdeptree is required for the dependency graph but is "
+            "not installed. Installing it now (this does not modify your "
+            "Pipfile/lockfile)...[/yellow bold]"
         )
-        if not auto_install:
-            from pipenv.utils import Confirm
-
-            install = Confirm.ask(
-                "Would you like to install pipdeptree? This will not modify your Pipfile/lockfile.",
-                default=True,
-            )
-            if not install:
-                err.print(
-                    "[yellow]Dependency graph skipped. Install pipdeptree with 'pip install pipdeptree'[/yellow]"
-                )
-                sys.exit(1)
-        err.print("[green]Installing pipdeptree...[/green]")
         cmd = [
             project_python(project),
             "-m",
@@ -73,10 +52,10 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         c = run_command(cmd)
         if c.returncode != 0:
             err.print(
-                "[red]Failed to install pipdeptree. Please install it manually with 'pip install pipdeptree'[/red]"
+                "[red]Failed to install pipdeptree. Please install it manually "
+                "with 'pip install pipdeptree'[/red]"
             )
             sys.exit(1)
-        err.print("[green]pipdeptree installed successfully![/green]")
 
         # Check again after installation
         if not is_pipdeptree_installed(project):

@@ -100,13 +100,10 @@ def test_pipenv_rm_deprecated(pipenv_instance_file_pypi):
 
 
 @pytest.mark.cli
-def test_pipenv_graph(pipenv_instance_file_pypi, monkeypatch):
+def test_pipenv_graph(pipenv_instance_file_pypi):
     with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install tablib")
         assert c.returncode == 0
-        # pipdeptree is an optional on-demand dependency; the graph command
-        # must still work when it is not pre-installed in the test venv.
-        monkeypatch.setenv("PIPENV_AUTO_INSTALL_PIPDEPTREE", "1")
         graph = p.pipenv("graph")
         assert graph.returncode == 0
         assert "tablib" in graph.stdout
@@ -119,12 +116,11 @@ def test_pipenv_graph(pipenv_instance_file_pypi, monkeypatch):
 
 
 @pytest.mark.cli
-def test_pipenv_graph_reverse(pipenv_instance_file_pypi, monkeypatch):
+def test_pipenv_graph_reverse(pipenv_instance_file_pypi):
     with pipenv_instance_file_pypi() as p:
         c = p.pipenv("install tablib==0.13.0")
         assert c.returncode == 0
 
-        monkeypatch.setenv("PIPENV_AUTO_INSTALL_PIPDEPTREE", "1")
         c = p.pipenv("graph --reverse --json-tree")
         assert c.returncode == 0
 
