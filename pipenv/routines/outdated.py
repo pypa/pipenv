@@ -57,10 +57,6 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
         )
         for pkg in project.environment.get_outdated_packages()
     }
-    reverse_deps = {
-        canonicalize_name(name): deps
-        for name, deps in project.environment.reverse_dependencies().items()
-    }
     for result in installed_packages:
         dep, _ = expansive_install_req_from_line(f"{result.name}=={result.version}")
         packages.update(as_pipfile(dep))
@@ -101,18 +97,14 @@ def do_outdated(project, pypi_mirror=None, pre=False, clear=False):
             )
             pipfile_section = project.pipfile.get_section(category)
             if name_in_pipfile and name_in_pipfile in pipfile_section:
-                required = ""
                 version = get_version(pipfile_section[name_in_pipfile])
-                rdeps = reverse_deps.get(canonicalize_name(package))
-                if isinstance(rdeps, Mapping) and "required" in rdeps:
-                    required = f" {rdeps['required']} required"
                 if version:
                     pipfile_version_text = f" ({version} set in Pipfile)"
                 else:
                     pipfile_version_text = " (Unpinned in Pipfile)"
                 err.print(
                     f"Skipped Update of Package {package!s}:"
-                    f" {old_version!s} installed,{required!s}{pipfile_version_text!s}, "
+                    f" {old_version!s} installed, {pipfile_version_text!s}, "
                     f"{new_version!s} available.",
                     style="yellow",
                 )

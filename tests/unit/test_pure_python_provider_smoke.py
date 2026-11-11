@@ -289,7 +289,6 @@ class TestDriveResolverConflict:
 
     def test_conflict_raises_resolution_impossible_with_both_causes(self):
         from pipenv.patched.pip._vendor.resolvelib import ResolutionImpossible
-
         from pipenv.resolver.pure_python_provider import _drive_resolver
         from pipenv.resolver.pure_python_requirement import Requirement
 

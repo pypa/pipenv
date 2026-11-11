@@ -35,9 +35,6 @@ def test_skipped_update_message_names_the_required_version():
     project.environment.get_outdated_packages.return_value = [
         SimpleNamespace(name="requests", version="2.0.0", latest_version="3.0.0")
     ]
-    project.environment.reverse_dependencies.return_value = {
-        "requests": {"required": ">=1.0,<3"}
-    }
     project.pipfile.get_package_categories.return_value = ["default"]
     project.pipfile.get_package_name.return_value = "requests"
     project.pipfile.get_section.return_value = {"requests": "==2.0.0"}
@@ -52,5 +49,5 @@ def test_skipped_update_message_names_the_required_version():
             do_outdated(project)
 
     message = err.print.call_args.args[0]
-    assert ">=1.0,<3 required" in message
-    assert "{rdeps" not in message
+    assert "required" not in message
+    assert "(==2.0.0 set in Pipfile)" in message

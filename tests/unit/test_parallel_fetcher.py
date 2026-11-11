@@ -56,10 +56,9 @@ from unittest.mock import MagicMock
 import pytest
 
 from pipenv.resolver.candidate import Candidate, Hash
-from pipenv.resolver.fetcher import ParallelFetcher, _MAX_WORKERS_CEILING
+from pipenv.resolver.fetcher import _MAX_WORKERS_CEILING, ParallelFetcher
 from pipenv.resolver.manifest_cache import CachedManifest, ParsedManifestCache
 from pipenv.resolver.pep691_types import FetchError, SimplePageResponse
-
 
 # ---------------------------------------------------------------------------
 # Helpers

@@ -14,7 +14,6 @@ import dataclasses
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 # Construction + frozen enforcement
 # ---------------------------------------------------------------------------
@@ -209,9 +208,8 @@ class TestAllFieldsConstruction:
         access (no silent coercion, no field swap)."""
         from datetime import datetime, timezone
 
-        from pipenv.vendor.packaging.tags import Tag
-
         from pipenv.resolver.candidate import Candidate, Hash
+        from pipenv.vendor.packaging.tags import Tag
 
         hashes = frozenset({Hash("sha256", "abc"), Hash("sha512", "def")})
         wheel_tags = frozenset(

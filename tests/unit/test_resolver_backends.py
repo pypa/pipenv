@@ -362,7 +362,7 @@ class TestBackendCLIFlag:
     """
 
     def _parse_lock_args(self, argv):
-        from pipenv.cli.options import apply_env_vars, build_parser, build_state
+        from pipenv.cli.options import apply_env_vars, build_parser
 
         parser = build_parser()
         ns = parser.parse_args(["lock", *argv])

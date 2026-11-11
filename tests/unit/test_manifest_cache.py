@@ -57,7 +57,6 @@ from pipenv.resolver.manifest_cache import (
 )
 from pipenv.vendor.packaging.tags import Tag, parse_tag
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

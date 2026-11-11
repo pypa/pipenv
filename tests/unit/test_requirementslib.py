@@ -14,7 +14,6 @@ no callers in the pipenv tree.
 from pipenv.utils.dependencies import merge_items
 from pipenv.vendor import tomlkit
 
-
 # ---------------------------------------------------------------------------
 # Pattern 1: pipfile.py:318 -- merge_items([deps_dict, dict(packages_table)])
 # ---------------------------------------------------------------------------

@@ -25,7 +25,6 @@ from unittest.mock import MagicMock, patch
 
 from pipenv.patched.pip._internal.operations.prepare import File
 
-
 # ---------------------------------------------------------------------------
 # Import-shape pins -- the move is the test for relocations.
 # ---------------------------------------------------------------------------

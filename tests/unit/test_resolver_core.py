@@ -167,7 +167,6 @@ class TestResolveForPipenvPythonMarkerOverride:
         interpreter's marker environment must be restored on return.
         """
         import pipenv.patched.pip._vendor.packaging.markers as pip_markers
-
         from pipenv.resolver import core
 
         orig = pip_markers.default_environment

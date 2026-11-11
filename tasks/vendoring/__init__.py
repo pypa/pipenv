@@ -27,7 +27,6 @@ LIBRARY_DIRNAMES = {
 # from time to time, remove the no longer needed ones
 HARDCODED_LICENSE_URLS = {
     "pythonfinder": "https://raw.githubusercontent.com/techalchemy/pythonfinder/master/LICENSE.txt",
-    "pipdeptree": "https://raw.githubusercontent.com/tox-dev/pipdeptree/main/LICENSE",
 }
 
 FILE_WHITE_LIST = (

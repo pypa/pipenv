@@ -1,20 +1,93 @@
 import json as simplejson
+import subprocess
 import sys
-from pathlib import Path
 
 from pipenv import exceptions
 from pipenv.patched.pip._vendor.rich.markup import escape as rich_escape
 from pipenv.utils import console, err
 from pipenv.utils.dependencies import BAD_PACKAGES
+from pipenv.utils.internet import _strip_credentials_from_url
 from pipenv.utils.processes import run_command
+from pipenv.utils.shell import project_python
+
+
+def is_pipdeptree_installed(project=None, system=False):
+    """Check if pipdeptree is installed by trying to run it."""
+    if project:
+        python = project_python(project, system=system)
+    else:
+        python = sys.executable
+
+    try:
+        result = subprocess.run(
+            [python, "-m", "pipdeptree", "--version"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def install_pipdeptree(project):
+    """Install pipdeptree into the project's environment.
+
+    pipdeptree is a non-vendored dependency (handled like pip-audit). Install
+    progress is printed to stderr so stdout stays clean for `graph --json`.
+    Returns True when pipdeptree is usable afterwards.
+    """
+    err.print(
+        "[yellow bold]pipdeptree is required for the dependency graph but is "
+        "not installed. Installing it now (this does not modify your "
+        "Pipfile/lockfile)...[/yellow bold]"
+    )
+    cmd = [
+        project_python(project),
+        "-m",
+        "pip",
+        "install",
+        "pipdeptree>=2.0.0",
+        "--quiet",
+    ]
+    # Install from the project's primary index so offline/private mirrors work.
+    # Never put embedded credentials in the environment (GHSA-8xgg-v3jj-95m2).
+    env = {}
+    try:
+        index_url = project.sources.default.get("url")
+    except (AttributeError, IndexError, KeyError):
+        index_url = None
+    if index_url and _strip_credentials_from_url(index_url)[1] is None:
+        env["PIP_INDEX_URL"] = index_url
+    c = run_command(cmd, catch_exceptions=False, env=env)
+    if c.returncode != 0:
+        err.print(
+            "[red]Failed to install pipdeptree. Please install it manually "
+            "with 'pip install pipdeptree'[/red]"
+        )
+        return False
+
+    # Check again after installation
+    if not is_pipdeptree_installed(project):
+        err.print(
+            "[red]pipdeptree installation was reported successful but module not found. "
+            "Please try again or install manually with 'pip install pipdeptree'[/red]"
+        )
+        return False
+    return True
+
+
+def ensure_pipdeptree(project):
+    """Install pipdeptree on demand when it is missing, exiting on failure."""
+    if not is_pipdeptree_installed(project) and not install_pipdeptree(project):
+        sys.exit(1)
 
 
 def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
     import json as jsonlib
 
-    from pipenv.vendor import pipdeptree
+    ensure_pipdeptree(project)
 
-    pipdeptree_path = Path(pipdeptree.__file__).parent
     try:
         python_path = project.venv_locator.python()
     except (AttributeError, RuntimeError):
@@ -33,7 +106,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
         sys.exit(1)
 
     # Build command arguments list (run_command forces UTF-8, so pass the encoding we print with)
-    cmd_args = [python_path, str(pipdeptree_path), "--python", python_path, "-l", "--encoding", console.encoding]
+    cmd_args = [python_path, "-m", "pipdeptree", "--python", python_path, "-l", "--encoding", console.encoding]
 
     # Add flags as needed - multiple flags now supported
     if json:

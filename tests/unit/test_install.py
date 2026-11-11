@@ -3,8 +3,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from pipenv.routines.context import RoutineContext
 from pipenv.routines import install
+from pipenv.routines.context import RoutineContext
 
 
 def test_batch_install_reports_missing_index_without_masking_error(monkeypatch):
