@@ -571,7 +571,7 @@ def license_destination(vendor_dir, libname, filename):
         override = vendor_dir / LIBRARY_DIRNAMES[libname]
         if not override.exists() and override.parent.exists():
             # for flattened subdeps, specifically backports/weakref.py
-            return (vendor_dir / override.parent) / "{override.name}.{filename}"
+            return (vendor_dir / override.parent) / f"{override.name}.{filename}"
 
         license_path = Path(LIBRARY_DIRNAMES[libname]) / filename
         if license_path.as_posix() in LICENSE_RENAMES:
