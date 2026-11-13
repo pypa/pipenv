@@ -64,3 +64,17 @@ def test_uninstall_without_virtualenv_explains_the_failure():
     message = print_mock.call_args.args[0]
     assert "No virtualenv found" in message
     assert "requests" in message
+
+
+def test_uninstall_from_environment_reports_failure_instead_of_raising(monkeypatch):
+    """A failing ``pip uninstall`` must give ``False``, not a PipenvCmdError."""
+    project = mock.MagicMock()
+    project.environment.activated.return_value.__enter__.return_value = True
+    monkeypatch.setattr("pipenv.routines.uninstall.project_python", lambda *a, **k: "py")
+    monkeypatch.setattr("pipenv.routines.uninstall.get_runnable_pip", lambda: "pip")
+    monkeypatch.setattr(
+        "pipenv.utils.processes.subprocess_run",
+        lambda *a, **k: mock.MagicMock(returncode=1, stdout="", stderr="boom"),
+    )
+
+    assert _uninstall_from_environment(project, "requests") is False
