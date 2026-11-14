@@ -2071,9 +2071,8 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
                 parts.append("-e")
             parts.append(path)
 
-            if include_markers:
-                if "markers" in package_spec and package_spec["markers"]:
-                    parts.append(f"; {package_spec['markers']}")
+            if markers:
+                parts.append(markers.strip())
             return " ".join(parts)
 
     # Handle standard version specifications

@@ -27,3 +27,22 @@ def test_vcs_marker_omitted_when_markers_excluded():
 
 def test_vcs_without_markers_unchanged():
     assert requirement_from_pipfile("pkg", {"git": URL, "ref": "abc123"}) == f"pkg @ git+{URL}@abc123"
+
+
+@pytest.mark.parametrize("key", ["path", "file"])
+def test_path_sys_platform_kept_without_lock(key):
+    spec = {key: "./w", "sys_platform": "== 'win32'"}
+    assert requirement_from_pipfile("w", spec) == "./w ; sys_platform == 'win32'"
+
+
+def test_path_markers_and_sys_platform_combined():
+    spec = {"path": "./w", "markers": "python_version >= '3.9'", "sys_platform": "== 'win32'"}
+    assert (
+        requirement_from_pipfile("w", spec)
+        == "./w ; python_version >= '3.9' and sys_platform == 'win32'"
+    )
+
+
+def test_path_marker_omitted_when_markers_excluded():
+    spec = {"path": "./w", "sys_platform": "== 'win32'"}
+    assert requirement_from_pipfile("w", spec, include_markers=False) == "./w"
