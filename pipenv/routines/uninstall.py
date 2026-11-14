@@ -38,7 +38,9 @@ def _uninstall_from_environment(project: Project, package, system=False):
             package,
             "-y",
         ]
-        c = run_command(cmd, is_verbose=project.s.is_verbose())
+        c = run_command(
+            cmd, is_verbose=project.s.is_verbose(), catch_exceptions=False
+        )
         console.print(c.stdout, style="cyan")
         if c.returncode != 0:
             console.print(f"Error occurred while uninstalling package {package}.")

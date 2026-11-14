@@ -57,3 +57,23 @@ def test_reports_uninstall_failure(clean_project, run_command):
 
     run_command.return_value.returncode = 1
     assert remove_extraneous_packages(clean_project) is True
+
+
+def test_failed_uninstall_does_not_stop_remaining_packages(clean_project, monkeypatch):
+    """The real ``run_command`` raises on a non-zero exit unless told not to."""
+    from pipenv.routines.clean import remove_extraneous_packages
+
+    clean_project.installed_package_names = ["stale-a", "stale-b"]
+    clean_project.lockfile.content = {"default": {}, "develop": {}}
+    attempted = []
+
+    def fake_subprocess_run(command, *args, **kwargs):
+        attempted.append(command[3])
+        return mock.MagicMock(returncode=1, stdout="", stderr="boom")
+
+    monkeypatch.setattr("pipenv.utils.processes.subprocess_run", fake_subprocess_run)
+    monkeypatch.setattr("pipenv.routines.clean.project_python", lambda *a, **k: "py")
+    monkeypatch.setattr("pipenv.routines.clean.get_runnable_pip", lambda: "pip")
+
+    assert remove_extraneous_packages(clean_project) is True
+    assert attempted == ["stale-a", "stale-b"]
