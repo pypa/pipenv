@@ -1,6 +1,7 @@
 import os
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 
@@ -106,20 +107,14 @@ def release(
         ctx.run("git add pipenv/pipenv.1")
         ctx.run(f'git commit -m "Release v{version}"')
 
-    tag_content = tag_content.replace('"', '\\"')
     if dry_run or pre:
         log(f"Generated tag content: {tag_content}")
-        # draft_rstfile = "CHANGELOG.draft.rst"
-        # markdown_path = pathlib.Path(draft_rstfile).with_suffix(".md")
-        # generate_markdown(ctx, source_rstfile=draft_rstfile)
-        # clean_mdchangelog(ctx, markdown_path.as_posix())
-        # log(f"would generate markdown: {markdown_path.read_text()}")
-        if not dry_run:
-            ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
-    else:
-        # generate_markdown(ctx)
-        # clean_mdchangelog(ctx)
-        ctx.run(f'git tag -a v{version} -m "Version v{version}\n\n{tag_content}"')
+    if not dry_run:
+        ctx.run(
+            shlex.join(
+                ["git", "tag", "-a", f"v{version}", "-m", f"Version v{version}\n\n{tag_content}"]
+            )
+        )
 
 
 def drop_dist_dirs(ctx):
