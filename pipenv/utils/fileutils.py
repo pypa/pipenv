@@ -48,7 +48,7 @@ def url_to_path(url: str) -> Path:
         netloc = "\\\\" + netloc
 
     path_str = urllib_request.url2pathname(netloc + path)
-    return Path(urllib_parse.unquote(path_str))
+    return Path(path_str)
 
 
 if os.name == "nt":
