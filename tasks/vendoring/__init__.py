@@ -400,6 +400,10 @@ def packages_missing_licenses(
         for lic in itertools.product(("LICENSE", "LICENSE-MIT"), LICENSE_EXTS)
     ]
     for _, req in enumerate(requirements):
+        req = req.strip()
+        # Skip blank lines and pip-compile style annotations ("# via ...").
+        if not req or req.startswith("#"):
+            continue
         if req.startswith("git+"):
             pkg = req.strip().split("#egg=")[1]
         else:
@@ -463,18 +467,22 @@ def download_licenses(
     # TODO: Fix this whenever it gets sorted out (see https://github.com/pypa/pip/issues/5739)
 
     cmd = "pip download --no-binary :all: --only-binary requests_download --no-deps"
-    ctx.run("pip install flit")  # needed for the next step
+    # Build backends needed by --no-build-isolation below; newer Pythons
+    # (3.12+) no longer ship setuptools in a fresh environment.
+    ctx.run("pip install flit setuptools")
     for req in requirements:
         exe_cmd = f"{cmd} --no-build-isolation -d {tmp_dir.as_posix()} {req}"
         try:
             ctx.run(exe_cmd)
         except invoke.exceptions.UnexpectedExit as e:
             if "ModuleNotFoundErr" in e.result.stderr.strip():
-                target = parse.parse(
+                # Recent pip prints the error mid-output (e.g. after "╰─> "),
+                # so search the whole stderr rather than its last line.
+                target = parse.search(
                     "ModuleNotFoundError: No module named '{backend}'",
-                    e.result.stderr.strip().split("\n")[-1],
+                    e.result.stderr,
                 )
-                backend = target.named.get("backend")
+                backend = target.named.get("backend") if target else None
                 if backend is not None:
                     if "." in backend:
                         backend, _, _ = backend.partition(".")
@@ -488,8 +496,8 @@ def download_licenses(
                     "Disabling PEP 517 processing is invalid: project specifies a build "
                     "backend of {backend} in pyproject.toml"
                 )
-                target = parse.parse(parse_target, e.result.stderr.strip())
-                backend = target.named.get("backend")
+                target = parse.search(parse_target, e.result.stderr)
+                backend = target.named.get("backend") if target else None
                 if backend is not None:
                     if "." in backend:
                         backend, _, _ = backend.partition(".")
