@@ -647,24 +647,27 @@ def do_install_validations(
             "Remote requirements file provided! Downloading...",
             style="bold",
         )
-        fd = NamedTemporaryFile(
-            prefix="pipenv-", suffix="-requirement.txt", dir=requirements_directory
-        )
-        temp_reqs = fd.name
+        # Close the file before download_file() opens it by name (Windows
+        # doesn't allow that while it is open) and keep it for
+        # import_requirements(); requirements_directory is removed at exit.
+        with NamedTemporaryFile(
+            prefix="pipenv-",
+            suffix="-requirement.txt",
+            dir=requirements_directory,
+            delete=False,
+        ) as fd:
+            temp_reqs = fd.name
         requirements_url = requirementstxt
         # Download requirements file
         try:
             download_file(requirements_url, temp_reqs, project.s.PIPENV_MAX_RETRIES)
         except OSError:
-            fd.close()
             os.unlink(temp_reqs)
             err.print(
                 f"Unable to find requirements file at {requirements_url}.",
                 style="red",
             )
             sys.exit(1)
-        finally:
-            fd.close()
         # Replace the url with the temporary requirements file
         requirementstxt = temp_reqs
     if requirementstxt:
