@@ -1,6 +1,34 @@
+from pathlib import Path
+
 import pytest
 
 from pipenv.utils.shell import temp_environ
+
+
+@pytest.mark.install
+@pytest.mark.uninstall
+@pytest.mark.parametrize("package_arg", ["-e ./demo", "editable-demo"])
+def test_uninstall_local_editable(pipenv_instance_file_pypi, package_arg):
+    with pipenv_instance_file_pypi() as p:
+        package_dir = Path(p.path) / "demo"
+        package_dir.mkdir()
+        (package_dir / "setup.py").write_text(
+            'from setuptools import setup\n'
+            'setup(name="editable-demo", version="0.1", py_modules=[])\n'
+        )
+
+        c = p.pipenv("install -e ./demo")
+        assert c.returncode == 0
+        assert p.pipfile["packages"]["editable-demo"]["editable"] is True
+        c = p.pipenv("run python -m pip show editable-demo")
+        assert c.returncode == 0
+
+        c = p.pipenv(f"uninstall {package_arg}")
+        assert c.returncode == 0
+        assert "editable-demo" not in p.pipfile["packages"]
+        assert "editable-demo" not in p.lockfile["default"]
+        c = p.pipenv("run python -m pip show editable-demo")
+        assert c.returncode != 0
 
 
 @pytest.mark.uninstall

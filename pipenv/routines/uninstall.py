@@ -121,6 +121,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
         return
 
     package_args = list(packages) + [f"-e {pkg}" for pkg in editable_packages]
+    package_names = {}
 
     # Determine packages and their dependencies for removal
     for category in categories:
@@ -134,6 +135,8 @@ def do_uninstall(project: Project, ctx: RoutineContext):
             name, normalized_name, _ = project.pipfile.generate_entry(
                 install_req, package, category=pipfile_category
             )
+            # pip uninstall accepts distribution names, not editable install arguments.
+            package_names[package] = normalized_name
 
             # Remove the package from the Pipfile
             if project.pipfile.remove_package(
@@ -179,7 +182,7 @@ def do_uninstall(project: Project, ctx: RoutineContext):
     project.lockfile.write(lockfile_content)
 
     # Perform uninstallation of packages and dependencies
-    for package in package_args:
+    for package in package_names.values():
         if not _uninstall_from_environment(project, package, system=system):
             failure = True
 
