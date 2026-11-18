@@ -63,7 +63,12 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data += [d for d in parsed if d["package"]["key"] not in BAD_PACKAGES]
-            console.print(simplejson.dumps(data, indent=4))
+            console.print(
+                simplejson.dumps(data, indent=4),
+                markup=False,
+                highlight=False,
+                soft_wrap=True,
+            )
             sys.exit(0)
         elif json_tree:
 
@@ -84,7 +89,12 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                 raise exceptions.JSONParseError(c.stdout, c.stderr)
             else:
                 data = traverse(parsed)
-                console.print(simplejson.dumps(data, indent=4))
+                console.print(
+                    simplejson.dumps(data, indent=4),
+                    markup=False,
+                    highlight=False,
+                    soft_wrap=True,
+                )
                 sys.exit(0)
         else:
             for line in c.stdout.strip().split("\n"):
@@ -101,7 +111,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
                 else:
                     console.print(escaped_line)
     else:
-        console.print(rich_escape(c.stdout))
+        console.print(c.stdout, markup=False, highlight=False, soft_wrap=True)
 
     if c.returncode != 0:
         err.print(
