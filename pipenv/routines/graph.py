@@ -105,7 +105,7 @@ def do_graph(project, bare=False, json=False, json_tree=False, reverse=False):
 
     if c.returncode != 0:
         err.print(
-            f"[bold][red]ERROR: {c.stderr}[red][/bold]",
+            f"[bold][red]ERROR: {rich_escape(c.stderr)}[red][/bold]",
         )
     # Return its return code.
     sys.exit(c.returncode)

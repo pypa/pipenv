@@ -559,3 +559,61 @@ class TestResponseDispatch:
                 project=project,
                 st=st,
             )
+
+
+def test_locking_failed_output_is_not_parsed_as_rich_markup(tmp_path, monkeypatch):
+    """Bracketed text in the child's stdout/stderr must be printed literally."""
+    from io import StringIO
+
+    from pipenv.patched.pip._vendor.rich.console import Console
+
+    request = ResolverRequest(
+        schema_version=SCHEMA_VERSION,
+        category="default",
+        packages=PackageSpecs(specs={"foo": "foo"}),
+        options=ResolverOptions(),
+        sources=(Source(name="pypi", url="https://pypi.org/simple", verify_ssl=True),),
+    )
+
+    def fake_resolve(cmd, st, project, **_kwargs):
+        return subprocess.CompletedProcess(
+            cmd, 1, "out requests[security] [end of output]", "bad [/bold] foo[bar]\n"
+        )
+
+    buf = StringIO()
+    monkeypatch.setattr(resolver_mod, "resolve", fake_resolve)
+    monkeypatch.setattr(resolver_mod, "err", Console(file=buf, width=200))
+
+    st = SimpleNamespace(console=mock.MagicMock())
+    with pytest.raises(RuntimeError):
+        resolver_mod._run_resolver_subprocess(
+            request=request,
+            python_executable="/usr/bin/python3",
+            project=_stub_project(tmp_path),
+            st=st,
+        )
+    out = buf.getvalue()
+    assert "requests[security] [end of output]" in out
+    assert "bad [/bold] foo[bar]" in out
+
+
+def test_verbose_resolver_stderr_is_not_parsed_as_rich_markup(tmp_path, monkeypatch):
+    """Verbose streaming of the child's stderr must print bracketed text literally."""
+    from io import StringIO
+
+    from pipenv.patched.pip._vendor.rich.console import Console
+
+    proc = mock.MagicMock()
+    proc.stdout = StringIO("")
+    proc.stderr = StringIO("pip says requests[security] [/bold] [end of output]\n")
+    proc.wait.return_value = 0
+    proc.returncode = 0
+    monkeypatch.setattr(resolver_mod, "subprocess_run", lambda *a, **k: proc)
+
+    buf = StringIO()
+    st = SimpleNamespace(console=Console(file=buf, width=200))
+    project = _stub_project(tmp_path)
+    project.s.is_verbose.return_value = True
+
+    resolver_mod.resolve(["python", "-c", "pass"], st, project, deadline_seconds=5)
+    assert "requests[security] [/bold] [end of output]" in buf.getvalue()
