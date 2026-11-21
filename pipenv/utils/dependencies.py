@@ -1596,10 +1596,18 @@ def prepare_constraint_file(
     )
 
     if sources and pip_args:
-        skip_args = ("build-isolation", "use-pep517", "cache-dir")
-        args_to_add = [
-            arg for arg in pip_args if not any(bad_arg in arg for bad_arg in skip_args)
-        ]
+        skip_args = ("build-isolation", "use-pep517")
+        args_to_add = []
+        args_iter = iter(pip_args)
+        for arg in args_iter:
+            if arg == "--cache-dir":
+                next(args_iter, None)
+                continue
+            if arg.startswith("--cache-dir=") or any(
+                bad_arg in arg for bad_arg in skip_args
+            ):
+                continue
+            args_to_add.append(arg)
         requirementstxt_sources = " ".join(args_to_add) if args_to_add else ""
         requirementstxt_sources = requirementstxt_sources.replace(" --", "\n--")
         constraints_file.write(f"{requirementstxt_sources}\n")

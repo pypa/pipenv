@@ -1,3 +1,4 @@
+import shlex
 from unittest.mock import MagicMock
 
 from pipenv.patched.pip._internal.index.package_finder import CandidateEvaluator
@@ -14,6 +15,7 @@ from pipenv.utils.dependencies import (
     _file_url_to_relative_path,
     clean_resolved_dep,
     file_path_from_pipfile,
+    prepare_constraint_file,
 )
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
@@ -1093,3 +1095,33 @@ class TestIsEditable:
         )
         assert self._call(doc["packages"]["foo"]) is True
         assert self._call(doc["packages"]["bar"]) is False
+
+
+def test_prepare_constraint_file_drops_cache_dir_value(tmp_path):
+    cache_dir = "/home/Testin'User/.cache/pipenv"
+    path = prepare_constraint_file(
+        ["six==1.16.0"],
+        directory=str(tmp_path),
+        sources=[
+            {"name": "pypi", "url": "https://pypi.org/simple", "verify_ssl": True}
+        ],
+        pip_args=[
+            "-i",
+            "https://pypi.org/simple",
+            "--cache-dir",
+            cache_dir,
+            "--pre",
+            "--cache-dir=/other/cache",
+            "--no-build-isolation",
+        ],
+    )
+    with open(path) as f:
+        lines = f.read().splitlines()
+
+    assert lines[0] == "-i https://pypi.org/simple"
+    assert "--pre" in lines
+    assert "six==1.16.0" in lines
+    assert not any("cache" in line for line in lines)
+    assert not any("build-isolation" in line for line in lines)
+    for line in lines:
+        shlex.split(line)
