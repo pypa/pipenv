@@ -1,0 +1,1 @@
+``pipenv install --skip-lock`` no longer generates VCS requirement URLs with an empty ``@`` revision for Pipfile entries without a ``ref``, and metadata parsing no longer raises ``IndexError`` for ``Name:`` fields without a trailing space.
