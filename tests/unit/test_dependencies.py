@@ -14,6 +14,9 @@ from pipenv.utils.dependencies import (
     _file_url_to_relative_path,
     clean_resolved_dep,
     file_path_from_pipfile,
+    install_req_from_pipfile,
+    parse_metadata_file,
+    parse_pkginfo_file,
 )
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
@@ -1093,3 +1096,84 @@ class TestIsEditable:
         )
         assert self._call(doc["packages"]["foo"]) is True
         assert self._call(doc["packages"]["bar"]) is False
+
+
+class TestInstallReqFromPipfileVcsRef:
+    """A VCS Pipfile entry without a ``ref`` must not produce a URL with an
+    empty revision.
+
+    ``install_req_from_pipfile`` formatted the requirement as
+    ``f"{vcs_url}@{ref}"`` unconditionally, so the common refless entry
+    (``{"git": "https://github.com/user/repo.git"}``) produced
+    ``git+https://github.com/user/repo.git@``.  pip's VCS parser rejects
+    such a URL with ``InstallationError: The URL ... has an empty revision
+    (after @) which is not supported``, which broke e.g.
+    ``pipenv install --skip-lock`` for VCS dependencies (the lockfile path
+    via ``dependency_as_pip_install_line`` already guards the ``@`` with
+    ``if dep.get("ref")``).
+    """
+
+    def test_refless_git_link_has_no_empty_revision(self):
+        from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
+        install_req, _, req_str = install_req_from_pipfile(
+            "requests", {"git": "https://github.com/psf/requests.git"}
+        )
+        assert install_req.link.url == "git+https://github.com/psf/requests.git"
+        # The produced URL must survive pip's own VCS URL parser.
+        url, rev, _ = VcsSupport().get_backend("git").get_url_rev_and_auth(
+            install_req.link.url
+        )
+        assert url == "https://github.com/psf/requests.git"
+        assert rev is None
+
+    def test_refless_git_editable_link_has_no_empty_revision(self):
+        from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
+        install_req, _, req_str = install_req_from_pipfile(
+            "requests", {"git": "https://github.com/psf/requests.git", "editable": True}
+        )
+        assert req_str == "-e requests @ git+https://github.com/psf/requests.git"
+        url, rev, _ = VcsSupport().get_backend("git").get_url_rev_and_auth(
+            install_req.link.url
+        )
+        assert rev is None
+
+    def test_explicit_ref_is_preserved(self):
+        from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
+        install_req, _, req_str = install_req_from_pipfile(
+            "requests", {"git": "https://github.com/psf/requests.git", "ref": "v1.0"}
+        )
+        assert req_str == "requests @ git+https://github.com/psf/requests.git@v1.0"
+        url, rev, _ = VcsSupport().get_backend("git").get_url_rev_and_auth(
+            install_req.link.url
+        )
+        assert url == "https://github.com/psf/requests.git"
+        assert rev == "v1.0"
+
+
+class TestParseMetadataFile:
+    """``parse_metadata_file``/``parse_pkginfo_file`` contract: return the
+    project name, or None when it cannot be found — never raise.
+
+    Both functions used ``line.split("Name: ")[1]``, which raised an
+    IndexError on metadata lines without the space after the colon
+    (``Name:pypa``), crashing best-effort package-name discovery for local
+    directories and archives.
+    """
+
+    def test_name_with_space(self):
+        assert parse_metadata_file("Metadata-Version: 2.1\nName: pypa\n") == "pypa"
+
+    def test_name_without_space(self):
+        assert parse_metadata_file("Metadata-Version: 2.1\nName:pypa\n") == "pypa"
+
+    def test_empty_name_value_returns_none(self):
+        assert parse_metadata_file("Name:\nVersion: 1.0\n") is None
+
+    def test_missing_name_returns_none(self):
+        assert parse_metadata_file("Version: 1.0\n") is None
+
+    def test_pkginfo_name_without_space(self):
+        assert parse_pkginfo_file("Name:no-space\nVersion: 1.0\n") == "no-space"
