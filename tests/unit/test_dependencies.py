@@ -1177,3 +1177,99 @@ class TestParseMetadataFile:
 
     def test_pkginfo_name_without_space(self):
         assert parse_pkginfo_file("Name:no-space\nVersion: 1.0\n") == "no-space"
+
+
+class TestInstallReqFromPipfileVcsExtras:
+    """A Pipfile VCS entry that carries ``extras`` must not glue the extras
+    onto the VCS URL.
+
+    ``install_req_from_pipfile`` builds the PEP 508 direct-reference form
+    ``name[extras] @ <vcs_url>@<ref>`` itself, so appending the extras a
+    second time to the raw URL produces ``...@<ref>[extra]`` — pip then
+    treats ``<ref>[extra]`` as the VCS revision, and ``git checkout`` of
+    that revision fails (brackets are invalid in git refnames).
+    """
+
+    def _build(self, pipfile_entry):
+        from pipenv.utils.dependencies import install_req_from_pipfile
+
+        return install_req_from_pipfile("requests", pipfile_entry)
+
+    def test_vcs_with_ref_and_extras_keeps_extras_off_url(self):
+        _install_req, _markers, req_str = self._build(
+            {"git": "https://github.com/psf/requests.git", "ref": "v2.31.0", "extras": ["socks"]}
+        )
+        assert req_str == (
+            "requests[socks] @ git+https://github.com/psf/requests.git@v2.31.0"
+        )
+
+    def test_vcs_with_ref_and_extras_link_has_clean_revision(self):
+        from pipenv.utils.dependencies import get_vcs_backend
+
+        install_req, _markers, _req_str = self._build(
+            {"git": "https://github.com/psf/requests.git", "ref": "v2.31.0", "extras": ["socks"]}
+        )
+        url, rev, _auth = get_vcs_backend("git").get_url_rev_and_auth(install_req.link.url)
+        assert url == "https://github.com/psf/requests.git"
+        assert rev == "v2.31.0"
+
+    def test_vcs_without_extras_with_ref_unchanged(self):
+        _install_req, _markers, req_str = self._build(
+            {"git": "https://github.com/psf/requests.git", "ref": "v2.31.0"}
+        )
+        assert req_str == (
+            "requests @ git+https://github.com/psf/requests.git@v2.31.0"
+        )
+
+
+class TestNameDiscoveryParsersMalformedInput:
+    """The name-discovery parsers feed ``determine_package_name`` (best-effort,
+    contract: return None when the name cannot be determined).  Malformed
+    input files must not raise — ``determine_package_name`` only guards
+    PermissionError, so any parser exception aborts ``pipenv install ./dir``.
+    """
+
+    def _setup(self, content):
+        from pipenv.utils.dependencies import parse_setup_file
+
+        return parse_setup_file(content)
+
+    def _cfg(self, content):
+        from pipenv.utils.dependencies import parse_cfg_file
+
+        return parse_cfg_file(content)
+
+    def _toml(self, content):
+        from pipenv.utils.dependencies import parse_toml_file
+
+        return parse_toml_file(content)
+
+    # --- valid input still works (guards against over-broad try/except) ---
+
+    def test_valid_setup_py(self):
+        assert self._setup("NAME = 'mypkg'\nsetup(name=NAME)\n") == "mypkg"
+
+    def test_valid_cfg(self):
+        assert self._cfg("[metadata]\nname = mypkg\n") == "mypkg"
+
+    def test_valid_toml_project(self):
+        assert self._toml('[project]\nname = "mypkg"\n') == "mypkg"
+
+    # --- malformed input must return None, not raise ---
+
+    def test_setup_py_syntax_error_returns_none(self):
+        assert self._setup("def broken(\n") is None
+
+    def test_cfg_duplicate_option_returns_none(self):
+        assert self._cfg("[metadata]\nname = a\nname = b\n") is None
+
+    def test_cfg_missing_section_header_returns_none(self):
+        assert self._cfg("name = mypkg\n") is None
+
+    def test_toml_decode_error_returns_none(self):
+        assert self._toml("not [valid") is None
+
+    def test_toml_poetry_without_name_returns_none(self):
+        content = '[tool.poetry]\npackages = [{include = "mylib"}]\n'
+        assert self._toml(content) is None
+ 
