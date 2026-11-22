@@ -422,9 +422,10 @@ def do_scan(  # noqa: PLR0913
 
                 try:
                     python = project_python(project, system=system)
-                    subprocess.check_call(
+                    subprocess.run(
                         [python, "-m", "pip", "install", "safety>=3.0.0", "typer>=0.9.0"],
                         capture_output=True,
+                        check=True,
                     )
                 except Exception:
                     pass  # The explicit availability check below reports failure.
