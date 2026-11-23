@@ -50,6 +50,24 @@ def get_from_env(arg, prefix="PIPENV", check_for_negation=True, default=None):
     return default
 
 
+def _int_from_env(arg, default, check_for_negation=True):
+    """
+    Read an integer setting from the environment, falling back to *default*
+    when the variable is unset or set to a non-integer value, so a typo like
+    ``PIPENV_INSTALL_TIMEOUT=abc`` degrades to the documented default instead
+    of crashing every Pipenv command with a raw ``ValueError`` traceback.
+
+    Mirrors the ``PIPENV_RESOLVER_TIMEOUT_S`` handling below.
+    """
+    value = get_from_env(
+        arg, check_for_negation=check_for_negation, default=default
+    )
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
 def normalize_pipfile_path(p):
     if p is None:
         return None
@@ -202,8 +220,8 @@ class Setting:
         and enables the user to use any user-built environments with Pipenv.
         """
 
-        self.PIPENV_INSTALL_TIMEOUT = int(
-            get_from_env("INSTALL_TIMEOUT", default=60 * 15)
+        self.PIPENV_INSTALL_TIMEOUT = _int_from_env(
+            "INSTALL_TIMEOUT", default=60 * 15
         )
         """Max number of seconds to wait for package installation.
 
@@ -211,14 +229,14 @@ class Setting:
         """
 
         # NOTE: +1 because of a temporary bug in Pipenv.
-        self.PIPENV_MAX_DEPTH = int(get_from_env("MAX_DEPTH", default=10)) + 1
+        self.PIPENV_MAX_DEPTH = _int_from_env("MAX_DEPTH", default=10) + 1
         """Maximum number of directories to recursively search for a Pipfile.
 
         Default is 3. See also ``PIPENV_NO_INHERIT``.
         """
 
         self.PIPENV_MAX_RETRIES = (
-            int(get_from_env("MAX_RETRIES", default=1)) if PIPENV_IS_CI else 0
+            _int_from_env("MAX_RETRIES", default=1) if PIPENV_IS_CI else 0
         )
         """Specify how many retries Pipenv should attempt for network requests.
 
@@ -310,16 +328,16 @@ class Setting:
         Default is to use the compatibility shell if possible.
         """
 
-        self.PIPENV_TIMEOUT = int(
-            get_from_env("TIMEOUT", check_for_negation=False, default=120)
+        self.PIPENV_TIMEOUT = _int_from_env(
+            "TIMEOUT", default=120, check_for_negation=False
         )
         """Max number of seconds Pipenv will wait for virtualenv creation to complete.
 
         Default is 120 seconds, an arbitrary number that seems to work.
         """
 
-        self.PIPENV_REQUESTS_TIMEOUT = int(
-            get_from_env("REQUESTS_TIMEOUT", check_for_negation=False, default=10)
+        self.PIPENV_REQUESTS_TIMEOUT = _int_from_env(
+            "REQUESTS_TIMEOUT", default=10, check_for_negation=False
         )
         """Timeout setting for requests.
 

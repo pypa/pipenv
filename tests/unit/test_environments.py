@@ -113,3 +113,42 @@ def test_pipenv_default_categories_set(monkeypatch):
 def test_pipenv_default_categories_unset(monkeypatch):
     monkeypatch.delenv("PIPENV_DEFAULT_CATEGORIES", raising=False)
     assert environments.Setting().PIPENV_DEFAULT_CATEGORIES is None
+
+
+@pytest.mark.environments
+@pytest.mark.parametrize(
+    "envvar, attr, default",
+    [
+        ("PIPENV_INSTALL_TIMEOUT", "PIPENV_INSTALL_TIMEOUT", 900),
+        ("PIPENV_MAX_DEPTH", "PIPENV_MAX_DEPTH", 11),
+        ("PIPENV_TIMEOUT", "PIPENV_TIMEOUT", 120),
+        ("PIPENV_REQUESTS_TIMEOUT", "PIPENV_REQUESTS_TIMEOUT", 10),
+    ],
+)
+def test_non_integer_numeric_env_vars_fall_back_to_default(
+    monkeypatch, envvar, attr, default
+):
+    """A non-integer numeric setting must not crash Setting construction.
+
+    Before the fix, ``PIPENV_INSTALL_TIMEOUT=abc`` (etc.) raised an
+    unhandled ValueError from ``Setting.__init__``, so every pipenv
+    command aborted with a traceback.
+    """
+    monkeypatch.setenv(envvar, "not-a-number")
+    assert getattr(environments.Setting(), attr) == default
+
+
+@pytest.mark.environments
+@pytest.mark.parametrize(
+    "envvar, attr, expected",
+    [
+        ("PIPENV_INSTALL_TIMEOUT", "PIPENV_INSTALL_TIMEOUT", 300),
+        ("PIPENV_MAX_DEPTH", "PIPENV_MAX_DEPTH", 5),
+        ("PIPENV_TIMEOUT", "PIPENV_TIMEOUT", 30),
+        ("PIPENV_REQUESTS_TIMEOUT", "PIPENV_REQUESTS_TIMEOUT", 45),
+    ],
+)
+def test_valid_integer_numeric_env_vars_are_parsed(monkeypatch, envvar, attr, expected):
+    """Integer values keep working as before (``PIPENV_MAX_DEPTH`` gets +1)."""
+    monkeypatch.setenv(envvar, str(expected if envvar != "PIPENV_MAX_DEPTH" else expected - 1))
+    assert getattr(environments.Setting(), attr) == expected

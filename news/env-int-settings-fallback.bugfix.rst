@@ -1,0 +1,1 @@
+Numeric ``PIPENV_*`` environment variables (``PIPENV_INSTALL_TIMEOUT``, ``PIPENV_MAX_DEPTH``, ``PIPENV_TIMEOUT``, ``PIPENV_REQUESTS_TIMEOUT``, ``PIPENV_MAX_RETRIES``) no longer crash every Pipenv command with a ``ValueError`` traceback when set to a non-integer value; the documented default is used instead.
