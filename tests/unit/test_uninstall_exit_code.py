@@ -78,3 +78,21 @@ def test_uninstall_from_environment_reports_failure_instead_of_raising(monkeypat
     )
 
     assert _uninstall_from_environment(project, "requests") is False
+
+
+def test_uninstall_from_environment_prints_pip_stderr_on_failure(monkeypatch):
+    """The reason ``pip uninstall`` failed lives on stderr and must be shown."""
+    project = mock.MagicMock()
+    project.environment.activated.return_value.__enter__.return_value = True
+    monkeypatch.setattr("pipenv.routines.uninstall.project_python", lambda *a, **k: "py")
+    monkeypatch.setattr("pipenv.routines.uninstall.get_runnable_pip", lambda: "pip")
+    monkeypatch.setattr(
+        "pipenv.utils.processes.subprocess_run",
+        lambda *a, **k: mock.MagicMock(returncode=1, stdout="", stderr="Permission denied: site-packages"),
+    )
+
+    with mock.patch("pipenv.routines.uninstall.console.print") as print_mock:
+        assert _uninstall_from_environment(project, "requests") is False
+
+    printed = " ".join(str(call.args[0]) for call in print_mock.call_args_list)
+    assert "Permission denied: site-packages" in printed
