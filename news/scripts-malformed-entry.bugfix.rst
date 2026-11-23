@@ -1,0 +1,1 @@
+``pipenv run`` no longer crashes with a raw ``IndexError``/``TypeError`` traceback when a ``[scripts]`` entry is malformed (e.g. an empty inline table ``name = {}`` or a non-string value); a clean error naming the script is printed instead.
