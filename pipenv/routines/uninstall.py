@@ -43,6 +43,8 @@ def _uninstall_from_environment(project: Project, package, system=False):
         )
         console.print(c.stdout, style="cyan")
         if c.returncode != 0:
+            if c.stderr:
+                console.print(c.stderr, style="yellow")
             console.print(f"Error occurred while uninstalling package {package}.")
             return False
     return True
