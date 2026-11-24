@@ -1904,6 +1904,17 @@ def add_index_to_pipfile_with_trust_check(project, index, trusted_hosts=None):
     return index_name
 
 
+def _location_with_extras(name, location, extras):
+    """Return a pip line for a file/path dependency, keeping its extras."""
+    if not extras:
+        return location
+    extras_str = f"[{','.join(extras)}]"
+    if location.startswith(("http:", "https:", "ftp:", "file:")):
+        # URLs need the PEP 508 "name[extras] @ url" form.
+        return f"{name}{extras_str} @ {location}"
+    return f"{location}{extras_str}"
+
+
 def requirement_from_lockfile(
     package_name, package_info, include_hashes=True, include_markers=True
 ):
@@ -1970,7 +1981,11 @@ def requirement_from_lockfile(
             path = package_info[k]
             if package_info.get("editable") and is_editable_path(path):
                 line.append("-e")
-            line.append(f"{package_info[k]}")
+            line.append(
+                _location_with_extras(
+                    package_name, package_info[k], package_info.get("extras")
+                )
+            )
             if markers:
                 line.append(markers)
             pip_line = " ".join(line)
@@ -2096,7 +2111,9 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
             parts = []
             if package_spec.get("editable") and is_editable_path(path):
                 parts.append("-e")
-            parts.append(path)
+            parts.append(
+                _location_with_extras(package_name, path, package_spec.get("extras"))
+            )
 
             if markers:
                 parts.append(markers.strip())
