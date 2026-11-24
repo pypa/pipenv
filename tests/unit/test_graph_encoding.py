@@ -31,3 +31,22 @@ def test_graph_tree_uses_characters_stdout_can_encode(monkeypatch, encoding, bra
     assert excinfo.value.code == 0
     stdout.flush()
     assert branch in stdout.buffer.getvalue().decode(encoding)
+
+
+def test_graph_error_output_is_not_parsed_as_rich_markup(monkeypatch):
+    from io import StringIO
+
+    from pipenv.patched.pip._vendor.rich.console import Console
+
+    buf = StringIO()
+    monkeypatch.setattr("pipenv.routines.graph.err", Console(file=buf, width=200))
+    project = mock.MagicMock()
+    project.venv_locator.python.return_value = sys.executable
+    project.venv_locator.exists = True
+    project.s.is_verbose.return_value = False
+    fake = mock.MagicMock(returncode=1, stdout="", stderr="oops foo[bar] [/bold]")
+    monkeypatch.setattr("pipenv.routines.graph.run_command", lambda *a, **k: fake)
+
+    with pytest.raises(SystemExit):
+        do_graph(project)
+    assert "foo[bar] [/bold]" in buf.getvalue()

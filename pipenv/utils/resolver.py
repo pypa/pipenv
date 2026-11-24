@@ -36,6 +36,7 @@ from pipenv.patched.pip._internal.req.req_file import parse_requirements
 from pipenv.patched.pip._internal.req.req_install import InstallRequirement
 from pipenv.patched.pip._internal.utils.temp_dir import global_tempdir_manager
 from pipenv.patched.pip._vendor.packaging.utils import canonicalize_name
+from pipenv.patched.pip._vendor.rich.markup import escape as rich_escape
 from pipenv.resolver.schema import (
     SCHEMA_VERSION,
     InternalError,
@@ -1339,11 +1340,11 @@ def resolve(cmd, st, project, *, deadline_seconds=None):
             if line.rstrip():
                 stderr_lines.append(line)
                 if is_verbose:
-                    st.console.print(line.rstrip())
+                    st.console.print(rich_escape(line.rstrip()))
                 elif _is_download_status_line(line):
                     # Always show download progress so users know pipenv is not
                     # frozen when pip is fetching a large package (issue #5718).
-                    err.print(f"  [dim]{line.rstrip()}[/dim]")
+                    err.print(f"  [dim]{rich_escape(line.rstrip())}[/dim]")
 
     # Start reader threads
     stdout_thread = threading.Thread(target=read_stdout, daemon=True)
@@ -1389,7 +1390,7 @@ def resolve(cmd, st, project, *, deadline_seconds=None):
             f"[pipenv] resolver_timeout_seconds in your Pipfile) to extend, or "
             f"check that your index/mirror is reachable."
         )
-        err.print(f"[red]{msg}[/red]")
+        err.print(f"[red]{rich_escape(msg)}[/red]")
         raise ResolutionFailure(msg)
 
     # Make sure reader threads have finished draining the now-closed pipes
@@ -1723,7 +1724,7 @@ def _run_resolver_subprocess(*, request, python_executable, project, st):
             # double-output.
             if not project.s.is_verbose() and c.stderr and c.stderr.strip():
                 err.print(
-                    f"Warning: {c.stderr.strip()}",
+                    f"Warning: {rich_escape(c.stderr.strip())}",
                     overflow="ignore",
                     crop=False,
                 )
@@ -1744,8 +1745,8 @@ def _run_resolver_subprocess(*, request, python_executable, project, st):
         st.console.print(
             environments.PIPENV_SPINNER_FAIL_TEXT.format("Locking Failed!")
         )
-        err.print(f"Output: {c.stdout.strip()}")
-        err.print(f"Error: {c.stderr.strip()}")
+        err.print(f"Output: {rich_escape(c.stdout.strip())}")
+        err.print(f"Error: {rich_escape(c.stderr.strip())}")
         # Provide helpful hints for common build errors
         # See: https://github.com/pypa/pipenv/issues/6058
         combined_output = (c.stdout + c.stderr).lower()
@@ -1796,7 +1797,7 @@ def _surface_resolver_log(response, project) -> None:
         return
     err.print("[dim]--- resolver log ---[/dim]")
     for record in log:
-        err.print(f"[dim]{record}[/dim]")
+        err.print(f"[dim]{rich_escape(str(record))}[/dim]")
     err.print("[dim]--- end resolver log ---[/dim]")
 
 
