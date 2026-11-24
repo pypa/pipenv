@@ -101,6 +101,7 @@ from pipenv.utils.dependencies import (
     is_editable,
     is_vcs,
     normalize_editable_path_for_pip,
+    normalize_vcs_url,
     pep423_name,
 )
 from pipenv.utils.internet import get_url_name, proper_case
@@ -1045,10 +1046,9 @@ class Pipfile:
                         vcs_part = pip_line.split("@ ", 1)[1]
                     else:
                         vcs_part = pip_line
-                    vcs_parts = vcs_part.rsplit("@", 1)
-                    if len(vcs_parts) > 1:
-                        entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
-                    vcs_url = vcs_parts[0].strip()
+                    vcs_url, vcs_ref = normalize_vcs_url(vcs_part.strip())
+                    if vcs_ref:
+                        entry["ref"] = vcs_ref.split("#", 1)[0].strip()
                     vcs_url = extract_vcs_url(vcs_url)
                     entry[vcs] = vcs_url
 
