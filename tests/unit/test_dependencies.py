@@ -14,6 +14,9 @@ from pipenv.utils.dependencies import (
     _file_url_to_relative_path,
     clean_resolved_dep,
     file_path_from_pipfile,
+    install_req_from_pipfile,
+    parse_metadata_file,
+    parse_pkginfo_file,
 )
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
@@ -1093,3 +1096,180 @@ class TestIsEditable:
         )
         assert self._call(doc["packages"]["foo"]) is True
         assert self._call(doc["packages"]["bar"]) is False
+
+
+class TestInstallReqFromPipfileVcsRef:
+    """A VCS Pipfile entry without a ``ref`` must not produce a URL with an
+    empty revision.
+
+    ``install_req_from_pipfile`` formatted the requirement as
+    ``f"{vcs_url}@{ref}"`` unconditionally, so the common refless entry
+    (``{"git": "https://github.com/user/repo.git"}``) produced
+    ``git+https://github.com/user/repo.git@``.  pip's VCS parser rejects
+    such a URL with ``InstallationError: The URL ... has an empty revision
+    (after @) which is not supported``, which broke e.g.
+    ``pipenv install --skip-lock`` for VCS dependencies (the lockfile path
+    via ``dependency_as_pip_install_line`` already guards the ``@`` with
+    ``if dep.get("ref")``).
+    """
+
+    def test_refless_git_link_has_no_empty_revision(self):
+        from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
+        install_req, _, req_str = install_req_from_pipfile(
+            "requests", {"git": "https://github.com/psf/requests.git"}
+        )
+        assert install_req.link.url == "git+https://github.com/psf/requests.git"
+        # The produced URL must survive pip's own VCS URL parser.
+        url, rev, _ = VcsSupport().get_backend("git").get_url_rev_and_auth(
+            install_req.link.url
+        )
+        assert url == "https://github.com/psf/requests.git"
+        assert rev is None
+
+    def test_refless_git_editable_link_has_no_empty_revision(self):
+        from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
+        install_req, _, req_str = install_req_from_pipfile(
+            "requests", {"git": "https://github.com/psf/requests.git", "editable": True}
+        )
+        assert req_str == "-e requests @ git+https://github.com/psf/requests.git"
+        url, rev, _ = VcsSupport().get_backend("git").get_url_rev_and_auth(
+            install_req.link.url
+        )
+        assert rev is None
+
+    def test_explicit_ref_is_preserved(self):
+        from pipenv.patched.pip._internal.vcs.versioncontrol import VcsSupport
+
+        install_req, _, req_str = install_req_from_pipfile(
+            "requests", {"git": "https://github.com/psf/requests.git", "ref": "v1.0"}
+        )
+        assert req_str == "requests @ git+https://github.com/psf/requests.git@v1.0"
+        url, rev, _ = VcsSupport().get_backend("git").get_url_rev_and_auth(
+            install_req.link.url
+        )
+        assert url == "https://github.com/psf/requests.git"
+        assert rev == "v1.0"
+
+
+class TestParseMetadataFile:
+    """``parse_metadata_file``/``parse_pkginfo_file`` contract: return the
+    project name, or None when it cannot be found — never raise.
+
+    Both functions used ``line.split("Name: ")[1]``, which raised an
+    IndexError on metadata lines without the space after the colon
+    (``Name:pypa``), crashing best-effort package-name discovery for local
+    directories and archives.
+    """
+
+    def test_name_with_space(self):
+        assert parse_metadata_file("Metadata-Version: 2.1\nName: pypa\n") == "pypa"
+
+    def test_name_without_space(self):
+        assert parse_metadata_file("Metadata-Version: 2.1\nName:pypa\n") == "pypa"
+
+    def test_empty_name_value_returns_none(self):
+        assert parse_metadata_file("Name:\nVersion: 1.0\n") is None
+
+    def test_missing_name_returns_none(self):
+        assert parse_metadata_file("Version: 1.0\n") is None
+
+    def test_pkginfo_name_without_space(self):
+        assert parse_pkginfo_file("Name:no-space\nVersion: 1.0\n") == "no-space"
+
+
+class TestInstallReqFromPipfileVcsExtras:
+    """A Pipfile VCS entry that carries ``extras`` must not glue the extras
+    onto the VCS URL.
+
+    ``install_req_from_pipfile`` builds the PEP 508 direct-reference form
+    ``name[extras] @ <vcs_url>@<ref>`` itself, so appending the extras a
+    second time to the raw URL produces ``...@<ref>[extra]`` — pip then
+    treats ``<ref>[extra]`` as the VCS revision, and ``git checkout`` of
+    that revision fails (brackets are invalid in git refnames).
+    """
+
+    def _build(self, pipfile_entry):
+        from pipenv.utils.dependencies import install_req_from_pipfile
+
+        return install_req_from_pipfile("requests", pipfile_entry)
+
+    def test_vcs_with_ref_and_extras_keeps_extras_off_url(self):
+        _install_req, _markers, req_str = self._build(
+            {"git": "https://github.com/psf/requests.git", "ref": "v2.31.0", "extras": ["socks"]}
+        )
+        assert req_str == (
+            "requests[socks] @ git+https://github.com/psf/requests.git@v2.31.0"
+        )
+
+    def test_vcs_with_ref_and_extras_link_has_clean_revision(self):
+        from pipenv.utils.dependencies import get_vcs_backend
+
+        install_req, _markers, _req_str = self._build(
+            {"git": "https://github.com/psf/requests.git", "ref": "v2.31.0", "extras": ["socks"]}
+        )
+        url, rev, _auth = get_vcs_backend("git").get_url_rev_and_auth(install_req.link.url)
+        assert url == "https://github.com/psf/requests.git"
+        assert rev == "v2.31.0"
+
+    def test_vcs_without_extras_with_ref_unchanged(self):
+        _install_req, _markers, req_str = self._build(
+            {"git": "https://github.com/psf/requests.git", "ref": "v2.31.0"}
+        )
+        assert req_str == (
+            "requests @ git+https://github.com/psf/requests.git@v2.31.0"
+        )
+
+
+class TestNameDiscoveryParsersMalformedInput:
+    """The name-discovery parsers feed ``determine_package_name`` (best-effort,
+    contract: return None when the name cannot be determined).  Malformed
+    input files must not raise — ``determine_package_name`` only guards
+    PermissionError, so any parser exception aborts ``pipenv install ./dir``.
+    """
+
+    def _setup(self, content):
+        from pipenv.utils.dependencies import parse_setup_file
+
+        return parse_setup_file(content)
+
+    def _cfg(self, content):
+        from pipenv.utils.dependencies import parse_cfg_file
+
+        return parse_cfg_file(content)
+
+    def _toml(self, content):
+        from pipenv.utils.dependencies import parse_toml_file
+
+        return parse_toml_file(content)
+
+    # --- valid input still works (guards against over-broad try/except) ---
+
+    def test_valid_setup_py(self):
+        assert self._setup("NAME = 'mypkg'\nsetup(name=NAME)\n") == "mypkg"
+
+    def test_valid_cfg(self):
+        assert self._cfg("[metadata]\nname = mypkg\n") == "mypkg"
+
+    def test_valid_toml_project(self):
+        assert self._toml('[project]\nname = "mypkg"\n') == "mypkg"
+
+    # --- malformed input must return None, not raise ---
+
+    def test_setup_py_syntax_error_returns_none(self):
+        assert self._setup("def broken(\n") is None
+
+    def test_cfg_duplicate_option_returns_none(self):
+        assert self._cfg("[metadata]\nname = a\nname = b\n") is None
+
+    def test_cfg_missing_section_header_returns_none(self):
+        assert self._cfg("name = mypkg\n") is None
+
+    def test_toml_decode_error_returns_none(self):
+        assert self._toml("not [valid") is None
+
+    def test_toml_poetry_without_name_returns_none(self):
+        content = '[tool.poetry]\npackages = [{include = "mylib"}]\n'
+        assert self._toml(content) is None
+ 

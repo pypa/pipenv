@@ -678,7 +678,11 @@ def parse_metadata_file(content: str):
 
     for line in content.splitlines():
         if line.startswith("Name:"):
-            return line.split("Name: ")[1].strip()
+            # The space after the colon is optional in hand-written metadata;
+            # "Name:pypa" must be parsed rather than raising IndexError.
+            name = line.split(":", 1)[1].strip()
+            if name:
+                return name
 
     return None
 
@@ -695,7 +699,10 @@ def parse_pkginfo_file(content: str):
     """
     for line in content.splitlines():
         if line.startswith("Name:"):
-            return line.split("Name: ")[1].strip()
+            # Same as parse_metadata_file: tolerate a missing space.
+            name = line.split(":", 1)[1].strip()
+            if name:
+                return name
 
     return None
 
@@ -744,7 +751,7 @@ def parse_setup_file(content):
                                 ):
                                     if isinstance(keyword.value.slice.value, str):
                                         return keyword.value.slice.value
-    except ValueError:
+    except (ValueError, SyntaxError):
         pass  # We will not exec unsafe code to determine the name pre-resolver
 
     return None
@@ -752,7 +759,13 @@ def parse_setup_file(content):
 
 def parse_cfg_file(content):
     config = configparser.ConfigParser()
-    config.read_string(content)
+    try:
+        config.read_string(content)
+    except configparser.Error:
+        # Malformed config files (missing section headers, duplicate options,
+        # bad indentation, ...) mean the name cannot be determined here;
+        # callers treat None as best-effort "not found".
+        return None
     try:
         return config["metadata"]["name"]
     except configparser.NoSectionError:
@@ -762,11 +775,16 @@ def parse_cfg_file(content):
 
 
 def parse_toml_file(content):
-    toml_dict = tomllib.loads(content)
+    try:
+        toml_dict = tomllib.loads(content)
+    except tomllib.TOMLDecodeError:
+        # Malformed pyproject.toml - the name cannot be determined here.
+        return None
     if "project" in toml_dict and "name" in toml_dict["project"]:
         return toml_dict["project"]["name"]
     if "tool" in toml_dict and "poetry" in toml_dict["tool"]:
-        return toml_dict["tool"]["poetry"]["name"]
+        # Poetry projects may omit ``name`` when it lives in ``[project]``.
+        return toml_dict["tool"]["poetry"].get("name")
 
     return None
 
@@ -1438,8 +1456,18 @@ def install_req_from_pipfile(
             vcs_url, fallback_ref = normalize_vcs_url(vcs_url)
             ref = _pipfile.get("ref", fallback_ref)
 
-            # Construct requirement string
-            req_str = f"{vcs_url}@{ref}{extras_str}"
+            # Construct requirement string.  Only append the "@<ref>" suffix
+            # when a ref actually exists — an unconditional "@" leaves a
+            # trailing empty-revision URL (the common refless git Pipfile
+            # entry) that pip's VCS parser rejects with
+            # "The URL ... has an empty revision (after @) which is not
+            # supported", breaking e.g. `pipenv install --skip-lock` for
+            # VCS dependencies.  Extras belong on the name in the PEP 508
+            # "name[extras] @ url" form — appending them to the URL would
+            # make pip read the revision as "<ref>[extras]", which git
+            # cannot check out because brackets are invalid in refnames.
+            ref_str = f"@{ref}" if ref else ""
+            req_str = f"{vcs_url}{ref_str}"
             if not req_str.startswith(f"{vcs}+"):
                 req_str = f"{vcs}+{req_str}"
 
@@ -1447,7 +1475,6 @@ def install_req_from_pipfile(
                 req_str = f"-e {name}{extras_str} @ {req_str}{subdirectory}"
             else:
                 req_str = f"{name}{extras_str} @ {req_str}{subdirectory}"
-
         except PipenvUsageError as e:
             raise PipenvUsageError(
                 f"Error processing VCS URL for requirement '{name}': {str(e)}"
