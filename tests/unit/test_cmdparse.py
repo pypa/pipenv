@@ -1,6 +1,7 @@
 import pytest
 
 from pipenv.cmdparse import Script, ScriptEmptyError, ScriptParseError
+from pipenv.vendor import tomlkit
 
 # ---------------------------------------------------------------------------
 # Single-command parse
@@ -89,6 +90,42 @@ def test_parse_sequence_blank_element_raises():
 def test_parse_sequence_non_string_element_raises():
     with pytest.raises(ScriptParseError):
         Script.parse(["pytest", 42])
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_parse_empty_inline_table_raises_clean_error():
+    """A ``[scripts] name = {}`` entry raises ScriptEmptyError, not IndexError.
+
+    Regression: tomlkit parses ``{}`` as an empty InlineTable, and
+    ``_parse_toml_inline_table`` indexed ``keys_list[0]`` without checking,
+    so ``pipenv run name`` crashed with a raw IndexError traceback.
+    """
+    table = tomlkit.inline_table()
+    with pytest.raises(ScriptEmptyError):
+        Script.parse(table)
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_parse_inline_table_without_call_key_raises_clean_error():
+    """An inline table without a recognised callable key raises ScriptParseError."""
+    table = tomlkit.inline_table()
+    table["cmd"] = "foo"
+    with pytest.raises(ScriptParseError):
+        Script.parse(table)
+
+
+@pytest.mark.run
+@pytest.mark.script
+def test_parse_unsupported_type_raises_clean_error():
+    """A non-string/list/table [scripts] entry raises ScriptParseError, not TypeError.
+
+    Regression: ``Script.parse(42)`` (e.g. ``[scripts] name = 42``) raised a
+    raw TypeError from item subscripting instead of a clean, catchable error.
+    """
+    with pytest.raises(ScriptParseError):
+        Script.parse(42)
 
 
 @pytest.mark.run

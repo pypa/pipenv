@@ -76,7 +76,7 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
     (equivalent to shell ``&&`` chaining).
     """
 
-    from pipenv.cmdparse import ScriptEmptyError
+    from pipenv.cmdparse import ScriptEmptyError, ScriptParseError
 
     env = os.environ.copy()
 
@@ -126,6 +126,9 @@ def do_run(project, command, args, python=False, pypi_mirror=None, system=False)
         script = project.pipfile.build_script(command, args)
     except ScriptEmptyError:
         err.print("Can't run script {0!r}-it's empty?")
+        return
+    except ScriptParseError as e:
+        err.print(f"Can't run script {command!r}: {e}")
         return
 
     # Extract any inline env var assignments that prefix the real command,

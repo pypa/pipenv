@@ -29,6 +29,8 @@ def _quote_if_contains(value, pattern):
 def _parse_toml_inline_table(value: tomlkit.items.InlineTable) -> str:
     """parses the [scripts] in pipfile and converts: `{call = "package.module:func('arg')"}` into an executable command"""
     keys_list = list(value.keys())
+    if not keys_list:
+        raise ScriptEmptyError(value)
     if len(keys_list) > 1:
         raise ScriptParseError("More than 1 key in toml script line")
     cmd_key = keys_list[0]
@@ -90,6 +92,11 @@ class Script:
             value = shlex.split(cmd_string)
         elif isinstance(value, str):
             value = shlex.split(value)
+        else:
+            raise ScriptParseError(
+                "Script must be a string, a list of strings, or an inline "
+                f"table with a 'call' key; got {type(value).__name__}"
+            )
         if not value:
             raise ScriptEmptyError(value)
         return cls(value[0], value[1:])
