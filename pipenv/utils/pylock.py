@@ -173,8 +173,10 @@ class PylockFile:
             for name, package_data in packages.items():
                 marker = package_data.get("markers")
                 marker = f"({group_marker}) and ({marker})" if marker else group_marker
+                # Pipfile.lock keys keep dots; PEP 751 names must be normalized.
+                normalized_name = canonicalize_name(name)
                 shared_entry = next(
-                    (entry for original, entry in entries_by_name.get(name, [])
+                    (entry for original, entry in entries_by_name.get(normalized_name, [])
                      if _same_locked_package(original, package_data)),
                     None,
                 )
@@ -182,8 +184,10 @@ class PylockFile:
                     shared_entry["marker"] = f"({shared_entry['marker']}) or ({marker})"
                     continue
 
-                package: Dict[str, Any] = {"name": name, "marker": marker}
-                entries_by_name.setdefault(name, []).append((package_data, package))
+                package: Dict[str, Any] = {"name": normalized_name, "marker": marker}
+                entries_by_name.setdefault(normalized_name, []).append(
+                    (package_data, package)
+                )
 
                 # Add version if present and not a wildcard
                 if "version" in package_data:
