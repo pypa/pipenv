@@ -1,1 +1,0 @@
-Normalize package names in generated ``pylock.toml`` files as PEP 751 requires, so that pip no longer rejects dependencies such as ``jaraco.classes``.

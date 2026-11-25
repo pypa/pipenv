@@ -1,3 +1,16 @@
+2026.12.1 (2026-11-25)
+======================
+pipenv 2026.12.1 (2026-11-25)
+=============================
+
+
+Bug Fixes
+---------
+
+- Normalize package names in generated ``pylock.toml`` files as PEP 751 requires, so that pip no longer rejects dependencies such as ``jaraco.classes``.  `#6807 <https://github.com/pypa/pipenv/issues/6807>`_
+- ``pipenv clean`` now displays pip's error output when a package cannot be uninstalled.  `#clean-uninstall-stderr <https://github.com/pypa/pipenv/issues/clean-uninstall-stderr>`_
+- Fixed ``pipenv requirements --no-lock`` dropping shorthand environment markers such as ``platform_machine`` from Pipfile entries.  `#no-lock-shorthand-markers <https://github.com/pypa/pipenv/issues/no-lock-shorthand-markers>`_
+
 2026.12.0 (2026-11-24)
 ======================
 pipenv 2026.12.0 (2026-11-24)
