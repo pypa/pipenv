@@ -2065,12 +2065,19 @@ def requirement_from_pipfile(package_name, package_spec, include_markers=True):
     # Process markers
     markers = ""
     if include_markers:
-        # Handle sys_platform and other common markers
-        marker_parts = []
-        if "markers" in package_spec and package_spec["markers"]:
-            marker_parts.append(package_spec["markers"])
-        if "sys_platform" in package_spec and package_spec["sys_platform"]:
-            marker_parts.append(f"sys_platform {package_spec['sys_platform']}")
+        # Handle "markers" and the shorthand keys (sys_platform, platform_machine, ...)
+        from pipenv.patched.pip._vendor.packaging.markers import default_environment
+
+        marker_parts = [
+            f"{key} {package_spec[key]}"
+            for key in default_environment()
+            if package_spec.get(key)
+        ]
+        explicit = package_spec.get("markers")
+        if explicit:
+            if marker_parts and re.search(r"\bor\b", explicit):
+                explicit = f"({explicit})"
+            marker_parts.insert(0, explicit)
 
         if marker_parts:
             markers = "; " + " and ".join(marker_parts)
