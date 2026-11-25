@@ -1,0 +1,1 @@
+Fixed marker translation so extra-gated dependencies retain their remaining PEP 508 environment conditions instead of dropping the whole marker.
