@@ -66,22 +66,21 @@ def test_release_preserves_literal_tag_notes(monkeypatch, tmp_path, pre, dry_run
 
     release_tasks.release.body(ctx, resume=True, pre=pre, dry_run=dry_run)
 
-    tag_commands = [
-        call.args[0]
-        for call in ctx.run.call_args_list
-        if call.args[0].startswith("git tag ")
+    tag_calls = [
+        call for call in ctx.run.call_args_list if call.args[0].startswith("git tag ")
     ]
     if dry_run:
-        assert not tag_commands
+        assert not tag_calls
         return
 
-    assert len(tag_commands) == 1
+    assert len(tag_calls) == 1
+    (tag_call,) = tag_calls
     # Run the generated command through Invoke's shell in an isolated repository.
     subprocess.run(["git", "init", "--quiet"], check=True)
     for key, value in [("user.name", "Release Test"), ("user.email", "test@example.com")]:
         subprocess.run(["git", "config", key, value], check=True)
     subprocess.run(["git", "commit", "--allow-empty", "-m", "Initial commit"], check=True, capture_output=True)
-    result = invoke.Context().run(tag_commands[0], hide=True, in_stream=False)
+    result = invoke.Context().run(tag_call.args[0], hide=True, **tag_call.kwargs)
 
     assert not result.stderr
     assert not (tmp_path / "dollar-expanded").exists()

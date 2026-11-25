@@ -1,7 +1,7 @@
+import io
 import os
 import pathlib
 import re
-import shlex
 import subprocess
 import sys
 
@@ -110,10 +110,11 @@ def release(
     if dry_run or pre:
         log(f"Generated tag content: {tag_content}")
     if not dry_run:
+        # Feed the message via stdin so no shell (POSIX sh or cmd.exe) ever
+        # interprets the changelog's quotes, backticks, dollars or backslashes.
         ctx.run(
-            shlex.join(
-                ["git", "tag", "-a", f"v{version}", "-m", f"Version v{version}\n\n{tag_content}"]
-            )
+            f"git tag -a v{version} -F -",
+            in_stream=io.StringIO(f"Version v{version}\n\n{tag_content}"),
         )
 
 
