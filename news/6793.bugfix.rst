@@ -1,1 +1,0 @@
-Fix ``pipenv graph --json``, ``--json-tree`` and ``--bare`` printing invalid JSON when a line is wider than the terminal, by no longer letting Rich wrap or interpret markup in the output.

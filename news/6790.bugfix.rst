@@ -1,2 +1,0 @@
-Preserve literal percent escapes in local file paths when converting file URLs,
-so requirements files with names such as ``requirements%20dev.txt`` can be opened.

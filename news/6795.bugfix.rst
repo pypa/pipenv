@@ -1,2 +1,0 @@
-Constraint files no longer keep the ``--cache-dir`` path as a stray option,
-which broke ``pipenv install`` when the cache path contained a quote.

@@ -1,3 +1,46 @@
+2026.12.0 (2026-11-24)
+======================
+pipenv 2026.12.0 (2026-11-24)
+=============================
+
+
+Bug Fixes
+---------
+
+- Keep the ``sys_platform`` key of path and file entries in the output of ``pipenv requirements --from-pipfile``,
+  as is already done for version and VCS entries.
+- Uninstall editable packages by their resolved distribution name instead of passing
+  editable install arguments to pip, so ``pipenv uninstall -e ./package`` also
+  removes the installed package from the environment.
+- ``pipenv install -r <url>`` now imports the downloaded requirements file.
+  The temporary file was deleted before it was read,
+  and on Windows the download could not open it.  `#6786 <https://github.com/pypa/pipenv/issues/6786>`_
+- Preserve literal percent escapes in local file paths when converting file URLs,
+  so requirements files with names such as ``requirements%20dev.txt`` can be opened.  `#6790 <https://github.com/pypa/pipenv/issues/6790>`_
+- Fix ``pipenv graph --json``, ``--json-tree`` and ``--bare`` printing invalid JSON when a line is wider than the terminal, by no longer letting Rich wrap or interpret markup in the output.  `#6793 <https://github.com/pypa/pipenv/issues/6793>`_
+- Constraint files no longer keep the ``--cache-dir`` path as a stray option,
+  which broke ``pipenv install`` when the cache path contained a quote.  `#6795 <https://github.com/pypa/pipenv/issues/6795>`_
+- ``pipenv install --skip-lock`` no longer generates VCS requirement URLs with an empty ``@`` revision for Pipfile entries without a ``ref``, and metadata parsing no longer raises ``IndexError`` for ``Name:`` fields without a trailing space.  `#6798 <https://github.com/pypa/pipenv/issues/6798>`_,
+  `#6799 <https://github.com/pypa/pipenv/issues/6799>`_
+- Numeric ``PIPENV_*`` environment variables (``PIPENV_INSTALL_TIMEOUT``, ``PIPENV_MAX_DEPTH``, ``PIPENV_TIMEOUT``, ``PIPENV_REQUESTS_TIMEOUT``, ``PIPENV_MAX_RETRIES``) no longer crash every Pipenv command with a ``ValueError`` traceback when set to a non-integer value; the documented default is used instead.  `#env-int-settings-fallback <https://github.com/pypa/pipenv/issues/env-int-settings-fallback>`_
+- Keep the ``extras`` of file/path dependencies in ``pipenv requirements`` output
+  (with and without ``--no-lock``) instead of silently dropping them.  `#requirements-path-extras <https://github.com/pypa/pipenv/issues/requirements-path-extras>`_
+- Escape Rich markup in pip's stdout/stderr when printing ``Locking Failed!`` and ``pipenv graph`` errors, so bracketed text such as ``requests[security]`` is no longer swallowed or misparsed.  `#resolver-escape-rich-markup <https://github.com/pypa/pipenv/issues/resolver-escape-rich-markup>`_
+- Fix the direct ``pip install safety`` retry in ``pipenv check`` and ``pipenv scan``, which raised a swallowed ``TypeError`` and never ran.  `#safety-direct-install-retry <https://github.com/pypa/pipenv/issues/safety-direct-install-retry>`_
+- ``pipenv run`` no longer crashes with a raw ``IndexError``/``TypeError`` traceback when a ``[scripts]`` entry is malformed (e.g. an empty inline table ``name = {}`` or a non-string value); a clean error naming the script is printed instead.  `#scripts-malformed-entry <https://github.com/pypa/pipenv/issues/scripts-malformed-entry>`_
+- Fix ``pipenv clean`` and ``pipenv uninstall`` aborting with a traceback at the first failing ``pip uninstall`` instead of continuing with the remaining packages and exiting non-zero.  `#uninstall-failure-continues <https://github.com/pypa/pipenv/issues/uninstall-failure-continues>`_
+- Show pip's error output when ``pipenv uninstall`` fails to uninstall a package, instead of only a generic message.  `#uninstall-stderr <https://github.com/pypa/pipenv/issues/uninstall-stderr>`_
+
+Relates to dev process changes
+------------------------------
+
+- Quote release tag messages safely so changelog backticks, dollar signs, quotes,
+  and backslashes are preserved instead of being interpreted by the shell.
+- Fix the vendoring license download on Python 3.15 CI runners:
+  install ``setuptools`` for ``--no-build-isolation`` sdist builds,
+  skip ``# via`` annotation lines in ``vendor.txt``,
+  and find the missing build backend anywhere in pip's error output.
+
 2026.11.0 (2026-11-08)
 ======================
 pipenv 2026.11.0 (2026-11-08)
