@@ -1,0 +1,4 @@
+``pipenv scripts`` now reports a malformed ``[scripts]`` entry with a
+one-line message and exit status 1 instead of raising an unhandled
+``TypeError``.  A non-string value such as ``bad = 42`` is rejected the
+same way ``pipenv run bad`` already rejects it.

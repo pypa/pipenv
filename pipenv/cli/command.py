@@ -499,7 +499,17 @@ def cmd_scripts(args, state):
     if not state.project.pipfile.exists:
         err.print("No Pipfile present at project home.")
         sys.exit(1)
+    from pipenv.cmdparse import Script, ScriptEmptyError, ScriptParseError
+
     scripts_dict = state.project.pipfile.parsed.get("scripts", {})
+    for name, value in scripts_dict.items():
+        if isinstance(value, str):
+            continue
+        try:
+            Script.parse(value)
+        except (ScriptEmptyError, ScriptParseError) as e:
+            err.print(f"Can't list script {name!r}: {e}")
+            sys.exit(1)
     first_column_width = max(len(word) for word in ["Command"] + list(scripts_dict))
     second_column_width = max(
         len(word) for word in ["Script"] + list(scripts_dict.values())
