@@ -114,3 +114,28 @@ def test_vcs_ref_strips_fragment(entry_for):
 
     assert entry["ref"] == "main"
     assert entry["subdirectory"] == "pkg"
+
+
+@pytest.mark.utils
+@pytest.mark.parametrize(
+    "line, expected_ref",
+    [
+        ("git+https://${GIT_REPO}@2.16", "2.16"),
+        ("git+https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_REPO}@2.16", "2.16"),
+        ("git+https://${GIT_REPO}", None),
+        ("git+https://${GIT_USERNAME}:${GIT_PASSWORD}@${GIT_REPO}", None),
+    ],
+)
+def test_vcs_ref_split_when_host_is_unexpanded_env_var(entry_for, line, expected_ref):
+    """With an unexpanded host, the revision lands in the netloc, not the path.
+
+    ``normalize_vcs_url()`` only splits on an ``@`` inside the parsed path, so
+    without this handling the ref stays glued to the URL and git clone tries to
+    fetch ``.../adaptix.git@2.16/``.
+    """
+    entry = entry_for(line)
+
+    assert entry.get("ref") == expected_ref
+    # The revision must not remain in the recorded URL.
+    if expected_ref:
+        assert not entry["git"].endswith(f"@{expected_ref}")
