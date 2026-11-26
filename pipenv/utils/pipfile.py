@@ -85,7 +85,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
+from urllib.parse import unquote, urlparse
 
 from pipenv import environments
 from pipenv.utils import console, err
@@ -101,6 +101,7 @@ from pipenv.utils.dependencies import (
     is_editable,
     is_vcs,
     normalize_editable_path_for_pip,
+    normalize_vcs_url,
     pep423_name,
 )
 from pipenv.utils.internet import get_url_name, proper_case
@@ -1045,10 +1046,35 @@ class Pipfile:
                         vcs_part = pip_line.split("@ ", 1)[1]
                     else:
                         vcs_part = pip_line
-                    vcs_parts = vcs_part.rsplit("@", 1)
-                    if len(vcs_parts) > 1:
-                        entry["ref"] = vcs_parts[1].split("#", 1)[0].strip()
-                    vcs_url = vcs_parts[0].strip()
+                    vcs_part = vcs_part.strip()
+                    # When the host is an unexpanded environment variable
+                    # (e.g. git+https://${GIT_REPO}@2.16), the revision lands in
+                    # the parsed netloc rather than the path, so
+                    # normalize_vcs_url() cannot see it. Split it here, before
+                    # handing the URL over, otherwise the ref stays glued to
+                    # the URL and git clone tries to fetch "...repo.git@2.16".
+                    parsed_part = urlparse(vcs_part)
+                    if "@" in parsed_part.netloc and not parsed_part.path:
+                        prefix, _, suffix = vcs_part.rpartition("@")
+                        # A revision is a literal tag/branch name, so it never
+                        # contains an unexpanded ${VAR}; when the suffix is
+                        # itself a variable it is the host, not a ref.
+                        if (
+                            suffix
+                            and "$" not in suffix
+                            and "://" not in suffix
+                            and "/" not in suffix
+                        ):
+                            vcs_part = prefix
+                            vcs_ref = suffix.split("#", 1)[0].strip()
+                        else:
+                            vcs_ref = ""
+                    else:
+                        vcs_ref = ""
+                    vcs_url, path_ref = normalize_vcs_url(vcs_part)
+                    vcs_ref = path_ref or vcs_ref
+                    if vcs_ref:
+                        entry["ref"] = vcs_ref.split("#", 1)[0].strip()
                     vcs_url = extract_vcs_url(vcs_url)
                     entry[vcs] = vcs_url
 
