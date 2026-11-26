@@ -174,6 +174,59 @@ def pep423_name(name):
     return name
 
 
+def _strip_extra_marker_clauses(marker: Marker) -> Optional[Marker]:
+    """Return ``marker`` without comparisons against the ``extra`` variable.
+
+    Extra gates are resolved by the time a dependency is locked or converted
+    to an install line, but the remaining platform and Python constraints are
+    still meaningful.  Removing textually would also remove values such as
+    ``"5.15-extra"``, so filter the parsed marker tree instead.
+    """
+    from pipenv.patched.pip._vendor.packaging.markers import _format_marker
+
+    def is_extra_clause(node):
+        if not isinstance(node, tuple) or len(node) != 3:
+            return False
+        lhs, _op, rhs = node
+        return getattr(lhs, "value", None) == "extra" or getattr(rhs, "value", None) == "extra"
+
+    def walk(markers):
+        nodes = []
+        for node in markers:
+            if isinstance(node, list):
+                subnodes = walk(node)
+                if subnodes:
+                    nodes.append(subnodes)
+            elif isinstance(node, tuple):
+                if not is_extra_clause(node):
+                    nodes.append(node)
+            else:
+                nodes.append(node)
+
+        while nodes and isinstance(nodes[0], str):
+            nodes.pop(0)
+        while nodes and isinstance(nodes[-1], str):
+            nodes.pop()
+
+        cleaned = []
+        previous_was_joiner = False
+        for node in nodes:
+            is_joiner = isinstance(node, str)
+            if is_joiner and previous_was_joiner:
+                continue
+            cleaned.append(node)
+            previous_was_joiner = is_joiner
+        return cleaned
+
+    stripped = walk(list(marker._markers))
+    if not stripped:
+        return None
+    try:
+        return Marker(_format_marker(stripped))
+    except Exception:
+        return None
+
+
 def translate_markers(pipfile_entry: Mapping[str, Any]) -> Dict[str, Any]:
     from pipenv.patched.pip._vendor.packaging.markers import default_environment
 
@@ -185,9 +238,9 @@ def translate_markers(pipfile_entry: Mapping[str, Any]) -> Dict[str, Any]:
     if "markers" in new_pipfile:
         marker_str = new_pipfile.pop("markers")
         if marker_str:
-            marker = str(Marker(marker_str))
-            if "extra" not in marker:
-                marker_set.add(marker)
+            stripped_marker = _strip_extra_marker_clauses(Marker(marker_str))
+            if stripped_marker is not None:
+                marker_set.add(str(stripped_marker))
     for m in pipfile_markers:
         entry = f"{pipfile_entry[m]}"
         if m != "markers":

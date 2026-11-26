@@ -19,6 +19,7 @@ from pipenv.utils.dependencies import (
     parse_metadata_file,
     parse_pkginfo_file,
     prepare_constraint_file,
+    translate_markers,
 )
 from pipenv.vendor.packaging.specifiers import SpecifierSet
 
@@ -1304,3 +1305,33 @@ def test_prepare_constraint_file_drops_cache_dir_value(tmp_path):
     assert not any("build-isolation" in line for line in lines)
     for line in lines:
         shlex.split(line)
+
+
+def test_translate_markers_strips_extra_clause_and_preserves_sibling_conditions():
+    entry = {
+        "version": "==1.0.0",
+        "markers": "sys_platform == 'win32' and extra == 'socks'",
+    }
+
+    assert translate_markers(entry) == {
+        "version": "==1.0.0",
+        "markers": "sys_platform == 'win32'",
+    }
+
+
+def test_translate_markers_preserves_non_extra_marker_literal_containing_extra():
+    entry = {
+        "version": "==1.0.0",
+        "markers": "platform_release != '5.15-extra'",
+    }
+
+    assert translate_markers(entry) == {
+        "version": "==1.0.0",
+        "markers": "platform_release != '5.15-extra'",
+    }
+
+
+def test_translate_markers_omits_bare_extra_clause():
+    entry = {"version": "==1.0.0", "markers": "extra == 'socks'"}
+
+    assert translate_markers(entry) == {"version": "==1.0.0"}
