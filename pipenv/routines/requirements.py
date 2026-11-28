@@ -3,6 +3,7 @@ import sys
 
 from pipenv.utils.dependencies import (
     get_lockfile_section_using_pipfile_category,
+    get_pipfile_category_using_lockfile_section,
     requirements_from_lockfile,
     requirements_from_pipfile,
 )
@@ -88,8 +89,10 @@ def generate_requirements(
             category_deps = lockfile.get(lockfile_category, {})
             if from_pipfile:
                 # Use the specific category's package names, not combined
+                # (keyed by Pipfile category, so map ``default``/``develop`` back)
                 category_package_names = pipfile_package_names.get(
-                    category.strip(), set()
+                    get_pipfile_category_using_lockfile_section(category.strip()),
+                    set(),
                 )
                 category_deps = {
                     k: v for k, v in category_deps.items() if k in category_package_names
@@ -159,7 +162,9 @@ def _generate_requirements_from_pipfile(
 
     if categories_list:
         for category in categories_list:
-            category_deps = project.pipfile.get_section(category.strip())
+            category_deps = project.pipfile.get_section(
+                get_pipfile_category_using_lockfile_section(category.strip())
+            )
             deps.update(category_deps)
     else:
         if dev or dev_only:
